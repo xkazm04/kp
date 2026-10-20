@@ -45,7 +45,7 @@ export async function runCampaign(
   signal?: AbortSignal,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<{ pack: unknown }> {
-  const job = getJob(params.jobId);
+  const job = getJob(params.jobId, workspaceId);
   if (!job) throw new CampaignError("Job not found.", 404);
   const lang = resolveLang(params.lang);
 

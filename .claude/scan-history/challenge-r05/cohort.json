@@ -1,0 +1,72 @@
+{
+  "cohort": [
+    {
+      "name": "profile-roster-matrix",
+      "group": "Candidate Intelligence",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "analytics-metrics",
+      "group": "Analytics & Reporting",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-core",
+      "group": "Developer Assessment",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "tests-pipeline-automation",
+      "group": "AI & LLM Infrastructure",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "workspace-config-api",
+      "group": "Platform Administration",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "platform-admin-ops",
+          "files": 5
+        }
+      ]
+    },
+    {
+      "name": "ats-sync-egress",
+      "group": "ATS Integration",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "billing-plan-and-spend",
+      "group": "Billing & Subscriptions",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "billing-api",
+          "files": 8
+        }
+      ]
+    },
+    {
+      "name": "pipeline-actions-commands",
+      "group": "Hiring Pipeline",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 159
+}

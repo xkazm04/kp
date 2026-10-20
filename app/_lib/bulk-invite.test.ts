@@ -49,3 +49,26 @@ test("partitionBulkInviteTargets: the cap splits inviteable overflow, not unaddr
   assert.deepEqual(unaddressable, [named]);
   assert.deepEqual(overflow, [c]);
 });
+
+// challenge-r09 comms-locale-optout/A — the planner asks the ONE recipient cascade
+// (comms-recipient.ts) instead of a private copy, and a SEND-GATE refusal is its own
+// bucket, never folded into "unaddressable" and never into "inviteable".
+test("bulk-invite.ts declares no recipient cascade of its own", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("./bulk-invite.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /function bulkInviteRecipient/, "the private cascade copy is gone");
+  assert.doesNotMatch(src, /\.trim\(\) \|\| \(entry\.candidateLabel/, "no inline copy of the cascade either");
+  assert.match(src, /resolveCandidateRecipient/, "it resolves through comms-recipient.ts");
+});
+
+test("partitionBulkInviteTargets: a send-gate refusal lands in `suppressed`, not in inviteable", () => {
+  const ok = { id: "ok", contact: "ok@example.com" };
+  const lapsed = { id: "lapsed", contact: "lapsed@example.com" };
+  const named = { id: "named", contact: null, candidateLabel: "Jane Doe" };
+  const verdictOf = (e: { id: string }) =>
+    e.id === "lapsed" ? ({ ok: false, reason: "consent_expired", code: "COMMS_SUPPRESSED" } as const) : null;
+  const { inviteable, unaddressable, suppressed } = partitionBulkInviteTargets([ok, lapsed, named], BULK_INVITE_CAP, verdictOf);
+  assert.deepEqual(inviteable.map((e) => e.id), ["ok"]);
+  assert.deepEqual(unaddressable.map((e) => e.id), ["named"]);
+  assert.deepEqual(suppressed.map((e) => e.id), ["lapsed"]);
+});

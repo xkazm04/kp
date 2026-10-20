@@ -51,7 +51,7 @@ export function MatrixCandidateFocus() {
     result, matchRef,
     loading,
     filed, recordFiled,
-    runMatchFor, runMatch, expandRankedField,
+    runMatchFor, runMatch, rerunMatch, expandRankedField,
     view,
   } = useMatchTabRun(t);
 
@@ -162,6 +162,7 @@ export function MatrixCandidateFocus() {
               onShowRemaining={expandRankedField}
               filed={filed}
               onFiled={recordFiled}
+              onRerun={rerunMatch}
             />
           </div>
         ) : view.kind === "error" ? (

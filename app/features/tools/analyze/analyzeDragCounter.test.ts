@@ -108,7 +108,11 @@ test("both drop zones announce themselves to assistive tech", () => {
   assert.match(cvZone, /id="profile-file-0-hint"/);
   // The drop-anywhere overlay is aria-hidden decoration; the fact it conveys is
   // announced through a polite live region that is ALWAYS mounted (a region added
-  // at the same moment as its text is not reliably announced).
-  assert.match(cvZone, /aria-live="polite"/);
-  assert.match(cvZone, /isWindowDragging \? `\$\{t\("dropCvAnywhere"\)\} \$\{t\("dropCarveout"\)\}` : ""/);
+  // at the same moment as its text is not reliably announced). Both now live on the
+  // form that hosts the one window listener (challenge-r03 cv-analyze-intake/A),
+  // not in the CV column.
+  const form = read("./AnalyzeForm.tsx");
+  assert.match(form, /aria-live="polite"/);
+  assert.match(form, /isWindowDragging \? `\$\{t\("dropCvAnywhere"\)\} \$\{t\("dropCarveout"\)\}` : ""/);
+  assert.doesNotMatch(cvZone, /aria-live="polite"/, "the overlay's live region is not rendered twice");
 });

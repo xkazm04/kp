@@ -5,6 +5,7 @@ import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { setBridgeConfig } from "@/app/_lib/agent-hire/bridge-store";
 import { claimPairing, startPairing, type PairFailure } from "@/app/_lib/agent-hire/pairing";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Agent-candidate bridge — the two-phase Personas pairing flow (operator-gated):
 //   POST {phase:"start", baseUrl?}       → registers a pairing request, returns
@@ -45,7 +46,7 @@ function refusal(result: PairFailure): NextResponse {
     : NextResponse.json({ error: result.error }, { status: 502 });
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -96,4 +97,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:agents/pair", "AGENT_PAIR_FAILED");
   }
-}
+});

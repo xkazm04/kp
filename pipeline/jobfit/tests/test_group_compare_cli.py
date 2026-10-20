@@ -19,15 +19,11 @@ Pinned here:
 
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from pipeline.jobfit import group_compare_cli
+from pipeline.jobfit.tests._helpers import CliRun, run_cli
 
 CONTEXT = {
     "roleTitle": "Backend Engineer",
@@ -54,54 +50,38 @@ CONTEXT = {
 }
 
 
-def _run(argv: list[str]) -> tuple[int, str, str]:
-    out, err = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = group_compare_cli.main(argv)
-    return code, out.getvalue(), err.getvalue()
-
-
-@contextlib.contextmanager
-def _input_file(payload: object):
-    with tempfile.TemporaryDirectory() as d:
-        path = Path(d) / "compare.json"
-        path.write_text(
-            payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8"
-        )
-        yield path
+def _run(argv: list[str], payload: object = CONTEXT) -> CliRun:
+    """group_compare_cli over ``payload`` (a str is written verbatim), read as the bridge reads it."""
+    return run_cli(group_compare_cli.main, argv + ["--input-json", "@compare.json"], files={"compare.json": payload})
 
 
 class ErrorEnvelopeTest(unittest.TestCase):
     def test_a_non_object_payload_is_a_400_the_caller_can_act_on(self) -> None:
-        with _input_file(["not", "an", "object"]) as path:
-            code, _out, err = _run(["--no-llm", "--input-json", str(path)])
-        self.assertEqual(code, 1)
-        envelope = json.loads([ln for ln in err.splitlines() if ln.strip()][-1])
+        run = _run(["--no-llm"], ["not", "an", "object"])
+        self.assertEqual(run.code, 1)
+        envelope = run.envelope
         self.assertEqual(envelope["code"], "invalid_input")
         self.assertEqual(envelope["status"], 400)
 
     def test_unparseable_json_is_also_the_callers_input(self) -> None:
-        with _input_file("{not json") as path:
-            code, _out, err = _run(["--no-llm", "--input-json", str(path)])
-        self.assertEqual(code, 1)
-        envelope = json.loads([ln for ln in err.splitlines() if ln.strip()][-1])
+        run = _run(["--no-llm"], "{not json")
+        self.assertEqual(run.code, 1)
+        envelope = run.envelope
         # `_cli._classify` reads a JSONDecodeError honestly — 400, not an engine fault.
         self.assertEqual((envelope["code"], envelope["status"]), ("invalid_input", 400))
 
     def test_the_envelope_carries_a_code_at_all(self) -> None:
         # Non-vacuity for the two above: the pre-change CLI printed {error, status:500}
         # with NO `code` key, which is what forced the TS side to guess.
-        with _input_file(42) as path:
-            _code, _out, err = _run(["--no-llm", "--input-json", str(path)])
-        self.assertIn("code", json.loads([ln for ln in err.splitlines() if ln.strip()][-1]))
+        # raw_envelope is what the CLI WROTE — the bridge's envelope always has a code.
+        self.assertIn("code", _run(["--no-llm"], 42).raw_envelope)
 
 
 class NarrativeLanguageTest(unittest.TestCase):
     def _payload(self, argv: list[str]) -> dict:
-        with _input_file(CONTEXT) as path:
-            code, out, err = _run(argv + ["--input-json", str(path)])
-        self.assertEqual(code, 0, err)
-        return json.loads(out)
+        run = _run(argv)
+        self.assertEqual(run.code, 0, run.stderr)
+        return run.payload
 
     def test_a_deterministic_fallback_states_english_whatever_was_asked(self) -> None:
         payload = self._payload(["--no-llm", "--lang", "cs"])
@@ -146,8 +126,7 @@ class SharedScaffoldTest(unittest.TestCase):
     def test_stdio_goes_through_the_shared_helper(self) -> None:
         seen: list[bool] = []
         with mock.patch.object(group_compare_cli, "configure_stdio", lambda: seen.append(True)):
-            with _input_file(CONTEXT) as path:
-                _run(["--no-llm", "--input-json", str(path)])
+            _run(["--no-llm"])
         self.assertEqual(seen, [True])
 
 
@@ -165,10 +144,9 @@ class DescentReasonTest(unittest.TestCase):
                  "emit_deterministic",
                  lambda use_case, *, reason=None: recorded.append((use_case, reason)),
              ):
-            with _input_file(CONTEXT) as path:
-                code, out, _err = _run(["--input-json", str(path)])
-        self.assertEqual(code, 0)
-        self.assertEqual(json.loads(out)["source"], "deterministic")
+            run = _run([])
+        self.assertEqual(run.code, 0)
+        self.assertEqual(run.payload["source"], "deterministic")
         # Before this the availability gate passed, so `descent` stayed None and the
         # ledger recorded the one descent an operator can act on with no reason at all.
         self.assertEqual(recorded, [("group_compare", "TimeoutError: timed out after 120s")])

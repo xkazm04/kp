@@ -6,6 +6,10 @@ generator, and the specificity linter that runs on saved JD bodies (ledger
 and public editors), not on the Generate need prompt. Phrase findings are
 click-to-highlight locators in the ledger editor.
 
+The shared JD and template rich-text editor includes a link control. Select text,
+enter an http(s) or mailto URL, and the editor stores the result as a Markdown
+link using the same safe-link rule as the renderer.
+
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.
 "Posting" is retired from copy — it named the `jobs` row on some surfaces ("Open the
@@ -26,12 +30,12 @@ once, no ordering anywhere, and the filters in a toolbar far above the columns
 they filtered. It now carries the same register as ProfileRoster and the Channels
 ledger:
 
-- **Sorting** — the shared `useTableSort` over accessors in `jobsTableView.ts`
-  (pinned by `jobsTableView.test.ts`). Two rules live there because a hand-rolled
-  accessor gets them wrong: a salary BAND sorts by its floor, and a missing value
-  (no location, no band, not entry-eligible) resolves to `null` so it sorts last
-  in BOTH directions instead of leading an ascending sort. "Not eligible" and
-  "eligible, scored 0%" stay different facts.
+- **Sorting** — SERVER-side since challenge-r07: a header click sets
+  `useJobsList.sort` (`nextJobsSort`: the active column flips, salary and status
+  open descending) and the route orders the WHOLE matching set before it cuts the
+  page (see "The Roles desk window" below). `jobsTableView.ts` keeps the accessors
+  as the reference semantics the SQL mirrors: a missing value sorts last in BOTH
+  directions, and "not eligible" and "eligible, scored 0%" stay different facts.
 - **Header cells** — the shared `ColumnHead`, which owns `aria-sort`; the local
   `Th` never claimed it, so a screen-reader user could not learn the table was
   ordered.
@@ -42,16 +46,17 @@ ledger:
   The one control with no column to live in — "open roles only", a lifecycle
   predicate over the whole query rather than a value in any cell — is a toggle
   chip beside the count it changes.
-- **Paging** — the shared 20-row `TablePager`. `useJobsList` owns the index beside
-  the filters and every filter setter returns to page 1; `clampPage` catches
-  everything else (a publish that drops a row out of an "open only" view).
+- **Paging** — the shared 20-row `TablePager`, driven by the route's `matching`
+  count. `useJobsList` owns the index beside the filters, sends it as
+  `offset = pageIndex * 20`, and every filter or sort change returns to page 1; a
+  window that comes back empty under the reader (a publish dropped rows) re-lands on
+  the last page `clampPage` says exists.
 
   It is called **`pageIndex`, not `page`**, and the name is load-bearing: `page` on
   that hook is already the ROUTE's honesty triple (`truncated` / `matching` /
   `limit` — was the server's answer cut, and at what size), which is a different
-  fact from which 20-row slice the client is showing. `JobsTabResults` reads both:
-  the summary line renders `showingCut` against `matching` when the slice was cut,
-  the pager renders the index. They were briefly both named `page` after a merge,
+  fact from which 20-row window the server answered. `JobsTabResults` reads both:
+  the summary line renders `showing` with `matching`, the pager renders the index. They were briefly both named `page` after a merge,
   which is a redeclaration the type checker catches but a reader would not.
 
 ## Entry points
@@ -71,9 +76,10 @@ ledger:
   instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
-- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract.
+- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for exactly the languages the page serves: the posting's source language plus every language the owning team holds a fresh posting translation for, plus `x-default` (see "The public JD page serves the stored translations" below). Each served `?lang=` variant is self-canonical; the bare path and an unserved `?lang=` canonicalise to the original. Archived pages set an explicit empty `languages` so the root layout's four `./?lang=` alternates are not inherited. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
 - Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
 - `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
+- `POST /api/jds/generate` returns `JD_BUILD_TITLE_TOO_SHORT` or `JD_BUILD_NEED_TOO_SHORT` for its minimum-input refusals, so the client can explain the 2-character title and 11-character need thresholds in the reader's language.
 
 
 ## Lifecycle stages
@@ -86,19 +92,62 @@ ledger:
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
 | **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`, shown only when `canManage` (operator on the owning team). Anonymous share-link visitors never see it. | — |
 
-A failed AI build's ledger panel resolves a machine `code` (or `JD_GENERATE_FAILED`); it never renders the Python traceback that may still sit in `analysis_error`.
+A failed AI build stores `JD_GENERATE_FAILED` in `analysis_error`; the task keeps the original failure for operator diagnosis. The ledger panel resolves that machine code and never renders a traceback.
 
 `setJobStatus` (`app/_lib/job-ingest.ts`) owns every transition; a seeded
 corpus job with a `NULL` status is treated as already live. `Closed` was
 added after the original two-state (draft/published) model to stop a filled
 role from staying open forever — see `app/api/jobs/[id]/close/route.ts`.
 
+### A shared corpus role's lifecycle is per team
+
+A seeded corpus role (`jobs.workspace_id` NULL) is one row that every team sees.
+Whether a team has closed it, how many hires it is open for and which languages it
+is posted in are that team's facts, so they live in the `job_workspace_state`
+overlay, keyed `(workspace_id, job_id)`. They are no longer kept on the shared row.
+`setJobStatus`, `closeRoleIfOpen` and `setRoleOpenConfig` route a corpus row's writes
+to the caller's overlay. Every read folds `COALESCE(overlay, jobs)`: the browse page
+and its count, `countOpenRoles`, the rematch corpus (`listCorpusJobs`), `getJob`,
+`getJobStatus`, `getRoleOpenConfig` and `classifyPublish`. The shared row's own
+values are the base a team reads until it writes its own. A corpus role that was
+closed before the overlay existed therefore still reads closed for every team.
+Authored roles keep writing their own columns and never get an overlay row. The rule
+is `jobLifecycleInOverlay` in `app/_lib/db/core.ts`.
+
+- **One team's hire does not close the role for everyone.** The role-fill hook counts
+  the team's hires against the team's target, then runs its compare-and-swap in the
+  team's overlay. Each team's withdrawal sweep still runs at most once.
+- **Recruiter doors read the caller's lifecycle.** `getJobStatus` and
+  `getRoleOpenConfig` require a team. `getJob` keeps it optional because most callers
+  read only the payload, and an omitted team means the filing team's view. Every
+  gated route passes its session team, and so does every recruiter-only library module
+  (the entry's or the task's team). A team that closed a corpus role sees it closed
+  on the job page, in the palette preview and through the sim intake, and the
+  translations tab offers that team's posting languages. `app/api/job-lifecycle-team.test.ts`
+  checks every route the proxy gates, taking the public list from `public-routes.ts`.
+  It has no exemption list.
+- **The public apply door follows the filing team.** `getJobWorkspace` files a
+  corpus role's public applicants into the default workspace. The apply routes, the
+  apply pages and the public JD page call `getJobStatus(id, getJobWorkspace(id))`, so
+  the door closes only when that team closes the role, whoever is signed in. A channel
+  webhook's inbound door files into the webhook's team, so it reads that team's
+  lifecycle. The team that minted a channel can shut it by closing the role.
+- **Billing is unchanged.** `published_at` stays on the shared row and `billable`
+  still reads it. A second team adopting a corpus role that another team already took
+  live classifies as `{ already: false, billable: false }`: it sources into its own
+  pipeline and is not debited. One routing exception keeps this exact. A legacy corpus
+  row stored as `published` with no `published_at` stays on the shared path until
+  it is closed, because moving that close into one team's overlay would change who
+  pays for the next go-live. `app/_lib/db/job-workspace-state.test.ts` drives random
+  three-team interleavings against the pre-overlay rule and asserts that every step
+  charges what it charged before.
+
 ## The salary band is AI-fixed, not editable
 
 When a JD is **Generated**, the market-salary analysis produces a band with
 its own provenance (`web-grounded` vs `estimated`), a confidence level, and
 cited sources. That band is the single source of truth the Pipeline matches
-against: `ingestStructuredJob` (`app/api/jds/save/ingest-job.ts`) sets
+against: `ingestStructuredJob` (`app/_lib/jd-ingest.ts`) sets
 `job.salaryBand` from the analysis's `salary`, normalizing a
 backwards/degenerate range rather than dropping it. The band is intentionally
 **read-only** in the builder — a hand-typed number couldn't honestly wear the
@@ -238,6 +287,8 @@ The command palette's library preview reads `countTemplates`, a real COUNT, rath
 the bounded page's length — reporting a page size as a library total is the exact bug the
 JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-library-tools.ts`).
 
+**Keyless prose-ad ingest.** `jobs_cli ingest` (`POST /api/jobs/ingest`, `POST /api/jds/[slug]/ingest-job`) no longer 500s when no LLM provider is available: it falls back to `ingest_ad_deterministic` (`pipeline/jobfit/jobs.py`) -- title from the first non-empty line, the ad as the description, no invented requirements -- and answers `source: "deterministic"` with every unstated field listed in `defaultedFields`. The two re-sync doors (`PATCH /api/jds/[slug]`, the revision revert) only overwrite the linked job on `source: "llm"`, so a keyless edit can never erase a job's parsed requirements (`jobResynced` stays `false`).
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:
@@ -245,7 +296,7 @@ JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-lib
 1. **Save the JD draft** (`saveJd`) — the markdown/title row in `jds`. If this
    fails, the whole request errors and nothing is saved.
 2. **Ingest the role as a structured `jd-<slug>` Job**
-   (`ingestStructuredJob`, `app/api/jds/save/ingest-job.ts`) — best-effort,
+   (`ingestStructuredJob`, `app/_lib/jd-ingest.ts`) — best-effort,
    wrapped in try/catch, never blocks the JD save. The response field
    `jobIngested` reports whether it ran. The client-sent `role` payload is
    parsed at the boundary via `parseRoleSpec` (`app/_lib/rolespec.ts`) — the
@@ -499,6 +550,10 @@ throttle in the reader's language.
 | `POST /api/jobs/[id]/candidates/outreach` | `jobs-outreach:<ip>` | 60 | drafted first-touch + Outbox dispatch |
 | `POST /api/jobs/[id]/agent-fit` | `jobs-agent-fit:<ip>` | 20 | backgrounded `agent_fit` LLM transform |
 
+The shared `rankPoolForJob` child has a 240-second process deadline, below the
+Python runner's ten-minute hang backstop. A caller may request a shorter bound;
+the group evaluation still applies its own 240-second stage deadline.
+
 Every limiter sits **after** the cheap refusals (visibility/ownership 404s, the
 validation 400s, the outreach GDPR 409, the empty-pool short-circuits) and
 **before** the spawn, the spend and — on publish — the billing transaction, so a
@@ -516,7 +571,7 @@ orphaning the children.
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every
-edit in the builder: EN+CS boilerplate phrases ("competitive salary", "dynamic
+edit in the builder: EN+CS+DE+FR boilerplate phrases ("competitive salary", "dynamic
 environment", with inflection-tolerant Czech stems), missing concretes (no pay
 figure, no place of work — a work-mode keyword counts as place; a structured
 market band suppresses the salary finding), exclusionary/gendered-coded
@@ -634,6 +689,18 @@ lands in the usage ledger's `reason` (`emit_deterministic`): a one-line
 coercion emptied. A keyless or `--no-llm` run records no reason: that descent is
 not a failure and the availability gate already named it.
 
+**The boundary checks the model's words, not only its labels.** The fact set is the
+control (the model is only told stated facts); `coerce` adds a residual check for the
+literal class the gate cannot see, and drops a variant that carries a figure the fact
+set does not hold (`95 000` passes, `120 000` and a stray year do not; a defaulted
+pay band leaves nothing to quote), a quotation mark or first-person voice in the
+pack's own language (an off-taxonomy `testimonial` relabelled `problem` keeps its
+words, so the words are checked), or a phrase from `BANNED_BOILERPLATE` — the same
+list the prompt bans, four languages, ported from `jd-lint.ts`. One bad variant costs
+one variant; a payload where nothing survives takes the template route above. It does
+not see an invented perk written without a numeral, a true value bound to the wrong
+claim, or one end of the stated band standing alone as the headline.
+
 | Route | Method | Purpose |
 |---|---|---|
 | `GET /api/jobs/[id]/campaign` | GET | Return the stored pack. |
@@ -643,20 +710,28 @@ Every CTA in a pack links the quick-apply form; the pack ships a markdown
 copy-all export. Rendering the video scripts into actual video/avatar assets
 is out of scope (kp generates scripts only).
 
-**One pack per (job, language) is a GLOBAL constraint, not a per-team one.**
-`campaign_packs`' primary key is `(job_id, lang)`; `workspace_id` was added by a
-later migration and is *not* part of it. `saveCampaignPack` upserts with
-`ON CONFLICT(job_id, lang) DO UPDATE … WHERE campaign_packs.workspace_id =
-excluded.workspace_id`, which correctly stops team B overwriting team A's pack —
-but the same foreign row also blocks B's own INSERT, and SQLite reports that as
-*zero changes, no error*. Reachable on any shared corpus job (`workspace_id`
-NULL — the seeded reference roles every tenant can open the Campaign tab on).
-The store therefore **throws** on a zero-change write rather than returning a
-record for a pack that was never stored (`changes === 0` can only mean a foreign
-row holds the slot: a fresh insert and a same-team regenerate both report 1).
-Behavioral coverage: `app/_lib/db/campaign-tenancy.test.ts`. The real fix is a
-`(job_id, lang, workspace_id)` key — a `campaign_packs` rebuild in `core.ts`,
-listed under Known gaps.
+**One pack per (job, language, team).** `campaign_packs`' primary key is
+`(job_id, lang, workspace_id)`, so two teams generating for the same shared corpus
+role (`workspace_id` NULL — the seeded reference roles every tenant can open the
+Campaign tab on) each keep their own pack, and a same-team Regenerate overwrites
+only that team's row. `saveCampaignPack` upserts with a **target-less**
+`ON CONFLICT DO UPDATE … WHERE campaign_packs.workspace_id = excluded.workspace_id`,
+which is valid against both key shapes; it still throws on a zero-change write,
+which can now only happen while a table carries the legacy key.
+
+A database created before the widening carries `(job_id, lang)`.
+`widenCampaignPacksKey` (`app/_lib/db/core.ts`) rebuilds it at boot, guarded by the
+primary key's SHAPE read from `PRAGMA table_info` — not by a missing column, since
+`workspace_id` was added long before — so it also re-widens an old-key table a
+restored dump brings back, and is a no-op on every later boot. **Rolling the image
+back past this change** needs `narrowCampaignPacksKey(db)` first: an older image
+upserts with `ON CONFLICT(job_id, lang)`, which SQLite refuses against the widened
+key. It restores `(job_id, lang)`, keeping the default workspace's pack per slot
+(else the newest) and returning how many packs it dropped — packs are regenerable
+output. `app/_lib/db/rollback-drill.test.ts` executes that way back, and
+`app/_lib/db/tenant-keys.test.ts` fails any team-scoped table whose primary key or
+unique index omits `workspace_id` without a named identity-key reason. Behavioral
+coverage: `app/_lib/db/campaign-tenancy.test.ts`.
 
 **The read is validated; the write is not, on purpose.** `getCampaignPack` decoded
 its JSON column with `safeRowParse<unknown>(…)` and no validator, while `intakes.ts`
@@ -690,14 +765,39 @@ toggle, ready to be copied onto a German job board. A reload of the *same* pair
 (the refetch after a finished generation task) keeps its record, so a refresh
 still never blanks content that is already correct.
 
+## The job's interview kit (2026-09)
+
+A job can now carry an **interview kit**: the competencies it is hired on, with a coarse
+weight, a time budget, the questions asked about each, must-ask flags and a recruiter
+FAQ the AI interviewer may answer from. It is the spine of every AI interview for that
+job. The routes sit under this job's namespace and gate like its siblings: every write
+asks `pipeline:write` first, then `canWriteJobLifecycle`, and an invisible job is a 404,
+never a 403.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/jobs/[id]/interview-kit` | The latest published version, the latest draft and the version list. |
+| `POST /api/jobs/[id]/interview-kit` | Queues the `interview_kit` task that drafts a new version from the posting and the promoted RoleBrief (a model call; 20 per 10 min, pinned in the rate-limit contract). Keyless installs get a deterministic draft from `requirements[]`. |
+| `PUT /api/jobs/[id]/interview-kit` | Saves an edited kit as a NEW version (`source: "edited"`). |
+| `POST /api/jobs/[id]/interview-kit/publish` | Publishes a version; new interview links for this job are minted from the highest published one. |
+| `POST /api/jobs/[id]/interview-kit/rehearse` | Mints a test call on any version of this job's kit, draft or published, with no candidate attached, and answers the `/interview/<token>` URL. It gets the real agenda, brief and director, is metered like `/simulate`, and can never score, approve or write to a pipeline entry. |
+
+Versions are append-only (`interview_kits`), so a regeneration never overwrites an edit
+and a link pinned to version N keeps asking what version N asked. A kit holds **no
+candidate data** — the erasure scrub is entry-keyed and cannot reach a job-keyed row —
+and a shape test keeps that sentence true. The **Kit** tab of the posting modal (`JobsKitTab.tsx`) is where a recruiter drafts one from the posting, edits competencies, weights, budgets, questions, must-asks and the FAQ, publishes a version, and rehearses it before any candidate meets it. How the kit becomes an agenda, a brief and a
+director policy is the interview feature's story:
+[`docs/features/interviews/README.md`](../interviews/README.md) §"The job interview
+kit" and §"The kit in the interview".
+
 ## Surface
 
 | Module / route | Purpose |
 |---|---|
 | `app/_lib/job-ingest.ts` | `setJobStatus`, `getJobStatus`, `isJobOpenForApplications`, draft/published/closed lifecycle. |
 | `app/api/jds/route.ts`, `app/api/jds/save/route.ts` | Manual paste / AI-builder save + best-effort ingest. |
-| `app/api/jds/save/ingest-job.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
-| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). |
+| `app/_lib/jd-ingest.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
+| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). Retry's row-fallback replay (`replayParamsFromIntent` in `app/_lib/jd-build-start.ts`) carries the intake brief for promoted JDs; JDs promoted before this change replay without it. |
 | `app/api/jobs/route.ts`, `app/api/jobs/[id]/route.ts` | Job listing / read. |
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
 | `app/api/jobs/[id]/close/route.ts` | Published/draft → closed + withdraw in-flight entries. |
@@ -727,6 +827,25 @@ cannot be read in lockstep now leaves the map empty, which hides the Fair Rank
 toggle and the audit panel (the same honest "not assessed" stance
 `assessRobustness` takes for the group eval), and the CSV writes an empty delta
 cell rather than a number derived from a missing side.
+
+Identity in that matrix is the **candidate id**, never the display label. Two
+candidates can share a name (a common Czech name, or every unnamed profile's
+`Candidate` fallback from `transform.build_match_candidate`), and
+`fairness_check` used to exclude KO-failed candidates from `ranking` by label, so
+an eligible senior whose junior namesake failed the must-haves vanished from the
+robust order too. The group eval's alignment guard then counted `ranking` +
+`koFailed` short of the field and sealed the evaluation as "robustness could not
+be assessed". Now `matching.fairness_matrix` also returns `order` (pool indices),
+`fairness_check` excludes by index and emits `rankingIds` (the robust order as
+candidate ids, `ranking` staying its index-aligned label twin), and the group-eval
+payload carries `recommendedIds` beside `recommendedOrder`. `isFairnessAligned`
+validates `rankingIds` as identity when present (known, unique, not KO-failed,
+label twin in lockstep), `robustOrderVerdict` compares ids when both sides carry
+them (a swapped namesake order now reads as diverging), and the robust-order pills
+and this audit table key their rows on the id. Blobs sealed before these fields
+existed have no ids and keep the label rule. Pinned by `NamesakePoolTest` in
+`test_fairness.py`, `NamesakeFairnessCheckTest` in `test_recruiter.py`,
+`fairness-guard.test.ts` and `groupEvalRobustness.test.ts`.
 
 ## Rediscovery shows a page, and says when it is one
 
@@ -886,7 +1005,7 @@ role (`terminalPriorEntriesForCandidate`'s `job_id != ?`).
 `dismissRediscoveryAlert` (`app/_lib/rediscovery-alert-store.ts`) wrote
 `WHERE id = ? AND dismissed_at IS NULL` with no tenant predicate. An alert id is not
 a capability token — `listRediscoveryAlerts` hands it to every recruiter in that
-team's feed — and dismissal is sticky (the `UNIQUE (job_id, candidate_id)` index
+team's feed — and dismissal is sticky (the `UNIQUE (workspace_id, job_id, candidate_id)` index
 makes every later sweep an `INSERT OR IGNORE` no-op), so any holder could
 permanently suppress another team's silver-medalist alert. The write now filters
 `workspace_id` too; `changes > 0` answers "already dismissed", "never existed", and
@@ -925,12 +1044,19 @@ exception is a missing `pipeline_entries` table, which is a logical identity —
 table means no entries means no consent record can suppress anyone — not a loophole.
 
 **Retention.** `rediscovery_alerts` had no `DELETE` anywhere in the tree: dismissed
-rows are kept deliberately (the `UNIQUE (job_id, candidate_id)` index is what makes
+rows are kept deliberately (the `UNIQUE (workspace_id, job_id, candidate_id)` index is what makes
 dismissal sticky) and un-acted-on ones simply accrued, each holding a candidate's
 name for a re-contact that never happened. `pruneRediscoveryAlerts` now drops
 dismissed rows past `ALERT_DISMISSED_RETENTION_DAYS` (30) and undismissed ones past
 `ALERT_STALE_RETENTION_DAYS` (90), from the clock in `instrumentation-node.ts`
 beside the apply-session retention sweep and under the same autonomy pause.
+
+**The dedup key is per team.** It used to be `ux_rediscovery_alert ON (job_id,
+candidate_id)`; the store's first open now drops it and creates `ux_rediscovery_alert_team` led by `workspace_id`
+(the same-name `CREATE … IF NOT EXISTS` would have been a no-op). A cross-team
+collision on the old key is not reachable through `buildCandidatePool` — candidate ids
+are globally-unique PKs owned by one team — but the key, not the caller, decides what
+a second team's write does.
 
 ## A failed ranking is reported, not folded into a zero
 
@@ -1029,7 +1155,9 @@ whole internal design (rubric, covert probes). Unlike the two fetches above it f
 SERVER-side; the segment renders only when there is at least one assignment, since a
 role without a work sample is the normal case and not a gap to nag about. The count
 stays `null` until the fetch lands and after a failure, so an unknown count is an absent
-segment rather than a confident "0".
+segment rather than a confident "0". The segment deep-links `?tab=assignments&job=<id>`,
+so it lands on the Assignments ledger narrowed to this role (a clearable chip above the
+table) rather than on the whole library; see [the dev-case doc](../dev-case/README.md).
 
 ## The posting modal's tab strip is a real tablist
 
@@ -1197,6 +1325,33 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### Close and reopen hold the write lock from BEGIN too
+
+`closeEntriesByJobId` and `reopenEntriesByJobId` (`app/_lib/db/pipeline.ts`) are
+the same read→compute→write: SELECT the role's in-flight (or `role_closed`) entries,
+then UPDATE each one and stamp its event. They shipped DEFERRED with the *re-check*
+half of the rule — each UPDATE re-asserts the status (and, for close, the terminal
+stage) it read, and `changes === 0` skips the event — and that guard is what makes a
+lost race a no-op. It is not, on its own, what makes the close *survive* one. Inside a
+DEFERRED transaction the cross-connection race never reaches the guard: SQLite will
+not upgrade a read snapshot that another connection has committed past, answers
+`SQLITE_BUSY_SNAPSHOT` at once (the busy handler is not consulted), and rolls the
+whole transaction back — the close route answered `withdrawalFailed: true` on a role
+it had already darkened, and a reopen left every entry stranded in `role_closed` on a
+role publish had already flipped live. The isolated stores (offers, schedule,
+scheduler, sim, decision records) each write `pipeline_entries` on their own
+connection, so the window was real. Both functions now run `tx.immediate()` as well:
+the write lock is held from BEGIN, the other connection waits its `busy_timeout`
+(5 s in every kp store) and lands after the commit, and the returned count is exact.
+The guard stays because a caller nesting either function inside an outer transaction
+gets a SAVEPOINT (the inner mode is ignored) and the re-assert is what holds there.
+No caller does that today: the role-fill hook runs after the hiring write has
+committed, the close and publish routes call them at top level, and publish's gate
+transaction has committed before its reopen.
+`app/_lib/db/pipeline-close-guard.test.ts` runs all three layers on two live
+connections: the guard's no-op, the DEFERRED shape's snapshot abort as the control,
+and the IMMEDIATE shape completing.
+
 ### The JD library answers its own size
 
 `GET /api/jds` took no `Request` and called `listJds(200, ws)`, so the `?limit=`
@@ -1276,6 +1431,35 @@ detail now draws it beside the salary card (`RepoGroundingCard` in
 when it is a safe http(s) URL and `library.tab.repoGrounding` / `repoLoc` in all four
 locales.
 
+**Stated vs added (lite r1, 2026-10-08).** A built role can no longer carry a requirement the
+author never made without saying so. (1) `role-design-v5` (`pipeline/jobfit/devcase/design.py`)
+extends the grounding rule to responsibilities, nice-to-haves and languages, and the keyless
+fallback returns `languages: []` instead of `["English"]` — that English used to become a
+Languages section and, via `jd-ingest.ts` → `apply.ts`, a `ko_lang` knockout question for every
+applicant. (2) `runJdBuild` sets the role's languages with `statedLanguages`
+(`app/_lib/jd-role-trace.ts`): a brief's non-empty `languages` win, otherwise only model
+languages the author's own input STATES survive, so a keyless build with no stated language
+prints no Languages section and ingests no `ko_lang` step. **Languages match by identity
+(`lang-v1`, lite r2):** `app/_lib/jd-languages.ts` maps every form of eleven languages (cs, sk,
+en, de, pl, fr, es, it, ru, uk, hu: en/cs/de/fr names, their own name, the Czech noun in every
+case, the Czech adverb; a Czech adjective only beside "jazyk") to one id, so "Znalost češtiny"
+states `Čeština` and "angličtina nutná" states `English`. A mention in a clause with a negation
+cue (no, not, without, bez, není, nevyžadujeme, nepotřebujeme, nemusí) does not state the
+language ("No English needed", "bez angličtiny"). A language outside the lexicon falls back to
+the overlap rule. Known over-trust: a language name used for something else ("the Czech market")
+states it. Every model language removed is stored as `roleTrace.droppedLanguages`
+(`unstated` / `negated` / `superseded` by a brief) and the Ledger card lists it with the reason. (3) `traceRoleLines` tags every line of
+mustHaves / niceToHaves / responsibilities / languages `brief` or `added` (normalised case,
+punctuation, diacritics; ≤3-token lines match as a contiguous run, longer lines on ≥60% content-word
+overlap; doubt means `added`) and `analysis_json.roleTrace` stores it with how the role was
+designed (`model` / `fallback`); `fallbackReason` is kept beside it for diagnosis and never
+rendered. (4) The Ledger detail draws `RoleTraceCard` (`JdsLedgerRoleTraceCard.tsx`, read by
+`readRoleTrace`; an older row without a trace shows nothing). The published JD body carries no
+marks. A build that fails the min-need contract now persists `JD_BUILD_NEED_TOO_SHORT` /
+`JD_BUILD_TITLE_TOO_SHORT` rather than `JD_GENERATE_FAILED`. Known gap: a promoted brief's
+languages reach the role through `statedLanguages` but not the model prompt (`needTextFromBrief`
+does not print them).
+
 ### The JD build has one door, and four throttled entrances
 
 Four callers used to hand-roll the three-step start sequence (placeholder row →
@@ -1304,7 +1488,7 @@ and the spawn; the budgets and that ordering are pinned in
 | Route | Key | Budget | What one call buys |
 | --- | --- | --- | --- |
 | `POST /api/jds/generate` | `jd-generate:<ip>` | 20 / 10 min | the full 1–2 minute paid build |
-| `POST /api/jds/[slug]/retry-analysis` | `jd-retry:<ip>` | 20 / 10 min | the same build, replayed by one click |
+| `POST /api/jds/[slug]/retry-analysis` | `jd-retry:<ip>` | 20 / 10 min | the same build, replayed by one click; the row-fallback replay (task pruned) carries the intake brief for promoted JDs, while JDs promoted before the brief was persisted replay without it |
 | `POST /api/jds/[slug]/ingest-job` | `jd-ingest-job:<ip>` | 20 / 10 min | one Claude ad-parse of the JD body |
 | `POST /api/jds/save` | `jds-save:<ip>` | 30 / 10 min | a deterministic `jobs_cli normalize` child |
 
@@ -1361,10 +1545,10 @@ roles" (30 roles/recruiter instead of 35) for a workspace carrying 350, labelled
 `stats`, so the summary line said *"Showing 300 of 340 roles"* against the
 workspace-wide UNFILTERED total — the very reading the `matching` field was added
 to prevent. It now carries `{ truncated, matching, limit }` through to
-`JobsTabResults`, which paints `jobs.tab.showingCut` (amber) — *"Showing the first
-300 of 312 matching roles — the list is cut at 300"* — whenever the slice was cut,
-and keeps the ordinary `jobs.tab.showing` line otherwise. Truncated and filtered
-read differently on screen because they are different facts.
+`JobsTabResults`, which painted `jobs.tab.showingCut` (amber) whenever the slice was
+cut. Since challenge-r07 the desk pages through the whole matching set on the server
+(see "The Roles desk window" at the end of this file), so it renders
+`jobs.tab.showing` against `matching` and the cut line no longer applies there.
 
 **And it really cancels now.** The hook's header has claimed since it was written
 that "the in-flight request is cancelled on the next change/unmount". It was not: a
@@ -1435,11 +1619,6 @@ include `workspace_id`).
   every next-intl / `toLocale*` format falls back to the environment default —
   the server's zone during SSR, the browser's after hydration. Picking a zone
   (workspace setting? UTC? the JD's own?) is a product decision, not a patch.
-- `campaign_packs` is keyed `(job_id, lang)` without `workspace_id`, so only ONE
-  team can hold a pack for a given shared-corpus role + language. The second
-  team's save is refused with an error instead of being silently lost; making it
-  actually work needs a table rebuild onto `(job_id, lang, workspace_id)` in
-  `app/_lib/db/core.ts`.
 - `GET /api/jobs` now forwards `truncated` / `matching` / `limit` (see the table
   above), but **no client reads them yet**: `useJobsList` still stores only
   `jobs` + `stats`, so `JobsTabResults`' "Showing N of M" line keeps comparing a
@@ -1481,7 +1660,7 @@ include `workspace_id`).
 - **The Fair Rank audit table still ranks one number across cohorts it is not
   comparable within.** The producer now labels the split: `recruiter.fairness_check`
   carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
-  id list, and drops KO-failed labels from `ranking` (pinned by
+  id list, and drops KO-failed ids from `rankingIds` / `ranking` (pinned by
   `pipeline/jobfit/tests/test_recruiter.py`). `own` / `mean` stay the full
   validated pool so the CLI lockstep does not shrink. `FairnessAuditPanel` still
   renders a single list sorted by `mean` descending with no track and no
@@ -1715,13 +1894,14 @@ stored flag would contradict the count beside it, and no migration could ever le
 the two disagreeing. Sorting the column uses the desk's reading order (open → draft →
 filled → closed), not the alphabet, which is not the same in any of the four locales.
 
-The Status filter is the one filter on this table that runs **client-side**, over the
-page the query returned: `filled` compares a `jobs` column against a
-`pipeline_entries` count on the workspace's own board axis, which the browse query
-cannot express, and a second server-side definition of "filled" could disagree with
-the badge in the row. The `?job=` deep link therefore resolves against the
-*unfiltered* answer (`useJobsList.allJobs`) — a link to a role the reader filtered out
-of view must not report that the role does not exist.
+The Status filter is a **server** predicate (it ran client-side over the truncated
+page until challenge-r07, so a filled role ranked past the cut never showed): the
+store derives the status in SQL (`ROLE_STATUS_SQL` in `db/jobs.ts`) from the overlay
+status, the folded target and a `pipeline_entries` count on the workspace's own
+terminal-ROLE stages, and `jobs-browse.test.ts` pins it against `roleStatusOf` on
+every cell of status x hired x target, so badge, filter and sort cannot disagree. A
+`?job=` deep link or a just-ingested draft that is not on the current 20-row window
+is point-fetched by id (`GET /api/jobs/[id]`), never reported missing.
 
 ### Opening a role
 
@@ -1744,6 +1924,16 @@ role was opened with — a 3-hire req does not silently reset to 1.
 
 An empty body still works: that is what the one-click go-live posts, and it means
 "do not change the terms".
+
+### Durable go-live receipts and interrupted sourcing resume
+
+Publishing a role executes the state transition, billing gate, and receipt initialization (`openReceipt` in `job_golive_receipts`) within one atomic transaction on the core database handle. The subsequent matching candidate sourcing into the pipeline and rediscovery alert raising are best-effort operations managed by `runGoLive`.
+
+If candidate sourcing is aborted (e.g. client disconnect or navigation) or encounters an error, the receipt is finished in an incomplete state (`abandoned`, `sourcing_failed`, or `raise_failed`). The role remains live, but a durable team-scoped receipt persists the interruption. When reopening the role's modal, `GET /api/jobs/[id]/publish` reads the receipt, and `JobsPostingModalFooter` presents **Finish sourcing**. Clicking this issues a `POST /api/jobs/[id]/publish` with an empty body: the route detects `already`, atomically claims the resume attempt (`claimResume` CAS with a 10-minute in-flight grace window), and re-executes `runGoLive(mode: 'resume')` without re-billing or re-flipping the status. Only newly filed pipeline entries (`createPipelineEntry().created`) count toward `sourced`, ensuring honest reporting on both first go-live and resume.
+
+**Erasure.** `job_golive_receipts` is workspace-scoped (`TENANCY_SCOPED_TABLES`) and is listed in `ERASURE_EXEMPT` (`app/_lib/db/pipeline.ts`): it is job-keyed bookkeeping (attempt, state, counts, a failure code) with no entry or person column, so an Art. 17 scrub, which is entry-keyed, has nothing in it to reach. `golive-receipt-tenancy.test.ts` pins the column set, so a candidate-keyed column added later fails there instead of becoming undeletable.
+
+The column-name pin is necessary but not sufficient, because a column can be free-text *shaped*: `failure_code` is a **closed code vocabulary** (`GOLIVE_FAILURE_CODES` in `app/_lib/golive-receipt-store.ts` — `ABORTED`, `SOURCING_FAILED`, and `PYTHON_ERROR_CODES` + `ENGINE_BUSY` upper-cased) and **never the thrown error's text**. It used to store `sourcingError.message`, and that message is the sourcing child's whole trimmed stderr or the last 400 characters of its stdout and stderr (`app/_lib/python-runner.ts`) — from a child handed every candidate profile in the workspace (`runSourceForRole`), so a traceback or an output tail could carry names, ids or profile text into a row the scrub cannot reach and that `GET /api/jobs/[id]/publish` returns to the browser. Three seams hold the vocabulary: `goliveFailureCodeFor` (`golive-run.ts`) maps the caught error to a code, `finishReceipt` coerces anything else on write, and `readReceipt` coerces on read, so the API can never serve free text even from a row an older build wrote. Rows written before the vocabulary existed are normalised to `SOURCING_FAILED` wherever the table is ensured. Pinned by `app/_lib/golive-failure-code.test.ts` (the vocabulary against `PYTHON_ERROR_CODES`, the write/read coercion, the legacy normalisation) and by `app/_lib/golive-run.test.ts` (a failed run stores a code, and a `PipelineError`'s known code survives while its message does not). The per-request `sourcingWarning` in the publish response still carries the message — it is returned to the operator who triggered the run and is never stored.
 
 ### Auto-close, and why two simultaneous hires cannot double-close it
 
@@ -1816,6 +2006,143 @@ state again and regrows each language on demand. Pinned by
 `app/_lib/db/job-translations-tenancy.test.ts` (one team's drop never touches the
 other team's rows).
 
+**The public JD page serves the stored translations.** `/jds/<slug>?lang=<l>` is the
+link a recruiter shares on a board in that language, and it now serves the posting
+translation for `<l>` WHOLE (its title and body) when the owning team holds one made
+after the JD's last edit (`jdLastEditedAt`, so a JD edit whose best-effort re-ingest
+failed and left the old renderings in place stops serving them). Every other request
+(no `?lang=`, the source language, a language never rendered, an archived JD) serves
+the whole original, byte-identical to before. Translations are read with the OWNER
+team `loadPublicJd` resolved, never the viewer's, and the page only ever sees the
+projection `{lang, sourceLang, title, bodyMd}`. A translated variant renders a
+machine-translation note naming the source language (`Intl.DisplayNames`, in the
+reader's locale) with a link to the original, the copy-as-Markdown button copies the
+body actually served, and the operator's Edit/Archive/History tools mount only on the
+original. Keyless installs never store a translation, so they serve and advertise the
+source language only. Resolver and alternates: `app/jds/[slug]/jdPublicVariant.ts` and
+`publicJdAlternates` in `jdPublicHeader.ts`, pinned by `jdPublicVariant.test.ts`. The
+translation is of the rendered POSTING (`renderPostingMarkdown`), not of the JD's own
+markdown, so its structure can differ from the original's; the note says it is a
+translation and links the authoritative original.
+
 Known gaps: there is no bulk "translate every open role" action, and the auto-close hook does not notify
 anyone that a role retired itself (it writes no event kind of its own by design; the
 withdrawn candidates' `role_closed` events are the only trace).
+
+## The Roles desk window: sort, status and paging are the server's
+
+Until challenge-r07 (`jobs-table-core/A`) the Roles desk split its query axes across
+two tiers: `GET /api/jobs` cut a 300-row page ordered by entry eligibility, and the
+client then sorted that slice by title, filtered it by derived status and windowed it
+to 20 rows. A workspace past 300 matching roles could not reach whole roles from the
+table, whatever the reader clicked. Every axis now runs where every row is visible.
+
+| Surface | Contract |
+|---|---|
+| `JobFilter` (`db/jobs.ts`) | Optional `sort` (`JOB_BROWSE_SORTS`: title, location, mode, seniority, family, salary, status), `dir`, `offset`, `roleStatus` (open/draft/filled/closed), `withHired`. All absent = today's entry-eligible ORDER BY and SQL, byte-identical rows (the JD library, analytics and benchmark callers). |
+| `listJobsPage` / `countJobs` | ORDER BY an allowlisted key with missing values last in both directions and `jobs.id` as the tiebreak; `LIMIT/OFFSET`; the hired subquery (terminal-ROLE stage ids from the workspace's axis, bound) joins only when status, a status sort or `withHired` needs it. `countJobs` binds the identical predicate. |
+| `GET /api/jobs` | Reads `sort`, `dir`, `offset`, `roleStatus` through allowlists (unknown value -> default, never SQL); malformed or negative `offset` -> 0; a windowed read with no `limit` answers 20 rows; the answer adds `window: {sort, dir, offset, roleStatus}` echoing what was APPLIED. `hired` on each row now comes from the store's query. |
+| `useJobsList` | `jobsListQuery` emits `sort/dir/offset/roleStatus`; `sort` + `toggleSort` state; no client-side filter. |
+
+Declared differences from the old client sort:
+
+- **Salary** orders by the `salary_min` column (ingest writes `salaryBand[0]` there),
+  not the payload band floor; a corpus row whose column and payload disagree now
+  sorts by the column.
+- **Text** keys go through `kp_fold` (NFD, combining marks stripped, lower-cased), a
+  deterministic function registered on the connection, because SQLite has no ICU
+  collation. Known deviation from the client's `Intl.Collator`: Czech sorts "ch" after
+  "h" and c/r/s/z with caron as their own letters; `kp_fold` sorts them as the base
+  letter.
+- The amber `showingCut` line no longer renders on this desk: a multi-page answer is
+  paged, not cut. The key stays in the catalogs.
+
+Tests: `app/_lib/db/jobs-browse.test.ts` (320-role fixture, the status matrix with a
+per-team overlay, a renamed terminal stage, ordering), `app/api/jobs/jobs-list-window.test.ts`
+(params, fallbacks, echo), `useJobsList.test.ts`, `jobsTabDeepLink.test.ts` and
+`jobsIngestLatch.test.ts` (wire mapping, the latch's point-fetch).
+
+## Silver-medalist alerts are a reconciled projection behind one eligibility gate
+
+Until challenge-r08 (`candidate-rediscovery/A`) "may this person be surfaced for a role
+they never applied to?" had three answers. The rank gate in `rediscoverForJob` composed
+consent + opt-out inline, the alert write wall in `recordRediscoveryAlerts` checked
+consent only (an opted-out person's name was persisted), and the feed read in
+`/api/rediscovery/alerts` checked neither, so a person who opted out or was erased
+AFTER their alert was written kept a row with an *Add to pipeline* button (erasure only
+masks the label) until the 90-day prune. Alert rows were also write-once: `INSERT OR
+IGNORE` froze the first sweep's score, and nothing retracted a row whose candidate
+stopped qualifying.
+
+**One gate.** `withheldCandidateIds(ids)` (canonical import site
+`app/_lib/rediscovery-eligibility.ts`, defined beside its consent half in
+`rediscovery-alert-store.ts` so the store and the gate do not import each other) returns
+`Map<id, "anonymized" | "opted_out" | "consent_expired">`, in that precedence. Both halves
+stay workspace-global and fail closed. Every door reads it:
+
+| Door | Where |
+|---|---|
+| Rank | `rediscoverForJob` filters the pool before `recruiter_cli` (the panel's `GET /api/jobs/[id]/rediscover` and every raise) |
+| Write | `recordRediscoveryAlerts` and `reconcileRediscoveryAlerts` (the second wall) |
+| Read | `liveRediscoveryAlerts(ws)` (`rediscover.ts`): relevance (role published, candidate has no entry in it) plus the gate. It is the only read behind `GET`/`POST /api/rediscovery/alerts`, so the feed rows and their `count` agree |
+| Act | `POST /api/jobs/[id]/candidates/outreach` (Reach out) refuses `COMMS_SUPPRESSED` 409 before minting an entry; an opt-out still answers `suppressed: "candidate"` |
+| Add | `POST /api/pipeline` with `source: "rediscovery"` (the feed's *Add*) or `"sourcing"` (the Rediscover and recruiter panels) refuses `PIPELINE_ADD_CANDIDATE_WITHHELD` 409 + `withheld: <reason>` before the write |
+
+**Reconcile.** `raiseRediscoveryAlertsForJob` (publish + Refresh sweep) calls
+`reconcileRediscoveryAlerts(jobId, title, qualifying, evaluated, ws)` in one IMMEDIATE
+transaction with the gate read before it: new qualifiers are inserted (`raised` counts
+only these), a live row's score/prior/label are refreshed, and an undismissed row is
+deleted when its candidate was `evaluated` and no longer qualifies, or is now withheld.
+`evaluated` is internal to `RediscoverResult` (never on a wire) and excludes everyone the
+ranker gave no verdict on: unscored rows, the ranker's own `skipped`, and qualifiers past
+`REDISCOVER_LIMIT`. A failed ranking reconciles nothing. Dismissed rows are never
+touched, so dismissal stays sticky. `RaiseOutcome.retracted` reports the deletions.
+Every statement is workspace-scoped (`rediscovery-tenancy.test.ts` counts 8).
+
+**The board add gates only a re-surface.** `POST /api/pipeline` reads the gate when the
+add carries a re-surface marker (`rediscovery` / `sourcing`, the same set that stamps the
+prior link). A human add with no marker (a manual board add, a Match add, a person who
+re-applied) is not refused: an opt-out stops outreach and does not withdraw a person from
+a process (see the opt-out section of [the comms doc](../comms/README.md)), and the
+channel gate (`commsSendSuppression`) still refuses to contact the fresh entry because it
+resolves opt-out and consent at the person. Erasure is refused for every caller inside
+`createPipelineEntry`. Pinned by `app/api/pipeline/add-eligibility.test.ts`.
+
+Tests: `app/_lib/rediscovery-eligibility.test.ts` (reasons, precedence, the four-door
+source guard), `app/_lib/rediscovery-alert-reconcile.test.ts` (write wall, read refilter
+after an opt-out and after an erasure, retract / keep / refresh / insert, tenancy),
+`rediscovery-consent-rank.test.ts` (the rank gate precedes the spawn).
+
+## The silver-medalist feed is one row per person
+
+Until challenge-r08 (`candidate-rediscovery/B`) the standing feed
+(`JobsRediscoveryFeed`) rendered one row per alert, i.e. per person x role
+(`rediscovery_alerts` is unique on workspace, job, candidate), in `created_at` order,
+while its `added` / `pending` / `rowError` state was keyed by person. Adding a silver
+medalist to role Y painted *Added* on her row for role Z and refused to file her there
+until a reload.
+
+The wire is unchanged: `GET`/`POST /api/rediscovery/alerts` still return the flat
+`Alert[]`, and the reversible dismiss (`jobsRediscoveryDismiss.ts`) still works per row.
+The feed derives the person view in the browser from
+`app/features/library/jobs/jobsRediscoveryFeedGroups.ts` (pure, no React):
+
+| Function | Does |
+|---|---|
+| `groupAlertsByPerson(alerts)` | One group per `candidateId`. Her roles and the groups are ordered by `byPriorAwareRank` (`app/_lib/rediscovery-rank.ts`, the panel's comparator) on `{ score, boost: prior.depth }`; a legacy row with a null depth ranks as 0 |
+| `markPair` / `pairStatus` | Outcomes keyed by the (person, role) pair: `open`, `pending`, `added`, `reached`, `withheld`, `error` |
+| `markPerson` | Withholds every role of one person. Used only for person facts: a reach-out answered `suppressed_anonymized`, and an Add refused `PIPELINE_ADD_CANDIDATE_WITHHELD` (the eligibility gate is person-level). A reach-out `suppressed` verdict can be a stopped sequence on one entry, so it stays on its pair |
+| `groupView(group, outcomes)` | `next` (the best role still offered), `rest`, `done`, `withheld` |
+
+The row (`JobsRediscoveryFeedRow`) leads with her best still-open role and its why-now
+line (the same `jobs.rediscover.whyNow.*` keys), lists the other roles she clears
+under *Also clears* with their scores, and offers **Reach out / Add / Dismiss per role**.
+Reach out calls `postReachOut` (the same door and verdict classifier as the Rediscover
+panel, source `rediscovery`); refusals render from `pipeline.reachOut.*` and error codes
+through `useErrorMessage`, never the server string. A done pair keeps its badge for
+`ADDED_BADGE_MS`, then only that pair's alert is dismissed; her other roles stay on the
+row. The header count is people, not alerts. A withheld role shows *Can't be contacted*
+and offers nothing.
+
+Tests: `jobsRediscoveryFeedGroups.test.ts` (grouping, the band, pair keying, next role,
+person-level refusals, dismiss / restore regrouping, legacy depth).

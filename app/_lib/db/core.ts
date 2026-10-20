@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomInt } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
@@ -9,8 +10,16 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { seedInterviewScorecards } from "./seed-interview-scorecards";
 import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
+import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
+import { notAgentSql, type SlatePopulation } from "../slate-population";
+
+/** The kinds jobseeker_ui_state accepts - its CHECK, written once for the table's DDL and
+ *  for the one-time widening in the migrations (db/jobseeker-ui-state.ts UI_STATE_KINDS is
+ *  the TS face, pinned equal by jobseeker-ui-state.test.ts). */
+export const JOBSEEKER_UI_STATE_KINDS_SQL = "'cv_design','cover_note','role_research','github'";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
@@ -495,13 +504,15 @@ export function ensureDb(): Database.Database {
     -- Durable recruiter artifacts, deliberately NOT the prompt cache: a pack
     -- must survive restarts and TTLs, and "Regenerate" must produce a fresh
     -- pack rather than replay a cached one. POST /api/jobs/[id]/campaign upserts.
+    -- Keyed per team; an older DB's (job_id, lang) is widened by widenCampaignPacksKey.
     CREATE TABLE IF NOT EXISTS campaign_packs (
       job_id TEXT NOT NULL,
       lang TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       source TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      PRIMARY KEY (job_id, lang)
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      PRIMARY KEY (job_id, lang, workspace_id)
     );
 
     CREATE TABLE IF NOT EXISTS jobs (
@@ -592,7 +603,15 @@ export function ensureDb(): Database.Database {
       -- otherwise stores no address, so every downstream comm dead-lettered to the
       -- literal "candidate"; when present this is the deliverable recipient
       -- (candidateRecipient prefers it). Optional — recruiter/Match adds omit it.
-      contact TEXT
+      contact TEXT,
+      -- ADR-0012 (need → role → slate): WHICH POPULATION this slate member is,
+      -- 'human' or 'agent'. A hired AI agent is a candidate for the role on the
+      -- SAME board, not a second funnel. NOT NULL DEFAULT 'human' because every
+      -- row that predates the column IS a person: the historical truth.
+      population TEXT NOT NULL DEFAULT 'human',
+      -- The frozen role_rubrics.version this entry's evaluation was produced
+      -- against. NULL = unknown standard, never "the current one".
+      rubric_version INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -840,12 +859,51 @@ export function ensureDb(): Database.Database {
       failover_from TEXT,
       -- How many times this link was CONNECTED. 1 = the ordinary single-attempt call.
       attempts INTEGER NOT NULL DEFAULT 1,
+      -- The director's agenda for this call (voice/director-types.ts InterviewAgenda),
+      -- built at connect time for BOTH providers. NULL until a call connects.
+      agenda_json TEXT,
+      -- When the candidate ALSO agreed to an audio recording (separate from consent_at,
+      -- which covers the transcribed conversation). NULL = not recorded.
+      recording_consent_at TEXT,
+      -- RecordingMeta[] — one entry per recorded attempt, with its deletion record.
+      recordings_json TEXT,
+      -- The last director exchange of a live call. Liveness reads it beside updated_at
+      -- (which stays the CONNECT time: billing and the director's clock use it as the
+      -- current attempt's start, so it must not be refreshed mid-call).
+      last_activity_at TEXT,
+      -- The interview_kits version this link was minted from; NULL when the job has none.
+      kit_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
     CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
+
+    -- The interview DIRECTOR's append-only record (db/interview-events.ts; ADR 0010):
+    -- every finalized turn, every tool call the interviewer model made (topic begun /
+    -- covered / rejected, guardrail, forwarded question, end request), every stage
+    -- direction the director injected, and the browser-only observations (focus,
+    -- answer timing — never scored). One row per event, never UPDATEd; the only
+    -- other write is the erasure DELETE (db/pipeline.ts scrubEntryLinkedPii).
+    -- seq numbers turns per attempt so a retried POST is idempotent (the partial
+    -- unique index below); at = when it happened, created_at = when the server
+    -- recorded it (the one clock the director does its arithmetic on).
+    CREATE TABLE IF NOT EXISTS interview_events (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      seq INTEGER,
+      kind TEXT NOT NULL,
+      block_id TEXT,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_events_turn ON interview_events (session_id, attempt, seq) WHERE kind = 'turn';
+    CREATE INDEX IF NOT EXISTS idx_interview_events_session_at ON interview_events (session_id, at);
 
     -- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md). llm_config pins
     -- provider+model per use case (explicit rows only — absence means the
@@ -1070,6 +1128,73 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
 
+    -- The role-intake conversation's HISTORY (db/intake-events.ts, Journey Analytics).
+    -- role_intakes.transcript_json is rewritten WHOLE on every exchange, so the row can
+    -- only say when it was last touched; this is the append-only ledger of the rounds
+    -- themselves. APPEND-ONLY is structural, not a convention: the store has no UPDATE
+    -- statement and its only DELETE is the erasure door (eraseIntakeEvents).
+    --
+    -- seq is monotonic per intake_id, derived as MAX(seq)+1 inside the INSERT so the
+    -- read and the write are one operation under one write lock.
+    -- topic_code is NULLABLE on purpose: a round the classifier could not place is a
+    -- legitimate row rendered through its KIND (journey/render-keys.ts), and "we could
+    -- not tell" must never look like "it was about the salary band".
+    -- Two clocks, never collapsed: occurred_at is the turn's own 'at' field, recorded_at
+    -- is
+    -- when kp wrote the row. A backfilled round is weeks apart; a live one is
+    -- milliseconds. actor NULL = kp genuinely does not know who did this.
+    CREATE TABLE IF NOT EXISTS intake_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      intake_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      topic_code TEXT,
+      facts_json TEXT,
+      occurred_at TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      actor TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_intake_events_intake ON intake_events (intake_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_intake_events_ws ON intake_events (workspace_id, occurred_at);
+
+    -- The per-entry note THREAD (db/entry-notes.ts): append-only authored notes beside the
+    -- pipeline_entries.notes scratchpad, which it does not replace. author_user_id is the
+    -- SESSION's user id, NULL in no-auth mode; the display name is resolved at read time,
+    -- never copied into the row. workspace_id is derived from the entry at insert.
+    CREATE TABLE IF NOT EXISTS pipeline_entry_notes (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      author_user_id TEXT,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pipeline_entry_notes_entry ON pipeline_entry_notes (entry_id, workspace_id, created_at);
+
+    -- The Match results the server HOLDS (db/match-runs.ts, ADR 0018 amendment): one row
+    -- per (run, job) of every /api/match answer, carrying the verdict facts the server
+    -- derived itself. POST /api/pipeline checks a Match add against it before it seals.
+    -- Short-lived (expires_at); candidate_id is the profile id / analysis slug, so the
+    -- erasure scrub deletes a candidate's rows (db/pipeline.ts, scrubEntryLinkedPii).
+    CREATE TABLE IF NOT EXISTS match_run_results (
+      run_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      candidate_id TEXT NOT NULL,
+      scorer_version TEXT NOT NULL,
+      weights_hash TEXT NOT NULL,
+      facts_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, run_id, job_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_match_run_results_key ON match_run_results (workspace_id, candidate_id, job_id, scorer_version, weights_hash);
+    CREATE INDEX IF NOT EXISTS idx_match_run_results_expiry ON match_run_results (expires_at);
+
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
     -- the source of truth the poller reads, so a scan survives the operator
@@ -1240,6 +1365,18 @@ export function ensureDb(): Database.Database {
       UNIQUE (workspace_id, job_id, lang)
     );
 
+    -- One team's lifecycle of a SHARED corpus role (docs/features/jobs/README.md):
+    -- reads fold COALESCE(overlay, jobs). No published_at: billing stays on jobs.
+    CREATE TABLE IF NOT EXISTS job_workspace_state (
+      workspace_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      status TEXT,
+      target_hires INTEGER,
+      posting_langs TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, job_id)
+    );
+
     -- Job-seeker module (app/_lib/jobseeker/types.ts, stores in db/jobseeker-*.ts): the
     -- SEEKER's own record — the flip side of the recruiter tables above. Four tables,
     -- every one workspace-scoped with NO by-id carve-out (a leaked id must not resolve
@@ -1353,19 +1490,350 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
+
+    -- Every CV the seeker has had read (db/jobseeker-cvs.ts): the extracted text, the
+    -- profile draft it produced and WHICH reader produced it, so dropping the same CV
+    -- again reuses the draft (no model call) and an earlier CV can be made active again.
+    -- content_hash is sha256 of the text with whitespace normalised. One row per
+    -- (workspace, seeker, hash): user_id is nullable like the profile row, and SQLite
+    -- treats NULL as distinct inside a plain UNIQUE, so the key is an EXPRESSION index
+    -- over IFNULL(user_id, '') and the store's upsert is SELECT-then-write under IMMEDIATE.
+    CREATE TABLE IF NOT EXISTS jobseeker_cvs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT,
+      content_hash TEXT NOT NULL,
+      file_name TEXT,
+      byte_size INTEGER,
+      source_text TEXT NOT NULL,
+      draft_json TEXT NOT NULL,
+      draft_source TEXT CHECK(draft_source IS NULL OR draft_source IN ('llm','deterministic')),
+      created_at TEXT NOT NULL,
+      last_used_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_jobseeker_cvs_seeker_hash ON jobseeker_cvs (workspace_id, IFNULL(user_id, ''), content_hash);
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_cvs_seeker_used ON jobseeker_cvs (workspace_id, user_id, last_used_at DESC);
+
+    -- The seeker's small, per-profile UI state that must follow them across browsers
+    -- (db/jobseeker-ui-state.ts): the designed-CV choices (kind cv_design, key ''), a
+    -- cover-note draft per posting (kind cover_note, key = posting id), the web research
+    -- of what their target titles ask for (kind role_research, key = the research's own
+    -- key) and their GitHub read (kind github, key ''). Keyed by the profile row (never
+    -- NULL), so the upsert is a plain ON CONFLICT on the primary key.
+    CREATE TABLE IF NOT EXISTS jobseeker_ui_state (
+      workspace_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN (${JOBSEEKER_UI_STATE_KINDS_SQL})),
+      key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, profile_id, kind, key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_ui_state_recent ON jobseeker_ui_state (workspace_id, profile_id, kind, updated_at DESC);
+
+    -- The JOB-LEVEL interview kit (db/interview-kits.ts): the competencies a role is
+    -- hired on, the questions asked about each, the per-competency time budget, and the
+    -- FAQ the interviewer may answer role questions from. One kit per job, and it is the
+    -- SPINE of every interview for that job.
+    --
+    -- APPEND-ONLY AND VERSIONED, for the reason agent_fit_specs states above: a
+    -- regeneration must never silently clobber an operator's edit. This table adds the
+    -- second half of that argument — a candidate's interview link is PINNED to the
+    -- version it was minted with, so everyone in one round is asked the same things and
+    -- their ratings stay comparable. An edit therefore INSERTS a new version; it never
+    -- rewrites one. (version, not created_at, is the ordering: two versions saved inside
+    -- one ISO millisecond are a real case here — a generated draft published
+    -- immediately — and agent_fit_specs had to learn that the hard way.)
+    --
+    -- THE ONE PERMITTED UPDATE is status 'draft' -> 'published' (interviewKitPublish).
+    -- It is allowed because it does not change what a version ASKS: kit_json is
+    -- untouched, so every link already pinned to that version keeps asking exactly what
+    -- it asked. All it changes is which version NEW links mint from. Expressing it as a
+    -- new row instead would duplicate an identical kit under a second id and break the
+    -- pin that the duplicate was supposed to preserve.
+    --
+    -- NO CANDIDATE DATA EVER LANDS HERE. The GDPR erasure scrub is entry-keyed
+    -- (db/pipeline.ts scrubEntryLinkedPii), so it cannot reach a job-keyed row: a pasted
+    -- candidate name or a CV-derived probe stored here would be undeletable by design.
+    -- Per-candidate material belongs in interview_preps, which the scrub does blank.
+    -- Pinned by db/interview-kits-shape.test.ts.
+    CREATE TABLE IF NOT EXISTS interview_kits (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+      kit_json TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('generated','edited')),
+      created_at TEXT NOT NULL
+    );
+
+    -- Monotonic versions per (team, job). The store computes the next version inside an
+    -- IMMEDIATE transaction; this index is what makes that correct rather than merely
+    -- likely — two writers racing on the same job collide at the DB rather than both
+    -- minting "version 4".
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_kits_version ON interview_kits (workspace_id, job_id, version);
+    CREATE INDEX IF NOT EXISTS idx_interview_kits_job ON interview_kits (workspace_id, job_id, created_at);
+
+    -- The interview FEEDBACK LETTER a candidate may ask for after a person decided on
+    -- their application (db/interview-letters.ts; contract in
+    -- app/_lib/interview-letter-types.ts). One row per application: the request, the
+    -- machine's draft, the recruiter's final text, who decided and when, and what delivery
+    -- reported. NOT named "feedback" — that table is operators' product feedback.
+    --
+    -- CANDIDATE PERSONAL DATA: draft_text and final_text are written about one person, so
+    -- the entry-keyed erasure scrub (db/pipeline.ts scrubEntryLinkedPii) blanks both and
+    -- stamps erased_at. The row stays as the record that a letter was requested.
+    CREATE TABLE IF NOT EXISTS interview_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'requested' CHECK(state IN ('requested','drafted','sent','declined')),
+      outcome TEXT NOT NULL CHECK(outcome IN ('not_selected','hired')),
+      lang TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      draft_text TEXT,
+      draft_source TEXT CHECK(draft_source IS NULL OR draft_source IN ('model','template')),
+      draft_created_at TEXT,
+      final_text TEXT,
+      decided_by TEXT,
+      decided_at TEXT,
+      delivery TEXT CHECK(delivery IS NULL OR delivery IN ('sent','queued','failed')),
+      erased_at TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    -- ONE letter per application, per team. The candidate's request door is idempotent
+    -- because of this index (an INSERT … ON CONFLICT DO NOTHING), not because of a
+    -- read-then-insert two clicks could race.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
+
+    -- Held first-contact outreach (db/outreach-letters.ts, comms scope C2). PII: the
+    -- erasure scrub blanks subject + body and stamps erased_at.
+    CREATE TABLE IF NOT EXISTS outreach_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'drafted' CHECK(state IN ('drafted','approved','released','delivery_failed','suppressed','discarded')),
+      revision INTEGER NOT NULL DEFAULT 1,
+      subject TEXT,
+      body TEXT,
+      lang TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      approved_by TEXT,
+      approved_at TEXT,
+      released_at TEXT,
+      erased_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_outreach_letters_entry ON outreach_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_outreach_letters_open ON outreach_letters (workspace_id, state, created_at);
+
+    -- Gigs module (app/_lib/gigs/types.ts, stores in db/gigs-*.ts): real paid work found in
+    -- the world, drafted by a specialist agent and SENT BY THE OPERATOR. Six tables, every
+    -- one workspace-scoped with NO by-id carve-out (a leaked id must not resolve another
+    -- workspace's source, gig, specialist, attempt, outcome or lesson).
+    --
+    -- Status columns carry no CHECK list on purpose: the vocabularies live once in
+    -- gigs/types.ts and the stores only write typed values, while a CHECK would turn every
+    -- added status into a table rebuild. tier is the exception - A/B/C is the terms
+    -- contract itself, not a growing list.
+    --
+    -- A source mirrors jobseeker_sources: a tier-B adapter is created disabled with
+    -- paused_reason 'terms_review' and enabled only together with the acknowledgement
+    -- columns. invalid_streak counts consecutive rejected/duplicate outcomes and pauses
+    -- the source at GIG_INVALID_STREAK_LIMIT (programs suspend accounts for that).
+    CREATE TABLE IF NOT EXISTS gig_sources (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      adapter TEXT NOT NULL,
+      arena TEXT NOT NULL,
+      tier TEXT NOT NULL CHECK(tier IN ('A','B','C')),
+      host TEXT NOT NULL,
+      config_json TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      acknowledged_at TEXT,
+      acknowledged_terms_hash TEXT,
+      paused_reason TEXT,
+      paused_at TEXT,
+      invalid_streak INTEGER NOT NULL DEFAULT 0,
+      last_run_at TEXT,
+      last_outcome TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_sources_ws ON gig_sources (workspace_id, created_at);
+
+    -- One row per real-world listing per source. source_id is NULL for a gig the operator
+    -- forwarded by hand, and SQLite treats NULLs as distinct inside a UNIQUE, so the key
+    -- is an EXPRESSION index over COALESCE(source_id, 'manual'): two forwards of the same
+    -- brief collide exactly like two scans of the same listing. (Source ids are minted by
+    -- randomId with a prefix, so no real source can be named 'manual'.)
+    CREATE TABLE IF NOT EXISTS gigs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      source_id TEXT,
+      arena TEXT NOT NULL,
+      external_key TEXT NOT NULL,
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      org TEXT,
+      reward_json TEXT,
+      deadline_at TEXT,
+      posted_at TEXT,
+      body_text TEXT NOT NULL,
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      niche TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      suspect_reasons_json TEXT NOT NULL DEFAULT '[]',
+      specialist_id TEXT,
+      qualification_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_gigs_source_key ON gigs (workspace_id, COALESCE(source_id, 'manual'), external_key);
+    CREATE INDEX IF NOT EXISTS idx_gigs_ws_status_updated ON gigs (workspace_id, status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_gigs_ws_arena ON gigs (workspace_id, arena);
+
+    -- A specialist is a hired_agents roster row (the Personas persona) plus the spec that
+    -- makes it a specialist: arena, niche, adopted recipes, exemplars, budget.
+    CREATE TABLE IF NOT EXISTS gig_specialists (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      hired_agent_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      spec_json TEXT NOT NULL,
+      registry TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_specialists_ws ON gig_specialists (workspace_id, created_at);
+
+    -- One specialist run on one gig. A revision is a NEW attempt (revision_note carries
+    -- the operator's ask), so an attempt row never goes backwards. cost_usd NULL means
+    -- Personas did not report a cost - unmetered, not free.
+    CREATE TABLE IF NOT EXISTS gig_attempts (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      specialist_id TEXT NOT NULL,
+      execution_id TEXT,
+      status TEXT NOT NULL DEFAULT 'dispatched',
+      deliverable_json TEXT,
+      fallback_reason TEXT,
+      cost_usd REAL,
+      review_json TEXT,
+      revision_note TEXT,
+      sent_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_attempts_ws_status ON gig_attempts (workspace_id, status);
+    CREATE INDEX IF NOT EXISTS idx_gig_attempts_ws_gig ON gig_attempts (workspace_id, gig_id);
+
+    -- APPEND-ONLY: the external judge's verdict on a sent piece of work. The store exports
+    -- no UPDATE or DELETE for it (gigs-outcomes.test.ts pins that); a corrected verdict is
+    -- a newer row, and the KPI fold reads the latest per attempt.
+    CREATE TABLE IF NOT EXISTS gig_outcomes (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      attempt_id TEXT,
+      verdict TEXT NOT NULL,
+      amount REAL,
+      currency TEXT,
+      feedback_text TEXT,
+      source TEXT NOT NULL,
+      recorded_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_outcomes_ws_gig ON gig_outcomes (workspace_id, gig_id);
+
+    -- What one outcome teaches the recipe that shaped the specialist, queued for the
+    -- registry lander. landed_at NULL = still pending.
+    CREATE TABLE IF NOT EXISTS gig_lessons (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      outcome_id TEXT NOT NULL,
+      recipe_slug TEXT NOT NULL,
+      recipe_version TEXT NOT NULL,
+      arena TEXT NOT NULL,
+      verdict TEXT NOT NULL,
+      bullets_json TEXT NOT NULL,
+      landed_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_lessons_ws_landed ON gig_lessons (workspace_id, landed_at);
+
+    -- One model's plan proposal for one gig (gigs/plan-seats.ts; gig-mastery S1). The
+    -- operator accepts exactly one per gig (accepted_at, a CAS); progress_json mirrors the
+    -- accepted plan's Personas milestone ({milestoneId, goals[], updatedAt}). cost_usd NULL
+    -- means the model's cost was not reported - unmetered, not free.
+    CREATE TABLE IF NOT EXISTS gig_plans (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      seat TEXT NOT NULL,
+      model TEXT NOT NULL,
+      effort TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      plan_json TEXT,
+      fallback_reason TEXT,
+      cost_usd REAL,
+      duration_ms INTEGER,
+      note TEXT,
+      accepted_at TEXT,
+      progress_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_plans_ws_gig ON gig_plans (workspace_id, gig_id, created_at);
+
+    -- Cohort Studio (db/analysis-cohorts.ts). Labels are names: the erasure scrub masks them.
+    CREATE TABLE IF NOT EXISTS analysis_cohorts (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      jd_slug TEXT NOT NULL,
+      status TEXT NOT NULL,
+      blind INTEGER NOT NULL,
+      report_lang TEXT NOT NULL,
+      order_seed TEXT NOT NULL,
+      members_json TEXT NOT NULL,
+      comments_json TEXT,
+      task_id TEXT,
+      created_at TEXT NOT NULL,
+      finished_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_analysis_cohorts_ws_created ON analysis_cohorts (workspace_id, created_at);
   `);
-  // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
-  // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
-  // corruption, I/O, lock contention under the documented multi-connection scheduler
-  // load — must NOT silently boot a structurally-broken DB: a bare `catch {}` here was
-  // the exact "why is everything empty" hunt the seed-health code exists to prevent,
-  // reintroduced one layer down. Surface the unexpected ones loudly and re-throw.
+  // Run a DDL migration LOUDLY. An `ALTER TABLE … ADD COLUMN` goes through addColumns
+  // (db/add-columns.ts): probe PRAGMA table_info, ALTER only a column that is missing, and
+  // tolerate only a lost duplicate-column race that a re-probe confirms — so a warm boot
+  // issues no ALTER at all instead of throwing-and-catching one SqliteError per column, and
+  // the benign case is decided by the post-condition, never by error-message text. Every
+  // other statement routed here is `CREATE … IF NOT EXISTS`, which cannot raise "already
+  // exists", so nothing else is tolerated. Any failure — corruption, I/O, a read-only file,
+  // lock contention past busy_timeout — must NOT silently boot a structurally-broken DB: a
+  // bare `catch {}` here was the exact "why is everything empty" hunt the seed-health code
+  // exists to prevent, reintroduced one layer down. Surface it loudly and re-throw.
   const migrateExec = (sql: string) => {
     try {
-      db.exec(sql);
+      const alter = parseAddColumn(sql);
+      if (alter) addColumns(db, alter.table, [alter.def]);
+      else db.exec(sql);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
       console.error(`[db:migrate] unexpected failure running: ${sql}\n  ${msg}`);
       throw error;
     }
@@ -1481,6 +1949,10 @@ export function ensureDb(): Database.Database {
     // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // ADR-0012 — the slate columns. `population` backfills 'human' (the board has
+    // only ever held people); `rubric_version` stays NULL = "unknown standard".
+    "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
+    "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is
@@ -1569,6 +2041,16 @@ export function ensureDb(): Database.Database {
     // on every pre-migration row = "no reason recorded".
     "ALTER TABLE llm_usage ADD COLUMN outcome TEXT NOT NULL DEFAULT 'ok'",
     "ALTER TABLE llm_usage ADD COLUMN reason TEXT",
+    // Which role run (role_runs.id) this metered call was made for. Nullable: NULL on
+    // every pre-migration row and on every call outside a role run (the common case).
+    // Stamped from the ambient llm-request-context scope the role-run engine opens
+    // around a stage runner, so the per-run budget ceiling can sum a run's own spend.
+    // Not a foreign key: llm_usage is the tenancy-exempt metering ledger and must keep
+    // its rows if a run is ever deleted.
+    "ALTER TABLE llm_usage ADD COLUMN role_run_id TEXT",
+    // A team's EXPLICIT language; NULL = follow organizations.default_locale (see
+    // db/workspaces.ts). default_locale stays as the legacy mirror.
+    "ALTER TABLE workspaces ADD COLUMN locale_override TEXT",
   ]) {
     migrateExec(sql);
   }
@@ -1576,6 +2058,9 @@ export function ensureDb(): Database.Database {
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // The per-run budget read (db/llm.ts sumRoleRunUsage) filters on role_run_id; partial,
+  // because nearly every ledger row is outside a run. After the ALTER loop for legacy DBs.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_llm_usage_role_run ON llm_usage (role_run_id) WHERE role_run_id IS NOT NULL`);
   // Tenant scope: the board chip / disposition echo filter pipeline_entries by workspace.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
   // Same single-row public lookup for the self-service erasure token.
@@ -1786,13 +2271,12 @@ export function ensureDb(): Database.Database {
     // separately — its single-column PK must widen to (channel, workspace_id).
     "ALTER TABLE channel_webhooks ADD COLUMN workspace_id TEXT",
     "ALTER TABLE dev_outbox ADD COLUMN workspace_id TEXT",
-    // failure-truth-everywhere: WHY a send dead-lettered. comms.ts already computed a
-    // precise reason per attempt ("http 503", "getaddrinfo ENOTFOUND …", a timeout) and
-    // spent it on a console.error + comms.log line, then wrote the row without it — so
-    // the Comms Center could say a message failed but never why, and the recruiter's
-    // only recourse was server logs. Additive + nullable: legacy `failed` rows keep
-    // reading as "no reason recorded", never as a fabricated one.
+    // failure-truth-everywhere: WHY a send dead-lettered (comms.ts computed it, then dropped it).
+    // Additive + nullable: legacy `failed` rows read as "no reason recorded", never a fabricated one.
     "ALTER TABLE dev_outbox ADD COLUMN failure_detail TEXT",
+    // C1: envelope messageId (null on old rows); newest delivered receipt
+    "ALTER TABLE dev_outbox ADD COLUMN message_id TEXT",
+    "ALTER TABLE dev_outbox ADD COLUMN last_delivered_at TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -1985,10 +2469,29 @@ export function ensureDb(): Database.Database {
     // connected yet, both read as the ordinary single-attempt session rather than as
     // a fabricated zero.
     "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
+    // The interview DIRECTOR (spark ai-interview-parity; docs/features/interviews/
+    // README.md "Director"). agenda_json is the block list the director steers by, built
+    // at connect for both providers so they stop running different kits; the two
+    // recording columns carry the SEPARATE audio consent and the per-attempt file
+    // records (with their deletion trail). All NULL on every existing row.
+    "ALTER TABLE interview_sessions ADD COLUMN agenda_json TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recording_consent_at TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recordings_json TEXT",
+    // Liveness for a DIRECTED call. updated_at is stamped at connect and read as the
+    // current attempt's start (the minutes debit, the director's clock), so it cannot be
+    // refreshed mid-call — and a directed call runs up to the agenda's hard cap + 2 min
+    // (38 min on a 30-min booking), past LIVE_INTERVIEW_RECENCY_MIN. Without a separate
+    // activity stamp a second tab could open the same link mid-call.
+    "ALTER TABLE interview_sessions ADD COLUMN last_activity_at TEXT",
+    // The kit VERSION this link was minted from (interview_kits.id). Pinned at mint so a
+    // recruiter editing the job's kit cannot change what a candidate who already holds a
+    // link will be asked — candidates in one round stay comparable. NULL on every link
+    // minted before kits existed, and on every job that has no kit.
+    "ALTER TABLE interview_sessions ADD COLUMN kit_id TEXT",
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
-    // "no such table" (only "duplicate column"/"already exists" are benign), so an
+    // a missing table (addColumns refuses to ALTER a table that is not there), so an
     // earlier ALTER would hard-fail every fresh boot.
     "ALTER TABLE outreach_state ADD COLUMN candidate_halt_at TEXT",
     // The seeker's LAST-SEEN anchor on their own feed (docs/features/jobseeker/README.md,
@@ -2005,13 +2508,66 @@ export function ensureDb(): Database.Database {
     // not applied (and for rows applied before this column existed: unknown, never a
     // fabricated date).
     "ALTER TABLE jobseeker_postings ADD COLUMN applied_at TEXT",
+    // HOW a billing alert ended — 'fixed' | 'dismissed' (app/_lib/billing/alerts.ts).
+    // A resolution with no kind cannot tell a real fix from noise. Nullable, no default:
+    // open rows and rows closed before this column existed read NULL ("not recorded").
+    "ALTER TABLE billing_alerts ADD COLUMN resolution TEXT",
+    // sha256 of the per-attempt dev-case session key (devcase-session-auth.ts). NULL on
+    // pre-key rows, which keep the apply-token rule. Never the raw key.
+    "ALTER TABLE dev_sessions ADD COLUMN key_hash TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN applicant_key TEXT",
+    // What a recruiter's advance/pass was decided AGAINST (decisionBrief.ts): JSON
+    // {score, openWarns, acknowledged, decidedAt}. NULL on hold/clear and on every
+    // decision recorded before the column existed (unknown, never fabricated).
+    "ALTER TABLE analyses ADD COLUMN decision_basis TEXT",
+    // The lifecycle runner's last step as a closed code + integer facts + coded warnings
+    // (devcase-stage-outcome.ts), beside the English `detail` it keeps writing. NULL on
+    // every row written before the column existed and on rows a human door last wrote;
+    // the row then renders `detail` exactly as before.
+    "ALTER TABLE dev_lifecycle ADD COLUMN outcome_json TEXT",
+    // When the candidate CHOSE `locale` (db/pipeline-locale.ts); NULL = inferred/apply-time.
+    "ALTER TABLE pipeline_entries ADD COLUMN locale_chosen_at TEXT",
+    // A gig's research brief (gigs/research.ts, docs/features/gigs/README.md "Research"):
+    // the links its listing named, what reading them found, and the readable Markdown,
+    // as one GigBrief JSON; brief_at is when it was written. NULL on every row until the
+    // gig is researched - "not researched", never an empty brief.
+    "ALTER TABLE gigs ADD COLUMN brief_json TEXT",
+    "ALTER TABLE gigs ADD COLUMN brief_at TEXT",
+    // A gig's own folder on disk (gigs/workdir.ts) and the Personas project rooted there
+    // (gigs/project.ts, docs/features/gigs/README.md "Workspaces and projects"). NULL until
+    // the workspace is first prepared; the project id stays NULL while Personas is unpaired,
+    // unreachable or predates the project route.
+    "ALTER TABLE gigs ADD COLUMN workdir TEXT",
+    "ALTER TABLE gigs ADD COLUMN personas_project_id TEXT",
+    // The brief challenge a gig was withdrawn FOR (gigs/withdraw-reasons.ts): JSON
+    // {challenge, index, at}. NULL on every other gig, on a withdraw that named no
+    // challenge, and on every row withdrawn before the column existed (unknown).
+    "ALTER TABLE gigs ADD COLUMN withdraw_reason_json TEXT",
+    // The gig's HTML report (gigs/gig-report.ts): JSON GigReport {path, stage, status, source,
+    // fallbackReason, costUsd, generatedAt}. NULL until the first report is written.
+    "ALTER TABLE gigs ADD COLUMN report_json TEXT",
+    // A proposal-track gig's client proposal (gigs/proposal/**): JSON GigProposal {path,
+    // status, source, model, fallbackReason, costUsd, generatedAt, planId, message,
+    // questions, artifacts}. NULL until the first proposal is written.
+    "ALTER TABLE gigs ADD COLUMN proposal_json TEXT",
+    // The listing's state as its source last reported it (gigs/freshness.ts): JSON
+    // GigSourceState {state, detail, bidCount, checkedAt}; freshness_checked_at is the same
+    // checkedAt as a plain column, so the checker reads oldest-first on an index-free sort.
+    // NULL on every row until a freshness check reads it - "not checked", never "open".
+    "ALTER TABLE gigs ADD COLUMN source_state_json TEXT",
+    "ALTER TABLE gigs ADD COLUMN freshness_checked_at TEXT",
+    // One persona per gig (gig-mastery S2): the gig a specialist was hired FOR. NULL on the
+    // niche specialists hired before, which serve many gigs until they are retired.
+    "ALTER TABLE gig_specialists ADD COLUMN gig_id TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
     // structurally-broken DB — the exact "why is everything empty" trap migrateExec
-    // was written to prevent. It tolerates only the benign "already applied" error.
+    // was written to prevent. It skips a column that is already there by probing for it.
     migrateExec(sql);
   }
+  // applicant-key.ts: one filing per (team, job, key); NULL (legacy, erased) never collides.
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_applicant_key ON pipeline_entries (workspace_id, job_id, applicant_key) WHERE applicant_key IS NOT NULL`);
   // The public skill-profile verify/view resolves a presented token by its CSPRNG
   // access_token (new credentials); index it like the other single-row token lookups.
   // Created AFTER the ALTER loop above so a legacy DB already holds the column.
@@ -2121,6 +2677,87 @@ export function ensureDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
   `);
+  // Role-run ledger (db/role-runs.ts, ADR-0009): new-in-full tables, so a legacy DB simply
+  // gains them on boot (the feedback / jd_revisions pattern). Defined here, not lazily in the
+  // store, so the core-* schema gates see them.
+  db.exec(`
+    -- One run per (job, cycle). The cycle is a free string rather than an integer so
+    -- a caller can key a run on something meaningful ("2026-q4-backfill") without a
+    -- schema change; the default "1" covers the single-run-per-job case.
+    CREATE TABLE IF NOT EXISTS role_runs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      cycle TEXT NOT NULL DEFAULT '1',
+      status TEXT NOT NULL DEFAULT 'running',
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    -- UNIQUE, not an index for speed: "re-running a role forks a second ledger for it"
+    -- is the defect this prevents. getOrCreateRoleRun reads through it.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_role_runs_job_cycle
+      ON role_runs (workspace_id, job_id, cycle);
+
+    -- APPEND-ONLY. There is no UPDATE anywhere in this module for this table, and no
+    -- DELETE: an artifact is the record of what the run did at a moment, and a run
+    -- whose history can be edited cannot be the evidence behind a sealed decision.
+    -- Correcting a stage means appending a newer artifact for the same (kind, branch)
+    -- and letting seq order them.
+    CREATE TABLE IF NOT EXISTS role_run_stages (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      kind TEXT NOT NULL,
+      branch_ref TEXT,
+      seq INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      produced_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_run
+      ON role_run_stages (workspace_id, run_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_branch
+      ON role_run_stages (workspace_id, run_id, branch_ref, seq);
+  `);
+  // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
+  // the inbound receiver, the pull pass, the edge drain and the agent-report route, so a
+  // replay after a restart is absorbed instead of re-filing. `key` is sha256(composed
+  // key) hex — NEVER the key itself, which embeds a raw capability token. `state` is
+  // 'inflight' under a lease or 'done' under the done-horizon; `expires_at` (epoch ms)
+  // is when either becomes re-claimable, and the store's lazy sweep deletes expired
+  // rows. Tenancy-EXEMPT: a globally-unique delivery digest (see tenancy.ts).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS webhook_claims (
+      key TEXT PRIMARY KEY,
+      state TEXT NOT NULL CHECK(state IN ('inflight','done')),
+      expires_at INTEGER NOT NULL,
+      claimed_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_webhook_claims_expires ON webhook_claims (expires_at);
+  `);
+  // Usage journal (db/billing.ts, docs/features/billing/README.md): ONE row per meter
+  // debit, written by recordMeterUsage in the same transaction as the billing_usage
+  // counter it explains — qty, its included/credits split, and the cause (source_kind +
+  // an opaque source_ref id). Write-only evidence: no gate or charge reads it. Org-keyed
+  // like every billing table (tenancy-exempt billing block, exported with the org).
+  // New-in-full, so a legacy DB simply gains it on boot.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS billing_usage_journal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
+      meter TEXT NOT NULL,
+      period TEXT NOT NULL,
+      qty INTEGER NOT NULL,
+      from_included INTEGER NOT NULL,
+      from_credits INTEGER NOT NULL,
+      source_kind TEXT NOT NULL,
+      source_ref TEXT,
+      occurred_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_billing_usage_journal_org ON billing_usage_journal (org_id, period);
+  `);
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
@@ -2158,6 +2795,7 @@ export function ensureDb(): Database.Database {
     `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dev_outbox_message_id ON dev_outbox (message_id)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_workspace ON interview_sessions (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks (workspace_id)`,
@@ -2187,6 +2825,7 @@ export function ensureDb(): Database.Database {
     seedCandidates(db);
     seedAnalyses(db);
     seedPipeline(db);
+    seedInterviewScorecards(db); // completed demo interviews: the scorecard arm of kpi:reasons
     seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
     // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
     // run — mark it onboarded so the setup wizard doesn't ambush existing dev
@@ -2196,6 +2835,7 @@ export function ensureDb(): Database.Database {
   }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
+  backfillIntakeEvents(db); // recover the role-intake history that predates intake_events
 
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
@@ -2355,12 +2995,46 @@ export function ensureDb(): Database.Database {
        ALTER TABLE billing_usage_new RENAME TO billing_usage;`
     );
   }
+  // campaign_packs -> (job_id, lang, workspace_id), guarded by the PK SHAPE (workspace_id
+  // already exists, so a column guard never fires); narrowCampaignPacksKey is the way back.
+  widenCampaignPacksKey(db);
+  // jobseeker_ui_state: widen the kind CHECK for the role research and the GitHub read.
+  // SQLite cannot alter a CHECK, so a table whose stored DDL lacks the newest kind is
+  // rebuilt once (rebuildTable: orphan scratch dropped first, one transaction) - guarded by
+  // its own stored DDL, so it runs exactly once and never on a fresh database.
+  const uiStateSql =
+    (db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobseeker_ui_state'`).get() as { sql: string } | undefined)?.sql ?? "";
+  if (uiStateSql && !uiStateSql.includes("'github'")) {
+    rebuildTable(
+      "jobseeker_ui_state_new",
+      `CREATE TABLE jobseeker_ui_state_new (
+         workspace_id TEXT NOT NULL,
+         profile_id TEXT NOT NULL,
+         kind TEXT NOT NULL CHECK(kind IN (${JOBSEEKER_UI_STATE_KINDS_SQL})),
+         key TEXT NOT NULL,
+         value_json TEXT NOT NULL,
+         updated_at TEXT NOT NULL,
+         PRIMARY KEY (workspace_id, profile_id, kind, key)
+       );
+       INSERT INTO jobseeker_ui_state_new (workspace_id, profile_id, kind, key, value_json, updated_at)
+         SELECT workspace_id, profile_id, kind, key, value_json, updated_at FROM jobseeker_ui_state;
+       DROP TABLE jobseeker_ui_state;
+       ALTER TABLE jobseeker_ui_state_new RENAME TO jobseeker_ui_state;
+       CREATE INDEX IF NOT EXISTS idx_jobseeker_ui_state_recent ON jobseeker_ui_state (workspace_id, profile_id, kind, updated_at DESC);`
+    );
+  }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
   // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
   // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
   db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
+  // Dispatch cards filed before placeAgentOnBoard set population read as 'human'.
+  db.prepare(
+    `UPDATE pipeline_entries SET population = 'agent'
+      WHERE source_channel = 'agent-bridge' AND candidate_id LIKE 'agent-%' AND ${notAgentSql()}`
+  ).run();
+  backfillOrgLocaleAuthority(db); // after the org_id link and every seeder
   // Self-defending tenancy guard: if KP_MULTI_WORKSPACE is enabled, REFUSE to boot
   // with any unscoped per-tenant table (machine-checked against the canonical
   // manifest in tenancy.ts) rather than silently serving cross-tenant data. The
@@ -2516,7 +3190,7 @@ const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 function generateSlug(): string {
   let out = "";
   for (let i = 0; i < 8; i++) {
-    out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    out += ALPHABET[randomInt(ALPHABET.length)];
   }
   return out;
 }
@@ -2633,6 +3307,17 @@ export type JobRecord = {
   // (listJobPipelineStats). Absent when the caller did not ask for it.
   hired?: number;
 };
+
+/** Does a job's lifecycle live in the team's job_workspace_state overlay? Corpus rows
+ *  yes, authored rows no. Exception: a LEGACY corpus row 'published' with no stamp
+ *  stays shared until closed, or one team's close would change who pays next. */
+export function jobLifecycleInOverlay(row: {
+  workspace_id: string | null;
+  status: string | null;
+  published_at: string | null;
+}): boolean {
+  return row.workspace_id === null && !(row.status === "published" && row.published_at === null);
+}
 
 const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");
 
@@ -2911,7 +3596,19 @@ export type PipelineEntry = {
   // projects explicit fields rather than serializing a row (see the erasure-token
   // note above, and publicInviteView in api/schedule/[token]).
   workspaceId: string;
+  // ADR-0012 — which population this slate member belongs to. The board renders
+  // ONE list and branches on this only for identity affordances, never for the
+  // evaluation, which is the same frozen rubric for both.
+  population: SlatePopulation;
+  // The frozen rubric version this entry's evaluation was produced against, or
+  // null — "unknown standard", NOT "the current standard".
+  rubricVersion: number | null;
 };
+
+// ADR-0012 population helpers live in a dependency-free module so client bundles can
+// reach them without pulling better-sqlite3; re-exported here for existing importers.
+export { SLATE_POPULATIONS, coerceSlatePopulation, isAgentPopulation, notAgentSql } from "../slate-population";
+export type { SlatePopulation } from "../slate-population";
 
 export function recordEvent(
   db: Database.Database,
@@ -3003,6 +3700,127 @@ function backfillDeclinedStatus(db: Database.Database): void {
   ).run(new Date().toISOString());
 }
 
+/** The seed mark this backfill records itself under (db/seed-marks.ts). */
+export const INTAKE_EVENTS_BACKFILL_MARK = "intake-events-backfill";
+
+/**
+ * Recover the role-intake history that existed before `intake_events` did.
+ *
+ * WHY THERE IS ANYTHING TO RECOVER. `role_intakes.transcript_json` is rewritten whole on
+ * every exchange, so the ROW carries only one timestamp — but its array ELEMENTS each
+ * carry their own `at` (VoiceTurn.at, voice/types.ts). Verified against the operator's
+ * own database on 2026-09-21: 36 rows, 143 turns, every one of them stamped. So the
+ * rounds are genuinely recoverable, and `occurred_at` for a recovered round is a FACT
+ * read off the turn rather than a guess — which is precisely why `occurred_at` and
+ * `recorded_at` are two columns. One run stamps ONE `recordedAt` across every row it
+ * writes, so "what kp knew, and when it learned it" stays answerable.
+ *
+ * RECORDED IN seed_marks, never `COUNT(*) > 0`. A row count cannot tell "never
+ * backfilled" from "backfilled, then legitimately emptied" — the difference between an
+ * operator's cleared table staying cleared and demo-shaped rows reappearing on the next
+ * boot. Same rule, and the same reasoning, as every seeder above.
+ *
+ * WRITES DIRECTLY ON THE PASSED HANDLE rather than through `recordIntakeEvent`, which is
+ * otherwise the table's only writer. Same exception, for the same reason, as
+ * `seedBenchmarkTeam`: this runs INSIDE ensureDb's initializer, before `__kpDb` is
+ * memoized, so any call that reaches `ensureDb()` would re-enter the whole initializer.
+ * The statement below is the same INSERT db/intake-events.ts issues, including the
+ * MAX(seq)+1 derivation and the workspace binding, and intake-events-tenancy.test.ts
+ * scans THIS file as well as that one so the copy cannot drift out of scope.
+ *
+ * TOPIC CLASSIFICATION IS DELIBERATELY NOT RUN HERE. Placing a round in the topic
+ * vocabulary needs `app/_lib/journey/intake-topics.ts`, and core.ts is on the static
+ * import graph of every route in the app — measured 2026-09-21, importing it would add
+ * two modules to ~207 routes against a ceiling `perf-budget.json` already reports as
+ * exceeded. A recovered round therefore lands with `topic_code` NULL, which is a
+ * first-class state: render-keys.ts renders it through its KIND. Live rounds ARE
+ * classified, off the request path, by the late-bound runner. If historic topics are
+ * later judged worth the graph, the honest move is to erase this run's rows
+ * (eraseIntakeEvents) and re-run WITH the classifier from a path no route imports —
+ * never a second write, because this table has no UPDATE path.
+ *
+ * Returns the number of rows written, so a caller (or a test) can distinguish "nothing
+ * to recover" from "already recovered".
+ */
+export function backfillIntakeEvents(db: Database.Database): number {
+  if (seedAlreadyRan(db, INTAKE_EVENTS_BACKFILL_MARK)) return 0;
+  const recordedAt = new Date().toISOString();
+  let written = 0;
+  // `-- tenancy:global` for a ONE-SHOT boot migration, which legitimately walks every
+  // tenant — like the stage remap and the declined-status split above it. Each row is
+  // then written back under the workspace_id it CAME FROM (bound in the INSERT below),
+  // so no round ever crosses a tenant; this is a sweep, not a read on anyone's behalf.
+  // Only intakes that have NO history yet. This is what makes the sweep idempotent BY
+  // CONSTRUCTION rather than only by its seed mark, and the distinction matters: an
+  // install whose role_intakes table is empty at first boot (a blank tenant) must not
+  // stamp a mark it did not earn, or `seed_marks` stops meaning "a seeder ran here" —
+  // core-empty-boot.test.ts pins exactly that. Without this predicate, skipping the
+  // mark on an empty table would let a LATER boot sweep intakes whose rounds were
+  // already recorded live through recordIntakeEvent, writing every one of them twice.
+  const rows = db.prepare(`SELECT id, workspace_id, transcript_json FROM role_intakes ri
+      WHERE NOT EXISTS (SELECT 1 FROM intake_events ie WHERE ie.intake_id = ri.id) -- tenancy:global`).all() as {
+    id: string;
+    workspace_id: string;
+    transcript_json: string | null;
+  }[];
+  const insert = db.prepare(
+    `INSERT INTO intake_events (intake_id, workspace_id, seq, kind, topic_code, facts_json, occurred_at, recorded_at, actor)
+     SELECT ?, ?, COALESCE((SELECT MAX(e.seq) FROM intake_events e WHERE e.intake_id = ? AND e.workspace_id = ?), 0) + 1,
+            'intake_round', NULL, ?, ?, ?, NULL`
+  );
+  // ALL OF IT, OR NONE OF IT — rows and mark together, in one IMMEDIATE transaction.
+  // Without it a run that failed on row 90 of 143 would leave 89 rows behind with the
+  // mark unset, and the next boot would write those 89 again: the ledger would say a
+  // hiring manager asked the same question twice. Synchronous throughout (no await
+  // anywhere inside), which is what keeps the atomicity real.
+  const run = db.transaction((): number => {
+    for (const row of rows) {
+      // A transcript this cannot read costs that ONE intake its history, never the boot:
+      // safeRowParse already files the unreadable column in the row-health ledger.
+      const transcript = safeRowParse<{ role?: unknown; text?: unknown; at?: unknown }[]>(
+        row.transcript_json,
+        "intakeEvent.backfillTranscript",
+        row.id
+      );
+      if (!Array.isArray(transcript)) continue;
+      // A ROUND is the requestor's turn plus the agent question immediately before it —
+      // `role: "interviewer"` is the intake agent, `role: "candidate"` is the REQUESTOR
+      // (the name is candidate-side legacy; see db/intakes.ts). A trailing question with
+      // no answer is not a round: nothing happened in it.
+      let question = "";
+      for (const turn of transcript) {
+        const text = typeof turn?.text === "string" ? turn.text : "";
+        if (turn?.role === "interviewer") {
+          question = text;
+          continue;
+        }
+        if (turn?.role !== "candidate") continue;
+        const at = typeof turn?.at === "string" && turn.at.trim() ? turn.at : "";
+        // No `at` ⇒ no row. Stamping `recordedAt` into `occurred_at` would manufacture a
+        // fact, and an absent history is the honest reading of a turn that never recorded
+        // when it happened.
+        if (at) {
+          // FACTS, not prose (journey/types.ts): the round's two halves are carried as
+          // named values and the sentence is rendered per locale. The 600 is
+          // INTAKE_ROUND_FACT_CHARS (db/intake-events.ts) restated: that module imports
+          // core.ts, so importing it back would close a cycle the boot path must not
+          // have. Keep the two in step — a transcript turn has no length limit and this
+          // ledger is not the transcript.
+          const facts = JSON.stringify({ question: question.slice(0, 600), answer: text.slice(0, 600) });
+          insert.run(row.id, row.workspace_id, row.id, row.workspace_id, facts, at, recordedAt);
+          written += 1;
+        }
+        question = "";
+      }
+    }
+    // Nothing to recover is not a run: a blank tenant leaves seed_marks untouched.
+    // The NOT EXISTS predicate above, not this mark, is what stops a double write.
+    if (rows.length > 0) markSeedRan(db, INTAKE_EVENTS_BACKFILL_MARK);
+    return written;
+  });
+  return run.immediate();
+}
+
 function seedPipeline(db: Database.Database): void {
   if (seedAlreadyRan(db, "pipeline")) return;
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
@@ -3072,4 +3890,102 @@ function seedPipeline(db: Database.Database): void {
   });
   tx(entries);
   markSeedRan(db, "pipeline");
+}
+
+/** The seed mark the org-language backfill records itself under (db/seed-marks.ts). */
+export const ORG_LOCALE_AUTHORITY_MARK = "org-locale-authority";
+
+/**
+ * Make organizations.default_locale the language authority WITHOUT changing any team's
+ * language: each org row is seeded from its OLDEST team's stored value, and every other
+ * team whose stored value differs gets it as an explicit locale_override. Values are
+ * copied VERBATIM, never interpreted — getWorkspaceDefaultLocale validates the same
+ * string the old reader validated, so every team resolves exactly as before (and this
+ * boot path needs no locale vocabulary). A team with no org row is skipped: it keeps
+ * reading its legacy column. One-shot via seed_marks (re-deriving later would undo the
+ * owner's choice); one IMMEDIATE transaction, no await.
+ */
+export function backfillOrgLocaleAuthority(db: Database.Database): void {
+  if (seedAlreadyRan(db, ORG_LOCALE_AUTHORITY_MARK)) return;
+  db.transaction(() => {
+    const teams = db
+      .prepare(
+        `SELECT w.id, w.org_id, w.default_locale, w.locale_override
+           FROM workspaces w JOIN organizations o ON o.id = w.org_id
+          ORDER BY w.org_id, w.created_at ASC, w.id ASC`
+      )
+      .all() as { id: string; org_id: string; default_locale: string | null; locale_override: string | null }[];
+    const setOrg = db.prepare(`UPDATE organizations SET default_locale = ? WHERE id = ?`);
+    const stamp = db.prepare(`UPDATE workspaces SET locale_override = ? WHERE id = ? AND locale_override IS NULL`);
+    const orgLocale = new Map<string, string>();
+    for (const t of teams) {
+      const locale = t.locale_override ?? t.default_locale ?? "cs";
+      const org = orgLocale.get(t.org_id);
+      if (org === undefined) {
+        orgLocale.set(t.org_id, locale);
+        setOrg.run(locale, t.org_id);
+      } else if (locale !== org) {
+        stamp.run(locale, t.id);
+      }
+    }
+    markSeedRan(db, ORG_LOCALE_AUTHORITY_MARK);
+  }).immediate();
+}
+
+// ---- campaign_packs key: forward and back (rollback-drill.test.ts runs both) ----------
+
+const CP_COLS = "job_id, lang, payload_json, source, created_at, workspace_id";
+const CP_WIDE = "job_id,lang,workspace_id";
+
+function campaignPacksKey(db: Database.Database): string {
+  return (db.prepare(`PRAGMA table_info(campaign_packs)`).all() as { name: string; pk: number }[])
+    .filter((c) => c.pk > 0)
+    .sort((a, b) => a.pk - b.pk)
+    .map((c) => c.name)
+    .join(",");
+}
+
+/** Rebuild campaign_packs under `key` from `select` (one transaction, orphan scratch
+ *  dropped first, the per-team scan index restored — rebuildTable's shape; no await). */
+
+function rebuildCampaignPacks(db: Database.Database, key: string, select: string): void {
+  db.transaction(() => {
+    db.exec(`DROP TABLE IF EXISTS campaign_packs_new;
+      CREATE TABLE campaign_packs_new (job_id TEXT NOT NULL, lang TEXT NOT NULL, payload_json TEXT NOT NULL,
+        source TEXT NOT NULL, created_at TEXT NOT NULL, workspace_id TEXT NOT NULL DEFAULT 'workspace',
+        PRIMARY KEY (${key}));
+      INSERT INTO campaign_packs_new (${CP_COLS}) ${select};
+      DROP TABLE campaign_packs;
+      ALTER TABLE campaign_packs_new RENAME TO campaign_packs;
+      CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id);`);
+  })();
+}
+
+/** Widen campaign_packs to PRIMARY KEY (job_id, lang, workspace_id) when its key has any
+ *  other shape — a legacy DB, or an old-key table a restored dump brought back. Keeps
+ *  every row (a narrower key cannot collide on a wider one). Returns whether it rebuilt. */
+export function widenCampaignPacksKey(db: Database.Database): boolean {
+  const key = campaignPacksKey(db);
+  if (key === "" || key === CP_WIDE) return false;
+  const ws = key.includes("workspace_id") || (db.prepare(`PRAGMA table_info(campaign_packs)`).all() as { name: string }[]).some((c) => c.name === "workspace_id");
+  rebuildCampaignPacks(db, CP_WIDE, `SELECT job_id, lang, payload_json, source, created_at, ${ws ? "COALESCE(workspace_id, 'workspace')" : "'workspace'"} FROM campaign_packs`);
+  return true;
+}
+
+/** THE WAY BACK: run before starting an image older than the widening, whose
+ *  `ON CONFLICT(job_id, lang)` upsert SQLite refuses against the widened key. Keeps ONE
+ *  row per (job_id, lang) — the default workspace's (all an older single-tenant image
+ *  reads), else the newest; packs are regenerable output, so the rest are dropped and
+ *  counted. A later boot of a current image widens the table again. */
+export function narrowCampaignPacksKey(db: Database.Database): { kept: number; dropped: number } {
+  const count = () => (db.prepare(`SELECT COUNT(*) AS n FROM campaign_packs`).get() as { n: number }).n;
+  const key = campaignPacksKey(db);
+  if (key === "") return { kept: 0, dropped: 0 };
+  const before = count();
+  if (key !== "job_id,lang") {
+    rebuildCampaignPacks(db, "job_id, lang", `SELECT ${CP_COLS} FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY job_id, lang
+      ORDER BY (workspace_id = 'workspace') DESC, created_at DESC, workspace_id) AS r FROM campaign_packs) WHERE r = 1`);
+  }
+  const kept = count();
+  return { kept, dropped: before - kept };
 }

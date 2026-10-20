@@ -581,7 +581,9 @@ const worker = {
     const subject = (message.headers.get("subject") ?? "").slice(0, MAX_SUBJECT);
     // "Name <addr@host>" → the two halves, without pulling in a MIME parser.
     const rawFrom = message.headers.get("from") ?? message.from ?? "";
-    const angled = /<([^>]+)>/.exec(rawFrom);
+    // Bounded and `<`-free inside: the From header is the sender's, and an unbounded
+    // `[^>]+` retried from every `<` is quadratic on a header made of them.
+    const angled = /<([^<>]{1,320})>/.exec(rawFrom);
     const from = (angled ? angled[1] : rawFrom).trim();
     const name = angled ? rawFrom.slice(0, angled.index).replace(/["']/g, "").trim() : "";
     // Mail has no response to carry a 503, so a full queue is REJECTED at SMTP: the

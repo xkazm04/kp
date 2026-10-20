@@ -60,7 +60,7 @@ export function PipelineVoiceScreenPanel({
   const t = useTranslations("pipeline.drawer");
   return (
     <div className="rounded-md border border-stone-200 bg-white p-3">
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
         <Phone size={13} /> {t("voiceScreen")}
       </p>
       <p className="mt-1 text-sm text-steel">{t("voiceScreenHelp")}</p>
@@ -88,7 +88,7 @@ export function PipelineVoiceScreenPanel({
         disabled={voice.busy}
         className="focus-ring ml-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
       >
-        <Phone size={13} className="text-coral" /> {voice.busy ? t("creating") : t("createLink")}
+        <Phone size={13} className="text-coral-ink" /> {voice.busy ? t("creating") : t("createLink")}
       </button>
 
       {voice.err ? <p role="alert" className="mt-2 text-sm text-red-700">{voice.err}</p> : null}
@@ -112,7 +112,7 @@ export function PipelineVoiceScreenPanel({
             <p className="text-sm text-steel">{t("priorLinksRevoked", { count: Number(voice.data.revoked) })}</p>
           ) : null}
           {!voice.data.configured ? (
-            <p className="text-sm text-coral">
+            <p className="text-sm text-coral-ink">
               {t("notConfigured", {
                 vars: voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID",
               })}
@@ -127,7 +127,7 @@ export function PipelineVoiceScreenPanel({
         <button
           type="button"
           onClick={onRevoke}
-          className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-steel hover:text-coral"
+          className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-steel hover:text-coral-ink"
         >
           <Ban size={12} aria-hidden /> {t("revokeLinks")}
         </button>

@@ -20,6 +20,25 @@ to be true for it to change?*
 - add a new comms delivery path, or change how delivery status is labelled → [0008](0008-row-declares-its-own-outcome.md)
 - add a new ATS webhook event id or promote one from `reserved` to `live` → [0008](0008-row-declares-its-own-outcome.md)
 - add a runtime dependency, or fetch a third party's pages on a schedule → [0009](0009-one-html-parser-for-owner-consented-acquisition.md)
+- move the candidate voice interview onto the relay plane, or let the provider run it undirected → [0010](0010-candidate-interview-keeps-provider-brain-plus-director.md)
+- chain hiring stages together, add a human approval gate, or put candidate data in a run record → [0011](0011-one-role-runs-end-to-end.md)
+- add a second funnel, a second candidate board, or a per-population score → [0012](0012-need-role-slate-one-board.md)
+- change what an ATS delivery retry sends, or add a subscribable lifecycle event → [0013](0013-ats-mirror-retry-reasserts-its-transition.md)
+- add a deployment-wide integration config or secret, or a door that writes one → [0014](0014-org-owned-singleton-integration-config.md)
+- count, invite, hook or export a board entry without asking whether it is an AI agent → [0015](0015-an-ai-agent-on-the-board-is-not-a-person.md)
+- write a `dev_audit` row, or put a candidate's name in an audit reason → [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md)
+- seal or refuse a recruiter accept/reject at the commit door, or add a best-effort seal beside one → [0017](0017-a-human-adverse-decision-is-sealed-before-it-commits.md)
+- store a machine verdict in `approval_detail`, change what a Match add carries, or count Match rankings in the reasons meter → [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md)
+- add or change an automatic decline, a knockout question, or a claim that a rejection is a person's → [0019](0019-the-knockout-decline-is-automatic-and-says-so.md)
+- add a decision reason to the ATS record, or change what the ATS POST re-checks before it sends → [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md)
+- add a table keyed by a candidate capability token, or change what an erasure does to an offer or schedule link → [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md)
+- import a value into a `"use client"` file, or add a helper to `app/_lib/db/` that client code needs → [0022](0022-a-client-module-never-reaches-the-database.md)
+- add an estimated cost to a failed/unpriced LLM call, or drop the `outcome = 'ok'` filter from a spend query → [0024](0024-llm-usage-ledger-never-guesses.md)
+- write a read -> compute -> write transaction, or call a DEFERRED transaction a bug → [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md)
+- add an API route, or put a gate / rate limit / meter on one → [0026](0026-route-chain-refusal-order.md)
+- change how a candidate's AI collaboration is scored, or add AI-keyword or tool-noun weight to a match → [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md)
+- add an outbound connector or channel, change how a receipt is matched to a send, or let a message reach a candidate without a named approver → [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md)
+- run a unit-test launcher beside another suite, or treat a gate failure that only appears beside another lane as a flake → [0029](0029-one-unit-suite-per-machine.md)
 
 ## Index
 
@@ -34,6 +53,26 @@ to be true for it to change?*
 | [0007](0007-repo-laws-are-gates.md) | A repo law that isn't a gate isn't a law | accepted | 2026-08-26 |
 | [0008](0008-row-declares-its-own-outcome.md) | A row declares its own outcome — no green lies | accepted | 2026-09-07 |
 | [0009](0009-one-html-parser-for-owner-consented-acquisition.md) | One HTML parser dependency, for owner-consented acquisition only | accepted | 2026-09-16 |
+| [0010](0010-candidate-interview-keeps-provider-brain-plus-director.md) | The candidate interview keeps the provider brain and adds our director | accepted | 2026-09-18 |
+| [0011](0011-one-role-runs-end-to-end.md) | A role runs end to end as a ledger of stage artifacts; only person-affecting decisions gate | accepted | 2026-09-14 |
+| [0012](0012-need-role-slate-one-board.md) | A need composes a role; the role's slate is one board and one rubric | accepted | 2026-09-14 |
+| [0013](0013-ats-mirror-retry-reasserts-its-transition.md) | An ATS mirror retry re-asserts its transition; a reverted decision ends the row | accepted | 2026-10-06 |
+| [0014](0014-org-owned-singleton-integration-config.md) | A singleton integration config records the organization that saved it; only that organization may change it | accepted | 2026-10-06 |
+| [0015](0015-an-ai-agent-on-the-board-is-not-a-person.md) | An AI agent on the role board is not a person; every machine actor refuses or skips it | accepted | 2026-10-07 |
+| [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md) | A dev_audit row records the outcome and the outcome key, never a candidate label | accepted | 2026-10-07 |
+| [0017](0017-a-human-adverse-decision-is-sealed-before-it-commits.md) | A human adverse decision is sealed before it commits | accepted | 2026-10-07 |
+| [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md) | A Match verdict is sealed in the decision chain as facts, before the add files the entry | accepted | 2026-10-07 |
+| [0019](0019-the-knockout-decline-is-automatic-and-says-so.md) | The apply knockout decline is automatic, names the must-have, and offers a person to review it | accepted | 2026-10-07 |
+| [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md) | An ATS decision block releases a rationale only when the server built it, and the POST re-asserts its destination | accepted | 2026-10-08 |
+| [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
+| [0022](0022-a-client-module-never-reaches-the-database.md) | A client module never reaches the database | accepted | 2026-10-08 |
+| [0023](0023-the-allowance-is-keyed-on-the-subscription-anchor.md) | The allowance is keyed on the subscription anchor, not the calendar month | accepted | 2026-10-09 |
+| [0024](0024-llm-usage-ledger-never-guesses.md) | The usage ledger never guesses a number it cannot measure | accepted | 2026-09-07 |
+| [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md) | A read-modify-write takes the write lock at BEGIN or re-checks its precondition in the UPDATE | accepted | 2026-10-16 |
+| [0026](0026-route-chain-refusal-order.md) | Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last | accepted | 2026-10-16 |
+| [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md) | Candidates are scored on proof of how they work with AI, through one channel-neutral evidence ladder, with a human at every gate | accepted | 2026-10-17 |
+| [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md) | Every channel shares one message identity and one egress seal, and a person releases what reaches a candidate | accepted | 2026-10-17 |
+| [0029](0029-one-unit-suite-per-machine.md) | The unit-test launcher runs one suite per machine at a time | accepted | 2026-10-18 |
 
 ## Writing a new one
 
@@ -67,6 +106,22 @@ that `supersedes` / `superseded-by` are reciprocal.
 
 Run it locally with `npm run docs:check`. Fixtures:
 `node scripts/docs/__tests__/check-adrs.test.mjs`.
+
+## Numbering: assign the number at merge, not at authoring
+
+Two design runs in flight both read this directory, both took the next free
+id, and both filed a `0009` (renumbered to 0011/0012 after the fact). A number
+allocated by reading a branch's directory collides whenever two ADRs are
+authored in parallel, which this project does by policy. So:
+
+- On a branch, author the record as `draft-<slug>.md` with `id: "unassigned"`
+  and no index row.
+- When it merges, the docs lane takes the next free id from `main`, renames the
+  file, sets `id:`, and adds the README guide line and index row in the same
+  commit. `npm run docs:check` only validates numbered records, so keep drafts
+  out of `main`.
+- Cross-references to a draft cite its slug until the number exists.
+
 
 ## Status vocabulary
 

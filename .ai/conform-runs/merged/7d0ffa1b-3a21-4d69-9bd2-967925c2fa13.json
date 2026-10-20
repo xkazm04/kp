@@ -1,0 +1,207 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7d0ffa1b-3a21-4d69-9bd2-967925c2fa13",
+ "subject": "candidate-identity-and-staleness",
+ "evaluatedAt": "2026-10-16T00:03:19.709463+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "saved-analysis-report",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/history/[slug]/page.tsx:123 The cross-role footprint drops each linked analysis's date and staleness state, so recruiters cannot assess the currency of the displayed scores.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/history/[slug]/page.tsx:114 This report uses the persisted document digest for artifact linkage; the upstream raw-byte SHA-256 implementation was also opened."
+    },
+    {
+     "technique": "cross-role-footprint-linking",
+     "verdict": "deviation",
+     "evidence": "app/history/[slug]/page.tsx:123 Links retain outcomes and navigation but omit the required per-entry dates and staleness states."
+    },
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/history/[slug]/page.tsx:88 A collision warning exists, but board identity still uses the filename-derived label as an equality key; the opened helper matches LOWER(TRIM(candidate_label))."
+    },
+    {
+     "technique": "requirement-edited-since-scored",
+     "verdict": "deviation",
+     "evidence": "app/history/[slug]/page.tsx:235 The report correctly computes and displays requirement staleness, but its badge has no re-score action; the page, ReportActions, and results components were searched for that remedy."
+    }
+   ]
+  },
+  {
+   "context": "db-profiles-analyses-store",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/db/profiles.ts:242 The profile write permits unconditional payload replacement when its optional version precondition is omitted, allowing automated callers to overwrite recruiter edits.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/analyses.ts:138 The store persists the supplied document digest separately from the display label; missing digests remain NULL and are excluded from hash grouping."
+    },
+    {
+     "technique": "rebuild-overwrites-manual-edits-warning",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/profiles.ts:238 Protection is caller-optional and checks a row version rather than enforcing preservation of human-authored fields; profiles-stale-cas.test.ts explicitly verifies unconditional writes when omitted."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/applicant-profile.ts:163 A returning applicant's generated profile replaces the existing payload without checking or preserving intervening recruiter edits.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "deviation",
+     "evidence": "app/_lib/apply-intake.ts:404 Application intake carries extracted CV text into the saved profile without a raw-document digest; the opened extractor returns text and counts only, preventing exact artifact identity downstream."
+    },
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/_lib/applicant-key.ts:16 The filing dependency uses a normalized display name as the duplicate identity when email is absent; hashing the label does not make it an issued identity."
+    },
+    {
+     "technique": "rebuild-overwrites-manual-edits-warning",
+     "verdict": "deviation",
+     "evidence": "app/_lib/applicant-profile.ts:163 The automatic reapplication rebuild supplies neither a version precondition nor a human-edit preservation check before replacing the profile."
+    },
+    {
+     "technique": "retired-outranks-stale-status-precedence",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-status.ts:87 Unrecognized entry and stage states can resolve to the live 'received' state instead of a blocking state surfaced for human review."
+    },
+    {
+     "technique": "shared-artifact-across-claimed-identities",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-filing.ts:226 The opened lookup matches email without requiring matching claimed names; an unproven shared-channel submission returns the existing application as a duplicate rather than retaining both claims for review."
+    }
+   ]
+  },
+  {
+   "context": "cv-analysis-api",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/analyses/[slug]/route.ts:153 The API attaches analysis decision events to board entries by display label, so distinct candidates sharing a filename-derived label can receive each other's decision history.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/api/analyze/route.ts:245 The opened helper hashes raw upload bytes with SHA-256; the analysis cache also uses length-framed inputs covering document bytes, requirement inputs, instrument version, language, and blind mode."
+    },
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/api/analyses/[slug]/route.ts:153 The disposition echo uses a label as its identity key; the opened dependency matches normalized labels and records events on every matching active entry."
+    }
+   ]
+  },
+  {
+   "context": "candidate-profile",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The candidate footprint renders dated scores and evidence links without each linked analysis's staleness state, leaving older judgments indistinguishable from current ones.",
+   "techniques": [
+    {
+     "technique": "cross-role-footprint-linking",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The complete entry rendering contains a score, date, and link, but no requirement-edited or superseded state; the opened analysis-reference constructor retains only slug, score, and createdAt."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-16T00:03:19.709463+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "cross-role-footprint-linking",
+    "label-collision-detection",
+    "requirement-edited-since-scored"
+   ],
+   "deviations": 1,
+   "context": "saved-analysis-report",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:03:19.709463+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "rebuild-overwrites-manual-edits-warning"
+   ],
+   "deviations": 1,
+   "context": "db-profiles-analyses-store",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:03:19.709463+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "label-collision-detection",
+    "rebuild-overwrites-manual-edits-warning",
+    "retired-outranks-stale-status-precedence",
+    "shared-artifact-across-claimed-identities"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:03:19.709463+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "label-collision-detection"
+   ],
+   "deviations": 1,
+   "context": "cv-analysis-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:03:19.709463+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "cross-role-footprint-linking"
+   ],
+   "deviations": 1,
+   "context": "candidate-profile",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

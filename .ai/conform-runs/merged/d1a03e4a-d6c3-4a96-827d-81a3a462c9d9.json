@@ -1,0 +1,307 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d1a03e4a-d6c3-4a96-827d-81a3a462c9d9",
+  "subject": "interview-story-portfolio",
+  "evaluatedAt": "2026-10-17T01:27:06.786378+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "matrix-focus",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:175 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; this surface compares candidate-to-job matches rather than preparing candidate interview stories.",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/useMatchCardReasoning.ts:28 Requests a job-fit explanation, not an earned insight for a candidate answer."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:105 These tiers describe candidate-to-job fit, not story-to-question fit."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResultsHeader.tsx:77 Reports a newer CV analysis rather than an experience's use before previous audiences."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCardSkillChips.tsx:115 Displays missing skills without advising how the candidate should answer interview questions."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchWeightsPanel.tsx:106 Adjusts recruiter matching weights rather than prescribing candidate practice drills."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:175 The compared items are jobs identified by jobId, not experiences assigned to predicted questions."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:168 Shows the matching engine's score breakdown rather than a candidate practice score."
+        }
+      ],
+      "absenceTerms": [
+        "storyPortfolio",
+        "storyStrength",
+        "earnedInsight",
+        "practiceScore"
+      ]
+    },
+    {
+      "context": "results-detail-tabs",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_components/results/interview/InterviewTab.tsx:220 The report renders a missing-skill scaffold that always asks the candidate to name a closest project, without selecting a no-experience response when no such project exists.",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:242 Generates a technical judgment question; it does not propose or certify distinctive earned insights."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/interview/InterviewTab.tsx:217 Labels the question's evidence gap without grading any selected experience against that question."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:104 Produces a single analysis kit; the inspected generator does not manage a multi-round story-use record."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:125 Shows assessment probes for CV hypotheses rather than treatments for recurring practice weaknesses."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:87 Generates question prompts without selecting or assigning a supplied inventory of actual experiences."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/job-fit/JobFitTab.tsx:43 Displays a role-fit score, not a practice-rubric forecast of interview outcomes."
+        }
+      ]
+    },
+    {
+      "context": "schedule-interview-prep",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:17 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; these surfaces support employer interview preparation and recorded assessment rather than candidate story coaching.",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Displays assessment evidence linked to transcript turns rather than proposing candidate insights."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardForm.tsx:67 Records interviewer competency ratings, not experience-to-question fit tiers."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:84 Detects a job-description edit after guide generation, not repeated story use."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:102 Places interviewer questions into agenda blocks without coaching candidate gap responses."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTelemetryStrip.tsx:49 Reports descriptive interview telemetry rather than diagnosing recurring practice habits or prescribing drills."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:38 Renders timed agenda blocks rather than an assignment of candidate experiences."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:202 Saves the human interviewer's assessment without claiming candidate practice-score calibration."
+        }
+      ],
+      "absenceTerms": [
+        "storyPortfolio",
+        "storyStrength",
+        "earnedInsight",
+        "practiceScore"
+      ]
+    },
+    {
+      "context": "conversational-apply-flow",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evidence": "app/apply/[id]/page.tsx:14 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; this flow captures application facts and eligibility answers rather than preparing candidates for future interview questions.",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:403 Extracts editable identity defaults from a CV rather than distinctive interview insights."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:377 Captures yes/no eligibility answers without grading stories against competencies."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:90 Identifies the application script for draft restoration, not story-use history across audiences."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:128 Collects post-application follow-up information rather than choosing how a candidate should answer an experience gap."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:355 Validates application input; it does not diagnose candidate practice weaknesses."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/page.tsx:63 Builds an intake script from the job rather than allocating experiences to predicted questions."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:113 Handles application submission outcomes, not practice scores or claims of predictive calibration."
+        }
+      ],
+      "absenceTerms": [
+        "storyPortfolio",
+        "storyStrength",
+        "earnedInsight",
+        "practiceScore"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "interview-story-portfolio",
+      "context": "interview-planning-rubric",
+      "reason": "withdrawn after review: reviewer (sonnet): The evidence anchor app/_lib/student-interview.ts:198 is not among the context's listed files, and the line is only an interviewer persona string; it doesn't show candidate story coaching is absent from the context's own files (interview-prep.ts, interview-plan.ts, interview-prep-strings.ts)."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-17T01:27:06.786378+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-story-portfolio"
+      ],
+      "techniques": [
+        "earned-secret-needs-proof",
+        "fit-tiers-with-a-secondary-skill-cap",
+        "freshness-and-overuse-across-a-search",
+        "gap-response-chosen-by-story-strength",
+        "one-treatment-per-root-cause",
+        "portfolio-assignment-before-per-question-pick",
+        "practice-score-needs-outcomes-before-it-is-trusted"
+      ],
+      "deviations": 0,
+      "context": "interview-planning-rubric",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T01:27:06.786378+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-story-portfolio"
+      ],
+      "techniques": [
+        "earned-secret-needs-proof",
+        "fit-tiers-with-a-secondary-skill-cap",
+        "freshness-and-overuse-across-a-search",
+        "gap-response-chosen-by-story-strength",
+        "one-treatment-per-root-cause",
+        "portfolio-assignment-before-per-question-pick",
+        "practice-score-needs-outcomes-before-it-is-trusted"
+      ],
+      "deviations": 0,
+      "context": "matrix-focus",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T01:27:06.786378+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-story-portfolio"
+      ],
+      "techniques": [
+        "earned-secret-needs-proof",
+        "fit-tiers-with-a-secondary-skill-cap",
+        "freshness-and-overuse-across-a-search",
+        "one-treatment-per-root-cause",
+        "portfolio-assignment-before-per-question-pick",
+        "practice-score-needs-outcomes-before-it-is-trusted"
+      ],
+      "deviations": 1,
+      "context": "results-detail-tabs",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T01:27:06.786378+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-story-portfolio"
+      ],
+      "techniques": [
+        "earned-secret-needs-proof",
+        "fit-tiers-with-a-secondary-skill-cap",
+        "freshness-and-overuse-across-a-search",
+        "gap-response-chosen-by-story-strength",
+        "one-treatment-per-root-cause",
+        "portfolio-assignment-before-per-question-pick",
+        "practice-score-needs-outcomes-before-it-is-trusted"
+      ],
+      "deviations": 0,
+      "context": "schedule-interview-prep",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T01:27:06.786378+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-story-portfolio"
+      ],
+      "techniques": [
+        "earned-secret-needs-proof",
+        "fit-tiers-with-a-secondary-skill-cap",
+        "freshness-and-overuse-across-a-search",
+        "gap-response-chosen-by-story-strength",
+        "one-treatment-per-root-cause",
+        "portfolio-assignment-before-per-question-pick",
+        "practice-score-needs-outcomes-before-it-is-trusted"
+      ],
+      "deviations": 0,
+      "context": "conversational-apply-flow",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

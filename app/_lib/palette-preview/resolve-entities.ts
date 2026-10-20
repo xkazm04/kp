@@ -88,7 +88,7 @@ function resolveEntry(id: string, ws: string): PalettePreview {
 
 function resolveJob(id: string, ws: string): PalettePreview {
   if (!jobVisibleToWorkspace(id, ws)) return MISSING;
-  const job = getJob(id);
+  const job = getJob(id, ws);
   if (!job) return MISSING;
   const stats = listJobPipelineStats(ws)[id] ?? { total: 0, reachedInterview: 0, hired: 0 };
   return {

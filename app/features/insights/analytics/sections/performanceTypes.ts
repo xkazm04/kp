@@ -13,7 +13,7 @@ export type PerformanceProps = {
   /** Per-stage conversion deltas vs. the previous period, indexed for render. */
   convDeltaByStage: Map<string, Delta>;
   /** Board deep link carrying the matching filter (ANA1 — every chart links to its candidates). */
-  boardHref: (filter: { q?: string; stage?: string }) => string;
+  boardHref: (filter: { q?: string; stage?: string; quick?: string }) => string;
   // UAT TOM-ANA-5 — `forceFunnelEmpty` (the `?funnelEmpty=1` review hatch) is gone.
   // It was threaded through three files and destructured by nobody, and the state it
   // simulated is now reached the honest way: `hasNoStageTransitions` is back on the

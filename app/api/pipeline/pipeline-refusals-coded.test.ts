@@ -25,7 +25,7 @@ const read = (rel: string) => readFileSync(resolve(HERE, rel), "utf8").replace(/
 /** Every code the registry declares as a REFUSAL, read as source (api-response.ts
  *  imports next/server, which the bare unit runner does not resolve). */
 function refusalCodes(): Set<string> {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   const block = src.slice(src.indexOf("export const REFUSAL_ERRORS"), src.indexOf("export type RefusalErrorCode"));
   const codes = new Set<string>();
   for (const m of block.matchAll(/^\s{2}([A-Z][A-Z0-9_]*):/gm)) codes.add(m[1]!);
@@ -43,6 +43,14 @@ for (const rel of ["./[id]/route.ts", "./batch/route.ts", "./stage-migration/rou
     assert.doesNotMatch(src, RAW_REFUSAL, "a refusal must go through jsonRefusal (or carry REFUSAL_ERRORS + its code)");
   });
 }
+
+test("consent and timeline missing-entry responses use the board's localizable 404 code", () => {
+  for (const rel of ["./[id]/consent/route.ts", "./[id]/timeline/route.ts"]) {
+    const src = read(rel);
+    assert.match(src, /jsonRefusal\("PIPELINE_ENTRY_NOT_FOUND", 404\)/, `${rel} must carry the same code as the entry route`);
+    assert.doesNotMatch(src, RAW_REFUSAL, `${rel} must not answer with a bare English string`);
+  }
+});
 
 test("the shared entry action answers every refusal with a registered REFUSAL code", () => {
   const src = read("../../_lib/pipeline-entry-action.ts");
@@ -86,22 +94,23 @@ test("the batch route carries the helper's CODE onto each per-id row", () => {
   assert.match(src, /REFUSAL_ERRORS\.PIPELINE_BATCH_ITEM_FAILED/);
 });
 
-test("the bulk action bar resolves those codes instead of painting the server's string", () => {
-  const hook = read("../../features/hiring/pipeline/usePipelineBulk.ts");
+test("the bulk hook keeps those codes instead of the server's string", () => {
+  // The per-id fold lives in pipelineBulkSelection.ts since challenge-r06
+  // (pipeline-move-bulk-operations/A): one fold for move, decide and invite.
+  const hook =
+    read("../../features/hiring/pipeline/usePipelineBulk.ts") +
+    read("../../features/hiring/pipeline/pipelineBulkSelection.ts");
   assert.match(hook, /reasonCodes/, "the hook must keep the CODES");
   assert.ok(!/reasons\.add\(r\.reason\)/.test(hook), "keeping the server's prose is the bug this closes");
   assert.match(hook, /if \(r\.code\) reasonCodes\.add\(r\.code\)/);
-
-  const bar = read("../../features/hiring/pipeline/PipelineBulkActionBar.tsx");
-  assert.match(bar, /useErrorMessage/, "the bar resolves errors.<CODE> in the reader's language");
-  assert.match(bar, /reasonCodes\?\.length/, "…and renders the resolved codes");
+  // The bulk action bar that rendered them left with the board view (kit-unification, Gate K2).
 });
 
 test("STAGE_MIGRATION_FAILED no longer claims nothing was saved", () => {
   // The route moves candidates FIRST and writes the axis SECOND (deliberately), so a
   // failure genuinely can land with people already moved. "Nothing was saved" told
   // the operator the opposite of what the ordering guarantees.
-  const registry = read("../../_lib/api-response.ts");
+  const registry = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   const line = registry.split("\n").find((l) => l.includes("STAGE_MIGRATION_FAILED:"));
   assert.ok(line, "the code must still exist");
   assert.ok(!/Nothing was saved/i.test(line!), "the message must not deny a partial state the ordering allows");

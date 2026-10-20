@@ -6,14 +6,35 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, Check, HelpCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT } from "@/app/_lib/adverse-impact";
+import { adverseImpactVerdict, computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT, type AdverseImpactVerdict } from "@/app/_lib/adverse-impact";
 import { TextArea } from "@/app/_components/TextArea";
+
+const VERDICT_TONE: Record<AdverseImpactVerdict, string> = {
+  insufficient: "text-steel",
+  adverse: "text-coral-ink",
+  belowNotSignificant: "text-steel",
+  significantGap: "text-coral-ink",
+  cleanPartial: "text-steel",
+  clean: "text-moss",
+};
+const VERDICT_KEY = {
+  adverse: "anyAdverse",
+  belowNotSignificant: "belowNotSignificant",
+  significantGap: "significantGap",
+  cleanPartial: "noAdversePartial",
+  clean: "noAdverse",
+} as const;
+
+function formatP(p: number): string {
+  return p < 0.001 ? "< 0.001" : p.toFixed(3);
+}
 
 export function DecisionsComplianceImpactCheck() {
   const t = useTranslations("decisions.compliance");
   const [counts, setCounts] = useState("");
   const parsed = useMemo(() => parseGroupCounts(counts), [counts]);
   const impact = useMemo(() => (parsed.groups.length >= 2 ? computeAdverseImpact(parsed.groups) : null), [parsed]);
+  const verdict = adverseImpactVerdict(impact);
 
   return (
     <details className="rounded-md border border-stone-200 bg-white p-3">
@@ -39,7 +60,7 @@ export function DecisionsComplianceImpactCheck() {
           for two different urgencies for a typed-input parse notice that is not an
           interruption. Polite is the intent; now only one attribute says so. */}
       {parsed.malformedRows.length > 0 ? (
-        <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral">
+        <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral-ink">
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span>
             {t("parseIgnored", {
@@ -59,24 +80,40 @@ export function DecisionsComplianceImpactCheck() {
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colGroup")}</th>
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colRate")}</th>
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colRatio")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colShortfall")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colP")}</th>
                 <th scope="col" className="py-1 font-medium">{t("colStatus")}</th>
               </tr>
             </thead>
             <tbody>
-              {impact.groups.map((g) => (
-                <tr key={g.group} className="border-t border-stone-100">
+              {/* Keyed by position: the parser keeps duplicate group names as separate rows. */}
+              {impact.groups.map((g, i) => (
+                <tr key={`${i}:${g.group}`} className="border-t border-stone-100">
                   <td className="py-1 pr-2 text-ink">{g.group}</td>
                   <td className="nums py-1 pr-2 text-steel">
                     {(g.selectionRate * 100).toFixed(0)}% <span className="text-stone-400">({g.selected}/{g.total})</span>
                   </td>
                   <td className="nums py-1 pr-2 text-steel">{g.impactRatio === null ? "—" : g.impactRatio.toFixed(2)}</td>
+                  {/* Shortfall is a count of people and grows with N, so it is shown with
+                      its share of the group; the p-value beside it says whether chance
+                      could explain the gap at these sizes. Neither is read alone. */}
+                  <td className="nums py-1 pr-2 text-steel">
+                    {g.shortfall === null || g.shortfall === 0
+                      ? "—"
+                      : t("shortfallValue", { people: g.shortfall.toFixed(1), share: ((100 * g.shortfall) / g.total).toFixed(1) })}
+                  </td>
+                  <td className="nums py-1 pr-2 text-steel">{g.pValue === null ? "—" : formatP(g.pValue)}</td>
                   <td className="py-1">
                     {g.isReference ? (
                       <span className="text-steel">{t("statusReference")}</span>
                     ) : g.impactRatio === null ? (
                       <span className="text-stone-400">{t("statusNa")}</span>
+                    ) : g.adverseImpact && g.significant ? (
+                      <span className="font-semibold text-coral-ink">{t("statusAdverse")}</span>
                     ) : g.adverseImpact ? (
-                      <span className="font-semibold text-coral">{t("statusAdverse")}</span>
+                      <span className="text-steel">{t("statusBelowNotSignificant")}</span>
+                    ) : g.significant && (g.shortfall ?? 0) > 0 ? (
+                      <span className="font-semibold text-coral-ink">{t("statusSignificantGap")}</span>
                     ) : (
                       <span className="text-moss">{t("statusOk")}</span>
                     )}
@@ -87,25 +124,50 @@ export function DecisionsComplianceImpactCheck() {
           </table>
           {/* Three states, not two. "Insufficient sample" is NOT "no adverse impact":
               below ADVERSE_IMPACT_MIN_COHORT the compute forces anyAdverseImpact=false,
-              so a binary green/red readout would render a legally-loaded false clean. */}
-          <p
-            className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${
-              !impact.reliable ? "text-steel" : impact.anyAdverseImpact ? "text-coral" : "text-moss"
-            }`}
-          >
-            {!impact.reliable ? (
+              so a binary green/red readout would render a legally-loaded false clean.
+              And the ratio is read with its significance test, in both directions: a
+              flag chance can explain is a pattern to watch, and a significant gap above
+              0.8 is not a pass. */}
+          <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${VERDICT_TONE[verdict]}`}>
+            {verdict === "insufficient" || verdict === "cleanPartial" ? (
               <HelpCircle size={14} />
-            ) : impact.anyAdverseImpact ? (
-              <AlertTriangle size={14} />
-            ) : (
+            ) : verdict === "clean" ? (
               <Check size={14} />
+            ) : (
+              <AlertTriangle size={14} />
             )}
-            {!impact.reliable
+            {verdict === "insufficient"
               ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
-              : impact.anyAdverseImpact
-                ? t("anyAdverse")
-                : t("noAdverse")}
+              : verdict === "cleanPartial"
+                ? t(VERDICT_KEY[verdict], { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })
+                : t(VERDICT_KEY[verdict])}
           </p>
+          {/* A verdict that found nothing owes what it could have found: a non-significant
+              line is silent about every gap smaller than the detectable ratio, and at
+              these cohort sizes that is most of them. Only the not-significant verdicts
+              carry it; a significant gap needs no such statement. */}
+          {impact.detectableRatio !== null && (verdict === "clean" || verdict === "cleanPartial" || verdict === "belowNotSignificant") ? (
+            <p className="mt-1 text-meta text-steel">
+              {Math.floor(impact.detectableRatio * 100) < 1
+                ? t("detectableBlind")
+                : t("detectable", { pct: Math.floor(impact.detectableRatio * 100) })}
+            </p>
+          ) : null}
+          {impact.referenceRate !== null ? (
+            <p className="mt-1 text-meta text-steel">
+              {t("referenceRule", { group: impact.referenceGroup ?? "", pct: (impact.referenceRate * 100).toFixed(0), min: ADVERSE_IMPACT_MIN_COHORT })}
+            </p>
+          ) : null}
+          {impact.clampedRows > 0 ? (
+            <p role="status" aria-live="polite" className="mt-1 text-meta font-medium text-coral-ink">
+              {t("clampedRows", { count: impact.clampedRows })}
+            </p>
+          ) : null}
+          {impact.reliable && impact.unassessedGroups > 0 ? (
+            <p className="mt-1 text-meta text-steel">
+              {t("notAssessed", { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="mt-2 text-meta text-steel">{t("aiCheckHint")}</p>

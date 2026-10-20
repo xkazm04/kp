@@ -23,13 +23,23 @@ import Database from "better-sqlite3";
 import { UNIT_DB_PATH, cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { listDecisionRecords, sealDecisionRecord } from "../../_lib/decision-record-store.ts";
 import {
+  AI_VERDICT_DECISION_KINDS,
+  CANDIDATE_RUBRIC_RATING_MAX,
   CANDIDATE_VISIBLE_DECISION_KINDS,
+  MAX_CANDIDATE_RUBRIC_DIMENSIONS,
+  aiScorecardFacts,
+  autoAdvanceFacts,
   autoRejectFacts,
   candidateDecisionHistory,
+  factsCoverage,
   redactDecisionForCandidate,
   sealedActorAttribution,
+  sealedPersonApproval,
 } from "../../_lib/status-decisions.ts";
+import { MAX_SEALED_RUBRIC_DIMENSIONS, sealableRubricDimensions } from "../../_lib/interview-scorecard.ts";
+import { RATING_MAX } from "../../_lib/format.ts";
 import type { ConsentSnapshot } from "../../_lib/consent.ts";
+import { PLACEHOLDER_APPROVER } from "../../_lib/auth/operator-approver.ts";
 
 after(() => cleanupUnitDb());
 
@@ -78,7 +88,30 @@ sealDecisionRecord({
   reasonCode: "holdout",
   inputs: { score: 41, threshold: 55 },
 });
-// Another candidate's record — must never appear in entry-own's view.
+// An AI VERDICT ABOUT THE PERSON — sealed exactly the way /api/interview/complete
+// seals it, THROUGH the real seal-side builder rather than a hand-written literal,
+// so a change to what that builder emits is felt here instead of being mirrored.
+// The ratings deliberately mix the three cases that matter: a real high score, a
+// real low score, a NOT-ASSESSED axis (mid-scale 3 + placeholder evidence — the
+// competency the interview never touched), and a genuine 3 that must NOT be
+// mistaken for the not-assessed one.
+const OWN_SCORECARD_RATINGS = [
+  { competency: "Technical depth", rating: 4, evidence: "Walked through a real migration they led." },
+  { competency: "Communication", rating: 2, evidence: "Answers stayed abstract when pressed for specifics." },
+  { competency: "System design", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+  { competency: "Culture add", rating: 3, evidence: "Named a concrete conflict and how they handled it." },
+];
+sealDecisionRecord({
+  kind: "ai_scorecard",
+  actor: "auto:scorecard-v5",
+  policyVersion: "scorecard-v5",
+  candidateRef: "entry-own",
+  rationale: "AI interview scorecard — recommendation: hold.",
+  reasonCode: "scorecard",
+  inputs: { recommendation: "hold", dimensions: sealableRubricDimensions(OWN_SCORECARD_RATINGS) },
+});
+// Another candidate's records — must never appear in entry-own's view. Both kinds,
+// so the scoping is proven on the NEW fact shape too and not only on the old one.
 sealDecisionRecord({
   kind: "auto_rejected",
   actor: "auto:screen-wave",
@@ -88,6 +121,18 @@ sealDecisionRecord({
   reasonCode: "reject",
   inputs: { score: 12, threshold: 55, approvedBy: "alice@example.com" },
 });
+sealDecisionRecord({
+  kind: "ai_scorecard",
+  actor: "auto:scorecard-v5",
+  policyVersion: "scorecard-v5",
+  candidateRef: "entry-other",
+  rationale: "AI interview scorecard — recommendation: advance.",
+  reasonCode: "scorecard",
+  inputs: {
+    recommendation: "advance",
+    dimensions: sealableRubricDimensions([{ competency: "Someone else's axis", rating: 5, evidence: "x" }]),
+  },
+});
 
 function ownHistory() {
   return candidateDecisionHistory(LIVE_CONSENT, listDecisionRecords({ candidateRef: "entry-own", workspaceId: WS }), NOW);
@@ -95,15 +140,21 @@ function ownHistory() {
 
 test("the history carries the right entry's records only — and hides internal calibration kinds", () => {
   const views = ownHistory();
-  // auto_rejected + reinstated survive; the holdout marker and entry-other's reject don't.
+  // auto_rejected + reinstated + ai_scorecard survive; the holdout marker and
+  // entry-other's records don't.
   assert.deepEqual(
     views.map((v) => v.kind).sort(),
-    ["auto_rejected", "reinstated"]
+    ["ai_scorecard", "auto_rejected", "reinstated"]
   );
-  // The other candidate's decisive numbers appear nowhere in the payload.
+  // The other candidate's decisive numbers appear nowhere in the payload — on
+  // EITHER fact shape.
   assert.ok(
-    views.every((v) => v.facts?.score !== 12),
-    "another candidate's sealed inputs must never cross"
+    views.every((v) => !(v.facts?.type === "threshold" && v.facts.score === 12)),
+    "another candidate's sealed threshold must never cross"
+  );
+  assert.ok(
+    !JSON.stringify(views).includes("Someone else's axis"),
+    "another candidate's sealed rubric must never cross"
   );
 });
 
@@ -122,21 +173,189 @@ test("no leakage fields: the wire shape is closed and scrubbed", () => {
   assert.ok(views.length > 0);
   for (const v of views) {
     // Exactly the CandidateDecisionView keys — nothing sealed rides along.
-    assert.deepEqual(Object.keys(v).sort(), ["attribution", "createdAt", "facts", "kind", "reasonCode"]);
+    assert.deepEqual(Object.keys(v).sort(), ["attribution", "createdAt", "facts", "kind", "personApproved", "reasonCode"]);
   }
   const wire = JSON.stringify(views);
   for (const leak of ["alice@example.com", "bob@example.com", "approvedBy", "policyVersion", "prevHash", "contentHash", "payloadJson", "rationale", "actor", "seq"]) {
     assert.ok(!wire.includes(leak), `redacted payload must not contain "${leak}"`);
   }
+  // The scorecard's own withheld material. `recommendation` IS sealed (the chain
+  // needs the conclusion) but is NOT a fact: a verdict LABEL crossing without the
+  // axes behind it is exactly the bare-label state this surface exists to leave.
+  // The evidence quotes never reach the payload at all — they are dropped one layer
+  // earlier, at the seal (sealableRubricDimensions), which its own test pins.
+  for (const leak of ["recommendation", "Walked through a real migration", "evidence", "Not assessed", "System design"]) {
+    assert.ok(!wire.includes(leak), `the scorecard's redacted view must not contain "${leak}"`);
+  }
+  // …AND THE POSITIVE CONTROLS, so none of the above can pass vacuously. A seal that
+  // silently stopped writing dimensions, or a fixture that never carried the
+  // withheld material, would turn every negative assertion in this test green while
+  // the surface got WORSE — the failure mode the gate on this idea named.
+  const sealed = listDecisionRecords({ candidateRef: "entry-own", workspaceId: WS }).find((r) => r.kind === "ai_scorecard");
+  assert.ok(sealed, "precondition: the scorecard record exists");
+  assert.match(sealed.payloadJson, /"recommendation":"hold"/, "the verdict label WAS sealed — its absence above is redaction");
+  assert.match(sealed.payloadJson, /Technical depth/, "the rubric axes WERE sealed");
+  assert.ok(
+    OWN_SCORECARD_RATINGS.some((r) => r.competency === "System design" && r.evidence.startsWith("Not assessed")),
+    "precondition: the fixture really does carry a not-assessed axis for the negative above to be about"
+  );
+  // And the decisive facts DO cross: without this, an extractor that returned null
+  // for everything would satisfy every leak assertion in this file.
+  const scorecardView = views.find((v) => v.kind === "ai_scorecard");
+  assert.equal(scorecardView?.facts?.type, "rubric", "the scorecard's decisive facts must actually reach the candidate");
+  assert.ok(wire.includes("Technical depth"), "the assessed axis crosses — the redaction is not blanket");
 });
 
-test("auto_rejected exposes ONLY the sealed score-vs-threshold pair; other kinds no facts", () => {
+test("auto_rejected exposes ONLY the sealed score-vs-threshold pair; a kind with no extractor gets no facts", () => {
   const views = ownHistory();
-  assert.deepEqual(views.find((v) => v.kind === "auto_rejected")?.facts, { score: 41, threshold: 55 });
+  assert.deepEqual(views.find((v) => v.kind === "auto_rejected")?.facts, { type: "threshold", score: 41, threshold: 55, stale: false });
+  // `reinstated` is candidate-visible but has no extractor — it crosses with a
+  // reason code and no decisive element, which is the honest state for a human call.
   assert.equal(views.find((v) => v.kind === "reinstated")?.facts, null);
   // Never fabricate: absent/non-numeric inputs → null, and a corrupt payload → null.
   assert.equal(autoRejectFacts(JSON.stringify({ inputs: { score: "n/a", threshold: 55 } })), null);
   assert.equal(autoRejectFacts("not json"), null);
+});
+
+test("ai_scorecard exposes the assessed rubric axes and their ratings — and nothing else", () => {
+  const facts = ownHistory().find((v) => v.kind === "ai_scorecard")?.facts;
+  assert.equal(facts?.type, "rubric");
+  assert.deepEqual(
+    facts.type === "rubric" ? facts.dimensions : null,
+    [
+      { competency: "Technical depth", rating: 4, ratingMax: CANDIDATE_RUBRIC_RATING_MAX },
+      { competency: "Communication", rating: 2, ratingMax: CANDIDATE_RUBRIC_RATING_MAX },
+      // "System design" is absent: mid-scale 3 + "Not assessed…" evidence is an axis
+      // the interview never touched, and telling a candidate they scored 3 of 5 on it
+      // would be the machine inventing a verdict.
+      { competency: "Culture add", rating: 3, ratingMax: CANDIDATE_RUBRIC_RATING_MAX },
+    ],
+    "a genuine 3 survives; the not-assessed 3 does not"
+  );
+});
+
+test("the rubric extractor never fabricates, and never trusts the payload it is handed", () => {
+  const facts = (inputs: unknown) => aiScorecardFacts(JSON.stringify({ inputs }));
+  // Nothing to read → no facts, never an empty verdict.
+  assert.equal(facts({ recommendation: "hold" }), null, "a legacy record sealed before dimensions existed");
+  assert.equal(facts({ dimensions: [] }), null, "a scorecard that assessed nothing has no facts");
+  assert.equal(aiScorecardFacts("not json"), null);
+  assert.equal(aiScorecardFacts(JSON.stringify({ inputs: null })), null);
+  // Records outlive the code that sealed them, so every constraint the seal applies
+  // is applied AGAIN here — a payload written by an older (or a wrong) seal cannot
+  // put an off-scale rating, a blank axis or free text on a public wire.
+  assert.equal(facts({ dimensions: [{ competency: "X", rating: 0 }] }), null, "below the scale");
+  assert.equal(facts({ dimensions: [{ competency: "X", rating: 6 }] }), null, "above the scale");
+  assert.equal(facts({ dimensions: [{ competency: "X", rating: 3.5 }] }), null, "off the integer ladder");
+  assert.equal(facts({ dimensions: [{ competency: "   ", rating: 3 }] }), null, "a blank axis is not an axis");
+  assert.equal(facts({ dimensions: [{ competency: "a".repeat(61), rating: 3 }] }), null, "free text is not an axis");
+  assert.equal(facts({ dimensions: [{ rating: 3 }, null, "nope"] }), null, "malformed rows are dropped, not thrown on");
+  // The one check that is NOT repeated here, stated so the asymmetry is deliberate
+  // rather than an oversight: evidence is never sealed, so a stored `rating: 3` is
+  // indistinguishable from a real middling score and MUST stand. The not-assessed
+  // filter is the seal's alone (asserted in the seal-side test below).
+  assert.equal(
+    facts({ dimensions: [{ competency: "Legacy axis", rating: 3, evidence: "Not assessed." }] })?.type,
+    "rubric",
+    "a stored 3 stands on read — dropping every 3 would delete real verdicts"
+  );
+  // And the list is bounded: an LLM-shaped payload cannot make the public response
+  // arbitrarily long.
+  const many = Array.from({ length: 40 }, (_, i) => ({ competency: `Axis ${i}`, rating: 3 }));
+  const bounded = facts({ dimensions: many });
+  assert.equal(bounded?.type === "rubric" ? bounded.dimensions.length : -1, MAX_CANDIDATE_RUBRIC_DIMENSIONS);
+});
+
+test("the seal side drops what must never be sealed, and the two sides share one ceiling", () => {
+  // Evidence quotes, the summary and an off-rubric axis never enter the payload —
+  // the read side cannot redact what was never written, so this is where that holds.
+  assert.deepEqual(
+    sealableRubricDimensions([
+      { competency: " Technical depth ", rating: 4, evidence: "a quote" },
+      { competency: "Untouched", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+      { competency: "Foreign axis", rating: 5, evidence: "a quote", offRubric: true },
+      { competency: "", rating: 4 },
+      { competency: "Bad scale", rating: 9 },
+    ]),
+    [{ competency: "Technical depth", rating: 4 }],
+    "only a real, on-rubric, on-scale axis is sealed — as {competency, rating} and nothing more"
+  );
+  assert.deepEqual(sealableRubricDimensions(undefined), [], "a scorecard with no ratings seals an empty list");
+  assert.deepEqual(sealableRubricDimensions("ratings"), []);
+  // The two ceilings and the two scales are declared separately ON PURPOSE (the read
+  // side must not trust the seal side's constant) — pinned equal here so "separately
+  // declared" never becomes "quietly different".
+  assert.equal(MAX_SEALED_RUBRIC_DIMENSIONS, MAX_CANDIDATE_RUBRIC_DIMENSIONS);
+  assert.equal(CANDIDATE_RUBRIC_RATING_MAX, RATING_MAX);
+});
+
+test("auto_advanced carries the AI verdict it rode on — and none of the workflow around it", () => {
+  const sealed = {
+    kind: "auto_advanced",
+    actor: "auto:sim",
+    reasonCode: "accept",
+    createdAt: "2026-07-20T00:00:00.000Z",
+    payloadJson: JSON.stringify({
+      inputs: {
+        fromStage: "interview",
+        detail: "Recruiter note naming bob@example.com",
+        aiRecommendation: "advance",
+        aiConfidence: 82,
+        approvalKind: "plan_gate",
+        handoff: "human_round",
+      },
+    }),
+  };
+  const view = redactDecisionForCandidate(sealed);
+  assert.deepEqual(view?.facts, { type: "verdict", recommendation: "advance", confidence: 82 });
+  assert.equal(view?.attribution, "automated");
+  const wire = JSON.stringify(view);
+  for (const leak of ["bob@example.com", "fromStage", "approvalKind", "plan_gate", "handoff", "detail", "aiRecommendation"]) {
+    assert.ok(!wire.includes(leak), `the verdict view must not contain "${leak}"`);
+  }
+  const facts = (inputs: unknown) => autoAdvanceFacts(JSON.stringify({ inputs }));
+  // The closed vocabulary survives case/space drift in the producer's string…
+  assert.deepEqual(facts({ aiRecommendation: " Hold ", aiConfidence: 40 }), { type: "verdict", recommendation: "hold", confidence: 40 });
+  // …but an advance sealed with NO AI verdict (a plain board move) has no facts.
+  assert.equal(facts({ aiRecommendation: null, aiConfidence: null }), null);
+  assert.equal(facts({ fromStage: "screen" }), null);
+  assert.equal(autoAdvanceFacts("not json"), null);
+  assert.equal(autoAdvanceFacts(JSON.stringify({ inputs: null })), null);
+});
+
+test("auto_advanced never guesses: an out-of-set recommendation is null, a bad confidence is dropped", () => {
+  const facts = (inputs: unknown) => autoAdvanceFacts(JSON.stringify({ inputs }));
+  // Not coerced to the "hold" fallback — that would show a verdict the machine never made.
+  assert.equal(facts({ aiRecommendation: "strong_yes", aiConfidence: 90 }), null, "outside INTERVIEW_RECOMMENDATIONS");
+  assert.equal(facts({ aiRecommendation: "", aiConfidence: 90 }), null);
+  assert.equal(facts({ aiRecommendation: 1, aiConfidence: 90 }), null, "a non-string verdict");
+  // A malformed or non-finite confidence loses the NUMBER, never the verdict, and is
+  // never defaulted to 0 (a sealed absence is not "0% sure").
+  for (const bad of [null, undefined, "high", "", "82", NaN, Infinity, -1, 101, {}, []]) {
+    assert.deepEqual(
+      facts({ aiRecommendation: "advance", aiConfidence: bad }),
+      { type: "verdict", recommendation: "advance", confidence: null },
+      `confidence ${JSON.stringify(bad)} reads as no confidence`
+    );
+  }
+  assert.deepEqual(facts({ aiRecommendation: "advance", aiConfidence: 0 }), { type: "verdict", recommendation: "advance", confidence: 0 }, "a real 0 stands");
+  assert.deepEqual(facts({ aiRecommendation: "reject", aiConfidence: 66.6 }), { type: "verdict", recommendation: "reject", confidence: 67 });
+});
+
+test("the Art. 86 coverage ratio is a number, and it is the number this change claims", () => {
+  // The goal this serves ("every automated step is explainable to the candidate") is
+  // a ratio, so it is asserted as one. Raising it means adding an extractor AND its
+  // candidate copy; this line is what makes that a movement rather than a claim.
+  const c = factsCoverage();
+  assert.equal(c.visible, CANDIDATE_VISIBLE_DECISION_KINDS.size);
+  assert.equal(c.withFacts, 3, "auto_rejected + ai_scorecard + auto_advanced carry decisive facts");
+  assert.equal(c.aiVerdict, 5, "the kinds where a machine judged the person");
+  assert.equal(c.aiVerdictWithFacts, 3, "…of which three can say what they were judged on; group_eval_* are the open gap");
+  // Every kind with an extractor must be a kind the candidate can actually SEE —
+  // an extractor for a hidden kind is dead code pretending to be coverage.
+  for (const kind of AI_VERDICT_DECISION_KINDS) {
+    assert.ok(CANDIDATE_VISIBLE_DECISION_KINDS.has(kind), `${kind} is counted as AI-verdict coverage but is not visible`);
+  }
 });
 
 test("anonymized or consent-expired entries get nothing", () => {
@@ -187,4 +406,56 @@ test("the decisions route throttles before the store reads, scopes by candidateR
   for (const forbidden of ["rationale", "payloadJson", "contentHash", "verifyDecisionChain", "requireOperator"]) {
     assert.ok(!code.includes(forbidden), `route must not touch ${forbidden}`);
   }
+});
+
+test("the staleness caveat sealed with the pair crosses with it — only when the seal says so", () => {
+  // The screen wave seals `stale` beside the score because it is the one fact that
+  // undermines the comparison (the score predates the JD's last edit). A pair shown
+  // without it presents a cleaner claim than the record makes.
+  const pair = { score: 41, threshold: 55 };
+  assert.deepEqual(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: true, staleSince: "2026-09-01T00:00:00.000Z" } })), { type: "threshold", ...pair, stale: true });
+  assert.deepEqual(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: false } })), { type: "threshold", ...pair, stale: false });
+  // A legacy seal with no key, and a non-boolean, both read as "not stale" — the
+  // caveat is asserted by the seal or not at all. `staleSince` never crosses.
+  assert.equal((autoRejectFacts(JSON.stringify({ inputs: pair })) as { stale?: boolean } | null)?.stale, false);
+  assert.equal((autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: "true" } })) as { stale?: boolean } | null)?.stale, false);
+  assert.ok(!JSON.stringify(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: true, staleSince: "2026-09-01" } }))).includes("staleSince"));
+});
+
+test("an automated decline a named person approved says so — without saying who", () => {
+  const views = ownHistory();
+  // The fixture is sealed the way screen-wave.ts seals a committed wave: machine
+  // actor, named approver in the inputs.
+  const auto = views.find((v) => v.kind === "auto_rejected");
+  assert.equal(auto?.attribution, "automated", "selection stays the machine's — approval does not upgrade it");
+  assert.equal(auto?.personApproved, true, "and the approval the notice promises is visible beside it");
+  assert.equal(views.find((v) => v.kind === "reinstated")?.personApproved, false, "a human decision is not 'approved by a person'");
+  assert.equal(views.find((v) => v.kind === "ai_scorecard")?.personApproved, false, "no approver sealed, no approval shown");
+  const rec = (inputs: Record<string, unknown>) => ({
+    kind: "auto_rejected",
+    actor: "auto:screen-wave",
+    reasonCode: "reject",
+    createdAt: "2026-09-26T00:00:00.000Z",
+    payloadJson: JSON.stringify({ inputs }),
+  });
+  // The posture placeholder names nobody, so it proves no person approved.
+  assert.equal(sealedPersonApproval(rec({ approvedBy: PLACEHOLDER_APPROVER }), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({}), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({ approvedBy: "  " }), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({ approvedBy: "alice@example.com" }), "unknown"), false, "an unknown actor is never dressed up by an approver");
+  assert.ok(!JSON.stringify(views).includes("alice@example.com"), "the approver's identity never crosses");
+});
+
+test("the notice's rejection promise and the candidate's own history are the same fact", () => {
+  // aiDisclosure.body promises "Every other rejection is a person's" (the knockout no is the stated automatic exception). The one adverse
+  // kind the machine selects is the screen wave's auto_rejected; the promise holds on
+  // this surface only if every committed one carries a NAMED approver (the wave
+  // refuses to seal without one) and the view renders that approval.
+  const en = JSON.parse(readFileSync(path.join(HERE, "..", "..", "..", "messages", "en.json"), "utf8"));
+  assert.match(en.aiDisclosure.body, /Every other rejection is a person's/, "precondition: the promise this test reconciles");
+  const waveSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "screen-wave.ts"), "utf8");
+  assert.match(waveSrc, /if \(!dryRun && !isNamedApprover\(approvedBy\)\) throw/, "the wave refuses an unnamed approver");
+  assert.match(waveSrc, /kind: AUTO_REJECTED_KIND,\s*actor: "auto:screen-wave"/, "the seal is machine-attributed");
+  assert.match(waveSrc, /inputs: \{ \.\.\.reasonParams, approvedBy,/, "the approver rides the sealed inputs this view reads");
+  assert.equal(typeof en.status.decisions.automatedPersonApproved, "string", "the surface has copy for the approved state");
 });

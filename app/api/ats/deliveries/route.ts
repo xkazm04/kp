@@ -4,15 +4,19 @@ import { jsonRefusal } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import {
   countDeadAtsDeliveries,
+  countStrandedAtsDeliveries,
   listAtsDeliveries,
   listDueAtsDeliveries,
   requeueAtsDelivery,
 } from "@/app/_lib/ats-delivery-store";
 import { retryDueAtsDeliveries } from "@/app/_lib/ats-egress";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // P1-5 (reliability) — operator visibility + replay for the outbound-webhook
 // delivery ledger. GET lists recent deliveries, the count currently due for retry,
-// and the dead-letter count (failed + no next attempt). POST with an omitted body
+// the dead-letter count (failed + no next attempt), and the stranded count (pending past
+// its claim lease: the attempt's process ended without an outcome; the next sweep reclaims
+// it as a due retry). POST with an omitted body
 // flushes every due retry now; POST { replayId } force-requeues one terminal row
 // then runs the same sweep, so a hire that exhausted the ladder is recoverable
 // without editing SQLite. Both OPERATOR-only (same gate as the rest of the ATS
@@ -20,17 +24,18 @@ import { retryDueAtsDeliveries } from "@/app/_lib/ats-egress";
 // between operator visits.
 const MAX_DELIVERIES_BODY_BYTES = 4 * 1024;
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({
     deliveries: listAtsDeliveries(),
     due: listDueAtsDeliveries().length,
     dead: countDeadAtsDeliveries(),
+    stranded: countStrandedAtsDeliveries(),
   });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const body = await readJsonWithLimit<{ replayId?: unknown }>(request, MAX_DELIVERIES_BODY_BYTES, {});
@@ -46,4 +51,4 @@ export async function POST(request: NextRequest) {
   }
   const result = await retryDueAtsDeliveries();
   return NextResponse.json({ ok: true, ...result });
-}
+});

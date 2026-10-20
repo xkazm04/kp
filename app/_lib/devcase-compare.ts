@@ -4,6 +4,12 @@
 // matrix turns "open five EvalPanels and squint" into a direct read of who leads
 // on framing vs judgment vs architecture. Pure + import-free (structural input
 // types) so it's unit-testable and the studio composes it over loaded submissions.
+//
+// Column order and axis leadership read the ONE cohort ordering (devcase-cohort-rank.ts,
+// itself import-free): in a MIXED cohort a keyless-template column is still shown (the
+// recruiter can read it) but marked `currency: "template"`, listed after the graded
+// columns, and never crowned the leader of an axis on a different instrument.
+import { rankCohort, type EvaluationCurrency } from "./devcase-cohort-rank";
 
 type RubricDimLike = { name?: string; label?: string };
 type DimScoreLike = { name?: string; score?: number };
@@ -14,7 +20,12 @@ type SubmissionLike = {
   id: string;
   candidateRef?: string | null;
   transferScore?: number | null;
-  evaluation?: { evaluation?: EvalInner | null; authenticity?: AuthLike | null } | null;
+  evaluation?: {
+    evaluation?: EvalInner | null;
+    authenticity?: AuthLike | null;
+    source?: unknown;
+    perStepSources?: Record<string, unknown> | null;
+  } | null;
 };
 
 export type CompareAxis = { name: string; label: string };
@@ -22,6 +33,9 @@ export type CompareColumn = {
   id: string;
   candidateRef: string | null;
   transferScore: number | null;
+  // Which instrument scored this column (devcase-cohort-rank.ts). In a mixed cohort a
+  // "template" column never leads an axis.
+  currency: EvaluationCurrency;
   // axis name -> score (0..100), or null when this submission has no score on it.
   scores: Record<string, number | null>;
   // Honest darkness: null when the bundle has no authenticity, never "authentic".
@@ -31,6 +45,8 @@ export type CompareColumn = {
 export type RubricComparison = {
   axes: CompareAxis[];
   columns: CompareColumn[];
+  // The evaluated cohort carries both currencies (graded and template).
+  mixed: boolean;
   // axis name -> the leading column's id (null when no column scored that axis).
   leaderByAxis: Record<string, string | null>;
 };
@@ -68,9 +84,10 @@ export function rubricCompare(
   submissions: SubmissionLike[],
   maxColumns = 5
 ): RubricComparison {
-  const evaluated = submissions
-    .filter((s) => s.evaluation?.evaluation)
-    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1));
+  // Graded tier first, then (mixed cohort only) the template tier, then unscored.
+  const cohort = rankCohort(submissions.filter((s) => s.evaluation?.evaluation));
+  const evaluated = cohort.rows.map((r) => r.item);
+  const currencyOf = new Map(cohort.rows.map((r) => [r.item, r.currency ?? "graded"] as const));
   // maxColumns < 1 means no cap (the truncated-matrix "show all" toggle).
   const capped = maxColumns < 1 ? evaluated : evaluated.slice(0, maxColumns);
 
@@ -97,6 +114,7 @@ export function rubricCompare(
       id: s.id,
       candidateRef: s.candidateRef ?? null,
       transferScore: s.transferScore ?? null,
+      currency: currencyOf.get(s) ?? "graded",
       scores,
       ...authenticityOf(s.evaluation?.authenticity),
     };
@@ -107,6 +125,7 @@ export function rubricCompare(
     let bestId: string | null = null;
     let best = -Infinity;
     for (const col of columns) {
+      if (cohort.mixed && col.currency === "template") continue;
       const v = col.scores[axis.name];
       if (v != null && v > best) {
         best = v;
@@ -116,5 +135,5 @@ export function rubricCompare(
     leaderByAxis[axis.name] = bestId;
   }
 
-  return { axes, columns, leaderByAxis };
+  return { axes, columns, mixed: cohort.mixed, leaderByAxis };
 }

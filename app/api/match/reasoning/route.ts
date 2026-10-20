@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/reasoning-run";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { engineRefusal } from "@/app/_lib/python-runner";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -27,7 +28,7 @@ const REASONING_RUNNER_REFUSALS: Record<string, RefusalErrorCode> = {
 
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
 // with kind "reasoning" (tracked, dedup'd, refresh-safe); both share runReasoning.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // ADDED scan-sweep 2026-08-24. Keyless/open is the standing premise of the
   // rate-limit contract, so this route is reachable unauthenticated — and every
   // cache MISS spawns reasoning_cli, which resolves a provider and makes a real
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     // holds a temp workdir. Right for THIS route precisely because it is the
     // synchronous wrapper — the survive-navigation path is /api/tasks with kind
     // "reasoning", which passes the TASK's own signal so a refresh doesn't kill it.
-    const data = await runReasoning({ ...body, lang }, request.signal, await currentWorkspace());
+    const data = await runReasoning({ ...body, lang }, request.signal, ws);
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof ReasoningError) {
@@ -73,6 +74,10 @@ export async function POST(request: NextRequest) {
         ? jsonRefusal(answer.code, error.status)
         : safeJsonError(error, "api:match/reasoning", answer.code, error.status);
     }
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     return safeJsonError(error, "api:match/reasoning", "MATCH_REASONING_FAILED");
   }
-}
+});

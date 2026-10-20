@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks, interviewGridRows, scheduledSealOutcome } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, scheduleInviteExpiryAnchor, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks, interviewGridRows, scheduledSealOutcome } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -200,6 +200,41 @@ test("a cancelled booking re-opens the link — the TTL runs from the cancel, no
   );
 });
 
+// --- A candidate who proposed their own times is not stranded by the mint clock ---
+test("a proposal restarts the link clock: proposals_at is the newest anchor", () => {
+  const NOW = Date.parse("2026-06-10T12:00:00.000Z");
+  const D = 86_400_000;
+  const minted = new Date(NOW - 10 * D).toISOString();
+  const base = { status: "pending", createdAt: minted };
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "pending", proposalsAt: new Date(NOW - 2 * D).toISOString() }, NOW),
+    false,
+    "minted 10 days ago, proposed 2 days ago: still live"
+  );
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "pending", proposalsAt: new Date(NOW - 8 * D).toISOString() }, NOW),
+    true,
+    "the proposal ages out on its own clock"
+  );
+  // A recruiter's decline keeps the stamp, so it does not expire the link at the decline.
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "declined", proposalsAt: new Date(NOW - 2 * D).toISOString() }, NOW),
+    false,
+    "a declined proposal does not expire the link at the moment of the decline"
+  );
+  // Rows without proposal fields behave exactly as before.
+  assert.equal(isScheduleInviteExpired(base, NOW), true);
+  assert.equal(isScheduleInviteExpired({ ...base, proposalStatus: null, proposalsAt: null }, NOW), true);
+  assert.equal(scheduleInviteExpiryAnchor(base), Date.parse(minted));
+  // The newest of the three stamps wins.
+  const cancelled = new Date(NOW - 3 * D).toISOString();
+  const proposed = new Date(NOW - 1 * D).toISOString();
+  assert.equal(
+    scheduleInviteExpiryAnchor({ createdAt: minted, attendanceStatus: "cancelled", attendanceAt: cancelled, proposalStatus: "pending", proposalsAt: proposed }),
+    Date.parse(proposed)
+  );
+});
+
 // --- Direction 3: grid ⇄ canonical instant (one scheduling engine) --------------
 test("gridSlotToIso resolves a grid pick to the next future canonical instant", () => {
   // NOW = Monday 2026-06-08 12:00 UTC (see top of file), interview zone pinned to UTC.
@@ -266,6 +301,28 @@ test("dateSlotToIso refuses past, weekend, off-horizon, and malformed dated pick
   assert.equal(dateSlotToIso("garbage", "10:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "25:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "", NOW, TZ), null);
+});
+
+// lens-sweep round 2 (bug-hunter, context lib-scheduling): the dated picker's guard
+// was `mo <= 12 && dd <= 31`, and Date.UTC — which zonedInstant is built on — SILENTLY
+// OVERFLOWS a day that does not exist in that month. `body.dateSlot` is a raw POST
+// field, so "2026-02-30" resolved to 2 March and "2026-04-31" to 1 May: the invite was
+// booked on a different calendar day than the recruiter asked for, and because the
+// label is re-derived server-side from the rolled instant, nothing anywhere said so.
+// A non-existent date must be refused, exactly like a weekend or a past instant.
+test("dateSlotToIso refuses a calendar date that does not exist, instead of rolling it over", () => {
+  // The overflow is only OBSERVABLE when the rolled instant survives the other guards,
+  // so anchor on a Monday in February: 2026 is not a leap year, and "2026-02-30" rolls
+  // forward to Monday 2 March — a future, in-horizon, business-day instant that every
+  // remaining check waves through. NOW is Monday 2026-02-09 12:00 UTC.
+  const FEB = Date.UTC(2026, 1, 9, 12, 0, 0, 0);
+  assert.equal(dateSlotToIso("2026-02-30", "10:00", FEB, TZ), null, "30 February must not silently become 2 March");
+  assert.equal(dateSlotToIso("2026-02-31", "10:00", FEB, TZ), null, "31 February must not silently become 3 March");
+  // The guard must not cost a real date its booking — the last real day of the same
+  // month still resolves, to its own day.
+  const real = dateSlotToIso("2026-02-27", "10:00", FEB, TZ);
+  assert.ok(real, "27 February is a real Friday and stays bookable");
+  assert.match(real!.value, /^2026-02-27T/, "a valid dated pick still resolves to its own calendar day");
 });
 
 test("isoToDateSlot places an instant on the dated grid and round-trips with dateSlotToIso", () => {

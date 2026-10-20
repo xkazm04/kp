@@ -94,6 +94,13 @@ export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedC
   return { title: "loadFailedTitle", body: "loadFailedBody" };
 }
 
+/** Redeem can succeed even when best-effort session signing failed. The readable
+ * entry marker is set only alongside a successful sign-in; without it, `/`
+ * would show the public landing instead of the new member's workspace. */
+export function inviteSuccessPath(cookies: string): "/" | "/login" {
+  return /(?:^|;\s*)kp_entered=1(?:;|$)/.test(cookies) ? "/" : "/login";
+}
+
 // Client pre-check for the redeem form. GET preview sets `needsName` when the
 // user row has no display name; posting `name: name.trim() || undefined` used
 // to create the account as `name: null`, so Art. 22 seals fell back to email.

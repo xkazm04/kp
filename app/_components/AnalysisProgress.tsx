@@ -8,22 +8,11 @@ import {
   STAGE_ORDER,
   deriveProgressDisplay,
   headlineStageOf,
+  elapsedSecondsSince,
   type StageId,
   type StageStatus,
   type StageState,
 } from "./analysis-progress-logic";
-
-// Re-export the pure stage logic so existing `@/app/_components/AnalysisProgress`
-// imports (useAnalyzeForm, runAnalysis, AnalyzeApi, AnalyzeTypes) keep resolving
-// after it moved into the testable sibling module.
-export {
-  STAGE_ORDER,
-  initialStageState,
-  applyStageEvent,
-  deriveProgressDisplay,
-  headlineStageOf,
-} from "./analysis-progress-logic";
-export type { StageId, StageStatus, StageState, ProgressDisplay } from "./analysis-progress-logic";
 
 // Literal-key maps (next-intl rejects template-literal keys, so we can't build
 // `stages.${id}Title` inline) → the catalog lives under analyze.stages.*. Direction
@@ -39,17 +28,21 @@ const STAGE_SUB_KEY = {
   saving: "stages.savingSub",
 } as const;
 
-// A once-per-second elapsed clock for the run (mounts with the panel, i.e. at the
-// run's start; the panel unmounts when the run ends). Shown beside the indeterminate
+// A once-per-second elapsed clock for the run, shown beside the indeterminate
 // engine span so a slow/stalled model call reads as genuinely in-progress — the
-// number keeps climbing while the stage honestly stays "analyzing".
-function useElapsedSeconds(): number {
-  const [elapsed, setElapsed] = useState(0);
+// number keeps climbing while the stage honestly stays "analyzing". `startedAt` is
+// the run's REAL start (persisted by the caller): a panel remounted by a resume after
+// a page reload must not restart at zero. Without it the clock starts at mount.
+function useElapsedSeconds(startedAt?: number): number {
+  const [mountedAt] = useState(() => Date.now());
+  const origin = startedAt ?? mountedAt;
+  const [elapsed, setElapsed] = useState(() => elapsedSecondsSince(origin, Date.now()));
   useEffect(() => {
-    const startedAt = Date.now();
-    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    const tick = () => setElapsed(elapsedSecondsSince(origin, Date.now()));
+    tick();
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [origin]);
   return elapsed;
 }
 
@@ -60,6 +53,7 @@ export function AnalysisProgress({
   variantCount,
   variantsDone,
   variantsTotal,
+  startedAt,
   onCancel
 }: {
   stages: StageState;
@@ -72,6 +66,8 @@ export function AnalysisProgress({
   // stage timeline.
   variantsDone?: number;
   variantsTotal?: number;
+  /** Epoch ms of the run's real start; keeps the elapsed clock honest across a resume. */
+  startedAt?: number;
   onCancel?: () => void;
 }) {
   const t = useTranslations("analyze");
@@ -84,7 +80,7 @@ export function AnalysisProgress({
   // Direction 3 — a ticking elapsed clock for the run, shown while the bar is
   // indeterminate so a slow/stalled engine call visibly keeps counting rather than
   // sitting on a lie. The number below (progress readout) reads it out verbally.
-  const elapsedSeconds = useElapsedSeconds();
+  const elapsedSeconds = useElapsedSeconds(startedAt);
 
   return (
     // `aria-label` needs a role to survive: on a bare <div> (an implicit
@@ -103,7 +99,7 @@ export function AnalysisProgress({
             stage rows) on every poll — and so the interactive Cancel button no
             longer sits inside a passive status container. */}
         <div role="status" aria-live="polite">
-          <p className="text-meta uppercase text-coral">
+          <p className="text-meta uppercase text-coral-ink">
             {complete ? t("compilingResult") : t("livePipeline")}
           </p>
           <h2 className="mt-1 font-serif text-h2 text-ink">
@@ -150,7 +146,7 @@ export function AnalysisProgress({
             <button
               type="button"
               onClick={onCancel}
-              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral`}
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral-ink`}
             >
               {t("cancelScan")}
             </button>
@@ -237,7 +233,7 @@ function StageIndicator({ status }: { status: StageStatus }) {
   }
   if (status === "active") {
     return (
-      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-coral bg-white text-coral">
+      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-coral bg-white text-coral-ink">
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
       </span>
     );

@@ -2,20 +2,19 @@ import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
-import { PipelineError } from "@/app/_lib/python-runner";
+import { PipelineError, SpawnFailure } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
     // Resolved ONCE and reused by the visibility gate, the pool read and the
     // sourcing-state decoration below: the pool and the pipeline it is decorated
     // against must be read from the same tenant or the join is nonsense.
-    const workspaceId = await currentWorkspace();
     // Visibility gate, same as every other by-id job route (winnability, rediscover,
     // campaign, agent-fit; docs/features/jobs README § "By-id job routes re-apply
     // the list's visibility predicate"): getJob is a by-id point read over a
@@ -25,7 +24,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // recruiter_cli child fed the role's title, body and stated band. 404, not 403,
     // so the endpoint can't confirm another team's id exists; seeded corpus rows
     // stay visible to everyone.
-    const job = getJob(id);
+    const job = getJob(id, workspaceId);
     if (!job || !jobVisibleToWorkspace(id, workspaceId)) {
       return jsonRefusal("JOB_NOT_FOUND", 404);
     }
@@ -96,9 +95,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // A recruiter_cli failure surfaces as a PipelineError carrying the CLI's
     // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a
     // 400 instead of collapsing to 500 — preserving the prior inline behavior.
-    if (error instanceof PipelineError) {
+    // A SpawnFailure is a PipelineError too, but it is the RUNNER's failure (a
+    // deadline, an abort, no interpreter), not the CLI's answer: it stays on the
+    // logged catch-all it has always reached, never forwarded as English text.
+    if (error instanceof PipelineError && !(error instanceof SpawnFailure)) {
       return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
     }
     return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }
-}
+});

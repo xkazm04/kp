@@ -1,32 +1,26 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { listPostings, listSubmissions } from "@/app/_lib/db/devcase";
-import { latestOutcomeByRefs } from "@/app/_lib/dev-outcomes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { listPostings } from "@/app/_lib/db/devcase";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { postingsView } from "@/app/_lib/devcase-postings-view";
 
 
-// Postings (OUT) with their received submissions (IN) inlined, each carrying its latest
-// recorded outcome from the dev-outcomes store (submission.id is the `ref` by contract).
-// Without the join the outcome pill lived only in SubmissionRow state, so any remount
-// re-offered the record buttons and a re-click double-counted in calibrate().
+// Postings (OUT) with their received submissions (IN) inlined - outcome-joined,
+// promote-previewed and carrying in-flight counts. The enrichment is
+// app/_lib/devcase-postings-view.ts, shared with GET /api/devcase/[id]/channels (the
+// assignment detail's own read), so the two answer the same posting identically.
 //
-// TENANT SCOPE (D5): all three reads take the caller's workspace. The stores accepted it
+// The Dev studio no longer reads this workspace-wide fold (challenge-r09
+// devcase-lifecycle/A); it stays, unchanged in shape, for the e2e journeys that read
+// submissions inlined (journey-one-thread, token-doors-axe).
+//
+// TENANT SCOPE (D5): every read takes the caller's workspace. The stores accepted it
 // all along; the route simply never passed it, so every team's Dev studio listed the
 // DEFAULT workspace's postings and submissions.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const ws = await currentWorkspace();
-    const postings = listPostings(ws).map((p) => ({ ...p, submissions: listSubmissions(p.id, ws) }));
-    const outcomes = latestOutcomeByRefs(postings.flatMap((p) => p.submissions.map((s) => s.id)), ws);
-    const merged = postings.map((p) => ({
-      ...p,
-      submissions: p.submissions.map((s) => {
-        const outcome = outcomes.get(s.id);
-        return outcome ? { ...s, outcome } : s;
-      }),
-    }));
-    return NextResponse.json({ postings: merged });
+    return NextResponse.json({ postings: postingsView(listPostings(ws), ws) });
   } catch (error) {
     return safeJsonError(error, "api:devcase/postings", "DEVCASE_POSTINGS_FAILED");
   }
-}
+});

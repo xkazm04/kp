@@ -47,7 +47,7 @@ export function ActivityDrawer({
       >
         <span className="text-base font-semibold text-ink">{COPY.activityTitle}</span>
         {unread > 0 && !open ? (
-          <span className="rounded-full bg-coral px-2 py-0.5 text-sm font-semibold text-white">{unread}</span>
+          <span className="rounded-full bg-coral-solid px-2 py-0.5 text-sm font-semibold text-white">{unread}</span>
         ) : null}
         <span className="flex-1" />
         <ChevronDown

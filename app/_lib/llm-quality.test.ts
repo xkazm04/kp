@@ -12,7 +12,10 @@ import {
   bestModelForOp,
   modelOverall,
   modelRanking,
+  NOISE_BAND,
   qualityComposite,
+  recommendForUseCase,
+  RELIABILITY_FLOOR,
   topModelsForOp,
   type QualityCell,
   type QualityScores,
@@ -84,4 +87,103 @@ test("the shipped matrix: opus is joint-or-outright top on 12 of the 15 ops", ()
   assert.equal(byModel["gemini-3.6-flash"], 1); // its one joint top, kept
   assert.deepEqual(topModelsForOp(QUALITY_SCORES, "devcase_role_design"), ["claude-sonnet-5", "claude-opus-5"]);
   assert.deepEqual(topModelsForOp(QUALITY_SCORES, "automation_offer"), ["gemini-3.6-flash", "claude-opus-5"]);
+});
+
+// ── Challenge r07 llm-layer/B: price each pick, pin the cheapest within noise ──
+// The noise band was FIXED before these cases were written (builds/llm-layer--B.json):
+// 0.15 composite points when both compared aggregates rest on >= 4 judged scenarios
+// per op, 0.30 below; reliability floor 0.9. The cases below assert it, never tune it.
+
+test("the noise band and reliability floor are the numbers fixed before the build", () => {
+  assert.deepEqual(NOISE_BAND, { atJudges: 4, narrow: 0.15, wide: 0.3 });
+  assert.equal(RELIABILITY_FLOOR, 0.9);
+});
+
+test("the shipped bake is priced and names a bench target for every model", () => {
+  for (const model of QUALITY_SCORES.models) {
+    const target = QUALITY_SCORES.targets?.[model];
+    assert.ok(target, `no target for ${model}`);
+    assert.equal(target.model, model);
+  }
+  assert.equal(QUALITY_SCORES.targets?.["claude-opus-5"]?.provider, "claude_cli");
+  assert.equal(QUALITY_SCORES.targets?.["gemini-3.6-flash"]?.provider, "gemini");
+  // every cell carries the field (a number, or null when unpriced - never absent)
+  for (const [op, row] of Object.entries(QUALITY_SCORES.cells)) {
+    for (const [model, c] of Object.entries(row)) {
+      assert.ok("costPerTaskUsd" in c, `${op}/${model} has no costPerTaskUsd`);
+    }
+  }
+});
+
+test("match_reasoning: gemini-3.6-flash, because opus's 0.1 lead is inside the band at judges=4", () => {
+  const rec = recommendForUseCase(QUALITY_SCORES, "match_reasoning");
+  assert.ok(rec);
+  assert.equal(rec.pick.model, "gemini-3.6-flash");
+  assert.equal(rec.pick.composite, 9.0);
+  assert.equal(rec.best.model, "claude-opus-5");
+  assert.equal(rec.best.composite, 9.1);
+  assert.equal(rec.band, 0.15);
+  assert.equal(rec.reason, "cheapest_in_band");
+  assert.ok(rec.costMultiple !== null && rec.costMultiple >= 50, `costMultiple ${rec.costMultiple}`);
+  assert.deepEqual(rec.pick.target, { provider: "gemini", model: "gemini-3.6-flash" });
+});
+
+test("jd_ingest: the best is also the cheapest; weight_proposal: a 0.7 gap is out of band", () => {
+  const jd = recommendForUseCase(QUALITY_SCORES, "jd_ingest");
+  assert.equal(jd?.pick.model, "deepseek-v4-flash");
+  assert.equal(jd?.reason, "best_is_cheapest");
+  const wp = recommendForUseCase(QUALITY_SCORES, "weight_proposal");
+  assert.equal(wp?.pick.model, "claude-opus-5");
+  assert.equal(wp?.pick.composite, 8.8);
+  // sonnet (8.2) sits under the 0.9 reliability floor at llmRate 0.75, so it is
+  // never a candidate; deepseek (8.1) is outside the band.
+  assert.equal(wp?.best.model, "claude-opus-5");
+  assert.equal(wp?.reason, "best_is_cheapest");
+});
+
+test("no cost anywhere -> cost_unmeasured and the top composite; no bench op -> null", () => {
+  const rec = recommendForUseCase(TIED, "op_clear_uc", { op_clear: "op_clear_uc" });
+  assert.equal(rec?.reason, "cost_unmeasured");
+  assert.equal(rec?.pick.model, "omega");
+  assert.equal(rec?.costMultiple, null);
+  assert.equal(recommendForUseCase(QUALITY_SCORES, "repo_scan"), null);
+});
+
+test("the band widens to 0.30 when a compared cell rests on fewer than 4 judges", () => {
+  const scores: QualityScores = {
+    ...TIED,
+    models: ["best", "cheap"],
+    cells: {
+      op_x: {
+        best: cell(9, 9, 9, { costPerTaskUsd: 0.2 }),
+        cheap: cell(8.75, 8.75, 8.75, { judges: 3, costPerTaskUsd: 0.001 }),
+      },
+    },
+  };
+  const rec = recommendForUseCase(scores, "uc", { op_x: "uc" });
+  assert.equal(rec?.band, 0.3);
+  assert.equal(rec?.pick.model, "cheap");
+  const narrow = recommendForUseCase(
+    { ...scores, cells: { op_x: { ...scores.cells.op_x, cheap: { ...scores.cells.op_x.cheap, judges: 4 } } } },
+    "uc",
+    { op_x: "uc" }
+  );
+  assert.equal(narrow?.band, 0.15);
+  assert.equal(narrow?.pick.model, "best", "a 0.2 gap at judges=4 is a real lead");
+});
+
+test("an unpriced cell is never claimed cheapest", () => {
+  const scores: QualityScores = {
+    ...TIED,
+    models: ["priced", "unpriced"],
+    cells: {
+      op_x: {
+        priced: cell(9, 9, 9, { costPerTaskUsd: 0.05 }),
+        unpriced: cell(9, 9, 9, { costPerTaskUsd: null }),
+      },
+    },
+  };
+  const rec = recommendForUseCase(scores, "uc", { op_x: "uc" });
+  assert.equal(rec?.pick.model, "priced");
+  assert.notEqual(rec?.reason, "cheapest_in_band");
 });

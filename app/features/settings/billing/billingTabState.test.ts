@@ -8,9 +8,11 @@ import {
   CHECKOUT_POLL_DELAYS_MS,
   checkoutPollOffsetsMs,
   checkoutPollWindowMs,
+  checkoutReturnKind,
   createLoadLatch,
   isCheckoutReturn,
   isPurchaseBusy,
+  packCreditsReflectPurchase,
 } from "./billingTabState.ts";
 
 // ---- the newest-read latch ---------------------------------------------------
@@ -92,10 +94,17 @@ test("an empty schedule degrades to a zero window rather than reading past the e
 
 // ---- the return flag ---------------------------------------------------------
 
-test("only ?billing=success is a checkout return", () => {
+test("only recognized plan and pack success flags are checkout returns", () => {
   assert.equal(isCheckoutReturn("success"), true);
   assert.equal(isCheckoutReturn("cancelled"), false);
   // After the effect strips the param, a RE-derivation would read null — which is
   // exactly why the tab captures this once, in lazy initial state.
   assert.equal(isCheckoutReturn(null), false);
+  assert.equal(checkoutReturnKind("plan-success"), "plan");
+  assert.equal(checkoutReturnKind("pack-success"), "pack");
+  assert.equal(checkoutReturnKind("success"), "plan");
+  assert.equal(checkoutReturnKind("cancelled"), null);
+  assert.equal(packCreditsReflectPurchase(10, 110), true);
+  assert.equal(packCreditsReflectPurchase(10, 10), false);
+  assert.equal(packCreditsReflectPurchase(null, 110), false);
 });

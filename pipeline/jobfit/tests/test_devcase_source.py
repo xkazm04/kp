@@ -5,7 +5,7 @@ import unittest
 from pipeline.jobfit.devcase.source import role_to_job, source_candidates
 
 
-def _candidate(cid: str, skills: list[str], seniority: str = "senior") -> dict:
+def _candidate(cid: str, skills: list[str], seniority: str = "senior", role_family: str = "software_engineering") -> dict:
     return {
         "id": cid,
         "label": cid,
@@ -14,7 +14,7 @@ def _candidate(cid: str, skills: list[str], seniority: str = "senior") -> dict:
             "id": cid,
             "displayName": cid,
             "archetype": "bau",
-            "roleFamily": "software_engineering",
+            "roleFamily": role_family,
             "seniority": seniority,
             "yearsExperience": 6,
             "languages": ["English"],
@@ -25,6 +25,21 @@ def _candidate(cid: str, skills: list[str], seniority: str = "senior") -> dict:
 
 
 class TestSource(unittest.TestCase):
+    def test_office_family_role_ranks_relevant_candidate(self):
+        role = {
+            "title": "Financial Analyst",
+            "seniority": "senior",
+            "roleFamily": "finance_accounting",
+            "mustHaves": ["financial analysis", "Excel"],
+        }
+        pool = [
+            _candidate("finance", ["financial analysis", "Excel", "IFRS"], role_family="finance_accounting"),
+            _candidate("software", ["Python", "Django"]),
+        ]
+        out = source_candidates(role, pool, floor=1)
+        self.assertEqual(out["candidates"][0]["candidateId"], "finance")
+        self.assertEqual(out["skipped"], 0)
+
     def test_role_to_job_builds_requirements(self):
         job = role_to_job({"title": "Backend", "seniority": "senior", "roleFamily": "software_engineering", "mustHaves": ["Python", "Django"], "niceToHaves": ["Kafka"]})
         self.assertEqual(job.title, "Backend")

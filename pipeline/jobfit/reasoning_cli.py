@@ -18,6 +18,7 @@ from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
 from .llm import emit_deterministic, provider_availability, resolve_provider
 from .match_reasoning import REASONING_PROMPT_VERSION, generate, narrative_lang_for
 from .matching import score_job
+from .transform import apply_preferences
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,6 +27,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate reasoning for one candidate-job match.")
     parser.add_argument("--candidate-json", type=Path, help="MatchCandidate JSON. Reads stdin if omitted.")
     parser.add_argument("--profile-json", type=Path, help="CandidateProfileV2 JSON — transformed first.")
+    parser.add_argument(
+        "--preferences-json",
+        type=Path,
+        default=None,
+        help="Seeker JobseekerPreferences JSON, overlaid on the candidate exactly as match_cli overlays it "
+        "(transform.apply_preferences) - so the rationale is written for the candidate the score was "
+        "computed for, salary floor, work modes and seniority included.",
+    )
     parser.add_argument("--job-id", required=True)
     parser.add_argument("--jobs", type=Path, default=None)
     parser.add_argument(
@@ -49,6 +58,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
+        if args.preferences_json is not None:
+            preferences = json.loads(args.preferences_json.read_text(encoding="utf-8"))
+            # The same overlay, on either load path, as match_cli: a non-object is no
+            # preferences, never a crash.
+            candidate = apply_preferences(candidate, preferences if isinstance(preferences, dict) else None)
         # Corpus augmented by --jobs-json DB overrides (overrides win on id
         # collision): without it Explain fit raised "job not found" for any
         # recruiter-ingested job the Fit Matrix happily scored.

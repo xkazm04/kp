@@ -9,15 +9,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { toast } from "@/app/_components/toast-store";
-import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
-import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
 import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
-import { selectionCacheKey } from "./groupEval/cache-key";
-import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
+import { useGroupEvalOpen } from "./groupEval/useGroupEvalOpen";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { createTicketGate } from "./decisionsLatestWins";
 import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
@@ -25,6 +23,7 @@ import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
+import { foldBatchDecide, foldDecideResponse, type DecideAction, type DecideOutcome } from "./decisionsDecideOutcome";
 import {
   applyReinstateOutcome,
   foldReinstateResponse,
@@ -90,7 +89,6 @@ export function useDecisionsQueue() {
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
   // The role whose screening wave (DEC1/DEC2) is open — jobId + title for the modal.
   const [waveRole, setWaveRole] = useState<{ jobId: string; title: string } | null>(null);
-  const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
   // Governance mode for the next group evaluation (P1-3). "recommendation" keeps the
   // AI-picks-a-lead default; "committee" / "eligibility_list" make the AI advisory.
   const [evalMode, applyEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
@@ -104,19 +102,6 @@ export function useDecisionsQueue() {
     evalModeChosen.current = true;
     applyEvalMode(mode);
   };
-  // Set when a served CACHED evaluation was produced under a different governance mode
-  // than the control now shows; the modal discloses it. Cleared on every open.
-  const [evalGovernanceMismatch, setEvalGovernanceMismatch] = useState<GovernanceCacheMismatch | null>(null);
-  const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
-  const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
-  const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
-  // Whether the in-flight eval run is over an explicit SELECTION (selection-rerun-cache).
-  // Its result is cached under the selection's own key, so it must not flip the role's
-  // "evaluated" chip, which promises a role-level top-N eval.
-  const [evalIsSelection, setEvalIsSelection] = useState(false);
-  // Set when a role marked "evaluated" has an unreadable/missing saved payload, so the modal
-  // shows an honest "couldn't load — re-run" instead of the misleading "no evaluation yet".
-  const [evalError, setEvalError] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
   // Direction 2 (queue-staleness) — the JD content-edit time per role, fetched for
@@ -150,7 +135,7 @@ export function useDecisionsQueue() {
   };
 
   // Direction 1 — batch accept/reject for AI review cards. POST /api/pipeline/batch
-  // already offers per-id CAS + verbatim per-id failure reasons; this reuses the
+  // already offers per-id CAS + per-id refusal codes; this reuses the
   // board's PipelineTab.bulkDecide grammar (successes clear, failures stay selected
   // for retry, reject is confirm-gated because it emails candidates). offer_review
   // is EXCLUDED from multi-select (see selectableReviews below): the batch response
@@ -447,6 +432,42 @@ export function useDecisionsQueue() {
     setBulkResult(null);
   };
 
+  // The forward handoff after a confirmed accept — the ONE applier act() and the
+  // batch bar both call with what handoffFor() (decisionsDecideOutcome.ts) decided:
+  // background interview_prep for these entries, the queued-on-Schedule banner for
+  // these labels.
+  const applyHandoffs = (prepFor: readonly Entry[], queued: readonly string[]) => {
+    for (const e of prepFor) {
+      void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
+    }
+    if (queued.length > 0) setQueuedLabels((prev) => [...prev, ...queued]);
+  };
+
+  // POST one decision and fold the answer. Never throws: a request that never landed
+  // is a code-less failure, a refusal carries its code / capability / status.
+  const postDecide = async (e: Entry, action: DecideAction, detail?: string, ttlDays?: number): Promise<DecideOutcome> => {
+    const note = detail?.trim();
+    try {
+      const r = await fetch(`/api/pipeline/${e.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // expectedStage pins the decision to the snapshot this card/modal was
+        // rendered from (idea-84392364): the queue live-refreshes while the
+        // analysis modal can stay open across a state change, so a stale
+        // Advance/Reject gets a coded 409 instead of blindly overriding what
+        // another actor did. An optional reason (DEC4) rides as `detail` →
+        // recorded on the advanced/rejected event → shown in the Decision Log.
+        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
+      });
+      // A non-JSON body (a proxy's HTML 502) is not a reason to lose the status.
+      const body = await r.json().catch(() => null);
+      return foldDecideResponse(e, action, { ok: r.ok, status: r.status }, body);
+    } catch {
+      // Folded, not thrown: offline / aborted / DNS is a failure the door names.
+      return foldDecideResponse(e, action, null, null);
+    }
+  };
+
   // ONE batch POST per action, each item carrying its OWN expectedStage CAS snapshot
   // (the stage the card rendered from) — a concurrent move is a per-id 409 that STAYS
   // selected for retry while successes clear. Mirrors PipelineTab.bulkDecide exactly;
@@ -458,63 +479,46 @@ export function useDecisionsQueue() {
     setBulkBusy(true);
     setBulkResult(null);
     setConfirmingBulkReject(false);
-    let ok = 0;
-    const failed = new Set<string>();
-    const reasons = new Set<string>();
-    let requestReason: string | null = null;
     const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
-    const res = await postPipelineBatch(items);
-    if (res.ok) {
-      const okIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
-      for (const r of res.results) {
-        if (r.ok) ok += 1;
-        else {
-          failed.add(r.id);
-          if (r.reason) reasons.add(r.reason);
-        }
-      }
-      // Preserve the one-by-one accept's forward handoff: each accepted screening
-      // review flows to Schedule, so backfill its interview-prep artifact and name
-      // it in the queued banner — parity with act()'s screening_review branch.
-      if (action === "accept") {
-        const acceptedScreenings = targets.filter((e) => okIds.has(e.id) && e.approvalKind === "screening_review");
-        for (const e of acceptedScreenings) {
-          void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
-        }
-        if (acceptedScreenings.length > 0) setQueuedLabels((prev) => [...prev, ...acceptedScreenings.map((e) => e.candidateLabel)]);
-      }
-      // Same contract as act(): a row leaves only once the server confirmed it — and
-      // then it leaves right away. The reconcile load() below is no longer what
-      // REMOVES these cards, so an unrelated read finishing between the batch and
-      // that load can't leave the decided cards on screen with live buttons.
-      if (okIds.size > 0) {
-        loadTicket.current += 1;
-        setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
-      }
-    } else {
-      // WHOLE-REQUEST failure — every attempted decision stays selected for retry.
-      // It used to end there: the band said "0 accepted · N couldn't be decided" and
-      // nothing else, even when the door had refused the seat with a code and named
-      // the permission it wanted. A whole-request refusal is not a per-id verdict —
-      // none was ever reached — so it OVERRIDES the per-id reasons below.
-      for (const e of targets) failed.add(e.id);
-      requestReason = capabilityAwareReason(
-        errMsg,
-        { code: res.code, capability: res.capability },
-        t("batch.requestFailed")
-      );
+    // decisions-review-ui/A — the response goes through the SAME fold as act()
+    // (decisionsDecideOutcome.ts): per-id outcomes become ids + refusal CODES (the
+    // server's English per-id `reason` never reaches the band), and the forward
+    // handoff is the one rule both paths share — so a batch-accepted AI scorecard the
+    // plan routed to the human round is queued-for-Schedule here too.
+    const folded = foldBatchDecide(targets, action, await postPipelineBatch(items));
+    applyHandoffs(
+      targets.filter((e) => folded.prepIds.includes(e.id)),
+      folded.queuedLabels
+    );
+    // Same contract as act(): a row leaves only once the server confirmed it — and
+    // then it leaves right away. The reconcile load() below is no longer what
+    // REMOVES these cards, so an unrelated read finishing between the batch and
+    // that load can't leave the decided cards on screen with live buttons.
+    if (folded.okIds.length > 0) {
+      const okIds = new Set(folded.okIds);
+      loadTicket.current += 1;
+      setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
     }
     // Successes clear; failures + any selected non-selectable strays stay selected.
     const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
-    setSelectedReviewIds(new Set([...failed, ...untouched]));
+    setSelectedReviewIds(new Set([...folded.failedIds, ...untouched]));
     // The cohort just changed under us — a stale select-all snapshot would read as
     // permanent drift, so reset it (the recruiter re-selects if they want the rest).
     setSelectAllSnapshot(null);
+    // A WHOLE-REQUEST refusal is not a per-id verdict — none was ever reached — so it
+    // OVERRIDES the per-id codes and names the permission a gated door wanted.
+    // Otherwise each distinct per-id code resolves in the reader's language. An unknown
+    // code adds nothing (the "N couldn't be decided" count already stands).
+    const reason = folded.requestFailure
+      ? capabilityAwareReason(errMsg, folded.requestFailure, t("batch.requestFailed"))
+      : folded.codes.length
+        ? [...new Set(folded.codes.map((code) => errMsg({ code }, "")).filter(Boolean))].join(" · ") || null
+        : null;
     setBulkResult({
-      ok,
-      failed: failed.size,
+      ok: folded.okIds.length,
+      failed: folded.failedIds.length,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      reason,
     });
     setBulkBusy(false);
     await load();
@@ -560,22 +564,6 @@ export function useDecisionsQueue() {
     return () => gate.invalidate(); // a re-keyed effect drops its predecessor
   }, [roleKeys]);
 
-  // Watch the group-eval background task; its result is fetched on demand once it
-  // finishes (the poll omits the blob). Completion is consumed DURING render
-  // (guarded: the task id is cleared in the same pass, so this runs once per
-  // task) — the guarded render-phase pattern instead of an effect round-trip.
-  const { status: evalStatus, full: evalFull } = useTaskResult(evalTaskId);
-  if (evalTaskId && evalStatus === "succeeded" && evalFull) {
-    setEvalData((evalFull.result as GroupEvalPayload) ?? null);
-    setEvalTaskId(null);
-    // Only a top-N run makes the ROLE "evaluated" — a selection run's eval lives under
-    // its own cache key (selection-rerun-cache), and claiming the role otherwise would
-    // send the next default open to a role-level row that was never written.
-    if (evalRole && !evalIsSelection) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
-  } else if (evalTaskId && (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted")) {
-    setEvalTaskId(null);
-  }
-
   // Resolves TRUE only when the server confirmed the decision, FALSE on any failure
   // (a stale-stage 409, a transport error, a 500). Callers that claim an outcome —
   // DecisionsModals seals the group-eval reject identity and toasts "the reason is on
@@ -583,158 +571,47 @@ export function useDecisionsQueue() {
   // the candidate was NOT rejected, no rationale was sealed and no notice was queued,
   // so a green toast over a permanently-sealed button is a success the server never
   // gave. The boolean is the half this hook owns; the awaiting is the caller's.
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number): Promise<boolean> => {
-    // Direction 2a — the row leaves ONLY when the server confirms. The old path
-    // scheduled a 260ms timer that dropped the row BEFORE the fetch resolved, so a
-    // slow network showed a vanish-then-reappear on an irreversible reject. Now the
-    // in-flight card shows a subtle pending state (leavingWrapClass) and is removed
-    // on the 200, or cleanly restored on failure — no optimistic disappearance.
+  //
+  // decisions-review-ui/A — a failure is no longer silent. The refusal body used to
+  // be thrown away (`if (!r.ok) throw`), so a lost race on the ledger's quick reject
+  // just made the row blink back. It is now folded (decisionsDecideOutcome.ts) and
+  // toasted from its CODE in the reader's language. Kept as post → fold → apply so a
+  // later door (an undo window) can wrap this same act without re-implementing it.
+  const act = async (e: Entry, action: DecideAction, detail?: string, ttlDays?: number): Promise<boolean> => {
+    // Direction 2a — the row leaves ONLY when the server confirms. The in-flight card
+    // shows a subtle pending state (leavingWrapClass) and is removed on the 200, or
+    // cleanly restored on failure — no optimistic disappearance.
     setResolving((s) => ({ ...s, [e.id]: action }));
-    try {
-      const note = detail?.trim();
-      const r = await fetch(`/api/pipeline/${e.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // expectedStage pins the decision to the snapshot this card/modal was
-        // rendered from (idea-84392364): the queue live-refreshes while the
-        // analysis modal can stay open across a state change, so a stale
-        // Advance/Reject now gets a 409 (and the catch below reloads the fresh
-        // queue) instead of blindly overriding what another actor did.
-        // An optional reason (DEC4) rides as `detail` → recorded on the
-        // advanced/rejected event → shown in the Decision Log.
-        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
-      });
-      if (!r.ok) throw new Error();
-      // Surface the offer-extension result instead of discarding it (OO-L1-02):
-      // the response carries the candidate's secure accept/decline link — confirm
-      // the send with a toast and keep the link copyable in the banner below.
-      const p = (await r.json().catch(() => null)) as { offerExtended?: boolean; link?: unknown; routedToHumanRound?: boolean } | null;
-      // HYBRID HANDOFF (interviewPlan): the accepted AI scorecard routed the
-      // candidate to the human round's calendar gate — narrate the Schedule
-      // handoff exactly like an accepted screening does.
-      if (action === "accept" && e.approvalKind === "scorecard_review" && p?.routedToHumanRound) {
-        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
-      }
-      if (action === "accept" && e.approvalKind === "offer_review" && p?.offerExtended && typeof p.link === "string") {
-        const link = p.link;
-        if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));
-        else toast.success(t("offerSent.toast", { name: e.candidateLabel }));
-        setSentOffers((prev) => [...prev.filter((o) => o.id !== e.id), { id: e.id, label: e.candidateLabel, link }]);
-      }
-      // Accepting an AI screening flows the candidate to interview scheduling —
-      // generate their interview-prep artifact in the background so it's ready
-      // when the interviewer opens it from the Schedule tab.
-      if (action === "accept" && e.approvalKind === "screening_review") {
-        void startTask("interview_prep", {
-          entryId: e.id,
-          candidateLabel: e.candidateLabel,
-          jobTitle: e.jobTitle,
-          lang: locale,
-        });
-        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
-      }
-      // Server confirmed — NOW the row leaves. Before this point it was only
-      // dimmed (pending), never removed, so nothing can vanish-then-reappear.
-      // Invalidate any read that started before this decision: its snapshot still
-      // holds this row and would put the card straight back (see loadTicket).
-      loadTicket.current += 1;
-      setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
-      return true;
-    } catch {
-      // Roll back cleanly: clear the pending state so the card returns to normal.
-      // A stale-stage 409 carried the fresh entry, so reload to reconcile the queue
-      // to reality — the row never disappeared first, so this isn't a reappear.
+    const outcome = await postDecide(e, action, detail, ttlDays);
+    if (!outcome.ok) {
+      // Roll back cleanly: clear the pending state so the card returns to normal,
+      // say WHY, and reload — a stale-stage 409 means the queue moved under us, and
+      // the row never disappeared first, so this isn't a reappear.
       setResolving((s) => {
         const n = { ...s };
         delete n[e.id];
         return n;
       });
+      toast.error(capabilityAwareReason(errMsg, outcome.failure, t("decideFailed", { name: e.candidateLabel })));
       load();
       return false;
     }
-  };
-
-  const openGroupEval = async (g: Group, rerun = false, selection?: string[]) => {
-    setEvalRole({ roleKey: g.roleKey, roleTitle: g.roleTitle });
-    setEvalData(null);
-    setEvalCreatedAt(null);
-    setEvalTaskId(null);
-    setEvalError(null);
-    // A mismatch belongs to ONE served payload; it must never outlive the open that
-    // produced it, or the next role inherits a disclosure about a different comparison.
-    setEvalGovernanceMismatch(null);
-    const hasSelection = Array.isArray(selection) && selection.length > 0;
-    const cohortCands = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-    // Selection: send the chosen subset as `candidates` and the FULL cohort as
-    // `cohort` (the server validates membership + cap and anchors coverage/drift to
-    // the full cohort). No selection: send the full cohort as `candidates` — today's
-    // shape, byte-identical — and omit `cohort`.
-    const selectedSet = hasSelection ? new Set(selection) : null;
-    const candidates = selectedSet ? cohortCands.filter((c) => selectedSet.has(c.entryId)) : cohortCands;
-    // selection-rerun-cache — WHICH saved eval this open is looking for. A default
-    // top-N open looks up the role key (unchanged); a selection open looks up the key
-    // for THAT exact field (roleKey + a hash of its sorted member ids), computed from
-    // the same ids the server hashes when it persists the run. Reopening the identical
-    // four-candidate comparison therefore serves the cache instead of re-spawning the
-    // full ≤8-process pipeline (LLM weights, embeddings, compare narrative).
-    const cacheKey = selectedSet ? selectionCacheKey(g.roleKey, candidates.map((c) => c.entryId)) : g.roleKey;
-    // A top-N open reads the cache only when the role is KNOWN to be evaluated (the
-    // roles list drives the chip); a selection open always probes its own key, since
-    // nothing lists selection rows — a miss simply falls through to a fresh run.
-    const tryCache = !rerun && (selectedSet ? true : Boolean(evaluated[g.roleKey]));
-    if (tryCache) {
-      // A probe that FAILED — offline, a 500, an unparseable body — is NOT a cache
-      // miss, and it used to be indistinguishable from one: the `.catch(() => null)`
-      // fell straight through to a fresh paid run (the full <=8-process pipeline: LLM
-      // weights, embeddings, compare narrative) without ever telling the recruiter the
-      // cached comparison could not be checked. Disclose it and let them choose — the
-      // modal's Re-run button IS the "run fresh" the notice offers.
-      const probe = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
-      if (!probe) {
-        setEvalError(t("evalCacheProbeFailed"));
-        return;
-      }
-      const payload = (probe?.evaluation?.payload as GroupEvalPayload) ?? null;
-      // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
-      // or removed between the list and this read). Surface an error so the modal doesn't fall
-      // through to "No evaluation yet" for a role its own button promised had one. Only for the
-      // top-N path: a selection was never PROMISED a cached run, so a miss there just spawns.
-      if (!payload && !selectedSet) {
-        setEvalError(t("evalLoadFailed"));
-        return;
-      }
-      if (payload) {
-        setEvalData(payload);
-        setEvalCreatedAt((probe?.evaluation?.createdAt as string) ?? null);
-        // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
-        // evalMode is unpersisted per-mount state that defaults to "recommendation", so
-        // without this a rerun of a committee/eligibility role could re-send
-        // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
-        // That anti-DOWNGRADE half is why this sync exists and it still runs.
-        //
-        // What it must NOT do is the other direction. group-eval-governance.ts states the
-        // rule its own server enforces: "a user may always escalate
-        // recommendation->governed; only the silent governed->recommendation downgrade is
-        // blocked." Overwriting in both directions erased a committee mode the recruiter
-        // had just chosen AND served them the saved recommendation-mode comparison as the
-        // answer - two silent losses on one click. syncGovernanceOnCacheHit arbitrates
-        // through the SERVER's ordering, and hands back the disclosure it owes the reader.
-        const sync = syncGovernanceOnCacheHit(payload.governanceMode, evalMode, evalModeChosen.current);
-        applyEvalMode(sync.mode);
-        setEvalGovernanceMismatch(sync.mismatch);
-        return;
-      }
+    const { handoff } = outcome;
+    // Surface the offer-extension result instead of discarding it (OO-L1-02): the
+    // secure accept/decline link is confirmed with a toast and kept copyable.
+    if (handoff.offerLink) {
+      const link = handoff.offerLink;
+      if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));
+      else toast.success(t("offerSent.toast", { name: e.candidateLabel }));
+      setSentOffers((prev) => [...prev.filter((o) => o.id !== e.id), { id: e.id, label: e.candidateLabel, link }]);
     }
-    // The run this open is about to spawn is a SELECTION run: its result is stored
-    // under the selection key, not the role key, so completion must not mark the ROLE
-    // evaluated (the chip promises a role-level top-N eval that would then 404).
-    setEvalIsSelection(Boolean(selectedSet));
-    const params: Record<string, unknown> = { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode };
-    if (selectedSet) params.cohort = cohortCands;
-    const started = await startTask("group_eval", params);
-    if (started) setEvalTaskId(started.id);
+    applyHandoffs(handoff.prepTask ? [e] : [], handoff.queueForSchedule ? [e.candidateLabel] : []);
+    // Server confirmed — NOW the row leaves. Invalidate any read that started before
+    // this decision: its snapshot still holds this row and would put the card
+    // straight back (see loadTicket).
+    loadTicket.current += 1;
+    setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
+    return true;
   };
 
   const decide = (e: Entry, action: "accept" | "reject", detail?: string) => {
@@ -755,32 +632,19 @@ export function useDecisionsQueue() {
   const peersOf = (e: Entry): PeerScore[] => peersForEntry(entries ?? [], e);
   const peerFactsOf = (e: Entry): JobPeerContext | null => (e.jobId ? peerCtx[e.jobId] ?? null : null);
 
-  const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
-
-  // Pool drift: how many candidates were added/removed from this role's pending pool
-  // since the cached evaluation ran, so a stale comparison prompts a re-run. Compared
-  // against the FULL cohort the eval was computed over. selection-memory-rerun: prefer
-  // stable ENTRY IDS when the payload carries them (evaluatedIds) so two same-named
-  // candidates are counted distinctly; fall back to labels only for legacy payloads
-  // saved before ids were persisted.
-  const evalDrift = (() => {
-    if (!evalGroup) return 0;
-    const countDrift = (evaluated: string[], current: string[]): number => {
-      const evaluatedSet = new Set(evaluated);
-      const currentSet = new Set(current);
-      let changed = 0;
-      for (const k of evaluatedSet) if (!currentSet.has(k)) changed += 1;
-      for (const k of currentSet) if (!evaluatedSet.has(k)) changed += 1;
-      return changed;
-    };
-    if (evalData?.evaluatedIds && evalData.evaluatedIds.length > 0) {
-      return countDrift(evalData.evaluatedIds, evalGroup.entries.map((e) => e.id));
-    }
-    if (evalData?.evaluatedLabels) {
-      return countDrift(evalData.evaluatedLabels, evalGroup.entries.map((e) => e.candidateLabel));
-    }
-    return 0;
-  })();
+  // The group-eval open: one machine (groupEval/groupEvalOpenMachine.ts) with a
+  // latest-wins ticket and a named failure for every way a run can not arrive. It
+  // used to be loose state plus an un-ticketed async open inline here: a probe that
+  // resolved after the recruiter opened another role painted the old role's
+  // comparison (and governance) into the new modal, and a failed or unfetchable
+  // paid run read as "No evaluation yet" or spun forever.
+  const groupEval = useGroupEvalOpen({
+    groups,
+    isRoleEvaluated: (roleKey) => Boolean(evaluated[roleKey]),
+    markEvaluated: (roleKey) => setEvaluated((s) => ({ ...s, [roleKey]: new Date().toISOString() })),
+    governance: () => ({ selected: evalMode, userChose: evalModeChosen.current }),
+    applyMode: applyEvalMode,
+  });
 
   return {
     t, locale, search,
@@ -796,13 +660,8 @@ export function useDecisionsQueue() {
     waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry,
     waveRole, setWaveRole,
-    evalRole, setEvalRole,
     evalMode, setEvalMode,
-    evalGovernanceMismatch,
-    evalData, setEvalData,
-    evalCreatedAt, setEvalCreatedAt,
-    evalTaskId, setEvalTaskId,
-    evalError, setEvalError,
+    groupEval,
     evaluated,
     reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
@@ -815,8 +674,7 @@ export function useDecisionsQueue() {
     selectedReviewIds, toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
     visibleGroups,
-    act, openGroupEval, decide,
-    evalGroup, evalDrift,
+    act, decide,
     staleSinceOf,
     peersOf, peerFactsOf,
     load,

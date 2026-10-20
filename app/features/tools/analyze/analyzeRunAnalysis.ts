@@ -4,7 +4,7 @@ import {
   applyStageEvent,
   STAGE_ORDER,
   type StageState,
-} from "@/app/_components/AnalysisProgress";
+} from "@/app/_components/analysis-progress-logic";
 import { type Analysis } from "@/app/_lib/schemas";
 import { submitAnalysis, watchAnalysis, type VariantProgress } from "./AnalyzeApi";
 import type { AnalyzeErrorInfo } from "./AnalyzeTypes";
@@ -32,6 +32,9 @@ export type AnalysisInputs = {
   reportLang?: string;
   // b8d711c4 — blind screening: redact identity from the CV before scoring.
   blind?: boolean;
+  // The GitHub handle, when the deep-dive rides this run as a stage of the analyze task
+  // (challenge-r02 analyze-engine/A). Omitted for a blind run and for a run with no handle.
+  githubProfile?: string;
 };
 
 export type AnalysisCallbacks = {
@@ -72,10 +75,10 @@ export async function executeAnalysis(
   callbacks: AnalysisCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind } = inputs;
+  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind, githubProfile } = inputs;
   let taskId: string;
   try {
-    taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind);
+    taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind, signal, githubProfile);
     callbacks.onTaskStarted?.(taskId);
   } catch (caught) {
     if (isAbort(signal, caught)) return;
@@ -96,4 +99,3 @@ export function finalizeStages(prev: StageState): StageState {
   for (const id of STAGE_ORDER) finalized[id] = "done";
   return finalized;
 }
-

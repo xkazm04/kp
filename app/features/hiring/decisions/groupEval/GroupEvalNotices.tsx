@@ -4,10 +4,11 @@ import { coverageNote } from "@/app/features/hiring/decisions/groupEval/groupEva
 import { disclosureNotes, type DegradedStageName } from "./groupEvalDisclosure";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 import type { GovernanceCacheMismatch } from "./governanceCacheSync";
+import { capNames, type PoolChange } from "./groupEvalDelta";
 
 // next-intl keys are typed, so the mode name cannot be interpolated into a key.
 // The map is also the honest shape: the ladder is closed at three modes.
-const MODE_LABEL_KEY = {
+export const MODE_LABEL_KEY = {
   recommendation: "govRecommendation",
   committee: "govCommittee",
   eligibility_list: "govEligibility",
@@ -27,11 +28,15 @@ const DEGRADED_STAGE_KEY: Record<DegradedStageName, "degradedStageRanking" | "de
 // mismatch on a cache hit.
 export function Notices({
   drift,
+  poolChange,
   ranAt,
   evaluation,
   governanceMismatch,
 }: {
   drift: number;
+  /** WHO joined and left since the evaluation ran (groupEvalDelta.poolChange). Null
+   *  when the payload cannot name them: the count sentence then stands alone. */
+  poolChange?: PoolChange | null;
   ranAt: string | null;
   evaluation: GroupEvalPayload;
   /** Set when this SAVED evaluation was produced under a different governance mode
@@ -52,6 +57,10 @@ export function Notices({
   // neither reached a reader; the rule is pinned in groupEvalDisclosure.test.ts and
   // this component owes only the sentence.
   const disclosure = disclosureNotes(evaluation);
+  const names = (list: readonly string[]): string => {
+    const { shown, more } = capNames(list);
+    return more > 0 ? t("namesAndMore", { names: shown.join(", "), count: more }) : shown.join(", ");
+  };
   return (
     <>
       {governanceMismatch ? (
@@ -64,7 +73,13 @@ export function Notices({
         </Notice>
       ) : null}
       {drift > 0 ? (
-        <Notice>{t.rich("driftNotice", { count: drift, when: ranAt ? ` (${ranAt})` : "", b: (chunks) => <b>{chunks}</b> })}</Notice>
+        <Notice>
+          {t.rich("driftNotice", { count: drift, when: ranAt ? ` (${ranAt})` : "", b: (chunks) => <b>{chunks}</b> })}
+          {/* The names decide whether a paid re-run is worth it: a withdrawn
+              runner-up and a strong newcomer are different reasons to re-run. */}
+          {poolChange?.joined.length ? <> {t("driftJoined", { names: names(poolChange.joined) })}</> : null}
+          {poolChange?.left.length ? <> {t("driftLeft", { names: names(poolChange.left) })}</> : null}
+        </Notice>
       ) : null}
       {/* Consent/erasure exclusions and AI-stage fallbacks ride in the SAME
           amber Notice the drift and governance warnings use: each is a caveat on

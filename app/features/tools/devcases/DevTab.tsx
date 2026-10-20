@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useDevTabData } from "./useDevTabData";
 import { useDevTabActions } from "./useDevTabActions";
@@ -12,6 +14,17 @@ import { DevTabCasesView } from "./DevTabCasesView";
 import { DevTabDefineView } from "./DevTabDefineView";
 import { VIEW_HEADING, type DevView } from "./DevTabViews";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
+import { useStageLabel } from "./DevLabels";
+import { EMPTY_CASE_FILTERS } from "./DevCasesTable.filter";
+import {
+  LIFECYCLE_WINDOW,
+  assignmentsLinkKey,
+  consumedSearch,
+  parseAssignmentsLink,
+  resolveAssignmentsLink,
+  type AssignmentsLink,
+  type AssignmentsNotice,
+} from "./assignmentsDeepLink";
 
 // Tier 3 (docs/design/loading-choreography.md): the comms outbox is a whole sub-tab's
 // worth of table + resend wiring that's only ever needed once the recruiter
@@ -37,13 +50,15 @@ export function DevTab() {
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesTruncated, casesState, loadCases,
+    caseFacets, caseFilters, setCaseFilters, caseFiltersActive,
     raiseCaseLimit, canLoadMoreCases,
-    postings, loadPostings,
+    detailVersion, reloadDetail,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox,
     buildNeed,
   } = useDevTabData();
 
+  // A publish changes the open case's channels: `loadPostings` re-reads that one case.
   const {
     runAction,
     runLifecycle, runningLifecycle,
@@ -51,7 +66,7 @@ export function DevTab() {
     publish, publishingCase,
     source, sourcing, sourcedCounts,
     actionError, setActionError,
-  } = useDevTabActions({ buildNeed, loadLifecycles, loadPostings });
+  } = useDevTabActions({ buildNeed, loadLifecycles, loadPostings: reloadDetail });
 
   const {
     selectNeed,
@@ -60,6 +75,71 @@ export function DevTab() {
     design, designing,
     submit, startDesign, approve, approving, approvedId,
   } = useDevTabNeedAnalysis({ tasks, startTask, buildNeed, runAction, loadCases });
+
+  // ASSIGNMENTS AS AN ADDRESS (challenge-r03 devcase-workspace/B). ?lifecycle= (the
+  // Control Room's Art. 22 gate Review link), ?case= and ?job= (the job page's
+  // assignments chip) used to be read by nothing here: view and selection were local
+  // state, so a reviewer sent to sign off a gate landed on an unfocused table. The
+  // rules are pure in assignmentsDeepLink.ts; this is only the plumbing. An intent is
+  // adopted when its key ARRIVES (during render, the useUrlInboxState pattern - no
+  // flash of the unfocused tab), held until the list it resolves against has loaded,
+  // then applied once; the params are stripped as soon as they are read.
+  const tCases = useTranslations("devcase.casesTable");
+  const stageLabel = useStageLabel();
+  const search = useSearchParams();
+  const searchString = search.toString();
+  const incomingLink = parseAssignmentsLink(searchString);
+  const incomingKey = assignmentsLinkKey(incomingLink);
+  const [seenLinkKey, setSeenLinkKey] = useState<string | null>(null);
+  const [pendingLink, setPendingLink] = useState<AssignmentsLink | null>(null);
+  const [linkNotice, setLinkNotice] = useState<AssignmentsNotice | null>(null);
+  const [lifecycleFocus, setLifecycleFocus] = useState<{ id: string; openReview: boolean; nonce: number } | null>(null);
+  if (incomingKey !== seenLinkKey) {
+    setSeenLinkKey(incomingKey);
+    if (incomingLink) {
+      setPendingLink(incomingLink);
+      setView("cases");
+      setLinkNotice(null);
+    }
+  }
+  if (pendingLink) {
+    const resolved = resolveAssignmentsLink(pendingLink, {
+      lifecycles,
+      // A failed lifecycle load keeps the intent pending: "not found" would be a claim
+      // the list never established, and the section below already names the failure.
+      loaded: lifecyclesState.lastUpdated != null,
+    });
+    if (!("pending" in resolved)) {
+      setPendingLink(null);
+      setLinkNotice(resolved.notice ?? null);
+      if (resolved.selectedCaseId) {
+        // Read by id (GET /api/devcase/[id]): a case past the loaded page opens all the
+        // same, and a foreign or deleted id is answered by the reader's coded 404.
+        setSelectedCaseId(resolved.selectedCaseId);
+      } else if (resolved.focus || resolved.jobFilter) {
+        // Both point at the ledger view; an open case reader would hide them.
+        setSelectedCaseId(null);
+      }
+      if (resolved.jobFilter) setCaseFilters({ ...EMPTY_CASE_FILTERS, job: resolved.jobFilter });
+      if (resolved.focus) {
+        setLifecycleFocus((prev) => ({
+          id: resolved.focus as string,
+          openReview: resolved.openReview === resolved.focus,
+          nonce: (prev?.nonce ?? 0) + 1,
+        }));
+      }
+    }
+  }
+  useEffect(() => {
+    // One-shot, like ?arm= (useDecisionsQueue): a raw history write, not a router
+    // navigation - the intent is already captured in state above, so erasing the params
+    // must not re-render or re-fetch anything. Keyed on the whole query, not only the
+    // intent: the shell's own ?tab= cleanup can re-write the query from a snapshot that
+    // still carried these params, and they must not survive that either.
+    if (incomingKey == null) return;
+    const qs = consumedSearch(window.location.search);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+  }, [incomingKey, searchString]);
 
   const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
   // 56a20eb2 — reload ONLY the lists the just-finished task kind actually touched,
@@ -76,13 +156,16 @@ export function DevTab() {
     if (done.length === 0) return;
     const kinds = new Set(done.map((t) => t.kind));
     done.forEach((t) => reloadedTasks.current.add(t.id));
-    // evaluate persists the score onto its submission → only the postings list.
-    if (kinds.has("evaluate_submission")) loadPostings();
-    // a lifecycle step can analyze/design/approve/publish/comm → its own lists.
+    // evaluate persists the score onto its submission → only the open detail, which
+    // re-reads its ONE case (challenge-r09 devcase-lifecycle/A; the workspace postings
+    // fold this used to reload is no longer loaded by the studio at all).
+    if (kinds.has("evaluate_submission")) reloadDetail();
+    // a lifecycle step can analyze/design/approve/publish/comm → its own lists. The
+    // lifecycle rows carry their own intake counts, so reloading them refreshes those.
     if (kinds.has("lifecycle")) {
       loadLifecycles();
       loadCases();
-      loadPostings();
+      reloadDetail();
       loadOutbox();
     }
     // need-analysis updates the lifecycle it belongs to.
@@ -90,7 +173,6 @@ export function DevTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
-  const selectedCase = selectedCaseId ? cases.find((c) => c.id === selectedCaseId) ?? null : null;
   const heading = VIEW_HEADING[view];
   // Tier 1: cases is the tab's primary, always-loaded-first section — its first
   // load gates aria-busy on the whole tab. A later refresh (or switching to
@@ -104,7 +186,7 @@ export function DevTab() {
             English, above a tab the sidebar calls Assignments. It named the module
             after the engineering team that built it, in the one place a reader looks
             to find out what surface they are on. */}
-        <p className="text-meta uppercase text-coral">{tCopy("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{tCopy("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{tStudio(heading.titleKey)}</h2>
         {/* `max` is passed for every view; only the define blurb names it, and an unused
             value is inert. The number is the SHARED cap the form enforces. */}
@@ -114,10 +196,25 @@ export function DevTab() {
       {actionError ? (
         <div
           role="alert"
-          className="flex items-start justify-between gap-3 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral"
+          className="flex items-start justify-between gap-3 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral-ink"
         >
           <span>{actionError}</span>
           <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
+            {tCopy("studio.dismiss")}
+          </button>
+        </div>
+      ) : null}
+
+      {linkNotice ? (
+        <div role="status" className={`${NOTICE("info")} flex items-start justify-between gap-3 px-3 py-2 text-sm`}>
+          <span>
+            {linkNotice.kind === "gateDecided"
+              ? tCases("linkGateDecided", { stage: stageLabel(linkNotice.stage) })
+              : linkNotice.kind === "lifecycleOutsideWindow"
+                ? tCases("linkLifecycleOutsideWindow", { count: LIFECYCLE_WINDOW })
+                : tCases("linkLifecycleMissing")}
+          </span>
+          <button type="button" onClick={() => setLinkNotice(null)} className="focus-ring shrink-0 font-semibold hover:underline">
             {tCopy("studio.dismiss")}
           </button>
         </div>
@@ -129,12 +226,16 @@ export function DevTab() {
         <DevTabCasesView
           cases={cases}
           casesTruncated={casesTruncated}
+          caseFacets={caseFacets}
+          caseFilters={caseFilters}
+          caseFiltersActive={caseFiltersActive}
+          onCaseFiltersChange={setCaseFilters}
           onLoadMoreCases={canLoadMoreCases ? raiseCaseLimit : undefined}
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}
-          postings={postings}
-          selectedCase={selectedCase}
+          detailVersion={detailVersion}
+          selectedCaseId={selectedCaseId}
           onOpenCase={setSelectedCaseId}
           onBack={() => setSelectedCaseId(null)}
           onDefine={() => setView("define")}
@@ -143,9 +244,10 @@ export function DevTab() {
           source={source}
           sourcing={sourcing}
           sourcedCounts={sourcedCounts}
-          loadPostings={loadPostings}
+          reloadDetail={reloadDetail}
           approveLifecycle={approveLifecycle}
           loadLifecycles={loadLifecycles}
+          lifecycleFocus={lifecycleFocus}
         />
       ) : null}
 

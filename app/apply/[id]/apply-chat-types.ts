@@ -19,6 +19,10 @@ export type ApplyOutcome = {
   duplicate?: boolean;
   enriched?: boolean;
   statusToken?: string | null;
+  // A KO decline's detail: the must-have(s) answered no to, named in the applicant's
+  // language, and whether a decline email is being sent (never that it arrived).
+  failedKoNames?: string[];
+  reviewByEmail?: boolean;
   // The OPTIONAL post-accept profile-gap follow-up (see ApplyFollowup). Both
   // fields arrive together or not at all.
   followupToken?: string | null;

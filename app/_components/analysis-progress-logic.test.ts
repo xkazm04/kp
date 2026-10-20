@@ -15,6 +15,8 @@ import {
   initialStageState,
   applyStageEvent,
   STAGE_ORDER,
+  elapsedSecondsSince,
+  parseStoredRunStart,
   type StageState,
 } from "./analysis-progress-logic.ts";
 
@@ -135,4 +137,19 @@ test("marking a LATER phase done leaves earlier phases untouched", () => {
   assert.equal(s.saving, "done");
   assert.equal(s.reading, "pending");
   assert.equal(s.analyzing, "pending");
+});
+
+test("elapsedSecondsSince continues from the real start, not from mount", () => {
+  assert.equal(elapsedSecondsSince(1_000_000, 1_090_000), 90);
+  assert.equal(elapsedSecondsSince(undefined, 5_000), 0);
+  assert.equal(elapsedSecondsSince(9_000, 5_000), 0); // future start never goes negative
+  assert.equal(elapsedSecondsSince(Number.NaN, 5_000), 0);
+});
+
+test("parseStoredRunStart rejects absent, garbage and future crumbs", () => {
+  assert.equal(parseStoredRunStart("1000", 2000), 1000);
+  assert.equal(parseStoredRunStart(null, 2000), null);
+  assert.equal(parseStoredRunStart("abc", 2000), null);
+  assert.equal(parseStoredRunStart("3000", 2000), null);
+  assert.equal(parseStoredRunStart("-5", 2000), null);
 });

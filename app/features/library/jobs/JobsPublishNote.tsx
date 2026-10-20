@@ -23,6 +23,10 @@ export function usePublishSentenceText(): (s: PublishSentence) => string {
     switch (s.key) {
       case "wentLive":
         return t("publishWentLive");
+      case "resumed":
+        return t("publishResumed");
+      case "sourcingIncomplete":
+        return t("publishSourcingIncomplete");
       case "alreadyLive":
         return t("publishAlreadyLive");
       case "sourcingFailed":
@@ -76,7 +80,7 @@ export function PublishFlightNote({ onStop, className = "" }: { onStop: () => vo
   const t = useTranslations("jobs.drafts");
   return (
     <span role="status" className={`inline-flex min-w-0 items-center gap-1.5 text-sm text-steel ${className}`}>
-      <Loader2 size={13} className="shrink-0 animate-spin text-coral" aria-hidden />
+      <Loader2 size={13} className="shrink-0 animate-spin text-coral-ink" aria-hidden />
       <span className="min-w-0">{t("publishInFlight")}</span>
       <button type="button" onClick={onStop} className="focus-ring shrink-0 font-semibold underline hover:text-ink">
         {t("publishStopWaiting")}

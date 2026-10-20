@@ -1,13 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
-import { performReset, refreshSimDoor, runControlFlags, simWaitVariant, totalCleared } from "./simRunControl";
+import { SIM_DOOR_IDLE, performReset, refreshSimDoor, runControlFlags, simDoorSnapshot, simWaitVariant, subscribeSimDoor, totalCleared } from "./simRunControl";
+import { storedLease, tabStorage } from "./simRunLease";
+import { resumePointOf, type SimResumePoint } from "./simWalkResume";
 import { useSimulationEngine } from "./useSimulationEngine";
 import { useSimulationWalk } from "./useSimulationWalk";
 
@@ -100,16 +102,51 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     return () => window.removeEventListener("pagehide", releaseLease);
   }, [releaseLease]);
 
-  const start = useCallback(() => {
+  // RESUME a walk the board still shows (simWalkResume.ts). A reload, a crashed tab or
+  // a presenter who navigated away used to have two ways back, Start and Reset, and
+  // both purged the walk they wanted to continue. The board is the record: read it
+  // once when the console has residue to explain, and offer the chapter it proves.
+  //
+  // Offered only when no live lease is someone else's: a free tenant, or one whose
+  // lease THIS tab held before the reload (its token is in session storage). The
+  // route decides for real either way; this only keeps a Resume that would be
+  // refused off the console.
+  const door = useSyncExternalStore(subscribeSimDoor, simDoorSnapshot, () => SIM_DOOR_IDLE);
+  const resumeEligible = door.residue > 0 && (!door.runActive || storedLease(tabStorage()) !== null);
+  const [boardResume, setBoardResume] = useState<SimResumePoint | null>(null);
+  const { getBoard } = engine;
+  useEffect(() => {
+    if (state.running || state.done || !resumeEligible) return;
+    let live = true;
+    getBoard()
+      .then((board) => live && setBoardResume(resumePointOf(board)))
+      .catch(() => live && setBoardResume(null));
+    return () => {
+      live = false;
+    };
+  }, [state.running, state.done, resumeEligible, getBoard]);
+  const resumable = !state.running && !state.done && resumeEligible ? boardResume : null;
+  // A run that just ended (stopped, failed) left the door's residue count stale.
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !state.running) void refreshSimDoor();
+    wasRunning.current = state.running;
+  }, [state.running]);
+
+  const begin = useCallback((from: SimResumePoint | null) => {
     ctrl.current = { ...runControlFlags("start", ctrl.current).flags, wake: null };
     // Everything cleared to IDLE, then the run-starting overrides. stepMode is
     // preserved — it mirrors stepRef.current, the engine's source of truth.
     // explainOpen deliberately NOT forced on: the drawer competes with the tour's
     // own spotlight narration on first watch — it stays opt-in via the dock's
     // Explain toggle (IDLE_STATE has it off).
-    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, status: t("status.starting") }));
-    runPromiseRef.current = run();
+    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, status: t(from ? "status.resuming" : "status.starting") }));
+    runPromiseRef.current = run(from);
   }, [run, t]);
+  const start = useCallback(() => begin(null), [begin]);
+  const resumeAt = useCallback(() => {
+    if (resumable) begin(resumable);
+  }, [begin, resumable]);
 
   const pause = useCallback(() => {
     Object.assign(ctrl.current, runControlFlags("pause", ctrl.current).flags);
@@ -233,8 +270,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   );
 
   const value = useMemo<SimCtx>(
-    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark }),
-    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark]
+    () => ({ ...state, resumable, resumeAt, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark }),
+    [state, resumable, resumeAt, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

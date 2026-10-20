@@ -18,6 +18,10 @@
 import { parseHTML } from "linkedom";
 import { decodeEntities, htmlToText } from "../../job-posting-fetch";
 import type { ExtractionRule, RuleDryRunResult, RuleField, RuleVerdict } from "../types";
+import { hasNestedQuantifier } from "./dsl";
+
+/** The most matches one regex locator collects from one page (empty matches included). */
+export const MAX_REGEX_MATCHES = 1000;
 
 export type RuleItems = Record<RuleField, string | string[] | null>[];
 
@@ -187,13 +191,20 @@ function locate(rule: ExtractionRule, ctx: { html: string; document: Document | 
       return { values };
     }
     case "regex": {
+      // A rule stored before validation refused nested quantifiers is a miss, never run:
+      // it would backtrack over a third party's page on the scan thread.
+      if (hasNestedQuantifier(rule.locator.expr)) return { values: [] };
       const re = new RegExp(rule.locator.expr, "g");
       const values: string[] = [];
       let m: RegExpExecArray | null;
+      let matches = 0;
       while ((m = re.exec(ctx.html)) !== null) {
         if (m[1] !== undefined) values.push(m[1]);
         if (m[0] === "") re.lastIndex += 1;
         if (!many && values.length) break;
+        // A listing page is tens of cards; a pattern matching thousands of times is
+        // matching noise, and each match is a string held for the whole run.
+        if (++matches >= MAX_REGEX_MATCHES) break;
       }
       return { values };
     }

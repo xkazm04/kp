@@ -39,7 +39,7 @@ export function CandidateHead({ entry }: { entry: Entry }) {
 }
 
 export function MiniList({ title, items, tone }: { title: string; items: string[]; tone: "green" | "red" }) {
-  const dot = tone === "green" ? "text-moss" : "text-coral";
+  const dot = tone === "green" ? "text-moss" : "text-coral-ink";
   return (
     <div>
       <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>

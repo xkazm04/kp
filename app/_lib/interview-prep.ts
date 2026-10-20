@@ -6,6 +6,14 @@ import { jdLastEditedAt } from "./db/jobs";
 import { jdSlugOfJobId } from "./jd-limits";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import type { Scorecard } from "./interview-scorecard";
+import type { KitOverlay } from "./interview-kit-types";
+import {
+  headlineScorecard,
+  readHumanScorecards,
+  upsertHumanScorecard,
+  type HumanScorecardKey,
+  type HumanScorecardRecord,
+} from "./human-scorecard-set";
 
 // Persisted store for interview-prep artifacts — one timed interview plan per
 // pipeline entry (candidate × role), generated on accepted screening and opened
@@ -136,20 +144,133 @@ export function saveInterviewPrepProgress(entryId: string, progress: InterviewPr
   }).immediate();
 }
 
-/** Persist the recruiter's human-filled scorecard (PREP1) onto an EXISTING prep
- *  artifact, under a reserved `humanScorecard` key in the payload — same seam as
- *  saveInterviewPrepProgress, so no schema change and the generated plan +
- *  created_at are untouched. Always tagged source:"human". Returns false when
- *  there's no prep to attach to (the scorecard is filled from the prep modal, so
- *  one always exists in practice). */
-export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boolean {
+/** Persist one interviewer's human-filled scorecard (PREP1) onto an EXISTING prep
+ *  artifact — same seam as saveInterviewPrepProgress, so no schema change and the
+ *  generated plan + created_at are untouched. Always tagged source:"human".
+ *
+ *  Filed under its (author, stage) key in the `humanScorecards` list
+ *  (human-scorecard-set.ts, r09 schedule-interview-prep/A): a save replaces only the
+ *  caller's own record for that round, so a colleague's save or a later round never
+ *  erases an earlier record. `humanScorecard` is rewritten in the same UPDATE as the
+ *  HEADLINE MIRROR (the latest save), which is the one key every pre-list reader knows
+ *  (getHumanScorecard, the candidate drawer, the compare grid, the Schedule card flag).
+ *
+ *  "missing" when there is no prep to attach to; "full" when the list holds
+ *  MAX_HUMAN_SCORECARDS records and this key is new — refused, never made room for. */
+export function fileHumanScorecard(entryId: string, scorecard: Scorecard, key: HumanScorecardKey): "saved" | "missing" | "full" {
   // Atomic read-merge-write — see saveInterviewPrepProgress. The progress PUT and this
   // scorecard POST share the row but touch disjoint keys; the IMMEDIATE transaction
-  // makes each merge serialize so neither clobbers the other's just-saved input.
+  // takes the write lock BEFORE the read, so two interviewers saving at once serialize
+  // and each upsert sees the other's record. No await inside.
+  return db().transaction((): "saved" | "missing" | "full" => {
+    const existing = readPrepRow(entryId);
+    if (!existing) return "missing";
+    const record: HumanScorecardRecord = { ...scorecard, source: "human", ...key, savedAt: new Date().toISOString() };
+    const next = upsertHumanScorecard(readHumanScorecards(existing.payload), record);
+    if (!next) return "full";
+    const payload = { ...existing.payload, humanScorecards: next, humanScorecard: headlineScorecard(next) ?? record };
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0 ? "saved" : "missing";
+  }).immediate();
+}
+
+// ── Staged regeneration (r09 schedule-interview-prep/B) ──────────────────────
+// A modal Regenerate parks its generator keys under `payload.pendingPlan` until the
+// interviewer accepts or discards the diff. Inert for every other reader; an UNSTAGED
+// regeneration drops it (mergeRegeneratedPrep).
+
+/** The INVERTED regeneration merge: keep every previous key, overwrite only the
+ *  generator's (the old 3-key allowlist silently destroyed any other human key).
+ *  `pendingPlan` is the one key NOT carried: a committed plan supersedes a staged one.
+ *  Lives here (re-exported by interview-prep-run.ts) so accept applies the same rule. */
+export function mergeRegeneratedPrep(
+  prevPayload: Record<string, unknown> | null | undefined,
+  generated: Record<string, unknown>
+): Record<string, unknown> {
+  const carried: Record<string, unknown> = { ...(prevPayload ?? {}) };
+  delete carried.pendingPlan;
+  return { ...carried, ...generated };
+}
+
+/** A pack with a committed run-of-show; an erased (`{}`) pack has none. */
+export function hasCommittedPlan(payload: Record<string, unknown> | null | undefined): boolean {
+  const c = payload?.chronology;
+  return Array.isArray(c) && c.length > 0;
+}
+
+/** Stage `pending` on a pack with a committed plan; plan and created_at untouched.
+ *  Lock-first (`.immediate()`, no await). null = nothing to stage against. */
+export function stageInterviewPrepPlan(entryId: string, pending: Record<string, unknown>): Record<string, unknown> | null {
+  return db().transaction((): Record<string, unknown> | null => {
+    const existing = readPrepRow(entryId);
+    if (!existing || !hasCommittedPlan(existing.payload)) return null;
+    const payload = { ...existing.payload, pendingPlan: pending };
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0 ? payload : null;
+  }).immediate();
+}
+
+export type PendingPlanDecision = "accept" | "discard";
+export type PendingPlanOutcome = { applied: false } | { applied: true; payload: Record<string, unknown>; createdAt: string };
+
+/** Accept or discard the staged plan. Idempotent: no pending plan -> `{ applied: false }`,
+ *  nothing written. Accept merges it in and moves created_at in the SAME UPDATE
+ *  (accepting IS the regeneration); discard leaves created_at. The re-read inside the
+ *  IMMEDIATE lock makes two racing decisions apply once. */
+export function resolvePendingPlan(entryId: string, decision: PendingPlanDecision): PendingPlanOutcome {
+  return db().transaction((): PendingPlanOutcome => {
+    const existing = readPrepRow(entryId);
+    const pending = existing?.payload.pendingPlan;
+    if (!existing || pending === undefined) return { applied: false };
+    let payload: Record<string, unknown>;
+    let createdAt = existing.createdAt;
+    if (decision === "accept") {
+      // A malformed candidate is never swapped in.
+      if (!pending || typeof pending !== "object" || !hasCommittedPlan(pending as Record<string, unknown>)) return { applied: false };
+      payload = mergeRegeneratedPrep(existing.payload, pending as Record<string, unknown>);
+      createdAt = new Date().toISOString();
+    } else {
+      payload = { ...existing.payload };
+      delete payload.pendingPlan;
+    }
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ?, created_at = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), createdAt, entryId);
+    return res.changes > 0 ? { applied: true, payload, createdAt } : { applied: false };
+  }).immediate();
+}
+
+/** The pre-list signature, kept for its callers (the drawer's consent test among
+ *  them): files the card under `key` — by default the identity-less slot of an
+ *  unknown round, which is what open mode writes — and answers whether it was stored. */
+export function saveHumanScorecard(
+  entryId: string,
+  scorecard: Scorecard,
+  key: HumanScorecardKey = { author: null, authorLabel: null, stage: null }
+): boolean {
+  return fileHumanScorecard(entryId, scorecard, key) === "saved";
+}
+
+/** Persist the recruiter's per-candidate edits to the job interview kit (spark
+ *  interview-kit-template, WP-C) under the reserved `kitOverlay` payload key. A
+ *  HUMAN-owned key: the generator never writes it, so mergeRegeneratedPrep carries it
+ *  across a Regenerate, and the agenda reads it at connect (interview-agenda.ts).
+ *
+ *  The overlay is REPLACED whole — the modal always sends its complete state — but the
+ *  write is still an atomic read-merge-write for the same reason as its two siblings
+ *  above: the checklist PUT and the scorecard POST mutate other keys of this one
+ *  payload, and a plain read-then-write here could put back a copy of those keys from
+ *  before their own save. The caller has already validated `overlay`
+ *  (interview-prep-kit.ts parseKitOverlayWrite). Returns false when there is no pack. */
+export function saveInterviewPrepKitOverlay(entryId: string, overlay: KitOverlay): boolean {
   return db().transaction((): boolean => {
     const existing = readPrepRow(entryId);
     if (!existing) return false;
-    const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
+    const payload = { ...existing.payload, kitOverlay: overlay };
     const res = db()
       .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
       .run(JSON.stringify(payload), entryId);
@@ -157,12 +278,22 @@ export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boole
   }).immediate();
 }
 
-/** The human scorecard saved on an entry's prep artifact, if any (PREP1). Read by
- *  surfaces that show interview results so a human-led round isn't invisible. */
+/** The HEADLINE human scorecard on an entry's prep artifact, if any (PREP1): the
+ *  latest save across every interviewer and round — the `humanScorecard` mirror. Read
+ *  by single-card surfaces that show interview results so a human-led round isn't
+ *  invisible; the whole panel is `getHumanScorecards`. */
 export function getHumanScorecard(entryId: string): Scorecard | null {
   const prep = readPrepRow(entryId);
   const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard;
   return sc ?? null;
+}
+
+/** Every human scorecard on an entry's prep artifact, one per (interviewer, round),
+ *  SCOPED to the workspace (the same predicate as getInterviewPrep). A row written
+ *  before the list existed reads as its one unattributed record. */
+export function getHumanScorecards(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): HumanScorecardRecord[] {
+  const prep = getInterviewPrep(entryId, workspaceId);
+  return prep ? readHumanScorecards(prep.payload) : [];
 }
 
 // ── Direction 1: prep-pack staleness ────────────────────────────────────────

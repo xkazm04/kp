@@ -400,6 +400,7 @@ _SECRET_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     # (github_pat_...) and an npm publish token (npm_...). Same bytes, same answer on
     # both sides of the wire.
     re.compile(r"\bsk_[a-f0-9]{40,}\b"),
+    re.compile(r"\bpolar_whs_[A-Za-z0-9]{24,}\b"),
     re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{60,}\b"),
     re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),

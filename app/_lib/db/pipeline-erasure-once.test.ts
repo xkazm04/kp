@@ -118,11 +118,19 @@ function functionBody(name: string): string {
 
 test("anonymizeEntry takes the write lock at BEGIN and re-asserts the guard it read", () => {
   const body = functionBody("anonymizeEntry");
+  // `tx.immediate()` rather than `return tx.immediate()`: WP3 gave anonymizeEntry a
+  // POST-COMMIT tail (deleting the erased candidate's opt-in interview AUDIO, which is
+  // files on disk and therefore cannot live inside a transaction that may roll back),
+  // so the call is now assigned and the result returned below it. What this guard is
+  // for is unchanged and still asserted — the transaction takes its write lock at
+  // BEGIN — and the two lines below pin that the tail did not swallow the return.
   assert.match(
     body,
-    /return tx\.immediate\(\)/,
+    /\btx\.immediate\(\)/,
     "anonymizeEntry must run .immediate() — a read→compute→write either locks or re-checks, and this one does both"
   );
+  assert.doesNotMatch(body, /await [^\n]*\btx\.immediate\(\)/, "the transaction is synchronous; an await here would break its atomicity");
+  assert.match(body, /\breturn erased;/, "…and the erased entry is still what the caller receives");
   assert.match(
     body,
     /anonymized_at IS NULL/,

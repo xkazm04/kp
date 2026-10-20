@@ -73,14 +73,22 @@ class ScorecardNotesSamplingTest(unittest.TestCase):
         across the language boundary; if TS lowers its budget and Python doesn't
         follow (or vice versa), the tail starts getting cut again — silently, and
         only on long interviews. Fail loudly here instead."""
-        ts = (Path(__file__).resolve().parents[3] / "app" / "_lib" / "interview-transcript.ts").read_text(encoding="utf-8")
-        match = re.search(r"MAX_SCORECARD_NOTES_CHARS\s*=\s*(\d+)", ts)
-        self.assertIsNotNone(match, "MAX_SCORECARD_NOTES_CHARS not found in interview-transcript.ts")
+        # The TS budget is GENERATED from this Python constant (codegen.CONTRACT_CONSTANTS)
+        # and interview-transcript.ts re-exports it — so read the committed generated
+        # file, and refuse a hand-typed literal creeping back into the TS home.
+        from pipeline.jobfit.tests.test_codegen_contract_constants import home_problems
+
+        lib = Path(__file__).resolve().parents[3] / "app" / "_lib"
+        generated = (lib / "contract-constants.generated.ts").read_text(encoding="utf-8")
+        match = re.search(r"^export const MAX_SCORECARD_NOTES_CHARS = (\d+);$", generated, flags=re.MULTILINE)
+        self.assertIsNotNone(match, "MAX_SCORECARD_NOTES_CHARS not found in contract-constants.generated.ts")
         self.assertEqual(
             int(match.group(1)),
             MAX_SCORECARD_NOTES_CHARS,
             "TS and Python scorecard-notes budgets have drifted apart",
         )
+        home = (lib / "interview-transcript.ts").read_text(encoding="utf-8")
+        self.assertEqual(home_problems(home, "MAX_SCORECARD_NOTES_CHARS"), [])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,62 @@
+{
+  "cohort": [
+    {
+      "name": "llm-inference-runtime",
+      "group": "AI & LLM Infrastructure",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "voice-interview-components",
+      "group": "Voice Interview",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "cv-analysis-archetypes",
+      "group": "CV Analysis & Scoring",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "pipeline-candidate-drawer",
+      "group": "Hiring Pipeline",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "tests-devcase",
+      "group": "Developer Assessment",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "workspace-shell-core",
+      "group": "Workspace Shell & Onboarding",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "candidate-rediscovery",
+      "group": "Candidate Intelligence",
+      "files": 21,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "tests-matching-taxonomy",
+      "group": "Candidate Matching & Ranking",
+      "files": 21,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 126
+}

@@ -83,6 +83,11 @@ export function createBoundedCache<V>(capacity: number = MATRIX_CACHE_CAPACITY):
  * correctness fix for the grid's contents; it makes "one tenant's grid is never read
  * as another's" a property of the key rather than an invariant carried by a comment.
  *
+ * `registryDigest` (archetype-live.ts archetypeRegistryDigest) is the scorer's OTHER
+ * input: matrix_cli weights every cell by the archetype registry, which Python re-reads
+ * on each spawn and an operator can reweight at runtime. Without it, a weight edit
+ * kept serving the pre-edit grid (no TTL) until LRU eviction.
+ *
  * Parts are NUL-separated: a bare concatenation would let ("ab", "c") and
  * ("a", "bc") collide.
  */
@@ -91,6 +96,7 @@ export function matrixCacheKey(input: {
   profilesJson: string;
   jobIds: string;
   jobsJson: string;
+  registryDigest: string;
 }): string {
   return createHash("sha1")
     .update(input.workspaceId)
@@ -100,5 +106,7 @@ export function matrixCacheKey(input: {
     .update(input.jobIds)
     .update("\u0000")
     .update(input.jobsJson)
+    .update("\u0000")
+    .update(input.registryDigest)
     .digest("hex");
 }

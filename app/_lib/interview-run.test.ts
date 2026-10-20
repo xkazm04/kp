@@ -138,9 +138,9 @@ test("runInterviewScorecard REQUIRES a workspace — no default tenant", () => {
   assert.match(src, /export async function runInterviewScorecard\(/);
   assert.equal(/workspaceId: string = DEFAULT_WORKSPACE_ID/.test(src), false, "no default-tenant fallback");
   assert.equal(/^import .*DEFAULT_WORKSPACE_ID.* from/m.test(src), false, "and the import is gone with it");
-  // The one caller derives the entry's team (token flow, no session workspace).
+  // The complete route delegates to finalizeCandidateInterviewScoring.
   const complete = readFileSync(new URL("../api/interview/complete/route.ts", import.meta.url), "utf8");
-  assert.match(complete, /runInterviewScorecard\(session\.entryId, transcript, ws\)/);
+  assert.match(complete, /finalizeCandidateInterviewScoring\(session, transcript\)/);
   assert.match(src, /stampAiScorecardRubricCoverage\(result as Record<string, unknown>, entry\?\.roleFamily\)/);
 });
 

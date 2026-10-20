@@ -5,8 +5,11 @@ import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
-import { buildTabSwitchUrl, navLabel, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import { BTN_GHOST, NOTICE, type NoticeTone } from "@/app/_components/ui/recipes";
+import type { ReadinessCode } from "@/app/_lib/readiness";
 import type { SpendOps } from "./useSpendData";
+import { toView, type FindingView } from "./readinessFindings";
 
 // Engine context as INLINE FACTS, not a card: which engines can serve, whether
 // the automation clock is alive, what the queue is doing, and the three failure
@@ -35,7 +38,8 @@ const ENGINE_CLAUDE_CLI = "Claude CLI";
 type AlarmKey = "deadLetters" | "reconcileFailures" | "bookedStalls";
 
 // Where each counter's failures are listed one by one. Dead letters are per-message
-// rows in the Channels ledger (ChannelsCommsTable); BOTH schedule counters set a flag
+// rows in the Channels ledger, which `?sec=dead` opens already filtered to them (the
+// Night Post's "needs you" chip, night/channelsNightNav.ts); BOTH schedule counters set a flag
 // on the invite that the Schedule tab's attention section renders — `needs_reconcile`
 // for a confirmed booking whose pipeline advance threw, `needs_more_slots` for a
 // candidate who hit a fully-booked horizon (ScheduleInviteAttentionSection.tsx). So
@@ -45,6 +49,8 @@ const ALARM_TAB: Record<AlarmKey, WorkspaceTabId> = {
   reconcileFailures: "schedule",
   bookedStalls: "schedule",
 };
+// The one-shot `?sec=` inbox of the destination, where it can land on the failures themselves.
+const ALARM_SEC: Partial<Record<AlarmKey, string>> = { deadLetters: "dead" };
 // English source labels for the destination, used only as the has()-fallback the
 // whole app applies to nav labels (tabs.ts navLabel).
 const ALARM_TAB_LABEL: Record<AlarmKey, string> = {
@@ -72,6 +78,30 @@ function Fact({ on, title, children }: { on: boolean; title?: string; children: 
   );
 }
 
+/** One tinted notice per severity; each row is an icon beside the rendered finding. */
+function FindingList({
+  rows,
+  tone,
+  label,
+  renderRow,
+}: {
+  rows: FindingView[];
+  tone: NoticeTone;
+  label: string;
+  renderRow: (row: FindingView) => ReactNode;
+}) {
+  return (
+    <ul aria-label={label} className={`${NOTICE(tone)} space-y-1.5 px-3 py-2 text-sm`}>
+      {rows.map((row) => (
+        <li key={row.key} className="flex items-start gap-1.5">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
+          {renderRow(row)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
   const t = useTranslations("models.system");
   const tNav = useTranslations("nav");
@@ -79,11 +109,43 @@ export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
   // The REACT-tracked search string, never window.location — see the note on
   // buildTabSwitchUrl in shell/tabs.ts.
   const query = useSearchParams().toString();
+  const findingRows = toView(ops.findings, ops.degradedReasons, (code) =>
+    // A code off the wire is only a string; the cast lets the typed catalog be ASKED,
+    // and has() answers false for any code this bundle does not carry.
+    t.has(`findings.${code as ReadinessCode}.title`)
+  );
+  const faults = findingRows.filter((r) => r.severity === "fault");
+  const warns = findingRows.filter((r) => r.severity === "warn");
+  const renderFinding = (row: FindingView) => {
+    if (!row.catalogKey) return <span>{row.fallback}</span>;
+    const action = row.action;
+    const destination = action.type === "tab" ? navLabel(tNav, `tabs.${action.tab}`, action.tab) : null;
+    return (
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-semibold">{t(`${row.catalogKey}.title`, row.params)}</span>
+        <span>{t(`${row.catalogKey}.fix`, row.params)}</span>
+        {action.type === "tab" && destination ? (
+          <button
+            type="button"
+            onClick={() => nav.push(buildTabSwitchUrl(action.tab, query))}
+            className={`${BTN_GHOST} self-start px-1 py-0.5 font-semibold text-ink`}
+          >
+            {t("alarmOpen", { tab: destination })}
+            <ArrowUpRight size={13} aria-hidden />
+          </button>
+        ) : null}
+        {action.type === "env" ? (
+          // Variable names are identifiers, never copy (docs/i18n/glossary.md).
+          <span className="font-mono text-xs">{t("findingEnv", { vars: action.vars.join(", ") })}</span>
+        ) : null}
+      </span>
+    );
+  };
   const engineState = (available: boolean) => (available ? t("engineAvailable") : t("engineUnavailable"));
   const alarms = [
-    ops.comms.deadLetters7d > 0 ? { key: "deadLetters" as const, count: ops.comms.deadLetters7d, tone: "text-coral" } : null,
+    ops.comms.deadLetters7d > 0 ? { key: "deadLetters" as const, count: ops.comms.deadLetters7d, tone: "text-coral-ink" } : null,
     ops.schedule.reconcileFailures > 0
-      ? { key: "reconcileFailures" as const, count: ops.schedule.reconcileFailures, tone: "text-coral" }
+      ? { key: "reconcileFailures" as const, count: ops.schedule.reconcileFailures, tone: "text-coral-ink" }
       : null,
     ops.schedule.noSlotStalls > 0
       ? { key: "bookedStalls" as const, count: ops.schedule.noSlotStalls, tone: "text-amber-700" }
@@ -118,16 +180,21 @@ export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
         {ops.catalog === "empty" ? <li className="text-steel">{t("catalogEmpty")}</li> : null}
       </ul>
 
-      {ops.degradedReasons.length > 0 ? (
-        <ul className="space-y-0.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          {/* `degradedReasons` are canonical English server diagnostics with no
-              code to resolve (docs/architecture/localization.md). */}
-          {ops.degradedReasons.map((r) => (
-            <li key={r} className="flex items-start gap-1.5">
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden /> {r}
-            </li>
-          ))}
-        </ul>
+      {/* Readiness findings (challenge r03 platform-auth-api/B). The route sends each
+          reason as a CODE with a remedy (app/_lib/readiness.ts), so a degraded
+          deployment reads in the operator's language and says where the fix is: a door
+          into the tab that repairs it, the env var to set, or, for a host fix, the
+          step in words. A code this bundle's catalog does not know, and a reason no
+          finding covers, still render their English sentence (readinessFindings.ts). */}
+      {faults.length > 0 ? (
+        <div role="alert">
+          <FindingList rows={faults} tone="critical" renderRow={renderFinding} label={t("findingsLabel")} />
+        </div>
+      ) : null}
+      {warns.length > 0 ? (
+        <div role="status">
+          <FindingList rows={warns} tone="amber" renderRow={renderFinding} label={t("findingsLabel")} />
+        </div>
       ) : null}
 
       {alarms.length > 0 ? (
@@ -143,7 +210,10 @@ export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
                 // In-shell, not a document load: patching `?tab=` onto the history
                 // stack costs none of the RSC round-trip a same-route query change
                 // never needed (shell/nav/shallow-nav.ts).
-                onClick={() => nav.push(buildTabSwitchUrl(tab, query))}
+                onClick={() => {
+                  const sec = ALARM_SEC[alarm.key];
+                  nav.push(sec ? buildUrl({ tab, ...clearedTabScopedParams(), sec }, query) : buildTabSwitchUrl(tab, query));
+                }}
                 title={open}
                 className={`focus-ring inline-flex items-center gap-1 rounded-sm font-semibold hover:underline ${alarm.tone}`}
               >

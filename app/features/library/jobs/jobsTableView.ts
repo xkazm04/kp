@@ -1,5 +1,8 @@
-// The corpus table's ordering contract — the per-column value extractors the
-// shared sort engine (app/_components/table/useTableSort) reads.
+// The corpus table's ordering contract, stated as per-column value extractors.
+// Since challenge-r07 the Roles desk sorts on the SERVER (db/jobs.ts SORT_KEYS,
+// over every matching row), so these are the reference semantics that ORDER BY
+// mirrors; jobs-browse.test.ts pins the column set equal. One declared difference:
+// the server's salary key is the salary_min column, not the payload band floor.
 //
 // Pure and separate from the table so the rules are testable without React, and
 // so the two facts this table gets wrong when hand-rolled stay stated once:

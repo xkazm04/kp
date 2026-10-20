@@ -34,7 +34,7 @@ export function AnalyzeFormCollapsed({
           {isAnalyzing ? (
             <ScanAnimationCompact className="h-4 w-4" />
           ) : (
-            <FileText className="h-4 w-4 text-coral" aria-hidden />
+            <FileText className="h-4 w-4 text-coral-ink" aria-hidden />
           )}
           <span className="text-base font-semibold text-ink">
             {isAnalyzing ? t("analyzing") : t("analyzeProfile")}

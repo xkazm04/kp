@@ -151,6 +151,53 @@ after those checks and the two cheap 400s, ahead of the first scan: 20/10 min pe
   `AnalyticsOrgBenchmarkPanel` now gates both team rates on `team.totalEntries > 0` and renders
   the same em-dash the median already used, with no verdict chip.
 
+## One role — `?job=` scopes the whole tab, and names what it cannot scope
+
+The question a hiring manager actually brings here is about ONE requisition. The store has
+taken an optional `jobId` since `90a95824d`, but only its cohort SELECT honoured it and no
+route passed one. The axis is now wired end to end (challenge r04, analytics-dashboard/B):
+
+- **Entry.** Each role-table row carries **Analyse this role** (`AnalyticsByRoleTable.tsx`),
+  a `Link` that writes `?job=<jobId>` beside `?win=`. `byJob` is keyed by **job id**, not
+  title, so two reqs that share a title are two rows (they used to merge into one that named
+  neither); a legacy entry with no job id keys by its title. `?job=` is tab-scoped
+  (`TAB_SCOPED_PARAM_KEYS` in `app/features/shell/tabs.ts`), so a bare tab switch drops it.
+- **One parse, three readers.** `analyticsJobScope.ts` (pure) owns `parseJobParam` (trimmed;
+  blank, over 128 chars or control characters = workspace-wide), `analyticsFetchUrl(days, job)`,
+  and the catalog keys for the withheld list (the list itself is `JOB_SCOPE_WITHHELD` in
+  `app/_lib/db/analytics.ts`, type-imported so no server code reaches the bundle). The
+  route, `AnalyticsTab` and `analyticsViewUrl` all read the parse,
+  so the minted view link (`…&win=30&job=<id>`) round-trips through the reader's own parse.
+- **What scopes.** `GET /api/analytics?job=` passes the role to BOTH reads and to the memo:
+  the cohort, the sim-exclusion count, the event-time hire count, and every entry-bearing
+  event read — momentum, the `kindCounts` behind automation / offers / automation ROI, and
+  the hold pair — joined through `entry_id IN (SELECT id FROM pipeline_entries WHERE job_id
+  = ? AND workspace_id = ?)`. `pipelineAnalyticsPrior` takes the same `jobId`, so a role's
+  deltas compare the role with itself, never with the workspace. `analyticsCacheKey(ws,
+  window, jobId)` keeps the workspace view's historical key and appends the role through
+  `optionalKeyField`, so a scoped payload is never served to another scope. A job id of
+  another workspace yields an empty cohort, because every read is workspace-predicated.
+- **What is withheld, by name.** `payload.jobScope = { jobId, jobTitle, withheld }` lists
+  each figure the entry join cannot honestly reach, with its reason:
+  `bySource` and the per-channel decision-time median (computed for the workspace only);
+  per-channel spend / cost-per-applicant / cost-per-hire and the blended `costPerHireCzk`
+  (spend is entered per channel for the whole workspace, so dividing it by one role's hires
+  publishes an inflated per-role cost); `computeCost.costPerHireUsd` (the LLM ledger is
+  account-wide); and `koDeclined` (a `ko_declined` event is written before any entry
+  exists, carrying a title and nothing else). A withheld field carries a placeholder
+  (`null`, `[]`, `0`) that no surface may read as a measurement; the header renders the
+  role chip, a **Whole workspace** clear action, and the withheld list grouped by reason
+  (registry: small-sample-honesty-in-hiring-analytics, not-measurable-versus-zero). The
+  metric-pack preview trigger (and the download in its footer) relabels itself **(whole
+  workspace)** while a role is in scope, because its route reads no role.
+- **KO column, stated.** In the workspace view a role row's `koDeclined` is `null` (an em
+  dash with a tooltip) when more than one req shares its title: the count is title-keyed
+  and cannot be split. Under a role scope every row's KO is `null`.
+- Pinned by `app/_lib/db/analytics-job-cohort.test.ts` (event joins, the exact withheld
+  list, same-title rows, the prior slice), `app/api/analytics/analytics-job-scope-route.test.ts`
+  (the real handler: scope, cross-workspace, blank, memo isolation), `analytics-cache.test.ts`,
+  `analyticsJobScope.test.ts` and `analyticsViewLink.test.ts`.
+
 ## Performance — a brief that refuses claims it cannot make
 
 `sections/PerformanceBriefing.tsx`. Each band opens with a claim computed from the data; the
@@ -165,6 +212,12 @@ chart beneath is the evidence. Which claim the funnel band may make is one pure 
 | `weakest` | a stage is below **a goal the org set** | the weakest-link claim, naming the goal |
 | `no-goal` | real conversion, no goal anywhere | "set a conversion goal and this brief will name your weakest stage" |
 | `healthy` | every goal-bearing stage clears its goal | the healthy claim |
+
+The bottleneck stage is selected by median wait among stages with at least three
+active entries, so one exceptionally old case does not redirect the claim. The
+displayed days remain that selected stage's rounded average. The waits it ranks are
+the **as-of-now occupants** (see the dwell panel below), not the window's creation
+cohort, so the "stalled" claim and the dwell rows under it count the same people.
 
 Precedence is the argument: movement licenses a conversion number at all, so it is checked
 first; dwell keeps precedence over conversion; a goal is the last gate before the band may
@@ -217,6 +270,22 @@ call a stage weak.
   resolves the route's code through `useErrorMessage` and announces the failure
   (`announceFailure`), exactly like the spend input; the fold both share is
   `localizedSaveFailure()` (`analyticsSaveFailure.ts`).
+- **Every column the board draws is goal-able, and only those.** The goal key space is one
+  pure registry, `app/_lib/analytics-target-keys.ts`, derived from **this workspace's live
+  stage axis** plus the reserved keys (`RESERVED_TARGET_SPECS`: `time_to_hire` days ≤ 3650,
+  `recruiter_hourly_czk` ≤ 1 000 000, `manual_hours_per_hire` ≤ 1000; a conversion goal is
+  ≤ 100 %). `POST /api/analytics/targets` validated against the shipped five stage names while
+  the funnel and the goals editor drew the workspace's own columns, so an added column
+  ("Tech round") showed a goal field whose every save was a raw English "Invalid metric." with
+  no code. Now `validateTargetWrite(body, axis)` answers `ANALYTICS_TARGET_UNKNOWN_METRIC`
+  (unknown, retired, or the entry column, which has no inbound conversion) or
+  `ANALYTICS_TARGET_OUT_OF_RANGE` (not a finite non-negative number, or over the key's
+  ceiling), both localized through the editor's save-failure fold. The read side filters
+  through the same registry (`liveConversionTargets`): a goal for a **retired** column stays in
+  `analytics_targets` but is withheld from `targets.conversion`, and un-retiring the column
+  brings it back unchanged. `AnalyticsTypes.ts` re-exports the reserved keys from the registry
+  instead of hand-mirroring them. Pinned by `analytics-target-keys.test.ts` and
+  `app/api/analytics/targets/targets-axis.test.ts` (a real handler on a custom axis).
 - **The zero-transition guard is on the render path** — `hasNoStageTransitions()` and
   `AnalyticsFunnelEmptyGuide` were correct, translated and reachable from nowhere. The review
   hatch `?funnelEmpty=1`, threaded through three files and destructured by no one, is
@@ -224,9 +293,28 @@ call a stage weak.
 - **`AnalyticsStageDwellPanel`** carries the three edges the consolidated funnel dropped:
   KO-gate discards before the first stage (`koDeclined`), `stageDwell` inside them (each row
   linking to that stage on the board), and the offer leg after the last
-  (`AnalyticsOfferLegPanel`, honesty-gated below its min-offers floor). Dwell bars are one
-  neutral tone scaled to the longest wait on screen: no org goal exists for per-stage dwell,
-  so a colour would be a verdict nobody set.
+  (`AnalyticsOfferLegPanel`, honesty-gated below its min-offers floor).
+- **`stageDwell` is everyone waiting NOW, on the one aging clock** (challenge-r05
+  analytics-metrics/B). `app/_lib/db/analytics-stage-dwell.ts` `stageDwellNow` reads every
+  active, non-demo entry of the workspace (and role, under `?job=`) regardless of the
+  window: the band's claim says "waiting right now", and the old fold over the window's
+  creation cohort dropped every long waiter created before it. Per stage it reports
+  `count`, `medianDays` + `oldestDays` (the pair, not a mean; `avgDays` is kept for older
+  readers), `pastCadence` (tier `aging` or `stalled` via `aging-policy.ts` `agingTier`,
+  whole days — exactly the board's `?quick=aging` set), `stalled`, `cadenceDays` and
+  `cadenceSource` (`team` when the column carries `slaDays`, else `default` for its role).
+  It is as-of-now, so it is never diffed against the prior window. The pure row model
+  (`stageDwellGate.ts` `dwellRowModel`) decides what a row may claim: below
+  `BOTTLENECK_MIN_SAMPLE` (3) occupants no median is printed, only the count and the oldest;
+  the bar and the past-cadence count are coloured over (coral) / within (moss) **only against
+  a cadence the team set** — against the shipped default they stay neutral; a past-cadence
+  count links to `?tab=pipeline&stage=X&quick=aging` (`dwellBoardFilter`). Bars are scaled
+  to the oldest wait on screen. Every live non-terminal column (`cadenceEditable`) carries a
+  cadence field (`AnalyticsStageCadenceInput.tsx`) that writes through the r03 route
+  `PATCH /api/pipeline/stage-sla`; a `DECISION_CONFIG_INVALID` refusal reads as the band's
+  own bounds sentence and every other code through the errors catalog
+  (`stageCadenceSavePlan.ts`). Tests: `app/_lib/db/analytics-stage-dwell.test.ts`,
+  `stageDwellGate.test.ts`, `stageCadenceSavePlan.test.ts`.
 - **The by-role table** (`AnalyticsByRoleTable.tsx`) puts a `ColumnFilter mode="search"` in
   the Role header, filters client-side, makes the CSV follow the filter, reports
   `{shown} of {total}` while searching and the server cap otherwise, and prints a cap note
@@ -373,24 +461,33 @@ sentence stating what was counted, and a renderer must show the status beside th
 figure keeps its own `unit`, so CZK spend and USD compute cost are never summed. The
 spend-dating fix rides **inside** the existing `basis` string — nothing was added to the shape.
 
-**A count is not a page.** `recruiter_capacity`'s `openRoles` term is `listCorpusJobs(ws).length`
-— the unbounded read whose predicate (`status IS NULL OR status = 'published'`) already *is* the
-open-role definition the route wants, and the same one `openOnly` / `isJobOpenForApplications`
-use. It was a `.filter()` over `listJobs({}, ws)`, the paginated **browse** read: no `limit`
-means `LIMIT 300` (a supplied one caps at 500), so a workspace carrying more visible openings
-than that had its capacity numerator silently truncated to the cap and shipped as `measured` in
-the pack. Identical on the seeded corpus (100 either way); it only diverges above the cap.
+**Capacity counts owned openings.** The metric pack takes `countOpenRoles(ws).own`:
+live jobs authored by this workspace, excluding the shared reference corpus. The
+DB uses an unbounded count, so the numerator cannot be truncated by the jobs
+browse page's 300-row cap. Its basis names the owned tier in all four locales.
+Before this change, a workspace with no authored roles and one recruiter could
+report roughly 100 shared corpus roles per recruiter as a measured team figure.
 
-**…but the count is still the wrong TIER (open).** `listCorpusJobs(ws)` enumerates the dual-tier
-predicate `workspace_id IS NULL OR workspace_id = ws`, and the ~100 seeded rows every tenant
-matches against are `workspace_id IS NULL`. So on the shipped database a workspace that has
-authored **zero** live roles and carries one recruiter reports `100 roles/recruiter`,
-`status: measured`, basis *"100 open roles carried by 1 recruiter"* — a per-team capacity figure
-that is byte-identical for every tenant, under a pack whose own disclaimer says *"Figures
-describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/jobs.ts`) returns
-`{ own, corpus, visible }` precisely so the call site can choose; the choice (almost certainly
-`own`) and a `basis` string that **names the tier** are both still to be made, in
-`app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
+**The pack opens as a preview, and every blocking row states its accrual horizon.** The
+header's metric-pack control is no longer a blind Markdown download: it opens
+`MetricPackPreview.tsx` (the `Modal` primitive), which reads the route's JSON for the
+header's window and shows blockers (thin / not measurable) before publishable rows, a
+"N of M publishable" summary, and the date by which **every** blocker clears (the latest of
+their dates; one undated blocker makes the pack undated). The Markdown download sits in the
+preview's footer. Each blocking row carries `need` (`app/_lib/accrual-horizon.ts`, registry
+small-sample-honesty-in-hiring-analytics, state-the-accrual-horizon): the shortfall to its
+floor in the row's own unit (hires for time-to-hire and cost-per-hire, actions for hours
+saved, owned open roles for capacity, responses for NPS), the whole weeks to clear at the
+recent pace and the resulting date, or a reason instead of a date: `no-pace` (nothing
+accrued recently, or no pace is measured for that unit: only hires have one today),
+`window-too-narrow` (a sliding window holds at most pace x window, so at this pace it never
+reaches the floor; the preview offers **Use all time**), `not-accruing` (capacity is a
+point-in-time ratio; waiting does not raise it). The pace is `paceFromMomentum`: hires per
+week over the payload's own momentum series, so no second store read. `need.note` is the
+sentence resolved at build time in the reader's language, and the Markdown caveat appends
+the **same** note, so the file and the screen cannot disagree. A not-measurable row whose
+sample already clears its floor carries `need: null` (the missing thing is not
+observations; its basis says what). Dates are UTC and week-granular.
 
 **Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
 `EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
@@ -453,6 +550,19 @@ it: should this score be allowed to decide at all.
   `pipelineCalibrationBandCandidates` labels candidates on that axis only. The hire axis needs
   only stage data and is **not** a hire-quality measure — the curve does not separate a hire
   from an interview, which the copy states rather than leaves to be inferred.
+- **The advance label is the furthest stage reached, not the current one.** A candidate the
+  score advanced to interview who was then moved back to screening (a no-show, through
+  `setPipelineEntryStage`) and rejected there counts `1`, as does one moved back and still
+  active: the screening decision was "advance". The reached set is one bounded
+  `SELECT DISTINCT entry_id, to_stage FROM pipeline_events` per call (`reachedPositiveStages`),
+  and it **ignores `stage_migrated`** events: a Settings → Hiring board edit that moved people
+  onto a later column is not evidence the score advanced anyone. The curve and the band drill
+  apply the one pure rule, `calibrationOutcome()` (`app/_lib/db/pipeline.ts`), so they cannot
+  disagree. The **hire axis keeps the current-position rule**: a hire that was undone (moved
+  back out of the terminal column, still active) is not counted as a hire. This is what feeds
+  `recommendScreeningThreshold` and the apply-threshold write, so an advance-then-no-show no
+  longer reads as a screen-gate reject pushing the recommended floor up. Tests:
+  `app/_lib/db/pipeline-calibration-furthest.test.ts`.
 - **Leakage is per ARM (source × axis), not per source.** `calibrationLeakage(source, outcome)`.
   `pipeline` × `hired` carries its own descriptor, `code: "score-caused-rejects"`, at
   **`level: "high"`**. It is genuinely *better* than the advance arm — reaching a hire takes
@@ -538,6 +648,24 @@ it: should this score be allowed to decide at all.
   on a fresh install is `n:0`, and a fifth empty arm would be the same "correct mechanism that
   reaches no surface" defect this round removed elsewhere. The capture path exists first; the
   arm follows when the corpus can say something.
+- **The unrated hires are listed, and rated, where the count is** (challenge-r07
+  pipeline-api/B). The counter used to count its two halves over different populations:
+  `hires` was today's terminal-column board entries, `rated` every rated `dev_outcomes` row
+  (dev-case-lane ratings and ex-hires included), so "X of Y" could overstate progress or
+  exceed Y. Both now come off one pure fold, `foldHireRatingQueue`
+  (`app/_lib/hire-rating-queue.ts`), over the roster `listWorkspaceHires`
+  (`app/api/pipeline/outcomes/hire-roster.ts`) reads: active entries on the workspace's own
+  terminal-role column(s), an uncapped projected SELECT instead of hydrating the capped board.
+  A hire is rated only when its own ref (`hireOutcomeRef`) carries a `hired` row with a
+  performance, so `rated <= hires` and `rated + unratedTotal === hires` by construction.
+  The GET also returns `unrated` (oldest hire first, `QUEUE_CAP = 25`, each row
+  `{ entryId, candidateLabel, jobTitle, hiredAt }` and never a score or rating) and
+  `unratedTotal`. `sections/QualityHireRatingQueue.tsx` lists them under the line with the
+  drawer's 1..5 control and labels; a pick POSTs the same `pipeline:write`-gated door the
+  drawer uses (it re-checks the live terminal stage), then re-reads the counter. The line's
+  three states come from `queueHeadline`: `none` (no hires, no queue), `pending` (queue
+  open), `ready` (queue still offered, collapsed). Counts only, never a rate: the one
+  threshold quoted is `MIN_CALIBRATION_OUTCOMES`, so no second small-sample floor exists.
 - **The history strip reads the policy REF, not the tail of the chain.**
   `GET /api/analytics/calibration/threshold-history` asks `listDecisionRecords` for
   `candidateRef = policy:screening:<ws>` (`…:<family>` under a family filter) — the deterministic
@@ -588,9 +716,39 @@ it: should this score be allowed to decide at all.
   other way out and it renders only when `families.length > 1`, so a one-family workspace that
   also carries an override could otherwise drill in and never get out
   (`analyticsCalibrationFamilyApplyGate.test.ts`).
+- The screening rules modal's family-floor chips open Analytics → Quality with
+  `?calFamily=<slug>` so the calibration panel starts on that family's curve,
+  recommendation and sealed history. The parameter is a one-shot inbox and is
+  cleared on tab switches; unknown family slugs are ignored.
 - `AnalyticsReliabilityDiagram.tsx` can draw the live auto-reject `threshold` and the
   `baseRate` as reference lines, with screen-reader equivalents — so a curve stepping from
   0.00 to 1.00 exactly at the floor reads as the score-caused signature it is.
+- **Before Apply, the card names who on today's board the move reaches** (challenge-r08).
+  The suggestion argued from historical bands only; the click then moved the floor the next
+  screening wave rejects by, and nobody was named until that wave's preview. A **See who this
+  moves on today's board** button beside Apply calls `GET /api/analytics/calibration/floor-preview`,
+  which runs `previewFloorMove` (`app/_lib/floor-move-preview.ts`): for every role with an
+  active Screened cohort (in a family view, every role holding someone of that family), the
+  screening wave's own **dry run** under the saved rule and under the rule with the suggested
+  floor, diffed by the pure `diffFloorMove` into per-role **entering / leaving** reach (5 names
+  each, `+N more`, every name a `?tab=pipeline&q=` board link), plus counts of the people the
+  new floor reaches but the fairness shield (**shielded** — the live archetype registry's
+  `shieldsFromAutoReject`) or the calibration holdout / a reinstatement (**spared**) keeps. No
+  second copy of the reject rule, and nothing written: no status, event, seal, approval spend
+  or email. A family preview passes the **merged** `familyFloors` map, because the wave's
+  validated override replaces the map wholesale — unmerged, every other family's saved floor
+  would vanish from the "after" rule. Auto-reject off answers `autoRejectOff` and the card says
+  no one moves until it is switched on. Counts and names only, never a rate. The answer is
+  remembered with the scope and number it previewed (the same mounted-across-a-family-switch
+  hazard as the Apply confirmation), and a preview whose re-derived number differs from the
+  card's is shown as `CALIBRATION_RECOMMENDATION_CHANGED`, never painted under the old number.
+- **One derivation behind the displayed, applied and previewed number.**
+  `liveScreeningRecommendation` (`app/_lib/calibration-recommendation.ts`) derives the live
+  recommendation — family-scoped pairs, the clean-arm below-floor band, the scope's effective
+  floor — for the display route, `/apply-threshold` and `/floor-preview`; the display route
+  hands in the pairs, clean-arm memo and rule it already read. Pinned by
+  `calibration-holdout-arm.test.ts` and `analytics-writes-authority.test.ts`, which forbid an
+  inline `recommendScreeningThreshold(` in any of the three routes.
 
 ## Quality — the audit trail
 
@@ -668,7 +826,7 @@ is disclosed via `subjectScan.capped`, above which the table states which most-r
 of how many were searched.
 
 **One clock, named.** Both tables render through `formatAuditTime(iso, locale, zone)`
-(`analyticsDecisionLogTypes.ts`) where the zone is the reader's resolved time zone, print
+(`app/_lib/analytics-decision-types.ts`) where the zone is the reader's resolved time zone, print
 `Times in {zone}` beside the count, and keep raw ISO in each cell's `title`. The CSV carries
 **both** a rendered `Time ({zone})` matching the screen and `Time (ISO, UTC)` for the machine;
 previously the screen showed an unmarked UTC instant while the export wrote true ISO, so the two
@@ -676,7 +834,20 @@ disagreed by the offset on an audit artifact.
 
 **Every export names its own scope.** The log CSV opens with a provenance block
 (`Export · Generated · Time zone · Language · Scope · Filters`), a blank separator row, then
-header and body. The records JSON carries a machine-named `provenance` object (`artifact, scope,
+header and body. That file is built by `decisionCsvRows()` in `decisionLogCsv.ts` — **pure**
+(labels and per-cell renderings arrive resolved, the `analyticsFunnelCsv.ts` idiom) and pinned by
+`decisionLogCsv.test.ts`, which asserts the block, the blank separator, the two time columns, the
+empty cell for an absent join, and that an unmapped kind is attributed UNKNOWN. `decisionLogUrl()`
+and `collectDecisionTrail()` live beside it: the query the table pages and the query the export
+pages are one function, and the trail loop follows the route's own `nextOffset` and reports
+whether it finished. `useDecisionLogExport.ts` is the wiring half (next-intl, the comms capability
+bit, fetch, download) — a hook rather than a component because the **Decisions tab** offers the
+same file from its own header (`hiring/decisions/DecisionsExportLog.tsx`, see
+[pipeline](../pipeline/README.md), "The decision trail leaves this tab as a file") with different
+chrome, and one regulated record may not grow two exports that disagree about columns, clock or
+scope. A run that stops at `TRAIL_MAX_PAGES` writes `scopeTrailCapped`, not `scopeTrail`: the
+rows are true, but the file may not call itself the whole trail. The records JSON carries a
+machine-named `provenance` object (`artifact, scope,
 generatedAt, timeZone, locale, recordCount, chainScope, chainVerified, chainKeyed,
 chainKeylessCount`). `chainScope` is `workspace` even inside a one-subject dossier, deliberately
 — the verdict always covers the whole chain, so a reader cannot report "chain verified" as a
@@ -813,17 +984,22 @@ collided stem in any locale and that the self-report label names the model in al
 
 | Route | Serves |
 | --- | --- |
-| `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time |
+| `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time; `?job=<jobId>` scopes every figure to one role and names the rest in `jobScope.withheld` (see *One role* above) |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
-| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip, read by the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain |
+| `GET /api/analytics/calibration/floor-preview` | Who on today's board the live suggestion would move, per role (`?roleFamily=` optional). The Apply seat: `requireOperator()` + `pipeline:write` (403 `ANALYTICS_POLICY_FORBIDDEN`); 400 `CALIBRATION_FAMILY_UNKNOWN`; 409 `CALIBRATION_RECOMMENDATION_ABSENT`; `rateLimit` `floor-preview:<ip>` 30/10 min. Dry runs only — writes nothing |
+
+A successful threshold apply bumps the calibration memo version for that
+workspace. The panel's immediate reload recomputes its recommendation while
+other workspaces keep their warm curve entries.
+| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=pipeline\|analysis\|holdout`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only). Holdout bands include only sealed clean-arm entries, matching the holdout curve; the threshold strip reads the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain. |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
-| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
-| `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
+| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated by the goal-key registry (`app/_lib/analytics-target-keys.ts`) against the workspace's live axis; refusals are `ANALYTICS_TARGET_UNKNOWN_METRIC` / `ANALYTICS_TARGET_OUT_OF_RANGE` (400). POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
+| `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON (read by the in-app preview; blocking rows carry `need`) or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
-| `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
+| `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter and the unrated-hire queue `{ rated, hires, minOutcomes, unrated, unratedTotal }` (`requireOperator()`; the rating POST asks `pipeline:write`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
 **No stage name is spelled on this page.** Two English literals outlived the role layer that
 closed the rest: the offer panel's "who is sitting on an offer" link filtered the board on
@@ -929,10 +1105,11 @@ deep fails it; the behavioural half (a save really bumps, a refused save does no
 
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
-`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
+`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `accrual-horizon.ts`, `calibration.ts`,
 `decision-attribution.ts` — each with a colocated `.test.ts`. On the client,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
-to become executable values. Tables compose `app/_components/table/` (`TablePager`,
+to become executable values (and `metricPackPreviewModel.ts` the pack preview's ordering and
+clearing date). Tables compose `app/_components/table/` (`TablePager`,
 `ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
 
 **Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
@@ -954,7 +1131,7 @@ Read-only over the operational tables, plus three the tab writes:
 | --- | --- |
 | `pipeline_entries`, `pipeline_events` | Funnel, dwell, momentum, decision log. `pipeline_events.actor` is nullable and never backfilled |
 | `decision_records` | The per-tenant hash chain: `seq`, `prev_hash`, `content_hash`, `kind`, `actor`, `policy_version`, `candidate_ref`, `rationale`, `reason_code`, `payload_json`, `created_at`, `key_id` |
-| `analytics_targets` | Recruiter-set goals: per-stage conversion %, plus reserved `time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire` |
+| `analytics_targets` | Recruiter-set goals: per-stage conversion %, plus reserved `time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`. A goal for a retired column is kept but withheld from the payload |
 | `channel_spend` | Per-channel spend with `updated_at`, read via `listChannelSpendDetail()` in `app/_lib/db/channels.ts` (`listChannelSpend()` survives for amount-only callers) |
 | `llm_usage` | The compute-cost ledger (account-wide — see Known gaps) |
 
@@ -997,11 +1174,51 @@ larger decision — it needs an operator zone to exist first.
 Also single-sourced this round: `originOf`, the earliest-event → origin bucket map
 `bySource` reports, was typed out byte-identically inside `pipelineAnalytics` and
 `pipelineAnalyticsPrior`, whose entire contract is that they bucket the same rows
-the same way. One module-level function now.
+the same way. One function now, in the pure cohort module (below).
 
 Payload additions this round: `truncated` (above), `bucketTz`, `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
 `hiresClosedInWindow`, `computeCost.windowDays` / `.hires`, and the `leakage` descriptor on both
 calibration payload types.
+
+### Both sides of a period delta fold through one cohort function (challenge-r06)
+
+The `deltas` on a windowed load compare the live window with the one before it. The two
+sides used to come from two hand-kept copies of the same fold inside `db/analytics.ts`,
+held equal by a test that also pinned a leak as the contract. Both now go through the
+pure **`app/_lib/analytics-cohort.ts`**:
+
+- **One clock, tiled windows.** `GET /api/analytics` reads `Date.now()` once;
+  `deltaWindows(now, days)` returns the current window `[now − days, now)` and the prior
+  `[now − 2·days, now − days)`, whose end **is** the current start (the same number). The
+  live read takes the clock as `opts.nowMs` (it pins, it does not bound); every cutoff in
+  the store derives from `windowStart(end, days)`. An entry created exactly on the
+  boundary belongs to the window it starts.
+- **Every prior read is half-open.** The first-event origin read behind `bySource` was
+  lower-bound only, so the prior window's per-source volume counted every candidate of the
+  current window. It now carries `created_at < end` like the cohort SELECT.
+- **The prior cohort is judged as of its own end** (`foldCohort(rows, axis, { asOfMs })`).
+  A terminal row counts as hired, and joins the time-to-hire sample, only when its terminal
+  transition (`stage_changed_at`) landed before `asOfMs`. Without this a 30-day view
+  compared a cohort with at most 30 days to hire against one with up to 60, so the
+  hire-rate chip read as a decline and the time-to-hire chip as an improvement with no
+  change in behaviour. The live read folds as of `+Infinity`, so its payload is unchanged.
+  **Stated limit:** only the terminal leg is age-matched; earlier funnel columns keep their
+  current-stage basis (a stage-as-of read needs the event ledger), and a not-yet-hired
+  terminal row is folded one column short of its terminal one. A row with no or an
+  unparseable stamp stays a hire and stays out of the sample, as before.
+- **Every rate delta names both sides' n and is gated on it.** `PriorWindowSlice` carries
+  funnel `reached` and `timeToHireSamples`. `periodDeltas` gates `hireRatePct` (cohort
+  total), each funnel `conversionPct` (the upstream stage's reach) and `avgTimeToHireDays`
+  (the sample) at `MIN_RATE_DELTA_N = 5` on **both** sides, the gate source and channel rows
+  already had. A thin movement is withheld with its reason: `delta: null`, `n: { current,
+  prior }`, `withheld: { reason: "thinCurrent" | "thinPrior" | "thinBoth", minN }`. The
+  figures themselves stay on the record; only the movement is not claimed. Plain counts
+  (`total`, `hired`, volumes) are never gated.
+
+Pinned by `analytics-cohort.test.ts` (windows, the as-of rule, the one-clock route),
+`db/analytics-prior-slice.test.ts` (the live payload equals the fold; the bounded prior
+source read; the boundary instant; the age-matched prior; the prior slice's n) and
+`analytics-deltas.test.ts` (the three new gates).
 
 ## Honesty rules this surface keeps
 
@@ -1124,6 +1341,8 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
+  The suggestion card now warns at Apply when auto-reject is off: the write
+  saves a threshold but does not turn on the rejection policy.
 - **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
   floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
   but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —
@@ -1189,6 +1408,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   quality-of-hire ships (`POST /api/pipeline/outcomes`); there is no `?source=performance` arm,
   so nothing yet measures the score against how a hire actually worked out. Deliberate — the
   corpus accrues first — and the accrual counter on Quality is the horizon.
+- **A withheld delta's reason is on the wire, not yet on screen.** `DeltaChip` renders nothing
+  for a null `delta`, so a thin movement is (correctly) not shown, but the chip does not yet
+  say why; `Delta.withheld` carries the reason for when it does. Under a bounded (`endMs`)
+  full-battery read, only the compared scalars are age-matched: `byJob`, `byArchetype` and
+  `byVariant` still count terminal rows as they stand today.
 - **Nested payload fields are outside the render-map guard's grain.** It checks top-level
   `Analytics` fields, so `deltas.bySource` / `deltas.byChannel` and the `ChannelEconomics` columns
   the board does not carry (`costPerApplicantCzk`, `medianHoursToDecision`) are still computed on

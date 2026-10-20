@@ -1,0 +1,48 @@
+{
+  "id": "followup-refused-channel",
+  "follows": "pipeline-candidate-drawer/B (c56c2e73e, budget 3afbff2f5)",
+  "context": "comms-outbox",
+  "status": "shipped",
+  "commits": [
+    { "sha": "c37558e67", "subject": "fix(comms-outbox): a refused-channel row no longer counts as needing the recruiter", "under_lock": false },
+    { "sha": "cbc5c0c1f", "subject": "chore(perf): comms-dispatch keeps its channel constants local; ceiling back to 230", "under_lock": true }
+  ],
+  "rule": "A row needs a human when its verdict is 'orphaned' (the integrator's to chase) or resendDoorOf gives it a door. isActionable (Comms Center) and isDeadLetter (dev-case outbox) both read that, so a failed row on REFUSED_COMMS_CHANNEL (or the simulation channel) no longer drives the red tint, the needs-you count or the dead-letter chip.",
+  "decisions": [
+    "No new shared predicate was needed: resendDoorOf already is the one rule. The only extra case is 'orphaned', which offers no door but still needs the integrator, so it is kept explicitly in both callers.",
+    "isActionable now derives commsVerdict(m) first. Behaviour is the same for every flagged row. The one edge that moves: a raw 'bounced' status row with no orphaned flag already reads 'orphaned' in statusTone, and it now counts too.",
+    "OutboxRows still prints failureDetail on every failed row, refused included: '(m.verdict === \"failed\" || isDeadLetter(m)) && m.failureDetail'. Otherwise the refusal reason would have disappeared with the tint. The source-guard regex in outboxView.test.ts was updated to match.",
+    "comms-dispatch.ts declares SIM_COMMS_CHANNEL / REFUSED_COMMS_CHANNEL locally, following the r07 jobs-table-core/A precedent. Existing importers from comms-dispatch are unchanged. comms-dispatch-channels.test.ts pins that the two copies are equal and that the import is gone.",
+    "The code change and the budget are in ONE commit under the lock, so the budget in each commit matches the graph it measures."
+  ],
+  "files": [
+    "app/features/hiring/channels/channelsCommsHelpers.ts",
+    "app/features/hiring/channels/channelsCommsHelpers.test.ts",
+    "app/features/tools/devcases/outboxView.ts",
+    "app/features/tools/devcases/outboxView.test.ts",
+    "app/features/tools/devcases/OutboxRows.tsx",
+    "app/_lib/comms-dispatch.ts",
+    "app/_lib/comms-resend-outcome.ts",
+    "app/_lib/comms-dispatch-channels.test.ts",
+    "perf-budget.json"
+  ],
+  "red_first": "channelsCommsHelpers.test.ts 1 of 9 failed; outboxView.test.ts 1 of 12 failed; comms-dispatch-channels.test.ts 1 of 2 failed against HEAD's comms-dispatch.ts (the import guard; the equality case held by construction)",
+  "perf": {
+    "method": "git-archive HEAD vs HEAD + this change's files, scripts/perf/check-budget.mjs --json",
+    "delta": "-1 module / -5 KB on 56 app/api route graphs (one -6 KB); app/page.tsx +1 KB (9083 -> 9084, ceiling 9098)",
+    "lowered": "group app/api/**/route.ts maxModules 231 -> 230; 12 overrides -1 module (hire-from-need, feedback-letters redraft, lifecycle approve, status letter, interview-kit, analyze, session submit, intake promote, jds generate, tasks, tasks retry, tasks history); maxKb -1 on lifecycle approve, analyze and intake promote. These are exactly the ceilings 3afbff2f5 raised.",
+    "tightness": "HEAD alone with the lowered budget fails (hire-from-need 238 > 237). HEAD + change passes."
+  },
+  "gates": {
+    "unit_touched": 0,
+    "unit_note": "all 37 tests in app/features/hiring/channels + app/features/tools/devcases, drawerCommsTruth.test.ts, every app/_lib/comms*.test.ts, resend-dedup.test.ts",
+    "tsc": 2,
+    "tsc_note": "foreign only: untracked kpi-sim/ and the voice builder's in-flight VoiceInterview.tsx / ReconnectNotice.tsx; no errors in touched files",
+    "eslint": 0,
+    "test_perf_committed_head": 0,
+    "test_perf_live_tree": 1,
+    "test_perf_live_note": "foreign in-flight growth only: page.tsx 1440/9166 vs 1428/9098, job-ingest 424 vs 419 KB, hire-from-need 3185 vs 3183 KB (its KB ceiling was not touched here)",
+    "docs": 0
+  },
+  "doc_sync": "internal-only on both commits: a count/tint predicate over existing verdicts and a module-graph edge; no documented behaviour changes"
+}

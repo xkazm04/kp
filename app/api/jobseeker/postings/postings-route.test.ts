@@ -8,7 +8,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
-import { getJobseekerPosting, setPostingMatch, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
+import { getJobseekerPosting, markAbsent, setPostingMatch, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
 import { upsertJobseekerProfile } from "../../../_lib/db/jobseeker-profiles.ts";
 import { EMPTY_PREFERENCES, type JobseekerPostingSummary, type RawPosting } from "../../../_lib/jobseeker/types.ts";
 import { GET } from "./route.ts";
@@ -93,7 +93,7 @@ test("GET: filters — minTotal, sourceId, sort; an out-of-vocabulary value is a
     ["?status=archived", "status"],
     ["?sort=random", "sort"],
     ["?limit=0", "limit"],
-    ["?limit=101", "limit"],
+    ["?limit=501", "limit"],
     ["?minTotal=abc", "minTotal"],
   ] as const) {
     const bad = await get(query);
@@ -191,8 +191,10 @@ test("POST seen: the anchor advances, never backwards, and the count is derived 
   assert.deepEqual((await ok.json()) as unknown, { anchor: { at: T_ANCHOR, id: "jpo-anchor" } });
 
   // Every seeded posting was first seen BEFORE the anchor, so nothing is new yet.
-  const quiet = (await (await get("")).json()) as { newSince: { count: number; anchorAt: string } };
-  assert.deepEqual(quiet.newSince, { count: 0, anchorAt: T_ANCHOR }, "an anchor with nothing after it says zero, which is not the same as null");
+  const quiet = (await (await get("")).json()) as { newSince: { count: number; anchorAt: string; anchorId: string } };
+  // The FULL tuple rides on the wire: a client comparing against `at` alone chips the
+  // anchor row itself (and any row sharing its millisecond) as new.
+  assert.deepEqual(quiet.newSince, { count: 0, anchorAt: T_ANCHOR, anchorId: "jpo-anchor" }, "an anchor with nothing after it says zero, which is not the same as null");
 
   // A posting that arrives after the anchor is the count, by one comparison.
   const fresh = upsertPosting(SRC_A, raw(), T_LATER).id;
@@ -237,4 +239,34 @@ test("PATCH applied: the row carries WHEN the seeker applied, and a restore clea
   assert.equal(again.posting.appliedAt, row.posting.appliedAt);
   const restored = (await (await patch(ids[3], { status: "new" })).json()) as { posting: JobseekerPostingSummary };
   assert.equal(restored.posting.appliedAt, null, "a restored row did not apply");
+});
+
+test("PATCH on a gone row is refused: the opening was withdrawn, so no status move brings it back", async () => {
+  const source = "src-gone-patch";
+  const { id } = upsertPosting(source, raw(), T0);
+  markAbsent(source, "2026-09-16T09:00:00.000Z");
+  markAbsent(source, "2026-09-16T10:00:00.000Z");
+  assert.equal(getJobseekerPosting(id)!.status, "gone");
+
+  for (const status of ["new", "shortlisted", "applied"]) {
+    const res = await patch(id, { status });
+    assert.equal(res.status, 400, `moving a gone row to ${status} is refused`);
+    const body = (await res.json()) as { code: string; field: string };
+    assert.equal(body.code, "APPLY_SELECTION_INVALID");
+    assert.equal(body.field, "status");
+  }
+  assert.equal(getJobseekerPosting(id)!.status, "gone", "a refused move writes nothing");
+});
+
+test("POST seen: only the canonical ISO instant is an anchor — a parseable non-ISO `at` would wedge it", async () => {
+  // "9999" parses (Date.parse → year 9999) but compares as a STRING against the ISO
+  // first_seen_at of every row: as the stored anchor it sorts after all of them, so
+  // nothing is ever "new" again and no forward beacon can move it.
+  for (const at of ["9999", "2026-09-16", "Wed, 16 Sep 2026 12:00:00 GMT", "2026-09-16T12:00:00Z"]) {
+    const bad = await seen({ at, id: "jpo-wedge" });
+    assert.equal(bad.status, 400, at);
+    const body = (await bad.json()) as { code: string; field: string };
+    assert.equal(body.code, "APPLY_SELECTION_INVALID");
+    assert.equal(body.field, "at");
+  }
 });

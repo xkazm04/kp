@@ -25,7 +25,13 @@ const { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, recordAutomat
   await import("./db/pipeline.ts");
 const { createWorkspace, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } = await import("./db/workspaces.ts");
 const { setDecisionConfig } = await import("./decision-config-store.ts");
-const { createInterviewSession, attachInterviewScorecard } = await import("./db/interviews.ts");
+const { createInterviewSession, attachInterviewScorecard, completeInterviewSession } = await import("./db/interviews.ts");
+// A scorecard attaches only to a COMPLETED session that holds a transcript (the attach
+// is a conditional write after the scoring await), so fixtures reach that state first.
+const INTERVIEW_TRANSCRIPT = [
+  { role: "interviewer" as const, text: "Walk me through a test harness you built." },
+  { role: "candidate" as const, text: "I have not used it in anger." },
+];
 const { getPipelineAxis } = await import("./pipeline-axis-server.ts");
 const { stagesWithRole } = await import("./pipeline-stages.ts");
 const { meterAllows } = await import("./billing/enforce.ts");
@@ -41,10 +47,10 @@ after(() => cleanupUnitDb());
 
 let seq = 0;
 /** A candidate + a board entry, in `ws`. Returns everything the key needs. */
-function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null, stage?: string) {
+function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null, stage?: string, archetype: string | null = "bau") {
   seq += 1;
   const { id: candidateId } = saveProfile(
-    { label: `Cand ${seq}`, archetype: "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
+    { label: `Cand ${seq}`, archetype: archetype ?? "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
     ws
   );
   const jobId = `job-am-${seq}`;
@@ -53,6 +59,8 @@ function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null
     candidateLabel: `Cand ${seq}`,
     jobId,
     jobTitle: "Backend Engineer",
+    // The entry carries its own archetype (the shield reads the ENTRY, not the profile).
+    archetype,
     ...(stage ? { stage } : {}),
     locale,
     workspaceId: ws,
@@ -178,6 +186,62 @@ test("screening gate 'auto' NEVER overrides a cautious verdict — a hold still 
   setGate(f.ws, "screening", "human");
 });
 
+// RED FIRST (before the change): the ratify read the RECOMMENDATION, which the
+// fairness gate never narrows upward. Python routes an early-career "advance" to hold
+// (`and not early`), and this branch then advanced it unattended anyway - the
+// shield's "never auto-advance either" held for the route and not for the outcome.
+for (const archetype of ["student", "career_switcher", null, "quantum_alchemist"]) {
+  test(`screening gate 'auto' never ratifies a SHIELDED candidate (archetype ${archetype})`, async () => {
+    const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID), archetype);
+    setGate(f.ws, "screening", "auto");
+    seedVerdict(f, "screen", { route: "hold", recommendation: "advance" }, "llm", "en");
+
+    const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+    assert.notEqual(out.applied, "auto_ratified", "the shield routes both directions to a person");
+    assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human still decides");
+    setGate(f.ws, "screening", "human");
+  });
+}
+
+// RED FIRST (before the change): a TEMPLATE verdict advanced a candidate unattended.
+// Past the ai_candidates allowance every screen runs `--no-llm`, whose builder answers
+// "advance" at a fixed 82 for any match total >= 70 with no missing must-have - above
+// the 80 bar, so the route came back "advance" and the entry moved with no person and
+// no engine-attributed event. The instrument that decided who advanced was chosen by
+// the workspace's billing state (see ai-registry recruiting/degrade-never-block-a-candidate,
+// an-outage-must-not-change-who-advances).
+test("a TEMPLATE advance verdict parks for a human instead of moving the candidate", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  seedVerdict(f, "screen", { route: "advance", recommendation: "advance", confidence: 82 }, "deterministic", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.equal(out.applied, "held_for_review", "a template never decides who advances");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human decides");
+  assert.equal(parseApproval(f.entry.id, f.ws).verdictSource, "template", "the card discloses the engine");
+  const hold = listPipelineEventsForEntry(f.entry.id, 50, f.ws).find((e) => e.kind === "screening_hold");
+  assert.equal(hold?.actor, "auto:automation-template", "the parked verdict is attributable to its engine");
+});
+
+test("an LLM advance verdict still advances unattended (control)", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  seedVerdict(f, "screen", { route: "advance", recommendation: "advance", confidence: 82 }, "llm", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.equal(out.applied, "advanced");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind ?? null, null, "nothing parked");
+});
+
+test("screening gate 'auto' never ratifies a TEMPLATE advance recommendation", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  setGate(f.ws, "screening", "auto");
+  seedVerdict(f, "screen", { route: "hold", recommendation: "advance" }, "deterministic", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.notEqual(out.applied, "auto_ratified", "the workspace trusted the MODEL's advance verdicts, not the template's");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human still decides");
+  setGate(f.ws, "screening", "human");
+});
+
 test("the CAS primitive the screen path arms drops a decision computed against a moved row", () => {
   const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
   const snapshot = f.entry.stage;
@@ -291,7 +355,8 @@ test("a HOLD scorecard parks a priced offer draft even with the gate on 'auto'",
     ratings: [{ competency: "Technical depth", rating: 2, evidence: "I have not used it in anger." }],
   };
   const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
-  attachInterviewScorecard(session.id, scorecard);
+  completeInterviewSession(session.id, { transcript: INTERVIEW_TRANSCRIPT });
+  assert.ok(attachInterviewScorecard(session.id, scorecard).applied);
   setGate(f.ws, "offer", "auto");
   seedVerdict(f, "offer", { recommended: 90000, currency: "CZK" }, "llm", undefined, JSON.stringify(scorecard));
 
@@ -310,7 +375,8 @@ test("the scorecard is a cache-key axis, so a later synthesis cannot serve the u
   const f = fixture();
   seedVerdict(f, "rejection", { subject: "s", body: "drafted before the interview existed" }, "llm");
   const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
-  attachInterviewScorecard(session.id, { recommendation: "reject", ratings: [] });
+  completeInterviewSession(session.id, { transcript: INTERVIEW_TRANSCRIPT });
+  assert.ok(attachInterviewScorecard(session.id, { recommendation: "reject", ratings: [] }).applied);
   await assert.rejects(
     () => runAutomationTask(f.entry.id, "rejection", "", undefined, undefined),
     "a stale, ungrounded letter must not be served — the key moved with the evidence"
@@ -329,6 +395,173 @@ test("outreach is delivered at most once per entry — the durable marker short-
   assert.equal(out.applied, "already_sent", "a cache HIT must not re-fire a real send");
   const sends = listPipelineEventsForEntry(f.entry.id, 50, f.ws).filter((e) => e.kind === "outreach_sent");
   assert.equal(sends.length, 1, "no second dispatch");
+});
+
+// ---- 4b. approve before first outreach (comms scope C2) ------------------------
+//
+// Every outreach door DRAFTS and holds the letter: 0 relay POSTs, 0 outbox rows, one
+// drafted outreach_letters row. These used to assert nothing about the send because the
+// send was the point; the release is now its own act (outreach-release.test.ts).
+
+const { outreachLetterByEntry } = await import("./db/outreach-letters.ts");
+const { listOutboxFiltered } = await import("./db/devcase.ts");
+const { setRelayHostLookupForTests } = await import("./comms.ts");
+const { haltOutreach } = await import("./outreach-state-store.ts");
+
+/** A fixture relay that records every POST; restores the channel when called back. */
+function spyRelay(): { posts: string[]; restore: () => void } {
+  const realFetch = globalThis.fetch;
+  const posts: string[] = [];
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  globalThis.fetch = (async (url: string) => {
+    posts.push(String(url));
+    return new Response(null, { status: 200 });
+  }) as unknown as typeof fetch;
+  return {
+    posts,
+    restore: () => {
+      globalThis.fetch = realFetch;
+      setRelayHostLookupForTests(undefined);
+      delete process.env.COMMS_WEBHOOK_URL;
+    },
+  };
+}
+
+test("the outreach task (drawer / automation door) drafts and holds the letter — it sends nothing", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "A first letter." }, "llm");
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(out.applied, "drafted");
+    assert.equal(relay.posts.length, 0, "0 relay POSTs");
+    assert.equal(listOutboxFiltered({ ref: f.entry.id }).length, 0, "0 outbox rows");
+    const letter = outreachLetterByEntry(f.entry.id, f.ws);
+    assert.equal(letter?.state, "drafted", "1 drafted row");
+    assert.equal(letter?.subject, "Hello");
+    assert.equal(letter?.body, "A first letter.");
+    assert.equal(
+      listPipelineEventsForEntry(f.entry.id, 50, f.ws).some((e) => e.kind === "outreach_sent"),
+      false,
+      "nothing was sent, so nothing claims it was"
+    );
+
+    // A re-run on the still-drafted letter lands on the same row, never a second letter.
+    await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws)?.id, letter?.id);
+    assert.equal(relay.posts.length, 0);
+  } finally {
+    relay.restore();
+  }
+});
+
+test("a halted entry is not drafted for: the refusal is audited, nothing is held or sent", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "…" }, "llm");
+    haltOutreach(f.entry.id, f.ws);
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.match(out.applied, /^suppressed_/);
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws), null);
+    assert.equal(relay.posts.length, 0);
+    assert.ok(listPipelineEventsForEntry(f.entry.id, 50, f.ws).some((e) => e.kind === "outreach_suppressed"));
+  } finally {
+    relay.restore();
+  }
+});
+
+test("the board's batch outreach door drafts one held letter per candidate and sends nothing", async () => {
+  const relay = spyRelay();
+  try {
+    const a = fixture();
+    const b = fixture();
+    seedVerdict(a, "outreach", { subject: "Hi A", body: "Letter A." }, "llm");
+    seedVerdict(b, "outreach", { subject: "Hi B", body: "Letter B." }, "llm");
+    const { startTask } = await import("./tasks.ts");
+    const { getTask } = await import("./db/tasks.ts");
+    const rec = startTask("batch_outreach", { entryIds: [a.entry.id, b.entry.id] }, DEFAULT_WORKSPACE_ID);
+    let done = getTask(rec.id, DEFAULT_WORKSPACE_ID);
+    for (let i = 0; i < 200 && done && (done.status === "queued" || done.status === "running"); i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      done = getTask(rec.id, DEFAULT_WORKSPACE_ID);
+    }
+    assert.equal(done?.status, "succeeded");
+    const result = done?.result as { ok: number; results: { id: string; applied?: string }[] };
+    assert.equal(result.ok, 2);
+    assert.deepEqual(result.results.map((r) => r.applied), ["drafted", "drafted"]);
+    assert.equal(relay.posts.length, 0, "0 relay POSTs for the whole cohort");
+    for (const f of [a, b]) {
+      assert.equal(outreachLetterByEntry(f.entry.id, f.ws)?.state, "drafted");
+      assert.equal(listOutboxFiltered({ ref: f.entry.id }).length, 0);
+    }
+  } finally {
+    relay.restore();
+  }
+});
+
+test("the sourcing Reach-out door files the candidate and holds the letter — 0 relay POSTs", async () => {
+  const relay = spyRelay();
+  try {
+    const { insertJob } = await import("./job-ingest.ts");
+    const { NextRequest } = await import("next/server");
+    const { POST } = await import("../api/jobs/[id]/candidates/outreach/route.ts");
+    seq += 1;
+    const ws = DEFAULT_WORKSPACE_ID;
+    const jobId = `job-reach-${seq}`;
+    insertJob({ id: jobId, title: "Backend Engineer" } as never, undefined, "published", ws);
+    const { id: candidateId } = saveProfile(
+      { label: `Reach ${seq}`, archetype: "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
+      ws
+    );
+    // The candidate is already on the board for this role (a re-add returns the existing
+    // entry untouched), so the verdict can be seeded at the exact key the route's run
+    // computes and the run is a cache HIT.
+    const { entry: filed } = createPipelineEntry({
+      candidateId,
+      candidateLabel: `Reach ${seq}`,
+      jobId,
+      jobTitle: "Backend Engineer",
+      stage: "Screened",
+      workspaceId: ws,
+    });
+    // A real job row is a key axis of its own (jobJson), which seedVerdict's fixtures
+    // never have, so the key is built here with it.
+    const { getJob } = await import("./db/jobs.ts");
+    const key = computeAutomationCacheKey({
+      version: AUTOMATION_VERSION.outreach,
+      task: "outreach",
+      candidateId,
+      profileJson: JSON.stringify(getProfileRecord(candidateId, ws)?.payload),
+      jobId,
+      jobJson: JSON.stringify(getJob(jobId, ws)),
+      stage: filed.stage,
+      notes: "",
+      lang: resolveCommsLocale(filed.locale, ws),
+      degraded: !meterAllows("ai_candidates", { workspace: ws }),
+    });
+    storePromptCache(key, { result: { subject: "Reaching out", body: "A sourced letter." }, source: "llm" }, AUTOMATION_VERSION.outreach, 168);
+
+    const res = await POST(
+      new NextRequest(`http://localhost/api/jobs/${jobId}/candidates/outreach`, {
+        method: "POST",
+        body: JSON.stringify({ candidateId, candidateLabel: `Reach ${seq}` }),
+        headers: { "content-type": "application/json" },
+      }),
+      { params: Promise.resolve({ id: jobId }) }
+    );
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { entryId: string; applied: string; outreachLetterId: string | null };
+    assert.equal(body.applied, "drafted");
+    const letter = outreachLetterByEntry(body.entryId, ws);
+    assert.equal(letter?.state, "drafted");
+    assert.equal(body.outreachLetterId, letter?.id, "the answer names the held letter to approve");
+    assert.equal(relay.posts.length, 0);
+    assert.equal(listOutboxFiltered({ ref: body.entryId }).length, 0);
+  } finally {
+    relay.restore();
+  }
 });
 
 // ---- 5. a hired candidate is never re-matched --------------------------------

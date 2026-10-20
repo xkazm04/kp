@@ -1,5 +1,19 @@
 # Outbound Candidate Comms
 
+The Channels tab is "The Night Post" (the plumbing as a district you walk into,
+level by level; architecture and contract in
+`app/features/hiring/channels/night/README.md`, summary in
+[Channels tab: the Night Post](#channels-tab-the-night-post)). It accepts `?sec=` as a
+one-shot incoming link, now as a small grammar: `comms` / `ledger` open the
+ledger, `dead` or a verdict (`queued`, `bounced`, …) open it filtered,
+`careers|email|ads|feeds|relay|edge[:<receiver token>]` open that channel's
+setup, `msg:<id>` opens one message over the ledger, and an absent or unknown
+value opens the plumbing (level 0). Moving between levels afterward is local
+app state; the param is emptied on arrival.
+Its waiting-arrivals count reads the small workspace-scoped `/api/attention`
+payload, using the `channels` count; Channels no longer downloads the entire
+pipeline list just to compute that number.
+
 Every candidate-facing message the pipeline sends — intake acknowledgements,
 outreach, rejections, offers, interview confirmations/reminders —
 goes through one delivery layer with an honest, non-ambiguous status contract.
@@ -22,9 +36,30 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 
 | Source | Condition | Channel | What happens |
 |---|---|---|---|
+| *(sealed)* | `KP_NO_COMMS_EGRESS=1` | `OutboxChannel` (local) | Ahead of everything below: the resolver answers *no relay* whatever is configured, so every message queues locally. See §1.1. |
 | — | Neither env nor stored config set | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
-| `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). |
-| `config` | A relay URL is saved via the UI (`RelayConfigCard` on the Channels tab) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. |
+| `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). **Host-level — not org-checked** (below). |
+| `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. **Org-scoped** (below). |
+
+**The stored relay belongs to the organization that saved it (F-2).**
+`comms_relay_config` is one deployment-wide row, and until this gate existed
+nothing tied it to an org — so in a multi-org deployment every message org B
+sent (recipient, subject, the whole body, the envelope naming the candidate and
+the role) was POSTed to the endpoint org A saved. `POST /api/comms/relay` now
+stamps the saver's org (`owner_org_id`) from the **session**, never from the
+body; `WebhookChannel.send` resolves the message's own org — from `ref`'s
+pipeline entry when there is one, else the dispatch's `workspaceId`, exactly how
+`recordOutbox` files the row — and **refuses** a mismatch before the envelope is
+built and before any fetch: no POST, a `failed` outbox row whose `failureDetail`
+names both org ids (and no candidate data), plus the dead-letter alert, so the
+refusal is operator-visible rather than a silent drop. A **NULL owner reads as
+the default org**, as does a workspace with no `org_id`, so a row written before
+the column existed and every single-org self-host are unchanged. The **env relay
+is deliberately exempt**: `COMMS_WEBHOOK_URL` is host-level configuration an
+operator put in the process environment to serve the whole deployment, not an
+integration one organization saved — the two are told apart by the resolver's
+`source`, never by the owner being null. Proofs:
+`app/_lib/comms-relay-org-scope.test.ts`.
 
 Env keeps precedence so an existing `COMMS_WEBHOOK_URL` deployment behaves
 exactly as before. `isRelayConfigured()` is the one capability bit every
@@ -33,6 +68,28 @@ misconfigured stored relay (e.g. an undecryptable secret) still resolves to *no
 relay* rather than taking the whole capability check down, so messages queue
 honestly instead of being POSTed unsigned to an endpoint that verifies
 signatures.
+
+### 1.1 The egress seal — `KP_NO_COMMS_EGRESS=1`
+
+`commsEgressSealed()` (`comms-relay.ts`) short-circuits `resolveRelay()` to
+*no relay* before env or stored config is read, so a process running with it
+can never deliver a candidate-facing message: everything queues in that
+process's own `dev_outbox` and is honestly recorded `queued`.
+
+It exists for a process that runs the **real product code against a copy of a
+real database**. The goal-1 demo run
+(`scripts/kpi/role-demo-run.mjs`) approves interview invites and offers on a scratch copy of `data/kp.sqlite` —
+and that copy carries the operator's own stored relay configuration, while the
+child process inherits their `COMMS_WEBHOOK_URL`. No code on that path
+dispatches comms, so nothing has ever been sent; but "no send call exists yet"
+is a fact about today's call graph, not a guarantee, and the thing on the other
+end of it is a real person's inbox. The demo's parent half sets the flag on
+every child it spawns.
+
+It is deliberately **not** `KP_OFFLINE`, which seals *all* egress including the
+model calls that run the simulated interview. One flag, one question: may this
+process speak to a candidate? `relayHealth()` answers `unconfigured` under the
+seal — the health word says what *delivers*, and nothing does.
 
 **But it is no longer silent.** `relayHealth()` (same resolver, same read) names
 the state in four words — `env`, `configured`, `unconfigured`, `unreadable` — and
@@ -44,9 +101,11 @@ secret does not decrypt under the current `KP_ATS_SECRET_KEY` / `KP_SECRET`
   `KP_SECRET_PREVIOUS` and run `npm run secrets:rotate` (which covers
   `comms_relay_config.relay_secret`), or re-enter the secret on the Channels tab;
 - rides on `GET /api/comms/relay` as `relay: "unreadable"`;
-- paints the Channels card with its own critical badge and an explanation, and
-  disables the Test ping — instead of the "Not configured" pill an install with
-  no relay at all shows.
+- paints the relay failing on the Channels tab (its plate in the district and on
+  the relay's level wears its own `statusUnreadable` chip, the level explains what
+  to do, `unreadableNote`) and gates the Test ping (`relayTestGate` answers
+  `unreadable`) — instead of the "Not configured" state an install with no relay
+  at all shows.
 
 `getRelaySecret()` raises `CommsRelaySecretError` (deliberately not a
 `CommsRelayError`, so the config route never answers it as a validation 400).
@@ -133,6 +192,14 @@ within the send (`WebhookChannel.deliver`):
   lets a caller re-sending an already-recorded message reuse its identity;
   otherwise the channel mints one per send. Wire contract:
   [`outbound-export.md`](./outbound-export.md).
+- **One message identity, stored.** The minted id is persisted on every outbox
+  write (`dev_outbox.message_id`, indexed; local `queued` rows and refusal rows
+  included). A resend passes the original row's id back, so the envelope
+  `messageId` and the `Idempotency-Key` match the first attempt's. A relay that
+  echoes `messageId` in its callback is matched to that exact row
+  (`bounceTargetFor`, `comms-view.ts`); a receipt without an id, and rows
+  written before the column, keep the newest-send-before-the-bounce heuristic.
+  Locked by `comms-identity.test.ts`.
 - **Permanent** failures (other `4xx`) dead-letter immediately — retrying a
   caller/config error changes nothing.
 - Exhausted retries or a permanent failure record the message `failed` and
@@ -151,6 +218,16 @@ it, so such a message dead-letters). Every `OutboundMessage` carries `ref`
 (the pipeline entry id) so even an unaddressable message stays traceable.
 When a real email *is* captured at intake (quick-apply requires one), it
 rides the envelope as `candidate.email` — see outbound-export.md.
+
+**Refused, not guessed:** an entry whose `population` is `'agent'` (an AI agent
+on a role's slate) has no mailbox, so `candidateRecipient()` returns `null`
+(`recipientRefusal()` in `app/_lib/comms-recipient.ts` states why) rather than
+resolving its label for a relay to dead-letter. `sendCandidateComm` records the
+comm at once as `failed` on the `refused` channel with the reason in
+`failure_detail`, an empty recipient and no data/stop footers; no channel or
+relay is contacted, and the empty recipient keeps the resend door from
+re-dispatching it. The field is optional on the dispatch input — absent means a
+person — so the guard is inert until entries carry the column.
 
 ## 5. Interview-reminder policy (sub-24h bookings)
 
@@ -229,8 +306,13 @@ back, keyed by the message's `ref` + `kind`:
   DEFAULT team's Comms Center. An integrator posting a foreign ref scheme used to
   fill one arbitrary tenant's centre with red receipts about candidates that team had
   never heard of. The relay still learns on the FIRST call that the pair landed
-  nowhere, which is the whole point of answering an orphan. Locked by
-  `comms-receipt.test.ts`.
+  nowhere, which is the whole point of answering an orphan. Filed nowhere is not
+  traceless: both doors authenticate the caller, so an unknown ref is the
+  configured relay speaking references kp never issued, and a relay that switches
+  ref scheme wholesale sends every real bounce down this path. Each one is counted
+  per process (`foreignReceipts` on `GET /api/ops`) and written to
+  `comms-foreign-receipts.log`, which is the only place kp's own operator can see
+  that drift. Locked by `comms-receipt.test.ts`.
 - **The receipt row stores CODES, not English.** It is written by a relay callback
   with no reader and no request locale, and the outbox is append-only — so the two
   literals it used to store (`"Delivery receipt"`, `"(relay callback)"`) were English
@@ -295,6 +377,7 @@ It is now re-asserted at the channel handoff, in `comms.ts`:
   rejection or an offer letter is owed to a candidate who replied, not withheld.
 - An **entry-less** comm (a KO decline, a dev-case ack whose `ref` is a submission id)
   carries no candidate identity to consult and passes through.
+- The **KO decline** (`dispatchKnockoutDecline`) now goes out at every public door whenever an address is in hand (no longer webhook-only / `notifyDecline`-gated), after the response. Its `koDecline.body` names the failed must-have(s) (`failedKoIds` → `koMustHaveNames`, in the letter's language) and says a reply reaches a person who will review; no relay = an outbox row only. Contract: `docs/features/candidates/README.md`.
 - An unreadable pipeline store fails **closed** (`consent_expired`, logged) — this gate
   is the last thing between an erased candidate and a letter.
 - A refusal throws `CommsSuppressedError`, whose `code` is `COMMS_SUPPRESSED`
@@ -309,6 +392,47 @@ fall into `safeJsonError` and paint a correct decision as a retryable 500. (Eras
 also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earlier, by
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
+
+**The link-minting doors ask it before they mint** (challenge-r09). The gate above runs
+inside `sendComm`, which is *after* an invite door has minted a live capability link. A
+candidate whose consent has lapsed but whom `anonymizeExpiredConsents` has not yet swept
+still has a `contact`, so every such door used to mint first and meet the gate as a
+swallowed `CommsSuppressedError`. `app/_lib/comms-contactability.ts` is the pre-mint
+question: pure `contactVerdict(facts, kind)` orders the reasons by irreversibility
+(agent population ▸ `anonymized`/`consent_expired` ▸ the outreach halt, for
+`kind: "outreach"` only ▸ unaddressable), and `entryContactability(entry, kind)` takes
+the suppression fact **from `commsSendSuppression` itself**, never a second derivation.
+Only a send-gate refusal carries `code: "COMMS_SUPPRESSED"`; an unaddressable person
+carries none. The recipient cascade (contact ▸ label ▸ id ▸ `"candidate"`, `null` for an
+agent) lives once in `comms-recipient.ts` as `resolveCandidateRecipient`. Consumers:
+`POST /api/schedule/invite` (409 before the mint), `POST /api/schedule/invite/bulk`
+(per-entry `COMMS_SUPPRESSED`, no token, not counted in `sent`), the AI-interview
+arrival hook (`failed`/`suppressed`, parked on the `calendar` gate like
+`unaddressable`), and the homework arrival hook (`failed`/`suppressed`, nothing
+published). Both hooks branch on the distinct `agent_population` reason first and answer
+`skipped`, parking nothing. `dispatchInterviewInvite` and `dispatchCaseInvite` take a `CandidateCommTarget`, so the status
+resend door hands over the whole entry and the agent refusal sees `population`.
+Verdict-then-mint takes no lock; `sendComm` stays the re-check at the send.
+Locked by `comms-contactability.test.ts`,
+`app/api/schedule/invite/invite-suppression-gate.test.ts` and
+`app/_lib/stage-hooks-suppression.test.ts`.
+
+**The outreach body is cleaned and capped at the same handoff.** An outreach body is
+the model's draft, and the model read the candidate's CV, so it used to reach the outbox
+and the relay exactly as generated — any length, any markup. For `kind: "outreach"`,
+`sendComm` now runs `cleanOutreachBody` (`app/_lib/outreach-body.ts`) first: CRLF is
+normalized, invisible/bidi code points are removed (the `INVISIBLE` set shared with
+`text-sanitize.ts`), HTML tags are stripped with their words kept (`<script>`/`<style>`
+lose their contents too, and the strip repeats until stable so a split tag cannot
+reassemble), and blank-line runs are folded. Newlines survive, because they are the
+formatting of a plain-text letter. The stored row and the relay payload are the same
+cleaned text. A cleaned message (body plus footers) over `OUTREACH_BODY_MAX_LENGTH`
+(20,000 characters) is **refused, not truncated**: `CommsBodyRejectedError` is thrown and
+no row is written. Truncating could cut off the opt-out footer. It is deliberately not a
+`CommsSuppressedError`, because the resend door would render that as "this candidate can
+no longer be contacted". The outreach route answers it with its generic
+`OUTREACH_FAILED`. Other kinds pass through untouched: an offer, or a brief carrying an
+ICS block, is kp's own template. Locked by `outreach-body.test.ts`.
 
 ## 7b. The candidate's own stop (unsubscribe)
 
@@ -358,6 +482,7 @@ which stay fail-open because they are workflow state rather than a legal obligat
 | `dispatchOutreach` (`comms-dispatch.ts`) | still gates first via `outreachHaltFor`, so it can report the reason and record `outreach_suppressed` |
 | `rediscoverForJob` (`rediscover.ts`) | `optedOutCandidateIds` filters the pool at **rank time**, beside the consent gate — so an opted-out person is never ranked, never persisted as an alert carrying their name, and never gets a "Reach out" button the channel is guaranteed to refuse |
 | `POST /api/jobs/[id]/candidates/outreach` | pre-mint 409 (`suppressed: "candidate"`), so no entry is created and no paid draft is spawned |
+| `POST /api/pipeline` | a `rediscovery`/`sourcing` re-surface add is refused 409 `PIPELINE_ADD_CANDIDATE_WITHHELD` (`withheld: "opted_out"`); a human add without that marker is filed, and the send gate above still refuses to contact it |
 
 **The surfaces.** `/stop/[token]` (public page, `StopClient.tsx`) over
 `/api/stop/[token]`: `GET` returns an explicit field allowlist (`jobTitle`, `company`,
@@ -381,6 +506,20 @@ Audited as `outreach_opted_out` (`DECISION_META`, `EVENT_KINDS`, four catalogs) 
 attributed **human**, because a person made this decision.
 
 Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts`.
+
+**The language control on the same page.** A candidate written to in a language they do
+not read used to have only the stop. The page now says which language our letters go out
+in (`GET` adds `letterLocale`, resolved as every dispatch resolves it, and `localeChosen`)
+and offers a correction: the language the reader is reading the page in, in one click,
+until they have chosen (`stopLanguageOffer.ts`), plus the other app languages.
+`POST /api/stop/[token]/language` `{ locale }` stores it through
+`setCandidateChosenLocale` (`app/_lib/db/pipeline-locale.ts`): `locale` +
+`locale_chosen_at` on the token's entry and every entry with the same non-empty
+`candidate_id` in the token row's workspace, never another team's and never an erased
+row, in one UPDATE (last choice wins, nothing to lock). It never writes the outreach halt,
+and the page says so. Limited per IP+token before the lookup (20/min, pinned in
+`rate-limit-contract.test.ts`); an unknown token is the same `STOP_LINK_INVALID` 404;
+a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-language-route.test.ts`.
 
 ## 8. One delivery truth, on every surface
 
@@ -414,6 +553,28 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
   It now renders as a calm "already being delivered" line, never in the failure
   tone, and the button settles instead of inviting a third click. Five outcomes
   pinned by `app/_lib/comms-resend-outcome.test.ts`.
+- **One door predicate, three surfaces** — which recovery control a letter offers is
+  decided once, by `resendDoorOf(comm, consentStatus?)` in the same module:
+  `retry` (one-click `ResendButton`) for a `failed` verdict, `correctAddress`
+  (`BouncedResend`, pre-filled with the address on file) for `bounced`, and `null`
+  for everything else: `recovered` (a later delivery exists, a button there drew a
+  409 that read as a fresh failure), `sent`, `queued`, `orphaned`, any row on the
+  `simulation` channel (the route refuses it, `COMM_SIMULATION_ROW`), any row on the
+  `refused` channel (a decision, not a dead letter: its recipient is empty, so the
+  route 422s before a corrected address is read), and, when the caller knows the
+  candidate, an `anonymized` or `expired` consent (the send gate would answer
+  `COMMS_SUPPRESSED`). Both channel literals now live in this import-free module and
+  `comms-dispatch.ts` re-exports them, so there is still one literal each. The Comms
+  Center detail modal, the dev-case outbox and the **candidate modal** all read it
+  (source guard in `app/features/hiring/pipeline/drawerCommsTruth.test.ts`). The
+  candidate modal is the new one: a bounced or dead-lettered letter used to be
+  painted red there with nothing to press. Its Messages row now carries the door and
+  opens expanded, the bundle's `CandidateComm` carries `recipient` for the
+  pre-fill, and the Activity tab label shows how many letters need the recruiter
+  (`lettersNeedingYou`, the same predicate and the same consent argument, so the
+  count and the controls cannot disagree; `pipeline.candidate.needsYou`). The
+  modal passes the bundle's consent status; the Comms Center and the outbox do not
+  know the candidate and leave the route's send gate as the authority.
 - **Resend is operator-gated, throttled and de-duplicated** — `POST /api/comms/[id]/resend`
   is the one door in the outbox loop that spends real email. It asks `requireOperator`
   then `pipeline:write` before the in-flight Set (a demo cookie is 401; a viewer is
@@ -422,7 +583,117 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
   relay. It also carries a per-IP `rateLimit()` (60 per 10 minutes, after the cheap
   refusals) and answers `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
   entry-less KO-decline case) correlates on its own outbox id, so the refless
-  shape can no longer be resent without bound (`resend-dedup.test.ts`).
+  shape can no longer be resent without bound (`resend-dedup.test.ts`). A
+  `case_invite` whose apply link names a closed (or vanished) posting is refused
+  `410 POSTING_CLOSED` before the limiter, so a stopped intake's dead link is never
+  re-mailed (`resend-closed-invite.test.ts`).
+- **Every candidate dispatcher returns its verdict** (`DispatchOutcome` in
+  `app/_lib/comms-dispatch.ts`). The channel has two failure signals: a *throw*
+  (the send gate refused) and a *returned* `failed` row (the relay dead-lettered,
+  or the recipient was refused). `sendCandidateComm` maps the recorded row once,
+  in `dispatchOutcome()`, to `sent | queued | failed | refused` (a row on the
+  `refused` channel is `refused`, not `failed`) plus the row's `status`, id and
+  failure detail. `dispatchApplicationReceived`, `dispatchRejection`,
+  `dispatchOffer`, `dispatchOfferReminder`, `dispatchConsentExpiryReminder` and
+  `dispatchKnockoutDecline` return it. Every `*_sent` pipeline event
+  (`acknowledgement_sent`, `rejection_sent`, `offer_sent`, `offer_reminder_sent`,
+  `interview_reminder_sent`) is written only when `delivered(outcome)` is true
+  (`sent` or keyless `queued`). The consumers that make claims read the verdict,
+  not just a catch:
+  - `extendDraftedOffer` (`app/_lib/pipeline-entry-action.ts`): a `failed` or
+    `refused` verdict takes the same compensation branch as a throw. The
+    approval stays on the card, `offer_comms_failed` is recorded, the answer is
+    `502 OFFER_NOT_DISPATCHED` with `offerExtended: false`, and the retry re-sends
+    the same offer token. The unattended auto-extend (`automation-run.ts`) keys
+    off that status, so it no longer reports `offer_sent` for a dead letter, and
+    the analytics "offers extended" count (`offer_sent`) stops counting one.
+  - The reject core (single, batch, command bar) and the screen wave
+    (`app/_lib/screen-wave.ts`) count a resolved dead letter as `commsFailed`
+    with one `rejection_comms_failed` marker. A `refused` verdict (an agent on
+    the slate, with no mailbox by design) is neither a nudge nor a send.
+  Nothing sends more than before: only claims and events are gated. Pinned by
+  `app/_lib/comms-dispatch-verdict.test.ts`.
+- **The offer letter is shown before it is sent, with its delivery forecast.**
+  The offer approval card (`DecisionsAiReviewCardBody.tsx`, mounted in the
+  candidate modal's `CandidateDecisionBar.tsx`) carries a collapsed "Preview the
+  letter" pane (`DecisionsOfferLetterPreview.tsx` + `useOfferLetterPreview.ts`).
+  Opening it calls `GET /api/pipeline/[id]/offer-letter?ttlDays=N`
+  (`requireOperator`, workspace-scoped, `409 OFFER_LETTER_NOT_PENDING` when the
+  entry is not at `offer_review`, `404 PIPELINE_ENTRY_NOT_FOUND`); the pane
+  re-renders, debounced, as the deadline lever changes. `ttlDays` goes through
+  `resolveOfferTtlDays`, so an out-of-range value previews the deployment
+  default rather than failing. The route renders `previewOfferLetter`
+  (`app/_lib/comms-letter-preview.ts`) through the **same composer the send
+  uses**: `composeOfferLetter` (subject or localized fallback subject, the
+  model's body, the deadline for `offerExpiresAtMs(now, ttlDays)`, the start
+  date, the response footer) plus `renderCandidateFooters` (the data and stop
+  footers), both in `comms-dispatch.ts`, in the candidate's resolved language
+  (the pane shows which). `dispatchOffer` calls the same `composeOfferLetter`,
+  so the approved letter and the sent letter cannot drift. The preview **writes
+  nothing**: every link carries the placeholder token `preview` (no erasure,
+  opt-out or offer token is minted, no offer row is created, no event is
+  recorded). The forecast follows the send path's own order and predicates:
+  `refused` (no recipient: an agent on the slate), `simulation` (a `(SIM)`
+  role), `suppressed` with the send gate's reason (`commsSendSuppression`, for
+  example `consent_expired`), `relay` (a relay is configured; reason
+  `no_contact` when no address was captured and the relay must resolve the
+  name), else `local` (keyless: recorded in the outbox, nobody receives it).
+  `comms-letter-preview.ts` is imported only by that route and by the held-outreach
+  read (`GET /api/outreach-letters/[id]`, §8a), never by a door that sends, so the send
+  gate's store reads stay off the letter-sending routes' import graphs. Pinned by
+  `app/_lib/comms-letter-preview.test.ts` and
+  `app/api/pipeline/[id]/offer-letter/route.test.ts`.
+
+## 8a. Approve before first outreach (comms scope C2)
+
+A first contact is never sent by the machine that wrote it. All three outreach doors —
+the drawer's `outreach` automation task, the board's batch outreach (`tasks.ts`
+`batchOutreach`) and the sourcing Reach-out (`POST /api/jobs/[id]/candidates/outreach`)
+— run the one `outreach` branch in `app/_lib/automation-run.ts`. That branch makes no
+relay call and writes no outbox row. It runs the consent gate
+(`candidateOutreachSuppression`) and the halted-sequence gate (`outreachHaltFor`) first;
+a refusal is audited as `outreach_suppressed` and nothing is held. Otherwise it writes
+a held `outreach_letters` draft (`app/_lib/db/outreach-letters.ts`) and answers
+`applied: "drafted"`. Reach-out also returns the letter's `outreachLetterId`. The
+durable `outreach_sent` marker still answers `already_sent`, so a person is
+first-contacted once.
+
+| Step | Door | What it does |
+| --- | --- | --- |
+| Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
+| Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
+| Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
+| Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
+| Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
+
+**The release card (C2b, first half).** The candidate drawer's Overview tab renders
+`OutreachReleaseCard` (`app/features/hiring/pipeline/candidate/outreach/`) whenever the
+application has a letter; it re-reads after an outreach task. It shows the exact letter
+(subject, body and the legal footers, links as placeholders), its language and recipient,
+the delivery forecast, the letter's state and, once approved, the approver. **Approve**
+posts the revision the card rendered; a `409` shows inline as "the letter changed,
+reload" and is never retried. **Release** is live only in `RELEASABLE_STATES` (`approved`,
+`delivery_failed`, `suppressed`). `COMMS_SUPPRESSED` and `delivery_failed` are states of
+the card, not toasts, and a keyless release reads `queued` in the local outbox, never
+"delivered". The call and state logic lives in `outreachCard.ts`
+(`outreachCard.test.ts`). The bulk dry-run sheet is still pending.
+
+**One message identity.** The release hands the draft's `message_id` to `sendComm`
+(§7, C1). The outbox row's `message_id`, the envelope's `messageId` and the
+`Idempotency-Key` all equal the id minted at draft time. A release that dead-lettered
+(`state: delivery_failed`, `delivery: "failed"`, never a consent refusal) keeps its
+approval, and a retry re-sends **the same** message. Keyless, the release is `queued`
+in the local outbox with no network call. A halted or consent-lapsed entry answers
+`409 COMMS_SUPPRESSED` with `{ suppressed: <reason> }`, and the letter reads
+`suppressed`. The `outreach_sent` event names the **approver** as its actor.
+
+**Tenancy and erasure.** Every statement binds `workspace_id`, with no by-id carve-out
+(`outreach-letters-tenancy.test.ts`). A letter id from another team answers 404 on every
+door. Erasure (`scrubEntryLinkedPii`) blanks `subject` and `body` and stamps
+`erased_at`. That closes the row to a late draft and to approval, and the release
+refuses a letter with no body. Pinned by `app/_lib/db/outreach-letters.test.ts`,
+`app/_lib/outreach-release.test.ts`, `app/api/outreach-letters/outreach-letters.test.ts`
+and the door tests in `app/_lib/automation-run.test.ts`.
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
@@ -437,6 +708,8 @@ was recorded (silence beats an invented rationale; the plain template ships inst
   their age) and `filtered` is raised so a recruiter can see the filter fired. A fully
   filtered gap list does **not** fall through to the derived unmet-requirement list —
   that would route around the filter.
+- German and French protected-attribute stems follow the same whole-line drop
+  rule, including inflected age, pregnancy, nationality, and disability terms.
 - **The Czech patterns are stems with an open suffix under `/u`, not `\b…\b`.** JS's
   `\b` is ASCII-only, so a diacritic is not a word character: `\bpohlaví\b` could never
   match the word at all, and `\bvěk\b` matched only the bare nominative while "věku" /
@@ -449,7 +722,8 @@ was recorded (silence beats an invented rationale; the plain template ships inst
 A candidate is written to in **their** language, never the recruiter's request
 locale. `resolveCommsLocale` (`comms-locale.ts`) is the one authority:
 
-1. the entry's stored `locale` — the explicit choice captured at apply;
+1. the entry's stored `locale` — the explicit choice captured at apply, or later on
+   the stop page's language control (§7b; `locale_chosen_at` marks it);
 2. else **the entry's OWN team** `workspaces.default_locale` (`cs` on the ČS seed);
 3. else `DEFAULT_LOCALE`, only when even the workspace row is unreadable.
 
@@ -459,6 +733,11 @@ twin of Python `_candidate_lang`. Czech wins with English; English wins over a
 third language; a German- or French-only list stores `de` / `fr` rather than
 collapsing to `en`; empty/unmapped stays NULL and resolves through step 2 at
 read time. Locked by `comms-locale.test.ts` against `CandidateLangTest`.
+`inferProfileLocale` asks `chosenLocaleForCandidate` first, so a new entry for someone
+who chose a language on the stop page stores that choice, not the CV guess. Known gap:
+`POST /api/pipeline` and `POST /api/jobs/[id]/candidates/outreach` still call it without
+their workspace, so on a non-default team a new entry from those two doors misses both
+the choice and the inference (stored NULL, team default at dispatch).
 
 Step 2 is per-tenant, so every dispatcher resolves through
 `comms-dispatch.candidateLocale`, which threads `entry.workspaceId` (entry-less
@@ -521,6 +800,21 @@ dispatcher and reads the envelope the relay is POSTed — the earlier assertion 
 the envelope a URL the producer never produced, which is exactly how the two halves
 diverged unnoticed.
 
+**Link recovery (`dispatchApplicationLinks`).** When someone re-applies without
+proving they own the matched entry, the apply doors re-send that entry's own
+status link and `?lead=` update link to the address on file
+(`app/_lib/apply-link-recovery.ts`; the policy is in
+`docs/features/candidates/README.md`). The message uses kind `acknowledgement`,
+because `KNOWN_COMM_KINDS` is a published relay contract, and its subject
+(`comms.linkRecovery.subject*`) tells it apart in the Outbox. It is composed from
+`comms.linkRecovery.*` plus the shared `ack.greeting` / `ack.signoff`, and its
+status line reuses `apply.trackStatus`. Unlike `dispatchApplicationReceived`, it
+records **no** pipeline event: the request that caused it is unproven and must not
+write onto the candidate's timeline. It returns the Outbox row's real status
+(`queued` with no relay, `sent`, or `failed`). The caller has already required
+`entry.contact`, so the label fallback in `candidateRecipient` is never what it is
+sent to. The links are `?lang=`-pinned to the entry's own resolved locale.
+
 ## 11. Inbound when the studio is off: pull sources and the always-on edge
 
 _Design and the full ladder: `docs/concepts/local-first-edge.md`. What follows is
@@ -543,6 +837,23 @@ core for everything else. So a pushed, pulled and drained lead get the same KO
 semantics, the same idempotency window, the same receipt/accepted stamps and the
 same reply-halt, by construction rather than by discipline. Pinned by
 `channels-receiver-contract.test.ts`.
+
+**The idempotency claim is durable.** Every door claims its delivery key through
+`app/_lib/webhook-idempotency.ts`, which stores it as a row in `webhook_claims`
+(`app/_lib/db/webhook-claims.ts`) rather than in process memory, because the edge drain
+and the pull pass are at-least-once: a crash between apply and ack replays the tail on
+the next tick, and an in-memory claim was emptied by exactly that crash (a replayed
+knockout lead was declined, and the candidate emailed, twice). A claim is one
+`INSERT … ON CONFLICT` write. It is **in flight** for a 15-minute lease, so a crash
+mid-work re-runs the delivery once the lease lapses instead of dropping it. It is
+**done** for 7 days once the door `settle`s it after its side effects committed. A
+failure `release`s it for the retry. Expired rows are swept lazily (at most once a
+minute), so the table stays bounded. The row holds `sha256(key)` only: the composed key
+embeds the receiver's raw capability token and the provider's `Idempotency-Key`, and
+neither is written to disk. A claim-store error **fails closed**: the door answers 5xx
+and the drain holds its cursor, so nothing is admitted unchecked. The table is
+tenancy-exempt as a globally-unique delivery digest (`app/_lib/tenancy.ts`). Pinned by
+`db/webhook-claims.test.ts` and `inbound-replay-restart.test.ts`.
 
 **Untrusted free text is cleaned once, at the core.** A lead payload is written by
 someone else's form, and the three free-text values it carries (name, campaign,
@@ -586,12 +897,38 @@ the only thing that can replay it); a page is clamped to 50 events and 1 MB with
 (the relay/ATS SSRF posture); a failure is recorded on the row as
 `last_pull_error` and cleared by the next clean pull, never left sticky.
 
-Configuration is API-only today: `PATCH /api/channels/webhooks`
-`{token, pullUrl, pullSecret}` (team-scoped; secret semantics are the usual
-omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` already
-projects the recruiter-safe pull half onto every receiver (`pullUrl` /
-`hasPullSecret` / `lastPullAt` / `lastPullError`) so a failing source is visible
-on the same list as Listening. There is no editor UI for it yet — see Known gaps.
+Configuration is `PATCH /api/channels/webhooks` `{token, pullUrl, pullSecret}`
+(team-scoped, `org:manage` + the receiver-write limiter; secret semantics are the
+usual omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` projects
+the recruiter-safe pull half onto every receiver (`pullUrl` / `hasPullSecret` /
+`lastPullAt` / `lastPullError`), and the Channels tab binds it:
+
+- **The pull editor** (`night/setup/SetupPullForm.tsx`) opens on a receiver's card
+  at Channels → Email intake / Ad forms, and every receiver's is listed (failing
+  first) at Channels → Pull feeds; modelled on the edge editor:
+  URL, a write-only bearer (placeholder says "keep" when one is stored, plus an
+  explicit "remove the stored token" toggle), last pull time, Save. The body and the
+  guards are pure in `receiverPullForm.ts`: `pullPatchBody` (keep / clear / replace),
+  `canSavePull` (a blank save on an unread record is refused, because a blank URL
+  disables pulling AND clears the cursor; an unchanged form is not saveable) and
+  `interpretPullResponse` (a refusal keeps only its `code`, resolved by
+  `useErrorMessage`; a 200 without `{ pull }` is not a save). A save reloads the tab
+  lists (`receiverPullForm.test.ts` also pins that the editor acts on them). A failing pull is headlined as a localized sentence with the raw
+  `last_pull_error` (`HTTP 502`, pull-pass machine text) shown as code-styled data.
+- **The health verdict** (`receiverHealth.ts`) replaces the row's binary
+  Listening/Waiting: `waiting` (neutral) · `reachedNoLeads` (caution: reached, no
+  candidate filed) · `delivering` (positive: at least one filed) · `pullFailing`
+  (critical: a pull URL is set and its last pull failed; wins over delivering). The
+  row dot stays `isReceiverLive` (receipts). A channel's door in the district rolls
+  its receivers up the same way (`doorPlate` in `night/channelsNightPlumbing.ts`):
+  a pull that stopped a week ago reads failing, never green, and ranks among the
+  "needs you" items (`rankNeeds`).
+- **A `waiting` card says what ends the wait** (`receiverWaiting.ts`, `useWaitingPoll.ts`):
+  the first authenticated request flips it to reached, no time is promised, and the
+  endpoint's age (`createdAt`) is shown. While any receiver waits, the list re-reads
+  only `GET /api/channels/webhooks` every 20 s (`reloadWebhooks`), skipping hidden
+  tabs and stopping when none waits or on unmount. After 10 min the card offers the
+  existing setup-steps panel; silence is not reported as a failure.
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
@@ -608,7 +945,7 @@ next tick. `app/_lib/edge-drain.ts` is the local half.
 What the edge is **not**: it holds no candidate database (the log is DELETED as it
 drains), no provider keys, no session secrets — one shared HMAC secret whose whole
 power is "may talk to this queue". Once the install publishes a sealing key
-(Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
+(Channels → Always-on edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
 stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
 public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
 machine. The keypair is minted **once**: two "Enable sealing" clicks publish one
@@ -617,25 +954,58 @@ everything already sealed to the first. `edge_config` is a deployment-level tabl
 same reason `comms_relay_config` is; the leads it produces are filed into the
 workspace of the RECEIVER TOKEN they were addressed to, by the core.
 
+**The pairing belongs to the organization that saved it — on the doors and on
+receipts, not per event (F-3).** `edge_config` stays one install-level row, so the
+boundary could not be the relay's: a drained lead is routed by its receiver token,
+which is a workspace capability and already carries the tenancy, and the edge is
+every organization's *single* inbound transport — refusing another org's leads would
+cut inbound for every org but one. The two places that really cross the line are
+instead:
+
+- **The doors.** `POST /api/edge` and `POST /api/edge/pair` stamp the caller's org
+  (`owner_org_id`) from the **session**, never from the body, and refuse a caller
+  whose org is not the stored pairing's owner — **403 `EDGE_OWNED_BY_OTHER_ORG`**,
+  nothing written, before `ensureEdgeKeypair` and before any fetch. `org:manage` is
+  held per organization, so without this any org's owner could re-point the transport
+  another org paired, or reset the drain cursor and skip every event below it.
+  Unpairing (`url: ""`) **clears** the owner, so an unpaired install is claimable by
+  whoever pairs it next. `GET /api/edge` returns `ownerOrgId` (an id, not a secret).
+- **Receipts.** A delivery receipt is addressed by `ref` alone, and `ref` decides
+  which team's outbox gets a `bounced` row — so one drained from a UI-saved edge
+  wrote red rows into another organization's Comms Center. The drain now resolves the
+  ref's org the same way the relay does (entry → team → org) and **skips** a
+  mismatch — never *holds* it, because a hold wedges the queue behind bytes the edge
+  will hand back forever — logging the two org ids and filing nothing.
+
+A **NULL owner reads as the default org**, so every shipped install is unchanged, and
+the **env pairing (`KP_EDGE_URL`/`KP_EDGE_SECRET`) is not org-checked**: it is
+host-level configuration serving the whole deployment, told apart by the resolver's
+`source`, never by a null owner (a legacy stored row has one too, and that one *is*
+checked). `POST /api/edge/drain` is unchanged — it runs what the clock runs. Proofs:
+`app/_lib/edge-org-scope.test.ts`;
+[ADR 0014](../../architecture/decisions/0014-org-owned-singleton-integration-config.md)
+covers all three owner-stamped tables.
+
 The loop, and why the order is load-bearing:
 
 | Step | Call | Why here |
 |---|---|---|
 | 1 | `GET /drain?since=&limit=` (signed) | events in sequence order |
 | 2 | apply each through the same cores a live request uses | the decision stays local |
-| 3 | `POST /ack {upto}` (signed) | **only after** applying — a crash between 2 and 3 replays harmlessly (idempotency key + email dedupe); a crash between 3 and 2 would lose a candidate silently |
+| 3 | `POST /ack {upto}` (signed) | **only after** applying — a crash between 2 and 3 replays harmlessly (the durable idempotency claim, keyed `edge:<pairing>:<seq>` where the pairing is a sha256 prefix of the edge URL, so a re-provisioned edge restarting at seq 1 is not mistaken for a replay; plus email dedupe); a crash between 3 and 2 would lose a candidate silently |
 | 4 | `POST /heartbeat` (signed) | presence; this is what keeps the nudge quiet |
 
 A deterministic refusal (unknown token, closed role, no mappable email, a kind
 this version does not understand) is **handled** and advances the cursor — a retry
 would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
-good sequence and the operator gets a reason on the Channels card.
+good sequence and the operator gets a reason on the Channels tab (the night box's
+plate and the edge's level).
 
 The drain **catches up across pages**: while the edge reports events still waiting it
 fetches the next page, up to `MAX_PAGES_PER_DRAIN = 5` (250 events) per tick. Bounded
 rather than unbounded because each applied event is a real intake write, and an edge
 whose `pending` never falls would otherwise spin the loop; what is left over is not
-lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
+lost — `pending` is persisted and the Channels tab shows it (the night box's backlog). A hold or a failed ack
 stops the run rather than asking for another page, because events are ordered.
 
 **The Worker's inbound door is bounded like its install twin.** `POST /in/<token>`
@@ -668,7 +1038,8 @@ nudge per quiet period, counts and never names in the payload, `nudged_at` stamp
 **only** on a 2xx (a stamped failure would suppress the very retry the nudge exists to
 make), and a heartbeat clearing it so the next quiet period may nudge again.
 
-The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
+The **edge's level** (Channels → Always-on edge, `night/setup/SetupEdge.tsx` over
+`useEdgeSetup.ts`) shows the whole ledger: last drain, cursor,
 backlog still at the edge, last heartbeat — each with a relative time in the reader's
 locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
 distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
@@ -685,9 +1056,10 @@ produces, so the one state an operator must see was indistinguishable from "noth
 do". It now branches on the response status first: a non-ok answer that carries an edge
 failure kind is shown as that CLASS (this is how the `409 EDGE_SECRET_UNREADABLE` below
 keeps its specific sentence), and anything else is resolved from its `code` through
-`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. Pinned by
-`channelsEdgeDrainRefusal.test.ts`, which also asserts the kind→sentence map is total
-over `EDGE_ERROR_KINDS`.
+`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. The decision is
+pure (`drainOutcome` in `night/setup/setupDelivery.ts`, pinned by `setupDelivery.test.ts`,
+which also asserts the kind→sentence map `DRAIN_FAIL_KEY` is total over
+`EDGE_ERROR_KINDS`); `night/setup/setupGuards.test.ts` pins that the hook acts on it.
 
 **A credential nobody can open is a ledger error, not a 500.** Decrypt used to run
 OUTSIDE `resolveEdge`'s try, so a rotated `KP_SECRET` (or a retired key dropped before
@@ -761,11 +1133,12 @@ air-gapped.
 | Variable | Direction | Unset (honest default) | Set |
 |---|---|---|---|
 | `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages aren't being sent | messages POST to the relay as `kp.comm.v1` (no HMAC) |
-| *(Channels tab → Relay config)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
+| `KP_NO_COMMS_EGRESS` | outbound | the relay resolves normally (env → stored config → nothing) | **nothing is ever delivered** from this process, whatever is configured; every message queues locally (§1.1) |
+| *(Channels tab → Delivery relay)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
 | `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
-| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake wizard shows the HTTP receiver URL and says forwarding isn't wired | wizard hands out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
-| `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels → Edge card says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
-| *(Channels tab → Edge card)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
+| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake receivers show the HTTP receiver URL, and the receiver pane says forwarding isn't wired (the role, the copyable URL, how to wire it) | the receivers and the setup guide hand out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
+| `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels tab's night box says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
+| *(Channels tab → Always-on edge)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
 | `KP_NUDGE_TARGET` | inbound | the edge still holds and counts; it just never tells you | the edge POSTs "N events waiting" to this endpoint after a quiet period — counts, never names |
 
 ## Surface
@@ -774,22 +1147,23 @@ air-gapped.
 |---|---|
 | `app/_lib/comms.ts` | Channel selection (`getCommsChannel`), `OutboxChannel`, `WebhookChannel` (retry + dead-letter + HMAC). |
 | `app/_lib/comms-relay.ts` / `comms-relay-store.ts` | Relay resolution (env → stored config) and the encrypted stored-config persistence. |
-| `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`. |
+| `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`, the one offer-letter composer `composeOfferLetter()` and the token-free footer text `renderCandidateFooters()`. |
+| `app/_lib/comms-letter-preview.ts` | `previewOfferLetter` — the side-effect-free offer letter + delivery forecast behind `GET /api/pipeline/[id]/offer-letter` (§8). |
 | `app/_lib/rejection-feedback.ts` | `buildRejectionFeedback` / `renderRejectionFeedback` — recorded-only rejection reasons behind the protected-attribute filter (§9). |
+| `app/_lib/interview-letter-delivery.ts` | `dispatchInterviewLetter` (comm kind `interview_letter`) — sends a recruiter-APPROVED interview feedback letter in the letter's language with the candidate's status link, and records the truthful delivery on the letter (`queued` with no relay; `failed` when the consent gate refuses, never a phantom `queued`). The letter itself: `docs/features/compliance/README.md` §"Interview feedback letters". |
 | `app/_lib/comms-status.ts` | `OUTBOX_STATUSES`, `coerceOutboxStatus`, retry classification. |
 | `app/_lib/comms-view.ts` | `deriveCommsView`, `commsVerdict` — the single delivery-truth vocabulary. |
 | `app/_lib/comms-truth.ts` | `isRelayConfigured` legacy helper / capability surfacing. |
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and the Channels tab says it once (`channels.receiversTruncated`: under the district, and on the receivers' level) rather than leaving each channel to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
-| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
+| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. The relay's setup level (`night/setup/useRelaySetup.ts`) calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt (pinned by `night/setup/setupGuards.test.ts`), so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
-| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
-| `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+| `app/features/hiring/channels/**` (`ChannelsTab.tsx` → `night/ChannelsNightShell.tsx`; the levels in `night/`, `night/setup/`, `night/ledger/`, `night/message/`; shared: `useChannelsData.ts`, `useCommsFeed.ts`, `useCommsResend.ts`, `ChannelsCommsBouncedResend.tsx`, `receiverHealth.ts`, `receiverPullForm.ts`, `useCopyState.ts`) | Channels tab UI, "The Night Post" since 2026-09-30 (see [Channels tab: the Night Post](#channels-tab-the-night-post)): the plumbing (level 0), one channel's setup (level 1: careers links, receivers with the setup steps, the CV test and the pull editor — §11, pull feeds, the relay, the edge), the ledger (level 2) and one message with its resend doors (level 3). Each receiver card shows accepted of received, so a live-but-zero-leads mapping is visible on the row that owns the setup guide; Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The ledger search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Channels tab's letter (`night/message/ChannelsNightLetter.tsx`), the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
 
 ## Who may administer a receiver
 
@@ -812,14 +1186,124 @@ and viewers do not hold it) behind `requireOperator`, and share **one** per-IP b
 Refusals are codes, not prose: `FORBIDDEN_CAPABILITY`, `TOO_MANY_REQUESTS`,
 `CHANNEL_UNKNOWN`, `CHANNEL_JOB_NOT_FOUND`, `CHANNEL_TOKEN_REQUIRED`,
 `CHANNEL_WEBHOOK_NOT_FOUND`, `CHANNEL_PULL_URL_INVALID`, and the two store 500s
-`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The Add-receiver modal and the receiver panes
-resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
+`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The add form and the receiver cards (Channels →
+Email intake / Ad forms) resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
 message rather than a single "Couldn't remove it", because a recruiter seat and a burst
 are two different, actionable outcomes.
 
 Behaviour is driven against the real handlers in
 `app/api/channels/channels-doors-gate.test.ts`; the limiter call sites are pinned by
 `app/api/rate-limit-contract.test.ts`.
+
+## Channels tab: the Night Post
+
+Since 2026-09-30 `ChannelsTab.tsx` renders `night/ChannelsNightShell.tsx` ("The Night Post",
+the channels-setup contest winner) with a static import (the tab module is already the lazy
+chunk). The full architecture, the level machine and the owners' contract are in
+`app/features/hiring/channels/night/README.md`; the parity with the kit view it replaced is
+[below](#parity-with-the-retired-kit-view). In short:
+
+- **One read of each source.** The shell reads `useChannelData` (receivers, open roles, the
+  attention count, `loadFailed`) and `useCommsFeed` (the ledger, one cursor page at a time
+  through `channelsCommsPaging.ts`) ONCE and hands both to every level;
+  `useChannelsNightDelivery` reads the relay's health word (`GET /api/comms/relay`, falling
+  back to the capability bit) and the edge (`GET /api/edge`) through
+  `night/channelsNightReads.ts`, the one parse the relay and edge editors share, again on
+  live refresh and on every return to level 0. The surface is `aria-busy` only until every
+  source settled once, and a failed load releases it (head error line + retry).
+- **Level 0, the plumbing** (`ChannelsNightPlumbingView`): the doors (careers, email intake,
+  ad forms, pull feeds), the studio, the relay depot, the night box (edge), the post book and
+  the candidates' houses, each a button with its condition in words and shape. The pure model
+  (`night/channelsNightPlumbing.ts`, tested) keeps the vocabulary honest: `unknown` is "not
+  read", never a guess; the relay is `live` only with a sent row as evidence; only the
+  building of the top-ranked need may wear the alarm (unconfigured with queued mail alarms the
+  relay, never the ledger beside it as well); "Dead letters" is "—, not measured: nothing is
+  sent" while no relay could have failed one. The headline is the worst need
+  (`rankNeeds`, severity ≥ 30, e.g. "58 messages are NOT being sent to candidates"). With
+  nothing that ranks, "Everything is wired and flowing." needs proof: every source read, the
+  relay `live` (a sent row) and no channel off; otherwise the headline is the calm "Nothing
+  needs you right now." with what is not proven (a relay that has sent nothing yet, the number
+  of channels off or not set up), and a source that could not be read says it is no all-clear. The
+  head keeps "Receive a test application" (`data-sim-click="simulate-inbound"`; the block
+  is `data-sim="channel-inbound"`, the guided walk's "match" target) and the "N waiting in
+  the pipeline" link. Below 760px of sheet the district reads as a street of cards.
+- **Level 1, one channel** (`night/setup/`): careers (every open role's apply link, copy per
+  row, a test application), email intake and ad forms (receiver cards worst health first: received,
+  leads filed of received with the received-vs-filed tip, first received, first lead, last
+  received, the pull source or "Push only" and its last pull; the endpoint masked until revealed,
+  add in place, remove behind a confirm, the setup steps
+  per client, a real-CV test through `/api/sim/apply-cv`, the pull editor — §11), pull feeds,
+  the relay (URL, write-only secret, Save with the 409 adopt, the real test ping) and the
+  edge (Save / Pair, Drain now, Enable sealing, the drain ledger, whose "Never drained" is read
+  from the last drain, never from a cursor of 0). The decisions are pure in
+  `setupModel.ts` and `setupDelivery.ts`; `setupGuards.test.ts` pins that the hooks act on
+  them.
+- **Level 2, the ledger** (`night/ledger/`): the relay's truth first (no relay: "N messages
+  are NOT being sent to candidates", and that configuring one does not send what is already
+  recorded), seven verdict chips (needs you first, keys 1-7; a zero only a relay could fill
+  reads "—, not measured" while it is off), the Role / Type / Channel facets and the
+  diacritic-folding search, the role scope a channel's "Open the ledger" carries, the
+  windowed kit `DataTable` with dead letters first then newest, and cursor paging ("Load
+  older" only while a cursor reaches more; `beyondWindow` once truncated, §7). An
+  unaddressable recipient wears the caution mark (`isUnaddressable` +
+  `useDeliveryCapability`, §8).
+- **Level 3, one message** (`night/message/`): the verdict, the record, one honest note, the
+  product's resend doors only (`resendDoorOf`: a dead letter re-dispatched, a bounce to a
+  corrected address, both over `useCommsResend.ts`, the ONE resend fold
+  `ChannelsCommsBouncedResend.tsx` and the dev-case `ResendButton` render too), a delivery
+  timeline built only from the row's own fields, the stored body, prev / next through the
+  list it was opened from. A message outside the loaded window says so.
+- **Navigation.** A level opens as a circle growing from what was touched and closes back
+  onto it (reduced motion: a cross-fade); Esc goes one level up everywhere (it yields to an
+  open modal, a focused field and an open reading pane); a pop returns focus to the opener.
+  `?sec=` stays the tab's one-shot inbox: `comms` / `ledger` open the ledger, `dead` or a
+  verdict open it filtered (Settings → Billing → spend's dead-letters alarm links
+  `?sec=dead`), `careers|email|ads|feeds|relay|edge[:<receiver token>]` open that channel,
+  `msg:<id>` one message over the ledger; the arrival builds the whole stack so Esc walks
+  back through it, and the param is emptied at once.
+
+**Retired (2026-09-30):** the composition-kit view (`kit/ChannelsKitView.tsx` and its
+parts: head, comms, delivery block, facets, message and receiver panes, careers, CV
+simulator, `kit/channelsKitModel.ts`), the section vocabulary `channelsSections.ts`, and the
+cards it mounted (`ChannelsRelayConfigCard`, `ChannelsEdgeCard`, `ChannelsReceiverPullCard`,
+`ChannelsAddReceiverModal`, `ChannelsSetupGuide`). Every behaviour moved to a level (the
+table below); their source guards were re-pointed at the levels (`relay-health.test.ts`,
+`channels-receiver-contract.test.ts`, `receiverPullForm.test.ts`) or folded into
+`setupGuards.test.ts`. Earlier, with the "Intake Studio" view (2026-09-25): the icon-pill
+switcher, the hero stage, the guided email-intake wizard and ad-forms pane, the per-section
+empty-state briefs, and the 20-row `TablePager` paging. The paging, careers-preview and
+chrome-cascade notes below describe those retired tables and stay as their record; the RULES
+they state (the cursor contract, a failed load is not an empty channel, the blank-save
+guards, a denied clipboard says so, "Waiting" by the entry ROLE) hold on the levels.
+
+### Parity with the retired kit view
+
+What the kit view did (checked against its source at the last commit before the port by an
+independent review, 2026-09-30) and where it lives now:
+
+| The kit view | The Night Post |
+|---|---|
+| `?sec=comms\|careers\|email\|ads`, a one-shot inbox | `parseNightArrival` (every old link still lands); an absent or unknown value now opens level 0, not Communications |
+| the section switcher with a status mark per section, arrow keys | level 0: a building per channel with its condition in shape and words (arrow keys walk them); level 1: the stepper (← →, a dot per channel) |
+| the reading pane (Esc closes it, j / k step rows) | the level stack: Esc one level up everywhere (it yields to a modal, a field, an open pane), focus back on the opener; `[` `]` at level 3 |
+| head: figures, "N waiting in the pipeline", "Receive a test application", error + retry | level 0 head, same calls and copy; the title is the worst need |
+| careers: every open role's apply link, copy per row | level 1 careers (`SetupCareers`) |
+| receivers table (health, endpoint, language, accepted of received, last received, copy, remove behind a confirm, add) | level 1 email / ads cards (`SetupReceivers`, `SetupReceiverCard`, `SetupAddReceiver`); the endpoint is now masked until revealed |
+| the receiver document: received, leads of received (with the received-vs-filed tip), first received, first lead, pull URL, last pull or push only, the pull-failing note with its raw error, the setup guide per client, the not-wired note | the receiver card's grid and notes, `SetupGuideSteps`; first received, the pull source, the last pull and the tip were missing from the card at the port and restored after the review |
+| CV simulator per receiver | `SetupCvSim` in the card |
+| the pull editor (URL, write-only bearer keep / replace / clear, disable warning, blank-save guard) | `SetupPullForm`, on each receiver card and on level 1 feeds (every receiver, failing first, with the pull intro) |
+| the relay editor (versioned save, 409 adopt, capability invalidation, env and unreadable notes, test ping) | level 1 relay (`SetupRelay`, `useRelaySetup`); an unknown refusal code reads "HTTP <status>" as the old card did |
+| the edge editor and its drain ledger | level 1 edge (`SetupEdge`, `useEdgeSetup`) |
+| the Delivery block above the ledger | the relay and edge buildings at level 0 and their levels (the ledger no longer carries setup) |
+| the ledger: verdict chips, the needs-you chip, facets, diacritic-folding search, the windowed table, paging, the relay-not-configured alert, loading / error / empty / no-match | level 2 (`night/ledger/`); the table shows 9 rows where it showed 11 |
+| the message pane: verdict, record, body, resend doors (failures and refusals announced as alerts), j / k | level 3 (`night/message/`), prev / next through the list it was opened from ("M" is that list as opened) |
+
+Changed on purpose: a door is `live` when any of its receivers delivers, even while a sibling was
+reached but filed nothing (the old roll-up withheld "Listening"); that receiver is still listed as a
+need. Not ported: the contest prototype's sample-state switch, its simulated relay / feed / edge
+outcomes, "hand the queue to the relay" and "recover" an unmatched receipt (no API behind either),
+composed message bodies, the hand-lettered font and its bare-letter shortcuts. Still open, as
+before the port: a pull's raw `lastPullError` is shown as code (server prose, not a coded refusal).
 
 ## Channels tab: paging and the render cascade
 
@@ -978,25 +1462,27 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
-- **`automation-run` still collapses every non-anonymized `sent: false` into
-  `suppressed_consent_expired`.** `dispatchOutreach` now keys `{ sent: true }` on the
-  outbox row (REC-10): terminal `queued` and relay `sent` record `outreach_sent`; a
-  dead-letter returns `{ sent: false, reason: "delivery_failed" }` with no marker, so
-  the next pass retries instead of mapping the drop to `already_sent`. Pinned by
-  `comms-dispatch-outreach.test.ts`. The consumer ternary still handles only
-  `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
-  consent lapse — map every reason 1:1 there without expanding the dispatcher's
-  contract.
-- **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
-  and the encrypted store write, and the two are indistinguishable from the route, so a
-  store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
-  server-side) instead of a 500. Separating them needs a typed error out of
-  `db/channels.ts`.
-- **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
-  `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
-  (secret material never appears), so a week-old `last_pull_error` is on the same
-  list as Listening. `PATCH` is still the only write; the receiver table does not
-  yet bind those fields. The Edge card (§11) is the model for the editor.
+- **The outreach task still collapses a halted sequence into
+  `suppressed_consent_expired`.** A relay dead letter no longer reaches that mapping:
+  the task only drafts (§8a), and the release reads `delivery_failed`. But the draft
+  door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
+  because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
+  `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
+- **Only the drawer reads a held outreach letter.** The release card is live (§8a); the
+  bulk dry-run sheet is still comms scope C2b. Until it lands, the Reach-out button reads
+  `applied: "drafted"` as the "sent" note (`useReachOut.ts` `reachOutVerdict` defaults
+  to `sent`), and the approve / release doors answer with borrowed codes
+  (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
+  their own.
+- **Pull-config refusals distinguish input from storage.** `PATCH` validates the
+  operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
+  for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
+  the route's coded `500 CHANNEL_WEBHOOK_UPDATE_FAILED` path.
+- **The pull failure is one class.** `last_pull_error` is stored as machine text
+  (`HTTP <status>`, an exception message, intake prose), so the editor headlines a
+  single localized "the source did not answer" sentence and shows the raw string as
+  data. Distinguishing unreachable / refused / intake-rejected needs a stored error
+  KIND (the edge's `EdgeErrorKind` is the model), which is a store change.
 - **The edge cannot carry a CV.** Mail is headers-only by design, so an emailed
   attachment is not extracted — the candidate has to follow the enrichment link.
   Closing this means sealing the body at the edge and extracting locally on drain,
@@ -1011,5 +1497,7 @@ already returns alongside the entries. Both rules are pinned by
   always-on host rather than pairing several laptops to one edge.
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.
-- Positive/soft bounce-callback outcomes (delivered/opened/deferred) are
-  accepted but not yet surfaced as an engagement feed.
+- A `delivered` callback outcome stamps `dev_outbox.last_delivered_at` on the
+  send it names (`lastDeliveredAt` on the `/api/comms` read); opened/deferred
+  are accepted but not yet surfaced as an engagement feed. The edge drain does
+  not yet forward `messageId` on a receipt, so it matches by the heuristic.

@@ -24,7 +24,7 @@ def analyze(
 ) -> dict[str, Any]:
     """Run the CV analysis pipeline and return its serialized result.
 
-    ``lang`` is the output locale for the LLM-generated narrative (en | cs);
+    ``lang`` is the output locale for the LLM-generated narrative (en | cs | de | fr);
     canonical code values, skills, and proper nouns stay verbatim regardless.
     """
     job_text = job_description_text

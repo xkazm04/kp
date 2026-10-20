@@ -20,12 +20,17 @@ from google.genai import types
 from .devcase.provenance import defuse_fence_markers
 from .extractors import _reject_oversized
 from . import _cli
+from .llm.capabilities import DEFAULT_MODELS
 from .i18n import language_name
 from .json_values import candidate_values, scan_json_values, select_best_scoring
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
-GEMINI_MODEL = "gemini-3.8-flash"
+# One source: the LLM registry (llm/capabilities.py DEFAULT_MODELS). The legacy direct
+# callers (pipeline.py cv_model, grounded answers) must move with adapter traffic, so
+# this is read, never re-typed; usage.ts is pinned to it by test_prompt_version_sync.py.
+GEMINI_MODEL = DEFAULT_MODELS["gemini"]
+assert GEMINI_MODEL, "capabilities.DEFAULT_MODELS must name a gemini default"
 
 
 # --------------------------------------------------------------------------- #

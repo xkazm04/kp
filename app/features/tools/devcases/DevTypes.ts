@@ -3,6 +3,8 @@ import type { OutboxStatus } from "@/app/_lib/comms-status";
 // adds roleFamily/languages/promptVersion); see app/_lib/rolespec.ts.
 import type { RoleBrief, RoleSpec } from "@/app/_lib/rolespec";
 import type { JudgeIndependence } from "@/app/_lib/devcase-judge-independence";
+import type { PromoteVerdict } from "@/app/_lib/devcase-promote-verdict";
+import type { StageOutcome } from "@/app/_lib/devcase-stage-outcome";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
@@ -85,9 +87,26 @@ export type { RoleSpec };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
-// The full record GET /api/devcase actually returns per case (listDevCases sends the
-// whole row, JSON parsed) — the Cases tab table uses the summary fields and the detail
-// reader uses role/case/scenario without a second fetch.
+// One Assignments ledger row as GET /api/devcase serves it (db/devcase.ts
+// listCaseLedger): identity, the job link, and the three numbers the table used to
+// derive client-side from the 50-newest lifecycles and every posting - stage,
+// submission count, and the lifecycle timestamps the stall chip ages from. A
+// PROJECTION: the design JSON is the detail reader's, fetched by id on open.
+export type CaseLedgerRow = ApprovedCase & {
+  status: string;
+  jobId: string | null;
+  jobTitle: string | null;
+  jdSlug: string | null;
+  stage: string;
+  submissionCount: number;
+  lifecycleId: string | null;
+  lifecycleCreatedAt: string | null;
+  lifecycleUpdatedAt: string | null;
+};
+// The filter pickers' vocabulary for the whole workspace (GET /api/devcase `facets`).
+export type CaseLedgerFacets = { stages: string[]; seniorities: string[] };
+// The full record GET /api/devcase/[id] returns (getDevCase, JSON parsed) — what the
+// detail reader renders: role/case/scenario, fetched when a ledger row is opened.
 export type DevCaseDetail = ApprovedCase & {
   role?: RoleSpec | null;
   case?: CaseScenario | null;
@@ -106,6 +125,12 @@ export type DevCaseDetail = ApprovedCase & {
   jobId?: string | null;
   jobTitle?: string | null;
   jdSlug?: string | null;
+  /** The stage of the case's newest lifecycle, or null when none ever ran (a case approved
+   *  and published by hand). Read by GET /api/devcase/[id] (getDevCase); the header asks
+   *  intakeAction (DevCaseDetail.publish.ts) whether a running lifecycle owns intake - the
+   *  same rule POST /api/devcase/[id]/intake refuses on. Absent from an older server, which
+   *  reads as "no lifecycle". */
+  lifecycleStage?: string | null;
 };
 export type Submission = {
   id: string;
@@ -124,6 +149,10 @@ export type Submission = {
    *  without it the "recorded" state lived only in SubmissionRow and any remount
    *  re-offered the buttons, double-counting re-records in calibration. */
   outcome?: { outcome: "hired" | "rejected" | "withdrawn" | "pending"; performance: number | null; recordedAt: string } | null;
+  /** The advance/hold verdict a promotion would land with NOW, at the server's calibrated
+   *  floor (app/_lib/devcase-postings-view.ts, devcase-promote-verdict.ts - the same rule
+   *  promoteSubmission writes). Present only on evaluated submissions. */
+  promotePreview?: PromoteVerdict;
   /** Minutes past the case timebox, measured server-side at finalize (/perfect wave
    *  42a). 0 = measured and inside the box, null = not measured (a repo-link
    *  submission, or a row written before the column existed). A recruiter comparing
@@ -138,19 +167,43 @@ export type Posting = {
   token: string | null;
   roleTitle: string | null;
   caseTitle: string | null;
+  /** Intake state, as the store holds it (dev_postings.status): an OPEN posting's apply
+   *  link and intake form are live; a CLOSED one answers 410 and refuses submissions.
+   *  Always on the wire (GET /api/devcase/[id]/channels, app/_lib/devcase-postings-view.ts);
+   *  the client type used to drop it, so nothing could render live vs closed honestly. */
+  status: PostingStatus;
   submissionCount?: number;
   submissions?: Submission[];
+  /** Attempts mid-case on this posting right now, as COUNTS (app/_lib/db/devcase-inflight.ts).
+   *  Never a session id or ref. Absent from an older server; the close confirm reads an
+   *  absent aggregate as "nobody". */
+  inFlight?: PostingInFlight;
 };
+export type PostingStatus = "open" | "closed";
+/** `live`: active within the last 30 minutes; `idle`: active but quiet past that. */
+export type PostingInFlight = { live: number; idle: number; oldestLiveStartedAt: string | null };
 export type Lifecycle = {
   id: string;
   title: string | null;
   stage: string;
   auto: boolean;
   detail: string | null;
+  /** The runner's last step, coded (app/_lib/devcase-stage-outcome.ts). Read it through
+   *  lifecycleDetailView, which parses tolerantly and falls back to `detail` for a
+   *  pre-migration row, a human door's prose, or an outcome the row's stage has left.
+   *  Absent from an older server. */
+  outcome?: StageOutcome | null;
   caseId: string | null;
   postingId: string | null;
   createdAt: string;
   updatedAt?: string | null;
+  /** Submissions across every posting of this lifecycle's case - the stall check's
+   *  "empty?". Carried on the row by GET /api/devcase/lifecycle (challenge-r09
+   *  devcase-lifecycle/A); 0 for a row with no case yet. Absent from an older server. */
+  submissionCount?: number;
+  /** Attempts mid-case across the case's postings right now (counts only), for the close
+   *  confirm. Zeros for a row with no case. Absent from an older server. */
+  inFlight?: PostingInFlight;
   // W5-4 — the designed artifacts the GET has always served but this type
   // dropped, leaving the human gate blind: the reality-reflection that flagged
   // the design, and the role/case under review.
@@ -223,7 +276,9 @@ export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: Pr
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`
 // is a MIRROR of `dimensionScores[name]` — never an independent number (see CaseEval below).
-export type DimensionScore = { name: string; label: string; weight: number /* FRACTION 0..1 */; score: number /* SCORE 0..100 */; description: string };
+// `contribution` is this row's share of CaseEval.overallScore (models.rubric_composite) — the rows
+// sum to the headline; null = not scored (excluded, never imputed), absent = a pre-composite bundle.
+export type DimensionScore = { name: string; label: string; weight: number /* FRACTION 0..1 */; score: number /* SCORE 0..100 */; description: string; contribution?: number | null /* SCORE points */ };
 // Canonical-score contract (mirrors models.CaseEvaluation): `dimensionScores` (name -> 0..100) is
 // the single source of truth for the capability numbers; `dimensions` is its derived, ordered,
 // weight-annotated projection for the UI (each row.score === dimensionScores[row.name], enforced
@@ -232,7 +287,7 @@ export type DimensionScore = { name: string; label: string; weight: number /* FR
 // `confidence` is PROPAGATED, not self-rated: the min of the upstream reflection/tooling
 // confidences (see models.py "Confidence scale"), so a decision built on a deterministic-fallback
 // signal carries that signal's low confidence and never reads as authoritative.
-export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string; confidence?: number /* FRACTION 0..1 — propagated from upstream evidence */ };
+export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string; confidence?: number /* FRACTION 0..1 — propagated from upstream evidence */; overallScore?: number | null /* SCORE 0..100 — the rubric-weighted case score, sum of the rows' contributions; absent on pre-composite bundles */; scoredWeight?: number /* FRACTION 0..1 — share of the rubric actually scored */; missingDimensions?: string[]; weightsNormalised?: boolean };
 // `confidence` is inherited from the evaluation it scores (transfer is derived purely from it).
 export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string; confidence?: number /* FRACTION 0..1 — inherited from the evaluation */ };
 // One candidate-specific interview question minted from the evaluated submission
@@ -247,7 +302,8 @@ export type Followups = { questions?: FollowupQuestion[] };
 export type ProcessTrace = {
   commitCount?: number;
   cadence?: { count?: number; spanHours?: number | null; bursty?: boolean | null } | null;
-  decisionsLogPresent?: boolean;
+  // null = the repository tree could not be read: unknown, not a missing log.
+  decisionsLogPresent?: boolean | null;
 };
 // ce28da40 — process-authenticity verdict derived from the trace + reflection
 // (app/_lib/devcase-authenticity.ts): is this genuine incremental work or a likely
@@ -449,5 +505,5 @@ export const LEDGER_CONTROL_IDS = [
 export const COMPLEXITY: Record<string, string> = {
   low: "bg-moss/15 text-moss",
   medium: "bg-amber-100 text-amber-700",
-  high: "bg-coral/15 text-coral",
+  high: "bg-coral/15 text-coral-ink",
 };

@@ -4,6 +4,11 @@
 > [`surface-doctrine.md`](./surface-doctrine.md) says how a surface is composed —
 > the seven rules a September 2026 redesign of the job-intake studio was decided
 > by, written to transfer. Read both before building a surface.
+>
+> **Running a design contest on an app surface?** [`app-contest-kit.md`](./app-contest-kit.md)
+> says what a seat takes from the app (fonts, type steps, token roles, the two registers, the
+> recipes and kit parts, the level pattern, the honesty and motion rules) and what stays free
+> (metaphor, illustration, composition, the motion's story). The Overview is its worked example.
 
 This document extracts the design philosophy that emerged on `/landing` (the
 "Spark" direction) and turns it into an explicit, dual-theme design system for
@@ -43,10 +48,13 @@ to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
 before first paint, so there is no flash. `subscribeTheme` also listens for
 `storage` events on that key, so a flip in one workspace tab updates this
-document's attribute (and `useTheme()`) without a reload.
+document's attribute (and `useTheme()`) without a reload. With no explicit
+choice stored, the same subscription follows live OS color-scheme changes;
+choosing a theme stops that automatic switch.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
-direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it
+direction with literal hexes on purpose (since 2026-09-30 the scoped stylesheets
+of `app/landing/site/css/`; `/market` still draws from `app/landing/spark/tokens.ts`) — it
 must look identical for every visitor and never re-skins with the workspace
 theme. It is the *source* of the dark theme's vocabulary, not a consumer of
 it. Enforcement: the THEME_INIT bootstrap in `app/layout.tsx` never sets
@@ -236,7 +244,8 @@ element:
   tone-bordered seal with a hard shadow and the display face (null scores stay
   flat — an absent score is not a verdict). `ScoreDial`'s big readout speaks
   Bricolage (`dark:font-serif`); MatchCard's score already rides the
-  `font-serif` flip.
+  `font-serif` flip. `ScoreBadge` names the numeric score for assistive tech;
+  its em dash is announced as unscored.
 - **Sticker cells.** Browsing the candidate×position matrix in dark "peels"
   the hovered cell — tilt, scale, hard shadow above its neighbors — instead
   of the light register's flat zoom. Schedule chips do the same: the selected
@@ -256,7 +265,12 @@ element:
   cannot accidentally import the Studio Light constant onto `#141b24`. Any new
   chart follows that pattern; both mirrors are pinned to `globals.css` by
   `design:check`, and `app/_lib/brand.test.ts` asserts key parity, so neither
-  half can drift the way the light half had.
+  half can drift the way the light half had. `FactorChart` also carries a
+  visually hidden data table with each localized factor and its raw points,
+  so the bars have an accessible numeric equivalent.
+- **Meter labels are part of its type contract.** Each `Meter` progress bar takes
+  a localized `aria-label`; decorative specimen bars instead declare
+  `aria-hidden`. An unnamed progress bar cannot be added silently.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
@@ -437,6 +451,9 @@ pinned by `useTablist.test.ts`; the two per-feature copies it replaced
 carrying a note asking for this promotion on the third caller) are gone.
 
 `useDateFormat` carries four shapes — `date`, `dateTime`, `dayTime`, `time` —
+from `app/_components/ui/dateShapes.ts`. Server components and plain `.ts`
+callers use `createDateFormatters(locale)` for the same four shapes without a
+React hook; both paths share the option bags and invalid-date fallback. They are
 all null-safe with a `fallback` (default `—`), because dates arrive as ISO
 strings that can be absent or malformed and "Invalid Date" in a candidate card
 is the failure the guard exists to prevent.
@@ -559,13 +576,239 @@ layer hanging off its trigger, so the pop layer keeps `shadow-pop` (its own
 token, a hard offset in *both* registers). That is why the ratchet carried
 `Select`'s `panel: 1` instead of "fixing" it.
 
-Four feature menus (`PipelineCandidateMenu`, `PipelineFilterMenu`,
-`JdsLedgerFilterMenu`, `MatrixReasoningPopover`) still re-type the shell and are
-the recipe's remaining fix-as-you-touch population.
+Three feature menus (`PipelineCandidateMenu`, `JdsLedgerFilterMenu`,
+`MatrixReasoningPopover`) still re-type the shell and are the recipe's remaining
+fix-as-you-touch population (`PipelineFilterMenu` left with the pipeline board view).
 
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.
+
+`PANEL_ACCENT` is the coral-tinted raised panel for high-signal summaries such
+as the report's Archetype banner. It uses the shared `shadow-pop` token, so its
+depth follows both themes.
+
+`ICON_TILE` is the small bordered glyph tile at the head of a settings card
+(today the locked-tab panel; the Channels receiver, relay and edge cards that also wore
+it retired with the Night Post, 2026-09-30). It is tokens only, so both themes
+remap it; compose it rather than re-typing the class string, which the recipe
+literal ratchet reads as a hand-typed panel.
+
+## Composition kit
+
+`app/_components/kit/` is how a workspace surface is **composed**, where the recipes
+above are how one element is **painted**. It is the One Measure entry that won the
+style-kit contest of the kit-unification spark (2026-09), ported into kp from measured
+computed styles. Hiring > Pipeline and Hiring > Channels render from it (promoted at
+Gate K2, 2026-09-25; both were redrawn on its scene layer on 2026-09-30, below), and so do the two candidate token doors, `/offer` and `/skill`
+(Gate 2, the same day). A new or revitalized tool surface composes from these parts
+before it reaches for a recipe. Out of scope, like every rule in this file: the
+marketing pages (`app/landing/**`, `/about`, `/market`).
+
+### Two layers
+
+- **The everyday parts** (`@/app/_components/kit`): a page head, sections, rows,
+  tables, figures, fields, chips, marks and the reading pane. Most surfaces need
+  nothing else.
+- **The graphic parts** (`@/app/_components/kit/graphic`), used only where the data
+  has a shape worth seeing: a funnel (Sieve), a distribution (Skyline), a journey
+  (StageRail, Lane). They sit on the same tracks and share the same tokens, states and
+  motion rule. A surface whose data has no such shape does not get one for decoration.
+- **The scene parts** (`@/app/_components/kit/scene`), for a surface drawn and layered in the
+  landing's manner: levels you walk into, marks with words, a figure with its cards wired to it
+  (below, "Scenes: levels, wires, marks").
+
+### The parts
+
+The `@catalog` tag on each part is its one-line contract; this table is the index.
+
+| Part | Purpose | Key props |
+|---|---|---|
+| `KitSurface` | the root: density tier, the one delegated tip, j / k / Esc, the sheet beside a reading pane | `density`, `pane` (null = no pane), `onStep`, `onClose` |
+| `PageHead` | coral eyebrow, display title, one context line, 0-4 figures, at most one primary action | `eyebrow`, `title`, `context`, `figures`, `actions`, `state`, `errorText`, `onRetry` |
+| `Section` / `Note` | a serif head with a numeral count, one state line, actions, bounded by one rule / a notice line inside it | `title`, `count`, `state`, `stateMark`, `tone`, `actions`, `status`, `onRetry` / `tone`, `action` |
+| `ListRow` | one row on the measure; the name is its one weight-600 emphasis | `mark`, `name`, `sub`, `meta`, `fig`, `time`, `actions`, `state`, `provenance`, `onSelect` |
+| `DataTable<T>` | the windowed table: sticky head, fixed-height rows, only the visible rows (+3) in the DOM, the pager under the last row | `rows`, `columns` (each names a track; `head` replaces a head cell's words), `cells`, `rowKey`, `rowState`, `visibleRows`, `metaSplit`, `selectedKey`, `onSelect`, `state`, `emptyText` |
+| `FlowTable<T>` | a short table in flow (a settings matrix): DataTable's head, tracks and fold order, every row in the DOM and editable, an optional detail line; no viewport, no pager | `rows`, `columns`, `cells`, `rowKey`, `rowState`, `detail`, `metaSplit`, `nameTrack` |
+| `StatStrip` / `FigureView` | 2-6 figures in equal columns / one figure, set the one way the kit sets a number | `items: Figure[]` / a `Figure` (`label`, `value`, `of`, `unit`, `delta`, `draw`, `tone`, `tip`) |
+| `KeyValueGrid` | label / value pairs in 2-5 columns; every value null is the exemplar of what will fill | `items` (`label`, `value`, `absent`), `cols` |
+| `ChipRow` / `ChipButton` / `Tag` | actionable 30px chips with a mark and a count / one chip / an inert token | `chips` (`label`, `count`, `mark`, `pressed`, `disabled`, `onPress`) / `label` |
+| `Toolbar` / `Segmented` / `SearchField` | the toolbar on the measure / the section switch / the search box | `segmented`, `search`, `filters`, `actions`, `inline` / `items`, `value`, `onChange`, `label` |
+| `SettingRow` / `Toggle` / `Stepper` | a setting: name, one-line consequence, control; changed / muted / error | `name`, `sub`, `consequence`, `control`, `wide`, `state`, `detail` |
+| `TextField` / `SelectField` / `SaveBar` | 40px (md) or 32px (sm) fields / the sticky save bar of a draft-then-save surface | `label`, `size`, `invalid`, `tip` / `tone`, `status`, `actions` |
+| `ReadingPane` | the detail layer: a trail, "N of M" with j / k, Esc and × close, a document body | `trail`, `index`, `total`, `onStep`, `onClose`, `itemKey` |
+| `Button` | primary / affirm / secondary / ghost / danger / link at 32 / 40 / 48px; a loading label, never a spinner | `label`, `variant`, `size`, `icon`, `iconOnly`, `loading`, `loadingLabel` |
+| `Letter` / `LetterHead` / `LetterBlock` / `LetterActs` / `Monogram` | the calm document of a token page (an offer, a credential): a print-hidden public bar over one 800px letter with the register's top rule / its h1 head / a labelled block / the 48px action row / a sender's monogram | `bar` / `brand`, `eyebrow`, `title`, `context` / `label` / — / `text` |
+| `Outcome` / `ScoreList` | a result, confirm step or dead link (serif title, one quiet line, actions; `ok` = the moss wash; role / aria / ref pass through) / scores out of 100 as labelled meters, a 0 keeps its baseline tick | `tone`, `title`, `actions`, `titleId`, `bodyId` / `items` (`label`, `value`, `meterLabel`) |
+| `Mark` / `KitIcon` / `Clip` | a 16px status mark whose SHAPE carries the meaning / a 16px line icon / one line that never wraps, its full text as the tip | `kind`, `tip`, `hollow` / `name` / `text` |
+| `ShapeMark` (graphic) | a provenance shape: solid walked, half name-only, ring placed, dashed nothing on record, none, exit | `shape`, `tone`, `tip` (required) |
+| `Sieve` (graphic) | items pour through named layers as dots; a layer is a filter button. Above `barsAbove` items (unset = never) a layer draws its count as a proportional bar and its shapes as a legend-sized sample, not a dot each (`SIEVE_BARS_ABOVE` = 300) | `layers`, `items`, `selected`, `dim`, `onLayer`, `budget`, `barsAbove`, `state`, `replayKey` |
+| `Skyline` (graphic) | every item as one ranked bar, null values as counted dashed stubs, brushable into a rank range | `items`, `brush`, `onBrush`, `onPick`, `state`, `replayKey` |
+| `StageCells` / `StageCellsHead` (graphic) | one row's stages as cells on a shared grid, for a board of many rows on a table's meta track: a numeral, a strip of provenance beads capped by the caller (`capBeads`, waiting ones first, haloed), "+N" beyond it; a cell is a button / the stage names over the same columns (a DataTable column's `head`) | `cells` (`count`, `waiting`, `beads`, `more`, `aria`), `picked`, `onCell` / `stages` |
+| `StageRail` / `Lane` (graphic) | steps that fill as progress bars (a row of toggles, or a column for a reading pane) / one row's path drawn on the rail's columns | `steps`, `orientation`, `label` / `cells`, `arriving` |
+
+`Measure` is internal: parts own it and callers never pass columns. The contest's
+portable API sketch, with the round-2 plan of where each graphic part goes next, is
+`.contest/arena/style-kit-r2/entries/claude-opus_xhigh-v1/variant-1/API.md`.
+
+### The measure and its fold order
+
+One grid template is the kit's spine, six named tracks every row-shaped part sets
+itself on (`kit.css` `--m-*`, `tracks.ts`):
+
+```
+[mark] 28px [name] 26% [meta] 1fr [fig] 112px [time] 124px [act] 104px   (gap 16px)
+```
+
+A column names a TRACK, never a width. `meta` may be split (`DataTable metaSplit`);
+its extra tracks are `meta+N`. The measure answers to the width of its **sheet** (a
+container query), not the window, because a reading pane narrows the sheet. The
+tracks fold in a fixed order (`FOLD_ORDER`, pinned by `foldOrder.test.ts`):
+
+| Sheet | What folds |
+|---|---|
+| ≤ 1000px | the `meta+N` tracks, and the page head puts its figures on a second line |
+| ≤ 860px | `meta`, then `act`; the toolbar stacks |
+| ≤ 640px | the display title steps down to the h2 size instead of breaking into three lines |
+
+`mark`, `name`, `fig` and `time` never fold and nothing is laid over them; `name` takes
+the room each step frees. Graphic parts never fold away: the Sieve keeps its dots and
+the Skyline its bars at every sheet width.
+
+### Density
+
+A surface sets one tier on its root (`KitSurface density`). **Compact** (the default)
+is for tool surfaces: rows 44 / 56px, tight section gaps. **Calm** is for documents and
+token pages: rows 56 / 72px, wider gaps. Density changes spacing only. The type size
+never changes, and nothing goes below the 14px floor to fit.
+
+### Emphasis, absence, motion
+
+- **One emphasis per row, by weight, never by opacity.** A row's name is the only
+  weight-600 text on it (700 when the row waits on you); everything else is 400 in the
+  quiet ink. Hierarchy is a size step or a weight, never a fade and never smaller type.
+- **Absence renders as "—" with its reason**, never as 0. A `Figure` or
+  `KeyValueGrid` value of `null` prints the dash and carries its reason as a tip (hover
+  and focus). A zero is a measured zero; an unknown is a dash.
+- **Motion plays once per `replayKey`.** A graphic part animates the first time it
+  draws for a key (the pour, the bars, the counters), never loops, and stays within
+  about 600-900 ms; an equal key means no motion, so a re-render or a brush never
+  replays it. Under reduced motion every part renders its final frame at once. The
+  kit's own squash (`kit.css`) sets every transition inside a kit surface to `0s`, not
+  to a token duration: the initial `transition-property` is `all`, so a non-zero value
+  started a transition on EVERY element, and a synchronous measure then read the old
+  value (the `DataTable` window showed "Rows 1–2 of 11" after a filter). Pinned by
+  `app/_components/kit/reducedMotion.test.ts`; a surface needs no local override.
+- **The reading pane exists only while something is selected.** It takes its own
+  column (`--m-detail`, 448-560px); the sheet narrows and folds, and nothing is
+  overlaid. With no selection there is no pane and no empty column waiting for one.
+
+### How both registers render
+
+The kit reads the register's tokens and never forks its markup by theme.
+**Studio Light**: Fraunces for titles and figures, cream paper, 1px hairline rules,
+8 / 12px radii, a raised pressed segment. **Spark Dark**: the same parts in Bricolage
+(`--font-serif` remaps) at weight 700, 2px drawn outlines and dashed row rules,
+12 / 16px radii, sticker shadows on the stat strip and the selected row, an amber
+sticker for the pressed segment, a coral pressed chip, and a springier ease. Coral
+means "needs you" in both and is never a stage tone.
+
+### Scenes: levels, wires, marks
+
+A third layer, `@/app/_components/kit/scene` (2026-09-30), holds parts lifted from two contest
+winners when a practical surface was redesigned in the landing's drawn, layered manner: the Night
+Post (Hiring > Channels) and the Orbit, Lit (the Hiring Overview). They are generic, but each is
+proven by ONE or TWO surfaces today: the Night Post uses `levelReduce` / `layerModeAt`,
+`LevelTransition`, `LevelFrame`, `LevelTrail`, `KeyHints`, `ConditionMark`, `NamePlate` and
+`NeedsList`; the Overview uses `QueueCard`, `Wires`, `Halos`, `HandNote`, `LitGround` and
+`labelWidths`; `ScenePress` is the one both press their drawings with. The Agents workforce
+(the Time-Card Rack, 2026-10-01) is the second surface on the level machine (`levelReduce`,
+`LevelTransition`, `KeyHints`, `ConditionMark`, `NamePlate`; its trail and card levels are its own
+markup in the same `k-lvl` / `k-trail` classes, `agents-workforce/WorkforceTrail.tsx`). It sits on the same tokens and
+`--k-*` variables as the other two layers and renders inside a `.k-kit` root. Every part is
+copy-free (the caller passes its words, formatted), carries a `@catalog` line, and loads its own
+`scene/scene.css`. When a contest on an app surface is run, these are what a seat imitates rather
+than reinvents ([`app-contest-kit.md`](./app-contest-kit.md)).
+
+| Part | Purpose | Key props |
+|---|---|---|
+| `levelReduce` / `layerModeAt` (levelStack.ts) | a stack of levels you walk into: push (a place already on the stack is returned to), pop, popTo (a breadcrumb), replaceTop (a sideways step), reset; and how each layer is on screen (flow, under, entering, leaving, swapping, hidden) | `stack`, `action`, `{ root, same }` / `depth`, `top`, `transition` |
+| `LevelTransition` | one layer and its wipe: a circle from the touched element (open 760 ms, close 560 ms), a 140 ms fade for a sideways step, a cross-fade under reduced motion; covered layers stay mounted; DOM contract `.k-layer[data-depth][data-mode]` | `mode`, `opener`, `onSettled`, `depth` |
+| `LevelFrame` | a level below the root: trail, kicker, heading (`data-level-heading`, focused on open), one lead line, at most one action, art beside or in the head, the sheet, a foot; tinted by one token | `tone`, `kicker`, `title`, `lead`, `actions`, `art`, `artPlace`, `trail`, `foot`, `keys` |
+| `LevelTrail` | a back button naming its target (`data-level-key="back"`) and the breadcrumb | `crumbs`, `onBack`, `backLabel`, `label` |
+| `KeyHints` | the keys a level answers to, in the KBD recipe; never bare letters | `hints` (`id`, `keys`, `act`), `label` |
+| `ConditionMark` | a condition in shape and words: live, wait, reach, fail, off, unknown (not read, never a guess); `loud` is the one to read first | `condition`, `label`, `loud` |
+| `NamePlate` | a thing's name, its condition, one fact; the border repeats the condition | `title`, `condition`, `chip`, `fact`, `alert`, `align` |
+| `ScenePress` | drawn furniture you press (a building, the folded figure, a step dot, a pinned note, a name set as a title): a real button with a zero-specificity reset and the kit's focus ring; the drawing and its paint (a class on the caller's token-only sheet) are the caller's. A labelled action is a `Button`, a toggle a `ChipButton` | button attributes, `className` |
+| `NeedsList` / `NeedsItem` | "needs you, worst first": one button per thing, its severity (`bad`, `warn`, `info`) as a shape | `title`, `count` / `tone`, `title`, `detail`, `cta` |
+| `QueueCard` | a queue: count + noun (one press), the most urgent names, where they stand, the door; pointing or focusing lights its items (`onHot(on, via)`: `via` is `pointer` or `focus`, so the caller can keep one slot for each) | `count`, `noun`, `openLabel`, `onOpen`, `names`, `more`, `on`, `door`, `needs`, `hot`, `onHot` |
+| `Wires` (+ `wireFor`, `nearest`) | cards wired to the ring their items stand on, threads to each lit item, a hand note's arrow; the caller measures, the part draws | `wires`, `hot`, `threads`, `arrow` |
+| `Halos` | breathing halos over what is pointed at (a state, never ambient; still under reduced motion) | `points`, `width`, `height`, `calm` |
+| `HandNote` | a margin note in the register's display face (italic serif / bold tilted); `pointer` is where an arrow leaves; hidden from assistive tech | `pointer`, `noteRef` |
+| `LitGround` | a soft amber glow under the one figure to look at (a plane, not a panel) | `className`, `ref` |
+| `labelWidths` | the drawn width of labels at the scene's label type, for a canvas that must leave room for its words | `labels` |
+
+The pure halves are pinned under `node:test`: `levelStack.test.ts`, `wipe.test.ts`,
+`wireGeometry.test.ts`, `conditions.test.ts`.
+
+### Example: the Overview
+
+Hiring > Overview is the reference for a surface that takes the kit's vocabulary and is still
+unlike anything else in the app. It composes kit `Button`s for every link and door, sets counts as
+the kit's serif figures, keeps the `--k-*` radii and lines of both registers, prints "—" with the
+reason where the job list failed, and builds the rest from the scene layer: `QueueCard`s in two
+columns ("needs you, start here", "in motion today") under `HandNote`s, the orbit folded small on
+a `LitGround`, `Wires` from each card to its ring, `Halos` on the people a card points at. What it
+invented stays in the feature: the orbit, its geometry, the flight of the same dots into the opened
+orbit, and the one hero numeral (twice the display step). Files:
+`app/features/hiring/pipeline/orbit/overview/` (`OrbitOverview.tsx` composes it;
+`OverviewQueue.tsx`, `OverviewWires.tsx` and `OverviewDial.tsx` are its bindings of the scene parts).
+
+### How a module is revitalized
+
+The procedure every later gate and the fleet follow:
+
+1. **Before shots.** `node scripts/style/shoot.mjs --out <before> <target>` at the
+   default frames (1280x800, 1728x1080, 1440x3200) in both themes, from a throwaway
+   server over a copy of the data (`docs/design/instruments.md`). Keep the
+   `kp-snapshot.sqlite` it writes; the after run reuses the same rows.
+2. **Compose the surface from the kit behind `useKitFlag`.** The kit view renders
+   when `?kit=1` is in the URL (dev only; production always renders the current
+   surface). Read the SAME data through the same hooks; reuse what already reads well.
+3. **After shots and the pair.** Give the kit view a `<target>-kit` entry in
+   `scripts/style/targets.json` whose path carries `?kit=1`, then
+   `shoot.mjs --out <after> --db <before>/kp-snapshot.sqlite --server dev <target>-kit`
+   and `shoot.mjs --pair <before> <after> --out <pair>`: 1280, 1728 and 1440x3200, both
+   themes.
+4. **Feature parity, then the owner judges in the product.** Before the gate, list every
+   capability the current surface offers (control, action, dialog, filter, saved state,
+   keyboard path, drag target, warning, label, side effect such as Recent, tour target,
+   deep link) and where it lives in the kit view. Anything missing is ported onto the kit
+   first. The owner judges the look in the product, not in the shots and not on token
+   counts; parity is not his job to spot. (Learned 2026-09-25: the Pipeline promotion
+   deleted bulk actions, saved views, the SLA editor, drag moves and the activity feed
+   with the old board, because the gate had judged only the look.)
+5. **Promote only a view whose parity table is complete.** Remove the `useKitFlag` switch so the tab renders the kit view, delete
+   the old view (every file only it rendered, proven by an importer walk; anything
+   with another importer stays), delete the catalog keys only it used in all four
+   locales, and bank the drops with `--tighten` on the style, recipe, skeleton and
+   loading-gap ratchets in the same commit.
+
+The rules the owner has taught, which every step answers to:
+
+- **The registers are identity.** Studio Light and Spark Dark stay distinct; the kit
+  expresses both, it does not average them.
+- **Fit, row height, wrapping and weight hierarchy are judged before tokens.** A
+  surface that is token-clean and wraps a name onto three lines has failed.
+- **Dense surfaces are compact, with one emphasis per row**, and the type stays at the
+  floor or above.
+- **Unique surfaces get graphic parts**, because "safe approach does not work well":
+  a funnel drawn as a funnel beats a fifth table.
+- **Keep what reads well and unify what is broken.** A revitalization is not a
+  rewrite of what already works: it keeps the surface's information architecture
+  (one dense matrix stays one matrix) and changes its parts.
+- **A port is made from measurement** (computed styles of the chosen design), never
+  from memory.
 
 ## Type & motion (shared by both themes)
 
@@ -581,8 +824,11 @@ checklist.
   font size is overridden; the stock `--text-*--line-height` values are unitless
   ratios, so leading follows. `text-2xl` and up are deliberately untouched — the
   display headings were never the problem. Applied at the page root by
-  `SparkHome`, `AboutHome` and `MarketPulse` via `TYPE_SCALE`
-  (`app/landing/spark/tokens.ts`). The workspace is unaffected.
+  `MarketPulse` via `TYPE_SCALE` (`app/landing/spark/tokens.ts`). `/` and
+  `/about` no longer use it: since 2026-09-30 they are the prototype port in
+  `app/landing/site/`, whose scoped stylesheets carry the prototype's own type
+  sizes (nothing rendered below 14px) and do not use Tailwind utilities at all.
+  The workspace is unaffected.
 - **The illustrated cards go one notch further.** `.spark-type-art`
   (`ART_TYPE_SCALE`) nests inside the page scale and adds another +2px: xs 16,
   sm 18, base 20, lg 22, xl 24 — and unlike the page scale it *does* move
@@ -592,9 +838,9 @@ checklist.
   (the /market demand grid does exactly that). Rationale: the /about step art
   and the /market data cards are miniatures of product UI, built at product
   sizes, and once the page scale moved they read a full step smaller than the
-  prose beside them. Opt in per card container: `StepRow`'s art column in
-  `AboutCurve`, every block in `market/parts.tsx` plus the three inline card
-  groups in `MarketPulseAtlas`.
+  prose beside them. Opt in per card container: every block in
+  `market/parts.tsx` plus the three inline card groups in `MarketPulseAtlas`
+  (the /about step art that also used it was retired with the old page).
 - Motion vocabulary: `animate-fade-in`, `animate-tab-in`, `stagger-children`,
   `animate-slide-in`, `animate-drawer-in`, `animate-arrive-in`, `reveal-quiet`
   — all reduced-motion aware. See `docs/design/loading-choreography.md` for
@@ -748,6 +994,10 @@ candidate.
 `aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
 **70 of the tree's 124 header cells declared nothing**, including six surfaces
 that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+Its icon-only sort button uses the shared `Tooltip`, so the column-specific
+instruction appears on keyboard focus and touch as well as pointer hover.
+The tooltip label is portaled to the document body and tracks its trigger on
+scroll and resize, so clipped table panes cannot cut off the explanation.
 
 [`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
 ratchet — `scope` has no legitimate residual population: it is one attribute
@@ -757,10 +1007,23 @@ for a cell that heads its row), and no table shape here wants neither. It scans
 own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
 attribute holding an arrow function does not end the tag early.
 
+### Mutation feedback
+
+`ConfirmDialog` composes the shared `Modal` stack with one cancel and one confirm
+action. Workspace member removals use it, so Escape, focus trapping, and the
+theme's button recipes stay consistent across confirmation surfaces.
+
+The shared toast store offers `toast.promise(task, {loading, success, error})`
+for mutations. Its pending notice stays visible until settlement, then changes
+in place to a timed success or error; concurrent mutations keep separate notices.
+Callers provide localized copy and still receive the promise's value or error.
+
 ### One size vocabulary across the field primitives (2026-09-04)
 
-`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
-also accepted `size` as a back-compat alias, and all 34 of its call sites that set
+`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `TextArea`
+also offers opt-in `autoGrow` for notes that expand with their content and scroll
+after 320px, while fields with fixed rows keep their chosen height. `Select` also
+accepted `size` as a back-compat alias, and all 34 of its call sites that set
 a size had taken *that* spelling — zero used `sizeVariant` — so the primitive that
 owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
@@ -783,21 +1046,52 @@ and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — ev
 centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
 just the record, so a fifteenth site cannot quietly invent a sixth size.
 
-### Tab id → traced glyph (`glyphForTab`)
+### Traced glyphs load by id, off the page graph (`glyphForTab`, 2026-09-23)
 
 Empty-state consumers used to each import a concrete `*Glyph.ts` module, so a
 new Jobs empty state could drop a lucide icon beside a traced neighbour with
-nothing to say the jobs glyph already existed.
-[`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) maps the tabs
-that already have art (`jobs`, `library`, `analytics`, `decisions`, `channels`,
-`schedule`, `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns
-the glyph or `undefined` — it does not throw. `ChainEmptyState` takes optional
-`tab` and resolves through that map; an explicit `glyph` still wins. Channel
-pane extras (ads / careers / email) stay in `channelsEmptySpecs`; the archetypes
-matrix projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
-`glyphRegistry.test.ts` pins the lookup and that every traced module except
-the channel extras is keyed. `glyphsHaveConsumers.test.ts` still requires a
-render site outside the glyphs folder.
+nothing to say the jobs glyph already existed — and every one of those imports put
+8-36 KB of emitted path data on the workspace page's import graph (13 modules,
+~274 KB, all of it on `app/page.tsx`).
+
+A render site now names its glyph by **id** and never imports art:
+`<MotionizedGlyph glyph="jobs" className={GLYPH_SIZE.lg} />`.
+
+- [`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) is the closed
+  vocabulary — `GLYPH_IDS` (one per generated module, `jobsGlyph.ts` → `"jobs"`),
+  the `GlyphId` union and the `isGlyphId` guard — plus the tab map
+  (`jobs`, `library`, `analytics`, `decisions`, `schedule`, `assignments`,
+  `archetypes`, `matrix`). `glyphForTab(id)` returns an id or `undefined`; it does
+  not throw. `ChainEmptyState` takes an optional `tab` and resolves through that
+  map; an explicit `glyph` id still wins. The four channel glyphs (comms, careers,
+  email, ads) left with the Channels "Intake Studio" view on 2026-09-25, which was
+  their only render site; /motionize regenerates them. The archetypes matrix
+  projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
+- [`glyphCatalog.ts`](../../app/_components/glyph/glyphCatalog.ts) is **server-only**:
+  the one module that value-imports the generated art, served by
+  `GET /api/glyphs/[id]` (gated like the pages that render it, a demo session
+  included; private, day-long cache; an unknown id is a 404 with `GLYPH_UNKNOWN`).
+  The generated modules are untouched — /motionize still emits them as before.
+- [`glyphLoader.ts`](../../app/_components/glyph/glyphLoader.ts) fetches an id at
+  most once per page (concurrent mounts share the request; an arrived glyph paints
+  synchronously on the next mount). Any failure resolves `null` and is retried on
+  the next mount, never cached.
+
+**Loading state.** Until the art arrives the renderer draws the same `<svg>` with
+no paths: its box comes from the `GLYPH_SIZE` class, so arrival shifts nothing and a
+failed fetch leaves a blank square, never a broken image — the heading and copy
+beside it carry the meaning, which is why every glyph is `aria-hidden` by default.
+Mounting the paths is what starts their CSS entrance, so the reveal still plays (on
+arrival rather than on mount), ambient loops still wait for it, and reduced motion
+is the same stylesheet as before.
+
+Pinned by `glyphRegistry.test.ts` (vocabulary = the module files, the registry
+imports no art), `glyphCatalog.test.ts` (each id serves the exact exported
+object), `glyphLoader.test.ts` (walks `app/page.tsx` with the perf-budget walker
+and requires zero traced modules and no catalog on it; one request per id;
+failures are null and retried) and `glyphsHaveConsumers.test.ts` (every glyph id
+is named by a render site outside `app/_components/glyph/`, and nothing outside it
+imports a traced module).
 
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
@@ -858,8 +1152,10 @@ consumer. `glyphEntrancePolicy.test.ts` pins both.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 
-The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust
-story, voice teaser, the `/api/demo` CTA, en/cs i18n) **is served publicly at `/`**.
+The marketing landing (route shell `app/landing/spark/SparkHome.tsx` rendering the
+prototype port in `app/landing/site/` — hero, proof, the ring of nine features and
+their scenes, voice, the human gate, pricing, enterprise, the `/api/demo` CTA, four
+locales; see `docs/features/marketing/README.md`) **is served publicly at `/`**.
 The gate is server-side: `hasEnteredWorkspace()`
 (`app/_lib/auth/home-gate-server.ts`) decides per request whether `/` renders the
 landing or the dashboard — the real signed session in password mode, the readable
@@ -867,14 +1163,12 @@ entry marker in open mode. Anonymous visitors get the landing server-rendered, s
 is crawlable (`app/robots.ts`, `app/sitemap.ts`) with no landing↔dashboard flash.
 `/landing` is a redirect stub to `/` for stale bookmarks.
 
-The marketing bands (`/`, `/about`, `/market`) are `max-w-7xl` (80rem), not the
-`max-w-6xl` the workspace uses — the larger `.spark-type` scale needs the extra
-measure. /about's timeline runs the full `max-w-7xl` too, and its step art caps at
-`max-w-lg` (was `max-w-md`) so the card-scale type has room; /market's two narrow
-editorial sections went `max-w-4xl` → `max-w-5xl`. One
-consequence to know about: `SectionRail` parks in the gutter at
-`50% + 40rem + 0.5rem` and falls back to a viewport-edge overlay when the gutter
-can't hold it, which now happens below ~1592px viewport instead of ~1464px.
+The `/market` bands are `max-w-7xl` (80rem), not the `max-w-6xl` the workspace
+uses — the larger `.spark-type` scale needs the extra measure; its two narrow
+editorial sections went `max-w-4xl` → `max-w-5xl`. `/` and `/about` set their own
+measure in their scoped stylesheets (`app/landing/site/css/`), as the approved
+prototype does; the old section rail that parked in the gutter was retired with the
+old pages on 2026-09-30.
 
 > Corrected 2026-07-30. This section previously said the landing was dev-only,
 > gated by a client `HomeGate` at `app/_lib/auth/devAuth.ts` with
@@ -890,7 +1184,7 @@ This is deliberate, not a bug: the landing is **not launch-ready** —
 - there is no first-party social proof.
 
 **To launch:** gate `/` on the real auth cookie (`isOperator`) instead of the
-dev-only localStorage flag so signed-out prod visitors get `SparkLanding` and
+dev-only localStorage flag so signed-out prod visitors get the landing and
 signed-in operators get the dashboard — AND first close the CTA / SEO / social-proof
 items above (see the 2026-06-25 ambiguity+business scan,
 a 2026-06-25 landing/marketing ambiguity scan, since untracked).

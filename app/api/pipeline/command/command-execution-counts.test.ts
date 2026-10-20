@@ -4,89 +4,93 @@
 // notify others — and before this test the response carried `count` alone, so
 // all three were invisible: a nine-of-twelve reject still said "rejected 12".
 //
-// Driven with a store DOUBLE rather than a live board: applied / refused / threw
-// / comms-blip cannot all be forced through one real pass, and the contract under
-// test is the ARITHMETIC (every target lands in exactly one bucket), not SQLite.
+// Driven with an ENTRY-ACTION double rather than a live board: the loop's only
+// write door is runPipelineEntryAction (challenge-r05 pipeline-actions-commands/A),
+// and applied / refused / held / threw / comms-blip cannot all be forced through
+// one real pass. The contract under test is the ARITHMETIC (every target lands in
+// exactly one bucket) and the MAPPING from the core's {status, body} to a bucket.
 import "../../../_lib/testing/unit-db.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { executeCommandTargets, type CommandExecutionDeps } from "./execute.ts";
-import { DEFAULT_STAGE_AXIS } from "../../../_lib/pipeline-stages.ts";
+import type { EntryActionInput, EntryActionResult } from "../../../_lib/pipeline-entry-action.ts";
 import type { PipelineEntry } from "../../../_lib/db/core.ts";
 
-const AXIS = DEFAULT_STAGE_AXIS;
-const OFFER_STAGE = AXIS.find((s) => s.role === "offer")!.id;
-
-function entry(id: string, stage = "Screened"): PipelineEntry {
-  return { id, stage, candidateLabel: id, matchScore: 10, jobTitle: "Role" } as unknown as PipelineEntry;
+function entry(id: string, stage = "Screened", approvalKind: string | null = null): PipelineEntry {
+  return { id, stage, approvalKind, candidateLabel: id, matchScore: 10, jobTitle: "Role" } as unknown as PipelineEntry;
 }
 
-/** A store double whose behavior is chosen PER ENTRY ID, so one call can mix
- *  every outcome the real store produces. */
-function deps(plan: Record<string, "ok" | "refused" | "throws" | "comms-fails">) {
-  const events: string[] = [];
-  const dispatched: string[] = [];
-  const d: CommandExecutionDeps = {
-    actOn: ((id: string) => {
-      const how = plan[id];
-      if (how === "throws") throw new Error("store blew up");
-      if (how === "refused") return null;
-      return entry(id);
-    }) as CommandExecutionDeps["actOn"],
-    dispatchRejection: (async (e: PipelineEntry) => {
-      if (plan[e.id] === "comms-fails") throw new Error("relay down");
-      dispatched.push(e.id);
-    }) as CommandExecutionDeps["dispatchRejection"],
-    recordEvent: ((id: string, kind: string) => {
-      events.push(`${id}:${kind}`);
-      return null;
-    }) as unknown as CommandExecutionDeps["recordEvent"],
-  };
-  return { d, events, dispatched };
+type Outcome = "ok" | "stale" | "terminal" | "throws" | "comms-fails" | "human-round";
+
+/** A core double whose answer is chosen PER ENTRY ID, so one call can mix every
+ *  outcome runPipelineEntryAction produces. Records every input it was handed. */
+function core(plan: Record<string, Outcome>) {
+  const calls: EntryActionInput[] = [];
+  const runAction = (async (input: EntryActionInput): Promise<EntryActionResult> => {
+    calls.push(input);
+    switch (plan[input.id]) {
+      case "throws":
+        throw new Error("store blew up");
+      case "stale":
+        return { status: 409, body: { code: "PIPELINE_STAGE_CHANGED" } };
+      case "terminal":
+        return { status: 422, body: { code: "PIPELINE_TERMINAL_NOT_ADVANCE" } };
+      case "comms-fails":
+        return { status: 200, body: { entry: entry(input.id), commsFailed: true } };
+      case "human-round":
+        return { status: 200, body: { entry: entry(input.id), routedToHumanRound: true } };
+      default:
+        return { status: 200, body: { entry: entry(input.id) } };
+    }
+  }) as CommandExecutionDeps["runAction"];
+  return { deps: { runAction } satisfies CommandExecutionDeps, calls };
 }
 
-test("reject_below counts applied, refused, thrown and un-notified separately", async () => {
-  const { d, events, dispatched } = deps({
-    a: "ok",
-    b: "refused", // the CAS lost in the gap — NOT a rejection
-    c: "throws", // one entry's blow-up never aborts the batch, but it is a failure
-    e: "comms-fails", // rejected, candidate NOT told
-    f: "ok",
-  });
+const BASE = { workspaceId: "ws", origin: "http://localhost" };
+
+test("a mixed batch {200, 409, 422, throw, 200+commsFailed} lands every target in exactly one bucket", async () => {
+  const { deps } = core({ a: "ok", b: "stale", c: "terminal", d: "throws", e: "comms-fails" });
+  const targets = ["a", "b", "c", "d", "e"].map((id) => entry(id));
+  const counts = await executeCommandTargets({ ...BASE, kind: "reject_below", threshold: 40, targets }, deps);
+
+  assert.equal(counts.count, 2, "a and e applied");
+  assert.equal(counts.failed, 2, "the lost CAS (409) and the throw are both failures");
+  assert.equal(counts.heldAtOffer, 1, "the terminal-guard 422 is a hold, not a failure");
+  assert.equal(counts.commsFailed, 1, "e was rejected but the candidate was not told");
+  assert.equal(counts.count + counts.failed + counts.heldAtOffer + counts.routedToHumanRound, targets.length);
+});
+
+test("reject_below hands the core the CAS stage, the workspace, the command-bar provenance and the typed threshold", async () => {
+  const { deps, calls } = core({});
+  await executeCommandTargets({ ...BASE, kind: "reject_below", threshold: 40, targets: [entry("a", "Interview")] }, deps);
+  assert.equal(calls.length, 1);
+  const [c] = calls;
+  assert.equal(c.action, "reject");
+  assert.equal(c.expectedStage, "Interview", "the expectedStage CAS is kept");
+  assert.equal(c.workspaceId, "ws");
+  assert.equal(c.via, "command_bar");
+  assert.equal(c.threshold, 40);
+  assert.equal(c.detail, "Command bar: below 40%");
+  assert.equal(c.actor, undefined, "the bar never declares an actor: the core reads it from the session");
+});
+
+test("advance_top holds a drafted offer BEFORE calling the core (the bar never extends an offer unattended)", async () => {
+  const { deps, calls } = core({ a: "ok" });
   const counts = await executeCommandTargets(
-    { kind: "reject_below", threshold: 50, targets: ["a", "b", "c", "e", "f"].map((id) => entry(id)), axis: AXIS, workspaceId: "ws" },
-    d
+    { ...BASE, kind: "advance_top", targets: [entry("a"), entry("o", "Applied", "offer_review")] },
+    deps
   );
+  assert.equal(counts.count, 1);
+  assert.equal(counts.heldAtOffer, 1);
+  assert.deepEqual(calls.map((c) => c.id), ["a"], "the offer_review entry never reaches the core");
+  assert.equal(calls[0].action, "accept");
+});
 
-  assert.equal(counts.count, 3, "only a, e and f actually rejected");
-  assert.equal(counts.failed, 2, "the CAS refusal and the throw are both failures");
-  assert.equal(counts.commsFailed, 1, "e was rejected but never notified");
+test("an accept the core routed to the human round is not counted as advanced", async () => {
+  const { deps } = core({ a: "ok", h: "human-round" });
+  const counts = await executeCommandTargets({ ...BASE, kind: "advance_top", targets: [entry("a"), entry("h")] }, deps);
+  assert.equal(counts.count, 1, "only a moved a column");
+  assert.equal(counts.routedToHumanRound, 1, "h stays put and is queued for the human round");
+  assert.equal(counts.failed, 0);
   assert.equal(counts.heldAtOffer, 0);
-  assert.deepEqual(dispatched, ["a", "f"]);
-  assert.deepEqual(events, ["e:rejection_comms_failed"], "the un-notified candidate is flagged for a manual nudge");
-});
-
-test("advance_top holds offer-stage targets and counts refusals apart from them", async () => {
-  const { d } = deps({ a: "ok", b: "refused", c: "ok" });
-  const counts = await executeCommandTargets(
-    {
-      kind: "advance_top",
-      targets: [entry("a"), entry("b"), entry("c"), entry("d", OFFER_STAGE)],
-      axis: AXIS,
-      workspaceId: "ws",
-    },
-    d
-  );
-
-  assert.equal(counts.count, 2);
-  assert.equal(counts.failed, 1, "a refused advance is reported, not swallowed");
-  assert.equal(counts.heldAtOffer, 1, "the offer-stage target is held, and held is not failed");
-  assert.equal(counts.commsFailed, 0, "advance never emails");
-});
-
-test("every target lands in exactly one bucket", async () => {
-  const { d } = deps({ a: "ok", b: "refused", c: "throws" });
-  const targets = [entry("a"), entry("b"), entry("c"), entry("d", OFFER_STAGE)];
-  const counts = await executeCommandTargets({ kind: "advance_top", targets, axis: AXIS, workspaceId: "ws" }, d);
-  assert.equal(counts.count + counts.failed + counts.heldAtOffer, targets.length);
 });

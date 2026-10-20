@@ -32,7 +32,7 @@ export default async function InterviewLabPage() {
   if (!isInterviewLabEnabled()) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-body text-steel">
           {t.rich("disabledBody", { flag: (chunks) => <code className={CODE}>{chunks}</code> })}
@@ -42,7 +42,7 @@ export default async function InterviewLabPage() {
   }
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 max-w-2xl text-body text-steel">
         {t.rich("enabledBody", { code: (chunks) => <code className={CODE}>{chunks}</code> })}
@@ -64,7 +64,7 @@ export default async function InterviewLabPage() {
         {showDiagrams ? (
           <>
             {" "}
-            <Link href="/diagrams" className="text-coral hover:underline">
+            <Link href="/diagrams" className="text-coral-ink hover:underline">
               {t("diagramsLink")}
             </Link>
           </>

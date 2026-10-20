@@ -242,6 +242,13 @@ Two variables are **mandatory for any real deployment**:
 Everything else is optional. Provider keys (§5) are **opt-in** — set only the ones
 you use; omit the rest to minimise external egress.
 
+**The job-seeker module is off unless you turn it on.** `/me` (a personal job-search
+tool: your own CV, job boards, a scan clock) is not part of a recruiting install, so with
+`KP_JOBSEEKER` unset its pages and `/api/jobseeker/*` answer exactly what an unknown route
+answers, nothing in the app links to it, and the `jobseeker_scan` clock job is neither
+registered nor run. Set `KP_JOBSEEKER=1` (exactly `1`) only to run it for yourself — the
+switch is read in one place, `app/_lib/jobseeker/enabled.ts`.
+
 ### 3b. Sizing the Python engine
 
 The jobfit pipeline is **spawned per request** ([ADR: spawn-per-request](decisions/))
@@ -254,6 +261,7 @@ rather than letting a burst starve the Node server every route shares.
 |---|---|---|
 | `KP_PYTHON_MAX_CONCURRENT` | `4` | Interpreters allowed to run at once, process-wide. Sized for the 2-vCPU floor the Helm chart requests: enough that a recruiter's parallel board actions genuinely overlap, low enough to leave a core for Next and keep worst-case engine memory under ~1 GB. Raise it on a bigger host; `1` makes the engine strictly serial. |
 | `KP_PYTHON_QUEUE_WAIT_MS` | `20000` | How long a call waits for a slot before the route answers **503 `ENGINE_BUSY`**. Well inside a normal client deadline; an unbounded queue would only convert an overload into sockets held open past the point their users gave up. |
+| `KP_PYTHON_BACKGROUND_WAIT_MS` | `600000` | How long BACKGROUND work (a task-runner handler, the automation clock's pass) waits for a slot before it is refused `ENGINE_BUSY`. Long because nobody is holding a socket open and the task has a 15-minute budget; bounded so a wedged engine still answers the task. See the lane rule below. |
 | `PYTHON_MAX_BUFFER_MB` | `64` | Combined stdout+stderr a child may buffer before it is killed. |
 | `PYTHON_CMD` | `python3` (`python` on Windows) | The interpreter. |
 
@@ -263,6 +271,17 @@ Two operational properties to know:
   Node process. A horizontally-scaled deployment multiplies it by the replica
   count; the same swap the rate limiter would need (a shared store behind the same
   function shape) applies here.
+- **Two admission lanes, one ceiling.** A spawn made inside the background-task
+  runner or the automation clock's tick is in the *background* lane; everything
+  else (a route with a person waiting) is *interactive*. When a slot frees, an
+  interactive waiter always goes first; background may hold at most
+  `KP_PYTHON_MAX_CONCURRENT - 1` slots (never fewer than 1, so `1` still makes
+  progress), so a recruiter's click always has a slot to take; and background
+  waits `KP_PYTHON_BACKGROUND_WAIT_MS` instead of the 20 s interactive bound, so
+  a group evaluation's six concurrent reasoning spawns against the default ceiling
+  of 4 queue instead of being refused by the engine's own gate. A forced "Run now"
+  of the automation pass has an operator waiting and stays interactive.
+  `pythonSpawnLoad().lanes` reports in-flight and queued per lane.
 - **A killed spawn takes its children with it.** A timeout, an abort, or a
   buffer overrun ends the whole process *tree* — the interpreter plus every
   `claude` / `git` it shelled out to (POSIX: the child leads its own process
@@ -283,6 +302,7 @@ recovery. The rotation path:
 # 1. Keep the retired secret readable, set the new one, restart.
 KP_SECRET_PREVIOUS=<old secret>   # decryption falls back to this
 KP_SECRET=<new secret>            # everything NEW is written under this
+KP_SKILL_PROFILE_LEGACY_KEY=<old secret>  # skill profiles signed under the old one
 
 # 2. Re-encrypt every stored row under the new secret.
 npm run secrets:rotate            # add -- --dry-run first to see the counts
@@ -298,6 +318,13 @@ npm run secrets:rotate            # add -- --dry-run first to see the counts
   decrypt is the only copy of that credential), reports any such row and exits
   non-zero. It skips rows already under the current secret, so an interrupted run
   is simply re-run.
+- It runs **beside the live server**, so each column is read and rewritten inside
+  one write transaction: a credential an operator saves mid-rotation waits a moment
+  and lands, instead of being silently reverted to the value the script read.
+- **Skill profiles are signed, not encrypted**, so the script cannot rewrite them.
+  Without `KP_SKILL_PROFILE_KEY`, every profile is signed under `KP_SECRET`, and a
+  rotation without the `KP_SKILL_PROFILE_LEGACY_KEY` pin shows each genuine one as
+  TAMPERED. The script counts them and exits non-zero until the pin is set.
 - With `KP_ATS_SECRET_KEY` set, ATS / calendar / edge secrets are keyed on *it*
   and a `KP_SECRET` rotation neither breaks nor touches them — the script says so
   and leaves them alone. Rotating `KP_ATS_SECRET_KEY` itself has no equivalent
@@ -319,6 +346,11 @@ npm run secrets:rotate            # add -- --dry-run first to see the counts
   pins it for you.
 - **WAL mode.** The DB runs in WAL; a boot checkpoint bounds the `-wal` file. Keep
   `kp.sqlite`, `kp.sqlite-wal` and `kp.sqlite-shm` together.
+- **Opt-in interview audio** (off unless a workspace turns it on) is stored as files in
+  `<dirname(KP_DB_PATH)>/recordings/<workspace>/`, i.e. `/data/recordings` on the image —
+  the same volume as the database, so one backup covers both, and a daily retention job
+  deletes each recording 30 days after the hiring decision (180 days after the call at
+  the latest).
 - **Backups.** Snapshot the single file. Either stop the container briefly and copy
   `/data`, or take a consistent online copy with `sqlite3 /data/kp.sqlite ".backup
   /data/backup.sqlite"` (or `npm run db:dump`). Schedule it; test a restore.
@@ -575,6 +607,10 @@ candidates:
    - Set **`NEXT_PUBLIC_APP_BASE_URL`** and **`NEXT_PUBLIC_SITE_URL`** to
      `https://hiring.yourcompany.com` so candidate links (offer / apply / schedule)
      and OG metadata resolve to your domain, not localhost.
+   - The operator's `/api/ops` status reports a named degraded reason when neither
+     `APP_BASE_URL` nor `NEXT_PUBLIC_APP_BASE_URL` supplies a usable public origin,
+     or when the two configured origins disagree. This includes candidate links
+     sent by background work without a request origin.
 
 > Per-tenant subdomains (`acme.kp.example.com` resolving to a specific team's brand)
 > are a **multi-tenant** feature that depends on the tenancy foundation (shipped —

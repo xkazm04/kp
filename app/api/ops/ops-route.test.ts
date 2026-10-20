@@ -18,7 +18,9 @@
 //   node scripts/run-unit-tests.mjs "app/api/ops/*.test.ts"
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { register, registerHooks } from "node:module";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
@@ -60,8 +62,36 @@ process.env.KP_OPERATOR_PASSWORD = "ops-route-test-password";
 
 const { GET } = await import("./route.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
+// Real accounts: the operator gate re-reads the account a session names, and a sub with
+// no row is nobody - so the org-b owner and the home seat have to exist.
+const { createUser } = await import("../../_lib/db/users.ts");
+// Created on first use, not at import: in this file a module-scope createUser() was not
+// visible to the very next getUserById() (only the seed users were in the table; measured
+// 2026-09-26, mechanism not traced), and the gate then reads nobody.
+let accounts: { b: string; h: string } | null = null;
+const account = (k: "b" | "h") => (accounts ??= {
+  b: createUser({ orgId: "org-b", email: "gate.b-owner@example.test", name: "B Owner" }).id,
+  h: createUser({ orgId: "org-default", email: "gate.home-seat@example.test", name: "Home Seat" }).id,
+})[k];
+const { afterResponse, getAfterResponseFailureCount } = await import("../../_lib/after-response.ts");
 
 after(() => cleanupUnitDb());
+
+test("deferred task failures increment operator telemetry", async () => {
+  const before = getAfterResponseFailureCount();
+  const original = console.error;
+  console.error = () => {};
+  try {
+    afterResponse("ops-test", async () => { throw new Error("test failure"); });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(getAfterResponseFailureCount(), before + 1);
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.afterResponseFailures, before + 1);
+  } finally {
+    console.error = original;
+  }
+});
 
 type OpsBody = {
   tables?: Record<string, number>;
@@ -74,6 +104,8 @@ type OpsBody = {
   catalog?: string;
   degradedReasons?: string[];
   configIssues?: { phase: string; scope: string; workspaceId: string }[];
+  opsWarnings?: { event?: string; level?: string }[];
+  afterResponseFailures?: number;
 };
 const bodyOf = async (r: Response): Promise<OpsBody> => (await r.json()) as OpsBody;
 
@@ -99,6 +131,42 @@ test("an operator gets the telemetry payload", async () => {
   assert.ok(body.tables, "the gate is a gate, not a deletion");
   assert.ok(body.queue);
   assert.ok(body.engines);
+});
+
+test("missing public origin reaches the operator as a named degraded reason", async () => {
+  const app = process.env.APP_BASE_URL;
+  const mirror = process.env.NEXT_PUBLIC_APP_BASE_URL;
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+  try {
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.ok, false);
+    assert.ok(body.degradedReasons?.some((reason) => reason.includes("no usable APP_BASE_URL")));
+  } finally {
+    if (app === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = app;
+    if (mirror === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+    else process.env.NEXT_PUBLIC_APP_BASE_URL = mirror;
+  }
+});
+
+test("operator telemetry includes a bounded tail of structured warnings", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "kp-ops-warnings-"));
+  const previous = process.env.KP_LOG_DIR;
+  process.env.KP_LOG_DIR = directory;
+  try {
+    const { opsLog } = await import("../../_lib/ops-telemetry.ts");
+    opsLog("warn", "test-warning", { count: 1 });
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.opsWarnings?.at(-1)?.event, "test-warning");
+    assert.equal(body.opsWarnings?.at(-1)?.level, "warn");
+  } finally {
+    if (previous === undefined) delete process.env.KP_LOG_DIR;
+    else process.env.KP_LOG_DIR = previous;
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("the catch answers a CODE, never the thrown message", () => {
@@ -191,4 +259,61 @@ test("an empty catalog with healthy seeds is reported, not blamed", async () => 
   // exactly the defect — emptying the catalog moves NO verdict.
   assert.deepEqual(body.degradedReasons, before.degradedReasons, "emptying the catalog changed no verdict");
   assert.equal(body.ok, before.ok, "…including the one the red dot renders");
+});
+
+// Challenge 2026-09-22 shared-api-utilities/B: the in-process limiter had no readout,
+// so an operator could not tell WHICH door was refusing. /api/ops now carries the
+// refusal count per key FAMILY (the prefix before the first ':'), never a token or IP.
+test("the limiter's refusals reach the operator per door family, with no key material", async () => {
+  const { rateLimit } = await import("../../_lib/rate-limit.ts");
+  const opts = { limit: 1, windowMs: 60_000 };
+  const secret = "opsdoor-token-5e1f";
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const r = await GET();
+  const body = (await r.json()) as { rateLimitRefusals?: Record<string, number> };
+  assert.equal(body.rateLimitRefusals?.["ops-probe-door"], 2, "two refusals, the one admission not counted");
+  const wire = JSON.stringify(body.rateLimitRefusals);
+  assert.ok(!wire.includes(secret) && !wire.includes("203.0.113.9"), "no token or client address on the operator read");
+});
+
+// Challenge r03 platform-auth-api/A — the HOME-ORG tier. Every "operator" case above
+// signs a claim-less DEFAULT_WORKSPACE cookie; none drove a USER session from another
+// org, and that is the caller a signup-enabled deployment mints for every stranger
+// (signup-service.ts creates an org per registrant and seats them owner). The counts
+// here are every tenant's, so membership of some org is not enough: the caller must
+// belong to the install's home org.
+test("an OWNER of another org is refused with a code, and sees no deployment-wide field", async () => {
+  cookieValue = signSession("ws_org_b", Date.now(), { sub: account("b"), org: "org-b", role: "owner" });
+  const r = await GET();
+  assert.equal(r.status, 403);
+  const body = await bodyOf(r);
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  for (const key of ["tables", "queue", "degradedReasons"] as const) {
+    assert.equal(key in body, false, `${key} must not reach another org`);
+  }
+});
+
+test("a home-org RECRUITER still reads the strip — single-org installs are unchanged", async () => {
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: account("h"), org: "org-default", role: "recruiter" });
+  const r = await GET();
+  assert.equal(r.status, 200);
+  assert.ok((await bodyOf(r)).tables);
+});
+
+test("the password operator and open mode keep the full payload", async () => {
+  cookieValue = signSession("ws_org_b", Date.now(), { op: true });
+  assert.equal((await GET()).status, 200, "op:true is the host operator, whatever its workspace");
+  const password = process.env.KP_OPERATOR_PASSWORD;
+  delete process.env.KP_OPERATOR_PASSWORD;
+  try {
+    cookieValue = null;
+    const r = await GET();
+    assert.equal(r.status, 200, "open dev has no gate to fail");
+    assert.ok((await bodyOf(r)).tables);
+  } finally {
+    process.env.KP_OPERATOR_PASSWORD = password;
+  }
 });

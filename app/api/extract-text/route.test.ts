@@ -22,6 +22,7 @@ import { registerHooks } from "node:module";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(HERE, "route.ts"), "utf8").replace(/\r\n/g, "\n");
@@ -54,6 +55,7 @@ type Stub = {
   calls: { args: string[]; opts: { timeoutMs?: number; signal?: AbortSignal } }[];
   __setExtractor: (fn: Extractor) => void;
   PipelineError: new (e: { message: string; status: number; code: string }) => Error;
+  SpawnFailure: new (kind: "timeout" | "aborted" | "output_overflow" | "spawn_failed", message: string) => Error;
 };
 type Route = { POST: (request: Request) => Promise<Response>; maxDuration: number };
 
@@ -97,12 +99,23 @@ async function post(
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-const ok = (text: string): Extractor => async () => ({ stdout: JSON.stringify({ text }), stderr: "", exitCode: 0 });
+const ok = (text: string, pageCount: number | null = null): Extractor => async () => ({
+  stdout: JSON.stringify({ text, charCount: text.length, pageCount }), stderr: "", exitCode: 0,
+});
 
 test("a readable document answers 200 with its text", async () => {
   const { status, body } = await post(ok("Senior Go engineer, Brno."));
   assert.equal(status, 200);
   assert.equal(body.text, "Senior Go engineer, Brno.");
+  assert.equal(body.charCount, String(body.text).length);
+  assert.equal(body.pageCount, null, "plain text has no meaningful page count");
+});
+
+test("an image-only PDF can report a page with zero extracted characters", async () => {
+  const { status, body } = await post(ok("", 1), upload("scan.pdf", "application/pdf", "%PDF-1.4"));
+  assert.equal(status, 200);
+  assert.deepEqual({ text: body.text, charCount: body.charCount, pageCount: body.pageCount },
+    { text: "", charCount: 0, pageCount: 1 });
 });
 
 test("the spawn is bounded 5s INSIDE maxDuration, and the number is derived, not typed twice", async () => {
@@ -175,13 +188,33 @@ test("non-JSON stdout is a coded 500 — parsePythonJson embeds stdout+stderr in
 });
 
 test("overrunning EXTRACT_TIMEOUT_MS is answered by name at 504", async () => {
-  // python-runner reports its deadline by REJECTING `result` with this exact
-  // sentence (isSpawnTimeoutMessage is the one place that shape is matched).
+  // python-runner reports its deadline by REJECTING `result` with a typed
+  // SpawnFailure of kind "timeout" — read through isSpawnTimeout, never the sentence.
+  assert.ok(stub.SpawnFailure, "python-runner must export SpawnFailure");
   const { status, body } = await post(async () => {
-    throw new Error("Python process timed out after 55s");
+    throw new stub.SpawnFailure("timeout", "Python process timed out after 55s");
   });
   assert.equal(status, 504);
   assert.equal(body.code, "EXTRACT_TEXT_TIMEOUT");
+});
+
+test("a plain Error that merely SAYS it timed out is a fault, not the deadline", async () => {
+  // The sentence used to be the contract, so anything that happened to phrase itself
+  // that way was answered as our deadline. The kind is the contract now.
+  const { status, body } = await post(async () => {
+    throw new Error("Python process timed out after 55s");
+  });
+  assert.equal(status, 500);
+  assert.equal(body.code, "EXTRACT_TEXT_FAILED");
+});
+
+test("any other spawn failure is a coded fault whose message carries no command line", async () => {
+  assert.ok(stub.SpawnFailure, "python-runner must export SpawnFailure");
+  const { status, body } = await post(async () => {
+    throw new stub.SpawnFailure("output_overflow", "Python process output exceeded 64 MB and was terminated");
+  });
+  assert.equal(status, 500);
+  assert.equal(body.code, "EXTRACT_TEXT_FAILED");
 });
 
 test("a spawn refused at the admission door stays ENGINE_BUSY at 503", async () => {
@@ -197,7 +230,7 @@ test("a spawn refused at the admission door stays ENGINE_BUSY at 503", async () 
 });
 
 test("every code this route answers with is declared, so useErrorMessage can resolve it", () => {
-  const responses = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  const responses = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
   for (const code of [
     "EXTRACT_FILE_REQUIRED",
     "EXTRACT_TEXT_UNREADABLE",

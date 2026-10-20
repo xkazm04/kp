@@ -1,4 +1,5 @@
-import { test, before } from "node:test";
+import { test, before, after } from "node:test";
+import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
@@ -13,7 +14,9 @@ import { mkdtempSync } from "node:fs";
 // resolved at module-load from KP_DB_PATH, and static imports evaluate before any
 // top-level statement, so the route + dev-control are pulled in via dynamic import in
 // `before()` — after this assignment — so `npm run test:unit` never touches the real DB.
-process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devcase-")), "kp.sqlite");
+const DB_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-devcase-"));
+process.env.KP_DB_PATH = path.join(DB_DIR, "kp.sqlite");
+after(() => removeTempDirs(DB_DIR));
 delete process.env.DATABASE_URL;
 
 let POST: (typeof import("./route.ts"))["POST"];
@@ -117,4 +120,51 @@ test("a malformed ?limit falls back to the default rather than refusing a read",
   // …and an absurd one is clamped, never handed to the store.
   const huge = (await (await GET(get("?limit=1000000") as never)).json()) as { limit: number };
   assert.equal(huge.limit, 500);
+});
+
+
+// ---- the ledger is filtered BEFORE the limit, and it is a projection ---------------
+//
+// challenge-r03 devcase-workspace/A. The stage / title / seniority filter used to run in
+// the browser over whatever page the client held, so "collecting" over a 50-row page
+// answered for fifty rows, not the library - and the rows it filtered carried the whole
+// design (need / analysis / role / case JSON, cover probes included) to draw a title.
+test("?stage= filters before ?limit=: 50 collecting rows out of 70, and the page says it was cut", async () => {
+  const { saveDevCase, createLifecycle, updateLifecycle } = await import("@/app/_lib/db/devcase");
+  for (let i = 0; i < 120; i += 1) {
+    const { id } = saveDevCase({ need: null, analysis: null, role: { title: `Role ${i}`, seniority: "medior" }, case: { title: `Ledger case ${i}` } });
+    // Every other case of the first 100 is still collecting; the last 20 too.
+    if (i % 2 === 0 || i >= 100) {
+      const lc = createLifecycle({ title: `run ${i}` }, true, "en");
+      updateLifecycle(lc.id, { caseId: id, stage: "collecting" });
+    }
+  }
+  const res = await GET(get("?limit=50&stage=collecting") as never);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { cases: Array<{ stage: string }>; truncated: boolean };
+  assert.equal(body.cases.length, 50);
+  assert.ok(body.cases.every((c) => c.stage === "collecting"));
+  assert.equal(body.truncated, true, "70 match; a page of 50 is cut");
+  const all = (await (await GET(get("?limit=500&stage=collecting") as never)).json()) as { cases: unknown[]; truncated: boolean };
+  assert.equal(all.cases.length, 70);
+  assert.equal(all.truncated, false);
+});
+
+test("the list carries ledger rows, never the design JSON, plus the workspace's facets", async () => {
+  const body = (await (await GET(get("?limit=500") as never)).json()) as {
+    cases: Array<Record<string, unknown>>;
+    facets: { stages: string[]; seniorities: string[] };
+  };
+  assert.ok(body.cases.length > 0);
+  for (const row of body.cases) {
+    for (const key of ["need", "analysis", "role", "case", "scenario", "seed"]) {
+      assert.ok(!(key in row), `${key} must not ride GET /api/devcase`);
+    }
+    assert.equal(typeof row.stage, "string");
+    assert.equal(typeof row.submissionCount, "number");
+  }
+  assert.ok(body.facets.stages.includes("collecting"));
+  assert.ok(body.facets.seniorities.includes("medior"));
+  const filtered = (await (await GET(get("?limit=500&q=ledger%20case%2011") as never)).json()) as { cases: Array<{ title: string }> };
+  assert.deepEqual(filtered.cases.map((c) => c.title).sort(), ["Ledger case 11", "Ledger case 110", "Ledger case 111", "Ledger case 112", "Ledger case 113", "Ledger case 114", "Ledger case 115", "Ledger case 116", "Ledger case 117", "Ledger case 118", "Ledger case 119"]);
 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
@@ -25,7 +25,7 @@ const GENERATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // shows in the Ledger immediately and completes even if the user navigates away.
 // The handler (runJdBuild) owns writing the body/artifacts back onto the row.
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   // A Generate spawns a 1–2 minute PAID AI build the moment it's accepted, so the
   // gate must run before any body read or DB write — a demo/non-operator session
   // the proxy waved through can't burn tokens here. Open mode (no
@@ -65,10 +65,10 @@ export async function POST(request: Request) {
   let cleanTitle = title.trim();
   if (needRole) {
     const valid = validateJdBuildInput(title, needText);
-    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
+    if (!valid.ok) return jsonRefusal(valid.code, 400);
     cleanTitle = valid.title;
   } else if (cleanTitle.length < 2) {
-    return NextResponse.json({ error: "A role title is required." }, { status: 400 });
+    return jsonRefusal("JD_BUILD_TITLE_TOO_SHORT", 400);
   }
 
   // Resolve the chosen company template server-side so the build renders through it.
@@ -78,7 +78,6 @@ export async function POST(request: Request) {
   // discarding a non-default team's private choice AND letting any team read a
   // default-team private template by id. A non-empty id that no longer resolves is
   // an explicit-choice-gone-missing, so 400 rather than silently using AI-default.
-  const ws = await currentWorkspace();
   const templateId = typeof record.templateId === "string" ? record.templateId : "";
   let templateBody: string | undefined = undefined;
   if (templateId) {
@@ -132,4 +131,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:jds/generate", "JD_GENERATE_FAILED");
   }
-}
+});

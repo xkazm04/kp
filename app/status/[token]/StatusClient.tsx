@@ -7,9 +7,20 @@ import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
+import {
+  RECORDING_BACKSTOP_DAYS,
+  RECORDING_RETENTION_AFTER_DECISION_DAYS,
+} from "@/app/_lib/interview-recording-paths";
 import { StatusNpsCard } from "./StatusNpsCard";
+import { StatusLetterCard } from "./StatusLetterCard";
+import { StatusNextActionCard } from "./StatusNextActionCard";
+import type { CandidateNextAction } from "@/app/_lib/candidate-next-action";
+import { rubricLabel } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
+import type { CandidateLetterView } from "@/app/_lib/interview-letter-types";
 import {
   CANDIDATE_TIMELINE,
   classifyStatusError,
@@ -27,6 +38,16 @@ type StatusView = {
   // REC-10 — false when no delivery relay is configured (no email will ever
   // arrive), so the stage copy must not say "watch your email".
   relayConfigured?: boolean;
+  // WP3 — the candidate opted into an audio recording of their AI interview and we
+  // still hold it. A BOOLEAN and nothing more: the projection deliberately carries no
+  // file name, size, attempt count or date (api/status/[token]/route.ts).
+  hasInterviewRecording?: boolean;
+  // Spark interview-feedback-letter — the candidate's own feedback-letter request: may
+  // they ask, and where does their one request stand. The contract's projection only.
+  letter?: CandidateLetterView;
+  // challenge-r06 application-status-page/B — what is waiting on the candidate (kind,
+  // sentAt, expiresAt) or null. Never the capability: the link is re-sent to the inbox.
+  nextAction?: CandidateNextAction | null;
 };
 
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
@@ -44,6 +65,9 @@ export function StatusClient({
   const token = params?.token;
   const t = useTranslations("status");
   const tCommon = useTranslations("common");
+  // The `rubric` catalog namespace, for the competency keys an ai_scorecard's
+  // decisive facts carry (see the decisions section below).
+  const rubricStrings = useRubricStrings();
   const locale = useLocale();
   const [view, setView] = useState<StatusView | null>(null);
   // Typed so the copy can be honest about WHY it failed (bug-ui-scan-2026-07-09
@@ -51,6 +75,11 @@ export function StatusClient({
   // condition; a `retryable` fault (offline / 5xx) gets a Retry affordance.
   const [error, setError] = useState<StatusFetchError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // WP3 — the candidate's own control over the audio they agreed to. Local state only:
+  // `idle` → `confirm` → `deleting` → `deleted` | `failed`. The confirm step exists
+  // because the delete is irreversible; the section disappears on success rather than
+  // waiting for the next poll, so the page never invites the same deletion twice.
+  const [recordingStep, setRecordingStep] = useState<"idle" | "confirm" | "deleting" | "deleted" | "failed">("idle");
   // Art. 86 — the candidate's own REDACTED decision history (see
   // /api/status/[token]/decisions). Fetched once per page view, not polled: the
   // sealed history only grows when a decision is taken, and the status poll
@@ -173,6 +202,16 @@ export function StatusClient({
     offer_terms: t("decisions.kinds.offer_terms"),
   };
 
+  // The AI verdict vocabulary, in the candidate's register. Total by construction:
+  // the server projects only members of the closed INTERVIEW_RECOMMENDATIONS set
+  // (autoAdvanceFacts), so a verdict outside it never reaches this map. Literal
+  // keys, same constraint as the kind labels above.
+  const recommendationLabels: Record<InterviewRecommendation, string> = {
+    advance: t("decisions.recommendations.advance"),
+    hold: t("decisions.recommendations.hold"),
+    reject: t("decisions.recommendations.reject"),
+  };
+
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
       {/* The candidate's own escape hatch, mirroring the public apply page: the
@@ -182,7 +221,7 @@ export function StatusClient({
       <div className="mb-4 flex justify-end">
         <LanguageSwitcher />
       </div>
-      <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{t("eyebrow")}</p>
       {error && !view ? (
         // Only take over the page on the INITIAL load failure — a transient poll
         // error after a good render must never wipe an already-shown status.
@@ -268,6 +307,8 @@ export function StatusClient({
             </>
           )}
 
+          {token ? <StatusNextActionCard token={token} nextAction={view.nextAction} relayConfigured={view.relayConfigured} /> : null}
+
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             {view.updatedAt ? (
               <p className="text-meta text-steel">
@@ -307,15 +348,44 @@ export function StatusClient({
                     {d.attribution !== "unknown" ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-meta text-steel">
                         {d.attribution === "automated" ? <Bot size={11} aria-hidden /> : <UserRound size={11} aria-hidden />}
-                        {d.attribution === "automated" ? t("decisions.automated") : t("decisions.human")}
+                        {d.attribution === "automated"
+                          ? d.personApproved
+                            ? t("decisions.automatedPersonApproved")
+                            : t("decisions.automated")
+                          : t("decisions.human")}
                       </span>
                     ) : null}
                     <span className="text-meta text-steel">
                       {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(d.createdAt))}
                     </span>
-                    {d.reasonCode === "reject" && d.facts ? (
+                    {/* The decisive elements behind this decision (Art. 86), rendered
+                        per FACT SHAPE rather than per reason code: the server's
+                        `facts` is a closed discriminated union, so a kind that gains
+                        an extractor renders here the moment it does, and a kind
+                        without one silently renders nothing — never a broken row. */}
+                    {d.facts?.type === "threshold" ? (
                       <span className="w-full text-base text-steel">
                         {t("decisions.reasons.reject", { score: d.facts.score, threshold: d.facts.threshold })}
+                        {d.facts.stale ? <> {t("decisions.reasons.staleScore")}</> : null}
+                      </span>
+                    ) : d.facts?.type === "rubric" ? (
+                      <span className="w-full text-base text-steel">
+                        {t("decisions.reasons.rubric")}{" "}
+                        {/* Canonical competency KEYS come off the wire; the reader's
+                            language comes from the rubric catalog, with the canonical
+                            English as rubricLabel's own fallback. */}
+                        {d.facts.dimensions
+                          .map((dim) => `${rubricLabel(dim.competency, rubricStrings)} ${dim.rating}/${dim.ratingMax}`)
+                          .join(" · ")}
+                      </span>
+                    ) : d.facts?.type === "verdict" ? (
+                      <span className="w-full text-body text-steel">
+                        {d.facts.confidence === null
+                          ? t("decisions.reasons.verdict", { recommendation: recommendationLabels[d.facts.recommendation] })
+                          : t("decisions.reasons.verdictConfidence", {
+                              recommendation: recommendationLabels[d.facts.recommendation],
+                              confidence: d.facts.confidence,
+                            })}
                       </span>
                     ) : null}
                   </li>
@@ -324,6 +394,91 @@ export function StatusClient({
               {/* Echoes aiDisclosure.body's promise on the surface where it matters most. */}
               <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
             </section>
+          ) : null}
+
+          {/* Spark interview-feedback-letter — ask for a letter about the AI interview after
+              a person decided, and see where that one request stands. Renders nothing when
+              there is nothing to offer or report (StatusLetterCard / statusLetterView.ts). */}
+          {token ? (
+            <StatusLetterCard
+              token={token}
+              letter={view.letter}
+              relayConfigured={view.relayConfigured}
+              onLetter={(letter) => setView((cur) => (cur ? { ...cur, letter } : cur))}
+            />
+          ) : null}
+
+          {/* WP3 — "delete my interview recording". Shown ONLY while audio we hold
+              actually exists: a control offering to delete nothing would read as a
+              promise the page cannot keep. The deletion removes the AUDIO alone, which
+              the copy says out loud — the application, the transcript and the decision
+              history all stand, and the heavier right-to-erasure path is still the
+              /data link in every message we send. */}
+          {token && view.hasInterviewRecording && recordingStep !== "deleted" ? (
+            <section className="mt-8 rounded-lg border border-stone-200 bg-paper p-4" aria-labelledby="status-recording-title">
+              <h2 id="status-recording-title" className="text-body font-semibold text-ink">
+                {t("recording.title")}
+              </h2>
+              <p className="mt-1 text-base text-steel">
+                {t("recording.body", {
+                  decisionDays: RECORDING_RETENTION_AFTER_DECISION_DAYS,
+                  backstopDays: RECORDING_BACKSTOP_DAYS,
+                })}
+              </p>
+              {recordingStep === "confirm" || recordingStep === "deleting" ? (
+                <div className="mt-3">
+                  <p className="text-base text-ink">{t("recording.confirm")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={recordingStep === "deleting"}
+                      onClick={() => {
+                        setRecordingStep("deleting");
+                        fetch(`/api/status/${token}/recording`, { method: "DELETE" })
+                          .then((r) => {
+                            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                            setRecordingStep("deleted");
+                          })
+                          .catch(() => {
+                            // Never a silent failure on a deletion: a candidate told
+                            // nothing would believe the audio is gone when it is not.
+                            setRecordingStep("failed");
+                          });
+                      }}
+                      className={`${BTN_GHOST} h-11 px-3 text-meta font-semibold`}
+                    >
+                      {recordingStep === "deleting" ? t("recording.deleting") : t("recording.confirmYes")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={recordingStep === "deleting"}
+                      onClick={() => setRecordingStep("idle")}
+                      className={`${BTN_GHOST} h-11 px-3 text-meta font-semibold`}
+                    >
+                      {t("recording.confirmNo")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setRecordingStep("confirm")}
+                  className={`${BTN_GHOST} mt-3 h-11 px-3 text-meta font-semibold`}
+                >
+                  {t("recording.delete")}
+                </button>
+              )}
+              {recordingStep === "failed" ? (
+                <p role="alert" className="mt-2 text-base font-semibold text-coral-ink">
+                  {t("recording.failed")}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+          {recordingStep === "deleted" ? (
+            <p role="status" aria-live="polite" className="mt-8 rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
+              {t("recording.deleted")}
+            </p>
           ) : null}
 
           {/* W0.6b — cNPS, asked only on a terminal outcome (the route decides). This is

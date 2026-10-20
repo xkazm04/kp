@@ -102,7 +102,7 @@ export function useDevTabActions(args: {
     }
   };
 
-  const source = async (caseId: string) => {
+  const source = async (caseId: string, candidateIds?: readonly string[]) => {
     // single-flight, the same reason publish has one: sourcing ranks the candidate DB
     // and WRITES pipeline entries, and `sourcing` only pins the button for the id it
     // was clicked on — so a second click on a different row (or the same one, before
@@ -117,7 +117,9 @@ export function useDevTabActions(args: {
           fetch("/api/devcase/source", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ caseId }),
+            body: JSON.stringify(
+              candidateIds ? { caseId, candidateIds } : { caseId }
+            ),
           }),
         (body) => {
           const added = body && typeof body === "object" && "added" in body ? Number((body as { added: unknown }).added) : 0;

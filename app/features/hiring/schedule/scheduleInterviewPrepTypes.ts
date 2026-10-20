@@ -30,7 +30,18 @@ export type Prep = RunOfShow & {
   // that block + counts in the completion meter rather than sitting read-only below.
   // ONE key, so the voice brief that reads importedQuestions composes with it.
   importedQuestions?: ImportedQuestion[];
+  // The recruiter's per-candidate overlay on the job interview kit (KitOverlay): a
+  // human-owned key the generator never writes, carried across Regenerate. Untrusted on
+  // read — narrowKitOverlay (app/_lib/interview-kit-overlay.ts) narrows it.
+  kitOverlay?: unknown;
+  // A STAGED regeneration (r09 schedule-interview-prep/B): the generator-owned keys of a
+  // plan the modal's Regenerate produced, parked until the interviewer accepts or
+  // discards the diff (PATCH { plan }). Never rendered as the plan itself.
+  pendingPlan?: PendingPlan;
 };
+
+/** The generator-owned half of a pack: what a staged regeneration carries. */
+export type PendingPlan = RunOfShow & { source?: string; lang?: string; rubricCoverage?: RubricCoverage };
 
 // Direction 3 — an imported question, normalized to the entry shape the modal
 // renders. A woven question carries the topic of the block it belongs to.

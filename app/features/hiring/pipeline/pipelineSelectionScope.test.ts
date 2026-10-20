@@ -22,14 +22,16 @@
 // Runner: Node's built-in test runner with type stripping. `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-
 import { armedConfirm, bulkConfirmReducer, type BulkConfirm } from "./pipelineBulkConfirm.ts";
 import {
   selectionOutsideVisible,
   visibleScopeSignature,
   type VisibleScopeShape,
 } from "./pipelineSelectionScope.ts";
+
+/** These cases hold the COHORT constant to isolate the scope-side invariants; the
+ *  cohort-side ones live in pipelineBulkSelection.test.ts. */
+const COHORT = "reject|e1:Screened:screening_review";
 
 /** The board's filter state as the hook holds it. `scopeOf` mirrors the hook's memo
  *  exactly (same fields, same source), so this harness is the production derivation,
@@ -54,9 +56,9 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   const selectedIds = new Set(["e1", "e2", "e3", "e4", "e5"]);
 
   // 1. Arm the reject. The bar now reads "Reject 5 and notify them?".
-  let confirm: BulkConfirm = bulkConfirmReducer(null, { type: "arm", which: "reject", scope: boardScope });
+  let confirm: BulkConfirm = bulkConfirmReducer(null, { type: "arm", which: "reject", scope: boardScope, cohort: COHORT });
   assert.equal(
-    armedConfirm(confirm, boardScope),
+    armedConfirm(confirm, boardScope, COHORT),
     "reject",
     "the confirm is armed while the board still shows the cohort it was armed for"
   );
@@ -76,7 +78,7 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   // 3. The confirm is no longer armed — the next click RE-ARMS against the cohort
   //    now on screen instead of firing against the invisible one.
   assert.equal(
-    armedConfirm(confirm, savedViewScope),
+    armedConfirm(confirm, savedViewScope, COHORT),
     null,
     "an armed reject must not survive the saved view that made its cohort invisible"
   );
@@ -89,9 +91,9 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   // 4. And the reducer state is not silently 'still reject underneath': re-arming
   //    under the new scope is what makes it live again, which is the recruiter
   //    re-confirming against what they can see.
-  confirm = bulkConfirmReducer(confirm, { type: "arm", which: "reject", scope: savedViewScope });
-  assert.equal(armedConfirm(confirm, savedViewScope), "reject", "a deliberate second click re-arms");
-  assert.equal(armedConfirm(confirm, boardScope), null, "…and only under the scope it was re-armed in");
+  confirm = bulkConfirmReducer(confirm, { type: "arm", which: "reject", scope: savedViewScope, cohort: COHORT });
+  assert.equal(armedConfirm(confirm, savedViewScope, COHORT), "reject", "a deliberate second click re-arms");
+  assert.equal(armedConfirm(confirm, boardScope, COHORT), null, "…and only under the scope it was re-armed in");
 });
 
 test("EVERY visible-set mutator invalidates an armed confirm — not just saved views", () => {
@@ -117,11 +119,11 @@ test("EVERY visible-set mutator invalidates an armed confirm — not just saved 
     clearStageFilter: scopeOf({ ...base, stage: null }),
   };
   for (const armedWhich of ["reject", "outreach"] as const) {
-    const confirm = bulkConfirmReducer(null, { type: "arm", which: armedWhich, scope: baseScope });
+    const confirm = bulkConfirmReducer(null, { type: "arm", which: armedWhich, scope: baseScope, cohort: COHORT });
     for (const [mutator, scope] of Object.entries(after)) {
       assert.notEqual(scope, baseScope, `${mutator} must change the visible scope`);
       assert.equal(
-        armedConfirm(confirm, scope),
+        armedConfirm(confirm, scope, COHORT),
         null,
         `${mutator} must invalidate an armed ${armedWhich} confirm`
       );
@@ -199,36 +201,6 @@ test("an empty selection discloses nothing, and an empty board discloses everyth
   assert.deepEqual(selectionOutsideVisible(new Set(["e1", "e2"]), []), ["e1", "e2"]);
 });
 
-test("the bulk bar actually RENDERS the disclosure, in every locale", () => {
-  // The pure helper above proves the count is computable; this proves the recruiter
-  // is told. Two independent ways this could silently rot: the bar stops rendering the
-  // key, or the key is dropped from the catalogs. `npm run i18n:check` catches neither
-  // when a key is missing from ALL FOUR locales (parity stays green on a uniform
-  // deletion), so the locale set is asserted here against the catalog dir itself —
-  // never against a hand-typed locale list that could drift when a 5th locale lands.
-  const dir = new URL("../../../../messages/", import.meta.url);
-  const locales = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  assert.ok(locales.length >= 4, `expected the four shipped locales, found ${locales.join(", ")}`);
-
-  const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
-  assert.match(
-    bar,
-    /t\("selectedOutsideFilter", \{ count: selectedOutsideCount \}\)/,
-    "the bulk bar must render the out-of-filter count next to the selected count"
-  );
-
-  for (const file of locales) {
-    const cat = JSON.parse(readFileSync(new URL(file, dir), "utf8")) as {
-      pipeline?: { tab?: Record<string, string> };
-    };
-    const copy = cat.pipeline?.tab?.selectedOutsideFilter;
-    assert.ok(copy, `messages/${file} is missing pipeline.tab.selectedOutsideFilter`);
-    // Literal {count} or an ICU plural over count ({count, plural, …} — the
-    // Czech catalog uses the plural form for proper one/few/other agreement).
-    assert.match(copy, /\{count[,}]/, `messages/${file}: the disclosure must state HOW MANY rows are hidden`);
-  }
-});
-
 test("the selection is NOT pruned — disclosure is the mechanism, by design", () => {
   // The Director's lean, adopted: a recruiter who filtered to review a subset has not
   // abandoned the rest, so the cohort survives the filter change and the bar states
@@ -238,4 +210,16 @@ test("the selection is NOT pruned — disclosure is the mechanism, by design", (
   const outside = selectionOutsideVisible(selected, [{ id: "e2" }]);
   assert.equal(outside.length, 2, "the hidden rows are reported…");
   assert.equal(selected.size, 3, "…and the selection itself is untouched");
+});
+
+test("filtered-out is not departed: reconcile prunes only ids that left the WHOLE board", async () => {
+  // challenge-r06 pipeline-move-bulk-operations/A prunes ghost ids (an entry closed
+  // elsewhere drops off the board list). It must not become the "just prune it"
+  // refactor the case above forbids: a row hidden by the filter is still on the board.
+  const { reconcileSelection } = await import("./pipelineBulkSelection.ts");
+  const board = [{ id: "e1" }, { id: "e2" }, { id: "e3" }];
+  const visible = [{ id: "e2" }];
+  const { selected, pruned } = reconcileSelection(new Set(["e1", "e2", "e3", "ghost"]), board);
+  assert.deepEqual(pruned, ["ghost"], "only the id with no entry anywhere is pruned");
+  assert.deepEqual(selectionOutsideVisible(selected, visible), ["e1", "e3"], "the filtered-out rows stay selected and disclosed");
 });

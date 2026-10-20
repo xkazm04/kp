@@ -143,8 +143,7 @@ test("the requested locale reaches the engine argv, not just the narrativeLang s
     "pipeline.jobfit.reasoning_cli",
     "--input",
     "/w/in.json",
-    "--job-id",
-    "job-1",
+    "--job-id=job-1",
     "--lang",
     "de",
   ]);

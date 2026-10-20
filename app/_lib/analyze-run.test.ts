@@ -18,13 +18,15 @@
 // MUST be the first project import (it sets KP_DB_PATH before any db-path import).
 // Run: node scripts/run-unit-tests.mjs "app/_lib/analyze-run.test.ts"
 import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { removeTempDirs } from "./testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
+import { readApiResponseSource } from "./api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,7 +36,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // knob is what the next spawn does. The deadline's message SHAPE is not invented here —
 // it is asserted against python-runner's real source below, which is what keeps this
 // from being a test of its own fake.
-type SpawnScript = { kind: "ok"; payload: unknown } | { kind: "timeout" } | { kind: "fault"; message: string };
+type SpawnScript =
+  | { kind: "ok"; payload: unknown }
+  | { kind: "timeout" }
+  | { kind: "fault"; message: string }
+  | { kind: "exit"; stderr: string; exitCode: number };
 let nextSpawn: SpawnScript = { kind: "fault", message: "no spawn scripted" };
 let spawnCalls: { args: string[]; timeoutMs?: number }[] = [];
 (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () => nextSpawn;
@@ -44,6 +50,8 @@ let spawnCalls: { args: string[]; timeoutMs?: number }[] = [];
 const VIRTUAL_RUNNER = "kp-test:python-runner";
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // The twin below re-exports the REAL parseStderrError, so its own import passes through.
+    if (context.parentURL === VIRTUAL_RUNNER) return nextResolve(specifier, context);
     if (/(^|\/)python-runner(\.ts)?$/.test(specifier)) return { url: VIRTUAL_RUNNER, shortCircuit: true };
     return nextResolve(specifier, context);
   },
@@ -53,22 +61,39 @@ registerHooks({
         format: "module",
         shortCircuit: true,
         source: [
+          // The runner's typed failure, mirrored: analyze-run reads isSpawnTimeout(err), and
+          // the REAL predicate is held to the real runner in the last source test below.
+          "export class PipelineError extends Error {",
+          "  constructor(e) { super(e.message); this.name = 'PipelineError'; this.status = e.status; this.code = e.code; }",
+          "}",
+          "export class SpawnFailure extends PipelineError {",
+          "  constructor(kind, message) {",
+          "    super({ message, status: kind === 'timeout' ? 504 : 500, code: kind === 'timeout' ? 'timeout' : 'engine_error' });",
+          "    this.name = 'SpawnFailure'; this.kind = kind;",
+          "  }",
+          "}",
+          "export function isSpawnTimeout(err) { return err instanceof SpawnFailure && err.kind === 'timeout'; }",
+          "export function engineRefusal() { return null; }",
           "export function spawnPython(args, opts = {}) {",
           "  globalThis.__kpAnalyzeRecord({ args, timeoutMs: opts.timeoutMs });",
           "  const script = globalThis.__kpAnalyzeSpawn();",
           "  if (script.kind === 'timeout') {",
-          "    return { result: Promise.reject(new Error(",
-          "      'Python process timed out after ' + Math.round((opts.timeoutMs ?? 0) / 1000) + 's: ' + args.join(' ')",
+          "    return { result: Promise.reject(new SpawnFailure(",
+          "      'timeout', 'Python process timed out after ' + Math.round((opts.timeoutMs ?? 0) / 1000) + 's'",
           "    )) };",
           "  }",
+          "  if (script.kind === 'exit') return { result: Promise.resolve({ stdout: '', stderr: script.stderr, exitCode: script.exitCode }) };",
           "  if (script.kind === 'fault') return { result: Promise.reject(new Error(script.message)) };",
           "  return { result: Promise.resolve({ stdout: JSON.stringify(script.payload), stderr: '', exitCode: 0 }) };",
           "}",
           "export function parsePythonJson(stdout) { return JSON.parse(stdout); }",
-          "export function parseStderrError(stderr, exitCode) {",
-          "  return { message: stderr || 'fake failure', status: exitCode === 2 ? 400 : 500, code: 'engine_error' };",
-          "}",
+          "export function flagArg(flag, value) { return flag + '=' + value; }",
+          // The REAL envelope parser: the leak under test is what it returns.
+          "export { parseStderrError } from " + JSON.stringify(pathToFileURL(path.join(HERE, "python-runner.ts")).href) + ";",
           "export async function cleanupWorkdir() {}",
+          // The real confinement is pinned in python-runner-workdir-guard.test.ts; these
+          // cases use kp-analyze-run-test-* temp dirs, not jobfit workdirs.
+          "export function assertConfinedToWorkdir() {}",
           "export async function createWorkdir() { return ''; }",
           "export async function persistFile() { return ''; }",
           "export const ENGINE_BUSY_CODE = 'ENGINE_BUSY';",
@@ -83,13 +108,13 @@ registerHooks({
 
 const { runAnalyze, AnalyzeError, ANALYZE_TIMEOUT_CODE, ANALYZE_TIMEOUT_MESSAGE, ANALYZE_TIMEOUT_MS, settleVariants } =
   await import("./analyze-run.ts");
-const { isSpawnTimeoutMessage } = await import("./intake-run.ts");
 const { listAnalyses, loadAnalysis } = await import("./db/analyses.ts");
 const { billingUsageFor } = await import("./db/billing.ts");
 const { currentPeriod } = await import("./billing/plans.ts");
 const { ensureDb } = await import("./db/core.ts");
 
 after(() => cleanupUnitDb());
+after(() => removeTempDirs(...tempBaseDirs));
 
 // A minimal payload that clears analysisSchema. Deliberately thin: this file is about
 // ordering and deadlines, not about the analysis shape.
@@ -127,8 +152,11 @@ const PAYLOAD = {
 // Each case gets CV bytes of its own. computeCacheKey hashes the CV content, so two
 // cases sharing a fixture would make the second a CACHE HIT — which delivers without
 // spawning and bills nothing, quietly passing the debit assertions for the wrong reason.
+const tempBaseDirs: string[] = [];
+
 function tempCv(marker: string): { baseDir: string; cvPath: string } {
   const baseDir = mkdtempSync(path.join(os.tmpdir(), "kp-analyze-run-test-"));
+  tempBaseDirs.push(baseDir);
   const cvPath = path.join(baseDir, "cv.txt");
   writeFileSync(cvPath, `Ada Lovelace - Go, Postgres. Fixture: ${marker}.`, "utf8");
   return { baseDir, cvPath };
@@ -181,7 +209,7 @@ test("a hung engine is refused BY NAME (504 + ANALYZE_TIMEOUT), never as the chi
   );
 });
 
-test("a NON-timeout engine fault still escapes verbatim - only the deadline is relabelled", async () => {
+test("a NON-timeout engine fault answers with a code, never the engine's text", async () => {
   const { baseDir, cvPath } = tempCv("broken.pdf");
   nextSpawn = { kind: "fault", message: "spawn python3 ENOENT" };
   const err = await runAnalyze(params("broken.pdf", baseDir, cvPath)).then(
@@ -190,7 +218,93 @@ test("a NON-timeout engine fault still escapes verbatim - only the deadline is r
   );
   assert.ok(err instanceof AnalyzeError);
   assert.equal(err.code, undefined, "a fault is not a decision and carries no refusal code");
-  assert.equal(err.message, "spawn python3 ENOENT");
+  assert.equal(err.message, "ENGINE_FAILED", "the code the client resolves through errors.<CODE>");
+  assert.doesNotMatch(err.message, /ENOENT|python3/);
+});
+
+// ---- 3. engine stderr never reaches the recruiter (craft-1) -----------------
+
+const LEAK = /[A-Za-z]:[\\/]|\/home\/|Traceback|KP_[A-Z_]+/;
+const ENVELOPE_PATH = "C:\\Users\\ops\\kp\\data\\cv.pdf could not be read (KP_DB_PATH=/srv/kp.sqlite)";
+const TRACEBACK = [
+  "Traceback (most recent call last):",
+  '  File "C:\\Users\\ops\\kp\\pipeline\\jobfit\\pipeline.py", line 12, in analyze_cv',
+  "KeyError: 'KP_LLM_CONFIG'",
+].join("\n");
+
+async function failedRun(marker: string, script: SpawnScript) {
+  const { baseDir, cvPath } = tempCv(marker);
+  nextSpawn = script;
+  const original = console.error;
+  console.error = () => {};
+  try {
+    return await runAnalyze(params(marker, baseDir, cvPath)).then(
+      () => null,
+      (e: unknown) => e
+    );
+  } finally {
+    console.error = original;
+  }
+}
+
+test("a JSON error envelope with an absolute path ends in a code, not the path", async () => {
+  const envelope = JSON.stringify({ error: ENVELOPE_PATH, status: 400, code: "invalid_input" });
+  const err = await failedRun("envelope.pdf", { kind: "exit", stderr: envelope, exitCode: 1 });
+  assert.ok(err instanceof AnalyzeError);
+  assert.equal(err.message, "ENGINE_FAILED");
+  assert.doesNotMatch(err.message, LEAK);
+});
+
+test("a raw Python traceback ends in a code too, with no path, traceback or KP_ name", async () => {
+  const err = await failedRun("traceback.pdf", { kind: "exit", stderr: TRACEBACK, exitCode: 1 });
+  assert.ok(err instanceof AnalyzeError);
+  assert.equal(err.message, "ENGINE_FAILED");
+  assert.doesNotMatch(err.message, LEAK);
+});
+
+test("the partial-failure note holds a code and no engine text", () => {
+  for (const [engineCode, error] of [["invalid_input", ENVELOPE_PATH], ["engine_error", TRACEBACK], ["timeout", "x"]] as const) {
+    const d = settleVariants([
+      { label: "a", ok: true, cached: false, analysis: {} as never },
+      { label: "b", ok: false, error, engineCode, status: 500 },
+    ]);
+    assert.equal(d.kind, "deliver");
+    if (d.kind !== "deliver") return;
+    const note = d.partialFailures[0];
+    assert.equal(note.code, engineCode === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED");
+    assert.equal(note.error, "");
+    assert.doesNotMatch(JSON.stringify(d.partialFailures), LEAK);
+  }
+});
+
+test("a partial run logs the engine detail server-side and delivers only the code", async () => {
+  const a = tempCv("partial-ok.pdf");
+  const b = tempCv("partial-bad.pdf");
+  let n = 0;
+  (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () =>
+    n++ === 0 ? { kind: "ok", payload: PAYLOAD } : { kind: "exit", stderr: TRACEBACK, exitCode: 1 };
+  const logged: string[] = [];
+  const original = console.error;
+  console.error = (...x: unknown[]) => void logged.push(x.map(String).join(" "));
+  try {
+    const out = await runAnalyze({
+      baseDir: a.baseDir,
+      grounding: false,
+      variants: [
+        { label: "ok.pdf", cvPath: a.cvPath },
+        { label: "bad.pdf", cvPath: b.cvPath },
+      ],
+      requestId: "req-partial",
+    });
+    const notes = (out as { partialFailures?: { label: string; error: string; code?: string }[] }).partialFailures ?? [];
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].code, "ENGINE_FAILED");
+    assert.doesNotMatch(JSON.stringify(notes), LEAK);
+    assert.match(logged.join("\n"), /Traceback/, "the detail stays in the server log");
+  } finally {
+    console.error = original;
+    (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () => nextSpawn;
+  }
 });
 
 test("settleVariants surfaces the deadline's code from the first failure", () => {
@@ -207,22 +321,24 @@ test("ANALYZE_TIMEOUT is a declared refusal whose sentence matches the copy held
   // copies agree: an undeclared code resolves to no errors.<CODE> key in any of the four
   // catalogs and reaches the recruiter as the client's generic fallback in every
   // language, and a drifted sentence means the task row and the client disagree.
-  const responsesSrc = readFileSync(path.join(HERE, "api-response.ts"), "utf8").replace(/\r\n/g, "\n");
+  const responsesSrc = readApiResponseSource(path.join(HERE, "api-response.ts")).replace(/\r\n/g, "\n");
   const declared = responsesSrc.match(/\n\s*ANALYZE_TIMEOUT:\s*\n?\s*"([^"]+)"/);
   assert.ok(declared, "ANALYZE_TIMEOUT must exist in REFUSAL_ERRORS");
   assert.equal(declared[1], ANALYZE_TIMEOUT_MESSAGE, "the literal here and REFUSAL_ERRORS must stay equal");
 });
 
-test("the deadline is read through the ONE shared predicate, not a regex re-typed here", () => {
+test("the deadline is read through the runner's TYPED predicate, not a regex over its message", async () => {
   const src = readFileSync(path.join(HERE, "analyze-run.ts"), "utf8").replace(/\r\n/g, "\n");
-  assert.match(src, /import \{ isSpawnTimeoutMessage \} from "@\/app\/_lib\/intake-run"/);
-  assert.match(src, /isSpawnTimeoutMessage\(engineMsg\)/);
-  // …and the predicate really does describe what python-runner rejects with, so the fake
-  // above is not the only thing this contract rests on.
-  const runnerSrc = readFileSync(path.join(HERE, "python-runner.ts"), "utf8");
-  assert.match(runnerSrc, /Python process timed out after \$\{Math\.round\(timeoutMs \/ 1000\)\}s/);
-  assert.ok(isSpawnTimeoutMessage("Python process timed out after 300s: -m pipeline.jobfit.cli /tmp/cv.pdf"));
-  assert.ok(!isSpawnTimeoutMessage("spawn python3 ENOENT"));
+  assert.match(src, /import \{[^}]*\bisSpawnTimeout\b[^}]*\} from "@\/app\/_lib\/python-runner"/);
+  assert.match(src, /isSpawnTimeout\(caught\)/);
+  assert.doesNotMatch(src, /isSpawnTimeoutMessage/, "a sentence is not a type");
+  // …and the REAL predicate agrees with the fake above: the query string steps past the
+  // resolve hook, so this is python-runner.ts itself.
+  const realSpecifier = "./python-runner.ts?real";
+  const real = (await import(realSpecifier)) as typeof import("./python-runner.ts");
+  assert.equal(real.isSpawnTimeout(new real.SpawnFailure("timeout", "Python process timed out after 300s")), true);
+  assert.equal(real.isSpawnTimeout(new real.SpawnFailure("aborted", "Python process aborted")), false);
+  assert.equal(real.isSpawnTimeout(new Error("Python process timed out after 300s")), false);
 });
 
 // ---- 2. the debit -----------------------------------------------------------
@@ -295,6 +411,149 @@ test("the seeded demo corpus is stamped deterministic by the seeder, not left bl
   assert.ok(seeded.length > 0, "non-vacuity: the throwaway DB really did self-seed the demo corpus");
   const unmarked = seeded.filter((r) => r.engine !== "deterministic");
   assert.deepEqual(unmarked.map((r) => r.slug), [], "every seeded row must say no model produced it");
+});
+
+// ---- 4. the GitHub deep-dive rides the task (challenge-r02 analyze-engine/A) --------
+//
+// The stage is reached through the late-bound registry (task-external-runners.ts) so the
+// GitHub harvest stays off tasks.ts's import graph. These cases drive the REAL runAnalyze
+// with a registered stage whose GitHub half is faked and whose persist is the real
+// setAnalysisGithub, so "the deep-dive lands on the saved row" is observed in the DB.
+
+const { registerTaskRunner, _resetTaskRunnersForTests } = await import("./task-external-runners.ts");
+const { runGithubStage } = await import("./analyze-github-stage.ts");
+const { setAnalysisGithub } = await import("./db/analyses.ts");
+const { GithubAnalysisError } = await import("./github/client.ts");
+const { ANALYZE_GITHUB_RUNNER, baseAnalyzeLog } = await import("./analyze-run.ts");
+
+const GH_FIXTURE = {
+  username: "octocat",
+  profileUrl: "https://github.com/octocat",
+  summary: "s",
+  analyzedAt: "2026-09-23T00:00:00.000Z",
+  metrics: { publicRepos: 1, followers: 0, totalStars: 0, totalForks: 0, activeRepos: 1, recentlyUpdatedRepos: 0, ownedReposAnalyzed: 1 },
+  languages: [],
+  topRepositories: [],
+  contributionSignals: [],
+  jobFitSignals: { jobDescriptionProvided: false, matchingSkills: [], potentialGaps: [], complexityAssessment: "" },
+  limitations: [],
+};
+
+let stageCalls = 0;
+function registerFakeStage(build: () => Promise<unknown>) {
+  stageCalls = 0;
+  registerTaskRunner(ANALYZE_GITHUB_RUNNER, async (ctx) => {
+    stageCalls += 1;
+    const p = ctx.params as Parameters<typeof runGithubStage>[0];
+    return runGithubStage(
+      { ...p, signal: ctx.signal },
+      {
+        buildGithubAnalysis: build as never,
+        isTransientlyDegraded: () => false,
+        readGithubCache: () => undefined,
+        writeGithubCache: () => {},
+        extractJdText: async () => "",
+        persist: (slug, json) => void setAnalysisGithub(slug, json, ctx.workspaceId || undefined),
+      },
+    );
+  });
+}
+
+type WithDive = { persistence: { slug: string } | null; githubDeepDive?: Record<string, unknown> };
+
+test("a missing stage registration is a CODED deep-dive failure, never a failed CV run", async () => {
+  _resetTaskRunnersForTests();
+  const { baseDir, cvPath } = tempCv("gh-unregistered.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const realError = console.error;
+  console.error = () => {};
+  let out: WithDive;
+  try {
+    out = (await runAnalyze({ ...params("gh-unregistered.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(out.persistence, "the CV half delivers and persists regardless");
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "ANALYSIS_FAILED" });
+});
+
+test("a handle rides the task: the deep-dive lands on the result AND on the saved row, server-side", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-done.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-done.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  assert.equal(stageCalls, 1);
+  assert.equal(out.githubDeepDive?.status, "done");
+  assert.ok(out.persistence);
+  const row = rowFor(out.persistence.slug);
+  assert.ok(row?.github_json, "the deep-dive was written onto the saved row by the task, not by a client PATCH");
+  assert.equal(JSON.parse(row.github_json).username, "octocat");
+});
+
+test("a deep-dive failure never fails the CV run and never changes its debit", async () => {
+  registerFakeStage(async () => {
+    throw new GithubAnalysisError("RATE_LIMITED", "GitHub said no", 60);
+  });
+  const { baseDir, cvPath } = tempCv("gh-throttled.pdf");
+  const before = usage();
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-throttled.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  assert.ok(out.persistence, "the CV analysis is still persisted");
+  assert.equal(usage(), before + 1, "exactly the one unit the CV run always cost — no more, no less");
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "RATE_LIMITED", retryAfterSec: 60 });
+  assert.equal(rowFor(out.persistence.slug)?.github_json ?? null, null, "a failed deep-dive writes nothing");
+});
+
+test("BLIND never reaches the stage: skipped, and the registered runner is not even called", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-blind.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-blind.pdf", baseDir, cvPath), blind: true, githubProfile: "octocat" })) as WithDive;
+  assert.equal(stageCalls, 0);
+  assert.deepEqual(out.githubDeepDive, { status: "skipped", reason: "blind" });
+  assert.equal(rowFor(out.persistence!.slug)?.github_json ?? null, null);
+});
+
+test("a handle the ROUTE dropped (capability / throttle) surfaces its code without running the stage", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-dropped.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-dropped.pdf", baseDir, cvPath), githubDropped: "REQUEST_THROTTLED" })) as WithDive;
+  assert.equal(stageCalls, 0);
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "REQUEST_THROTTLED" });
+});
+
+test("a run with no handle carries no githubDeepDive at all", async () => {
+  const { baseDir, cvPath } = tempCv("gh-none.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze(params("gh-none.pdf", baseDir, cvPath))) as WithDive;
+  assert.equal("githubDeepDive" in out, false);
+});
+
+test("the analyze log says whether a deep-dive rode along (it was hard-coded false)", () => {
+  const p = { baseDir: "", grounding: false, variants: [], requestId: "r" };
+  assert.equal(baseAnalyzeLog({ ...p, githubProfile: "octocat" }, Date.now()).github_present, true);
+  assert.equal(baseAnalyzeLog(p, Date.now()).github_present, false);
+  assert.equal(baseAnalyzeLog({ ...p, githubProfile: "  " }, Date.now()).github_present, false);
+});
+
+test("a BLANK explanation is a contract failure: not persisted, not cached, not debited", async () => {
+  const { baseDir, cvPath } = tempCv("blank-explanation.pdf");
+  const before = usage();
+  const rows = listAnalyses().length;
+  nextSpawn = { kind: "ok", payload: { ...PAYLOAD, explanation: "   " } };
+  const err = await runAnalyze(params("blank-explanation.pdf", baseDir, cvPath)).then(
+    () => null,
+    (e: unknown) => e
+  );
+  assert.ok(err instanceof AnalyzeError, `expected an AnalyzeError, got ${String(err)}`);
+  assert.equal(err.status, 502);
+  assert.equal(usage(), before, "nothing debited");
+  assert.equal(listAnalyses().length, rows, "nothing persisted");
+  // Nothing cached: the same CV re-runs the engine (a cache hit would bill nothing).
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  await runAnalyze(params("blank-explanation.pdf", baseDir, cvPath));
+  assert.equal(usage(), before + 1, "the retry ran the engine, so the blank payload was never cached");
 });
 
 // LAST: it drops the table the earlier tests write to.

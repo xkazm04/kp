@@ -3,6 +3,7 @@
 import unittest
 
 from pipeline.jobfit.devcase.design import (
+    CASE_TIMEBOX_HOURS,
     CASE_DESIGN_PROMPT_VERSION,
     MIN_PROBE_DECISION_OPTIONS,
     ROLE_DESIGN_PROMPT_VERSION,
@@ -11,6 +12,7 @@ from pipeline.jobfit.devcase.design import (
     design_role,
 )
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 from pipeline.jobfit.devcase.models import (
     DEFAULT_TIMEBOX_HOURS,
     MAX_TIMEBOX_HOURS,
@@ -21,14 +23,9 @@ from pipeline.jobfit.devcase.models import (
 )
 
 
-class _StubProvider:
-    """Minimal provider stub: returns a fixed JSON payload for the design prompt."""
-
-    def __init__(self, payload):
-        self._payload = payload
-
-    def complete_json(self, prompt, system=None):
-        return self._payload
+class _StubProvider(TextReply):
+    """Minimal provider stub: answers the design prompt with a fixed JSON payload, as TEXT
+    through the real extractor (tests/devcase_fakes.py), so the step's shape pin runs."""
 
 
 class TestDesign(unittest.TestCase):
@@ -164,15 +161,9 @@ class TestMustHavesReachTheDesigner(unittest.TestCase):
         }
 
     def _capture(self, role):
-        captured = {}
-
-        class Capture:
-            def complete_json(self, prompt, system=None):
-                captured["prompt"] = prompt
-                return {}
-
-        design_case(self.need, self.analysis, role, provider=Capture())
-        return captured["prompt"]
+        capture = TextReply({})
+        design_case(self.need, self.analysis, role, provider=capture)
+        return capture.last_prompt
 
     def test_must_haves_reach_the_design_prompt(self):
         prompt = self._capture(self.role)
@@ -237,7 +228,44 @@ class TestTimeboxCapAtEveryWriter(unittest.TestCase):
             "timeboxHours": 16,  # the LLM routinely echoes a longer take-home back
         }
         case, _ = design_case(self.need, self.analysis, self.role, provider=_StubProvider(payload))
-        self.assertEqual(case["timeboxHours"], MAX_TIMEBOX_HOURS)
+        # 16h is far past the cap; the model may propose less than the flat box, never more.
+        self.assertEqual(case["timeboxHours"], CASE_TIMEBOX_HOURS)
+
+    def test_one_flat_box_for_every_seniority(self):
+        hours = {}
+        for seniority in ("junior", "medior", "senior", "lead", "unknown", ""):
+            need = DevNeed(title="Engineer", stack=["Python"], seniority_target=seniority)
+            role = {**self.role, "seniority": seniority}
+            case, _ = design_case(need, self.analysis, role, provider=None)
+            hours[seniority] = case["timeboxHours"]
+        self.assertEqual(set(hours.values()), {CASE_TIMEBOX_HOURS}, hours)
+        self.assertLessEqual(hours["senior"], hours["junior"])
+
+    def test_model_echoing_the_cap_does_not_lengthen_a_senior_case(self):
+        role = {**self.role, "seniority": "senior"}
+        need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="senior")
+        payload = {
+            "title": "Case",
+            "brief": "b",
+            "repoSeed": "r",
+            "tasks": ["t"],
+            "coverProbes": [{"id": "x1", "kind": "ambiguity", "where": "brief", "reveals": "r"}],
+            "timeboxHours": 2.0,
+        }
+        case, _ = design_case(need, self.analysis, role, provider=_StubProvider(payload))
+        self.assertEqual(case["timeboxHours"], CASE_TIMEBOX_HOURS)
+
+    def test_model_may_propose_less_than_the_box(self):
+        payload = {
+            "title": "Case",
+            "brief": "b",
+            "repoSeed": "r",
+            "tasks": ["t"],
+            "coverProbes": [{"id": "x1", "kind": "ambiguity", "where": "brief", "reveals": "r"}],
+            "timeboxHours": 0.75,
+        }
+        case, _ = design_case(self.need, self.analysis, self.role, provider=_StubProvider(payload))
+        self.assertEqual(case["timeboxHours"], 0.75)
 
     def test_every_seniority_band_is_within_the_cap(self):
         for seniority in ("junior", "medior", "senior", "lead", "unknown"):

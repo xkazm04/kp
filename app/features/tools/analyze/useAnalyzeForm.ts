@@ -7,8 +7,9 @@ import {
   applyStageEvent,
   initialStageState,
   type StageState,
-} from "@/app/_components/AnalysisProgress";
-import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
+  parseStoredRunStart,
+} from "@/app/_components/analysis-progress-logic";
+import { type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
@@ -19,8 +20,24 @@ import {
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
-import { resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
+import { githubViewFromDeepDive, resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
+import {
+  JD_NONE,
+  jdEdited,
+  jdFile,
+  jdLoadFailed,
+  jdLoading,
+  jdStatus,
+  jdSubmission,
+  jdText,
+  linkedSlug,
+  nextJdSource,
+  reconcileRestoredLink,
+  restoreJdSource,
+  type JdAction,
+  type JdSource,
+} from "./analyzeJdSource";
 import {
   ANALYZE_DRAFT_KEY,
   parseAnalyzeDraft,
@@ -29,12 +46,20 @@ import {
   restoreDraftValue,
   serializeAnalyzeDraft,
 } from "./analyzeDraft";
+import { ANALYZE_LAST_RESULT_KEY, decideAnalyzeRestore, settleAnalyzeRestore } from "./analyzeSession";
+import { clearAnalyzeAttachments, putAnalyzeAttachments, takeAnalyzeAttachments } from "./analyzeAttachmentStore";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
 // Survives a page refresh: the active analyze task id is stashed here so the
 // view can re-attach to the still-running (or finished) server-side task.
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
+// Epoch ms the stashed task started, so a resumed run's elapsed clock continues
+// from the real start instead of restarting at zero when the panel remounts.
+const ANALYZE_STARTED_KEY = "kp.analyzeStartedAt";
+
+// The landed-result crumb (the saved row's slug) and the per-layer restore table are
+// in analyzeSession.ts; attachments live in module memory (analyzeAttachmentStore.ts).
 
 // The draft's key, codec and restore rule live in analyzeDraft.ts — pure, and so
 // testable against the one input nobody here controls (sessionStorage can hold
@@ -89,11 +114,45 @@ export function useAnalyzeForm() {
   // run's late callbacks are ignored, so a zombie poll that resolves after a
   // Reset/Cancel can't write the stale result back over the cleared form.
   const analysisRunIdRef = useRef(0);
+  // The saved-row slug whose deep-dive is already attached (by the analyze task, or by
+  // the PATCH effect below for a panel Retry) — so it is never written twice.
+  const githubPersistedRef = useRef<string | null>(null);
 
   const { cvFiles, addCvFile, replaceCvFile, removeCvFile, clearCvFiles, syncCvFilesRef } = useAnalyzeCvFiles();
-  const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
-  const [jobDescriptionText, setJobDescriptionText] = useState("");
-  const [companyFile, setCompanyFile] = useState<File | null>(null);
+  // Attachments come back from module memory after a tab switch (never from storage).
+  const [jdSource, setJdSource] = useState<JdSource>(() => {
+    const file = takeAnalyzeAttachments().jobDescriptionFile;
+    return file ? { kind: "file", file } : JD_NONE;
+  });
+
+  const dispatchJd = useCallback((action: JdAction) => {
+    setJdSource((current) => nextJdSource(current, action));
+  }, []);
+
+  const jobDescriptionFile = jdFile(jdSource);
+  const jobDescriptionText = jdText(jdSource);
+  const selectedJdSlug = linkedSlug(jdSource);
+  const isJdLoading = jdLoading(jdSource);
+  const isJdLoadFailed = jdLoadFailed(jdSource);
+  const isJdEdited = jdEdited(jdSource);
+
+  const setJobDescriptionFile = useCallback(
+    (file: File | null) => {
+      dispatchJd(file ? { type: "attachFile", file } : { type: "removeFile" });
+      if (!file && jobInputRef.current) jobInputRef.current.value = "";
+    },
+    [dispatchJd]
+  );
+
+  const setJobDescriptionText = useCallback((text: string | ((prev: string) => string)) => {
+    setJdSource((current) => {
+      const prev = jdText(current);
+      const nextText = typeof text === "function" ? text(prev) : text;
+      return nextJdSource(current, { type: "edit", text: nextText });
+    });
+  }, []);
+
+  const [companyFile, setCompanyFile] = useState<File | null>(() => takeAnalyzeAttachments().companyFile);
   const [companyText, setCompanyText] = useState("");
   const [githubProfile, setGithubProfile] = useState("");
   const [reportLang, setReportLang] = useState<string>(isLocale(appLocale) ? appLocale : "en");
@@ -108,23 +167,34 @@ export function useAnalyzeForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<number | undefined>(undefined);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
   // #5 — the server's REAL per-variant completion for a multi-CV comparison
   // (null until the poll reports it); drives the honest progress bar.
   const [variantProgress, setVariantProgress] = useState<VariantProgress | null>(null);
+  // True while the shown result was RELOADED from its saved row after a tab switch,
+  // rather than produced by a run in this mount — the tab says so and offers Start new.
+  const [restored, setRestored] = useState(false);
 
   const {
     jdLibrary,
     jdLibraryState,
     jdLibraryTruncated,
     reloadJdLibrary,
-    selectedJdSlug,
-    setSelectedJdSlug,
     pickJd,
-    jdLoading,
-    jdLoadFailed,
-  } =
-    useAnalyzeJdLibrary(setJobDescriptionText);
+  } = useAnalyzeJdLibrary(dispatchJd, setJobDescriptionText);
+
+  // Reconcile a restored link against the library once loaded (during render, React adjust-state pattern)
+  if (jdSource.kind === "saved" && jdSource.restored && jdLibraryState === "ready") {
+    const { source: reconciled } = reconcileRestoredLink(jdSource, {
+      state: jdLibraryState,
+      truncated: jdLibraryTruncated,
+      jds: jdLibrary,
+    });
+    if (reconciled !== jdSource) {
+      setJdSource(reconciled);
+    }
+  }
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
   const hasCompany = Boolean(companyFile || companyText.trim());
@@ -136,12 +206,16 @@ export function useAnalyzeForm() {
     return { tone: "attached", label: t("cvVariants", { count: cvFiles.length }) };
   }, [cvFiles, t]);
 
-  const jobStatus: ColumnStatus = hasJobDescription
-    ? {
-        tone: "attached",
-        label: jobDescriptionFile?.name ?? t("charsCount", { count: jobDescriptionText.trim().length }),
-      }
-    : { tone: "optional", label: t("optional") };
+  const jobStatus: ColumnStatus = useMemo(() => {
+    const s = jdStatus(jdSource, jdLibrary);
+    if (s.tone === "optional") return { tone: "optional", label: t("optional") };
+    if (s.key === "file") return { tone: "attached", label: s.name };
+    if (s.key === "loadingJd") return { tone: "attached", label: t("loadingJd") };
+    if (s.key === "jdLinkedTo") return { tone: "attached", label: t("jdLinkedTo", { title: s.title }) };
+    if (s.key === "jdEditedFrom") return { tone: "attached", label: t("jdEditedFrom", { title: s.title }) };
+    if (s.key === "charsCount") return { tone: "attached", label: t("charsCount", { count: s.count }) };
+    return { tone: "optional", label: t("optional") };
+  }, [jdSource, jdLibrary, t]);
 
   const companyStatus: ColumnStatus = hasCompany
     ? { tone: "attached", label: companyFile?.name ?? t("charsCount", { count: companyText.trim().length }) }
@@ -159,10 +233,14 @@ export function useAnalyzeForm() {
     syncCvFilesRef(cvFiles);
   }, [cvFiles, syncCvFilesRef]);
 
+  // Write the attachments through to module memory so they survive the tab unmounting
+  // (analyzeAttachmentStore.ts). Every add/replace/remove/clear lands here post-commit.
+  useEffect(() => {
+    putAnalyzeAttachments({ cvFiles, jobDescriptionFile, companyFile });
+  }, [cvFiles, jobDescriptionFile, companyFile]);
+
   function clearJobDescription() {
-    setJobDescriptionFile(null);
-    setJobDescriptionText("");
-    setSelectedJdSlug(null);
+    dispatchJd({ type: "clear" });
     if (jobInputRef.current) jobInputRef.current.value = "";
   }
 
@@ -193,6 +271,10 @@ export function useAnalyzeForm() {
     setError(null);
     setStageState(initialStageState());
     setVariantProgress(null);
+    setRestored(false);
+    // Reset is the end of the attachments' and the landed result's lifetime too.
+    clearAnalyzeAttachments();
+    setLastResultSlug(null);
     // Drop the persisted draft NOW — the debounced writer would flush the removal
     // 300 ms later, and a reset-then-switch inside that window would cancel it,
     // resurrecting the cleared inputs on the next visit.
@@ -204,9 +286,22 @@ export function useAnalyzeForm() {
     }
   }
 
+  // The landed-result crumb: the saved row's slug, or null to remove it. Best-effort
+  // like every crumb here — without storage the result simply does not come back.
+  const setLastResultSlug = (slug: string | null) => {
+    try {
+      if (slug) sessionStorage.setItem(ANALYZE_LAST_RESULT_KEY, slug);
+      else sessionStorage.removeItem(ANALYZE_LAST_RESULT_KEY);
+    } catch {
+      /* best-effort: a private window or blocked site data makes sessionStorage throw;
+         the report is still on screen, it just will not survive the next tab switch. */
+    }
+  };
+
   const clearStoredTask = () => {
     try {
       sessionStorage.removeItem(ANALYZE_TASK_KEY);
+      sessionStorage.removeItem(ANALYZE_STARTED_KEY);
     } catch {
       /* best-effort: no storage means no stashed task id to clear. The run is
          already halted by the abort above — this only drops the resume crumb. */
@@ -256,6 +351,26 @@ export function useAnalyzeForm() {
       generic: t("errFailed"),
     });
 
+  // The GitHub deep-dive of a CV run is a STAGE of the analyze task (challenge-r02
+  // analyze-engine/A): its outcome arrives on the task result, and the server has already
+  // attached a delivered one to the saved row. This includes a refresh-resumed run —
+  // the stored result carries the deep-dive, so there is nothing to fetch back.
+  const applyGithubDeepDive = (parsed: Analysis) => {
+    if (!parsed.githubDeepDive) {
+      // No stage rode this run; only unstick a panel still marked loading.
+      setGithubStatus(githubStatusAfterCancel);
+      return;
+    }
+    const view = githubViewFromDeepDive(parsed.githubDeepDive);
+    const slug = parsed.persistence?.slug;
+    // Already on the row — the PATCH effect below must not write it a second time.
+    if (view.status === "done" && slug) githubPersistedRef.current = slug;
+    setGithubAnalysis(view.analysis);
+    setGithubError(view.error ? resolveAnalyzeMessage(view.error) : null);
+    setGithubWarning(view.warning ? resolveAnalyzeMessage(view.warning) : null);
+    setGithubStatus(view.status);
+  };
+
   const buildCallbacks = (runId: number) => {
     const current = () => runId === analysisRunIdRef.current;
     return {
@@ -276,12 +391,19 @@ export function useAnalyzeForm() {
       onResult: (parsed: Analysis) => {
         if (!current()) return;
         setAnalysis(parsed);
+        applyGithubDeepDive(parsed);
         setIsLoading(false);
         setIsCompleting(false);
         clearStoredTask();
+        // The run crumb becomes the result crumb. An unsaved result has no row to
+        // reload from, so it leaves none.
+        setLastResultSlug(parsed.persistence?.slug ?? null);
       },
       onError: (error: AnalyzeErrorInfo) => {
         if (!current()) return;
+        // The deep-dive rode the task that just failed, so no outcome is coming for it:
+        // release a "loading" panel (which also keeps the Analyze button disabled).
+        setGithubStatus(githubStatusAfterCancel);
         setError(resolveAnalyzeMessage(error));
         setIsLoading(false);
         setIsCompleting(false);
@@ -297,6 +419,7 @@ export function useAnalyzeForm() {
         taskIdRef.current = id;
         try {
           sessionStorage.setItem(ANALYZE_TASK_KEY, id);
+          sessionStorage.setItem(ANALYZE_STARTED_KEY, String(Date.now()));
         } catch {
           /* best-effort: the crumb only buys re-attachment after a refresh. Without
              it the run still completes in this tab; a reload just loses the thread. */
@@ -318,10 +441,13 @@ export function useAnalyzeForm() {
          behaviour and nothing an operator would act on. */
     }
     if (!draft) return;
-    const { jd, company, github, reportLang: draftedLang, blind: draftedBlind } = draft;
+    const { company, github, reportLang: draftedLang, blind: draftedBlind } = draft;
     const localeDefault = isLocale(appLocale) ? appLocale : "en";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
-    if (jd) setJobDescriptionText((prev) => restoreDraftValue(prev, jd));
+    const restoredJd = restoreJdSource(draft);
+    if (restoredJd.kind !== "none") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
+      dispatchJd({ type: "restore", source: restoredJd });
+    }
     if (company) setCompanyText((prev) => restoreDraftValue(prev, company));
     if (github) setGithubProfile((prev) => restoreDraftValue(prev, github));
     if (draftedLang) setReportLang((prev) => restoreDraftLocale(prev, draftedLang, localeDefault));
@@ -338,6 +464,8 @@ export function useAnalyzeForm() {
         // reset resurrects itself as a stale-looking entry.
         const payload = serializeAnalyzeDraft({
           jd: jobDescriptionText,
+          jdSlug: selectedJdSlug ?? undefined,
+          jdEdited: isJdEdited,
           company: companyText,
           github: githubProfile,
           reportLang,
@@ -352,47 +480,77 @@ export function useAnalyzeForm() {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [jobDescriptionText, companyText, githubProfile, reportLang, blind]);
-
-  // True once this mount re-attached to a server task after a refresh — gates
-  // the GitHub-restore effect below (a fresh submit never needs the restore).
-  const resumedRef = useRef(false);
+  }, [jobDescriptionText, companyText, githubProfile, reportLang, blind, selectedJdSlug, isJdEdited]);
 
   // Re-attach to an analyze task that was still running when the page reloaded.
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
   // setState in the effect body would cascade a render before the first commit
   // settles. Behavior is unchanged — the resume still starts right away.
+  //
+  // …or, when no task is running, reload the LANDED result the recruiter was reading
+  // before the tab unmounted: GET its saved row and rebuild the live panel from it
+  // (analyzeSession.ts decides which layer comes back and validates the row). A 404
+  // (the row was deleted, or belongs to another workspace) or a corrupt row drops the
+  // crumb and the form stays empty; there is no half-restored panel.
   useEffect(() => {
-    let stored: string | null = null;
+    let storedTaskId: string | null = null;
+    let storedStart: string | null = null;
+    let lastSlug: string | null = null;
     try {
-      stored = sessionStorage.getItem(ANALYZE_TASK_KEY);
+      storedTaskId = sessionStorage.getItem(ANALYZE_TASK_KEY);
+      lastSlug = sessionStorage.getItem(ANALYZE_LAST_RESULT_KEY);
+      storedStart = sessionStorage.getItem(ANALYZE_STARTED_KEY);
     } catch {
       /* best-effort: no storage means no crumb to resume from, which is the same
-         path as a first visit — `stored` stays null and the effect returns. */
+         path as a first visit — both crumbs stay null and nothing is restored. */
     }
-    if (!stored) return;
-    const resumeStored = stored;
+    const decision = decideAnalyzeRestore({ storedTaskId, lastSlug });
+    if (decision.kind === "none") return;
+    const reloadController = new AbortController();
     const t = window.setTimeout(() => {
-      const controller = new AbortController();
-      abortRef.current = controller;
-      taskIdRef.current = resumeStored;
-      const runId = ++analysisRunIdRef.current;
-      resumedRef.current = true;
-      setIsLoading(true);
-      setIsCompleting(false);
-      void resumeAnalysis(resumeStored, buildCallbacks(runId), controller.signal);
+      if (decision.kind === "resume-task") {
+        const controller = new AbortController();
+        abortRef.current = controller;
+        taskIdRef.current = decision.taskId;
+        const runId = ++analysisRunIdRef.current;
+        setRunStartedAt(parseStoredRunStart(storedStart, Date.now()) ?? Date.now());
+        setIsLoading(true);
+        setIsCompleting(false);
+        void resumeAnalysis(decision.taskId, buildCallbacks(runId), controller.signal);
+        return;
+      }
+      // A submit or reset made while the row loads supersedes the reload (the id moves).
+      const runId = analysisRunIdRef.current;
+      void fetch(`/api/analyses/${encodeURIComponent(decision.slug)}`, { signal: reloadController.signal })
+        .then(async (res) => settleAnalyzeRestore(res.status, await res.json().catch(() => null)))
+        .then((outcome) => {
+          if (runId !== analysisRunIdRef.current) return;
+          if (outcome.kind === "none") {
+            if (outcome.dropCrumb) setLastResultSlug(null);
+            return;
+          }
+          setAnalysis(outcome.analysis);
+          // The same path a live run's deep-dive takes: a persisted one fills the panel.
+          applyGithubDeepDive(outcome.analysis);
+          setRestored(true);
+        })
+        .catch(() => {
+          /* best-effort: an aborted (unmounted) or offline reload keeps the crumb for
+             the next visit; the form is simply empty, as it was before this layer. */
+        });
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      reloadController.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // GH1 — persist the GitHub deep-dive onto the saved analysis row once BOTH
-  // the save receipt (analysis.persistence.slug) and a done GitHub result
-  // exist. Completion order varies (the deep-dive can outlive the main run and
-  // vice versa), so this watches both. Per-slug guard so re-renders can't
-  // re-PATCH; cleared on failure so a later pass may retry. Best-effort: the
-  // live view already shows the result — only the saved report misses it.
-  const githubPersistedRef = useRef<string | null>(null);
+  // GH1 — attach a deep-dive the PANEL produced (its Retry, which still runs through
+  // /api/github-analysis) onto the saved row. A CV run's own deep-dive no longer needs
+  // this: it is a stage of the analyze task, attached server-side, and
+  // applyGithubDeepDive marks its slug here so it is never written twice. Per-slug
+  // guard so re-renders can't re-PATCH; cleared on failure so a later pass may retry.
   useEffect(() => {
     const slug = analysis?.persistence?.slug;
     if (!slug || githubStatus !== "done" || !githubAnalysis) return;
@@ -407,41 +565,12 @@ export function useAnalyzeForm() {
     });
   }, [analysis, githubAnalysis, githubStatus]);
 
-  // GH1 — the deep-dive runs client-side, so a page refresh loses it even
-  // though the resumed server task restores the main analysis. Once the
-  // resumed analysis lands with its save receipt, restore the persisted
-  // deep-dive from the saved row (written by the pre-refresh session's PATCH).
-  useEffect(() => {
-    if (!resumedRef.current) return;
-    const slug = analysis?.persistence?.slug;
-    if (!slug || githubStatus !== "idle" || githubAnalysis) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const r = await fetch(`/api/analyses/${encodeURIComponent(slug)}`);
-        if (!r.ok || cancelled) return;
-        const payload = (await r.json()) as { githubAnalysis?: unknown };
-        if (cancelled || !payload.githubAnalysis) return;
-        const parsed = githubAnalysisSchema.safeParse(payload.githubAnalysis);
-        if (parsed.success && !cancelled) {
-          githubPersistedRef.current = slug; // already persisted — don't re-PATCH
-          setGithubAnalysis(parsed.data);
-          setGithubStatus("done");
-        }
-      } catch {
-        /* best-effort restore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [analysis, githubAnalysis, githubStatus]);
-
-  // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
-  // workspace segmented control), so the poll loop + stage interval don't leak.
-  // The GitHub deep-dive is aborted here too: it outlives the main run by design,
-  // so an unmount mid-deep-dive used to leave a request (and its extract-text
-  // subprocess hop) running against a surface that no longer exists. Aborting also
+  // Abort an in-flight analyze POLL when the tab unmounts (e.g. switching the
+  // workspace segmented control), so the poll loop + stage interval don't leak. The
+  // server task itself runs on — and a CV run's GitHub deep-dive with it, since it is a
+  // stage of that task. Only a panel-owned deep-dive (a GitHub-only run or a Retry, both
+  // through /api/github-analysis) is a browser request, and that one is aborted here so
+  // it does not keep running against a surface that no longer exists. Aborting also
   // clears the 320 ms result-delivery timer on the main run (scheduleResultDelivery).
   useEffect(
     () => () => {
@@ -451,9 +580,11 @@ export function useAnalyzeForm() {
     []
   );
 
-  // One GitHub deep-dive launch — used by submit AND by the panel's "Retry
-  // GitHub analysis" (GH5), so a transient rate-limit failure can be retried
-  // alone without re-running the whole CV pipeline. Mints a fresh run id
+  // One browser-owned GitHub deep-dive launch through /api/github-analysis — used by a
+  // GitHub-only submit (no CV, so no task to ride) AND by the panel's "Retry GitHub
+  // analysis" (GH5), so a transient rate-limit failure can be retried alone without
+  // re-running the whole CV pipeline. A CV run's deep-dive is NOT launched here: it
+  // rides the analyze task (submitAnalysis sends the handle). Mints a fresh run id
   // (superseding any in-flight deep-dive) and clears the result state; the
   // guarded callbacks ignore anything a superseded run still emits.
   function launchGithubRun() {
@@ -530,17 +661,27 @@ export function useAnalyzeForm() {
 
     setError(null);
     setAnalysis(null);
+    setRestored(false);
+    // A new run replaces the landed result; its own save receipt re-arms the crumb.
+    setLastResultSlug(null);
     setGithubAnalysis(null);
     setGithubError(null);
     setGithubWarning(null);
     setGithubStatus("idle");
 
-    if (hasGithub) launchGithubRun();
-
-    // GitHub-only run: the deep-dive above is the whole job — no server task,
+    // GitHub-only run: the browser-owned deep-dive is the whole job — no server task,
     // no main-analysis loading flags or stage strip.
-    if (githubOnly) return;
+    if (githubOnly) {
+      launchGithubRun();
+      return;
+    }
 
+    // A CV run: the deep-dive (when there is a handle and the run is not blind) is a
+    // stage of the analyze task, so the panel shows it loading until the result lands.
+    const githubRides = shouldRunGithubDeepDive({ hasGithub, blind });
+    if (githubRides) setGithubStatus("loading");
+
+    setRunStartedAt(Date.now());
     setIsLoading(true);
     setIsCompleting(false);
     setStageState(initialStageState());
@@ -550,16 +691,18 @@ export function useAnalyzeForm() {
     abortRef.current = controller;
     const analysisRunId = ++analysisRunIdRef.current;
 
+    const sub = jdSubmission(jdSource);
     await executeAnalysis(
       {
         cvFiles,
-        jobDescriptionFile,
-        jobDescriptionText,
+        jobDescriptionFile: sub.file,
+        jobDescriptionText: sub.text,
         companyFile,
         companyText,
-        selectedJdSlug,
+        selectedJdSlug: sub.jdSlug,
         reportLang,
         blind,
+        githubProfile: githubRides ? githubProfile : undefined,
       },
       buildCallbacks(analysisRunId),
       controller.signal
@@ -618,15 +761,36 @@ export function useAnalyzeForm() {
       reset,
       submit,
       cancel,
+      revertJd: () => dispatchJd({ type: "revert" }),
+      unlinkJd: () => dispatchJd({ type: "unlink" }),
       // GH5 — re-fire the deep-dive alone from the panel's error state.
       retryGithub: launchGithubRun,
     },
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate
     // full fan-out (idea-8367f051).
-    flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
+    flags: {
+      hasJobDescription,
+      hasCompany,
+      hasGithub,
+      isLoading,
+      isCompleting,
+      runStartedAt,
+      githubLoading: githubStatus === "loading",
+      jdLoading: isJdLoading,
+      jdEdited: isJdEdited,
+    },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, jdLibraryState, jdLibraryTruncated, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
-    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
+    library: {
+      jdLibrary,
+      jdLibraryState,
+      jdLibraryTruncated,
+      reloadJdLibrary,
+      selectedJdSlug,
+      setSelectedJdSlug: (slug: string | null) => dispatchJd(slug ? { type: "pickSaved", slug } : { type: "unlink" }),
+      pickJd,
+      jdLoadFailed: isJdLoadFailed,
+    },
+    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress, restored },
   };
 }

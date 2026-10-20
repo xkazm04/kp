@@ -40,6 +40,7 @@ import { MeterRow } from "../BillingUsageMeterRow";
 import { isUnmeteredInstall, type BillingPayload } from "../billingTypes";
 import { foldByUseCase, sumTotals, type UseCaseTotals } from "./spendUsageFold";
 import { SpendEngineFacts } from "./SpendEngineFacts";
+import { SpendVoiceFacts } from "./SpendVoiceFacts";
 import type { SpendData } from "./useSpendData";
 
 /** Use-case display name with the app-wide has() fallback — a use case added on
@@ -108,6 +109,10 @@ export function BillingSpendPanel({
   // here and is untouched on a metered install, where those numbers ARE the point.
   // `metered` is the honest predicate and it lives once, in billingTypes.ts.
   const showAllowance = !isUnmeteredInstall(data);
+  // When the allowance refills: the SAME window every meter below is debited in
+  // (billingOverview.allowanceWindow, a UTC calendar month), so it is shown in UTC.
+  // Absent on a payload from an older server - the rail then just omits the date.
+  const resetWindow = data.allowanceWindow ?? null;
 
   const totals = usage ? foldByUseCase(usage.rows) : [];
   const sum = sumTotals(totals);
@@ -130,12 +135,25 @@ export function BillingSpendPanel({
         {showAllowance ? (
           <aside className={`${PANEL_SUNKEN} h-fit p-3`}>
             <p className={META_LABEL}>{t("allowance")}</p>
+            {resetWindow ? (
+              <p className="mt-0.5 text-sm text-steel">
+                {t("allowanceResets", {
+                  date: format.dateTime(new Date(resetWindow.resetsAt), { day: "numeric", month: "short", timeZone: "UTC" }),
+                })}
+              </p>
+            ) : null}
             {data.meters.length === 0 ? (
               <p className="mt-2 text-sm text-steel">{tUsage("empty")}</p>
             ) : (
               <div className="mt-3 space-y-4">
                 {data.meters.map((meter) => (
-                  <MeterRow key={meter.meter} meter={meter} name={meterName(meter.meter)} meterId={meter.meter} />
+                  <MeterRow
+                    key={meter.meter}
+                    meter={meter}
+                    name={meterName(meter.meter)}
+                    meterId={meter.meter}
+                    resetWindow={resetWindow}
+                  />
                 ))}
               </div>
             )}
@@ -209,6 +227,8 @@ export function BillingSpendPanel({
           <p className={META_LABEL}>{t("engineTitle")}</p>
           <div className="mt-2">
             <SpendEngineFacts ops={ops} />
+            {/* The realtime voice plane: its own read, never a mint on load. */}
+            <SpendVoiceFacts />
           </div>
           {usage ? (
             <p className="mt-2 text-sm text-steel">

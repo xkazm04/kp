@@ -13,6 +13,8 @@ import { readClientOrgCurrency, readClientOrgName, type OrgCurrency } from "@/ap
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
+import { requestOnboardingReopen } from "@/app/features/shell/setup/onboardingReopen";
+import { useSetupUnfinished } from "@/app/features/shell/setup/useSetupUnfinished";
 import { OrganizationGeneralPanel } from "./OrganizationGeneralPanel";
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 
@@ -47,6 +49,10 @@ export function OrganizationTab() {
   // after the write landed - and it can say nothing at all about a refusal.
   const [languageSave, setLanguageSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [onboarding, setOnboarding] = useState(false);
+  // While first-run setup is unfinished this button is the real way back in (live
+  // wizard, persists and stamps); preview mode stamps nothing, so it could never
+  // finish a setup. Once finished it is the harmless preview again.
+  const setupUnfinished = useSetupUnfinished();
   const [name, setName] = useState<string>(() => readClientOrgName());
   const language: AppLanguage = (isLocale(appLocale) ? appLocale : "en") as AppLanguage;
 
@@ -56,6 +62,7 @@ export function OrganizationTab() {
   // the console render a Saving…/Saved/error ticker beside the field. The ref
   // skips the mount run (the initial value is already persisted).
   const [nameSave, setNameSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const pendingName = useRef<string | null>(null);
   // Every keystroke retires the previous verdict (editName below). The ticker used
   // to keep reading "Saved" for the whole 500ms debounce window — over text that was
   // NOT saved — so appending to an already-saved name and leaving the tab inside
@@ -64,6 +71,7 @@ export function OrganizationTab() {
   const editName = (v: string) => {
     setName(v);
     setNameSave("idle");
+    pendingName.current = v;
   };
   const nameHydrated = useRef(false);
   useEffect(() => {
@@ -72,6 +80,7 @@ export function OrganizationTab() {
       return;
     }
     const id = setTimeout(async () => {
+      pendingName.current = null;
       setNameSave("saving");
       try {
         // The action now ANSWERS: a caller without org:manage is refused, and a
@@ -85,6 +94,19 @@ export function OrganizationTab() {
     }, 500);
     return () => clearTimeout(id);
   }, [name]);
+
+  // A tab switch unmounts this panel. Flush the last edit when its debounce has
+  // not fired yet, so leaving within 500 ms does not silently discard the name.
+  useEffect(() => () => {
+    if (pendingName.current == null) return;
+    void setOrgName(pendingName.current)
+      .then((result) => {
+        if (!result.ok) console.warn("org name flush refused on unmount", result.code);
+      })
+      .catch((error: unknown) => {
+        console.error("org name flush failed on unmount", error);
+      });
+  }, []);
 
   // App language is the org's language authority: persist to BOTH the locale cookie
   // and the workspace default, then re-render the app under it — so recruiter UI,
@@ -149,10 +171,10 @@ export function OrganizationTab() {
         </div>
         <button
           type="button"
-          onClick={() => setOnboarding(true)}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral transition-colors hover:bg-coral/10 dark:rounded-lg"
+          onClick={setupUnfinished ? requestOnboardingReopen : () => setOnboarding(true)}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral-ink transition-colors hover:bg-coral/10 dark:rounded-lg"
         >
-          <Rocket size={14} aria-hidden /> {t("previewOnboarding")}
+          <Rocket size={14} aria-hidden /> {setupUnfinished ? t("finishSetup") : t("previewOnboarding")}
         </button>
       </header>
 

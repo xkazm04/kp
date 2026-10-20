@@ -1,9 +1,10 @@
 """LLM-driven HR automation for the hiring pipeline (Direction 2).
 
-Local-first: the ONLY runtime LLM engine is the Claude Code CLI via
-ClaudeCliProvider. Every LLM task ships a deterministic fallback (mirroring
-match_reasoning.generate) so the pipeline never blocks when the CLI is absent
-(provider=None => deterministic path). Task 7 (policy pass) is pure-deterministic.
+The CLI resolves each task's provider through the shared LLM registry, which can
+select Claude Code CLI or a configured API provider. Every LLM task ships a
+deterministic fallback (mirroring match_reasoning.generate), so the pipeline
+still answers when no provider is available (provider=None => deterministic
+path). Task 7 (policy pass) is pure-deterministic.
 
 ADVERSE-ACTION BOUNDARY — what THIS module guarantees, and what it does not.
 "Fairness is enforced in code" used to be stated here as one guarantee, but it is
@@ -16,15 +17,16 @@ directly gets only the Python half. So they are stated separately:
       deterministic fallback, can never leave this module as a reject route.
     * an early-career candidate (``registry.early_career_archetypes()``) is
       never auto-advanced and never auto-rejected: ``evaluate_entry`` holds them
-      at Screened, and `screen_candidate` rewrites a "reject" verdict to "hold"
+      on every screening-role stage, and `screen_candidate` rewrites a "reject" verdict to "hold"
       AFTER the model, so the model cannot override the gate.
     * the VOLUME gate (``volume_allows_reject``): a candidate from a RELATED area
       (``related_area``) is never recommended for reject while the role's pipeline
       is sparse or moderate — a handful of applicants is too few to screen a
       near-miss out without a human. Re-applied after the model exactly like the
       early-career gate, and the deterministic fallback runs the same predicate.
-    * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — stage
-      "Screened", a non-early archetype, no pending approval, no recent
+    * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — a
+      screening-ROLE stage (any such column on the entry's own board; "Screened"
+      on the shipped one), a non-early archetype, no pending approval, no recent
       screening decision, and a GENUINE match score (absent/0 is an unscored
       data gap, not a zero match) below ``POLICY["bau_reject_score"]``.
     * caveat, deliberately pinned rather than fixed here: the early-career gate
@@ -43,10 +45,11 @@ directly gets only the Python half. So they are stated separately:
       path (its ``isFairnessProtected`` treats an unknown archetype as
       protected) and downgrades a refused reject to hold + an alert.
 
-Two constants here are hand-mirrored across the language boundary
-(``MAX_SCORECARD_NOTES_CHARS``, and calibration_drift's
-``MIN_CALIBRATION_OUTCOMES`` / ``CALIBRATION_BIN_COUNT``); the drift guard is
-tests/test_automation_constant_sync.py.
+Constants that cross the language boundary (``MAX_SCORECARD_NOTES_CHARS``,
+and calibration_drift's ``MIN_CALIBRATION_OUTCOMES`` / ``CALIBRATION_BIN_COUNT``)
+are no longer hand-mirrored: codegen.py writes them into
+app/_lib/contract-constants.generated.ts, which the TS modules re-export, and
+tests/test_codegen_contract_constants.py fails when that file is stale.
 
 See docs/features/pipeline/README.md for the full design.
 """
@@ -60,6 +63,7 @@ from pathlib import Path
 from typing import Any
 
 from . import registry
+from .llm import degradation as _vocabulary
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig, gross_period_phrase
 from .matching import MatchCandidate, ko_filter, score_job
@@ -160,6 +164,74 @@ POLICY: dict[str, int] = {
     "screen_volume_sparse_max": 5,
     "screen_volume_moderate_max": 30,
 }
+
+# One aging clock (challenge-r02 pipeline-actions-events/A). The AGING TIER is resolved
+# in TypeScript (app/_lib/aging-policy.ts) from the board's stage-role SLA on the entry's
+# own workspace axis and handed in per entry as `agingTier`; this module only maps it to
+# the feed's alert kinds. The three constants below cross the boundary as code, so
+# tests/test_automation.py AgingTierSyncTest reads the TS literals and fails on drift.
+#   aging   = past the stage SLA                    -> stale_alert (the soft tier)
+#   stalled = past STALLED_MULTIPLE x the stage SLA -> aging_alert (the hard tier)
+# POLICY["stale_days"] / POLICY["aging_days"] remain ONLY as the fallback for a caller
+# that sends no tier (the bare CLI, back-compat); they are stage-blind by nature.
+AGING_TIERS: tuple[str, ...] = ("none", "aging", "stalled")
+AGING_TIER_ALERTS: dict[str, str] = {"aging": "stale_alert", "stalled": "aging_alert"}
+# The fallback has no axis, so it guards the SHIPPED terminal column by name (the stage
+# STAGE_ROLE marks terminal in app/_lib/pipeline-stages.ts). A hire is not "waiting".
+TERMINAL_STAGES: tuple[str, ...] = ("Hired",)
+
+# The policy pass decides by STAGE ROLE, never by a column's name (challenge-r10
+# pipeline-core/B). A workspace composes its own board in Settings -> Hiring with any
+# stage ids, and roles repeat freely (two screening columns, three interview rounds),
+# so the TS pass stamps every snapshot entry with `stageRole` (roleOf on the entry's
+# OWN workspace axis; null = off-axis) and `advanceTo` (nextStageOnAxis, the column
+# actOnPipelineEntry("accept") will land on; null = none). The two literals below are
+# the SHIPPED board, used only when a caller sends no `stageRole` key (the bare CLI,
+# back-compat). Both cross the boundary as code: tests/test_automation.py
+# StageRoleSyncTest reads STAGE_ROLE and the StageRole union from
+# app/_lib/pipeline-stages.ts and fails on drift.
+STAGE_ROLES: tuple[str, ...] = ("entry", "screening", "homework", "interview", "scoring", "offer", "terminal", "custom")
+DEFAULT_STAGE_ROLE: dict[str, str] = {
+    "Accepted": "entry",
+    "Screened": "screening",
+    "Interview": "interview",
+    "Offer": "offer",
+    "Hired": "terminal",
+}
+_DEFAULT_ORDER: tuple[str, ...] = tuple(DEFAULT_STAGE_ROLE)
+_DEFAULT_ADVANCE_TO: dict[str, str | None] = {
+    s: (_DEFAULT_ORDER[i + 1] if i + 1 < len(_DEFAULT_ORDER) else None) for i, s in enumerate(_DEFAULT_ORDER)
+}
+
+
+def stage_facts(entry: dict[str, Any]) -> tuple[str | None, str | None]:
+    """(role, advanceTo) for one snapshot entry: the TS-stamped facts when the key is
+    present, else the shipped board's. An unknown role string reads as off-axis (None)
+    — a rule never fires on a column nobody has classified."""
+    stage = entry.get("stage")
+    if "stageRole" in entry:
+        role = entry.get("stageRole")
+        advance_to = entry.get("advanceTo") or None
+        return (role if role in STAGE_ROLES else None), (advance_to if isinstance(advance_to, str) else None)
+    role = DEFAULT_STAGE_ROLE.get(stage) if isinstance(stage, str) else None
+    return role, (_DEFAULT_ADVANCE_TO.get(stage) if role else None)
+
+
+def aging_alerts(entry: dict[str, Any], days: int) -> list[str]:
+    """The aging alerts for one entry: the TS-resolved tier when present, else the
+    flat POLICY cut — and never for a terminal stage on either path."""
+    tier = entry.get("agingTier")
+    if tier in AGING_TIERS:
+        kind = AGING_TIER_ALERTS.get(tier)
+        return [kind] if kind else []
+    if entry.get("stage") in TERMINAL_STAGES or entry.get("stageRole") == "terminal":
+        return []
+    if days >= POLICY["aging_days"]:
+        return ["aging_alert"]
+    if days >= POLICY["stale_days"]:
+        return ["stale_alert"]
+    return []
+
 
 # The strictness tiers, ordered least → most strict. The verdict payload carries the
 # resolved tier as `screeningVolume`, so the decision audit can explain WHY a
@@ -333,9 +405,20 @@ def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) ->
 #
 # Word-boundary patterns so "age" flags an explicit age mention but not
 # "manage" / "language".
+#
+# The Czech, German and French terms are stems with an open tail, because a bare
+# `\bvěk\b` matches only the nominative: "ve věku 55 let" and "Vašemu věku" went straight
+# through, and the four locales the letters are drafted in were guarded in two. The
+# German and French entries are whole word forms, not open stems, where the stem is an
+# English word too ("alter" would catch "alternative" and SQL's ALTER, so the bare word is
+# only matched after a possessive or "im").
 PROTECTED_TERM_RE = re.compile(
     r"\b(age|gender|sex|race|racial|religion|religious|ethnic\w*|pregnan\w*|disab\w*|married|marital|"
-    r"věk|pohlaví|rasa|rasov\w*|nábožen\w*|těhoten\w*)\b",
+    r"věk\w*|pohlav\w*|rasa|rasy|rasu|rasov\w*|nábožen\w*|těhoten\w*|těhotn\w*|mateřsk\w*|rodinn\w*|"
+    r"národnost\w*|občanstv\w*|zdravotn\w*|"
+    r"alters|(?:im|ihr|ihres|sein|seines)\s+alter|geschlecht\w*|schwanger\w*|mutterschaft|familienstand|verheiratet|kinderbetreuung|"
+    r"staatsangehörigkeit|herkunft|behinderung|"
+    r"âge|âgé\w*|sexe|enceinte|grossesse|maternité|marié\w*|nationalité|origine|handicap\w*)\b",
     re.IGNORECASE,
 )
 
@@ -385,55 +468,16 @@ def _letter_is_safe(payload: dict) -> bool:
 # global there would let one fault's reason be read as another's.
 _degradation = threading.local()
 
-# The reasons a MID-CALL descent can have. Deliberately disjoint from the
-# availability-gate vocabulary in registry.provider_availability ("offline_policy"
-# / "not_installed" / "unavailable") and the caller's "disabled": the whole point
-# is that an operator reading the ledger can tell "there was no provider" from
-# "the provider answered and we threw the answer away".
-DEGRADATION_REASONS: tuple[str, ...] = (
-    # The call never came back inside its TOTAL wall-clock budget.
-    "provider_timeout",
-    # It returned text, and not even the corrective re-prompt made it JSON.
-    "unparseable_output",
-    # It returned parseable JSON, and coercion kept none of it — the wrong type,
-    # every value out of range, or a letter _letter_is_safe discarded whole.
-    "unusable_output",
-    # Anything else the call raised: transport, a 5xx that outlived its retries,
-    # a refusal, a missing capability.
-    "provider_error",
-)
-
-
-def _call_failure_reason(exc: BaseException) -> str:
-    """Classify a failed ``complete_json`` into one of DEGRADATION_REASONS.
-
-    Reads ``LLMError.subtype`` rather than the message, because the subtype is
-    the part base.py maintains as a contract (``deadline_exceeded`` is raised in
-    exactly one place, ``unparseable_json`` in exactly one other)."""
-    subtype = getattr(exc, "subtype", None)
-    if subtype == "deadline_exceeded":
-        return "provider_timeout"
-    if subtype == "unparseable_json":
-        return "unparseable_output"
-    return "provider_error"
-
-
-# The message-text mirror of `_call_failure_reason`, for the one caller
-# (rematch_candidate) that only ever sees `describe_fallback`'s formatted
-# "<Type>: <message>" line, never the exception `.subtype` is read off. The
-# phrases matched are base.py's own, not a test's: "exhausted its …s deadline"
-# is raised in exactly the one place subtype="deadline_exceeded" is (llm/base.py
-# retry loop), and "parseable JSON" only appears on the two subtype=
-# "unparseable_json" raises (truncated finish_reason has its own subtype and its
-# own wording, "is incomplete", so it correctly falls through to provider_error
-# here exactly as _call_failure_reason falls through for any subtype it does not
-# name). Re-derive both if base.py's wording changes.
-def _classify_fallback_text(text: str) -> str:
-    if "deadline" in text and "exhausted" in text:
-        return "provider_timeout"
-    if "parseable JSON" in text:
-        return "unparseable_output"
-    return "provider_error"
+# The reasons a MID-CALL descent can have, and the two classifiers that name one
+# (from the exception's `.subtype`, and from a `describe_fallback` line for the one
+# task that only sees the text). All three moved to llm/degradation.py so the
+# devcase/agentfit/intake runner (`provenance.generate_with_fallback`) and the
+# usage ledger read the SAME vocabulary this module first wrote down; the old names
+# stay here as aliases so no caller or pin moved. Still deliberately disjoint from
+# the availability-gate vocabulary — see degradation.py.
+DEGRADATION_REASONS = _vocabulary.DEGRADATION_REASONS
+_call_failure_reason = _vocabulary.classify
+_classify_fallback_text = _vocabulary.classify_fallback_text
 
 
 def _note_degradation(reason: str | None) -> None:
@@ -919,7 +963,9 @@ def github_evidence_block(github: Any | None) -> str:
 def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Decide one entry's automated move. Pure; operates on the entry snapshot.
 
-    entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening.
+    entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening,
+    agingTier (optional; see aging_alerts), stageRole + advanceTo (optional; see
+    stage_facts — absent = the shipped board's name -> role map).
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
 
     An absent/null matchScore (matching not yet run, or a data gap) is treated as
@@ -929,6 +975,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     ``0 < bau_reject_score``, silently turning a data gap into a rejection.
     """
     stage = entry.get("stage")
+    role, advance_to = stage_facts(entry)
     archetype = entry.get("archetype") or "bau"
     score = int(entry.get("matchScore") or 0)
     # `score == 0` means matching hasn't produced a real result yet (None, absent,
@@ -938,12 +985,12 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     approval = entry.get("approvalKind")
     recent_screening = bool(entry.get("recentScreening"))
     early = archetype in _EARLY_CAREER
+    # The column as a reason names it: the shipped name alone on the shipped board (so
+    # every default-board reason is byte-identical to the name-keyed engine), the
+    # team's own name plus its role on a composed one.
+    named = stage if DEFAULT_STAGE_ROLE.get(stage) == role else f"{stage} ({role} stage)"
 
-    alerts: list[str] = []
-    if days >= POLICY["aging_days"]:
-        alerts.append("aging_alert")
-    elif days >= POLICY["stale_days"]:
-        alerts.append("stale_alert")
+    alerts: list[str] = aging_alerts(entry, days)
 
     def out(action: str, to_stage: str | None, reason: str) -> dict[str, Any]:
         return {"action": action, "toStage": to_stage, "alerts": alerts, "reason": reason}
@@ -955,20 +1002,23 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     if recent_screening:
         return out("none", None, "recent screening decision; policy pass skipped")
 
-    if stage == "Accepted":
+    if role == "entry":
         # CV received (inbound application or proactively sourced), waiting for
         # screening. Once a match score exists it has cleared first-wave matching →
-        # advance into Screened, where the archetype-aware gate decides. This move is
-        # fair — archetype-neutral and never a reject — so intake doesn't stall in
-        # Accepted. No score yet → hold until matching has run.
-        if scored:
-            return out("advance", "Screened", f"received with match score {score} → Screened")
-        return out("hold", None, "accepted; awaiting match score")
-    if stage == "Screened":
-        # First wave of evaluation (matching + AI screening), collapsed into one
-        # stage. Early-career is NEVER auto-advanced/rejected (human screening gate);
-        # a pending approval holds; weak BAU is screened out; strong BAU clears
-        # screening and advances to Interview once it has settled; mid → human.
+        # advance into the board's next column, where the archetype-aware gate
+        # decides. This move is fair — archetype-neutral and never a reject — so
+        # intake doesn't stall on the entry column. No score yet → hold for matching.
+        if not scored:
+            return out("hold", None, "accepted; awaiting match score")
+        if not advance_to:
+            return out("hold", None, f"received with match score {score}; no next column on this board")
+        return out("advance", advance_to, f"received with match score {score} → {advance_to}")
+    if role == "screening":
+        # First wave of evaluation (matching + AI screening). EVERY screening-role
+        # column gets the same thresholds — roles repeat freely on a composed board.
+        # Early-career is NEVER auto-advanced/rejected (human screening gate); a
+        # pending approval holds; weak BAU is screened out (queued for a human by the
+        # TS pass, never applied); strong BAU advances once it has settled; mid → human.
         if approval:
             return out("hold", None, "approval already pending")
         if early:
@@ -980,19 +1030,33 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         if score < POLICY["bau_reject_score"]:
             return out("reject", None, f"BAU score {score} < {POLICY['bau_reject_score']}")
         if score >= POLICY["bau_advance_score"]:
+            if not advance_to:
+                return out("hold", None, f"BAU score {score} cleared screening; no next column on this board")
             if days >= POLICY["screening_auto_days"]:
-                return out("advance", "Interview", f"BAU score {score} cleared screening, {days}d in Screened → Interview")
-            return out("hold", None, f"BAU score {score} cleared screening; settling in Screened")
+                return out("advance", advance_to, f"BAU score {score} cleared screening, {days}d in {named} → {advance_to}")
+            return out("hold", None, f"BAU score {score} cleared screening; settling in {named}")
         return out("hold", None, f"BAU mid score {score} → human review")
-    if stage == "Interview":
-        return out("hold", None, "Interview → Offer is always a human decision")
-    if stage == "Offer":
-        # Extending the offer is the recruiter's call; the Offer → Hired move is the
+    if role == "interview":
+        # Leaving an interview round is always the recruiter's call.
+        if advance_to:
+            return out("hold", None, f"{named} → {advance_to} is always a human decision")
+        return out("hold", None, f"{named} is always a human decision")
+    if role == "offer":
+        # Extending the offer is the recruiter's call; the offer → hire move is the
         # candidate's (captured via their accept/decline link). Policy never advances
         # or rejects an offer — it only surfaces aging so a stale offer gets a nudge.
-        return out("hold", None, "Offer is a human + candidate decision; awaiting response")
-    if stage == "Hired":
+        return out("hold", None, f"{named} is a human + candidate decision; awaiting response")
+    if role in ("homework", "scoring", "custom"):
+        # Human-owned (or machine-worked elsewhere) columns: the work-sample step, a
+        # scoring round, a column the team invented. The policy pass never moves a
+        # candidate out of one; it only surfaces aging.
+        return out("hold", None, f"{role} stage ({stage}): a human decision; policy never moves it")
+    if role == "terminal":
         return out("none", None, "hired — terminal stage")
+    if "stageRole" in entry:
+        # Off-axis: a retired column, a legacy row, or a role this engine does not
+        # know. Nothing to resolve, so nothing is decided — never a reject.
+        return out("none", None, "off-axis stage; no policy")
     return out("none", None, "no policy for this stage")
 
 
@@ -1094,8 +1158,15 @@ def screen_candidate(
         if not isinstance(payload, dict):
             return det
         # Off-set / missing verdict falls back to the deterministic builder's own
-        # (context-aware) recommendation rather than a blind "hold".
-        rec = coerce_recommendation(payload.get("recommendation"), det["recommendation"])
+        # (context-aware) recommendation rather than a blind "hold" - EXCEPT its
+        # advance. The template's "advance" is a fixed 82 for any total >= 70, not a
+        # verdict the model gave; filled in here it rides the model's own confidence
+        # and the "llm" source label and reaches the unattended screeningGate="auto"
+        # ratify as "the model's ADVANCE". A partially parsed verdict is an unparsed
+        # one, so an unreadable verdict can hold or reject-then-gate, never advance.
+        rec = coerce_recommendation(payload.get("recommendation"), "")
+        if not rec:
+            rec = "hold" if det["recommendation"] == "advance" else det["recommendation"]
         try:
             conf = max(0, min(100, int(payload.get("confidence"))))
         except (TypeError, ValueError):
@@ -1427,6 +1498,685 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", 
     return result, source
 
 
+# ============================================================================
+# The JOB-level interview kit (spark interview-kit-template)
+# ============================================================================
+#
+# The sibling above (``interview_prep``) builds ONE CANDIDATE's probes from their CV.
+# This builds the ROLE's kit: the competencies the job is hired on, what is asked about
+# each, how long each gets, which questions may never be skipped, and a short FAQ the
+# interviewer may answer role questions from. It is the same material for every candidate
+# in the round, which is the entire point — the registry's ``shared-material-for-
+# comparability`` technique: two candidates asked different questions produce two ratings
+# that cannot be compared, so the per-candidate probes ride ON TOP of this rather than
+# instead of it.
+#
+# NO CANDIDATE IS AN INPUT HERE. That is a property of the signature, not a discipline:
+# this function takes a Job and a RoleBrief and has nothing else to leak. The row it ends
+# up in is job-keyed and the GDPR erasure scrub is entry-keyed, so anything candidate-
+# derived that reached it would be undeletable (app/_lib/db/interview-kits.ts states it).
+
+INTERVIEW_KIT_PROMPT_VERSION = "interview-kit-v1"
+
+# The kit's collection caps. MIRRORED into TypeScript — these are the contract's
+# KIT_MAX_* in app/_lib/interview-kit-types.ts, which is the enforcing boundary (the TS
+# normalizer truncates anything over them before a kit is ever stored). They are repeated
+# here so the GENERATOR stops short of the cap instead of producing work the normalizer
+# then throws away, and the hand-mirror is guarded by tests/test_automation_constant_sync.py.
+KIT_MAX_COMPETENCIES = 8
+KIT_MAX_QUESTIONS_PER_COMPETENCY = 6
+KIT_MAX_MUST_ASKS = 5
+KIT_MAX_FAQ = 12
+
+# What the prompt ASKS for, inside those caps. A loop's validity plateaus early
+# (registry: interview-round-design) — four to six competencies is a round somebody can
+# actually run, and two to four questions is enough to reach the behaviour behind a claim.
+_KIT_TARGET_COMPETENCIES = (4, 6)
+_KIT_TARGET_QUESTIONS = (2, 4)
+# The FAQ is a short answer sheet, not a careers page; the cap above is the ceiling the
+# store enforces, this is what a generated first draft should come back with.
+_KIT_TARGET_FAQ = 6
+
+# Planned minutes per competency when the model gives none, and the band it is asked to
+# stay inside. The agenda refits the kit to whatever length the candidate was actually
+# booked for, so these are a RATIO as much as a duration.
+_KIT_DEFAULT_BUDGET_MIN = 10
+_KIT_MIN_BUDGET_MIN = 5
+_KIT_MAX_BUDGET_MIN = 30
+
+# The JD body forwarded to the prompt, bounded like every other whole-document prompt
+# input here (agentfit._DESCRIPTION_PROMPT_CHARS, devcase analyze).
+_KIT_DESCRIPTION_PROMPT_CHARS = 4_000
+
+# Weight by where a requirement came from: a stated must-have carries the decision, a
+# nice-to-have marks emphasis, a merely-detected skill is context. Three coarse steps, and
+# NO total is computed from them (registry: presenting-a-score-to-a-recruiter).
+_KIT_WEIGHT_MUST = 3
+_KIT_WEIGHT_NICE = 2
+_KIT_WEIGHT_DETECTED = 1
+
+
+def _kit_brief_facts(brief: Any | None) -> dict[str, Any]:
+    """The promoted RoleBrief, flattened to the four things a kit is built from.
+
+    Takes the TS-side projection (camelCase, already workspace-scoped when it was read)
+    rather than a pydantic model: the brief's schema belongs to the intake dialog, and a
+    kit only ever needs the requestor's own words about what the role must achieve.
+    Absent or malformed reads as "no brief", never as an error — a job can be published
+    without ever having been through an intake.
+    """
+    if not isinstance(brief, dict):
+        return {}
+    facts = {
+        "summary": str(brief.get("summary") or "").strip(),
+        "responsibilities": _str_list(brief.get("responsibilities")),
+        "successCriteria": _str_list(brief.get("successCriteria")),
+        "dealbreakers": _str_list(brief.get("dealbreakers")),
+        "outcomes": _str_list(brief.get("outcomes")),
+    }
+    return {k: v for k, v in facts.items() if v}
+
+
+def kit_context(job: Job, brief: Any | None = None) -> dict[str, Any]:
+    """The fact base a kit is built from — the ONE place the job row and the brief become
+    prompt input, so the deterministic fallback and the model read exactly the same facts.
+
+    Nothing candidate-authored is in scope here, so unlike ``reasoning_context`` there is
+    no untrusted half to fence: the job row is the operator's own posting and the brief is
+    the hiring requestor's own words.
+    """
+    musts = [r.skill for r in job.requirements if r.kind == "must_have" and r.skill]
+    nices = [r.skill for r in job.requirements if r.kind != "must_have" and r.skill]
+    # A DEFAULTED field is a phantom this repo never presents as stated (jobs.py
+    # DEFAULT_POLICY): a kit FAQ that answered "Where is this role based? Praha" from an
+    # ad that named no city would put a fact in the interviewer's mouth that nobody wrote.
+    defaulted = set(job.defaulted_fields or ())
+    stated: dict[str, Any] = {}
+    if "location" not in defaulted and job.location:
+        stated["location"] = job.location
+    if "work_mode" not in defaulted and job.work_mode:
+        stated["workMode"] = job.work_mode
+    if "seniority" not in defaulted and job.seniority:
+        stated["seniority"] = job.seniority
+    if job.employment_type:
+        stated["employmentType"] = job.employment_type
+    if job.languages:
+        stated["languages"] = list(job.languages)
+    if job.min_years_experience is not None:
+        stated["minYearsExperience"] = job.min_years_experience
+    return {
+        "role": {
+            "title": job.title,
+            "roleFamily": job.role_family,
+            "stated": stated,
+            "description": cap_block(job.description or "", _KIT_DESCRIPTION_PROMPT_CHARS),
+        },
+        "requirements": {
+            "mustHaves": musts[:12],
+            "niceToHaves": nices[:12],
+            "detectedSkills": list(job.detected_skills or ())[:12],
+        },
+        "brief": _kit_brief_facts(brief),
+    }
+
+
+def _kit_question(skill: str, index: int) -> dict[str, Any]:
+    """One deterministic question. Behaviourally anchored by construction (registry:
+    behaviourally-anchored-level-writing) — it asks what the person DID on a named piece
+    of their own work, so there is a fact to confirm rather than a quality to rate."""
+    if index == 0:
+        return {
+            "text": f"Walk me through a concrete piece of work where you used {skill}. What was your exact part in it?",
+            "mustAsk": False,
+            "followUp": "Who else was involved, and which decisions were yours?",
+        }
+    return {
+        "text": f"On that same work, what went wrong around {skill}, and what did you change because of it?",
+        "mustAsk": False,
+        "followUp": "What would you do differently if you started it again today?",
+    }
+
+
+def interview_kit(job: Job, brief: Any | None = None, *, lang: str = "en", provider: Any | None = None):
+    """Draft a job's interview kit: competencies, questions, budgets and a role FAQ.
+
+    Returns ``(result, source)`` in this module's usual shape. ``result`` is the kit
+    WITHOUT ids — the TypeScript boundary (app/_lib/interview-kit-validate.ts) mints and
+    de-duplicates those, because ids are what a per-candidate overlay names and only the
+    store knows which ones are already spoken for.
+
+    The keyless path is mandatory, not a courtesy: a deployment with no model configured
+    must still get a kit it can edit, so ``deterministic()`` below builds one from the
+    role's own stated requirements and detected skills.
+    """
+    from .i18n import language_directive
+
+    ctx = kit_context(job, brief)
+    low_c, high_c = _KIT_TARGET_COMPETENCIES
+    low_q, high_q = _KIT_TARGET_QUESTIONS
+    prompt = (
+        "Author the INTERVIEW KIT for this role — the shared material every candidate for "
+        "it is interviewed from. Use ONLY these facts:\n"
+        f"{context_block(ctx)}\n\n"
+        f"Choose {low_c}-{high_c} COMPETENCIES. Each one must name a distinct basis for the "
+        "hiring decision: someone strong on all the others and weak on this one does not get "
+        "the job. Never two competencies that are the same thing reworded, and never one that "
+        "can only be judged from a certificate, a reference or a work sample — this kit is "
+        "read aloud in a conversation, so every competency must be observable in that "
+        "conversation. Title them the way a recruiter would say them out loud; a title is "
+        "read to the candidate, so it carries no assessment language.\n"
+        f"Give each competency a weight of {_KIT_WEIGHT_DETECTED}, {_KIT_WEIGHT_NICE} or "
+        f"{_KIT_WEIGHT_MUST}. The weight ORDERS the kit and marks emphasis — it is not a "
+        "percentage and nothing is totalled from it. Give each a budgetMin: a whole number "
+        f"of minutes between {_KIT_MIN_BUDGET_MIN} and {_KIT_MAX_BUDGET_MIN}.\n"
+        f"Write {low_q}-{high_q} QUESTIONS per competency. Every question asks what the "
+        "candidate DID: a named piece of their own work, their part in it, what they decided "
+        "and what happened. Never ask them to rate themselves, never ask a hypothetical, and "
+        "never assume a fact about them — this kit is written before anyone has read a CV. "
+        "Add a followUp that narrows the question when the first answer stays general.\n"
+        f"Mark at most {KIT_MAX_MUST_ASKS} questions across the WHOLE kit as mustAsk: true — "
+        "only the ones without which the decision cannot be made, because a must-ask is asked "
+        "even when the clock has run out.\n"
+        f"Finally write up to {_KIT_TARGET_FAQ} FAQ entries: questions candidates actually ask "
+        "about a role, answered ONLY from the facts above. If the facts do not answer it, do "
+        "not include it — never invent a salary, a start date, a team size or a process step, "
+        "and never say anything about this candidate's chances.\n"
+        '\nReturn JSON: { "competencies": [ { "title": str, "weight": int, "budgetMin": int, '
+        '"questions": [ { "text": str, "mustAsk": bool, "followUp": str } ] } ], '
+        '"faq": [ { "question": str, "answer": str } ] }. JSON only.\n'
+        + language_directive(lang)
+    )
+
+    def deterministic() -> dict:
+        """The keyless kit: the role's own stated requirements, turned into competencies.
+
+        Deliberately the same source the matcher scores on, so a keyless deployment's kit
+        and its shortlist are talking about the same role. The questions are templates and
+        say so by being obviously uniform — an operator opening this in the editor can see
+        at a glance that nobody wrote it for them, which is the honest degrade.
+        """
+        reqs = ctx["requirements"]
+        buckets: list[tuple[str, int]] = []
+        seen: set[str] = set()
+        for skill, weight in (
+            [(s, _KIT_WEIGHT_MUST) for s in reqs["mustHaves"]]
+            + [(s, _KIT_WEIGHT_NICE) for s in reqs["niceToHaves"]]
+            + [(s, _KIT_WEIGHT_DETECTED) for s in reqs["detectedSkills"]]
+        ):
+            key = skill.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            buckets.append((skill, weight))
+            if len(buckets) >= high_c:
+                break
+
+        competencies: list[dict[str, Any]] = []
+        must_asks = 0
+        for skill, weight in buckets:
+            questions = [_kit_question(skill, i) for i in range(low_q)]
+            # A stated must-have is what the role cannot do without, so its opening
+            # question is the one the director overruns for — up to the kit-wide cap.
+            if weight == _KIT_WEIGHT_MUST and must_asks < KIT_MAX_MUST_ASKS:
+                questions[0]["mustAsk"] = True
+                must_asks += 1
+            competencies.append(
+                {"title": skill, "weight": weight, "budgetMin": _KIT_DEFAULT_BUDGET_MIN, "questions": questions}
+            )
+
+        if not competencies:
+            # A role with no structured requirements at all (a pasted ad nothing parsed).
+            # One honest competency beats an empty kit: the recruiter still gets something
+            # to edit, and the interview still has a shape.
+            competencies = [
+                {
+                    "title": "Recent work",
+                    "weight": _KIT_WEIGHT_MUST,
+                    "budgetMin": _KIT_DEFAULT_BUDGET_MIN,
+                    "questions": [
+                        {
+                            "text": "Walk me through the most significant piece of work you have finished, end to end.",
+                            "mustAsk": True,
+                            "followUp": "Which parts were yours, and which were somebody else's?",
+                        },
+                        {
+                            "text": "What was the hardest trade-off in it, and what did you decide?",
+                            "mustAsk": False,
+                            "followUp": "What did that decision cost, and would you make it again?",
+                        },
+                    ],
+                }
+            ]
+
+        # The FAQ is built ONLY from facts the posting actually stated — `kit_context`
+        # already dropped every phantom `normalize_job` filled in, so an ad that named no
+        # city contributes no location answer rather than an invented one.
+        stated = ctx["role"]["stated"]
+        faq: list[dict[str, str]] = []
+        if stated.get("location"):
+            mode = stated.get("workMode")
+            faq.append(
+                {
+                    "question": "Where is this role based?",
+                    "answer": f"{stated['location']}" + (f" ({mode})" if mode else ""),
+                }
+            )
+        elif stated.get("workMode"):
+            faq.append({"question": "Is this role remote?", "answer": f"The posting states: {stated['workMode']}."})
+        if stated.get("employmentType"):
+            faq.append({"question": "What kind of contract is this?", "answer": str(stated["employmentType"])})
+        if stated.get("languages"):
+            faq.append(
+                {
+                    "question": "Which languages does the team work in?",
+                    "answer": ", ".join(str(x) for x in stated["languages"]),
+                }
+            )
+        return {"competencies": competencies, "faq": faq[:_KIT_TARGET_FAQ]}
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict) or not isinstance(payload.get("competencies"), list):
+            return det
+        competencies: list[dict[str, Any]] = []
+        must_asks = 0
+        for raw in payload["competencies"][:KIT_MAX_COMPETENCIES]:
+            if not isinstance(raw, dict):
+                continue
+            title = str(raw.get("title") or "").strip()
+            if not title:
+                continue
+            raw_questions = raw.get("questions")
+            questions: list[dict[str, Any]] = []
+            for raw_q in (raw_questions if isinstance(raw_questions, list) else [])[:KIT_MAX_QUESTIONS_PER_COMPETENCY]:
+                if not isinstance(raw_q, dict):
+                    continue
+                text = str(raw_q.get("text") or "").strip()
+                if not text:
+                    continue
+                # The must-ask budget is spent in the model's own order and the overflow
+                # is DEMOTED, never dropped: an over-eager model must not cost the kit a
+                # question, only its unskippable status.
+                # `is True`, not bool(): a model answering the string "false" must not
+                # mint an unskippable question. Same rule as the TS side (=== true).
+                must = raw_q.get("mustAsk") is True and must_asks < KIT_MAX_MUST_ASKS
+                if must:
+                    must_asks += 1
+                follow = str(raw_q.get("followUp") or "").strip()
+                questions.append({"text": text, "mustAsk": must, **({"followUp": follow} if follow else {})})
+            if not questions:
+                continue
+            # Weight and budget are COERCED here rather than refused, because the TS
+            # boundary refuses them: a model that answers weight 7 would otherwise have
+            # its whole (usable) kit rejected at the store. A recruiter's own edit gets
+            # the opposite treatment there — their wrong number is told to them.
+            weight = raw.get("weight")
+            # `bool` is checked first because it IS an int in Python: `True in (1, 2, 3)`
+            # holds, and a `true` would then serialize as JSON `true` — which the TS
+            # boundary (typeof === "number") refuses.
+            if isinstance(weight, bool) or weight not in (_KIT_WEIGHT_DETECTED, _KIT_WEIGHT_NICE, _KIT_WEIGHT_MUST):
+                weight = _KIT_WEIGHT_NICE
+            budget = raw.get("budgetMin")
+            if not isinstance(budget, int) or isinstance(budget, bool) or not (
+                _KIT_MIN_BUDGET_MIN <= budget <= _KIT_MAX_BUDGET_MIN
+            ):
+                budget = _KIT_DEFAULT_BUDGET_MIN
+            competencies.append({"title": title, "weight": weight, "budgetMin": budget, "questions": questions})
+
+        raw_faq = payload.get("faq")
+        faq: list[dict[str, str]] = []
+        for raw_f in (raw_faq if isinstance(raw_faq, list) else [])[:KIT_MAX_FAQ]:
+            if not isinstance(raw_f, dict):
+                continue
+            question = str(raw_f.get("question") or "").strip()
+            answer = str(raw_f.get("answer") or "").strip()
+            # Both halves or neither: a question with no answer invites the interviewer to
+            # improvise a role fact, which is the one thing the FAQ exists to prevent.
+            if question and answer:
+                faq.append({"question": question, "answer": answer})
+
+        # No usable competency means the model's kit is discarded WHOLE, FAQ included —
+        # returning the template's competencies beside the model's FAQ would be a hybrid
+        # that `_generate` then reports as "llm", because it is no longer byte-identical
+        # to the template. The recruiter would be told a model wrote a kit it did not.
+        if not competencies:
+            return det
+        return {"competencies": competencies, "faq": faq}
+
+    result, source = _generate(provider, prompt, deterministic, coerce)
+    result["promptVersion"] = INTERVIEW_KIT_PROMPT_VERSION
+    return result, source
+
+
+# ============================================================================
+# The interview FEEDBACK LETTER (spark interview-feedback-letter, WP-alpha)
+# ============================================================================
+#
+# After a PERSON decided on a candidate — not selected, or hired — the candidate may ask,
+# from their own status page, for a short letter about their AI interview. This drafts it.
+# A recruiter then edits it, owns every sentence, and approves or declines it
+# (app/_lib/interview-letter-types.ts states the lifecycle); nothing here reaches a
+# candidate on its own.
+#
+# WHAT THE LETTER MAY SAY is decided by what the prompt is GIVEN, not by what it is asked.
+# It receives competency NAMES — the areas that came through well and the ones worth
+# developing — plus the role's title and the kit's competency titles, and nothing else about
+# the interview: no rating, no verdict, no evidence quote, no summary, no confidence band. A
+# model cannot quote words it was never shown or cite a number it never saw; that is the
+# control. `letter_problem` below is the backstop for a model that invents one anyway, and
+# it discards the draft WHOLE (the `_letter_is_safe` doctrine: a letter with a sentence cut
+# out is no longer the letter the model wrote).
+#
+# THE KEYLESS LETTER IS NOT BUILT HERE. It is assembled on the TypeScript side from the four
+# message catalogs (app/_lib/interview-letter-template.ts), because it must exist in the
+# candidate's language in all four locales and the catalogs are where this product's
+# candidate-facing copy lives, is reviewed and is parity-checked. So `deterministic()`
+# returns an EMPTY body plus the competency names the template needs, and `_generate`
+# reports it as `deterministic` exactly as it does for every other task. The TS runner
+# treats an empty body as "use the template" — never as a letter.
+#
+# NOT CACHED: every request is one letter for one person, drafted once (and again only when
+# a recruiter asks for a redraft), so there is no cache key to keep in lockstep
+# (tests/test_prompt_version_sync.py lists it with the uncached versions).
+
+INTERVIEW_LETTER_PROMPT_VERSION = "interview-letter-v1"
+
+# Mirrors LETTER_MAX_CHARS in app/_lib/interview-letter-types.ts — the TS store is the
+# enforcing boundary; a draft over it is DISCARDED here, never truncated (a cut sentence is
+# no longer a sentence anyone wrote). tests/test_automation_constant_sync.py pins the mirror.
+LETTER_MAX_CHARS = 2400
+# What the prompt asks for: well under the cap. A requested note, not a report.
+LETTER_TARGET_CHARS = 1200
+
+# How many areas each half may name. The registry's feedback-line ceiling
+# (rejection-with-dignity: past about three points feedback reads as a case being built,
+# and the record rarely supports more than two genuine observations) applied to a letter the
+# candidate asked for: at most two strengths and two areas to develop, in the record's own
+# order (strongest / weakest first).
+LETTER_MAX_WENT_WELL = 2
+LETTER_MAX_TO_WORK_ON = 2
+# Axes a letter may praise but never hand back as something to "work on", because they are
+# not a skill the candidate can develop from a note — they are a reading of the PERSON:
+#   * "Experience & fit" is the relevance of their background to this role. As advice it
+#     becomes "gain more experience", the registry's worst letter (rejection-with-dignity:
+#     never assert a gap the evidence disproves — the gap was on the CV the day they were
+#     invited, and the interview is not where it was measured).
+#   * "Motivation" / "Motivation & direction" is their interest in the role. "Work on your
+#     motivation" is a verdict on a person, not a next step.
+# Named by the rubric's canonical label (interview-rubrics.json); a renamed axis falls out
+# of this set and back into the ordinary lists, which is the safe direction for PRAISE and
+# is caught for advice by test_interview_letter.py pinning each name against the rubric.
+LETTER_NOT_A_DEVELOPMENT_AREA: frozenset[str] = frozenset({"Experience & fit", "Motivation", "Motivation & direction"})
+# The kit's competency titles: operator-authored, candidate-facing by design, and bounded
+# like any list a prompt reads.
+_LETTER_MAX_TOPICS = KIT_MAX_COMPETENCIES
+_LETTER_TOPIC_CHARS = 120
+
+# The two decisions that may produce a letter (app/_lib/interview-letter-policy.ts
+# LETTER_OUTCOMES). The outcome shapes the FRAME — how the letter opens and closes — and
+# never the content: the same record yields the same areas either way.
+LETTER_OUTCOMES: tuple[str, ...] = ("not_selected", "hired")
+
+# The shortest run of the candidate's recorded words that counts as quoting them back.
+# Five words is a phrase nobody reproduces by accident; a recorded quote shorter than that
+# (but at least three words) must not appear whole.
+_QUOTE_SHINGLE_WORDS = 5
+_QUOTE_MIN_WORDS = 3
+
+# The vocabulary of the machinery behind a letter, in the four product languages: a score,
+# a rating, a rubric, a scorecard, a points scale. A letter that names one is reading the
+# recruiter's file back to the candidate. Deliberately NARROW — a false positive costs one
+# model draft (the catalog template takes over), not a letter — and a BACKSTOP only: the
+# prompt is never given a rating to mention. Numbers are refused separately (any digit
+# outside the role's own title), which is what actually catches "4/5", "3 z 5" or "80 %".
+_LETTER_MACHINERY_RE = re.compile(
+    r"\b(scor\w*|skór\w*|rating\w*|rated|rubri\w*|punktzahl\w*|bewertungs(?:bogen|skala)\w*|"
+    r"bodov\w*|hodnot[ií]c[ií]\w*|barème\w*|notation\w*)\b",
+    re.IGNORECASE,
+)
+_DIGIT_RE = re.compile(r"\d")
+
+
+def _rubric_competency_names() -> list[str]:
+    """Every competency any rubric scores on — the base rubrics and the industry axes.
+
+    The ONLY names a letter may carry. A scorecard competency is model output synthesized
+    from the candidate's own speech (see `_UNTRUSTED_CONTEXT_KEYS`), and a human scorecard
+    may carry an off-rubric axis from an older revision; allowlisting to the rubric's own
+    vocabulary means nothing the candidate said can reach the letter as a "competency", and
+    it is what lets the TS template localize every name through the rubric catalog
+    (`rubric.competency.<key>.label`, all four locales)."""
+    names: list[str] = []
+    for rubric in INTERVIEW_RUBRICS.values():
+        names.extend(str(c["competency"]) for c in rubric)
+    for axes in INDUSTRY_AXES.values():
+        names.extend(str(c["competency"]) for c in axes)
+    for axes in OPTIONAL_AXES.values():
+        names.extend(str(c["competency"]) for c in axes)
+    return list(dict.fromkeys(names))
+
+
+def letter_evidence(scorecard: Any, kit_titles: Any = None) -> dict[str, list[str]]:
+    """The whole of what an interview may contribute to a feedback letter: NAMES.
+
+    Built on :func:`interview_evidence` — the letter-safe projection the rejection and offer
+    letters already read (not-assessed axes excluded, weak = 1-2, strong = 4-5) — and then
+    narrowed further, because this letter goes to the candidate as FEEDBACK rather than as a
+    decision notice: the ratings are dropped (the letter may never mention one), the verdict
+    is dropped (the decision is the outcome, told separately), and every name is matched to
+    the rubric's own vocabulary or dropped (`_rubric_competency_names`).
+
+    ``kit_titles`` are the pinned interview kit's competency titles when the session ran on
+    one — what the conversation was built around. They are the operator's words, cleaned and
+    capped here; they never say how anything went.
+    """
+    ev = interview_evidence(scorecard) or {}
+    allowed = _rubric_competency_names()
+
+    def names(items: Any, cap: int, exclude: list[str]) -> list[str]:
+        out: list[str] = []
+        for item in items if isinstance(items, list) else []:
+            name = _match_competency(item.get("competency") if isinstance(item, dict) else None, allowed)
+            if name and name not in out and name not in exclude:
+                out.append(name)
+            if len(out) >= cap:
+                break
+        return out
+
+    went_well = names(ev.get("strongestCompetencies"), LETTER_MAX_WENT_WELL, [])
+    to_work_on = names(
+        ev.get("weakestCompetencies"), LETTER_MAX_TO_WORK_ON, [*went_well, *sorted(LETTER_NOT_A_DEVELOPMENT_AREA)]
+    )
+
+    topics: list[str] = []
+    seen: set[str] = set()
+    for raw in kit_titles if isinstance(kit_titles, list) else []:
+        title = " ".join(str(raw or "").split())[:_LETTER_TOPIC_CHARS].strip()
+        if not title or title.casefold() in seen:
+            continue
+        seen.add(title.casefold())
+        topics.append(title)
+        if len(topics) >= _LETTER_MAX_TOPICS:
+            break
+    return {"wentWell": went_well, "toWorkOn": to_work_on, "topics": topics}
+
+
+def scorecard_quotes(scorecard: Any) -> list[str]:
+    """The candidate's own recorded words on a scorecard: every rating's evidence quote,
+    placeholders excluded. NEVER a prompt input — this is the list `letter_problem` checks a
+    draft against, so a letter that reads the candidate's words back is caught even though
+    the model was never shown them."""
+    if not isinstance(scorecard, dict):
+        return []
+    ratings = scorecard.get("ratings")
+    out: list[str] = []
+    for r in ratings if isinstance(ratings, list) else []:
+        evidence = str((r or {}).get("evidence") or "").strip() if isinstance(r, dict) else ""
+        if evidence and not evidence.startswith("Not assessed"):
+            out.append(evidence)
+    return out
+
+
+def quotes_candidate(body: str, candidate_words: Any) -> bool:
+    """True when ``body`` reproduces a run of the candidate's recorded words.
+
+    Folded with the SAME normalizer the scorecard's own quote grounding uses
+    (`_normalize_for_grounding`: case, punctuation and whitespace drift are ignored,
+    paraphrase is not), then checked two ways: any five-word run of a recorded quote, and a
+    short quote (three or four words) appearing whole."""
+    words = _normalize_for_grounding(body).split()
+    if not words:
+        return False
+    joined = f" {' '.join(words)} "
+    grams = {tuple(words[i : i + _QUOTE_SHINGLE_WORDS]) for i in range(len(words) - _QUOTE_SHINGLE_WORDS + 1)}
+    for quote in candidate_words if isinstance(candidate_words, list) else []:
+        q = _normalize_for_grounding(str(quote or "")).split()
+        if len(q) < _QUOTE_MIN_WORDS:
+            continue
+        if len(q) < _QUOTE_SHINGLE_WORDS:
+            if f" {' '.join(q)} " in joined:
+                return True
+            continue
+        for i in range(len(q) - _QUOTE_SHINGLE_WORDS + 1):
+            if tuple(q[i : i + _QUOTE_SHINGLE_WORDS]) in grams:
+                return True
+    return False
+
+
+def letter_problem(body: Any, *, candidate_words: Any = None, role_terms: Any = None) -> str | None:
+    """Why a drafted letter body cannot be a draft, or None when it can.
+
+    Every reason discards the draft WHOLE; none of them is repaired. ``role_terms`` are the
+    role's own title and company — the one place a digit may legitimately appear ("Level 2
+    Support", "Web3"), so they are blanked before the number check and nowhere else."""
+    text = str(body or "").strip()
+    if not text:
+        return "empty"
+    if len(text) > LETTER_MAX_CHARS:
+        return "too_long"
+    if protected_language(text):
+        return "protected_language"
+    scrubbed = text
+    for term in role_terms if isinstance(role_terms, list) else []:
+        term = str(term or "").strip()
+        if term:
+            scrubbed = scrubbed.replace(term, " ")
+    if _DIGIT_RE.search(scrubbed):
+        return "number"
+    if _LETTER_MACHINERY_RE.search(text):
+        return "machinery"
+    if quotes_candidate(text, candidate_words):
+        return "quotes_candidate"
+    return None
+
+
+def draft_interview_letter(
+    scorecard: Any,
+    *,
+    outcome: str,
+    kit_titles: Any = None,
+    job_title: str = "",
+    company: str = "",
+    lang: str = "en",
+    provider: Any | None = None,
+):
+    """Draft the feedback letter a candidate asked for after a person decided on them.
+
+    Returns ``(result, source)`` in this module's usual shape. ``result["body"]`` is the
+    model's letter, or ``""`` when the keyless / discarded path served — the TS runner then
+    builds the catalog template from ``wentWell`` / ``toWorkOn``, which are present either
+    way. ``source`` is ``llm`` only when the model's letter survived every check.
+
+    The scorecard goes IN, and only :func:`letter_evidence`'s names come out into the
+    prompt; the recorded quotes are kept aside solely to check the draft against
+    (:func:`scorecard_quotes`).
+    """
+    from .i18n import language_name
+
+    if outcome not in LETTER_OUTCOMES:
+        raise ValueError(f"outcome must be one of {', '.join(LETTER_OUTCOMES)}")
+    lang_name = language_name(lang)
+    evidence = letter_evidence(scorecard, kit_titles)
+    candidate_words = scorecard_quotes(scorecard)
+    role_terms = [t for t in (str(job_title or "").strip(), str(company or "").strip()) if t]
+
+    ctx: dict[str, Any] = {
+        "role": {"title": str(job_title or "").strip() or None, "company": str(company or "").strip() or None},
+        # The areas, and nothing else about the interview. Carried under the fenced
+        # `interview` key (context_block): the names are allowlisted to the rubric's own
+        # vocabulary, but they came off a record synthesized from candidate speech, and the
+        # house rule is that such a record is fenced wherever it is rendered.
+        "interview": evidence,
+    }
+    if outcome == "not_selected":
+        frame = (
+            "The decision on this application has already been made and told to them: they were NOT "
+            "selected for this role. Do not restate, justify or soften the decision, do not hint that it "
+            "could change, and do not mention other candidates.\n"
+        )
+        close = "Close respectfully: thank them again and wish them well, without any promise about the future.\n"
+    else:
+        frame = (
+            "They were HIRED for this role. Write as the team that is glad to have them, and frame the "
+            "areas to develop as things to grow into in the role — never as reservations about the hire.\n"
+        )
+        close = "Close by saying the team looks forward to working with them.\n"
+
+    prompt = (
+        f"Draft a short feedback letter in {lang_name} for a candidate who ASKED for feedback on their "
+        "interview. A recruiter will read, edit and approve it before anything is sent, so write it as "
+        "the hiring team, signed as the hiring team.\n"
+        + frame
+        + "Use ONLY these facts:\n"
+        f"{context_block(ctx)}\n\n"
+        "Write, in this order and nothing more:\n"
+        "1. Thank them for the time they gave the interview.\n"
+        "2. What came through well: the areas in `interview.wentWell`, said in plain, everyday words "
+        f"in {lang_name} — translate each area's name into natural language, never as a label or a "
+        "heading. Skip this part entirely when the list is empty.\n"
+        "3. What would be worth developing: the areas in `interview.toWorkOn`, each with one short, "
+        "practical next step, phrased as development and never as a verdict on them as a person. "
+        "Skip this part entirely when the list is empty — never invent an area.\n"
+        "4. " + close
+        + "`interview.topics`, when present, are the subjects the conversation was built around. You "
+        "may use them to say what the interview covered; never say how any of them went — only the two "
+        "lists above say that.\n"
+        "Hard rules: never quote or paraphrase anything the candidate said (you have not been given "
+        "their words, so any quote would be invented); never mention a score, a rating, a scale, "
+        "points, a scorecard, a rubric, an assessment tool, an AI, or anyone's confidence, and write no "
+        "numbers at all; never name an area that is not in the two lists; never compare them with "
+        "anyone; never use protected-characteristic language.\n"
+        f"Keep the whole letter under {LETTER_TARGET_CHARS} characters.\n"
+        + _NEUTRAL_STYLE
+        + 'Return JSON: { "body": str, "language": str }. JSON only.'
+    )
+
+    def deterministic() -> dict:
+        # An EMPTY body is the signal, not a letter: the keyless letter is the catalog
+        # template the TS side builds from these two lists, in the candidate's language.
+        return {
+            "body": "",
+            "language": lang_name,
+            "wentWell": list(evidence["wentWell"]),
+            "toWorkOn": list(evidence["toWorkOn"]),
+        }
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict):
+            return det
+        body = str(payload.get("body") or "").strip()
+        # Discarded WHOLE on any problem, and reported as `deterministic` for free —
+        # `_generate` compares the coerced result against the template.
+        if letter_problem(body, candidate_words=candidate_words, role_terms=role_terms) is not None:
+            return det
+        return {**det, "body": body}
+
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=("body",))
+    result["promptVersion"] = INTERVIEW_LETTER_PROMPT_VERSION
+    return result, source
+
+
 # Scorecard rubrics — the SAME competency axes for every candidate of a given
 # archetype, so interviews stay structured and directly comparable WITHIN a
 # cohort (Greenhouse/HireVue-style). The rubrics live in ONE place,
@@ -1451,6 +2201,11 @@ INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
 # rubric so a nurse is scored on clinical judgment, a tradesperson on safety, etc.
 # Mirrors the TS INDUSTRY_AXES (same JSON). Additive: an unmapped family adds none.
 INDUSTRY_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("industryAxes", {})
+# S1 — OPTIONAL axes, appended only when a condition holds ("dev_case": the candidate
+# has a work sample attached). Never part of a base list, and never a rating the
+# interviewer did not give: an uncovered optional axis is "not assessed", not a 3.
+# Mirrors the TS OPTIONAL_AXES (same JSON).
+OPTIONAL_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("optionalAxes", {})
 
 
 def scoring_model_for_archetype(archetype: str | None) -> str:
@@ -1474,11 +2229,14 @@ def industry_axes_for(role_family: str | None) -> list[dict]:
     return INDUSTRY_AXES.get((role_family or "").strip(), [])
 
 
-def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list[dict]:
+def rubric_for_candidate(archetype: str | None, role_family: str | None, dev_case: bool = False) -> list[dict]:
     """The full rubric scored for a candidate: the base (scoringModel) rubric PLUS
-    any industry axes for their role-family (P2-3), appended. Mirrors the TS
-    `rubricForArchetype(archetype, roleFamily)`."""
-    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
+    any industry axes for their role-family (P2-3), appended, PLUS the optional
+    dev-case axes (S1) when `dev_case` is true. Without a dev case the result is
+    exactly the pre-S1 rubric. Mirrors the TS `rubricForArchetype(archetype,
+    roleFamily, devCase)`."""
+    optional = OPTIONAL_AXES.get("dev_case", []) if dev_case else []
+    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family), *optional]
 
 
 def rubric_version_hash(rubric: list[dict]) -> str:
@@ -1681,7 +2439,7 @@ def sample_scorecard_notes(notes: str | None, limit: int = MAX_SCORECARD_NOTES_C
     return f"{text[:head]}{marker}{text[len(text) - tail:]}"
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None, dev_case: bool = False):
     from .i18n import language_directive
 
     # `model` is the base scoring model (experienced / early_career) — still the
@@ -1691,7 +2449,11 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # a tradesperson on safety. Additive — an unmapped family leaves the prompt
     # exactly as it was pre-P2-3.
     model = scoring_model_for_archetype(candidate.archetype)
-    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family)
+    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family, dev_case)
+    # S1 — optional axes are scored only on evidence; the rest of the rubric keeps its
+    # "rate it 3 (not assessed)" convention. `required` is what totals/averages see.
+    optional_names = {c["competency"] for c in OPTIONAL_AXES.get("dev_case", [])} if dev_case else set()
+    required = [c for c in rubric if c["competency"] not in optional_names]
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
 
     def _rubric_line(competency: dict) -> str:
@@ -1746,12 +2508,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
+        + (
+            "Exception: " + ", ".join(sorted(optional_names)) + " is scored on behaviour only, never on which "
+            "tool is named. If the transcript does not cover it, set its rating to null and its evidence to an "
+            "empty string — never 3.\n"
+            if optional_names
+            else ""
+        )
         # scorecard-v7 — the SAME fairness clause the interviewer brief carries
-        # (eval/interview_eval.py::NON_NEGOTIABLES). The brief told the agent not to
+        # (NON_NEGOTIABLES in app/_lib/student-interview.ts). The brief told the agent not to
         # penalise nerves; nothing told the SCORER, which is the half that produces
         # the number a hiring decision is made on. Delivery is not a competency here
         # unless a rubric axis names one.
-        "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
+        + "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
         "silences, a slow start, or imperfect grammar/accent in a language that is not the candidate's "
         "first. An honest \"I don't know\" is not a negative signal. Score only what a competency's "
         "description and its level anchors actually ask for.\n"
@@ -1789,7 +2558,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         return {
             "ratings": [
                 {"competency": c["competency"], "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."}
-                for c in rubric
+                for c in required
             ],
             "summary": "Auto-synthesis unavailable; review the transcript and rate against the rubric manually. " + snippet,
             "recommendation": "hold",
@@ -1813,12 +2582,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
             try:
                 rating = max(1, min(5, int(r.get("rating"))))
             except (TypeError, ValueError):
+                if norm(r["competency"]) in {norm(n) for n in optional_names}:
+                    continue  # an optional axis with no usable number is not assessed
                 rating = 3
             by_comp[norm(r["competency"])] = {"rating": rating, "evidence": str(r.get("evidence") or "")}
         # Always emit every rubric competency, in rubric order, filling gaps.
         ratings = []
         for c in rubric:
             got = by_comp.get(norm(c["competency"]))
+            if c["competency"] in optional_names:
+                # No number unless the model gave one with a quote behind it.
+                if got and got["evidence"].strip():
+                    ratings.append({"competency": c["competency"], **got})
+                continue
             ratings.append(
                 {
                     "competency": c["competency"],
@@ -1859,7 +2635,20 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # Self-describe which rubric this was scored on (the compare grid renders the
     # matching axes per cohort) and how far to trust it given the transcript.
     result["scoringModel"] = model
-    result["confidence"] = _scorecard_confidence(notes, result["ratings"], len(rubric), ungrounded)
+    if optional_names:
+        # An optional axis whose quote did not survive grounding is not assessed either:
+        # a number with no evidence behind it must not stand. It is dropped, never midpointed.
+        result["ratings"] = [
+            r
+            for r in result["ratings"]
+            if r["competency"] not in optional_names
+            or (str(r.get("evidence") or "").strip() and r.get("evidence") != UNGROUNDED_EVIDENCE)
+        ]
+        have = {r["competency"] for r in result["ratings"]}
+        result["notAssessed"] = [c["competency"] for c in rubric if c["competency"] in optional_names and c["competency"] not in have]
+    result["confidence"] = _scorecard_confidence(
+        notes, [r for r in result["ratings"] if r["competency"] not in optional_names], len(required), ungrounded
+    )
     # WHICH LANGUAGE the recruiter-facing prose is actually in. The summary and the
     # recommendation rationale follow `language_directive(lang)` on the LLM path, but
     # the deterministic template is English whatever was asked for — so a cs/de/fr
@@ -1950,6 +2739,14 @@ def rematch_candidate(
         candidate, job, result, lang=lang, provider=provider,
         on_fallback=lambda text: _note_degradation(_classify_fallback_text(text)),
     )
+    if provider is not None and source == "deterministic" and getattr(_degradation, "reason", None) is None:
+        # The one descent `on_fallback` never hears about. `match_reasoning.generate`
+        # returns "deterministic" with a provider in hand and WITHOUT raising in exactly
+        # one case: the call answered and `_coerce` backfilled the core from the template
+        # (its `degraded` flag). That is `_generate`'s "coercion kept none of it", and it
+        # gets the same word — found by fault_eval once rematch joined REASONED_TASKS
+        # (wrong_shape degraded here anonymously while every other task named it).
+        _note_degradation("unusable_output")
     return {
         "found": True,
         "jobId": job.id,

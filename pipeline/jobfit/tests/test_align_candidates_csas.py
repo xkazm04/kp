@@ -48,6 +48,28 @@ class AlignCandidatesTest(unittest.TestCase):
         # The generic "Go" claim was re-skinned onto the ČS stack.
         self.assertNotEqual(out.get("skillClaims"), [{"skill": "Go"}])
 
+    def test_data_and_product_families_use_their_own_tracks(self) -> None:
+        for family in ("data_ai", "product_project"):
+            with self.subTest(family=family):
+                rec = {
+                    "id": f"cand-{family}",
+                    "name": "Test Candidate",
+                    "roleFamily": family,
+                    "archetype": "bau",
+                    "seniority": "mid",
+                    "educationLevel": "bachelor",
+                    "skillClaims": [{"skill": "Unrelated skill"}],
+                    "evidence": [{"title": "Prior work", "skills": ["Unrelated skill"]}],
+                }
+                out = align_record(rec, 0)
+                self.assertEqual(out["roleFamily"], family)
+                track_by_target = {track["target"]: track for track in TRACKS[family]}
+                self.assertIn(out["targetRole"], track_by_target)
+                allowed = set(track_by_target[out["targetRole"]]["skills"])
+                claims = {claim["skill"] for claim in out["skillClaims"]}
+                self.assertTrue(claims)
+                self.assertLessEqual(claims, allowed)
+
 
 if __name__ == "__main__":
     unittest.main()

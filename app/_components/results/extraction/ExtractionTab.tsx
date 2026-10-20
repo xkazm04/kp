@@ -4,11 +4,13 @@ import { AlertTriangle, BadgeCheck, BrainCircuit, GraduationCap, Lightbulb, Spar
 import { useTranslations } from "next-intl";
 import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
+import { unverifiedExplanationSkills } from "./unverifiedSkills";
 import { EnginePanel, InlineList, LazyDetails, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
@@ -31,6 +33,16 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const educationLevel = (candidate.educationLevel ?? "").trim();
   const hasProfileFacts = skills.length > 0 || languages.length > 0 || educationLevel.length > 0;
   const recommendations = analysis.recommendations ?? [];
+  // The engine keeps the model's explanation as written but codes any skill it names
+  // that the CV does not evidence; name them so the recruiter checks before repeating.
+  const unverifiedSkills = unverifiedExplanationSkills(analysis.trustFindings);
+  const v2 = analysis.v2Profile;
+  const potentialScore = typeof v2?.potentialScore === "number" && Number.isFinite(v2.potentialScore)
+    ? Math.max(0, Math.min(1, v2.potentialScore))
+    : null;
+  const learningSignals = Array.isArray(v2?.learningSignals)
+    ? v2.learningSignals.filter((signal): signal is string => typeof signal === "string")
+    : [];
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -44,14 +56,19 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             {/* Dial reads the component sum, not the raw pipeline total, so the
                 arc can never disagree with the FactorChart bars below it (the
                 score-breakdown invariant; see reconcileScoreTotal). */}
-            <ScoreDial score={reconcileScoreTotal(analysis.score)} />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <ScoreDial score={reconcileScoreTotal(analysis.score)} />
+              {potentialScore != null ? (
+                <PotentialBadge potential={{ score: potentialScore, learningSignals }} />
+              ) : null}
+            </div>
           </div>
         </div>
 
         {hasProfileFacts ? (
           <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-coral" aria-hidden />
+              <Sparkles className="h-5 w-5 text-coral-ink" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.skillsProfile")}</h3>
             </div>
             {skills.length > 0 ? (
@@ -189,7 +206,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
         <div className={`${PANEL} p-5`}>
           <div className="flex items-center gap-2">
-            <BrainCircuit className="h-5 w-5 text-coral" aria-hidden />
+            <BrainCircuit className="h-5 w-5 text-coral-ink" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.scoreBreakdown")}</h3>
           </div>
           <FactorChart score={analysis.score} />
@@ -204,7 +221,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             emptyHint={t("panel.strengthsHint")}
           />
           <ListBlock
-            icon={<AlertTriangle className="h-5 w-5 text-coral" />}
+            icon={<AlertTriangle className="h-5 w-5 text-coral-ink" />}
             title={t("panel.gaps")}
             items={analysis.gaps}
             emptyHeadline={t("panel.gapsEmpty")}
@@ -217,7 +234,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             lists; guarded so an empty list adds no chrome. */}
         {recommendations.length > 0 ? (
           <ListBlock
-            icon={<Lightbulb className="h-5 w-5 text-coral" />}
+            icon={<Lightbulb className="h-5 w-5 text-coral-ink" />}
             title={t("panel.recommendations")}
             items={recommendations}
           />
@@ -254,6 +271,11 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.llmExplanation")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.explanation}</p>
+          {unverifiedSkills ? (
+            <p className="mt-2 text-meta text-coral-ink" role="note">
+              {t("panel.llmExplanationUnverified", { skills: unverifiedSkills })}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

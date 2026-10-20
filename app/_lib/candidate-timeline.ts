@@ -5,16 +5,18 @@ import { jdLastEditedAt } from "./db/jobs";
 import { getPipelineEntry, listConsentEvents, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvitesForEntry } from "./schedule-store";
-import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
+import { isScheduleInviteExpired, scheduleInviteExpiryAnchor, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
 import { withCanonicalScores } from "./match-score-resolve";
 import { commsVerdict, deriveCommsView, type CommsVerdict, type CommsViewRow } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
+import { humanScorecardViews, readHumanScorecards, type HumanScorecardView } from "./human-scorecard-set";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
-import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail } from "@/app/_lib/pipeline-rematch-link";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
+import { listDecisionRecords } from "./decision-record-store";
 import type { InterviewTelemetry } from "./interview-telemetry";
 import type { ScorecardCoverage } from "./interview-transcript";
 
@@ -74,6 +76,8 @@ export type CandidateComm = {
    *  Center renders (comms-view.ts). The two surfaces cannot disagree by construction. */
   verdict: CommsVerdict;
   channel: string | null;
+  /** Pre-fills the bounced-letter door, as Channels does (operator-gated bundle). */
+  recipient: string | null;
   subject: string | null;
   body: string | null;
   createdAt: string;
@@ -100,6 +104,7 @@ export function toCandidateComm(m: CommsViewRow): CandidateComm {
     status: m.status,
     verdict: commsVerdict(m),
     channel: m.channel,
+    recipient: m.recipient,
     subject: m.subject,
     body: m.body,
     createdAt: m.createdAt,
@@ -164,13 +169,46 @@ export type RematchLink = {
   candidateLabel: string | null;
 };
 
+// One SEALED decision about this candidate, projected from the tamper-evident chain
+// (decision-record-store.ts). A PROJECTION, not the stored row: `payloadJson` (the
+// decisive inputs snapshot) and the hash links stay server-side, because the drawer
+// renders a decision, not a proof — the proof is the Analytics decision panel's job
+// and it verifies the whole chain there.
+//
+// WHY IT IS HERE AT ALL. The chain already held the answer to "why was this person
+// rejected, and can we stand behind it" and it was rendered in exactly one place: an
+// Analytics panel, keyed by the whole workspace's trail. The candidate's own drawer —
+// where a recruiter actually asks that question, beside the stage moves that produced
+// it — showed nothing. `candidate_ref` on a record IS the pipeline entry id, so this
+// join always existed and was simply never made.
+export type CandidateDecision = {
+  seq: number;
+  kind: string;
+  /** "auto:<engine>" | "human:<who>" — sealed INTO the hash, so it cannot be restated
+   *  after the fact (decision-record-store.ts:24-29). */
+  actor: string;
+  reasonCode: string;
+  policyVersion: string;
+  rationale: string;
+  createdAt: string;
+  /** Was this link sealed under an HMAC key? A keyless link (`key_id ""`) is
+   *  integrity-EVIDENT but forgeable by the same insider who can write the table, so
+   *  the two guarantees must stay distinguishable on the surface that shows them. */
+  keyed: boolean;
+};
+
 // Everything the CandidateDrawer needs to render, in ONE call.
 export type CandidateDrawerBundle = {
   items: CandidateTimelineItem[];
   events: PipelineEvent[];
+  /** The sealed decisions for THIS candidate, newest first, bounded. Empty when the
+   *  chain holds nothing about them — which is the common case and not a fault. */
+  decisions: CandidateDecision[];
   comms: CandidateComm[];
   interview: InterviewOutcome | null;
-  humanScorecard: Scorecard | null;
+  /** Every interviewer's scorecard, one per (interviewer, round), newest first. Empty
+   *  when none is saved OR when consent withholds the candidate's PII. */
+  humanScorecards: HumanScorecardView[];
   consent: CandidateConsentView;
   // Keyed by pipeline_event id → the navigable counterpart of a rematch event.
   rematchLinks: Record<number, RematchLink>;
@@ -200,6 +238,13 @@ export type CandidateDrawerBundle = {
 const ANALYSES_SCAN_LIMIT = 300;
 const COMMS_LIMIT = 200;
 const EVENTS_LIMIT = 50;
+// A candidate accumulates a handful of sealed decisions (a screening verdict, an
+// auto-reject, a group-eval seal), never a trail. Bounded anyway: this is the drawer's
+// open path and every read on it carries a ceiling.
+const DECISIONS_LIMIT = 20;
+// The rationale is human-written prose. Bounded on the wire so one long justification
+// cannot dominate the bundle the drawer opens with.
+const RATIONALE_MAX = 600;
 
 export function candidateTimeline(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateTimelineItem[] | null {
   const entry = getPipelineEntry(entryId, workspaceId);
@@ -272,10 +317,10 @@ function candidateTimelineForEntry(
       // truthful instant for the lapse.
       items.push({ at: invite.slotAt ?? invite.confirmedAt ?? invite.createdAt, kind: "invite", status: "no_show" });
     } else if (isScheduleInviteExpired(invite)) {
-      // Surface the lapse at its TTL deadline (createdAt + INVITE_LINK_TTL_DAYS) so a
+      // Surface the lapse at its TTL deadline (the expiry anchor + INVITE_LINK_TTL_DAYS) so a
       // never-booked link stops reading as "sent" forever — exactly the offer branch's
       // expired-at-its-deadline handling.
-      const expiredAt = new Date(Date.parse(invite.createdAt) + INVITE_LINK_TTL_DAYS * 86_400_000).toISOString();
+      const expiredAt = new Date(scheduleInviteExpiryAnchor(invite) + INVITE_LINK_TTL_DAYS * 86_400_000).toISOString();
       items.push({ at: expiredAt, kind: "invite", status: "expired" });
     }
   }
@@ -364,33 +409,62 @@ function candidateConsent(
   };
 }
 
-// The human scorecard saved against this entry's prep artifact (PREP1), if any —
-// consent-gated exactly like the AI outcome above.
+// Every human scorecard saved against this entry's prep artifact (PREP1) — one per
+// (interviewer, round), read through readHumanScorecards rather than the
+// `humanScorecard` headline mirror, which is only the latest save overall and hid every
+// other interviewer's card (r09 follow-up). Projected as views: the signed-in user id
+// that keys a record stays in the store; the author's label, the round and a legacy
+// mark ride the drawer. Consent-gated exactly like the AI outcome above.
 //
-// It lives inside interview_preps.payload_json, "the free-text prep payload that quotes
+// They live inside interview_preps.payload_json, "the free-text prep payload that quotes
 // the CV" that erasure scrubs to '{}' (db/pipeline.ts::scrubEntryLinkedPii) — the same
 // PII class as the voice scorecard. But the read-time gate covered only the AI half, so
 // an entry whose consent had EXPIRED (and whose expiry sweep had not run yet — "the
 // sweep is an optimization, THIS is the control", consent.ts) rendered the drawer's
 // interview panel with the AI synthesis withheld and the human interviewer's verbatim
-// summary + ratings, on the same candidate, shown in full right beside it.
-function candidateHumanScorecard(
-  entry: NonNullable<ReturnType<typeof getPipelineEntry>>
-): Scorecard | null {
+// summary + ratings, on the same candidate, shown in full right beside it. The gate
+// withholds EVERY record — a panel is no less PII than one card.
+function candidateHumanScorecards(entry: NonNullable<ReturnType<typeof getPipelineEntry>>): HumanScorecardView[] {
   if (
     consentWithholdsPii({ givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt })
   ) {
-    return null;
+    return [];
   }
   const prep = getInterviewPrep(entry.id, entry.workspaceId);
-  const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
-  return sc;
+  return prep ? humanScorecardViews(readHumanScorecards(prep.payload)) : [];
+}
+
+/** The sealed decisions about ONE candidate, projected for the drawer.
+ *
+ *  Tenant-scoped through the store's own reader (`candidate_ref` + `workspace_id`),
+ *  so a foreign entry id reads as "no decisions" rather than as another team's chain.
+ *  Never throws: the chain is an audit side effect and an unreadable store must not
+ *  take the drawer down with it — the same posture `sealDecisionSafe` takes on write. */
+function candidateDecisions(entryId: string, workspaceId: string): CandidateDecision[] {
+  try {
+    return listDecisionRecords({ candidateRef: entryId, limit: DECISIONS_LIMIT, workspaceId }).map((r) => ({
+      seq: r.seq,
+      kind: r.kind,
+      actor: r.actor,
+      reasonCode: r.reasonCode,
+      policyVersion: r.policyVersion,
+      rationale: r.rationale.length > RATIONALE_MAX ? `${r.rationale.slice(0, RATIONALE_MAX - 1)}…` : r.rationale,
+      createdAt: r.createdAt,
+      keyed: r.keyId !== "",
+    }));
+  } catch (error) {
+    // best-effort: the drawer's other six sections are still the truth, and a
+    // recruiter reading a candidate must not meet a 500 because the audit store is
+    // locked. Logged, because an operator WOULD act on a chain they cannot read.
+    console.error(`[candidate-timeline] sealed decisions unavailable for entry ${entryId}`, error);
+    return [];
+  }
 }
 
 /** The whole CandidateDrawer payload — cross-store items, pipeline events, full
- *  comms, interview outcome and human scorecard — assembled in ONE call so the
- *  drawer opens with a single request. Returns null when the entry is unknown /
- *  not in the caller's workspace (the route answers 404). */
+ *  comms, interview outcome, human scorecard and the sealed decisions — assembled in
+ *  ONE call so the drawer opens with a single request. Returns null when the entry is
+ *  unknown / not in the caller's workspace (the route answers 404). */
 export function candidateDrawerBundle(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateDrawerBundle | null {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
@@ -398,9 +472,10 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
   return {
     items: candidateTimelineForEntry(entry, workspaceId),
     events,
+    decisions: candidateDecisions(entry.id, entry.workspaceId),
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
-    humanScorecard: candidateHumanScorecard(entry),
+    humanScorecards: candidateHumanScorecards(entry),
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
     staleSince: deriveStaleSince(entry, workspaceId),

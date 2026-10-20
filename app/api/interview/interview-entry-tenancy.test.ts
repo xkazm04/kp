@@ -106,7 +106,7 @@ test("every entry-keyed interview route threads the caller's tenant", () => {
   const compare = read("compare", "route.ts");
 
   for (const [name, src] of [["create", create], ["revoke", revoke], ["by-entry", byEntry], ["compare", compare]] as const) {
-    assert.match(src, /currentWorkspace\(\)/, `${name} must resolve the caller's team`);
+    assert.match(src, /withWorkspace\(async \((?:ws|workspace|workspaceId): string/, `${name} must receive the caller's team from withWorkspace`);
   }
 
   // /create's own mint sequence moved into the SHARED door (app/_lib/interview-invite.ts)
@@ -120,9 +120,9 @@ test("every entry-keyed interview route threads the caller's tenant", () => {
   assert.match(create, /mintAndInviteVoiceScreen\(\{[\s\S]*?workspaceId:\s*workspace,/, "create hands the caller's team to the mint door");
   assert.match(mint, /liveInterviewByEntry\(entryId,\s*workspaceId\)/, "the reissue guard is scoped");
   assert.match(mint, /revokeOpenInterviewSessions\(entryId,\s*workspaceId\)/, "the revoke-first is scoped");
-  assert.match(mint, /buildGroundedInterview\(entryId,\s*workspaceId\)/, "a foreign entry must 404 out of the brief build");
+  assert.match(mint, /buildGroundedInterview\(entryId,\s*workspaceId[,)]/, "a foreign entry must 404 out of the brief build");
   assert.match(mint, /getPipelineEntry\(entryId,\s*workspaceId\)/, "the invite-locale read is scoped");
-  assert.match(revoke, /revokeOpenInterviewSessions\(entryId,\s*await currentWorkspace\(\)\)/, "revoke is scoped");
+  assert.match(revoke, /revokeOpenInterviewSessions\(entryId,\s*(?:ws|workspace|workspaceId)\)/, "revoke is scoped");
   assert.match(byEntry, /latestInterviewByEntry\(entry,\s*workspace\)/, "the ?entry= read is scoped");
   assert.match(byEntry, /latestInterviewByEntry\(linked\.id,\s*workspace\)/, "the ?submission= read is scoped");
   // The ?entry= branch must NOT resolve the tenant from the row it is about to

@@ -4,15 +4,20 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { normalizeScorecardEntities, type Scorecard } from "@/app/_lib/interview-scorecard";
+import { normalizeScorecardEntities } from "@/app/_lib/interview-scorecard";
+import { readHumanScorecards } from "@/app/_lib/human-scorecard-set";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import type { SchedEntry } from "./ScheduleTypes";
 import { findEvidenceTurn, type Session } from "./scheduleInterviewTranscriptHelpers";
 import { AiScorecardSection } from "./ScheduleInterviewAiScorecardSection";
 import { HumanScorecardSection } from "./ScheduleInterviewHumanScorecardSection";
+import { InterviewEvidenceSection } from "./ScheduleInterviewEvidenceSection";
 import { TranscriptTurns } from "./ScheduleInterviewTranscriptTurns";
+import { rescoreSession } from "./scheduleRescore";
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.transcript");
@@ -26,13 +31,17 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
   const loading = data === null && error === null;
   const session = data?.session ?? null;
 
-  // The recruiter's human scorecard (PREP1), if one was filled from the prep
+  // The recruiters' human scorecards (PREP1), if any were filled from the prep
   // rubric — shown beside the AI screen so a human-led round isn't invisible here.
-  const { data: prepData } = useJsonFetch<{ prep?: { payload?: { humanScorecard?: Scorecard } } }>(
+  // EVERY record, one per (interviewer, round), each labelled — not the payload's
+  // `humanScorecard` headline, which is only the latest save (r09
+  // schedule-interview-prep/A). A pre-list row reads as its one unattributed record.
+  const { data: prepData } = useJsonFetch<{ prep?: { payload?: unknown } }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
     t("scorecardLoadFailed")
   );
-  const humanSc = prepData?.prep?.payload?.humanScorecard ?? null;
+  const humanScs = useMemo(() => readHumanScorecards(prepData?.prep?.payload), [prepData]);
+  const humanList = humanScs.map((h, i) => <HumanScorecardSection key={`${h.author ?? "-"}:${h.stage ?? "-"}:${i}`} sc={h} />);
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
@@ -59,18 +68,34 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
     setHighlightIdx(idx);
     document.getElementById(`iv-turn-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+  const [rescoring, setRescoring] = useState(false);
+  // Shown inside the modal, next to the control — a toast can render under the modal.
+  const [rescoreError, setRescoreError] = useState<string | null>(null);
+  const errorMessage = useErrorMessage();
+  const handleRescore = async () => {
+    if (!session?.id) return;
+    setRescoring(true);
+    setRescoreError(null);
+    try {
+      const outcome = await rescoreSession(session.id, errorMessage);
+      if (outcome.ok) reload();
+      else setRescoreError(outcome.message);
+    } finally {
+      setRescoring(false);
+    }
+  };
 
   return (
     <Modal title={t("title", { name: entry.candidateLabel })} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> {t("loading")}
+          <Loader2 size={16} className="animate-spin text-coral-ink" /> {t("loading")}
         </p>
       ) : error ? (
         // Distinct failure state with a retry: a 500 / DB lock / parse error must
         // never read as the reassuring "no interview recorded" empty state below.
         <div className="space-y-2">
-          <p className="flex items-center gap-2 text-sm text-coral">
+          <p className="flex items-center gap-2 text-sm text-coral-ink">
             <AlertTriangle size={15} /> {error}
           </p>
           <button
@@ -84,9 +109,9 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
       ) : !session ? (
         // No voice screen — but a recruiter may still have filed a human scorecard
         // (a human-led round), so show that rather than a bare empty state.
-        humanSc ? (
+        humanScs.length ? (
           <div className="space-y-3">
-            <HumanScorecardSection sc={humanSc} />
+            {humanList}
             <p className="text-sm text-steel">{t("noVoiceShowScorecard")}</p>
           </div>
         ) : (
@@ -104,11 +129,47 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               jumpToTurn={jumpToTurn}
               t={t}
             />
+          ) : transcript.length > 0 ? (
+            <div className={`${NOTICE()} p-3 text-micro`}>
+             <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0 text-dial-amber" />
+                <span>{t("unscoredNotice")}</span>
+              </div>
+              {session.id ? (
+                <button
+                  type="button"
+                  disabled={rescoring}
+                  onClick={handleRescore}
+                  className={`${BTN_SECONDARY} h-8 shrink-0 gap-1.5 bg-paper px-3 text-meta`}
+                >
+                  <RefreshCw size={13} className={rescoring ? "animate-spin" : ""} />
+                  {rescoring ? t("rescoring") : t("rescoreButton")}
+                </button>
+              ) : null}
+             </div>
+              {rescoreError ? <p role="alert" className="mt-2 text-coral-ink">{rescoreError}</p> : null}
+            </div>
           ) : null}
 
-          {humanSc ? <HumanScorecardSection sc={humanSc} /> : null}
+          {humanList}
 
-          <TranscriptTurns provider={session.provider} transcript={transcript} citedTurns={citedTurns} highlightIdx={highlightIdx} t={t} />
+          {/* WP4 — the director's record: observations, the audio the candidate opted
+              into, and the transcript grouped under the agenda. Keyed by session id, so
+              a row without one (a legacy read) falls back to the flat transcript this
+              modal has always shown. */}
+          {session.id ? (
+            <InterviewEvidenceSection
+              sessionId={session.id}
+              provider={session.provider}
+              transcript={transcript}
+              citedTurns={citedTurns}
+              highlightIdx={highlightIdx}
+              t={t}
+            />
+          ) : (
+            <TranscriptTurns provider={session.provider} transcript={transcript} citedTurns={citedTurns} highlightIdx={highlightIdx} t={t} />
+          )}
         </div>
       )}
     </Modal>

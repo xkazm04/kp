@@ -3,9 +3,10 @@
 // filter hid the just-ingested DRAFT, the id never matched, the latch stayed armed,
 // and a later ingest could auto-open a modal unexpectedly.
 //
-// Non-vacuity: the "refreshed list WITHOUT the id ⇒ clear" test is the crux — the
-// pre-fix logic never returned a clear (it only opened-or-waited), so a resolver
-// emulating it leaves the latch armed and that assertion fails.
+// Non-vacuity: the "refreshed list WITHOUT the id" test is the crux — the pre-fix
+// logic only opened-or-waited, so a resolver emulating it leaves the latch armed and
+// that assertion fails. Since the table became a 20-row server window the miss
+// resolves to a point-fetch rather than a silent clear (challenge-r07).
 //
 // Runner: node --test with type stripping — npm run test:unit
 import { test } from "node:test";
@@ -42,10 +43,16 @@ test("refreshed list CONTAINS the ingested id ⇒ open that job", () => {
   assert.equal(res.kind === "open" ? res.job.id : null, "new");
 });
 
-test("refreshed list WITHOUT the id (draft hidden by a filter) ⇒ clear — the latch is bounded, no stray future auto-open", () => {
+test("refreshed list WITHOUT the id ⇒ a one-shot point-fetch of that id — the latch is still consumed, no stray future auto-open", () => {
   const before = [job("a")];
-  const after = [job("a")]; // fresh array, still no "new" (openOnly filtered the draft out)
-  assert.equal(resolveIngestLatch(after, { id: "new", sawJobs: before }).kind, "clear");
+  // A fresh array, still no "new": the table shows ONE 20-row server page, so a
+  // just-ingested draft is off it whenever the sort places it elsewhere. The
+  // resolution is no longer "clear" (the modal would never open) but "fetch" —
+  // and it is still terminal: the caller drops the latch on it, as it did on clear.
+  const after = [job("a")];
+  const res = resolveIngestLatch(after, { id: "new", sawJobs: before });
+  assert.deepEqual(res, { kind: "fetch", id: "new" });
+  assert.notEqual(res.kind, "wait", "a landed refresh never leaves the latch armed");
 });
 
 test("sawJobs=null resolves on the first non-null list", () => {

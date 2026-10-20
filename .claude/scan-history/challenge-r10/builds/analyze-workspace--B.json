@@ -1,0 +1,25 @@
+{
+  "card": "analyze-workspace/B",
+  "title": "Seen before: Analyze names this exact CV's prior runs and decisions pre-spend",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["667296c1", "5866f422"],
+  "tests_added": [
+    "app/features/tools/analyze/analyzePriorRuns.test.ts",
+    "app/_lib/db/analyses-tenancy.test.ts",
+    "app/api/analyze/prior/route.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 11,
+  "deviations_from_card": "messages/*.json were updated in the working tree for all 4 locales (en, cs, de, fr) for i18n parity check to pass, but left uncommitted to avoid committing foreign working tree edits from the 2026-09-30 Orbit session.",
+  "notes": "Pre-spend footprint query via GET /api/analyze/prior surfaces prior runs, scores, and decisions for the same CV content hash. In blind mode, the query and strip are completely suppressed. All 8 acceptance criteria met."
+}

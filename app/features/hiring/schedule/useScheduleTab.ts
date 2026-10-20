@@ -15,12 +15,36 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import { notifyDataChanged, useLiveRefresh } from "@/app/features/shell/live-refresh";
+// The one agenda's write-through + declared effects (challenge-r02 schedule-calendar-invites/A).
+import {
+  applyMutation,
+  effectsFor,
+  isOwnEcho,
+  type AgendaMutation,
+  type AgendaState,
+  type AgendaWriteResult,
+  type InviteActionVerb,
+  type ScheduleAgendaView,
+} from "./scheduleAgenda";
 import { seedGrid, type SlotSource } from "./scheduleGridSeeds";
+// Each pending card's state from its candidate's live invite (challenge-r02 slot B).
+import { liveInviteFor, pendingCardState, sendLinkNotice, type PendingCardState } from "./schedulePendingCardState";
+import { toast } from "@/app/_components/toast-store";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 // The two derived lists + the poll cadence, extracted and unit-pinned (schedule-ui-2).
 import { bookedMarkersFrom, interviewedEntriesFrom } from "./scheduleTabDerived";
 import { pollDelayMs, pollIsStale } from "./schedulePollBackoff";
+import { DEFAULT_STAGE_AXIS, stageHasRole } from "@/app/_lib/pipeline-stages";
 
-export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
+export type IvStatus = {
+  sessionId: string;
+  status: string;
+  hasTranscript: boolean;
+  endedAt: string | null;
+  hasScorecard?: boolean;
+  mode?: string;
+};
 
 export function useScheduleTab() {
   const t = useTranslations("scheduleTab");
@@ -51,7 +75,14 @@ export function useScheduleTab() {
     const r = gridSlotToIso(weekdaySlot);
     return r ? isoToDateSlot(r.value) : null;
   };
-  const [entries, setEntries] = useState<SchedEntry[] | null>(null);
+  // THE agenda — the pending entries AND the invite list, one state, one owner. The
+  // lifecycle panel this tab renders reads it through props (agendaForPanel below)
+  // instead of holding a second copy it fetched itself; every recruiter write lands
+  // here through applyMutation (scheduleAgenda.ts), so the grid and the panel cannot
+  // disagree about which hours are taken or which invites need attention.
+  const [agenda, setAgenda] = useState<AgendaState>({ entries: null, invites: [] });
+  const entries = agenda.entries;
+  const invites = agenda.invites;
   const [error, setError] = useState<string | null>(null);
   // A REFUSAL of one card's action, carried beside that card rather than in the
   // tab-level banner. The banner sits above the whole grid, ~26rem from the aside
@@ -67,7 +98,15 @@ export function useScheduleTab() {
   // Direction 3 — the grid renders from the ONE scheduling engine. Confirmed invites
   // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
   // read-only booked markers, so the grid and the invite store can't diverge.
-  const [invites, setInvites] = useState<ScheduleInvite[]>([]);
+  // (`invites` is agenda.invites above.)
+  //
+  // The agenda read failing is not fatal to the grid (it degrades to the legacy
+  // approvalDetail seeds) but the lifecycle panel says so rather than render an empty
+  // lifecycle as the truth.
+  const [invitesFailed, setInvitesFailed] = useState(false);
+  // "Now" captured when the agenda last changed, so the panel's upcoming/past split is
+  // a pure function of state during render (react-hooks/purity).
+  const [loadedAt, setLoadedAt] = useState(0);
   // GET /api/schedule is bounded (a clamped `?limit=`, 200 by default) and says when
   // it hit the bound. It matters MORE here than on the lifecycle panel: the grid draws
   // its booked markers from this list, so an invite past the bound is an hour that IS
@@ -100,46 +139,68 @@ export function useScheduleTab() {
   const [lastDir, setLastDir] = useState<"confirm" | "decline">("confirm");
   const reduced = useReducedMotion();
 
-  // `refresh` is for reloads that follow a mutation — see sharedGet.ts. The mount
-  // read shares its `/api/schedule` request with the invite-lifecycle panel, which
-  // mounts in the same tick and needs the same agenda.
-  const load = (opts?: { refresh?: boolean }) =>
-    Promise.all([
+  // `refresh` is for reloads that follow a mutation — see sharedGet.ts. This hook is
+  // the agenda's only reader now (the lifecycle panel takes it as props), so one tab
+  // mount issues one GET /api/schedule by construction, not by in-flight coalescing.
+  //
+  // Ordering: a load that started before a newer load OR before a write-through is
+  // stale by the time it lands — adopting it would put back the row the recruiter
+  // just changed. `agendaSeq` is bumped by both; a response whose seq is no longer
+  // current is dropped. `loadsInFlight` lets a write that supersedes a pending read
+  // (e.g. a live-refresh reload) re-issue it, so the change that read was fetching
+  // is not lost with it.
+  const agendaSeq = useRef(0);
+  const loadsInFlight = useRef(0);
+  const load = (opts?: { refresh?: boolean }) => {
+    const seq = ++agendaSeq.current;
+    loadsInFlight.current += 1;
+    return Promise.all([
       sharedGetJson<{ entries?: SchedEntry[]; error?: string }>("/api/pipeline", opts),
-      // The invite store — the engine the grid now renders from. Best-effort: if it
-      // fails, the grid still works off the legacy approvalDetail strings.
-      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string; truncated?: boolean }>("/api/schedule", opts).catch(
-        () =>
-          ({ invites: [] as ScheduleInvite[], interviewTz: undefined, truncated: false }) as {
-            invites?: ScheduleInvite[];
-            interviewTz?: string;
-            truncated?: boolean;
-          }
+      // The invite store — the engine the grid now renders from. Best-effort for the
+      // grid: if it fails, the grid still works off the legacy approvalDetail strings
+      // (and the lifecycle panel states the failure).
+      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string; truncated?: boolean }>("/api/schedule", opts).then(
+        (s) => ({ ...s, failed: false }),
+        () => ({ invites: undefined as ScheduleInvite[] | undefined, interviewTz: undefined as string | undefined, truncated: false, failed: true })
       ),
     ])
       .then(([p, s]) => {
+        if (seq !== agendaSeq.current) return; // superseded by a newer load or a write
         if (p.error) throw new Error(p.error);
         const all = (p.entries as SchedEntry[]) ?? [];
         // Awaiting-slot candidates (the calendar) PLUS those already voice-interviewed
-        // (now at scorecard_review) so a finished interview stays visible with its transcript.
+        // (now at scorecard_review or unscored / scoring) so a finished interview stays visible.
         const sched = all.filter(
-          (e) => (e.approvalKind === "calendar" || e.approvalKind === "scorecard_review") && e.status === "active"
+          (e) =>
+            (e.approvalKind === "calendar" ||
+              e.approvalKind === "scorecard_review" ||
+              stageHasRole(e.stage, "interview", DEFAULT_STAGE_AXIS)) &&
+            e.status === "active"
         );
-        const invs = (s.invites as ScheduleInvite[]) ?? [];
-        setInvites(invs);
-        setInvitesTruncated(s.truncated === true);
-        setEntries(sched);
+        // A failed agenda read keeps the last good list rather than blank the grid's
+        // booked markers (an hour that IS taken would be drawn free).
+        const invs = (s.invites as ScheduleInvite[] | undefined) ?? [];
+        setInvitesFailed(s.failed);
+        setAgenda((prev) => ({ entries: sched, invites: s.failed ? prev.invites : invs }));
+        if (!s.failed) setInvitesTruncated(s.truncated === true);
+        setLoadedAt(Date.now());
+        setError(null);
         // Seed each candidate's grid cell from the ENGINE first: an invite's canonical
         // slot_at (converted to the grid's wall-clock cell) wins over the legacy
         // free-text approvalDetail, which is the back-compat fallback for entries with
         // no invite yet. So a self-booked or recruiter-booked time shows in the right cell.
-        const inviteByEntry = new Map(invs.filter((i) => i.entryId).map((i) => [i.entryId as string, i]));
+        //
+        // WHICH invite: the agenda can hold several per entry (a re-invite history), and
+        // a `new Map(...)` over the list kept whichever sorted LAST in the read's ORDER
+        // BY. liveInviteFor picks deliberately (confirmed, else a live pending link, else
+        // the newest closed one), the same pick the pending card's state reads.
+        const seededAt = Date.now();
         if (typeof s.interviewTz === "string" && s.interviewTz) setInterviewTz(s.interviewTz);
         const seeded = seedGrid(
           sched
             .filter((e) => e.approvalKind === "calendar")
             .map((e) => {
-              const inv = inviteByEntry.get(e.id);
+              const inv = liveInviteFor(e.id, invs, seededAt);
               // Only a CONFIRMED invite is a fact; a pending one carries no slot_at.
               const fromInvite = inv?.status === "confirmed" && inv.slotAt ? isoToDateSlot(inv.slotAt) : null;
               // Legacy approvalDetail is a weekday-relative string; resolve it to a
@@ -157,10 +218,152 @@ export function useScheduleTab() {
         setPicks(seeded.picks);
         setPickSources(seeded.sources);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
+      .catch((e) => {
+        if (seq === agendaSeq.current) setError(e instanceof Error ? e.message : t("loadFailed"));
+      })
+      .finally(() => {
+        loadsInFlight.current -= 1;
+      });
+  };
   useEffect(() => {
     load();
   }, []);
+
+  // Rung 2 of the invalidation hierarchy: a data-changed signal from another view or
+  // window (a candidate drawer move, the board, the simulation driver) reloads the
+  // agenda — both lists, coalesced by the bus's debounce. Before this the tab was a
+  // mount-only snapshot. Our OWN notify comes back through the same window event; the
+  // write it announced is already applied (and re-read where effectsFor asks), so
+  // that echo is skipped rather than fetched twice.
+  const lastOwnNotifyAt = useRef(0);
+  useLiveRefresh(() => {
+    if (isOwnEcho(lastOwnNotifyAt.current, Date.now())) return;
+    void load({ refresh: true });
+  });
+
+  // Rung 1 — write-through. Adopt what the route answered into THE agenda, then honour
+  // the verb's declared effects (scheduleAgenda.ts effectsFor): re-read where the
+  // write moved server state its response does not carry, announce where other views
+  // render what moved. A write supersedes any read still in flight (that read predates
+  // it); if one was in flight, it is re-issued so its news is not dropped.
+  const commitMutation = (m: AgendaMutation, opts?: { reload?: boolean }) => {
+    const readPending = loadsInFlight.current > 0;
+    agendaSeq.current += 1;
+    setAgenda((prev) => applyMutation(prev, m));
+    setLoadedAt(Date.now());
+    const fx = effectsFor(m.kind);
+    if (fx.refetchEntries || opts?.reload || readPending) void load({ refresh: true });
+    if (fx.notify) {
+      lastOwnNotifyAt.current = Date.now();
+      notifyDataChanged();
+    }
+  };
+
+  // The lifecycle panel's invite verbs (accept a proposal, cancel, no-show, decline
+  // proposals, resolve a reconcile). The panel owns its busy/armed latches and its
+  // toasts; the write and its landing are the owner's. Answers the parsed body so the
+  // panel can resolve a refusal code in the reader's language.
+  const runInviteAction = async (
+    token: string,
+    action: InviteActionVerb,
+    slotAt?: string
+  ): Promise<AgendaWriteResult> => {
+    const r = await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action, slotAt }),
+    });
+    const body = ((await r.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    if (!r.ok) return { ok: false, body };
+    const inv = (body.invite as ScheduleInvite | undefined) ?? null;
+    commitMutation({ kind: action, invite: inv, entryId: inv?.entryId ?? null });
+    return { ok: true, body };
+  };
+
+  // Mint a scheduling link (POST /api/schedule/invite): a Closed row's re-invite, or a
+  // pending card's first link. The route mints a NEW token and answers no row, so the
+  // owner re-reads the agenda (the fresh pending link lands in Awaiting and the card
+  // turns to "link sent").
+  const mintLink = async (entryId: string, kind: "reinvite" | "send_link"): Promise<AgendaWriteResult> => {
+    const r = await fetch("/api/schedule/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryId }),
+    });
+    const body = ((await r.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    if (!r.ok) return { ok: false, body };
+    commitMutation({ kind, invite: null }, { reload: true });
+    return { ok: true, body };
+  };
+  const reinviteEntry = (entryId: string) => mintLink(entryId, "reinvite");
+
+  // The pending card's own actions (challenge-r02 slot B): each card's first action
+  // follows its candidate's live invite (schedulePendingCardState.ts), not a blind
+  // Confirm of the seeded cell. A refusal renders under that card, like a book refusal.
+  //
+  // Send the candidate their self-scheduling link. The toast repeats the route's
+  // TRUTHFUL delivery claim (sent / queued / failed), never a green "sent" over a
+  // message nothing will deliver.
+  const sendLink = async (e: SchedEntry) => {
+    setBusy(e.id);
+    setActionError(null);
+    try {
+      const res = await mintLink(e.id, "send_link");
+      if (!res.ok) {
+        setActionError({ entryId: e.id, message: errMsg(res.body, t("sendLink.refused")) });
+        return;
+      }
+      const notice = sendLinkNotice(res.body);
+      toast[notice.variant](t(notice.key, { name: e.candidateLabel }));
+    } catch {
+      setActionError({ entryId: e.id, message: t("sendLink.refused") });
+    } finally {
+      setBusy(null);
+    }
+  };
+  // Accept one of the candidate's proposed times where the recruiter is reading their
+  // card: the lifecycle panel's accept_proposal verb, written through the one agenda
+  // (the card leaves the pending list; the booking lands in Upcoming and on the grid).
+  const acceptProposal = async (e: SchedEntry, token: string | null, slotAt: string) => {
+    if (!token) return;
+    setBusy(e.id);
+    setActionError(null);
+    try {
+      const res = await runInviteAction(token, "accept_proposal", slotAt);
+      if (!res.ok) setActionError({ entryId: e.id, message: errMsg(res.body, t("bookFailed")) });
+      else setLastDir("confirm");
+    } catch {
+      setActionError({ entryId: e.id, message: t("bookFailed") });
+    } finally {
+      setBusy(null);
+    }
+  };
+  // Copy an awaiting candidate's link (the recruiter re-sends it through their own
+  // channel). A denied clipboard says so rather than leave a stale clipboard to paste.
+  const copyLink = (token: string | null) => {
+    if (!token) return;
+    const url = `${publicBaseUrl(window.location.origin)}/schedule/${token}`;
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(url))
+      .then(() => toast.success(t("cardState.linkCopied")))
+      .catch(() => toast.error(t("cardState.copyFailed")));
+  };
+
+  // The meeting-link PATCH answers the row re-read AFTER its calendar refresh (so it
+  // can carry a changed calendarEventState) — merged into the one list.
+  const adoptMeetingPatch = (token: string, patch: Partial<ScheduleInvite>) =>
+    commitMutation({ kind: "meeting_url", token, patch });
+
+  // What the lifecycle panel renders from: the same `invites` the grid reads.
+  const agendaForPanel: ScheduleAgendaView = {
+    invites: entries === null && !invitesFailed ? null : invites,
+    loadedAt,
+    truncated: invitesTruncated,
+    failed: invitesFailed,
+    runInviteAction,
+    reinviteEntry,
+    adoptMeetingPatch,
+  };
 
   // MEMOIZED ON `entries`, not rebuilt per render. These three derived lists used to
   // be fresh `.filter()` calls in the render body, which meant `calendarEntryIds` and
@@ -177,6 +380,17 @@ export function useScheduleTab() {
   // Entries already rendered as assignable chips are excluded to avoid a double render.
   const calendarEntryIds = useMemo(() => new Set(calendarEntries.map((e) => e.id)), [calendarEntries]);
   const bookedMarkers = useMemo(() => bookedMarkersFrom(invites, calendarEntryIds), [invites, calendarEntryIds]);
+  // entry id -> what that pending card offers first: send the link, a sent link's age,
+  // a fresh link for an expired one, the candidate's proposals, a stall pointer, or
+  // Confirm, which is primary ONLY where a confirmed invite backs the cell.
+  // `loadedAt` is "now" as of the last agenda change, so this stays pure in render.
+  const cardStates = useMemo(() => {
+    const out: Record<string, PendingCardState> = {};
+    for (const e of calendarEntries) {
+      out[e.id] = pendingCardState(e, liveInviteFor(e.id, invites, loadedAt), pickSources[e.id], loadedAt);
+    }
+    return out;
+  }, [calendarEntries, invites, pickSources, loadedAt]);
   // Interviewed = moved past scheduling with either a saved voice transcript or a
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
@@ -318,6 +532,10 @@ export function useScheduleTab() {
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
     setActionError(null);
+    // The confirmed invite the book route answers (route.ts: jsonOk({ invite, ... })),
+    // adopted into the agenda below so the just-booked hour is drawn taken and the
+    // lifecycle panel's Upcoming shows it — it used to be dropped on the floor.
+    let bookedInvite: ScheduleInvite | null = null;
     try {
       if (action === "approve_event") {
         // Route the grid confirm through the ONE scheduling engine: produce/update a
@@ -347,6 +565,7 @@ export function useScheduleTab() {
           load({ refresh: true });
           return;
         }
+        bookedInvite = ((bd as { invite?: ScheduleInvite }).invite as ScheduleInvite | undefined) ?? null;
       } else {
         // Decline → terminal reject on the pipeline entry (no booking involved).
         const r = await fetch(`/api/pipeline/${e.id}`, {
@@ -369,7 +588,11 @@ export function useScheduleTab() {
       // leaving card's exit variant from its `custom` (below) at removal time, so
       // confirm slides right and decline slides left.
       setLastDir(action === "approve_event" ? "confirm" : "decline");
-      setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
+      commitMutation(
+        action === "approve_event"
+          ? { kind: "book", entryId: e.id, invite: bookedInvite }
+          : { kind: "reject", entryId: e.id, invite: null }
+      );
       if (selectedId === e.id) setSelectedId(null);
     } catch {
       // Recovery after a failed action — must not reuse a pre-action response.
@@ -416,11 +639,17 @@ export function useScheduleTab() {
     lastDir,
     reduced,
     load,
+    agendaForPanel,
     calendarEntries,
     bookedMarkers,
     interviewedEntries,
     startInterview,
     act,
+    cardStates,
+    loadedAt,
+    sendLink,
+    acceptProposal,
+    copyLink,
     cardExit,
     slotLabel,
   };

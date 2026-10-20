@@ -49,7 +49,7 @@ for (const rel of POST_ONLY_GATED) {
     assert.match(src, GATE_CALL, "must apply the gate and return its refusal response verbatim");
     // The gate must precede the handler's work (params/body). Each of these reads
     // request.json() and/or context.params — the gate sits ahead of both.
-    const postAt = src.indexOf("export async function POST");
+    const postAt = src.search(/export (?:async function|const) POST\b/);
     const gateAt = src.search(GATE_CALL);
     assert.ok(postAt >= 0 && gateAt > postAt, "the gate must be inside POST");
     const bodyAt = src.indexOf("request.json(", postAt);
@@ -64,8 +64,8 @@ for (const rel of POST_ONLY_GATED) {
 test("/api/jds gates POST but leaves GET open", () => {
   const src = read("./route.ts");
   assert.match(src, GATE_IMPORT, "must import the shared gate");
-  const getAt = src.indexOf("export async function GET");
-  const postAt = src.indexOf("export async function POST");
+  const getAt = src.search(/export (?:async function|const) GET\b/);
+  const postAt = src.search(/export (?:async function|const) POST\b/);
   assert.ok(getAt >= 0 && postAt >= 0, "must export both GET and POST");
   const getBody = src.slice(getAt, postAt);
   const postBody = src.slice(postAt);
@@ -76,9 +76,9 @@ test("/api/jds gates POST but leaves GET open", () => {
 test("/api/jds/[slug] gates BOTH PATCH and DELETE, leaves GET open", () => {
   const src = read("./[slug]/route.ts");
   assert.match(src, GATE_IMPORT, "must import the shared gate");
-  const getAt = src.indexOf("export async function GET");
-  const patchAt = src.indexOf("export async function PATCH");
-  const deleteAt = src.indexOf("export async function DELETE");
+  const getAt = src.search(/export (?:async function|const) GET\b/);
+  const patchAt = src.search(/export (?:async function|const) PATCH\b/);
+  const deleteAt = src.search(/export (?:async function|const) DELETE\b/);
   assert.ok(getAt >= 0 && patchAt >= 0 && deleteAt >= 0, "must export GET, PATCH and DELETE");
   // Handlers appear in source order GET → PATCH → DELETE.
   const getBody = src.slice(getAt, patchAt);
@@ -98,8 +98,8 @@ test("/api/jds/[slug] gates BOTH PATCH and DELETE, leaves GET open", () => {
 test("/api/templates gates POST but leaves GET open", () => {
   const src = read("../templates/route.ts");
   assert.match(src, GATE_IMPORT, "must import the shared gate");
-  const getAt = src.indexOf("export async function GET");
-  const postAt = src.indexOf("export async function POST");
+  const getAt = src.search(/export (?:async function|const) GET\b/);
+  const postAt = src.search(/export (?:async function|const) POST\b/);
   assert.ok(getAt >= 0 && postAt >= 0, "must export both GET and POST");
   const getBody = src.slice(getAt, postAt);
   const postBody = src.slice(postAt);
@@ -110,9 +110,9 @@ test("/api/templates gates POST but leaves GET open", () => {
 test("/api/templates/[id] gates BOTH PUT and DELETE, leaves GET open", () => {
   const src = read("../templates/[id]/route.ts");
   assert.match(src, GATE_IMPORT, "must import the shared gate");
-  const getAt = src.indexOf("export async function GET");
-  const putAt = src.indexOf("export async function PUT");
-  const deleteAt = src.indexOf("export async function DELETE");
+  const getAt = src.search(/export (?:async function|const) GET\b/);
+  const putAt = src.search(/export (?:async function|const) PUT\b/);
+  const deleteAt = src.search(/export (?:async function|const) DELETE\b/);
   assert.ok(getAt >= 0 && putAt >= 0 && deleteAt >= 0, "must export GET, PUT and DELETE");
   // Handlers appear in source order GET → PUT → DELETE.
   const getBody = src.slice(getAt, putAt);

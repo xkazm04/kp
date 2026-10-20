@@ -1,0 +1,17 @@
+[
+  {
+    "rider": "eval-voice",
+    "files_read": 9,
+    "checked": "Read pipeline/jobfit/eval/voice/__init__.py, app_client.py, seal.py, session_runner.py, el_ws.py, audio.py, tts.py, v0_smoke.py and wer.py (function index). Hypothesis traced: does the spoken plane exercise the server-directed interview (ADR 0010) at all? It does not - el_ws.py handles ping/transcript/audio/interruption frames but no client_tool_call, app_client.py never posts /api/interview/director, and /simulate sessions carry no entry, so /connect builds no kit and attaches no director tools. Consequence recorded on card A: the harness's persist-fidelity gate (session_runner.py:206, stored_turns != len(run.turns)) depends on /complete storing the body verbatim for a ledger-less session, so card A's transcriptOfRecord makes 'no ledger turns -> body unchanged' an explicit acceptance case. No card went to eval-voice itself: its open M/L items (German/French Piper voices; headless OpenAI Realtime driver) are already on the leftover-develop books, and a 'route EL client tools to /director in el_ws' card would need the ElevenLabs agent redeploy the ADR names as an operator step - out of one builder's reach."
+  },
+  {
+    "rider": "interview-lab-harness",
+    "files_read": 1,
+    "checked": "Read app/interview-lab/page.tsx in full, with its seam into the host: the tokenless lab path in connect/route.ts:110-115,229-237 (mode 'test', QUICK_SCREEN_MIN, no entry, no kitId -> no agenda, no director tools, resolveAgentPrompt null for elevenlabs). Hypothesis traced: would either card change lab behaviour? Card A leaves a lab session byte-identical (no ledger turns -> passthrough case); card B's compare cohort never includes lab sessions (job_id null). Checked for a stronger lab card: the page gates on INTERVIEW_LAB_ENABLED at request time (instant = false) and hides the /diagrams link from non-operators - consistent. The lab's real gaps (it runs the dashboard prompt, not our brief; no first-audio latency readout) are already open leftover-develop items ('Mint a candidate-mode simulate session so the lab A/B runs our brief', 'Show first-audio latency and turn counts on the interview lab'), so no card."
+  },
+  {
+    "rider": "interview-portal",
+    "files_read": 4,
+    "checked": "Read app/interview/[token]/page.tsx, portal-state.ts, error.tsx and loading.tsx (the map's three plus portal-state.ts; portal-state.test.ts not opened), and followed isInterviewSessionLive / LIVE_INTERVIEW_RECENCY_MIN into app/_lib/db/interviews.ts:472-495 and DIRECTOR_HEARTBEAT_MS into app/_components/voice/call-observations.ts:19. Hypothesis traced: a candidate whose browser crashes mid-call (no unmount beacon) reopens the link and gets the 'live' card - INTERVIEW_ALREADY_LIVE plus 'retry after 30 minutes' - although a directed call heartbeats the director every 20 s, so the server could know within ~1 min that the call is dead and offer the resume that voice/resume.ts already supports. That became slot B's runner-up, not a card: shortening the single-live window for directed calls relaxes the one-paid-session-per-link guard (connect/route.ts:143-163) and reads as policy-loosen, which this mode never builds. Also confirmed the portal keeps internal ids off the page (token only to InterviewPortalClient; statusHref minted server-side, best-effort) and that the rehearsal/candidate offers split (interviewPortalOffers) matches /connect's recording rule."
+  }
+]

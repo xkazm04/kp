@@ -154,8 +154,18 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # the rules block or the CV fence changed, verified by diffing the function
 # before/after: only the exception TYPE at the raise sites. No cached analysis
 # output differs, so PROMPT_VERSION is intentionally NOT bumped.
-EXPECTED_PROMPT_VERSION = "v6-2026-09-04-engine-kind"
-EXPECTED_ANALYSIS_FINGERPRINT = "d9e501943d3b60514b2b6f494c1cc006b89b5b4d7e16c294abeeba955d7d0048"
+# NOTE (challenge-r07 results-core/A — trust findings coded at birth): models.py
+# gained `TrustFinding` + `AnalysisResult.trust_findings`. Additive on the wire, but
+# unlike run_cost a cached payload WITHOUT it is read by the legacy TS regex, which
+# classifies a blind-screening redaction miss as a pass — so PROMPT_VERSION IS
+# bumped (v7) and stale caches miss.
+# NOTE (2026-10-07 — checked strengths): 8c424ff41 checks strengths and the
+# explanation against the CV and codes an unverified skill (pipeline.py). A payload
+# cached before it carries none of this, so PROMPT_VERSION IS bumped (v8) and stale
+# caches miss. The fingerprint below is NOT re-recorded: this fingerprint does not
+# hash pipeline.py, which is why nothing forced the bump.
+EXPECTED_PROMPT_VERSION = "v8-2026-10-07-checked-strengths"
+EXPECTED_ANALYSIS_FINGERPRINT = "ef5b860b26dd38e3a81b572d4860157f4000cbd79472d8a5600608230bb6a3ce"
 
 
 def _strip_ts_comments(text: str) -> str:

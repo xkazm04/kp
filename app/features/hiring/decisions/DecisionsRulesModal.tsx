@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { type ScreeningRule } from "@/app/_lib/decision-config-schema";
-import { readScreeningRule, readScreeningRuleResponse, type ScreeningRuleRead } from "./decisionsRulesLoad";
+import { readScreeningRule, readScreeningRuleResponse, readScreeningVersion, type ScreeningRuleRead } from "./decisionsRulesLoad";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ComplianceSection } from "./DecisionsComplianceSection";
 import { familyFloorEntries, familyFloorSummaryList } from "./decisionsFloorDisclosure";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
 
 // Type + default come from the pure decision-config-schema module — the same
 // source the API validates writes against — so the client clamps and the server
@@ -24,6 +27,8 @@ import { familyFloorEntries, familyFloorSummaryList } from "./decisionsFloorDisc
 export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   const t = useTranslations("decisions.rules");
   const enumLabel = useEnumLabel();
+  const search = useSearchParams();
+  const nav = useShellNavigate();
   const [rule, setRule] = useState<ScreeningRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -33,6 +38,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   // workspace's live rules, and a save would have written them over the real ones.
   // A read that did not produce a screening rule now says so and disables save.
   const [loadFailed, setLoadFailed] = useState<ScreeningRuleRead["failure"]>(null);
+  // The version of the rules on screen, echoed on save so a save built on rules somebody
+  // has since changed is refused (409) instead of silently overwriting theirs.
+  const [version, setVersion] = useState<string | null | undefined>(undefined);
   const errMsg = useErrorMessage();
 
   // Fetch only — every state write happens on the settle, so this is the plain
@@ -42,11 +50,12 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
     // code (and the permission it wanted), which is the difference between "ask for
     // access" and "try again" - dropping it to `null` made both look like an outage.
     fetch("/api/decisions/config")
-      .then((r) => r.json().then((p: unknown) => readScreeningRuleResponse(r.status, p)))
-      .catch(() => readScreeningRuleResponse(null, null)) // offline / aborted / non-JSON
-      .then((read) => {
+      .then((r) => r.json().then((p: unknown) => ({ read: readScreeningRuleResponse(r.status, p), token: readScreeningVersion(p) })))
+      .catch(() => ({ read: readScreeningRuleResponse(null, null), token: undefined })) // offline / aborted / non-JSON
+      .then(({ read, token }) => {
         setRule(read.rule);
         setLoadFailed(read.failure);
+        setVersion(token);
       });
   }, []);
   useEffect(() => {
@@ -65,7 +74,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       const r = await fetch("/api/decisions/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: "screening", config: rule }),
+        // No scope: the route writes the tier GET showed, so this screen edits the rules
+        // the workspace actually runs even after a calibration apply wrote a team row.
+        body: JSON.stringify({ phase: "screening", config: rule, ...(version !== undefined ? { expectedUpdatedAt: version } : {}) }),
       });
       const d = (await r.json().catch(() => null)) as
         | { configs?: { screening?: Partial<ScreeningRule> }; code?: string; capability?: string }
@@ -74,12 +85,15 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       // door is capability-gated, and "Couldn't save" told a viewer nothing.
       if (!r.ok) {
         setNote(capabilityAwareReason(errMsg, d, t("saveFailed")));
+        // Somebody saved first: show their rules, so the change is made again against them.
+        if (d?.code === "DECISION_CONFIG_STALE") fetchRule();
         return;
       }
       // Re-sync from the server's canonical (clamped) config in the response, so the modal
       // shows exactly what was persisted rather than the possibly out-of-range value typed.
       const saved = readScreeningRule(d);
       if (saved) setRule(saved);
+      setVersion(readScreeningVersion(d));
       setNote(t("saved"));
     } catch {
       setNote(t("saveFailed"));
@@ -115,7 +129,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       {loadFailed ? (
         // Never a silent default: say the live rules could not be read, and offer the retry.
         <div role="alert" className="space-y-2">
-          <p className="text-sm font-semibold text-coral">{capabilityAwareReason(errMsg, loadFailed, t("loadFailed"))}</p>
+          <p className="text-sm font-semibold text-coral-ink">{capabilityAwareReason(errMsg, loadFailed, t("loadFailed"))}</p>
           <button
             type="button"
             onClick={retryLoad}
@@ -189,18 +203,21 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                   {t("ruleLog")}
                 </p>
                 {floors.length > 0 ? (
-                  // Read-only chips — the value lives here for review; editing belongs to the
-                  // calibration surface (the hint below points there), so the two never diverge.
+                  // The override values stay read-only here; a chip opens the
+                  // matching calibration arm where its recommendation is edited.
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-meta uppercase tracking-wide text-steel">{t("familyOverridesLabel")}</span>
                     {floors.map((f) => (
-                      <span
+                      <button
+                        type="button"
                         key={f.family}
-                        className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink"
+                        onClick={() => nav.push(buildUrl({ ...clearedTabScopedParams(), tab: "analytics", sec: "quality", calFamily: f.family }, search.toString()))}
+                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink hover:border-coral/40 hover:text-coral-ink"
                       >
                         <span className="font-semibold">{f.label}</span>
                         <span className="nums text-steel">{t("familyFloorChip", { floor: f.floor })}</span>
-                      </span>
+                        <ArrowUpRight size={12} aria-hidden />
+                      </button>
                     ))}
                     <span className="w-full text-meta text-steel">{t("familyEditHint")}</span>
                   </div>

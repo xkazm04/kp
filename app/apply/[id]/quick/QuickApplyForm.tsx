@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
@@ -12,6 +12,7 @@ import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { applySubmitFailure } from "../apply-submit-outcome";
+import { ApplyDeclineDetail } from "../ApplyDeclineDetail";
 
 type KoStep = { id: string; prompt: string };
 
@@ -51,6 +52,7 @@ export function QuickApplyForm({
   relayConfigured?: boolean;
 }) {
   const t = useTranslations("apply");
+  const locale = useLocale();
   const tCommon = useTranslations("common");
   // Same rule as the conversational door: a refusal is rendered from its machine
   // CODE in the candidate's language, with the cap the route sent as data. The
@@ -95,7 +97,12 @@ export function QuickApplyForm({
     // The durable status-tracking token (capst-l1-002) — the same one the ack
     // email carries, so the lead can check where they stand after the tab closes.
     statusToken?: string;
+    // A KO decline's detail (see ApplyDeclineDetail): the must-have(s) named in the
+    // applicant's language, and whether a decline email is being sent.
+    failedKoNames?: string[];
+    reviewByEmail?: boolean;
   } | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
   // tabIndex -1 + autocomplete off), but a form-filling bot populates. When it comes
@@ -165,6 +172,8 @@ export function QuickApplyForm({
           duplicate: Boolean(d.duplicate),
           leadToken: typeof d.leadToken === "string" ? d.leadToken : undefined,
           statusToken: typeof d.statusToken === "string" ? d.statusToken : undefined,
+          failedKoNames: Array.isArray(d.failedKoNames) ? d.failedKoNames.filter((n: unknown): n is string => typeof n === "string") : undefined,
+          reviewByEmail: Boolean(d.reviewByEmail),
         });
       } else {
         // The form retains every answer, so both failure classes recover the same
@@ -189,6 +198,7 @@ export function QuickApplyForm({
 
   if (done) {
     const fresh = done.result === "accepted" && !done.duplicate;
+    const statusPath = done.statusToken ? `/status/${encodeURIComponent(done.statusToken)}` : null;
     return (
       <div aria-live="polite">
         <div className={`rounded-lg border p-4 ${fresh ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
@@ -196,6 +206,19 @@ export function QuickApplyForm({
             {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
+          {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
+          {done.result === "declined" ? (
+            <button
+              type="button"
+              onClick={() => {
+                ensureApplySession(jobId, "quick", { campaign, variant });
+                setDone(null);
+              }}
+              className={`${BTN_SECONDARY} mt-3 px-3 py-1.5 text-base font-semibold`}
+            >
+              {tCommon("retry")}
+            </button>
+          ) : null}
           {fresh ? (
             // The enrichment hand-off: same loop the acknowledgement email
             // offers, available right here while the candidate is still present.
@@ -214,13 +237,35 @@ export function QuickApplyForm({
           {/* capst-l1-002 — the durable status link, mirroring the conversational
               done screen: the lead's one way to see where they stand once this
               tab is gone (and, with no relay, their ONLY touchpoint at all). */}
-          {done.result === "accepted" && done.statusToken ? (
-            <a
-              href={`/status/${done.statusToken}`}
-              className={`${BTN_SECONDARY} mt-3 gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
-            >
-              {t("trackStatus")}
-            </a>
+          {done.result === "accepted" && statusPath ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <a
+                href={statusPath}
+                className={`${BTN_SECONDARY} gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
+              >
+                {t("trackStatus")}
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  const url = new URL(`${statusPath}?lang=${locale}`, window.location.origin).href;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setCopyState("copied");
+                  } catch {
+                    setCopyState("failed");
+                  }
+                }}
+                className={`${BTN_SECONDARY} bg-white px-3 py-1.5 text-base font-semibold`}
+              >
+                {t("quick.copyStatusLink")}
+              </button>
+              {copyState !== "idle" ? (
+                <span role={copyState === "failed" ? "alert" : "status"} className="text-sm text-steel">
+                  {t(copyState === "copied" ? "quick.statusLinkCopied" : "quick.statusLinkCopyFailed")}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <AiDisclosure
@@ -290,7 +335,7 @@ export function QuickApplyForm({
             className="mt-1 h-12"
           />
           {emailError ? (
-            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral">
+            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral-ink">
               {emailError}
             </p>
           ) : (
@@ -331,7 +376,7 @@ export function QuickApplyForm({
       </div>
 
       {submitError ? (
-        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {submitError}
         </p>
       ) : null}
@@ -339,7 +384,7 @@ export function QuickApplyForm({
           pre-emptively), alongside the focus/scroll jump — the cue the dead
           disabled button never gave. */}
       {incompleteError ? (
-        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {incompleteError}
         </p>
       ) : null}

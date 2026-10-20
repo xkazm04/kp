@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 // Slices, not the `./db` barrel — see the note in app/_lib/llm-config.ts. This
 // route returns 0.2 KB, but through the barrel its first-hit compile was the whole
 // data layer.
-import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
-import { isOperator } from "@/app/_lib/auth/require-operator";
-import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { isHomeOrgReader, isOperator } from "@/app/_lib/auth/require-operator";
+import { collectReadiness, type ReadinessReport } from "@/app/_lib/readiness";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 
 
@@ -56,70 +55,52 @@ import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 // ordinary state as a fact, and rides the operator gate with `tables` rather than the
 // public verdict — "this deployment holds zero jobs" is business volume, which is the
 // exact class of fact this route stopped handing to anonymous callers.
+//
+// TWO TIERS since challenge r03 (platform-auth-api/A). `trusted` above meant
+// isOperator(), i.e. "signed in and not demo", which a member of ANY org satisfies,
+// and a signup-enabled deployment makes every registrant the owner of a fresh org.
+// `engines` is the signed-in shell's own business (useEngineAvailability) and stays
+// on isOperator(). Everything deployment-wide (tables, queue, catalog, the reasons
+// that name workspace ids and host paths, configIssues, and the raw DB error) moves
+// to `hostDetail`: the install's HOME org (require-operator.ts homeOrgReader), the
+// same gate /api/ops and the llm_usage routes answer on. Single-org installs are
+// unchanged; app/api/deployment-read-gate.test.ts keeps a new reader from skipping it.
 export async function GET() {
   const trusted = await isOperator();
-  const degradedReasons: string[] = [];
-
-  let seedOk = true;
+  const hostDetail = trusted && (await isHomeOrgReader());
   let tables: Record<string, number> = {};
   let queue = { running: 0, queued: 0 };
-  let clock: ReturnType<typeof schedulerLiveness> = "stalled";
   let catalogEmpty = false;
-  let configOk = true;
   let configIssues: ReturnType<typeof getDecisionConfigHealth>["issues"] = [];
+  let readiness: ReadinessReport;
   try {
-    const seed = getSeedHealth();
-    seedOk = seed.ok;
-    for (const issue of seed.issues) {
-      if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
-    }
-    // The one catalog question that can still change the verdict (see the header):
-    // an empty catalog is a fault only when its seed ERRORED. Same rule, same
-    // severity, as /api/ops and /api/jobs — a monitor and the operator's own strip
-    // must never disagree about whether this catalog is broken.
-    const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
-    if (trusted) {
+    if (hostDetail) {
       tables = coreTableCounts();
       queue = countActiveTasks();
       catalogEmpty = (tables.jobs ?? 0) === 0;
-    } else if (jobsSeedFailed) {
-      // Same verdict, one query: an untrusted caller never sees the counts, so
-      // counting is pure waste — existence is the whole question. And it is only
-      // asked when a failed seed could be the answer.
-      catalogEmpty = ensureDb().prepare(`SELECT 1 AS n FROM jobs LIMIT 1 -- tenancy:global`).get() === undefined;
     }
-    if (catalogEmpty && jobsSeedFailed) {
-      degradedReasons.push("job catalog is empty because its seed data failed to load");
-    }
-
-    // Decision-config health (/perfect wave 41). An unreadable stored row falls back to
-    // the CODE DEFAULT, so the workspace's auto-reject rules are NOT in force while the
-    // settings panel renders the shipped defaults as if they had been chosen. It is a
-    // real degradation with no other reader — the ledger in decision-config-store.ts was
-    // written and nothing rendered it, which is the same as not recording it at all.
-    // In-memory only: no query, so this costs an untrusted hit nothing.
+    // Every readiness check runs ONCE, in app/_lib/readiness.ts, the module /api/ops
+    // calls too (the two inline copies had already drifted: only ops checked the
+    // public origin). The one catalog question that can still change the verdict (see
+    // the header) is asked there, and only when the jobs seed ERRORED: an untrusted
+    // caller never sees the counts, so it gets a single `LIMIT 1` existence probe
+    // instead of seven COUNT(*)s, and the ordinary hit costs no catalog query at all.
     //
-    // The reason names a WORKSPACE ID, so it is strictly more sensitive than the counts
-    // already gated here and rides degradedReasons (operator-only). The VERDICT — `config`
-    // plus the status code — stays public like `seeds`: a monitor is told which sub-check
-    // failed, never whose tenant it was.
-    const config = getDecisionConfigHealth();
-    configOk = config.ok;
-    configIssues = config.issues;
-    for (const issue of config.issues) {
-      degradedReasons.push(`decision-config:${issue.phase} unreadable (${issue.scope} ${issue.workspaceId})`);
-    }
-
-    // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
-    // clock heartbeat, judged by age. A wedged automation clock now degrades the
-    // probe (503) instead of hiding behind a green dot — and the reason names it.
-    const beat = ensureDb()
-      .prepare(`SELECT last_tick_at FROM scheduler_heartbeat WHERE id = 'clock'`)
-      .get() as { last_tick_at?: string } | undefined;
-    const lastTickAt = beat?.last_tick_at ?? null;
-    clock = schedulerLiveness(Date.now(), lastTickAt ? Date.parse(lastTickAt) : null, process.uptime() * 1000);
-    const clockReason = schedulerLivenessReason(clock, lastTickAt);
-    if (clockReason) degradedReasons.push(clockReason);
+    // Decision-config health (/perfect wave 41): an unreadable stored row falls back to
+    // the CODE DEFAULT, so that workspace's auto-reject rules are NOT in force while its
+    // settings panel renders the shipped defaults. The reason names a WORKSPACE ID, so
+    // it rides the detail tier; the VERDICT (`config` plus the status code) stays public
+    // like `seeds`: a monitor is told which sub-check failed, never whose tenant it was.
+    //
+    // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a wedged automation clock degrades
+    // the probe (503) instead of hiding behind a green dot, and the reason names it.
+    //
+    // `probeReasons` is exactly the set this probe has always gated on. The public-origin
+    // check reaches the DETAIL as a coded warn finding and never the status code:
+    // onboarding pins GET /api/health -> 200 as its boot contract, and a keyless dev box
+    // has no APP_BASE_URL.
+    readiness = collectReadiness(hostDetail ? { catalogEmpty: () => catalogEmpty } : {});
+    configIssues = getDecisionConfigHealth().issues;
   } catch (error) {
     // DB failed to open/seed — the hardest failure; report it and bail to 503. The
     // driver's message quotes the database FILE PATH, so an untrusted caller gets the
@@ -129,21 +110,22 @@ export async function GET() {
       {
         ok: false,
         db: "unavailable",
-        ...(trusted ? { error: error instanceof Error ? error.message : String(error) } : {}),
+        ...(hostDetail ? { error: error instanceof Error ? error.message : String(error) } : {}),
       },
       { status: 503 }
     );
   }
 
+  const degradedReasons = readiness.probeReasons;
   const ok = degradedReasons.length === 0;
   return NextResponse.json(
     {
       ok,
       db: "ok",
-      seeds: seedOk ? "ok" : "degraded",
-      config: configOk ? "ok" : "degraded",
+      seeds: readiness.seedOk ? "ok" : "degraded",
+      config: readiness.configOk ? "ok" : "degraded",
       // Named sub-check so the response says WHICH thing is broken, not just "unhealthy".
-      clock,
+      clock: readiness.clock,
       // Host/tenant detail — operator only (see the header). OMITTED rather than
       // blanked for an untrusted caller: an empty `degradedReasons` beside a 503
       // would be a confident lie about a probe that DID find reasons.
@@ -154,13 +136,16 @@ export async function GET() {
       // `catalog` is a STATE, not a verdict, and it rides the same gate as `tables`
       // for the same reason: an empty catalog is what a new install looks like, and
       // how much business a deployment holds is not a public readiness fact.
-      ...(trusted
+      ...(trusted ? { engines: engineAvailability() } : {}),
+      ...(hostDetail
         ? {
-            engines: engineAvailability(),
             tables,
             queue,
             catalog: catalogEmpty ? "empty" : "ok",
             degradedReasons,
+            // Coded findings (app/_lib/readiness.ts): the same facts as the reasons, plus
+            // the origin warning the probe does not gate on, each with its remedy.
+            findings: readiness.findings,
             configIssues,
           }
         : {}),

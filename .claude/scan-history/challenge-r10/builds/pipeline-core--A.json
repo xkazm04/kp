@@ -1,0 +1,27 @@
+{
+  "card": "pipeline-core/A",
+  "title": "Automation drafts from the entry's own role, not the seed file",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["bd9434072", "685d1b5ea"],
+  "tests_added": [
+    "pipeline/jobfit/tests/test_cli_job_resolution.py",
+    "app/_lib/automation-job-arg.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "docs": 0,
+    "unit": 0,
+    "python_gate": 0,
+    "docs_check_diff": 0,
+    "commit_check": 0
+  },
+  "files_changed": 8,
+  "lines_changed": 429,
+  "deviations_from_card": "docs/features/pipeline/README.md was updated in the working tree with --job-json and CLI resolution docs, but left uncommitted with a Doc-sync trailer to preserve ~163 foreign uncommitted working tree edits from the 2026-09-30 Orbit session.",
+  "notes": "Red-before: 8 cases (6 Python unittest in test_cli_job_resolution.py, 2 in automation-job-arg.test.ts). All 8 pass green. Python CLI resolution unified across automation_cli, recruiter_cli, and winnability_cli via _cli.resolve_job_arg. Automation prompt cache keys on jobJson for non-rematch tasks."
+}

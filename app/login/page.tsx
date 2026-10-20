@@ -27,7 +27,12 @@ export default async function LoginPage({
     const origin = `${proto}://${host}`;
     const raw = sp?.next;
     const next = typeof raw === "string" ? raw : Array.isArray(raw) ? (raw[0] ?? "") : "";
-    redirect(safeNextPath(next ? `?next=${encodeURIComponent(next)}` : "", origin));
+    const rawPlan = sp?.plan;
+    const plan = typeof rawPlan === "string" ? rawPlan : Array.isArray(rawPlan) ? (rawPlan[0] ?? "") : "";
+    const intent = new URLSearchParams();
+    if (next) intent.set("next", next);
+    if (plan) intent.set("plan", plan);
+    redirect(safeNextPath(intent.toString(), origin));
   }
   // Same server-resolved bit the landing hero uses: /signup 404s when the flag
   // is off, so the client must never guess from a public env mirror.

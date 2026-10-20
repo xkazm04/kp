@@ -37,13 +37,19 @@
         "app/_lib/intake-brief.ts",
         "app/_lib/db/intakes.ts",
         "app/_lib/db/job-postings.ts",
+        "app/_lib/db/role-rubrics.ts",
+        "app/_lib/db/role-slate.ts",
+        "app/_lib/slate-evidence.ts",
+        "app/_lib/role-rubric.ts",
+        "app/api/roles/**",
         "app/api/intake/**",
         "app/api/job-postings/**",
         "app/features/library/jds/intake/**",
         "pipeline/jobfit/intake.py",
         "pipeline/jobfit/intake_cli.py",
         "pipeline/jobfit/rolebrief.py",
-        "app/_components/studio/**"
+        "app/_components/studio/**",
+        "pipeline/jobfit/rolerubric.py"
       ]
     },
     {
@@ -139,7 +145,12 @@
         "pipeline/jobfit/gemini.py",
         "app/history/**",
         "app/skill/**",
-        "app/api/analyses/**"
+        "app/api/analyses/**",
+        "app/api/analyze/cohort/**",
+        "app/_lib/analyze-cohort-*.ts",
+        "app/_lib/db/analysis-cohorts.ts",
+        "pipeline/jobfit/cohort_compare.py",
+        "pipeline/jobfit/cohort_compare_cli.py"
       ]
     },
     {
@@ -162,7 +173,8 @@
         "app/_lib/db/channels.ts",
         "app/_lib/db/org-benchmarks.ts",
         "app/api/benchmarks/route.ts",
-        "app/_components/table/**"
+        "app/_components/table/**",
+        "app/_lib/analytics-cohort.ts"
       ]
     },
     {
@@ -175,6 +187,7 @@
         "pipeline/jobfit/transferable.py",
         "pipeline/jobfit/embedding_bridge.py",
         "pipeline/jobfit/weight_proposal.py",
+        "pipeline/jobfit/automation.py",
         "pipeline/jobfit/match_reasoning.py",
         "pipeline/jobfit/jobs.py",
         "pipeline/jobfit/live_case.py",
@@ -189,7 +202,7 @@
       "doc": "docs/features/dev-case/README.md",
       "sourceGlobs": [
         "app/_lib/devcase-*.ts",
-        "app/_lib/db/devcase.ts",
+        "app/_lib/db/devcase*.ts",
         "app/_lib/dev-control.ts",
         "app/_lib/dev-outcomes*.ts",
         "app/_lib/code-review-status.ts",
@@ -197,7 +210,8 @@
         "app/api/devcase/**",
         "app/features/tools/devcases/**",
         "app/devcase/**",
-        "pipeline/jobfit/devcase/**"
+        "pipeline/jobfit/devcase/**",
+        "app/_lib/repo-snapshot.ts"
       ]
     },
     {
@@ -211,7 +225,10 @@
         "app/interview/**",
         "app/interview-lab/**",
         "app/_components/voice/**",
-        "app/features/tools/interview/**"
+        "app/features/tools/interview/**",
+        "app/_lib/interview-sim/**",
+        "scripts/interview-sim.ts",
+        "scripts/interview-sim-verdict.ts"
       ]
     },
     {
@@ -269,7 +286,9 @@
         "app/_lib/ats/field-map.ts",
         "app/api/calendar/**",
         "app/api/ats/connections/**",
-        "app/features/settings/integrations/**"
+        "app/features/settings/integrations/**",
+        "app/_lib/ats/ingest.ts",
+        "app/api/ats/import/**"
       ]
     },
     {
@@ -290,10 +309,12 @@
         "app/_lib/db/memberships.ts",
         "app/_lib/db/invites.ts",
         "app/_lib/auth/session.ts",
+        "app/_lib/auth/session-revocation.ts",
         "app/_lib/auth/roles.ts",
         "app/_lib/auth/org-authority.ts",
         "app/_lib/auth/current-user.ts",
         "app/_lib/auth/current-workspace.ts",
+        "app/api/auth/logout/**",
         "app/_lib/db/workspaces.ts",
         "app/_lib/tenancy.ts",
         "app/_lib/workspace-lock.ts",
@@ -306,7 +327,8 @@
         "app/api/auth/switch-workspace/**",
         "app/invite/**",
         "app/features/settings/organization/**",
-        "app/features/settings/workspace/**"
+        "app/features/settings/workspace/**",
+        "app/_lib/auth/session-issuer.ts"
       ]
     },
     {
@@ -338,6 +360,29 @@
         "app/features/settings/models/**",
         "app/features/insights/activity/**",
         "app/api/llm/activity/**"
+      ]
+    },
+    {
+      "_comment": "The per-step engine/prompt-version matrix. These globs are the files that OWN a prompt id, a prompt-version constant, the routing sections or a call-site pin - a bump or a re-seat in any of them changes a row of that matrix. Several are also owned by a feature doc (pipeline, dev-case) and that is deliberate, like the candidate-data-flow entry below: a prompt version bump should name BOTH the feature doc and the coordination matrix.",
+      "doc": "docs/architecture/engine-and-prompt-coordination.md",
+      "sourceGlobs": [
+        "app/_lib/cache-key.ts",
+        "app/_lib/automation-cache-key.ts",
+        "app/_lib/reasoning-run.ts",
+        "app/_lib/automation-run.ts",
+        "app/_lib/llm-pins.ts",
+        "app/features/settings/models/modelsRoutingSections.ts",
+        "pipeline/jobfit/match_reasoning.py",
+        "pipeline/jobfit/group_compare.py",
+        "pipeline/jobfit/weight_proposal.py",
+        "pipeline/jobfit/agentfit.py",
+        "pipeline/jobfit/intake.py",
+        "pipeline/jobfit/appmaster.py",
+        "pipeline/jobfit/campaign.py",
+        "pipeline/jobfit/devcase/analyze.py",
+        "pipeline/jobfit/devcase/design.py",
+        "pipeline/jobfit/devcase/evaluate.py",
+        "pipeline/jobfit/devcase/reflect.py"
       ]
     },
     {
@@ -381,6 +426,10 @@
         "pipeline/jobfit/gemini.py",
         "app/_lib/db/analyses.ts",
         "app/_lib/db/profiles.ts",
+        "app/_lib/analyze-cohort-*.ts",
+        "app/_lib/db/analysis-cohorts.ts",
+        "pipeline/jobfit/cohort_compare.py",
+        "pipeline/jobfit/cohort_compare_cli.py",
         "app/_lib/data-held.ts",
         "app/api/data/**",
         "instrumentation.ts",
@@ -390,7 +439,9 @@
     {
       "doc": "docs/features/simulation/README.md",
       "sourceGlobs": [
-        "app/features/shell/simulation/**"
+        "app/features/shell/simulation/**",
+        "app/api/sim/**",
+        "app/_lib/sim-entry.ts"
       ]
     },
     {
@@ -411,7 +462,14 @@
         "app/_components/ui/useTablist.ts",
         "app/_components/ui/useDateFormat.ts",
         "app/_components/ui/useTheme.ts",
-        "app/_lib/theme.ts"
+        "app/_lib/theme.ts",
+        "app/_components/kit/scene/**"
+      ]
+    },
+    {
+      "doc": "docs/design/app-contest-kit.md",
+      "sourceGlobs": [
+        "scripts/contest/**"
       ]
     },
     {
@@ -514,6 +572,7 @@
         "app/_lib/python-runner.ts",
         "app/_lib/auth/public-routes.ts",
         "app/_lib/auth/require-operator.ts",
+        "app/_lib/auth/edge-verify.ts",
         "proxy.ts"
       ]
     },
@@ -556,14 +615,37 @@
       "doc": "docs/features/jobseeker/README.md",
       "sourceGlobs": [
         "app/me/**",
+        "app/features/jobseeker/**",
         "app/api/jobseeker/**",
         "app/_lib/jobseeker/**",
         "app/_lib/db/jobseeker-profiles.ts",
         "app/_lib/db/jobseeker-sources.ts",
         "app/_lib/db/jobseeker-postings.ts",
         "app/_lib/db/jobseeker-dialogs.ts",
+        "app/_lib/db/jobseeker-ui-state.ts",
         "app/_lib/scheduler-jobs.ts",
-        "pipeline/jobfit/jobseeker_cli.py"
+        "pipeline/jobfit/jobseeker_cli.py",
+        "pipeline/jobfit/role_research_cli.py",
+        "pipeline/jobfit/github_evidence_cli.py"
+      ]
+    },
+    {
+      "doc": "docs/features/gigs/README.md",
+      "sourceGlobs": [
+        "app/api/gigs/**",
+        "app/_lib/gigs/**",
+        "app/_lib/db/gigs-*.ts",
+        "app/features/gigs/**",
+        "scripts/gigs/**"
+      ]
+    },
+    {
+      "doc": "docs/features/journey-analytics/README.md",
+      "sourceGlobs": [
+        "app/_lib/journey/**",
+        "app/features/insights/journey/**",
+        "app/api/journeys/**",
+        "app/_lib/db/intake-events.ts"
       ]
     }
   ]

@@ -1,0 +1,52 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* THE LINE - the diorama frame every /about step scene is built in.
+   One step = one .dio: a 42u x 31u LCD bezel (the same glass recipe as the console's mock screens) plus
+   a protruding hero drawing. Everything is sized in u (1u = 16px at 1600x900) so a scene scales as ONE piece.
+   Scene artists own what is INSIDE .gl and their own .dio-hero; the frame below is shared and read-only.
+   Motion contract: entrances/loops start from `.dio.is-in` and only inside prefers-reduced-motion: no-preference;
+   the reduced-motion drawing is the calm, complete end state. */
+.mk.mk-about .dio {
+  --sc: #7fb3a8; --sc-hi: #a5d3c8; --sc-ink: #17202a;
+  position: relative; width: calc(var(--u) * 42); height: calc(var(--u) * 31); flex: none;
+  color: var(--lcd-fg); font-family: var(--f-body); font-size: var(--fs-body); line-height: 1.3; text-align: left;
+}
+.mk.mk-about .dio *,
+.mk.mk-about .dio *::before,
+.mk.mk-about .dio *::after { box-sizing: border-box; }
+.mk.mk-about .dio p,
+.mk.mk-about .dio ul,
+.mk.mk-about .dio ol,
+.mk.mk-about .dio li,
+.mk.mk-about .dio h3,
+.mk.mk-about .dio h4,
+.mk.mk-about .dio figure { margin: 0; padding: 0; list-style: none; }
+.mk.mk-about .dio svg { display: block; }
+
+/* bezel + glass */
+.mk.mk-about .bz { position: absolute; inset: 0; z-index: 1; padding: calc(var(--u) * .7); border-radius: calc(var(--u) * 1.9);
+  background: linear-gradient(160deg, #3c454a, #12171a);
+  box-shadow: inset 0 calc(var(--u) * .14) 0 rgba(255, 255, 255, .22), 0 0 0 calc(var(--u) * .16) color-mix(in srgb, var(--sc) 75%, transparent),
+    0 calc(var(--u) * .5) 0 #070a0c, 0 calc(var(--u) * 2) calc(var(--u) * 3.4) rgba(0, 0, 0, .55), 0 0 calc(var(--u) * 6) color-mix(in srgb, var(--sc) 30%, transparent); }
+.mk.mk-about .gl { position: relative; width: 100%; height: 100%; border-radius: calc(var(--u) * 1.3); overflow: hidden; isolation: isolate;
+  background: radial-gradient(120% 95% at 24% 6%, color-mix(in srgb, var(--sc) 30%, #16272d) 0%, var(--lcd-bg-2) 46%, var(--lcd-bg) 100%);
+  color: var(--lcd-fg); box-shadow: inset 0 0 calc(var(--u) * 2.6) rgba(0, 0, 0, .75); }
+.mk.mk-about .gl::before { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, rgba(0, 0, 0, 0) 1px 3px); }
+.mk.mk-about .gl::after { content: ""; position: absolute; inset: 0; z-index: 7; pointer-events: none; background: linear-gradient(118deg, rgba(255, 255, 255, .12) 0%, rgba(255, 255, 255, 0) 30%); }
+
+/* the drawn object that breaks the frame (positioned by the scene's own css) */
+.mk.mk-about .dio-hero { position: absolute; z-index: 3; pointer-events: none; }
+.mk.mk-about .dio-hero svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 calc(var(--u) * .7) calc(var(--u) * .8) rgba(0, 0, 0, .42)); }
+
+/* a shared silkscreen label + paper card, for scenes that want them */
+.mk.mk-about .dio .sil { color: var(--lcd-dim); }
+.mk.mk-about .dio .paper { background: var(--cream); color: var(--ink); border-radius: calc(var(--u) * .5); box-shadow: 0 calc(var(--u) * .15) calc(var(--u) * .5) rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(23, 32, 42, .08); }
+.mk.mk-about .dio .paper .sil { color: var(--ink); }
+
+/* ---- phones and portrait windows (same query as tokens.css): the scene reflows into normal flow, it is NOT scaled
+   (scaling would push text under the 14px floor). tokens.css pins --u to 16px here, so scene css must use px/rem/em/% in its
+   own phone block; the frame below is done for you. ---- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio { width: 100%; max-width: 30rem; height: auto; margin-inline: auto; }
+  .mk.mk-about .bz { position: relative; inset: auto; padding: 8px; border-radius: 22px; }
+  .mk.mk-about .gl { height: auto; min-height: 300px; border-radius: 16px; }
+}

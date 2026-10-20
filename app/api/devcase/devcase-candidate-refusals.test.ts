@@ -103,7 +103,9 @@ test("the finalize door refuses with codes and hides the store's message", () =>
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_UNAVAILABLE", 404\)/, "a link that resolves to no posting reuses the mint's code");
   assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, "the new per-token budget refuses through the chokepoint");
-  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/submit", "DEVCASE_SUBMIT_FAILED"\)/, "the catch logs and codes");
+  // answerFailure: a PostingClosedError (a Refusal) answers POSTING_CLOSED/410, anything
+  // else goes through safeJsonError — logged, and coded.
+  assert.match(src, /answerFailure\(error, "api:devcase\/session\/submit", "DEVCASE_SUBMIT_FAILED"\)/, "the catch logs and codes");
   assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message — never on a public candidate door");
 });
 
@@ -113,8 +115,14 @@ test("the session mint and the webhook name their remaining refusals", () => {
   assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_APPLY_TOKEN_REQUIRED", 401\)/);
   assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400\)/);
   // The throttle too: a hand-rolled { error: RATE_LIMITED_ERROR } carries no code, so a
-  // throttled applicant read the server's English.
-  assert.match(read("inbound/route.ts"), /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/);
+  // throttled applicant read the server's English. Now coded AND saying when (challenge
+  // 2026-09-22 shared-api-utilities/B): jsonThrottled is jsonRefusal("TOO_MANY_REQUESTS")
+  // plus a Retry-After read off the bucket that refused, and the silent 429 is gone.
+  const inbound = read("inbound/route.ts");
+  assert.match(inbound, /jsonThrottled\(rateLimitRetryAfterMs\(burstKey\), 10 \* 60_000\)/);
+  assert.match(inbound, /jsonThrottled\(rateLimitRetryAfterMs\(dayKey\), 24 \* 60 \* 60_000\)/);
+  assert.doesNotMatch(inbound, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/);
+  assert.doesNotMatch(inbound, /\{ error: RATE_LIMITED_ERROR/);
 });
 
 test("the finalize door goes through the SHARED intake, like its two siblings", () => {
@@ -146,10 +154,22 @@ test("neither candidate surface prints the raw submission id", () => {
 // own message: the chat channel and the flush. Both are read by someone with no
 // account, on a page rendered in four languages, and jsonError puts SQLITE_* codes,
 // the absolute db path and provider stderr on that wire.
+/** The candidate doors' shared preamble (challenge-r06 devcase-session-api/A): ONE guard,
+ *  app/_lib/devcase-session-auth.ts, answers 404 unknown / 409 sealed / 403 tokenless or
+ *  unproven, each as a CODE through jsonRefusal, and the door returns that response. */
+function assertOpensThroughTheDoorGuard(src: string) {
+  assert.match(src, /openSessionDoor\(id, \{ need: "active" \}\)/, "the door opens through the guard");
+  assert.match(src, /if \(!door\.ok\) return door\.response;/, "and answers the guard's coded refusal");
+  const guard = readFileSync(path.join(here, "../../_lib/devcase-session-auth.ts"), "utf8");
+  assert.match(guard, /code: "DEVCASE_SESSION_NOT_FOUND", status: 404/, "a dead session id needs a code");
+  assert.match(guard, /code: "DEVCASE_SESSION_ALREADY_SUBMITTED", status: 409/, "a sealed session needs a code");
+  assert.match(guard, /code: "SESSION_TOKEN_REQUIRED", status: 403/, "an unproven caller needs a code");
+  assert.match(guard, /jsonRefusal\(/, "the guard answers through the coded chokepoint");
+}
+
 test("the chat door refuses with codes and hides the store's message", () => {
   const src = read("session/[id]/chat/route.ts");
-  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
-  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_ALREADY_SUBMITTED", 409\)/, "a sealed session needs a code");
+  assertOpensThroughTheDoorGuard(src);
   assert.match(src, /jsonRefusal\("DEVCASE_CHAT_MESSAGE_REQUIRED", 400\)/, "an empty message needs a code");
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_UNAVAILABLE", 404\)/, "a link that resolves to no case reuses the mint code");
   assert.match(src, /safeJsonError\(error, "api:devcase\/session\/chat", "DEVCASE_CHAT_FAILED"\)/, "the catch logs and codes");
@@ -158,8 +178,9 @@ test("the chat door refuses with codes and hides the store's message", () => {
 
 test("the flush door refuses with codes and hides the store's message", () => {
   const src = read("session/[id]/route.ts");
+  // The operator GET keeps its own not-found; the flush opens through the door guard.
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
-  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_ALREADY_SUBMITTED", 409\)/, "a sealed session needs a code");
+  assertOpensThroughTheDoorGuard(src);
   assert.match(src, /safeJsonError\(error, "api:devcase\/session\/flush", "DEVCASE_SESSION_FLUSH_FAILED"\)/, "the flush catch logs and codes");
   assert.match(src, /safeJsonError\(error, "api:devcase\/session\/read", "DEVCASE_SESSION_READ_FAILED"\)/, "the operator read catch logs and codes");
   assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message - never on a route under the public prefix");

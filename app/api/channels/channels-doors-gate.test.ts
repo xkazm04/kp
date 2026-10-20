@@ -74,6 +74,7 @@ const { GET: capabilityRoute } = await import("../comms/capability/route.ts");
 const { POST: relayProbe } = await import("../comms/relay/test/route.ts");
 const { POST: commsResend } = await import("../comms/[id]/resend/route.ts");
 const { createChannelWebhook, getActiveChannelWebhook } = await import("../../_lib/db/channels.ts");
+const { ensureDb } = await import("../../_lib/db/core.ts");
 const { createUser } = await import("../../_lib/db/users.ts");
 const { upsertMembership } = await import("../../_lib/db/memberships.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
@@ -131,6 +132,26 @@ test("PATCH refuses a recruiter — the pull URL and secret are the operator's o
   const r = await configurePull(req({ token: hook.token, pullUrl: "https://ats.example.com/feed" }));
   assert.equal(r.status, 403);
   assert.equal(await codeOf(r), "FORBIDDEN_CAPABILITY");
+});
+
+test("PATCH reports invalid pull input as 400 and a store failure as 500", async () => {
+  signedInAs(owner);
+  const hook = createChannelWebhook({ channel: "boards", jobId: "jd-be" }, DEFAULT_WORKSPACE);
+  const invalid = await configurePull(req({ token: hook.token, pullUrl: "http://127.0.0.1/feed" }));
+  assert.equal(invalid.status, 400);
+  assert.equal(await codeOf(invalid), "CHANNEL_PULL_URL_INVALID");
+
+  const db = ensureDb();
+  const token = hook.token.replaceAll("'", "''");
+  db.exec(`CREATE TEMP TRIGGER channel_pull_write_failure BEFORE UPDATE ON channel_webhooks
+    WHEN NEW.token = '${token}' BEGIN SELECT RAISE(ABORT, 'simulated store failure'); END`);
+  try {
+    const failed = await configurePull(req({ token: hook.token, pullUrl: "https://ats.example.com/feed" }));
+    assert.equal(failed.status, 500);
+    assert.equal(await codeOf(failed), "CHANNEL_WEBHOOK_UPDATE_FAILED");
+  } finally {
+    db.exec("DROP TRIGGER channel_pull_write_failure");
+  }
 });
 
 test("DELETE refuses a recruiter, and the receiver is still live afterwards", async () => {

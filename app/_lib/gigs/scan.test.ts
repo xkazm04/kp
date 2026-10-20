@@ -1,0 +1,582 @@
+// The scan runner over fixture adapters and in-memory store fakes - no network, no DB,
+// no key. Proves: each source runs discover -> honeypot scan -> upsert -> record; a
+// denial pauses `blocked`, a collapse pauses `collapsed`, a missing key pauses `no_key`;
+// paused/disabled sources are never run; the wall budget stops BETWEEN sources and
+// records the unreached as `skipped: wall_budget`; the optional qualify hook sees only
+// gigs still `new`, and its throw is counted, never fatal; the expiry sweep runs first and
+// its count rides in the summary; research is ENQUEUED (never awaited) for the gigs the
+// scan created, and a cancelled scan enqueues nothing; the reward rules keep a listing with
+// no reward or under the freelance floors out of the store, and count it.
+//
+// unit-db.ts first: the stores defaultGigScanDeps binds are imported for their types,
+// and their db-path must never resolve to a developer's kp.sqlite.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import "../testing/unit-db.ts";
+import { defaultGigScanDeps, runGigScan, type GigScanDeps } from "./scan.ts";
+import { scanGigForHoneypots } from "./suspect.ts";
+import { AdapterCollapsed, DEFAULT_GIG_ADAPTER_LIMITS, FetchHalt, GigAdapterSkipped, type GigAdapter } from "./adapters/types.ts";
+import { GIG_ADAPTER_ARENA, type Gig, type GigAdapterName, type GigPauseReason, type GigSource, type GigSourceRunOutcome, type RawGig } from "./types.ts";
+
+function source(id: string, adapter: GigAdapterName, over: Partial<GigSource> = {}): GigSource {
+  return {
+    id,
+    adapter,
+    arena: GIG_ADAPTER_ARENA[adapter] ?? "freelance",
+    tier: "A",
+    host: "api.example",
+    config: {},
+    enabled: true,
+    acknowledgedAt: null,
+    acknowledgedTermsHash: null,
+    pausedReason: null,
+    pausedAt: null,
+    invalidStreak: 0,
+    lastRunAt: null,
+    lastOutcome: null,
+    createdAt: "2026-09-24T00:00:00.000Z",
+    updatedAt: "2026-09-24T00:00:00.000Z",
+    ...over,
+  };
+}
+
+function raw(key: string, over: Partial<RawGig> = {}): RawGig {
+  return {
+    externalKey: key,
+    url: `https://example.test/${key}`,
+    title: `Gig ${key}`,
+    org: null,
+    // A stated reward over the floors: the reward rules (reward-floor.ts) file nothing without one.
+    reward: { amount: 200, currency: "USD", text: "$200 USD" },
+    deadlineAt: null,
+    postedAt: null,
+    bodyText: "Fix the flaky retry loop and add a test.",
+    bodyHtml: null,
+    tags: [],
+    ...over,
+  };
+}
+
+/** A fixture adapter: yields `items`, then optionally throws `after`. */
+function fixtureAdapter(name: GigAdapterName, items: RawGig[], after?: () => Error, delayMs = 0): GigAdapter {
+  return {
+    name,
+    arena: GIG_ADAPTER_ARENA[name],
+    async *discover() {
+      if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+      for (const item of items) yield item;
+      if (after) throw after();
+    },
+  };
+}
+
+type Harness = {
+  deps: GigScanDeps;
+  upserts: { sourceId: string; key: string; reasons: string[] }[];
+  runs: { id: string; outcome: GigSourceRunOutcome }[];
+  pauses: { id: string; reason: GigPauseReason }[];
+  qualified: string[];
+  logs: string[];
+};
+
+function harness(sources: GigSource[], adapters: Partial<Record<string, GigAdapter>>, over: Partial<GigScanDeps> = {}): Harness {
+  const h: Harness = { deps: undefined as unknown as GigScanDeps, upserts: [], runs: [], pauses: [], qualified: [], logs: [] };
+  const seen = new Set<string>();
+  h.deps = {
+    listSources: (ws) => {
+      assert.equal(ws, "ws-1");
+      return sources;
+    },
+    // Adapters are keyed by SOURCE id here so two sources may share an adapter name.
+    adapterFor: () => {
+      throw new Error("unused: adapterFor is replaced per test");
+    },
+    fetch: async () => {
+      throw new Error("the fixture adapters never fetch");
+    },
+    env: () => undefined,
+    limits: DEFAULT_GIG_ADAPTER_LIMITS,
+    upsertGigFromRaw: (ws, input) => {
+      assert.equal(ws, "ws-1");
+      h.upserts.push({ sourceId: input.sourceId, key: input.raw.externalKey, reasons: [...input.suspectReasons] });
+      const created = !seen.has(input.raw.externalKey);
+      seen.add(input.raw.externalKey);
+      const gig: Gig = {
+        id: `gig-${input.raw.externalKey}`,
+        sourceId: input.sourceId,
+        arena: input.arena,
+        externalKey: input.raw.externalKey,
+        url: input.raw.url,
+        title: input.raw.title,
+        org: input.raw.org,
+        reward: input.raw.reward,
+        deadlineAt: input.raw.deadlineAt,
+        postedAt: input.raw.postedAt,
+        bodyText: input.raw.bodyText,
+        tags: input.raw.tags,
+        niche: null,
+        status: input.suspectReasons.length > 0 ? "suspect" : input.raw.externalKey.startsWith("old-") ? "qualified" : "new",
+        suspectReasons: [...input.suspectReasons],
+        specialistId: null,
+        qualification: null,
+        brief: null,
+        workdir: null,
+        personasProjectId: null,
+        withdrawReason: null,
+        report: null,
+        proposal: null,
+        sourceState: null,
+        createdAt: "2026-09-24T00:00:00.000Z",
+        updatedAt: "2026-09-24T00:00:00.000Z",
+      };
+      return { gig, created };
+    },
+    recordGigSourceRun: (ws, id, outcome) => {
+      assert.equal(ws, "ws-1");
+      h.runs.push({ id, outcome });
+      return true;
+    },
+    pauseGigSource: (ws, id, reason) => {
+      assert.equal(ws, "ws-1");
+      h.pauses.push({ id, reason });
+      return null;
+    },
+    scanHoneypots: scanGigForHoneypots,
+    qualify: (_ws, gig) => {
+      h.qualified.push(gig.externalKey);
+    },
+    now: () => "2026-09-24T12:00:00.000Z",
+    wallBudgetMs: 60_000,
+    log: (e) => h.logs.push(`${e.sourceId ?? "-"}:${e.code}`),
+    ...over,
+  };
+  // Route by source: the scan asks by adapter NAME, so look the source up by that name.
+  const byName = new Map<string, GigAdapter>();
+  for (const s of sources) {
+    const a = adapters[s.id];
+    if (a) byName.set(s.adapter, a);
+  }
+  if (!over.adapterFor) h.deps.adapterFor = (name) => byName.get(name) ?? fixtureAdapter(name, []);
+  return h;
+}
+
+const HONEYPOT = raw("gh-1231", {
+  title: "[BOUNTY] Port the lobby crew manifest",
+  bodyText: "contact Voidcrafter in discord for payment information before starting.\nPayment methods: PayPal / Cryptocurrency",
+});
+
+test("happy path: discover -> honeypot scan -> upsert -> record; paused and disabled sources never run; qualify sees only `new` gigs", async () => {
+  const sources = [
+    source("s-gh", "github_bounty"),
+    source("s-fl", "freelancer_api", { tier: "B" }),
+    source("s-paused", "kaggle", { pausedReason: "blocked" }),
+    source("s-off", "hackerone", { enabled: false }),
+  ];
+  const h = harness(sources, {
+    "s-gh": fixtureAdapter("github_bounty", [raw("gh-1"), HONEYPOT, raw("old-7")]),
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-1")]),
+    "s-paused": fixtureAdapter("kaggle", [raw("never")]),
+    "s-off": fixtureAdapter("hackerone", [raw("never-2")]),
+  });
+  const summary = await runGigScan("ws-1", h.deps);
+
+  assert.equal(summary.notRunnable, 2);
+  assert.deepEqual(summary.sources.map((s) => [s.sourceId, s.outcome, s.reason]), [
+    ["s-gh", "succeeded", null],
+    ["s-fl", "succeeded", null],
+  ]);
+  assert.equal(summary.found, 4);
+  assert.equal(summary.created, 4);
+  assert.equal(summary.suspect, 1);
+  assert.equal(summary.sources[0].suspect, 1);
+  assert.deepEqual(h.upserts.find((u) => u.key === "gh-1231")?.reasons, ["off_platform_payment"], "the real Discord/PayPal honeypot is caught");
+  assert.deepEqual(h.upserts.find((u) => u.key === "gh-1")?.reasons, []);
+  assert.ok(!h.upserts.some((u) => u.key.startsWith("never")), "paused/disabled sources are not run");
+  assert.deepEqual(h.runs, [
+    { id: "s-gh", outcome: "succeeded" },
+    { id: "s-fl", outcome: "succeeded" },
+  ]);
+  assert.deepEqual(h.pauses, []);
+  assert.deepEqual(h.qualified, ["gh-1", "fl-1"], "suspect and already-qualified gigs are not re-qualified");
+  assert.equal(summary.qualified, 2);
+  assert.equal(summary.aborted, false);
+  assert.equal(summary.startedAt, "2026-09-24T12:00:00.000Z");
+});
+
+test("outcome mapping: no_key / no_public_api / manual / collapsed / blocked / offline / robots / gone / outage / adapter / store errors", async () => {
+  const cases: {
+    id: string;
+    adapter: GigAdapterName;
+    err: () => Error;
+    items?: RawGig[];
+    expect: [GigSourceRunOutcome, string, GigPauseReason | null];
+  }[] = [
+    { id: "s-nokey", adapter: "kaggle", err: () => new GigAdapterSkipped("no_key"), expect: ["skipped", "no_key", "no_key"] },
+    { id: "s-algora", adapter: "algora", err: () => new GigAdapterSkipped("no_public_api"), expect: ["skipped", "no_public_api", null] },
+    { id: "s-manual", adapter: "manual", err: () => new GigAdapterSkipped("manual_only"), expect: ["skipped", "manual_only", null] },
+    { id: "s-shape", adapter: "freelancer_api", err: () => new AdapterCollapsed("shape_changed"), items: [raw("fl-partial")], expect: ["collapsed", "shape_changed", "collapsed"] },
+    { id: "s-deny", adapter: "github_bounty", err: () => new FetchHalt({ kind: "blocked", status: 403, detail: "http_403" }), expect: ["blocked", "blocked", "blocked"] },
+    { id: "s-offline", adapter: "hackerone", err: () => new FetchHalt({ kind: "offline", detail: "KP_OFFLINE" }), expect: ["offline", "offline", null] },
+    { id: "s-robots", adapter: "upwork_api", err: () => new FetchHalt({ kind: "robots_disallowed", detail: "/graphql" }), expect: ["failed", "robots_disallowed", null] },
+  ];
+  for (const c of cases) {
+    const h = harness([source(c.id, c.adapter)], { [c.id]: fixtureAdapter(c.adapter, c.items ?? [], c.err) });
+    const summary = await runGigScan("ws-1", h.deps);
+    const run = summary.sources[0];
+    assert.deepEqual([run.outcome, run.reason, run.paused], c.expect, c.id);
+    assert.deepEqual(h.runs, [{ id: c.id, outcome: c.expect[0] }], `${c.id}: the run is recorded`);
+    assert.deepEqual(h.pauses, c.expect[2] ? [{ id: c.id, reason: c.expect[2] }] : [], `${c.id}: pause`);
+    if (c.items) assert.equal(run.found, c.items.length, `${c.id}: what landed before the collapse is kept and counted`);
+  }
+
+  for (const [kind, reason] of [
+    ["gone", "source_gone"],
+    ["outage", "source_outage"],
+  ] as const) {
+    const h = harness([source("s-x", "freelancer_api")], { "s-x": fixtureAdapter("freelancer_api", [], () => new FetchHalt({ kind, detail: "x" })) });
+    const run = (await runGigScan("ws-1", h.deps)).sources[0];
+    assert.deepEqual([run.outcome, run.reason, run.paused], ["failed", reason, null]);
+  }
+
+  const boom = harness([source("s-boom", "kaggle")], { "s-boom": fixtureAdapter("kaggle", [], () => new TypeError("undefined is not a function")) });
+  const boomRun = (await runGigScan("ws-1", boom.deps)).sources[0];
+  assert.deepEqual([boomRun.outcome, boomRun.reason], ["failed", "adapter_error"]);
+  assert.ok(boom.logs.includes("s-boom:adapter_error"));
+
+  const store = harness([source("s-store", "kaggle")], { "s-store": fixtureAdapter("kaggle", [raw("k-1")]) }, {
+    upsertGigFromRaw: () => {
+      throw new Error("SQLITE_BUSY");
+    },
+  });
+  const storeRun = (await runGigScan("ws-1", store.deps)).sources[0];
+  assert.deepEqual([storeRun.outcome, storeRun.reason], ["failed", "store_error"]);
+});
+
+test("the wall budget stops BETWEEN sources: the running source finishes, the rest are recorded skipped: wall_budget", async () => {
+  const sources = [source("s-slow", "github_bounty"), source("s-2", "freelancer_api"), source("s-3", "kaggle")];
+  const h = harness(
+    sources,
+    {
+      "s-slow": fixtureAdapter("github_bounty", [raw("gh-a"), raw("gh-b")], undefined, 40),
+      "s-2": fixtureAdapter("freelancer_api", [raw("fl-a")]),
+      "s-3": fixtureAdapter("kaggle", [raw("k-a")]),
+    },
+    { wallBudgetMs: 5 }
+  );
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(summary.sources.map((s) => [s.sourceId, s.outcome, s.reason]), [
+    ["s-slow", "succeeded", null],
+    ["s-2", "skipped", "wall_budget"],
+    ["s-3", "skipped", "wall_budget"],
+  ]);
+  assert.equal(summary.sources[0].found, 2, "the source the budget ran out inside is not cut in half");
+  assert.deepEqual(h.runs.map((r) => r.outcome), ["succeeded", "skipped", "skipped"], "the unreached are recorded, not omitted");
+  assert.deepEqual(h.qualified, [], "qualification stops with the budget; the gigs stay `new` for the next scan");
+  assert.equal(summary.aborted, true);
+});
+
+test("a caller cancellation before the scan records every source skipped: aborted", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const h = harness([source("s-1", "github_bounty"), source("s-2", "kaggle")], { "s-1": fixtureAdapter("github_bounty", [raw("gh-a")]) });
+  const summary = await runGigScan("ws-1", h.deps, controller.signal);
+  assert.deepEqual(summary.sources.map((s) => [s.outcome, s.reason]), [
+    ["skipped", "aborted"],
+    ["skipped", "aborted"],
+  ]);
+  assert.deepEqual(h.upserts, []);
+});
+
+test("a qualify hook that throws is counted and logged; the scan and the other gigs carry on; no hook = no qualification", async () => {
+  const h = harness([source("s-1", "github_bounty")], { "s-1": fixtureAdapter("github_bounty", [raw("gh-a"), raw("gh-b")]) }, {
+    qualify: (_ws, gig) => {
+      if (gig.externalKey === "gh-a") throw new Error("model timeout");
+    },
+  });
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.equal(summary.qualified, 2);
+  assert.equal(summary.qualifyFailed, 1);
+  assert.equal(summary.sources[0].outcome, "succeeded", "a qualification failure is not an acquisition failure");
+  assert.ok(h.logs.includes("s-1:qualify_failed"));
+
+  const none = harness([source("s-1", "github_bounty")], { "s-1": fixtureAdapter("github_bounty", [raw("gh-a")]) }, { qualify: undefined });
+  const s2 = await runGigScan("ws-1", none.deps);
+  assert.equal(s2.qualified, 0);
+  assert.equal(s2.found, 1);
+});
+
+test("opts.sourceId runs ONLY that source; a paused one is still not run; an unknown one runs nothing", async () => {
+  const sources = [source("s-gh", "github_bounty"), source("s-fl", "freelancer_api"), source("s-paused", "kaggle", { pausedReason: "no_key" })];
+  const adapters = {
+    "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]),
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-1")]),
+    "s-paused": fixtureAdapter("kaggle", [raw("never")]),
+  };
+  const one = harness(sources, adapters);
+  const s1 = await runGigScan("ws-1", one.deps, undefined, { sourceId: "s-fl" });
+  assert.equal(s1.sourceId, "s-fl");
+  assert.deepEqual(s1.sources.map((s) => s.sourceId), ["s-fl"]);
+  assert.deepEqual(one.upserts.map((u) => u.key), ["fl-1"], "the other source is not touched");
+  assert.equal(s1.notRunnable, 0, "notRunnable counts only within the narrowed set");
+
+  const paused = harness(sources, adapters);
+  const s2 = await runGigScan("ws-1", paused.deps, undefined, { sourceId: "s-paused" });
+  assert.deepEqual(s2.sources, [], "a pause that landed after the enqueue is honoured - the scan never un-pauses");
+  assert.equal(s2.notRunnable, 1);
+  assert.deepEqual(paused.upserts, []);
+
+  const gone = harness(sources, adapters);
+  const s3 = await runGigScan("ws-1", gone.deps, undefined, { sourceId: "s-deleted" });
+  assert.deepEqual([s3.sources.length, s3.notRunnable, s3.found], [0, 0, 0]);
+
+  const all = harness(sources, adapters);
+  const s4 = await runGigScan("ws-1", all.deps);
+  assert.equal(s4.sourceId, null, "no option keeps the whole-workspace scan");
+  assert.deepEqual(s4.sources.map((s) => s.sourceId), ["s-gh", "s-fl"]);
+});
+
+test("research is ENQUEUED last for the gigs this scan created, with their listing HTML and the narrowed source - and never awaited", async () => {
+  const calls: { sourceId: string | null; gigs: string[]; html: [string, string | null][] }[] = [];
+  const order: string[] = [];
+  // A research pass that never finishes: the scan must return anyway (it only enqueues).
+  let researchStarted = false;
+  const h = harness(
+    [source("s-gh", "github_bounty")],
+    { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1", { bodyHtml: '<a href="https://docs.example/spec">spec</a>' }), raw("gh-2")]) },
+    {
+      qualify: (_ws, gig) => {
+        order.push(`qualify:${gig.externalKey}`);
+      },
+      enqueueResearch: (ws, req) => {
+        assert.equal(ws, "ws-1");
+        order.push("enqueue");
+        calls.push({ sourceId: req.sourceId, gigs: req.gigs.map((g) => g.id), html: [...req.htmlByGigId.entries()] });
+        researchStarted = true;
+        void new Promise(() => {}); // the background pass, still running when the scan returns
+        return "task-research-1";
+      },
+    }
+  );
+  const summary = await runGigScan("ws-1", h.deps, undefined, { sourceId: "s-gh" });
+  assert.equal(researchStarted, true);
+  assert.deepEqual(order, ["qualify:gh-1", "qualify:gh-2", "enqueue"], "research is handed over after acquisition and qualification");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].sourceId, "s-gh");
+  assert.deepEqual(calls[0].gigs, ["gig-gh-1", "gig-gh-2"]);
+  assert.deepEqual(calls[0].html, [
+    ["gig-gh-1", '<a href="https://docs.example/spec">spec</a>'],
+    ["gig-gh-2", null],
+  ]);
+  assert.deepEqual(summary.research, { taskId: "task-research-1", gigs: 2 });
+
+  // The same listings again: nothing was CREATED, so nothing is handed over (no backlog drip).
+  const again = await runGigScan("ws-1", h.deps, undefined, { sourceId: "s-gh" });
+  assert.equal(calls.length, 1, "known gigs are not re-researched by the scan");
+  assert.equal(again.research, null);
+
+  // An enqueuer that answers no task, or throws, costs the scan nothing but the research.
+  const none = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, { enqueueResearch: () => null });
+  assert.deepEqual((await runGigScan("ws-1", none.deps)).research, { taskId: null, gigs: 0 });
+  const boom = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    enqueueResearch: async () => {
+      throw new Error("task hub down");
+    },
+  });
+  const s2 = await runGigScan("ws-1", boom.deps);
+  assert.equal(s2.research, null);
+  assert.equal(s2.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:research_enqueue_failed"));
+
+  // No enqueuer plugged (the scan's own defaults): no research, summary says null.
+  const unplugged = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) });
+  assert.equal((await runGigScan("ws-1", unplugged.deps)).research, null);
+});
+
+test("a caller cancellation enqueues no research; a scan the wall budget stopped still hands over what it created", async () => {
+  let enqueued = 0;
+  const controller = new AbortController();
+  const cancelled = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-a")]) }, {
+    enqueueResearch: () => {
+      enqueued += 1;
+      return "t";
+    },
+    qualify: () => controller.abort(),
+  });
+  await runGigScan("ws-1", cancelled.deps, controller.signal);
+  assert.equal(enqueued, 0, "an operator who pressed stop gets a stop");
+
+  const slow = harness(
+    [source("s-slow", "github_bounty"), source("s-late", "freelancer_api")],
+    { "s-slow": fixtureAdapter("github_bounty", [raw("gh-b")], undefined, 40), "s-late": fixtureAdapter("freelancer_api", [raw("fl-b")]) },
+    {
+      wallBudgetMs: 5,
+      enqueueResearch: (_ws, req) => {
+        enqueued += req.gigs.length;
+        return "t-budget";
+      },
+    }
+  );
+  const summary = await runGigScan("ws-1", slow.deps);
+  assert.equal(summary.aborted, true);
+  assert.equal(enqueued, 1, "the gig that landed before the budget fired is researched in the background");
+  assert.deepEqual(summary.research, { taskId: "t-budget", gigs: 1 });
+});
+
+test("the expiry sweep runs FIRST, at the scan's own clock, and its count rides in the summary; a failing sweep costs only the expiries", async () => {
+  const order: string[] = [];
+  const h = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    sweepExpired: (ws, now) => {
+      assert.equal(ws, "ws-1");
+      assert.equal(now, "2026-09-24T12:00:00.000Z");
+      order.push("sweep");
+      return 3;
+    },
+    qualify: () => {
+      order.push("qualify");
+    },
+  });
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(order, ["sweep", "qualify"]);
+  assert.equal(summary.expired, 3);
+
+  const boom = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    sweepExpired: () => {
+      throw new Error("store down");
+    },
+  });
+  const s2 = await runGigScan("ws-1", boom.deps);
+  assert.equal(s2.expired, 0);
+  assert.equal(s2.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:expiry_failed"));
+  // No sweep plugged (a harness without it): nothing expires, the field is still honest.
+  assert.equal((await runGigScan("ws-1", harness([], {}).deps)).expired, 0);
+});
+
+test("freshness runs after the sources only when a Freelancer source ran cleanly; its counts ride in the summary", async () => {
+  const FRESH = { checked: 4, open: 2, closed: 1, gone: 1, expired: 2, failed: null };
+  const calls: string[] = [];
+  const refreshFreshness = async (ws: string) => {
+    calls.push(ws);
+    return FRESH;
+  };
+  const h = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [raw("fl-1")]) }, { refreshFreshness });
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(calls, ["ws-1"]);
+  assert.deepEqual(summary.freshness, FRESH);
+
+  // No Freelancer source in the run: not asked.
+  const gh = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, { refreshFreshness });
+  assert.equal((await runGigScan("ws-1", gh.deps)).freshness, null);
+  assert.equal(calls.length, 1);
+
+  // The Freelancer source failed this run: the host is not asked again.
+  const broken = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [], () => new Error("boom")) }, { refreshFreshness });
+  assert.equal((await runGigScan("ws-1", broken.deps)).freshness, null);
+  assert.equal(calls.length, 1);
+
+  // A throwing refresher costs the pass, never the scan.
+  const boom = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [raw("fl-2")]) }, {
+    refreshFreshness: async () => {
+      throw new Error("store down");
+    },
+  });
+  const s = await runGigScan("ws-1", boom.deps);
+  assert.equal(s.freshness, null);
+  assert.equal(s.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:freshness_failed"));
+});
+
+test("rewards in another currency are filed with a USD estimate; the rate table is read once, and only when needed", async () => {
+  const table = { rates: { INR: { rate: 95.92, date: "2026-09-30" }, EUR: { rate: 0.88, date: "2026-09-30" } }, fetchedAt: "2026-09-30T07:00:00.000Z", source: "frankfurter.dev rates (base USD)" };
+  let reads = 0;
+  const items = [
+    raw("fl-inr", { reward: { amount: 12500, currency: "INR", text: "₹12,500 INR" } }),
+    raw("fl-eur", { reward: { amount: 400, currency: "EUR", text: "€400 EUR" } }),
+    raw("fl-usd", { reward: { amount: 250, currency: "USD", text: "$250 USD" } }),
+    raw("fl-usdc", { reward: { amount: 90, currency: "USDC", text: "90 USDC" } }),
+    raw("fl-xyz", { reward: { amount: 5, currency: "XYZ", text: "5 XYZ" } }),
+  ];
+  const h = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", items) }, {
+    fxRates: async () => {
+      reads += 1;
+      return table;
+    },
+  });
+  const filed = new Map<string, unknown>();
+  const inner = h.deps.upsertGigFromRaw;
+  h.deps.upsertGigFromRaw = (ws, input) => {
+    filed.set(input.raw.externalKey, input.raw.reward);
+    return inner(ws, input);
+  };
+  await runGigScan("ws-1", h.deps);
+  assert.equal(reads, 1, "one read of the table for the whole scan");
+  assert.deepEqual(filed.get("fl-inr"), { amount: 12500, currency: "INR", text: "₹12,500 INR", usd: { amount: 130.32, rate: 95.92, rateAt: "2026-09-30", source: "frankfurter.dev rates (base USD)" } });
+  assert.equal((filed.get("fl-eur") as { usd: { amount: number } }).usd.amount, 454.55, "EUR is converted too (the file sorts on it)");
+  assert.deepEqual(filed.get("fl-usd"), { amount: 250, currency: "USD", text: "$250 USD" }, "USD needs no estimate");
+  assert.deepEqual((filed.get("fl-usdc") as { usd: unknown }).usd, { amount: 90, rate: 1, rateAt: "2026-09-24T12:00:00.000Z", source: "usd-pegged" });
+  assert.equal((filed.get("fl-xyz") as { usd?: unknown }).usd, undefined, "a currency the table does not know gets no estimate");
+
+  // No listing that needs the table: it is never read. A table that fails: no estimate, the scan goes on.
+  let untouched = 0;
+  const usdOnly = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", [items[2], items[3]]) }, { fxRates: async () => ((untouched += 1), table) });
+  await runGigScan("ws-1", usdOnly.deps);
+  assert.equal(untouched, 0);
+  const failing = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", [items[0]]) }, {
+    fxRates: async () => {
+      throw new Error("network down");
+    },
+  });
+  const summary = await runGigScan("ws-1", failing.deps);
+  assert.equal(summary.sources[0].outcome, "succeeded");
+  assert.ok(failing.logs.includes("-:fx_failed"));
+});
+
+test("the reward rules: no reward (any arena) and a freelance listing under the floor are never filed, and are counted", async () => {
+  const table = { rates: { INR: { rate: 95.92, date: "2026-09-30" } }, fetchedAt: "2026-09-30T07:00:00.000Z", source: "frankfurter.dev rates (base USD)" };
+  const h = harness(
+    [source("s-gh", "github_bounty"), source("s-fl", "freelancer_api", { tier: "B" })],
+    {
+      "s-gh": fixtureAdapter("github_bounty", [raw("gh-none", { reward: null }), raw("gh-small", { reward: { amount: 5, currency: "USD", text: "$5" } })]),
+      "s-fl": fixtureAdapter("freelancer_api", [
+        raw("fl-keep", { reward: { amount: 30, currency: "USD", text: "$30-$250 USD" } }),
+        raw("fl-fixed", { reward: { amount: 10, currency: "USD", text: "$10-$30 USD" } }),
+        raw("fl-inr", { reward: { amount: 600, currency: "INR", text: "₹600-₹1,500 INR" } }),
+        raw("fl-hourly", { reward: { amount: 2, currency: "USD", text: "$2-$8/hr USD" } }),
+        raw("fl-none", { reward: null }),
+      ]),
+    },
+    { fxRates: async () => table }
+  );
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(h.upserts.map((u) => u.key), ["gh-small", "fl-keep"], "the floors bind freelance only; nothing excluded is upserted");
+  assert.deepEqual(summary.excluded, { noReward: 2, belowFloor: 3 }, "INR is judged after its conversion");
+  assert.deepEqual(summary.sources.map((s) => [s.sourceId, s.found, s.excluded]), [["s-gh", 1, 1], ["s-fl", 1, 4]]);
+  assert.equal(summary.found, 2);
+  assert.deepEqual(h.qualified, ["gh-small", "fl-keep"], "an excluded listing is never qualified");
+
+  // A second scan of the same listings files nothing new and re-creates nothing it excluded.
+  const again = await runGigScan("ws-1", h.deps);
+  assert.equal(again.created, 0);
+  assert.deepEqual(again.excluded, { noReward: 2, belowFloor: 3 });
+
+  // Offline (no rate table): the INR listing has no honest ceiling, so it is KEPT, never guessed.
+  const offline = harness([source("s-fl", "freelancer_api", { tier: "B" })], {
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-inr", { reward: { amount: 600, currency: "INR", text: "₹600-₹1,500 INR" } })]),
+  });
+  const s3 = await runGigScan("ws-1", offline.deps);
+  assert.deepEqual([s3.found, s3.excluded.belowFloor], [1, 0]);
+
+  // maxItems bounds the listings a source costs, excluded ones included.
+  const capped = harness([source("s-fl", "freelancer_api", { tier: "B" })], {
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-a", { reward: null }), raw("fl-b", { reward: null }), raw("fl-c")]),
+  }, { limits: { ...DEFAULT_GIG_ADAPTER_LIMITS, maxItems: 2 } });
+  const s4 = await runGigScan("ws-1", capped.deps);
+  assert.deepEqual([s4.found, s4.excluded.noReward], [0, 2]);
+});
+
+test("the production scan deps plug the real expiry sweep", () => {
+  assert.equal(typeof defaultGigScanDeps().sweepExpired, "function");
+  assert.equal(typeof defaultGigScanDeps().fxRates, "function", "and the USD rate table");
+  assert.equal(typeof defaultGigScanDeps().refreshFreshness, "function", "and the freshness pass");
+  assert.equal(defaultGigScanDeps().enqueueResearch, undefined, "the enqueuer is plugged by the task runner, not the scan's defaults");
+});

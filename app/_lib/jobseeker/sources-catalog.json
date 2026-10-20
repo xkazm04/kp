@@ -30,6 +30,20 @@
       "checkedOn": "2026-09-16"
     },
     {
+      "id": "arbeitnow",
+      "host": "www.arbeitnow.com",
+      "tier": "A",
+      "adapter": "arbeitnow",
+      "kind": "feed",
+      "label": "Arbeitnow (EU and remote jobs API)",
+      "robotsSummary": "robots.txt allows every path for every agent (only a tracking query is disallowed); the API is a documented public JSON endpoint at /api/job-board-api, no key.",
+      "termsQuote": "The API payload states: 'This is a free public API for jobs, please do not abuse. I would appreciate linking back to the site. By using the API, you agree to the terms of service present on Arbeitnow.com.' The terms of service add: 'You also agree to providing a link back to Arbeitnow.com on your platform. We may revoke the permission to use API at any time.' No clause forbids automated use of the API. This installation keeps each posting's own Arbeitnow URL, links to it, and attributes 'Jobs via Arbeitnow.com' on every posting it shows.",
+      "termsUrl": "https://www.arbeitnow.com/terms",
+      "cadenceNote": "Jobs are refreshed hourly upstream; twice a day is plenty. At most 4 pages of 250 per scan, filtered locally by your titles and places (the API has no search parameter).",
+      "attribution": "Jobs via Arbeitnow.com",
+      "checkedOn": "2026-09-25"
+    },
+    {
       "id": "greenhouse",
       "host": "boards-api.greenhouse.io",
       "tier": "A",

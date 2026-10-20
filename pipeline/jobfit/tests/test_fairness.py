@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import unittest
 
+from pipeline.jobfit.eval.neutrality import PERTURBATIONS, gender_pairs, gendered_prose
 from pipeline.jobfit.eval.matching_eval import (
     SCENARIOS,
     THRESHOLDS,
@@ -27,6 +28,7 @@ from pipeline.jobfit.matching import (
 )
 from pipeline.jobfit.tests._helpers import mkjob
 from pipeline.jobfit.profile import Evidence
+from pipeline.jobfit.recruiter import fairness_check
 from pipeline.jobfit.transform import build_match_candidate
 
 
@@ -109,17 +111,13 @@ class MatchingEvalTest(unittest.TestCase):
 # (-ová), the gendered honorific (pan / paní), the gendered pronoun, and the
 # gender-inflected Czech job title. Each pair is (masculine, feminine); the
 # accent-stripped pair is what a lossy PDF extract actually produces, and the English
-# pair pins that the axis is not Czech-only.
-_GENDER_PAIRS = (
-    ("Jan Novák", "Jana Nováková"),
-    ("Jan Novak", "Jana Novakova"),          # accent-stripped (lossy extract)
-    ("Ing. Jan Novák", "Ing. Jana Nováková"),
-    ("John Smith", "Jane Smith"),
-)
-_GENDERED_PROSE = (
-    ("pan Jan Novák; on byl vedoucí vývojář týmu", "paní Jana Nováková; ona byla vedoucí vývojářka týmu"),
-    ("Mr Smith led the team; his work shipped", "Ms Smith led the team; her work shipped"),
-)
+# pair pins that the axis is not Czech-only. The names live ONCE, in
+# eval/neutrality.PERTURBATIONS (the union of the three sets that used to be typed
+# out here, in test_name_neutrality.py and in matching_eval._probe_gender); this
+# file reads the pairs from it. The registry in test_neutrality_registry.py runs the
+# same set through every candidate-typed scorer, not only the two engines below.
+_GENDER_PAIRS = gender_pairs(PERTURBATIONS)
+_GENDERED_PROSE = gendered_prose(PERTURBATIONS)
 
 
 class GenderNeutralityTest(unittest.TestCase):
@@ -213,6 +211,55 @@ class GenderNeutralityTest(unittest.TestCase):
         self.assertEqual(res_m["own"], res_f["own"])
 
 
+class NamesakePoolTest(unittest.TestCase):
+    """Name neutrality at the POOL level, where it once broke.
+
+    Per candidate the name moves nothing; across a pool it used to decide who was in
+    the robust order at all. ``recruiter.fairness_check`` excluded KO-failed
+    candidates by display LABEL, so two people called 'Jan Novák' — one knocked out —
+    both left the ranking. The pool's outcome must be a function of identity (the
+    candidate id) and evidence, never of whether two people share a name."""
+
+    @staticmethod
+    def _cand(label: str, *, senior: bool) -> MatchCandidate:
+        return MatchCandidate(
+            skills=["Python", "Django"] if senior else ["HTML"],
+            seniority="senior" if senior else "junior",
+            role_family="software_engineering",
+            languages=["English"],
+            archetype="bau",
+            label=label,
+        )
+
+    def test_a_shared_name_moves_no_pool_outcome(self) -> None:
+        job = mkjob(seniority="senior")
+        distinct = fairness_check(
+            [("a", self._cand("Jan Novák", senior=True)), ("b", self._cand("Petr Svoboda", senior=False))], job
+        )
+        namesake = fairness_check(
+            [("a", self._cand("Jan Novák", senior=True)), ("b", self._cand("Jan Novák", senior=False))], job
+        )
+        self.assertEqual(distinct["koFailed"], ["b"], "the fixture must knock one candidate out")
+        for key in ("rankingIds", "koFailed", "matrix", "mean", "order"):
+            with self.subTest(key=key):
+                self.assertEqual(distinct[key], namesake[key])
+        self.assertEqual(namesake["rankingIds"], ["a"], "the eligible namesake stays in the robust order")
+
+    def test_fairness_matrix_emits_the_order_as_indices(self) -> None:
+        job = mkjob(seniority="senior")
+        pairs = [
+            (self._cand("Candidate", senior=False), None),
+            (self._cand("Candidate", senior=True), None),
+            (self._cand("Ada", senior=True), None),
+        ]
+        fm = fairness_matrix(pairs, job)
+        self.assertEqual(sorted(fm["order"]), [0, 1, 2], "order is a permutation of range(n)")
+        means = [fm["mean"][i] for i in fm["order"]]
+        self.assertEqual(means, sorted(means, reverse=True))
+        # Back-compat: ranking is still the labels, in that order.
+        self.assertEqual(fm["ranking"], [fm["labels"][i] for i in fm["order"]])
+
+
 class MotivationAspirationTermTest(unittest.TestCase):
     """score_motivation used to drop aspiration tokens of length <= 3.
 
@@ -241,6 +288,10 @@ class MotivationAspirationTermTest(unittest.TestCase):
             none,
             "aspiration ['UX'] vs title 'UX Designer' must score the aspiration term > 0",
         )
+
+    def test_short_aspiration_does_not_hit_inside_another_word(self) -> None:
+        baseline = self._score([], "Luxury Designer")
+        self.assertEqual(self._score(["UX"], "Luxury Designer"), baseline)
 
     def test_glue_tokens_do_not_hit(self) -> None:
         title = "UX Designer in Prague v tymu na webu"

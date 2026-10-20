@@ -4,6 +4,11 @@ import { Check, Loader2, Scale, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { COMPLIANCE_REGIMES, type RegimeId } from "@/app/_lib/compliance-regimes";
 import { Select } from "@/app/_components/Select";
+import { Checkbox } from "@/app/_components/Checkbox";
+import {
+  RECORDING_BACKSTOP_DAYS,
+  RECORDING_RETENTION_AFTER_DECISION_DAYS,
+} from "@/app/_lib/interview-recording-paths";
 import { useComplianceJurisdiction } from "./decisionsComplianceState";
 import { DecisionsComplianceImpactCheck } from "./DecisionsComplianceImpactCheck";
 
@@ -18,7 +23,8 @@ import { DecisionsComplianceImpactCheck } from "./DecisionsComplianceImpactCheck
 
 export function ComplianceSection() {
   const t = useTranslations("decisions.compliance");
-  const { jurisdiction, regimeConfidence, saving, saveState, retentionMonths, pick, regime, standard } = useComplianceJurisdiction(t("standardFallback"));
+  const { jurisdiction, regimeConfidence, saving, saveState, retentionMonths, pick, regime, standard, recordingOffered, toggleRecording } =
+    useComplianceJurisdiction(t("standardFallback"));
 
   return (
     <div className="space-y-4 border-t border-stone-200 pt-4">
@@ -47,7 +53,7 @@ export function ComplianceSection() {
             <span
               role={saveState === "failed" ? "alert" : "status"}
               aria-live={saveState === "failed" ? "assertive" : "polite"}
-              className={`shrink-0 text-meta ${saveState === "failed" ? "font-semibold text-coral" : "text-steel"}`}
+              className={`shrink-0 text-meta ${saveState === "failed" ? "font-semibold text-coral-ink" : "text-steel"}`}
             >
               {saveState === "failed" ? t("saveFailed") : t("saved")}
             </span>
@@ -65,6 +71,22 @@ export function ComplianceSection() {
           </span>
         ) : null}
       </label>
+
+      {/* WP3 — the candidate audio-recording offer. It lives HERE, beside the
+          jurisdiction, because it is a consent-and-retention decision about candidate
+          data rather than a voice-engine preference: one workspace switch, in the
+          section whose subject is what this deployment promises candidates. The hint
+          states the whole promise in one line — microphone only, and when it goes —
+          with the day counts interpolated from the constants the server enforces, so
+          the operator reads the same numbers the candidate is shown. Disabled until the
+          config read lands: this row is written wholesale beside the jurisdiction. */}
+      <Checkbox
+        checked={recordingOffered === true}
+        disabled={saving || recordingOffered === null}
+        onChange={(e) => void toggleRecording(e.target.checked)}
+        label={t("recordingLabel")}
+        hint={recordingOffered === null ? t("recordingUnread") : t("recordingHint", { decisionDays: RECORDING_RETENTION_AFTER_DECISION_DAYS, backstopDays: RECORDING_BACKSTOP_DAYS })}
+      />
 
       {/* The active regime's named instruments (proper nouns from the catalog). */}
       <dl className="grid grid-cols-1 gap-x-4 gap-y-1 rounded-md bg-paper p-3 text-sm sm:grid-cols-2">
@@ -96,11 +118,11 @@ export function ComplianceSection() {
           </ul>
         </div>
         <div>
-          <p className="text-meta font-semibold uppercase tracking-wide text-coral">{t("postureCeilingTitle")}</p>
+          <p className="text-meta font-semibold uppercase tracking-wide text-coral-ink">{t("postureCeilingTitle")}</p>
           <ul className="mt-1 space-y-1">
             {[t("ceiling1", { standard }), t("ceiling2")].map((line, i) => (
               <li key={i} className="flex gap-1.5 text-sm text-steel">
-                <X size={14} className="mt-0.5 shrink-0 text-coral" /> <span>{line}</span>
+                <X size={14} className="mt-0.5 shrink-0 text-coral-ink" /> <span>{line}</span>
               </li>
             ))}
           </ul>

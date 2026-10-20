@@ -7,6 +7,7 @@ import { validateProfileCliResult, type ProfileCliResult } from "@/app/_lib/appl
 import type { CompletenessGap } from "@/app/_lib/completeness-followup";
 import { getJob } from "@/app/_lib/db/jobs";
 import { saveProfile, updateProfile } from "@/app/_lib/db/profiles";
+import type { Locale } from "@/i18n/locales";
 
 // Turn captured intake answers (or an extracted CV) into a saved, matchable
 // CandidateProfileV2 via the deterministic profile_cli normalizer — the same path
@@ -142,10 +143,11 @@ export async function buildApplicantProfile(
   job: ReturnType<typeof getJob>,
   answers: ApplyAnswers,
   intoProfileId?: string | null,
-  workspaceId?: string
+  workspaceId?: string,
+  locale?: Locale,
 ): Promise<BuildOutcome> {
   if (!job) return { ok: false, reason: degradedReason("role not found at intake") };
-  const normalized = await runProfileCli(buildApplyProfileDraft(job, answers), `job ${job.id}`);
+  const normalized = await runProfileCli(buildApplyProfileDraft(job, answers, locale), `job ${job.id}`);
   if (!normalized.ok) return normalized;
   const { profile, archetype, completeness, missingGaps } = normalized.value;
   const profileFields = {
@@ -204,4 +206,3 @@ export async function renormalizeApplicantProfile(
   if (!ok) return { ok: false, reason: degradedReason(`profile ${profileId} not found for gap merge`) };
   return { ok: true, id: profileId, archetype, missingGaps };
 }
-

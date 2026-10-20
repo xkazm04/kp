@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
-import { CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import type { MatchRef, MatchResult } from "@/app/features/shared/matchTypes";
 import { formatBandCompact, isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "@/app/features/shared/MatchPresentation";
@@ -11,6 +11,7 @@ import { Checkbox } from "@/app/_components/Checkbox";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useMatchCardReasoning } from "./useMatchCardReasoning";
 import { MatchCardSkillChips } from "./MatchCardSkillChips";
+import { MatchReasonsLine } from "./MatchReasonsLine";
 
 export function MatchCard({
   m,
@@ -21,6 +22,7 @@ export function MatchCard({
   added,
   adding,
   addError,
+  onRerun,
   onAdd,
   selectable = false,
   selected = false,
@@ -34,6 +36,8 @@ export function MatchCard({
   added: boolean;
   adding: boolean;
   addError?: string;
+  // Present when the add was refused because its stored Match result is gone or differs.
+  onRerun?: () => void;
   onAdd: () => void;
   // Bulk-shortlist selection (only meaningful when the candidate can be added and
   // isn't already in the pipeline). The checkbox is hidden otherwise.
@@ -42,6 +46,7 @@ export function MatchCard({
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("match");
+  const tTab = useTranslations("match.tab");
   // UAT RECON-02 — the shared score-provenance vocabulary (app/_components/
   // ScoreProvenanceLabel.tsx doctrine: "every surface that shows THE match score
   // names where the number came from … so the wording can't drift"). Read from the
@@ -140,7 +145,7 @@ export function MatchCard({
                   type="button"
                   onClick={explain}
                   disabled={reasoning?.loading}
-                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral hover:bg-paper disabled:opacity-40"
+                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral-ink hover:bg-paper disabled:opacity-40"
                 >
                   {reasoning?.loading ? t("card.reasoningBusy") : reasoning?.data ? t("card.refreshReasoning") : t("card.explainFit")}
                 </button>
@@ -171,6 +176,8 @@ export function MatchCard({
             </div>
           )}
 
+          <MatchReasonsLine m={m} />
+
           {/* A non-tight band's WHY belongs in plain sight, not in a tooltip — a
               recruiter reading "34–62" must see "early-career, thinner record"
               without knowing to hover. Tight bands stay quiet. */}
@@ -194,6 +201,11 @@ export function MatchCard({
           {addError ? (
             <p className="mt-2 rounded-md bg-red-50 px-2 py-1.5 text-sm text-red-700" role="alert">
               {addError}
+              {onRerun ? (
+                <button type="button" onClick={onRerun} className={`${BTN_GHOST} ml-2 px-1 font-semibold underline`}>
+                  {tTab("runMatching")}
+                </button>
+              ) : null}
             </p>
           ) : null}
 

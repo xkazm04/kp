@@ -1,12 +1,12 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
-import { isSpawnTimeoutMessage } from "./intake-run";
 import { coerceIntakeChoiceSet } from "./intake-choices";
 import { parsePreferencesPatch } from "./jobseeker/profile";
 import {
   isDialogKind,
+  type CvAcceptedEdit,
   type CvPolishArtifact,
   type DialogArtifact,
   type DialogKind,
@@ -68,6 +68,9 @@ export type JobseekerTurnInput = {
   transcript: StudioTurn[];
   /** null = produce the opening turn (always deterministic). */
   message: string | null;
+  /** cv_polish opening only: the edits the seeker accepted in EARLIER cv_polish dialogs,
+   *  re-applied onto the new dialog's sheet while their `before` is still the CV's line. */
+  acceptedEdits?: CvAcceptedEdit[];
   /** fit only (WP5): the posting and its match. Passed through untouched. */
   posting?: Record<string, unknown> | null;
   match?: Record<string, unknown> | null;
@@ -95,7 +98,15 @@ export function coerceCvPolishArtifact(raw: unknown): CvPolishArtifact | null {
   const suggestions = (Array.isArray(r.suggestions) ? r.suggestions : [])
     .map((s) => (s && typeof s === "object" ? (s as Record<string, unknown>) : null))
     .filter((s): s is Record<string, unknown> => s !== null)
-    .map((s) => ({ section: text(s.section, 60), before: text(s.before, 300), after: text(s.after, 600), why: text(s.why, 240) }))
+    // `kind` survives the boundary: a question the engine's fidelity screen made must
+    // come back as a question, or the next turn could read its text as a wording.
+    .map((s) => ({
+      section: text(s.section, 60),
+      before: text(s.before, 300),
+      after: text(s.after, 600),
+      why: text(s.why, 240),
+      ...(s.kind === "rewrite" || s.kind === "question" ? { kind: s.kind as "rewrite" | "question" } : {}),
+    }))
     // A suggestion that cites no source sentence is not a suggestion (the engine's
     // grounding rule, re-asserted here because the payload is model-authored).
     .filter((s) => s.section && s.before)
@@ -105,7 +116,21 @@ export function coerceCvPolishArtifact(raw: unknown): CvPolishArtifact | null {
     preferences: parsePreferencesPatch(r.preferences),
     unreadable: stringList(r.unreadable, MAX_UNREADABLE, 400),
     suggestions,
+    applied: coerceAcceptedEdits(r.applied),
   };
+}
+
+const MAX_APPLIED = 60;
+
+/** The seeker's accepted line edits (the engine's `applied` record): well-formed rows
+ *  only, a line that names no source text dropped, the newest MAX_APPLIED kept. */
+export function coerceAcceptedEdits(raw: unknown): CvAcceptedEdit[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>) : null))
+    .filter((a): a is Record<string, unknown> => a !== null && typeof a.after === "string")
+    .map((a) => ({ section: text(a.section, 60), before: text(a.before, 300), after: String(a.after).trim().slice(0, 600), promptVersion: text(a.promptVersion, 40) }))
+    .filter((a) => a.before)
+    .slice(-MAX_APPLIED);
 }
 
 const FIT_VERDICTS = ["apply", "skip", "undecided"] as const;
@@ -173,7 +198,7 @@ async function runSpawn(
     try {
       ({ stdout, stderr, exitCode } = await result);
     } catch (err) {
-      if (err instanceof Error && isSpawnTimeoutMessage(err.message)) throw new JobseekerTimeoutError(opts.timeoutMs);
+      if (isSpawnTimeout(err)) throw new JobseekerTimeoutError(opts.timeoutMs);
       throw err;
     }
     if (exitCode !== 0) {

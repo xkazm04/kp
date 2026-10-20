@@ -34,8 +34,6 @@ import { ArrowRight, Plus } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { PROFILE_ROSTER_GLYPH } from "@/app/_components/glyph/glyphs/profileRosterGlyph";
-import { PROFILE_MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/profileMatrixGlyph";
 import {
   BTN_PRIMARY,
   CARD_PAD,
@@ -70,7 +68,7 @@ function ChainLink({ tab, label }: { tab: WorkspaceTabId; label: string }) {
     <button
       type="button"
       onClick={() => router.push(buildTabSwitchUrl(tab, search.toString()))}
-      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
     >
       {label} <ArrowRight size={13} aria-hidden />
     </button>
@@ -105,7 +103,7 @@ function SpecimenCard() {
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <Meter value={0} tone="null" className="h-1.5 w-32" />
+        <Meter value={0} tone="null" className="h-1.5 w-32" aria-hidden />
         <span className="text-sm text-steel">{t("roster.completenessPct", { pct: 0 })}</span>
       </div>
     </div>
@@ -117,8 +115,7 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={PROFILE_ROSTER_GLYPH.data}
-        viewBox={PROFILE_ROSTER_GLYPH.viewBox}
+        glyph="profileRoster"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />
@@ -155,8 +152,7 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={PROFILE_MATRIX_GLYPH.data}
-        viewBox={PROFILE_MATRIX_GLYPH.viewBox}
+        glyph="profileMatrix"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />

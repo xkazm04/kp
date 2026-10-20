@@ -9,6 +9,13 @@
   --color-paper: #fdf8ee;
   --color-moss: #526b4f;
   --color-coral: #d65a4a;
+  /* AA-safe coral twins. `coral` stays the brand hue for decorative fills, rings,
+     borders and large display; TEXT in coral uses `coral-ink` (>=4.5:1 on paper, white,
+     stone-100 and coral/10-15 tints) and a solid fill that carries WHITE text uses
+     `coral-solid` (>=4.5:1 against white). Ratios are gated by
+     app/_lib/contrast-tokens.test.ts, which reads this file. */
+  --color-coral-ink: #a53626;
+  --color-coral-solid: #b8412f;
   --color-steel: #42606f;
   --color-limewash: #dce7d0;
   /* Coral's pale tint — the counterpart to limewash (moss's), for the "other
@@ -37,6 +44,24 @@
      stays visible to anyone reading either half. Use it ONLY for third-party
      artwork; a KandiDate surface belongs on `white`/`paper`. */
   --color-white-fixed: #ffffff;
+
+  /* The designed CV (app/features/jobseeker/cv/) is a PAPER document: it is printed,
+     saved as a PDF and sent to a stranger, so it must look the same whichever theme
+     the seeker's product runs in. Theme-INVARIANT like the plate above, declared
+     identically in the dark block. Ink and rule for the sheet, and the accents the
+     seeker picks from (cvQuery.ts CV_ACCENTS; `ink` reuses --color-cv-ink). Use them
+     ONLY inside the CV sheet. */
+  --color-cv-paper: #ffffff;
+  --color-cv-ink: #1c2530;
+  --color-cv-muted: #5a6572;
+  --color-cv-rule: #dde2e8;
+  --color-cv-navy: #1f3a5f;
+  --color-cv-moss: #45613f;
+  --color-cv-coral: #b4493a;
+  --color-cv-plum: #5b3a63;
+  --color-cv-cobalt: #2a4bd7;
+  --color-cv-teal: #0e7470;
+  --color-cv-tangerine: #bf4a0a;
 
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
@@ -268,6 +293,10 @@ body {
   --color-paper: #141b24;
   --color-moss: #84b27a;
   --color-coral: #ff7e68;
+  /* Dark: coral already clears AA on the dark canvas; `white` remaps to a dark surface, so
+     `text-white` on coral-solid is dark-on-coral there. */
+  --color-coral-ink: #ff7e68;
+  --color-coral-solid: #ff7e68;
   --color-steel: #9db5c3;
   --color-limewash: #2a382b;
   --color-coralwash: #46262b;
@@ -285,6 +314,18 @@ body {
   /* Deliberately NOT remapped — see the light block: this is the plate under a
      tenant's own logo, which must stay a real white in both themes. */
   --color-white-fixed: #ffffff;
+  /* Deliberately NOT remapped — the CV sheet is paper (see the light block). */
+  --color-cv-paper: #ffffff;
+  --color-cv-ink: #1c2530;
+  --color-cv-muted: #5a6572;
+  --color-cv-rule: #dde2e8;
+  --color-cv-navy: #1f3a5f;
+  --color-cv-moss: #45613f;
+  --color-cv-coral: #b4493a;
+  --color-cv-plum: #5b3a63;
+  --color-cv-cobalt: #2a4bd7;
+  --color-cv-teal: #0e7470;
+  --color-cv-tangerine: #bf4a0a;
   --color-stone-50: #222d39;
   --color-stone-100: #283442;
   --color-stone-200: #364453;
@@ -781,6 +822,28 @@ textarea {
   .voice-eq-bar,
   .voice-listen {
     animation: none;
+  }
+}
+
+/*
+ * Live presence halo — the ring behind the interview presence orb
+ * (app/_components/voice/InterviewPresence.tsx). It does NOT loop: the component
+ * writes `--presence-level` (0..1, smoothed) once per animation frame from the live
+ * audio meter, and the scale follows it, so the motion IS the candidate's own voice
+ * or the interviewer's. The short transition smooths the frame-to-frame step.
+ *
+ * Under prefers-reduced-motion the component never arms that loop, so the variable
+ * stays unset and the halo rests at its default size; this block also drops the
+ * transition so a state change (which re-skins the halo's color) cannot animate.
+ */
+.voice-presence-halo {
+  transform: scale(calc(0.74 + 0.26 * var(--presence-level, 0)));
+  transition: transform 90ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-presence-halo {
+    transform: scale(0.84);
+    transition: none;
   }
 }
 

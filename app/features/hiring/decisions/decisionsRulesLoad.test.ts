@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { readScreeningRule, readScreeningRuleResponse } from "./decisionsRulesLoad.ts";
+import { readScreeningRule, readScreeningRuleResponse, readScreeningVersion } from "./decisionsRulesLoad.ts";
 
 test("a full screening config reads through, extra fields intact", () => {
   const rule = readScreeningRule({
@@ -86,4 +86,20 @@ test("the Rules modal resolves the refusal instead of defaulting silently", () =
   assert.match(modal, /capabilityAwareReason\(errMsg, loadFailed, t\("loadFailed"\)\)/, "the read refusal says WHY");
   assert.match(modal, /setNote\(capabilityAwareReason\(errMsg, d, t\("saveFailed"\)\)\)/, "…and so does the refused save");
   assert.doesNotMatch(modal, /if \(!r\.ok\) throw new Error\(\)/, "a refusal is not an anonymous throw");
+});
+
+test("the screening version reads through as the token a save echoes, and null is a version", () => {
+  assert.equal(readScreeningVersion({ versions: { screening: "2026-09-28T10:00:00.000Z" } }), "2026-09-28T10:00:00.000Z");
+  assert.equal(readScreeningVersion({ versions: { screening: null } }), null, "nothing stored is still a token");
+  assert.equal(readScreeningVersion({ versions: {} }), undefined);
+  assert.equal(readScreeningVersion({ versions: { screening: 7 } }), undefined);
+  assert.equal(readScreeningVersion({ configs: {} }), undefined);
+  assert.equal(readScreeningVersion(null), undefined);
+});
+
+test("the rules modal echoes the version it read, so its save is not last-write-wins", () => {
+  const modal = readFileSync(new URL("./DecisionsRulesModal.tsx", import.meta.url), "utf8");
+  assert.match(modal, /expectedUpdatedAt: version/, "the save sends the token GET served");
+  assert.match(modal, /setVersion\(readScreeningVersion\(d\)\)/, "a landed save takes the new token");
+  assert.match(modal, /DECISION_CONFIG_STALE/, "a stale save re-reads instead of leaving the old rules on screen");
 });

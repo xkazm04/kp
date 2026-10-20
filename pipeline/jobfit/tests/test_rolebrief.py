@@ -51,7 +51,10 @@ class CoerceRoleBriefTest(unittest.TestCase):
         self.assertEqual(req.kind, "must_have")  # "MUST-HAVE" normalized
         self.assertEqual(req.weight, 1.0)  # 7 clamps
         self.assertEqual(req.confidence, 0.0)  # -1 clamps
-        self.assertEqual(len(brief.facets), 1)
+        # The off-vocabulary seniority is kept verbatim (no basis was claimed for it,
+        # so it reads inferred); the facet with no value still drops.
+        self.assertEqual([(f.key, f.value, f.provenance) for f in brief.facets[1:]], [("grade_label", "Principal", "inferred")])
+        self.assertEqual(len(brief.facets), 2)
         self.assertEqual(brief.facets[0].importance, "valuable")  # "critical" off-vocab
 
     def test_requirement_source_turn_coerces(self) -> None:
@@ -132,6 +135,49 @@ class VocabularyPinTest(unittest.TestCase):
         self.assertEqual(BriefRequirement().kind, JobRequirement(skill="x").kind)
         self.assertEqual(BriefRequirement().hardness, JobRequirement(skill="x").hardness)
         self.assertIn(BriefRequirement().provenance, BRIEF_PROVENANCE)
+
+    def test_unknown_hardness_falls_to_the_non_blocking_side(self) -> None:
+        # The rubric blocks on must_have x prerequisite, and a blocking axis may end
+        # a candidacy on its own. A row whose acquirability nobody graded (absent,
+        # or off-vocabulary) must not land in that cell by the coercer's fallback:
+        # an uncertain grade resolves toward the candidate. An explicit grade stands.
+        brief = coerce_role_brief(
+            {
+                "requirements": [
+                    {"label": "Python", "kind": "must_have", "provenance": "stated"},
+                    {"label": "Kafka", "kind": "must_have", "hardness": "required"},
+                    {"label": "RN licence", "kind": "must_have", "hardness": "prerequisite"},
+                ]
+            }
+        )
+        by_skill = {r.skill: (r.kind, r.hardness) for r in brief.requirements}
+        self.assertEqual(by_skill["Python"], ("must_have", "learnable"))
+        self.assertEqual(by_skill["Kafka"], ("must_have", "learnable"))
+        self.assertEqual(by_skill["RN licence"], ("must_have", "prerequisite"))
+
+    def test_off_vocabulary_seniority_is_never_a_stated_enum(self) -> None:
+        # "Band 5" is not medior. The coercer must still fall to the enum default,
+        # but it may not carry the payload's `stated` basis onto a value the
+        # requestor never said: the verbatim answer survives as a grade_label facet
+        # and the enum reads as default (the no-forced-enum rule, on the model path).
+        brief = coerce_role_brief(
+            {"seniority": "Band 5", "spineProvenance": {"seniority": "stated", "title": "stated"}, "title": "Staff Nurse"}
+        )
+        self.assertEqual(brief.seniority, "medior")
+        self.assertNotIn("seniority", brief.spine_provenance)
+        self.assertEqual(brief.spine_provenance.get("title"), "stated")
+        grade = [f for f in brief.facets if f.key == "grade_label"]
+        self.assertEqual([(f.value, f.provenance) for f in grade], [("Band 5", "stated")])
+
+        # A vocabulary answer keeps its basis and mints no facet (positive control),
+        # and an existing grade_label facet is not duplicated.
+        clean = coerce_role_brief({"seniority": "Senior", "spineProvenance": {"seniority": "stated"}})
+        self.assertEqual((clean.seniority, clean.spine_provenance.get("seniority")), ("senior", "stated"))
+        self.assertEqual(clean.facets, [])
+        kept = coerce_role_brief(
+            {"seniority": "AfC 6", "facets": [{"key": "grade_label", "value": "AfC 6", "provenance": "stated"}]}
+        )
+        self.assertEqual(len([f for f in kept.facets if f.key == "grade_label"]), 1)
 
     def test_projection_onto_matching_engine(self) -> None:
         brief = RoleBrief(

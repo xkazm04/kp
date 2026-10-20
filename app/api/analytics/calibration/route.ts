@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { calibrationPairs } from "@/app/_lib/db/analyses";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
-import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold, calibrationLeakage, type CalibrationOutcomeAxis, type CalibrationSource } from "@/app/_lib/calibration";
+import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, calibrationLeakage, type CalibrationOutcomeAxis, type CalibrationSource } from "@/app/_lib/calibration";
+import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendation";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError } from "@/app/_lib/api-response";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache";
 
 
@@ -14,7 +15,8 @@ import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache"
 // every source/family switch re-runs the full pair-table scan PLUS three compute
 // passes (computeCalibration + computeCalibrationCohorts + recommendScreeningThreshold).
 // Module-scoped so it persists across requests; keyed so no payload crosses tenants,
-// sources, or families. Short TTL (see analytics-cache.ts) → no write-path invalidation.
+// sources, or families. A threshold write bumps the workspace's key version so
+// the editor's immediate reload sees the new rule without waiting for the TTL.
 // NOTE: this is the READ path only — the /apply-threshold WRITE guard re-derives its
 // recommendation live from the DB and is deliberately NOT routed through this memo.
 const calibrationCache = createTtlCache<Record<string, unknown>>();
@@ -40,7 +42,7 @@ const calibrationCache = createTtlCache<Record<string, unknown>>();
 // screen gate, i.e. interview/offer/hired collapsed into one); `hired` is "reached
 // the terminal stage", which needs only stage data and no performance rating. The
 // response echoes `outcome` for the same reason it echoes `measures`.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const params = new URL(request.url).searchParams;
     const roleFamily = params.get("roleFamily");
@@ -61,7 +63,6 @@ export async function GET(request: Request) {
     // P1 — both producers are per-team reliability metrics: scope BOTH to the
     // caller's workspace (the pipeline branch previously defaulted, leaking the
     // default workspace's calibration curve to every team).
-    const ws = await currentWorkspace();
     const family = roleFamily || null;
     // The outcome axis rides in the SOURCE slot of the key (a `source:outcome`
     // composite): both vocabularies are closed and colon-free, so the compound is
@@ -125,11 +126,14 @@ export async function GET(request: Request) {
         // every below-floor pair is a reject the score itself produced, so only
         // "raise" is reachable. Same family scope as the displayed curve; no holdout
         // (disabled, or too few spared outcomes) → no recommendation at all.
-        const allHoldout =
-          outcome === "advance" ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOut(), outcome: "advance" }) : [];
-        const holdoutPairs = family ? allHoldout.filter((p) => p.roleFamily === family) : allHoldout;
+        // Derived through calibration-recommendation.ts — the SAME function the
+        // /apply-threshold write and the /floor-preview read call — handed this
+        // request's already-read advance-axis pairs, clean-arm memo and rule, so the
+        // displayed number is by construction the one Apply writes and the preview names.
         recommendation =
-          outcome === "advance" ? recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold) : null;
+          outcome === "advance"
+            ? liveScreeningRecommendation(ws, family, { allPairs, heldOut, screening }).recommendation
+            : null;
         // Surface which families carry an override so the panel can chip them.
         familyFloors = screening.familyFloors ?? {};
       }
@@ -160,6 +164,6 @@ export async function GET(request: Request) {
     // Both pair producers read whole tables, so a transient DB fault (locked
     // mid-write, corrupt file, migration race) surfaces here. Match the sibling
     // analytics routes: log with context + structured 500, never a bare crash.
-    return jsonError(error, "Failed to compute calibration.");
+    return safeJsonError(error, "api:analytics:calibration", "ANALYTICS_CALIBRATION_READ_FAILED");
   }
-}
+});

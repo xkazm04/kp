@@ -1,0 +1,80 @@
+{
+  "cohort": [
+    {
+      "name": "llm-layer",
+      "group": "AI & LLM Infrastructure",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-orchestration",
+      "group": "Developer Assessment",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "jobs-table-core",
+      "group": "Job & JD Management",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "jd-public-detail-page",
+          "files": 5
+        }
+      ]
+    },
+    {
+      "name": "pipeline-api",
+      "group": "Hiring Pipeline",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "results-core",
+      "group": "CV Analysis & Scoring",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "shell-setup-wizard",
+      "group": "Workspace Shell & Onboarding",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "voice-interview-api",
+      "group": "Voice Interview",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "eval-voice",
+          "files": 9
+        },
+        {
+          "name": "interview-lab-harness",
+          "files": 1
+        },
+        {
+          "name": "interview-portal",
+          "files": 3
+        }
+      ]
+    },
+    {
+      "name": "billing-subscriptions",
+      "group": "Billing & Subscriptions",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 138
+}

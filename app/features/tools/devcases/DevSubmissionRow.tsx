@@ -59,7 +59,7 @@ export function SubmissionRow({
     evalView, busy, ev,
     evaluate,
     feedback, queueFeedback,
-    promote, promoting,
+    promote, promoting, promoteLanded, promoteError,
     ts,
   } = useDevSubmissionRow({ submission, jdText, onChanged });
 
@@ -125,7 +125,7 @@ export function SubmissionRow({
             </button>
           ) : null}
           <button type="button" onClick={evaluate} disabled={busy}
-            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50">
             <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
           </button>
           {/* d142462d — evaluated but not promoted: offer a kind feedback brief so
@@ -202,19 +202,19 @@ export function SubmissionRow({
       {/* A failed/interrupted evaluation (or an unfetchable result) now shows the cause +
           a Retry, instead of the button silently reverting to "Evaluate" as if nothing ran. */}
       {evalView.failed ? (
-        <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-2 py-1.5 text-micro text-coral">
+        <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-2 py-1.5 text-micro text-coral-ink">
           <AlertTriangle size={12} className="shrink-0" aria-hidden />
           <span className="min-w-0">{evalView.message}</span>
           <button
             type="button"
             onClick={evaluate}
-            className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-coral/40 bg-white px-1.5 py-0.5 font-semibold text-coral hover:bg-coral/10"
+            className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-coral/40 bg-white px-1.5 py-0.5 font-semibold text-coral-ink hover:bg-coral/10"
           >
             <RotateCcw size={10} aria-hidden /> Retry
           </button>
         </div>
       ) : null}
-      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} verdict={{ preview: submission.promotePreview, landed: promoteLanded, error: promoteError }} /> : null}
       {/* Gap #1 — the raw evidence behind every verdict above. Gated on the submission
           being an in-product SESSION (a repo submission has no transcript and no
           observed tree), NOT on `ev`: the evidence exists from the moment the candidate

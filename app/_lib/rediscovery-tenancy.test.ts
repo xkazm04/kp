@@ -61,8 +61,10 @@ const stampsWorkspace = (sql: string) => /\bworkspace_id\b/i.test(sql) && /[@:$]
 
 test("every rediscovery_alerts statement is workspace-scoped (exemptions are an explicit allowlist)", () => {
   const touching = sqlBlocks.filter((s) => TOUCHING.test(s));
-  // record INSERT + list SELECT + dismiss UPDATE + the two retention DELETEs.
-  assert.equal(touching.length, 5, `expected exactly 5 rediscovery_alerts statements, found ${touching.length}`);
+  // the shared INSERT (record + reconcile) + list SELECT + dismiss UPDATE + the two
+  // retention DELETEs + reconcile's three (live-rows SELECT, refresh UPDATE, retract
+  // DELETE), each of the reconcile's filtered on workspace_id like the rest.
+  assert.equal(touching.length, 8, `expected exactly 8 rediscovery_alerts statements, found ${touching.length}`);
 
   // A stale exemption (one that no longer matches any statement) is itself a failure —
   // it would silently widen the guard for whatever query drifts into its shape next.
@@ -80,7 +82,7 @@ test("every rediscovery_alerts statement is workspace-scoped (exemptions are an 
 test("the DISMISS write is scoped by workspace, not by id alone", () => {
   // Pinned by name, not by shape: dismissal is a sticky suppression of another team's
   // visible alert, so this specific statement must never regress to a bare by-id write.
-  const dismiss = sqlBlocks.find((s) => /\bupdate\s+rediscovery_alerts\b/i.test(s));
+  const dismiss = sqlBlocks.find((s) => /\bupdate\s+rediscovery_alerts\s+set\s+dismissed_at\b/i.test(s));
   assert.ok(dismiss, "expected the dismiss UPDATE");
   assert.match(dismiss!, /\bid\s*=\s*\?/i, "still a point op on one alert");
   assert.ok(filtersWorkspace(dismiss!), "the dismiss UPDATE must also filter workspace_id");

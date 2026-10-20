@@ -38,7 +38,7 @@ const emptySubscribe = () => () => {};
 
 const TONE: Record<ToastVariant, { border: string; icon: typeof Info; iconColor: string }> = {
   success: { border: "border-moss/50", icon: CheckCircle2, iconColor: "text-moss" },
-  error: { border: "border-coral/50", icon: AlertTriangle, iconColor: "text-coral" },
+  error: { border: "border-coral/50", icon: AlertTriangle, iconColor: "text-coral-ink" },
   info: { border: "border-stone-300", icon: Info, iconColor: "text-steel" },
 };
 
@@ -56,7 +56,7 @@ function ToastCard({
   // Auto-dismiss. Keyed on `nonce` so a deduped re-fire restarts the window;
   // pause-on-hover clears the timer and restarts the full window on resume.
   useEffect(() => {
-    if (paused) return;
+    if (paused || item.duration === 0) return;
     const timer = window.setTimeout(() => toast.dismiss(item.id), item.duration);
     return () => window.clearTimeout(timer);
   }, [item.id, item.duration, item.nonce, paused]);

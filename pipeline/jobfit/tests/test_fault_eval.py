@@ -186,6 +186,84 @@ class CallFloorTest(unittest.TestCase):
         self.assertTrue(_call_was_owed("screen", {}))
 
 
+class FallbackSeamFamilyTest(unittest.TestCase):
+    """challenge-r04 tests-llm-eval/A — the drill's SECOND seam family.
+
+    ``provenance.generate_with_fallback`` is the runner fifteen call sites share, and the
+    drill used to import automation's TASKS and nothing else, so none of them was ever
+    handed a lying provider. Three representative seams (devcase, agentfit, intake) now
+    run every mode under the same EXPECTATIONS, reading the reason from the code the
+    runner stamps.
+    """
+
+    SEAMS = {"analyze_need", "analyze_agent_fit", "run_intake_turn"}
+
+    def test_the_family_is_declared(self):
+        self.assertEqual(set(fault_eval.FALLBACK_SEAMS), self.SEAMS)
+
+    def test_every_mode_runs_every_seam(self):
+        from pipeline.jobfit.llm.fault import MODES
+
+        items = fault_eval._drill_items(list(MODES))
+        seam_items = {(mode, name) for kind, mode, name, _s in items if kind == "seam"}
+        self.assertEqual(seam_items, {(m, s) for m in MODES for s in self.SEAMS})
+
+    def test_the_cheap_modes_hold_on_the_real_seams(self):
+        rows = [r for r in fault_eval.run_drill(["unavailable", "malformed", "wrong_shape", "protected_language"])
+                if r.task in self.SEAMS]
+        self.assertEqual(len(rows), 4 * len(self.SEAMS))
+        for r in rows:
+            with self.subTest(mode=r.mode, seam=r.task):
+                self.assertEqual(r.failures, [])
+        coded = {(r.mode, r.task): r.reason for r in rows}
+        for seam in self.SEAMS:
+            self.assertIsNone(coded[("unavailable", seam)])
+            self.assertEqual(coded[("malformed", seam)], "unparseable_output")
+            self.assertEqual(coded[("wrong_shape", seam)], "unusable_output")
+
+    @staticmethod
+    def _fake_seam(artifact: dict):
+        def run(provider):
+            if provider is not None:
+                provider.complete("ping", timeout=1)
+            return dict(artifact), "deterministic"
+
+        return {"fake": {"run": run, "check": lambda _a: []}}
+
+    def test_a_seam_that_degrades_anonymously_fails_the_drill(self):
+        with mock.patch.dict(fault_eval.FALLBACK_SEAMS, self._fake_seam({"x": 1}), clear=True):
+            row = fault_eval._run_seam("malformed", "fake")
+            self.assertTrue(any("degraded anonymously" in f for f in row.failures), row.failures)
+            agg = _aggregate(fault_eval.run_drill(["malformed"]))
+        self.assertFalse(_passes(agg))
+
+    def test_a_code_outside_the_vocabulary_fails(self):
+        with mock.patch.dict(
+            fault_eval.FALLBACK_SEAMS, self._fake_seam({"fallbackCode": "network_gremlin"}), clear=True
+        ):
+            row = fault_eval._run_seam("malformed", "fake")
+        self.assertTrue(any("not in" in f and "DEGRADATION_REASONS" in f for f in row.failures), row.failures)
+
+
+class RematchReasonTest(unittest.TestCase):
+    def test_rematch_is_reason_checked(self):
+        # automation.rematch_candidate records its descent through on_fallback now, so
+        # the exemption that said it "degrades anonymously" was stale.
+        self.assertIn("rematch", fault_eval.REASONED_TASKS)
+
+    def test_rematch_names_a_coerced_away_answer_where_a_call_was_owed(self):
+        scenario = next(s for s in fault_eval.SCENARIOS_UNDER_FAULT if s.name == "bau_weak")
+        row = _run_one("wrong_shape", "rematch", scenario)
+        self.assertEqual(row.failures, [])
+        self.assertEqual(row.reason, "unusable_output")
+
+    def test_a_rematch_that_owed_no_call_is_not_held_to_a_reason(self):
+        scenario = next(s for s in fault_eval.SCENARIOS_UNDER_FAULT if s.name == "student_weak_fairness")
+        row = _run_one("malformed", "rematch", scenario)
+        self.assertEqual(row.calls, 0)
+        self.assertEqual(row.failures, [])
+
+
 class DocTableTest(unittest.TestCase):
     def test_every_mode_has_a_row_with_its_recorded_cost(self):
         lines = _doc_table().splitlines()
@@ -221,6 +299,67 @@ class DocTableTest(unittest.TestCase):
             code = fault_eval.main(["--doc-table"])
         self.assertEqual(code, 0)
         self.assertEqual(buf.getvalue().strip(), _doc_table())
+
+
+class CertifiedDrillSizeTest(unittest.TestCase):
+    """The drill's record carries its row count. A seam or task that silently
+    leaves the matrix keeps the pass rate at 1.0, so only ``n`` can notice."""
+
+    @staticmethod
+    def _recorded_rows() -> list[Row]:
+        # Rows rebuilt from the committed unit ids, so the full drill is
+        # certified here without running its 240 rows.
+        from pipeline.jobfit.eval import thresholds
+
+        rows = []
+        for uid in thresholds.load_units()["FAULT_THRESHOLD"]:
+            mode, task, scenario = uid.split("/", 2)
+            rows.append(_row(mode, task, scenario=scenario))
+        return rows
+
+    def _run(self, argv, *, rows):
+        err = io.StringIO()
+        with mock.patch.object(fault_eval, "run_drill", lambda modes=None: rows), \
+                mock.patch.object(fault_eval, "_format_md", lambda *a, **k: ""), \
+                redirect_stdout(io.StringIO()), mock.patch("sys.stderr", err):
+            return fault_eval.main(argv), err.getvalue()
+
+    def test_a_full_strict_drill_with_one_row_fewer_fails_on_the_stale_count(self):
+        rows = self._recorded_rows()
+        self.assertEqual(self._run(["--strict"], rows=rows)[0], 0)
+        dropped = rows[-1]
+        code, err = self._run(["--strict"], rows=rows[:-1])
+        self.assertEqual(code, 1)
+        self.assertIn("corpus size moved", err)
+        self.assertIn(f"left: {dropped.mode}/{dropped.task}/{dropped.scenario}", err)
+        self.assertIn("fault_eval --record", err)
+
+    def test_a_swapped_drill_row_keeps_n_and_still_fails_naming_both_rows(self):
+        # The count-only record certified this: a row left, another joined, n held.
+        rows = self._recorded_rows()
+        gone = rows[0]
+        swapped = [_row(gone.mode, gone.task, scenario="a_new_scenario")] + rows[1:]
+        code, err = self._run(["--strict"], rows=swapped)
+        self.assertEqual(code, 1)
+        self.assertIn(f"left: {gone.mode}/{gone.task}/{gone.scenario}", err)
+        self.assertIn(f"joined: {gone.mode}/{gone.task}/a_new_scenario", err)
+
+    def test_live_units_are_one_per_drill_row_and_match_their_n(self):
+        rows = [_row("hang"), _row("hang", "outreach"), _row("garbage", ok=False)]
+        self.assertEqual(
+            fault_eval.live_units(rows),
+            {"FAULT_THRESHOLD": {"hang/screen/bau_weak": 1.0, "hang/outreach/bau_weak": 1.0,
+                                 "garbage/screen/bau_weak": 0.0}},
+        )
+        self.assertEqual(fault_eval.live_measurements(_aggregate(rows))["FAULT_THRESHOLD"][1], 3)
+        with self.assertRaises(ValueError) as ctx:
+            fault_eval.live_units([_row("hang"), _row("hang")])
+        self.assertIn("hang/screen/bau_weak", str(ctx.exception))
+
+    def test_a_mode_subset_is_not_certified_and_cannot_be_recorded(self):
+        rows = [r for r in self._recorded_rows() if r.mode == "hang"]
+        self.assertEqual(self._run(["--strict", "--mode", "hang"], rows=rows)[0], 0)
+        self.assertEqual(self._run(["--record", "--mode", "hang"], rows=rows)[0], 2)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { meterGate } from "@/app/_lib/billing/enforce";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { resolveEntryForSubmission } from "@/app/_lib/devcase-interview-entry";
 import { mintAndInviteVoiceScreen } from "@/app/_lib/interview-invite";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { readEntityId } from "../entry-id";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Per-IP spend door. One accepted call runs a model-backed run-of-show build AND
 // emails the candidate, and the route is operator-gated only in the sense that
@@ -18,6 +19,7 @@ import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 // once per request. The billing meter is a separate, per-workspace decision and
 // deliberately not what this is.
 const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+const MAX_CREATE_BODY_BYTES = 16 * 1024;
 
 // POST → recruiter creates a candidate-mode voice screen for a pipeline entry.
 // Builds grounded interviewer questions (Task 4) and returns a tokenized link
@@ -28,7 +30,7 @@ const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // an AI interview step the hiring plan gates as `auto`. This handler owns only the
 // transport concerns — the cheap pre-gate, body validation, the per-IP throttle,
 // submission→entry resolution — and then maps the shared door's result onto the wire.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspace: string, request: NextRequest) => {
   try {
     // Billing hard gate — CHEAP PRE-CHECK: voice minutes are the one meter with real
     // per-unit cost. Reject an obviously-empty meter before doing the (possibly
@@ -38,14 +40,14 @@ export async function POST(request: NextRequest) {
     // mintAndInviteVoiceScreen once `grounded` is built, before anything is revoked.
     // (Minutes debit at /complete; top-up packs reopen this.)
     // Org attribution (org-plan Phase 3): both gates read the caller's tenant.
-    const workspace = await currentWorkspace();
     const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN, workspace });
     if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
     // language must look like a language tag — anything else is rejected or
     // dropped rather than passed into the DB layer.
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readJsonWithLimit<Record<string, unknown>>(request, MAX_CREATE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_CREATE_BODY_BYTES });
     // ONE THREAD (gap 4) — a screen can be asked for by the entry it hangs off OR by
     // the SUBMISSION the reviewer is looking at. The eval surface holds a submission
     // id and never held an entry id, which is why the voice screen was reachable only
@@ -100,6 +102,10 @@ export async function POST(request: NextRequest) {
       force: body.force === true,
     });
     if (!minted.ok) {
+      // COMMS_SUPPRESSED: the send gate refuses this candidate (consent lapsed, or
+      // erased) — the same 409 the single scheduling-invite door answers on the same
+      // card, and nothing was built, reserved or minted.
+      if (minted.refusal === "COMMS_SUPPRESSED") return jsonRefusal("COMMS_SUPPRESSED", 409);
       return minted.refusal === "INTERVIEW_CALL_IN_PROGRESS"
         ? jsonRefusal("INTERVIEW_CALL_IN_PROGRESS", 409)
         : jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: minted.quota.meter, plan: minted.quota.plan });
@@ -148,4 +154,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:interview:create", "INTERVIEW_CREATE_FAILED");
   }
-}
+});

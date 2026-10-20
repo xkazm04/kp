@@ -5,6 +5,7 @@ from .taxonomy import (
     contains_whole_token,
     count_whole_token,
     detected_skills,
+    is_named_technology,
     normalize_text,
     resolve_term,
     skill_keyword_pool,
@@ -141,6 +142,23 @@ def verify_skills_in_cv(
         confirmed = (term is not None and term in detected_terms) or _skill_in_text(cv_norm, key)
         (verified if confirmed else withheld).append(skill)
     return verified, withheld
+
+
+def untraced_skills_in_text(text: str, candidate_text: str) -> list[str]:
+    """Taxonomy skills NAMED in free prose that the CV does not evidence.
+
+    ``verify_skills_in_cv`` checks a flat skill list; a strengths line or an
+    explanation is a sentence. Detect the taxonomy skills it names, then ask the
+    same CV-side question (alias-aware canonical term, or a literal mention).
+    Only specific named technologies are judged (``is_named_technology``): prose
+    uses generic nouns without claiming a skill, and a skill the taxonomy does not
+    model has no boundary to cut it on, so this under-reports rather than invent a miss.
+    """
+    named = [f for f in detected_skills(text or "", limit=1000) if is_named_technology(f)]
+    if not named:
+        return []
+    _, untraced = verify_skills_in_cv(named, candidate_text)
+    return untraced
 
 
 def _keyword_status(matched: bool, in_jd: int, in_cv: int) -> KeywordStatus:

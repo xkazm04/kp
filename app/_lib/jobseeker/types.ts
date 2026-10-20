@@ -89,6 +89,34 @@ export type JobseekerProfile = {
 };
 
 // ---------------------------------------------------------------------------
+// CVs already read (db/jobseeker-cvs.ts) — remembered so the same file is never
+// drafted twice and an earlier one can be made active again
+// ---------------------------------------------------------------------------
+
+/** Which reader drafted the profile from a CV: a model, or the fixed parser. */
+export type CvDraftSource = "llm" | "deterministic";
+
+/** One stored CV as a list shows it: metadata only, never the text or the draft. */
+export type JobseekerCvSummary = {
+  id: string;
+  fileName: string | null;
+  byteSize: number | null;
+  /** null = the draft route did not say (never claimed either way). */
+  draftSource: CvDraftSource | null;
+  /** When it was first read. */
+  createdAt: string;
+  /** When it was last read, reused or picked again. */
+  lastUsedAt: string;
+};
+
+/** A list row: the summary plus whether the profile is built from this CV right now. */
+export type JobseekerCvListItem = JobseekerCvSummary & { active: boolean };
+
+/** Bounds on the per-seeker UI state the server keeps (db/jobseeker-ui-state.ts). */
+export const COVER_NOTE_MAX_CHARS = 8000;
+export const COVER_NOTES_KEPT = 200;
+
+// ---------------------------------------------------------------------------
 // Sources (owner-confirmed acquisition; tiers decide the confirmation door)
 // ---------------------------------------------------------------------------
 
@@ -114,6 +142,7 @@ export const SOURCE_ADAPTERS = [
   "ats_smartrecruiters",
   "board_sitemap_jsonld",
   "board_rules",
+  "arbeitnow",
 ] as const;
 export type SourceAdapterName = (typeof SOURCE_ADAPTERS)[number];
 export function isSourceAdapterName(v: unknown): v is SourceAdapterName {
@@ -232,6 +261,15 @@ export type EligibilityKey = "salary" | "location" | "seniority" | "language" | 
 /** `flag` = a measured mismatch; `unknown` = the posting did not say (never a penalty). */
 export type EligibilityFlag = { key: EligibilityKey; state: "ok" | "flag" | "unknown"; detail: string };
 
+/** The matcher's hard-gate categories (pipeline/jobfit/matching.py `KoReasonKey`), in the
+ *  order the feed names them. A posting the KO filter removed is stored with these keys
+ *  and an as-if MatchResult (match_json `{blocked, asIf}`, match_total NULL). */
+export const KO_REASON_KEYS = ["seniority", "early_career", "education", "language", "work_mode"] as const;
+export type KoReasonKey = (typeof KO_REASON_KEYS)[number];
+export function isKoReasonKey(v: unknown): v is KoReasonKey {
+  return typeof v === "string" && (KO_REASON_KEYS as readonly string[]).includes(v);
+}
+
 export type JobseekerPosting = {
   id: string;
   sourceId: string;
@@ -279,8 +317,54 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
   bodyChars: number;
   eligibility: EligibilityFlag[];
   confidence: { low: number; high: number; level: "tight" | "moderate" | "wide" } | null;
+  /** The hard gates that removed this posting (empty for a scored or not-yet-matched row). */
+  blockedBy: KoReasonKey[];
+  /** The engine's one sentence per gate (`koDetails`), for a filtered row only. */
+  blockedDetails: string[];
+  /** What a FILTERED row would have scored with its gates lifted — never a rank key. */
+  asIfTotal: number | null;
+  /** The skills the score met, each with where the seeker's claim comes from (capped). */
+  matchedSkills: { skill: string; provenance: string | null }[];
+  /** The skills the posting asks for that the profile does not show (capped). */
+  missingSkills: string[];
   deepDived: boolean;
+  /** The total a deep-dive re-match REPLACED, when the richer Job moved it (match_json
+   *  `previous`); null for every other row. "71 → 39" is a fact, not an overwrite. */
+  previousTotal: number | null;
+  /** The stored rationale was reasoned from inputs older than the profile's last change
+   *  (a CV or preference edit since): still shown, flagged, and re-dived by the next scan.
+   *  False for a row with no rationale. */
+  reasoningStale: boolean;
+  /** The direction the matcher read (match_json `targetAlignment`; a filtered row's comes
+   *  from its as-if result): "matches your target: AI Engineer" vs "matches your past".
+   *  Null when the seeker stated no target, or the row is not matched. */
+  targetAlignment: TargetAlignment | null;
+  /** Whether the structured ad states any skill requirement; null before it is structured.
+   *  False = the matcher had nothing to compare skills against (and scored skills 0). */
+  skillsStated: boolean | null;
+  /** For a scored row whose ad states no skill: the score on career and personal fit alone
+   *  (db/jobseeker-postings.ts `directionTotalOf`). Null for every other row. Never a rank. */
+  directionTotal: number | null;
 };
+
+/** How a posting sits against the seeker's STATED direction (pipeline/jobfit/matching.py
+ *  `TargetAlignment`): `target` — the title matches a stated target title (`matchedTitle`
+ *  is the seeker's own wording); `family` — the role family is one of `targetFamilies`;
+ *  `past` — neither, but it is the CV's own family (`pastFamily`); `none` — none of these. */
+export const TARGET_ALIGNMENT_STATES = ["target", "family", "past", "none"] as const;
+export type TargetAlignmentState = (typeof TARGET_ALIGNMENT_STATES)[number];
+export type TargetAlignment = {
+  state: TargetAlignmentState;
+  matchedTitle: string | null;
+  targetFamilies: string[];
+  pastFamily: string | null;
+};
+export function isTargetAlignmentState(v: unknown): v is TargetAlignmentState {
+  return typeof v === "string" && (TARGET_ALIGNMENT_STATES as readonly string[]).includes(v);
+}
+
+/** How many skills a summary row carries: enough for a card, never the whole payload. */
+export const SUMMARY_SKILL_CAP = 6;
 
 /** The feed's LAST-SEEN anchor: the ordering tuple the keyset pager already uses
  *  (`firstSeenAt`, `id`) for the newest row the seeker demonstrably saw settled. One
@@ -291,7 +375,7 @@ export type JobseekerFeedAnchor = { at: string; id: string };
 /** What the feed route answers beside the rows: how many live postings arrived after the
  *  anchor, and the anchor the count was measured against. `null` — not `{count: 0}` —
  *  when there is no anchor yet, which is the quiet first run: no badge, no divider. */
-export type FeedNewSince = { count: number; anchorAt: string } | null;
+export type FeedNewSince = { count: number; anchorAt: string; anchorId: string } | null;
 
 // ---------------------------------------------------------------------------
 // Dialogs (the Studio kit's two seeker variants)
@@ -311,8 +395,21 @@ export type CvPolishArtifact = {
   preferences: Partial<JobseekerPreferences>;
   /** Blocks of the source CV the pipeline could not read — shown, never scored as absence. */
   unreadable: string[];
-  suggestions: { section: string; before: string; after: string; why: string }[];
+  /** `kind`: a `rewrite` passed the engine's fidelity screen and may be applied; a
+   *  `question` is advice or a request for a fact the CV does not hold, and is never
+   *  applied (pipeline/jobfit/jobseeker.py `screen_suggestions`). Absent on rows stored
+   *  before the screen existed — the engine screens those again on the next turn. */
+  suggestions: { section: string; before: string; after: string; why: string; kind?: "rewrite" | "question" }[];
+  /** The line edits the seeker ACCEPTED ("Apply"), oldest first — the one record the
+   *  designed CV and its PDF apply onto the CV text (cvContent.ts applyAcceptedEdits).
+   *  A new cv_polish dialog carries the earlier dialogs' edits forward. Absent on rows
+   *  written before it existed. */
+  applied?: CvAcceptedEdit[];
 };
+
+/** One accepted line edit: the seeker's own line (`before`, verbatim in the CV text),
+ *  the screened rewrite they accepted, and the prompt version that proposed it. */
+export type CvAcceptedEdit = { section: string; before: string; after: string; promptVersion: string };
 
 export type FitArtifact = {
   verdict: "apply" | "skip" | "undecided";
@@ -375,7 +472,7 @@ export type DialogReply = StudioReply & { artifact: DialogArtifact | null };
 // Scan (the scheduler job and the manual run share this summary)
 // ---------------------------------------------------------------------------
 
-export const SCAN_JOB_NAME = "jobseeker_scan";
+export { SCAN_JOB_NAME } from "../scheduler-jobs";
 export const SCAN_TASK_KIND = "jobseeker_scan";
 
 export type SourceRunSummary = {
@@ -387,7 +484,31 @@ export type SourceRunSummary = {
   absent: number;
   /** Why `failed`/`blocked`/`collapsed` — a closed-vocabulary code, never a message. */
   reason: string | null;
+  /** The pass stopped at a cap (maxRefs, or the detail-fetch budget): postings past it
+   *  were not read this run and nothing was marked absent. Absent on a summary stored
+   *  before the flag existed — read it as unknown, not as `false`. */
+  truncated: boolean;
 };
+
+/** The scan's post-acquisition phases that can fail on their own. */
+export const SCAN_FAILURE_PHASES = ["structure", "match", "deepdive"] as const;
+export type ScanFailurePhase = (typeof SCAN_FAILURE_PHASES)[number];
+
+/** One phase that failed, whole or in part: `chunks` of the `of` units it attempted
+ *  (structure/match batches; deep-dive postings) threw. `code` is the FIRST failure's
+ *  code from the errors registry (ENGINE_BUSY / ENGINE_TIMEOUT / ENGINE_FAILED) — the raw
+ *  error stays in the server log and never reaches the summary. */
+export type ScanPhaseFailure = { phase: ScanFailurePhase; chunks: number; of: number; code: string };
+
+/** The progress messages a scan reports beside done/total, besides a source's host
+ *  (which is what it reports while acquiring). A closed set so the doors translate it. */
+export const SCAN_PROGRESS_PHASES = ["structure", "match", "deepdive", "done", "aborted", "no_profile"] as const;
+export type ScanProgressPhase = (typeof SCAN_PROGRESS_PHASES)[number];
+export function isScanProgressPhase(v: unknown): v is ScanProgressPhase {
+  return typeof v === "string" && (SCAN_PROGRESS_PHASES as readonly string[]).includes(v);
+}
+
+export { scanWholePhaseFailure } from "../task-external-runners";
 
 export type ScanSummary = {
   workspaceId: string;
@@ -401,6 +522,11 @@ export type ScanSummary = {
    *  still the truth (same MATCH_VERSION, written after the profile last changed).
    *  Optional: a caller that does not scope the match phase reports nothing here. */
   skippedUpToDate?: number;
+  /** Postings the matcher's hard filter removed THIS run (stored with their gate and an
+   *  as-if score, never counted in `matched`). */
+  koFiltered: number;
+  /** Phases that failed, whole or in part — empty when every phase did all its work. */
+  failures: ScanPhaseFailure[];
   deepDived: number;
   /** `no_provider` when the deep-dive was skipped keyless. */
   deepDiveSkipped: string | null;

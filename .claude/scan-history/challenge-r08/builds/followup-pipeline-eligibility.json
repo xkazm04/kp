@@ -1,0 +1,42 @@
+{
+  "id": "followup-pipeline-eligibility",
+  "follows": "candidate-rediscovery/A (56ddf788e)",
+  "context": "pipeline-api",
+  "status": "shipped",
+  "commits": [
+    { "sha": "627ed9b96", "subject": "feat(api-response): register PIPELINE_ADD_CANDIDATE_WITHHELD in 4 locales", "under_lock": true },
+    { "sha": "126f10fdd", "subject": "fix(pipeline-api): refuse a rediscovery/sourcing re-surface of a withheld person", "under_lock": "docs only" }
+  ],
+  "rule": "POST /api/pipeline refuses 409 PIPELINE_ADD_CANDIDATE_WITHHELD (+ withheld: opted_out|consent_expired|anonymized) before any write when source is a re-surface marker ('rediscovery' | 'sourcing', the same RESURFACE_SOURCES set that gates the prior link) and withheldCandidateIds withholds the person. A human add without that marker is filed unchanged.",
+  "why": [
+    "docs/features/comms/README.md (candidate opt-out): an opt-out stops outreach and 'does not withdraw an application', so a blanket refusal would overreach",
+    "registry recruiting/candidate-consent-and-retention: re-contacting on a new opening is the pool purpose and runs on consent, so a lapsed consent removes the basis for re-surfacing, not for a human's deliberate filing",
+    "registry recruiting/candidate-outreach-and-halt-rules: the gates sit on the handoff from the candidate list to the first touch, and a re-surface add is that handoff",
+    "a comms-suppressed mark on the entry was unnecessary: commsSendSuppression already resolves the opt-out and consent at the durable candidate identity, so a human-filed entry still cannot be contacted (pinned in the test)",
+    "erasure was already refused for every caller inside createPipelineEntry"
+  ],
+  "rejected_alternatives": [
+    "refuse every add of a withheld person: contradicts the documented opt-out scope and blocks legitimate re-applications",
+    "allow and mark comms-suppressed: would duplicate the person-level send gate with a per-entry flag that could drift from it"
+  ],
+  "files": [
+    "app/api/pipeline/route.ts",
+    "app/api/pipeline/add-eligibility.test.ts",
+    "app/_lib/rediscovery-eligibility.test.ts",
+    "app/_lib/api-response.ts",
+    "messages/en.json", "messages/cs.json", "messages/de.json", "messages/fr.json",
+    "docs/features/jobs/README.md", "docs/features/comms/README.md", "docs/features/pipeline/README.md"
+  ],
+  "red_first": "add-eligibility.test.ts: 3 of 5 failed before the change (200 where 409 was expected); the 2 control cases passed",
+  "gates": {
+    "unit (add-eligibility + app/api/pipeline/* + rediscovery-eligibility + rate-limit-contract + error-response-contract)": "0 (320 pass / 0 fail)",
+    "tsc": "exit 2, all errors foreign: kpi-sim/**, matrix-cache.test.ts, archetype-live.test.ts, voice reconnect-plan.test.ts, HeldSignals, DispatchOutcome. None in touched files",
+    "eslint (touched)": "0",
+    "i18n:check": "0",
+    "docs:check": "0",
+    "api:check": "0 before the docs commit. Later exit 1 on one foreign finding: /api/journeys/cohort is undocumented, a route another builder is adding now. My change adds or changes no route, so api:docs was not run to avoid committing their row",
+    "test:perf": "exit 1, foreign: app/page.tsx is 1430/1428 modules and 9113/9098 KB, and job-ingest.ts is 420/419 KB, both from other builders' in-flight files. My share: 0 modules and about 1 KB (code registry + 4 catalog lines); route.ts is not on the page graph",
+    "rate-limit-contract": "untouched, no limiter moved"
+  },
+  "not_touched": "JobsRediscovery* (the feed's Add already sends source 'rediscovery' and renders the new code through useErrorMessage), voice, drawer, tasks.ts, python-runner.ts, archetype files"
+}

@@ -1,22 +1,35 @@
 // Helpers every adapter reaches for: fetch-outcome handling, JSON bodies, text
 // cleanup, the RawPosting factory, and the preference filter feeds apply locally.
 
+import { employerName } from "../employer";
 import { htmlToText } from "../../job-posting-fetch";
-import type { FetchOk, FetchOutcome } from "../fetch/politeFetch";
+import { targetForms } from "../targetAliases";
+import { MAX_BODY_BYTES_CEILING, type FetchOk, type FetchOutcome } from "../fetch/politeFetch";
 import { isWorkMode, type JobseekerPreferences, type RawPosting } from "../types";
 import { FetchHalt, type AdapterContext } from "./types";
 
 /** A listing/index fetch the run cannot continue without: anything but `ok` halts. */
+/** A WHOLE-BOARD feed - one document holding every open job of a company WITH its
+ *  description (Greenhouse, Ashby, Workable, Recruitee, Lever, Personio, Teamtailor) - is
+ *  a download, not a page. Measured live 2026-09-28: Anthropic's Greenhouse board 9.0 MB,
+ *  OpenAI's Ashby board 14.5 MB, ElevenLabs' 2.9 MB - every one past the fetcher's 2 MB
+ *  default, so the scan read them `too_large` and recorded the AI companies' own boards as
+ *  outages. Such feeds ask for the fetcher's ceiling, which stays the one hard bound. */
+export const WHOLE_BOARD_MAX_BYTES = MAX_BODY_BYTES_CEILING;
+
 export function mustOk(outcome: FetchOutcome): FetchOk {
   if (outcome.kind !== "ok") throw new FetchHalt(outcome);
   return outcome;
 }
 
 /** A detail fetch: `blocked`/`offline` halt the source (a denial anywhere is a
- *  denial), while `gone`/`outage`/`robots_disallowed` skip just this posting. */
+ *  denial), while `gone`/`outage`/`robots_disallowed` skip just this posting. An
+ *  outage also marks the pass incomplete: the posting was not read, which is not
+ *  evidence that it is gone (a 404/410 is). */
 export function detailOk(outcome: FetchOutcome, ctx: AdapterContext, url: string): FetchOk | null {
   if (outcome.kind === "ok") return outcome;
   if (outcome.kind === "blocked" || outcome.kind === "offline") throw new FetchHalt(outcome);
+  if (outcome.kind === "outage") ctx.incomplete?.(`detail_outage: ${url}`);
   ctx.log({ level: "warn", code: `detail_${outcome.kind}`, detail: `${url}: ${outcome.detail}` });
   return null;
 }
@@ -69,7 +82,6 @@ export function workModeFromText(text: string | null): RawPosting["workMode"] {
 
 export function rawPosting(partial: Partial<RawPosting> & Pick<RawPosting, "externalKey" | "url" | "title">): RawPosting {
   return {
-    company: null,
     location: null,
     country: null,
     postedAt: null,
@@ -79,6 +91,8 @@ export function rawPosting(partial: Partial<RawPosting> & Pick<RawPosting, "exte
     jsonld: null,
     lang: null,
     ...partial,
+    // "siehe Beschreibung" where the employer goes is no employer (employer.ts).
+    company: employerName(partial.company),
     workMode: isWorkMode(partial.workMode) ? partial.workMode : null,
   };
 }
@@ -88,19 +102,52 @@ export function fold(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-/** Does a posting's title match the seeker's targets? Empty targets = everything. */
-export function matchesTargets(title: string, prefs: JobseekerPreferences): boolean {
-  const targets = [...prefs.targetTitles, ...prefs.targetRoleFamilies].map(fold).filter(Boolean);
-  if (targets.length === 0) return true;
-  const t = fold(title);
-  return targets.some((needle) => t.includes(needle.replace(/_/g, " ")) || t.includes(needle));
+// The two local filters below are HARD acquisition filters: a posting they drop is
+// never stored, never scored. So they must never be stricter than the matcher
+// downstream (pipeline/jobfit/matching.py), which ranks. When in doubt, let it through.
+
+/** A folded title as space-delimited whole words, padded so a needle matches only on
+ *  word boundaries ("java" is in "Java programátor", not in "JavaScript"). `+` and `#`
+ *  stay inside a word so "C++" and "C#" survive. */
+function wordsOf(s: string): string {
+  const words = fold(s).split(/[^\p{L}\p{N}+#]+/u).filter(Boolean);
+  return words.length ? ` ${words.join(" ")} ` : "";
 }
 
-export function matchesLocations(location: string | null, prefs: JobseekerPreferences): boolean {
+/** Does a posting's title match the seeker's target TITLES (folded, whole words)?
+ *  No titles = everything. Role-family slugs are deliberately NOT title text: a family
+ *  is a ranking signal the matcher weighs, and a title that does not spell the slug
+ *  ("Senior AI Engineer" for `software_engineering`) is not evidence it is off-target. */
+export function matchesTargets(title: string, prefs: JobseekerPreferences): boolean {
+  // Each stated title with its synonyms (the ONE alias table the matcher reads too):
+  // "AI Engineer" keeps "AI vývojář" and "KI-Entwickler" from a Czech or German feed.
+  const needles = prefs.targetTitles.flatMap(targetForms);
+  if (needles.length === 0) return true;
+  const hay = wordsOf(title);
+  return needles.some((needle) => hay.includes(needle));
+}
+
+/** What the location filter reads from a posting: the place, the market, the mode. */
+export type LocationFacts = Pick<RawPosting, "location" | "country" | "workMode">;
+
+/** ISO-3166-1 alpha-2, lower-case, or null — the form `preferences.countries` holds. */
+export function isoCountry(v: string | null | undefined): string | null {
+  const c = (v ?? "").trim().toLowerCase();
+  return /^[a-z]{2}$/.test(c) ? c : null;
+}
+
+/** Is the posting somewhere the seeker would work? It passes when the seeker named no
+ *  place, when the posting's place is unknown (never a penalty — types.ts
+ *  EligibilityFlag), when the city matches, when it is in a country the seeker named,
+ *  or when it STATES remote and the seeker has not ruled remote out. */
+export function matchesLocations(posting: LocationFacts, prefs: JobseekerPreferences): boolean {
   if (prefs.locations.length === 0) return true;
-  if (!location) return true; // unknown is never a penalty (types.ts EligibilityFlag)
-  const l = fold(location);
-  return prefs.locations.some((needle) => l.includes(fold(needle)));
+  if (!posting.location) return true;
+  const l = fold(posting.location);
+  if (prefs.locations.some((needle) => l.includes(fold(needle)))) return true;
+  const country = isoCountry(posting.country);
+  if (country && prefs.countries.some((c) => isoCountry(c) === country)) return true;
+  return posting.workMode === "remote" && (prefs.workModes.length === 0 || prefs.workModes.includes("remote"));
 }
 
 /** Read a config value as a non-empty string, or null. */

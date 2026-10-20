@@ -6,6 +6,7 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { findVaguePhrases, jdLintMessage, lintFindingPhrase, lintJd, locateLintPhrase, type JdLintFinding } from "./jd-lint.ts";
 
 // ---------------------------------------------------------------------------
@@ -51,9 +52,26 @@ test("catches Czech culture boilerplate", () => {
   assert.deepEqual(phrases, ["mladý kolektiv", "dynamické prostředí", "rodinná atmosféra", "Staňte se součástí"]);
 });
 
+test("catches German salary and team boilerplate", () => {
+  assert.deepEqual(
+    findVaguePhrases("Wir bieten ein wettbewerbsfähiges Gehalt und ein dynamisches Team. Werde Teil unseres Teams!"),
+    ["wettbewerbsfähiges Gehalt", "dynamisches Team", "Werde Teil unseres Teams"]
+  );
+  assert.deepEqual(findVaguePhrases("Attraktive Vergütung"), ["Attraktive Vergütung"]);
+});
+
+test("catches French salary and team boilerplate", () => {
+  assert.deepEqual(
+    findVaguePhrases("Salaire compétitif, rémunération attractive. Rejoignez notre équipe dynamique !"),
+    ["Salaire compétitif", "rémunération attractive", "Rejoignez notre équipe", "équipe dynamique"]
+  );
+});
+
 test("leaves concrete, specific copy alone", () => {
   const text = "Senior React developer in Brno, 65 000–95 000 Kč/month, hybrid (2 days in office). Stack: React 19, TypeScript, Node.";
   assert.deepEqual(findVaguePhrases(text), []);
+  assert.deepEqual(findVaguePhrases("Berlin, 80.000 EUR brutto, drei Tage Homeoffice. TypeScript und PostgreSQL."), []);
+  assert.deepEqual(findVaguePhrases("Paris, 60 000 EUR brut, deux jours en télétravail. TypeScript et PostgreSQL."), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -97,6 +115,42 @@ test("any work-mode signal counts as a place (remote IS a place for tech roles)"
   for (const place of ["fully remote", "hybridní režim", "on-site", "práce z domova", "v kanceláři v Olomouci"]) {
     const findings = lintJd({ body: `Senior developer, ${place}. 65 000 Kč/month.` });
     assert.deepEqual(findings, [], `should accept place signal: ${place}`);
+  }
+});
+
+// The missing-place finding tells the writer what to write, in their language. Every
+// remedy that copy names must clear the finding, or the writer who follows the advice
+// is nagged again: "vor Ort", "sur site", "télétravail" and "na pracovišti" were each
+// named by the catalog and matched by nothing. The catalog is read, not restated, so a
+// copy edit that names a new remedy fails here until the detector knows it.
+const REMEDIES: Record<string, string[]> = {
+  en: ["remote", "hybrid", "onsite"],
+  cs: ["remote", "hybrid", "na pracovišti"],
+  de: ["remote", "hybrid", "vor Ort"],
+  fr: ["télétravail", "hybride", "sur site"],
+};
+
+test("every place remedy the finding's copy names clears the finding, in every locale", () => {
+  for (const [locale, remedies] of Object.entries(REMEDIES)) {
+    const catalog = JSON.parse(readFileSync(new URL(`../../messages/${locale}.json`, import.meta.url), "utf8"));
+    const copy: string = catalog.library.result.lintMissingPlace;
+    for (const remedy of remedies) {
+      assert.ok(copy.includes(remedy), `${locale} copy no longer names "${remedy}": ${copy}`);
+      const findings = lintJd({ body: `Senior developer, ${remedy}. 65 000 Kč/month.` });
+      assert.deepEqual(findings, [], `${locale}: following the advice "${remedy}" must clear missing-place`);
+    }
+  }
+});
+
+test("a figure with the euro sign after it is a stated salary (de/fr write it that way)", () => {
+  for (const body of ["Entwickler, hybrid. 60.000 € brutto im Jahr.", "Développeur, hybride. 45 000 € brut annuel.", "Développeur, hybride. 45 000 € brut annuel."]) {
+    assert.deepEqual(lintJd({ body }), [], `should accept: ${body}`);
+  }
+});
+
+test("a word that merely contains a remedy is not a place", () => {
+  for (const body of ["Entwickler, 60.000 EUR. Zuvor Ortskenntnis nötig.", "Développeur, 45 000 EUR. Voir notre site web."]) {
+    assert.deepEqual(lintJd({ body }), [{ kind: "missing", what: "place" }], `should still flag: ${body}`);
   }
 });
 
@@ -199,4 +253,25 @@ test("jdLintMessage throws on an unknown kind instead of mislabeling it 'missing
   // handled explicitly. This assertion FAILS against that fall-through behaviour
   // (which would return lintMissingPlace, not throw).
   assert.throws(() => jdLintMessage({ kind: "tooShort" } as unknown as JdLintFinding));
+});
+
+// Decomposed (NFD) text: a letter plus a combining mark is \p{L} then \p{M}, so a stem's
+// \p{L}* run stops at the mark, and "Kč" as K + c + caron is not "kč". Text pasted from
+// some macOS sources or extracted from a PDF arrives that way. Unnormalized, the same
+// Czech posting lost two of its three boilerplate findings and gained a false
+// missing-salary; the lint must read what the writer sees, not the code points.
+const CS_POSTING =
+  "Nabízíme konkurenceschopný plat, rodinnou atmosféru a mladý kolektiv. Práce na pracovišti v Brně, 65 000 Kč měsíčně.";
+
+test("decomposed text lints the same as composed text", () => {
+  assert.deepEqual(lintJd({ body: CS_POSTING.normalize("NFD") }), lintJd({ body: CS_POSTING.normalize("NFC") }));
+  assert.equal(lintJd({ body: CS_POSTING.normalize("NFC") }).length, 3);
+});
+
+test("a finding from decomposed text still locates its span in the original body", () => {
+  const body = CS_POSTING.normalize("NFD");
+  const phrase = lintFindingPhrase(lintJd({ body })[0]!) ?? "";
+  const loc = locateLintPhrase(body, phrase);
+  assert.ok(loc, "expected the phrase to be located in the decomposed body");
+  assert.equal(body.slice(loc.start, loc.end).normalize("NFC"), "konkurenceschopný plat");
 });

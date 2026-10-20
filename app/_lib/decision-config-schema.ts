@@ -84,6 +84,14 @@ export function effectiveHoldoutPercent(cfg: ScreeningRule): number {
 // "eu", which reproduces the app's pre-P1-1 GDPR framing exactly.
 export type ComplianceRule = {
   jurisdiction: RegimeId;
+  /** Whether candidates are OFFERED an audio recording of their AI interview (spark
+   *  ai-interview-parity). Default OFF, expressed as ABSENT rather than `false` for the
+   *  same reason `holdoutPercent` is: the persisted rule shape is pinned byte-identical
+   *  by the config tests, and a compliance row saved before recording existed must keep
+   *  validating unchanged. Resolve it at the point of use through
+   *  `isInterviewRecordingOffered` (app/_lib/interview-recording.ts), never by reading
+   *  the field and defaulting per call site. */
+  interviewRecordingOffered?: boolean;
 };
 
 export const COMPLIANCE_DEFAULT: ComplianceRule = {
@@ -310,6 +318,8 @@ export type PipelineStageWire = {
   role: PipelineStageRoleWire;
   /** Stored only when the workspace customised the column's AI actions. */
   actions?: StageAiAction[];
+  /** Stored only when the team set the column's aging cadence (whole days). */
+  slaDays?: number;
 };
 export type PipelineStagesRule = {
   stages: PipelineStageWire[];
@@ -345,13 +355,24 @@ export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan"
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
-const COMPLIANCE_KEYS = ["jurisdiction"] as const;
+const COMPLIANCE_KEYS = ["jurisdiction", "interviewRecordingOffered"] as const;
 const INTERVIEW_PLAN_KEYS = ["steps"] as const;
 const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
 const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
-const STAGE_KEYS = ["id", "label", "role", "actions"] as const;
+const STAGE_KEYS = ["id", "label", "role", "actions", "slaDays"] as const;
+/** The bounds of a column's aging cadence: the same [1, 365] the board's editor
+ *  declares (pipelineSla.ts). Below 1 is "never ages", which only the terminal role
+ *  may mean; above a year silences the column for good. */
+export const STAGE_SLA_MIN_DAYS = 1;
+export const STAGE_SLA_MAX_DAYS = 365;
+
+/** Is `v` a storable cadence? A whole number of days inside the bounds, with no
+ *  coercion: "7" or 2.5 is a client bug worth a 400, not a value to guess at. */
+export function isStageSlaDays(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= STAGE_SLA_MIN_DAYS && v <= STAGE_SLA_MAX_DAYS;
+}
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
@@ -439,7 +460,26 @@ function validateStage(raw: unknown, path: string): { ok: true; stage: PipelineS
     }
     actions = STAGE_AI_ACTIONS.filter((id) => list.includes(id));
   }
-  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role, ...(actions ? { actions } : {}) } };
+  // The column's aging cadence (team data, read by the board, the sidebar badge and
+  // the automation pass alike). Absent = the role default. A terminal column cannot
+  // carry one: a hired candidate is not waiting, and a stored number there would be a
+  // policy nothing honours.
+  if (rec.slaDays !== undefined) {
+    if (!isStageSlaDays(rec.slaDays)) {
+      return { ok: false, error: `${path}.slaDays must be a whole number of days from ${STAGE_SLA_MIN_DAYS} to ${STAGE_SLA_MAX_DAYS}.` };
+    }
+    if (rec.role === "terminal") return { ok: false, error: `${path}.slaDays cannot be set on the terminal stage.` };
+  }
+  return {
+    ok: true,
+    stage: {
+      id: rec.id,
+      label: rec.label.trim(),
+      role: rec.role,
+      ...(actions ? { actions } : {}),
+      ...(rec.slaDays !== undefined ? { slaDays: rec.slaDays as number } : {}),
+    },
+  };
 }
 
 function validateStageList(
@@ -648,7 +688,19 @@ function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigRes
   if (typeof j !== "string" || !(REGIME_IDS as readonly string[]).includes(j)) {
     return { ok: false, error: `jurisdiction must be one of: ${REGIME_IDS.join(", ")}.` };
   }
-  return { ok: true, phase: "compliance", config: { jurisdiction: j as RegimeId } };
+  // ABSENT ≠ false. An omitted flag is "no opinion" — the writer predates the field, or
+  // is only changing the jurisdiction — and the key is left off the validated config so
+  // a plain compliance rule stays byte-identical to what it was before recording
+  // existed. The store then carries any stored value forward (decision-config-store's
+  // writeConfigRow, the familyFloors rule). An EXPLICIT false still writes false, which
+  // is how turning the offer back OFF stays expressible.
+  const offered = raw.interviewRecordingOffered;
+  if (offered !== undefined && typeof offered !== "boolean") {
+    return { ok: false, error: "interviewRecordingOffered must be true or false." };
+  }
+  const config: ComplianceRule = { jurisdiction: j as RegimeId };
+  if (offered !== undefined) config.interviewRecordingOffered = offered;
+  return { ok: true, phase: "compliance", config };
 }
 
 /**

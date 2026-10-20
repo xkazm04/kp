@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
+import { employerName } from "../jobseeker/employer";
 import {
   isDismissReason,
+  isKoReasonKey,
   isPostingStatus,
+  isTargetAlignmentState,
   isWorkMode,
   FIT_TIERS,
   SALARY_PERIODS,
+  SUMMARY_SKILL_CAP,
   type DismissReason,
   type EligibilityFlag,
   type FitTier,
@@ -13,6 +17,7 @@ import {
   type PostingStatus,
   type RawPosting,
   type SalaryPeriod,
+  type TargetAlignment,
 } from "../jobseeker/types";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
@@ -28,7 +33,10 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // Lifecycle a scan drives:
 //   upsertPosting  — new / changed (content hash moved) / unchanged (only last_seen_at)
 //   markAbsent     — TWO consecutive misses before status = 'gone' (gone_at is the
-//                    first-miss marker); a re-seen posting revives to 'new'.
+//                    first-miss marker); a re-seen posting revives to 'new'. Only an
+//                    UNDECIDED row ('new' / 'shortlisted') is ever moved to 'gone': an
+//                    applied or dismissed row keeps the seeker's decision, and its absence
+//                    shows as gone_at alone.
 // The seeker drives status otherwise (shortlisted / applied / dismissed).
 
 type PostingRow = {
@@ -72,12 +80,30 @@ type PostingRow = {
 type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "reasoning_json" | "content_hash"> & {
   body_chars: number;
   deep_dived: number;
+  reasoned_at: string | null;
+  req_count: number | null;
 };
+
+/** WHEN the stored rationale's inputs were read: `reasonedAt` (deepdive.ts), or the
+ *  dive's own `at` for a rationale written before the stamp existed. A malformed payload
+ *  reads NULL rather than failing the whole list (json_extract throws on invalid JSON). */
+const REASONED_AT = `CASE WHEN json_valid(reasoning_json)
+       THEN COALESCE(json_extract(reasoning_json, '$.reasonedAt'), json_extract(reasoning_json, '$.at')) END`;
+
+/** The most summary rows one page returns. Summary rows carry no bodies, and the /me flow
+ *  reads its whole dataset at load: at 100 a page, a seeker whose scan found 1,257
+ *  postings spent 13 requests per load and met the list's 120/10min limit on the ninth
+ *  reload (a live scan across AI companies' boards, 2026-09-28). */
+export const POSTINGS_PAGE_MAX = 500;
+
+/** How many requirements the structured job states; NULL with no (readable) job. */
+const REQ_COUNT = `CASE WHEN json_valid(job_json) THEN json_array_length(job_json, '$.requirements') END`;
 
 const SUMMARY_COLUMNS = `id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode,
      posted_at, salary_min, salary_max, salary_currency, salary_period, match_json, match_total, fit_tier,
      match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, applied_at, first_seen_at, last_seen_at, gone_at,
-     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived`;
+     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived, ${REASONED_AT} AS reasoned_at,
+     ${REQ_COUNT} AS req_count`;
 
 function coerceFitTier(value: string | null): FitTier | null {
   return value !== null && (FIT_TIERS as readonly string[]).includes(value) ? (value as FitTier) : null;
@@ -99,7 +125,8 @@ function baseFromRow(row: PostingRow | SummaryRow) {
     externalKey: row.external_key,
     url: row.url,
     title: row.title,
-    company: row.company,
+    // A row stored before employer.ts keeps its stand-in in the column.
+    company: employerName(row.company),
     location: row.location,
     country: row.country,
     workMode: isWorkMode(row.work_mode) ? row.work_mode : null,
@@ -143,26 +170,143 @@ function fromRow(row: PostingRow): JobseekerPosting {
   };
 }
 
+/** The gates a KO verdict names (setPostingBlocked's `{blocked: {koKeys}}`), filtered to
+ *  the known vocabulary; [] for a scored row, a never-matched one, or an unreadable payload. */
+function projectBlockedBy(match: Record<string, unknown> | null): JobseekerPostingSummary["blockedBy"] {
+  const blocked = match?.blocked;
+  if (!blocked || typeof blocked !== "object") return [];
+  const keys = (blocked as { koKeys?: unknown }).koKeys;
+  return Array.isArray(keys) ? keys.filter(isKoReasonKey) : [];
+}
+
 /** Eligibility + confidence are PROJECTIONS of the stored MatchResult: read defensively,
  *  because the match schema is the pipeline's (codegen) and this store must not break
- *  when a field is renamed there — an unreadable projection is empty, never a throw. */
-function projectMatch(match: Record<string, unknown> | null): Pick<JobseekerPostingSummary, "eligibility" | "confidence"> {
+ *  when a field is renamed there — an unreadable projection is empty, never a throw. A
+ *  blocked row's payload is `{blocked, asIf}`, so its own eligibility/confidence read
+ *  empty: the as-if flags describe a score the posting does not have. */
+function projectMatch(
+  match: Record<string, unknown> | null
+): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills" | "previousTotal" | "targetAlignment"> {
   const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
   const raw = match?.confidence;
   const confidence =
     raw && typeof raw === "object" && typeof (raw as { low?: unknown }).low === "number" && typeof (raw as { high?: unknown }).high === "number"
       ? (raw as JobseekerPostingSummary["confidence"])
       : null;
-  return { eligibility, confidence };
+  const blockedBy = projectBlockedBy(match);
+  // A filtered row's skills and as-if score live under `asIf`: they describe a score the
+  // posting does not have, so they ride as the as-if figure only, never as its skills.
+  const asIf = blockedBy.length > 0 && match?.asIf && typeof match.asIf === "object" ? (match.asIf as Record<string, unknown>) : null;
+  const asIfTotal = asIf && typeof asIf.total === "number" && Number.isFinite(asIf.total) ? asIf.total : null;
+  const scored = blockedBy.length === 0 ? match : null;
+  return {
+    eligibility,
+    confidence,
+    blockedBy,
+    blockedDetails: blockedBy.length > 0 ? projectBlockedDetails(match) : [],
+    asIfTotal,
+    matchedSkills: projectMatchedSkills(scored),
+    missingSkills: projectStrings(scored?.missingSkills, SUMMARY_SKILL_CAP),
+    previousTotal: projectPreviousTotal(scored),
+    targetAlignment: postingTargetAlignment(match),
+  };
 }
 
-function fromSummaryRow(row: SummaryRow): JobseekerPostingSummary {
+/** The direction the matcher read (MatchResult `targetAlignment`, camelCase from
+ *  match_cli), from the row's own result — or, for a filtered row (`{blocked, asIf}`),
+ *  from its as-if result: the gate does not change which way the posting points. Null
+ *  when absent (the seeker stated no target), unmatched, or unreadable. match_cli drops
+ *  None fields (exclude_none), so a missing `matchedTitle`/`pastFamily` reads null.
+ *  Exported for the one-posting read (GET /api/jobseeker/postings/[id]). */
+export function postingTargetAlignment(match: Record<string, unknown> | null): TargetAlignment | null {
+  const blocked = match?.blocked && typeof match.blocked === "object";
+  const result = blocked ? match?.asIf : match;
+  const raw = result && typeof result === "object" ? (result as Record<string, unknown>).targetAlignment : null;
+  if (!raw || typeof raw !== "object") return null;
+  const t = raw as Record<string, unknown>;
+  if (!isTargetAlignmentState(t.state)) return null;
+  const text = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v : null);
+  return {
+    state: t.state,
+    matchedTitle: text(t.matchedTitle),
+    targetFamilies: projectStrings(t.targetFamilies, 20),
+    pastFamily: text(t.pastFamily),
+  };
+}
+
+/** The score a deep-dive re-match replaced (deepdive.ts writes `previous` into the new
+ *  payload only when the total moved); null for every other row. */
+function projectPreviousTotal(match: Record<string, unknown> | null): number | null {
+  const previous = match?.previous;
+  if (!previous || typeof previous !== "object") return null;
+  const total = (previous as { total?: unknown }).total;
+  return typeof total === "number" && Number.isFinite(total) ? total : null;
+}
+
+/** A posting whose ad states no skill is scored 0 on skills - the matcher's pinned rule
+ *  (pipeline/jobfit/tests/test_scoring_contract.py: unmeasured is never a fit), which sank
+ *  every such ad below the ones that listed skills. For the seeker it is not a poor fit,
+ *  it is an unmeasured one: this is the score on the two dimensions that WERE measured
+ *  (career and personal, in their own weights' proportion), read from the result's own
+ *  breakdown. Never a rank key - the sieve lists these rows apart (sieveModel `unmeasured`). */
+export function directionTotalOf(match: Record<string, unknown> | null): number | null {
+  const rows = Array.isArray(match?.scoreBreakdown) ? (match.scoreBreakdown as Record<string, unknown>[]) : [];
+  let weight = 0;
+  let points = 0;
+  for (const d of rows) {
+    if (!d || typeof d !== "object" || d.key === "skills") continue;
+    if (typeof d.weight !== "number" || typeof d.contribution !== "number") return null;
+    weight += d.weight;
+    points += d.contribution;
+  }
+  return weight > 0 ? Math.max(0, Math.min(100, Math.round((100 * points) / weight))) : null;
+}
+
+/** The engine's sentence per gate, kept only beside a key the vocabulary knows (index-aligned). */
+function projectBlockedDetails(match: Record<string, unknown> | null): string[] {
+  const blocked = match?.blocked as { koKeys?: unknown; koDetails?: unknown } | undefined;
+  const keys = Array.isArray(blocked?.koKeys) ? blocked.koKeys : [];
+  const details = Array.isArray(blocked?.koDetails) ? blocked.koDetails : [];
+  return details.filter((d, i): d is string => typeof d === "string" && d.trim() !== "" && isKoReasonKey(keys[i])).slice(0, 5);
+}
+
+function projectStrings(v: unknown, cap: number): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "").slice(0, cap) : [];
+}
+
+/** The matched skills with the provenance of the seeker's claim (`matchedSkillProvenance`),
+ *  so a card can draw a stated-only claim differently from one done at work. */
+function projectMatchedSkills(match: Record<string, unknown> | null): JobseekerPostingSummary["matchedSkills"] {
+  const skills = projectStrings(match?.matchedSkills, SUMMARY_SKILL_CAP);
+  const prov = match?.matchedSkillProvenance && typeof match.matchedSkillProvenance === "object" ? (match.matchedSkillProvenance as Record<string, unknown>) : {};
+  return skills.map((skill) => ({ skill, provenance: typeof prov[skill] === "string" ? (prov[skill] as string) : null }));
+}
+
+/** `profileUpdatedAt` is the workspace profile's last change (workspaceProfileUpdatedAt):
+ *  a rationale whose inputs were read before it was written for a CV or preferences the
+ *  seeker no longer has. */
+function fromSummaryRow(row: SummaryRow, profileUpdatedAt: string | null): JobseekerPostingSummary {
+  const deepDived = row.deep_dived === 1;
+  const match = parseMatch(row.match_json, row.id);
+  const skillsStated = row.req_count === null ? null : row.req_count > 0;
   return {
     ...baseFromRow(row),
-    ...projectMatch(parseMatch(row.match_json, row.id)),
+    ...projectMatch(match),
+    skillsStated,
+    directionTotal: skillsStated === false && row.match_total !== null ? directionTotalOf(match) : null,
     bodyChars: row.body_chars,
-    deepDived: row.deep_dived === 1,
+    deepDived,
+    reasoningStale: deepDived && profileUpdatedAt !== null && (row.reasoned_at ?? "") < profileUpdatedAt,
   };
+}
+
+/** The newest profile's updated_at in the workspace — the profile the scan matches and
+ *  reasons with (getWorkspaceJobseekerProfile) — or null when there is none. */
+function workspaceProfileUpdatedAt(workspaceId: string): string | null {
+  const row = ensureDb()
+    .prepare(`SELECT MAX(updated_at) AS at FROM jobseeker_profiles WHERE workspace_id = ?`)
+    .get(workspaceId) as { at: string | null } | undefined;
+  return row?.at ?? null;
 }
 
 /** Same normalization as job-postings.ts: whitespace and case are not content, so a
@@ -239,8 +383,12 @@ export function upsertPosting(
     }
     // A seen posting is present, whatever the scan had concluded before: the first-miss
     // marker clears, and a 'gone' row comes back as 'new' (the seeker's own statuses —
-    // shortlisted / applied / dismissed — are untouched).
-    const revive = `status = CASE WHEN status = 'gone' THEN 'new' ELSE status END, gone_at = NULL`;
+    // shortlisted / applied / dismissed — are untouched). A 'gone' row that still carries
+    // a decision's own column (applied_at, dismiss_reason — written by the markAbsent that
+    // used to overwrite decisions) revives to THAT decision, not to 'new'.
+    const revive = `status = CASE WHEN status = 'gone' THEN
+         CASE WHEN applied_at IS NOT NULL THEN 'applied' WHEN dismiss_reason IS NOT NULL THEN 'dismissed' ELSE 'new' END
+       ELSE status END, gone_at = NULL`;
     if (existing.content_hash === contentHash) {
       d.prepare(`UPDATE jobseeker_postings SET last_seen_at = ?, ${revive} WHERE id = ? AND workspace_id = ?`).run(
         seenAt,
@@ -284,7 +432,11 @@ export function upsertPosting(
 
 /** After a source's scan: every posting of the source NOT seen in it (last_seen_at
  *  before the scan started) takes one step toward gone. First miss stamps gone_at;
- *  a second consecutive miss sets status = 'gone'. Returns how many moved to gone.
+ *  a second consecutive miss sets status = 'gone' — for an UNDECIDED row only ('new',
+ *  'shortlisted'). 'applied' and 'dismissed' are the seeker's decisions and outlive the
+ *  ad: overwriting them lost the application date and the dismiss reason the feed
+ *  learns from, and a revival then brought the row back as 'new'. Their absence stays
+ *  visible through gone_at. Returns how many moved to gone.
  *  Two statements in one IMMEDIATE transaction, second-miss FIRST — otherwise the
  *  first-miss stamp written a moment earlier would count as the second. */
 export function markAbsent(sourceId: string, seenBefore: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
@@ -294,7 +446,8 @@ export function markAbsent(sourceId: string, seenBefore: string, workspaceId: st
     const gone = d
       .prepare(
         `UPDATE jobseeker_postings SET status = 'gone'
-         WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NOT NULL AND status != 'gone'`
+         WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NOT NULL
+           AND status IN ('new', 'shortlisted')`
       )
       .run(sourceId, workspaceId, seenBefore);
     d.prepare(
@@ -306,16 +459,29 @@ export function markAbsent(sourceId: string, seenBefore: string, workspaceId: st
   return run.immediate();
 }
 
+/** A write computed from content read EARLIER (the deep-dive spends up to minutes at the
+ *  model between reading the row and writing back). `expectedContentHash` is the hash the
+ *  caller read: the UPDATE re-asserts it in its WHERE, so a posting whose content moved in
+ *  the meantime (upsertPosting nulls job/match/reasoning) is a `false` return — the
+ *  caller's result is about an ad that no longer exists — never an overwrite. Absent, the
+ *  write is unconditional (the scan writes what it read inside the same sweep). */
+export type ContentGuard = { expectedContentHash?: string };
+
 /** The structured Job the extractor produced (deterministic or LLM). */
 export function setPostingStructure(
   id: string,
   job: Record<string, unknown>,
   jobSource: "deterministic" | "llm",
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
 ): boolean {
+  const hash = guard.expectedContentHash ?? null;
   const res = ensureDb()
-    .prepare(`UPDATE jobseeker_postings SET job_json = ?, job_source = ? WHERE id = ? AND workspace_id = ?`)
-    .run(JSON.stringify(job), jobSource, id, workspaceId);
+    .prepare(
+      `UPDATE jobseeker_postings SET job_json = ?, job_source = ?
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
+    )
+    .run(JSON.stringify(job), jobSource, id, workspaceId, hash, hash);
   return res.changes > 0;
 }
 
@@ -325,26 +491,67 @@ export function setPostingMatch(
   id: string,
   match: Record<string, unknown>,
   projection: { total: number; fitTier: FitTier; version: string; matchedAt: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
+): boolean {
+  const hash = guard.expectedContentHash ?? null;
+  const res = ensureDb()
+    .prepare(
+      `UPDATE jobseeker_postings SET match_json = ?, match_total = ?, fit_tier = ?, match_version = ?, matched_at = ?
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
+    )
+    .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId, hash, hash);
+  return res.changes > 0;
+}
+
+/** A KO verdict: the posting failed the matcher's hard filter. Stored in match_json as
+ *  `{blocked: {koKeys, koDetails}, asIf: <MatchResult>}` with match_total and fit_tier
+ *  NULL — sorting, the minTotal filter and the deep-dive shortlist all read match_total,
+ *  so an as-if score can never rank — and STAMPED with the matcher version and time, so
+ *  listPostingsForMatching's skip predicate treats it as current until the posting or
+ *  the profile moves.
+ *
+ *  Re-check, not lock: the verdict was computed from the job_json the scan listed, and a
+ *  content change since then (upsertPosting) NULLs job_json. `AND job_json IS NOT NULL`
+ *  makes that a `changes === 0` skip, so a stale verdict is never stamped over new
+ *  content; the row stays unmatched and the next scan structures and matches it. */
+export function setPostingBlocked(
+  id: string,
+  verdict: { blocked: { koKeys: string[]; koDetails: string[] }; asIf: Record<string, unknown> },
+  projection: { version: string; matchedAt: string },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): boolean {
   const res = ensureDb()
     .prepare(
-      `UPDATE jobseeker_postings SET match_json = ?, match_total = ?, fit_tier = ?, match_version = ?, matched_at = ?
-       WHERE id = ? AND workspace_id = ?`
+      `UPDATE jobseeker_postings SET match_json = ?, match_total = NULL, fit_tier = NULL, match_version = ?, matched_at = ?
+       WHERE id = ? AND workspace_id = ? AND job_json IS NOT NULL`
     )
-    .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId);
+    .run(JSON.stringify(verdict), projection.version, projection.matchedAt, id, workspaceId);
   return res.changes > 0;
 }
 
-export function setPostingReasoning(id: string, reasoning: Record<string, unknown>, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+export function setPostingReasoning(
+  id: string,
+  reasoning: Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
+): boolean {
+  const hash = guard.expectedContentHash ?? null;
   const res = ensureDb()
-    .prepare(`UPDATE jobseeker_postings SET reasoning_json = ? WHERE id = ? AND workspace_id = ?`)
-    .run(JSON.stringify(reasoning), id, workspaceId);
+    .prepare(
+      `UPDATE jobseeker_postings SET reasoning_json = ?
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
+    )
+    .run(JSON.stringify(reasoning), id, workspaceId, hash, hash);
   return res.changes > 0;
 }
 
 /** The seeker's own status move. `dismiss` is required by shape when the status is
  *  'dismissed' (the reason is what the feed learns from); any other status clears it.
+ *
+ *  Never out of 'gone': the opening was withdrawn (the scan's verdict), so the WHERE
+ *  re-asserts `status != 'gone'` and such a row answers `false` like a missing one — the
+ *  caller tells the two apart with a point read (the PATCH door answers a 400).
  *
  *  `applied_at` follows the status in the SAME statement: it is stamped when the row
  *  becomes 'applied' and cleared when it leaves (a restored row did not apply). COALESCE
@@ -362,7 +569,7 @@ export function setJobseekerPostingStatus(
       `UPDATE jobseeker_postings
        SET status = ?, dismiss_reason = ?, dismiss_note = ?,
            applied_at = CASE WHEN ? = 'applied' THEN COALESCE(applied_at, ?) ELSE NULL END
-       WHERE id = ? AND workspace_id = ?`
+       WHERE id = ? AND workspace_id = ? AND status != 'gone'`
     )
     .run(
       status,
@@ -403,7 +610,9 @@ export function getJobseekerPosting(id: string, workspaceId: string = DEFAULT_WO
 }
 
 export type ListPostingsOptions = {
-  status?: PostingStatus;
+  /** One status, or `all` for every row (the /me sieve draws decided and gone rows too);
+   *  absent = the LIVE feed. */
+  status?: PostingStatus | "all";
   minTotal?: number;
   sourceId?: string;
   sort?: "total" | "posted" | "seen";
@@ -445,14 +654,16 @@ export function listJobseekerPostings(
   opts: ListPostingsOptions = {},
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { rows: JobseekerPostingSummary[]; nextCursor: string | null } {
-  const limit = Math.max(1, Math.min(200, Math.trunc(opts.limit ?? 50) || 50));
+  const limit = Math.max(1, Math.min(POSTINGS_PAGE_MAX, Math.trunc(opts.limit ?? 50) || 50));
   const sort = opts.sort ?? "total";
   const col = SORT_COLUMN[sort];
   // The tenant predicate is LITERAL in the SQL below, never assembled into `clauses`
   // (job-postings.ts: a scoping the source guard cannot see is not a scoping).
   const clauses: string[] = [];
   const args: (string | number)[] = [workspaceId];
-  if (opts.status) {
+  if (opts.status === "all") {
+    // Every row: the sieve counts what the seeker decided and what went away.
+  } else if (opts.status) {
     clauses.push("status = ?");
     args.push(opts.status);
   } else {
@@ -497,7 +708,8 @@ export function listJobseekerPostings(
         id: last.id,
       })
     : null;
-  return { rows: page.map(fromSummaryRow), nextCursor };
+  const profileAt = workspaceProfileUpdatedAt(workspaceId);
+  return { rows: page.map((row) => fromSummaryRow(row, profileAt)), nextCursor };
 }
 
 /** The summary projection of ONE posting — what a write door hands back (PATCH, the
@@ -506,7 +718,7 @@ export function getPostingSummary(id: string, workspaceId: string = DEFAULT_WORK
   const row = ensureDb()
     .prepare(`SELECT ${SUMMARY_COLUMNS} FROM jobseeker_postings WHERE id = ? AND workspace_id = ?`)
     .get(id, workspaceId) as SummaryRow | undefined;
-  return row ? fromSummaryRow(row) : null;
+  return row ? fromSummaryRow(row, workspaceProfileUpdatedAt(workspaceId)) : null;
 }
 
 /** The RawPosting the structurer reads, rebuilt from the row: the scan structures a
@@ -520,7 +732,7 @@ function rawFromRow(row: PostingRow): RawPosting {
     externalKey: row.external_key,
     url: row.url,
     title: row.title,
-    company: row.company,
+    company: employerName(row.company),
     location: row.location,
     country: row.country,
     workMode: isWorkMode(row.work_mode) ? row.work_mode : null,
@@ -549,20 +761,25 @@ export function listPostingsNeedingStructure(workspaceId: string = DEFAULT_WORKS
   return rows.map((row) => ({ id: row.id, raw: rawFromRow(row) }));
 }
 
-/** The deep-dive shortlist: scored at or above the seeker's threshold, still live, not
- *  yet reasoned about — best first, capped at the policy's per-scan maximum. */
+/** The deep-dive shortlist: scored at or above the seeker's threshold, still live, and
+ *  either not yet reasoned about or — given `profileUpdatedAt` — reasoned about from
+ *  inputs older than the profile (a CV or preference edit since; REASONED_AT). Never-dived
+ *  rows first, then best first, capped at the policy's per-scan maximum: a stale rationale
+ *  is still a rationale, a missing one is nothing. */
 export function listDeepDiveCandidates(
-  opts: { threshold: number; limit: number },
+  opts: { threshold: number; limit: number; profileUpdatedAt?: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): JobseekerPosting[] {
+  const profileAt = opts.profileUpdatedAt ?? null;
   const rows = ensureDb()
     .prepare(
       `SELECT * FROM jobseeker_postings
-       WHERE workspace_id = ? AND match_total >= ? AND reasoning_json IS NULL AND status NOT IN ('dismissed', 'gone')
-       ORDER BY match_total DESC, id DESC
+       WHERE workspace_id = ? AND match_total >= ? AND status NOT IN ('dismissed', 'gone')
+         AND (reasoning_json IS NULL OR (? IS NOT NULL AND COALESCE(${REASONED_AT}, '') < ?))
+       ORDER BY (reasoning_json IS NOT NULL) ASC, match_total DESC, id DESC
        LIMIT ?`
     )
-    .all(workspaceId, opts.threshold, Math.max(0, Math.trunc(opts.limit))) as PostingRow[];
+    .all(workspaceId, opts.threshold, profileAt, profileAt, Math.max(0, Math.trunc(opts.limit))) as PostingRow[];
   return rows.map(fromRow);
 }
 

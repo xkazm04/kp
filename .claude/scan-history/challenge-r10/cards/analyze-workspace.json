@@ -1,0 +1,137 @@
+[
+  {
+    "context": "analyze-workspace",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One JD source: a picked role stays linked through edits, files and tab switches",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/features/tools/analyze/analyzeJdSource.ts",
+      "app/features/tools/analyze/analyzeJdSource.test.ts",
+      "app/features/tools/analyze/useAnalyzeJdLibrary.ts",
+      "app/features/tools/analyze/useAnalyzeForm.ts",
+      "app/features/tools/analyze/analyzeDraft.ts",
+      "app/features/tools/analyze/analyzeDraft.test.ts",
+      "app/features/tools/analyze/useAnalyzeFileAccept.ts",
+      "app/features/tools/analyze/analyzeFileIntakeGate.test.ts",
+      "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx",
+      "app/features/tools/analyze/AnalyzeSavedJdPicker.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/analyze/analyzeJdSource.ts",
+      "app/features/tools/analyze/analyzeJdSource.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json (coordinator: app/page.tsx is already 1 KB over its ceiling on the working tree; this card adds one leaf module to the Analyze chunk and moves logic out of useAnalyzeForm/useAnalyzeJdLibrary, net estimate +2 KB)"
+    ],
+    "acceptance": [
+      "pickSaved on a source that holds an attached JD file: next source is kind 'saved' with no file; after bodyLoaded, jdSubmission(next) === { file: null, text: <body>, jdSlug: <slug> }. Today the file stays attached and the server's cliArgs prefers it over the text while the slug still rides along.",
+      "attachFile on a 'saved' or 'typed' source: next source is kind 'file'; jdSubmission(next) is { file, text: '', jdSlug: null }. No reachable source ever projects file+slug or file+text (property over every transition sequence of length <= 4 from 'none').",
+      "edit on a ready 'saved' source with text different from its baseline: source stays 'saved', slug kept, edited === true; revert returns text === baseline and edited === false; unlink returns kind 'typed' with the same text and jdSlug null.",
+      "bodyFailed on a 'saved' source (404, network, non-string body): jdSubmission carries no jdSlug and loadFailed is true (the existing JD-blind-run rule, now stated once in the module instead of in pickJd).",
+      "draft round-trip: serializeAnalyzeDraft({ jd: 'X', jdSlug: 'backend-dev', jdEdited: false }) then parseAnalyzeDraft yields jdSlug 'backend-dev'; restoreJdSource(draft) is kind 'saved' with that slug. A non-string or non-slug jdSlug (42, '', '../x') is dropped and the text restores as 'typed'.",
+      "reconcileRestoredLink(saved slug 'gone', library { state: 'ready', truncated: false, jds without 'gone' }) returns kind 'typed' plus notice 'linkGone'; the same call with truncated: true, state 'loading' or state 'failed' keeps the link (absence is only proven by a complete, loaded library).",
+      "jdStatus(source, library): saved -> { tone: 'attached', key: 'jdLinkedTo', title }, saved+edited -> key 'jdEditedFrom', file -> the file name, typed -> the chars count; the collapsed summary reads the same label.",
+      "analyzeFileIntakeGate.test.ts: the router's JD commit and the picker both go through the jd-source door (no direct setSelectedJdSlug / setJobDescriptionFile pair left in useAnalyzeFileAccept.ts or AnalyzeFormOptionalColumns.tsx)."
+    ],
+    "premise": [
+      "app/features/tools/analyze/analyzeDraft.ts:23-32 - the draft type and ANALYZE_DRAFT_FIELDS hold jd/company/github text and no slug, and useAnalyzeForm.ts:400-406 serializes exactly those; after any sidebar switch the picked JD's body comes back as typed text with selectedJdSlug null.",
+      "app/_lib/analyze-run.ts:221-230 and :317 - jdSlug resolves the saved role's structured requirements (must/nice grading) into job-structure.json; a lost slug silently changes what the CV is scored against, not just the tag.",
+      "app/features/tools/analyze/analyzePipelineRef.ts:59-60 - a run without jdSlug gets the disabled 'jdless' Add-to-pipeline; the recruiter learns the link is gone only after paying for the run.",
+      "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx:65-68 - any keystroke in the JD textarea detaches the slug, so a one-character typo fix in a saved JD unlinks the run from its role, with no message.",
+      "app/features/tools/analyze/useAnalyzeJdLibrary.ts:91-118 - pickJd sets slug and text but never clears an attached JD file; AnalyzeFormOptionalColumns.tsx:37-59 renders the picker beside an attached file; app/_lib/analyze-run.ts:207-208 passes the JD path and ignores the text when both exist; app/features/tools/analyze/AnalyzeApi.ts:162-166 sends file, text and slug together. Result: a run scored against the file's prose, grounded on the picked role's requirements and filed under that role.",
+      "The one-active-source rule is kept by hand at useAnalyzeFileAccept.ts:59-63, AnalyzeFormOptionalColumns.tsx:58/66-67/70-71, useAnalyzeForm.ts:180-185 and useAnalyzeJdLibrary.ts:101-105, and pinned only as a regex in analyzeFileIntakeGate.test.ts:83. That is six writers and no owner, and the pickJd case above shows one of them missing it.",
+      "app/features/tools/analyze/useAnalyzeForm.ts:151-156 - the JD column status is the file name or a character count, never the linked role, and AnalyzeFormCollapsed.tsx:91 repeats that label. Nothing on screen says whether the run is role-linked.",
+      "Deep links app/features/library/jds/JdsLedgerDetailRail.tsx:139 and app/jds/[slug]/page.tsx:296 land on /?tab=analyze&jd=<slug>. That entry is exactly the one a sidebar hop then unlinks."
+    ],
+    "rollback": "Three commits (pure module + tests, hook/draft/router cut-over, picker/status copy + catalogs + doc) revert cleanly in reverse. The draft key stays kp.analyzeDraft and the new jdSlug/jdEdited fields are optional, so an older build reads a newer draft by dropping them (parseAnalyzeDraft already drops unknown fields). There is no server, schema or storage migration.",
+    "gate": "architecture",
+    "runner_up": "Split useAnalyzeForm's 703-line run lifecycle (isLoading/isCompleting/restored/githubStatus/error plus two run-id refs) into a pure analyzeRunState reducer. It was traded away because it moves no user-visible defect, while the JD-source seam is where three live integrity bugs sit.",
+    "technique": "draft-model",
+    "body": "## Summary\nThe JD column is three independent state atoms (`jobDescriptionFile`, `jobDescriptionText`, `selectedJdSlug`). The rule that binds them (one active source, and a slug only when its body is what gets sent) is enforced by hand at six call sites. Three live defects fall out of that. The role link is dropped on every tab switch. A typo fix silently unlinks the role. Picking a saved JD while a JD file is attached scores the file's prose, grounds it on the picked role's requirements and files it under that role. This card replaces the three atoms with one `JdSource` value behind one patch door.\n\n## Description\n`analyzeJdSource.ts` (pure, no React) owns a discriminated union: `none | typed{text} | file{file} | saved{slug, text, baseline, state: loading|ready|failed, edited}`. It has one transition function (`pickSaved`, `bodyLoaded`, `bodyFailed`, `edit`, `revert`, `unlink`, `attachFile`, `removeFile`, `clear`, `restore`) and two projections. `jdSubmission(source)` returns exactly what `executeAnalysis` sends: never file+slug and never file+text. `jdStatus(source, library)` returns the column/collapsed label, which becomes 'Linked to <title>' or 'Edited from <title>' instead of a character count. `useAnalyzeJdLibrary` keeps the fetches, the pick sequence counter and the library state, and dispatches into the source. `useAnalyzeForm` holds one `useState<JdSource>` and derives `hasJobDescription`, `library.selectedJdSlug` (kept as a projection so the hook's public shape, and any card reading it, is unchanged) and `inputs.jobDescriptionText/File`. The draft gains optional `jdSlug` and `jdEdited`. A restored link is re-checked against the library once it has loaded, and it is dropped with a visible 'linkGone' notice only when a complete, non-truncated library proves the role is gone.\n\nOne behaviour is decided here and named for the deck. Editing a saved JD's text keeps the role link and marks it edited, with Revert and Unlink one click away. Today it detaches silently. The role's structured requirements still ground the score, which is what the recruiter picked; the edit changes prose, not the requisition. A file attach replaces the pasted text instead of sitting beside it. That text was never sent next to a file anyway (analyze-run.ts:207-208), so the change removes a silent discard; it does not add a loss.\n\nNo server change, no new route, no new error code (catalog adds about 5 `analyze.*` labels). There is no read->write against the store, so no lock or re-check applies. The existing pick-sequence counter stays the guard against a slow body fetch landing after a newer pick. Perf: +1 leaf module in the Analyze chunk (app/page.tsx graph via next/dynamic), which is already 1 KB over the ceiling on the working tree, so the coordinator settles perf-budget.json.\n\n## Flow\n1. Write `analyzeJdSource.test.ts` first: the 8 acceptance cases plus a transition-sequence property (no reachable state projects file+slug or file+text).\n2. Implement `analyzeJdSource.ts` and extend `analyzeDraft.ts` with `jdSlug`/`jdEdited` and `restoreJdSource`; extend `analyzeDraft.test.ts`.\n3. Cut `useAnalyzeJdLibrary` and `useAnalyzeForm` over to the single source; keep `library.selectedJdSlug`, `inputs.jobDescriptionText/File` as derived projections.\n4. Route the intake router (`useAnalyzeFileAccept`) and the column (`AnalyzeFormOptionalColumns`) through the door; update the `analyzeFileIntakeGate.test.ts` source pin.\n5. Picker shows Linked/Edited state with Revert and Unlink; add the catalog keys in all four locales; one paragraph in docs/features/candidates/README.md (the JD-source rule and the draft's role link).\n\n## Expected impact\nA recruiter who deep-links from a role into Analyze, checks the pipeline in another tab and comes back gets a run that is still grounded on the role's must/nice requirements and still addable to its lane. Today they silently get a prose-only score and a disabled Add-to-pipeline. The file-plus-pick mis-tag, a candidate filed under a role whose JD they were never scored against, closes as a class because the projection cannot express it. Every later change to the JD column goes through one tested module.\n\n## Evaluation\nClaim: one JD source value closes the tab-switch unlink, the silent edit unlink and the file-plus-pick mis-tag, and makes the role link visible.\nBefore: 0 of 8 acceptance cases pass (analyzeJdSource.ts does not exist; the draft drops the slug; pickJd leaves the file attached).\nAfter: 8 of 8.\nMethod: gate - node:test over analyzeJdSource.test.ts, analyzeDraft.test.ts and analyzeFileIntakeGate.test.ts, then the integration gate (tsc, lint, i18n:check, test:perf, test:unit).\nResult: pending build.\nGate: architecture",
+    "evidence": "base c7690bd4a (git log -3: c7690bd4a chore(perf) settle page.tsx ..., 301893e39, 83cd79111).\nanalyzeDraft.ts:23 `export type AnalyzeDraft = {` (jd, company, github, reportLang, blind - no slug); :32 `export const ANALYZE_DRAFT_FIELDS = [\"jd\", \"company\", \"github\"] as const;`\nuseAnalyzeForm.ts:400 `const payload = serializeAnalyzeDraft({ jd: jobDescriptionText, company: companyText, github: githubProfile, reportLang, blind })`\nuseAnalyzeForm.ts:154 `label: jobDescriptionFile?.name ?? t(\"charsCount\", { count: jobDescriptionText.trim().length })`\nAnalyzeFormOptionalColumns.tsx:65-68 `onChange={(value) => { setJobDescriptionText(value); setSelectedJdSlug(null); }}`\nuseAnalyzeJdLibrary.ts:93 `setSelectedJdSlug(slug);` ... :118 `setJobDescriptionText(full.body);` - no file clear anywhere in pickJd.\nanalyze-run.ts:207 `if (p.jobDescriptionPath) args.push(\"--job-description-path\", ...)` :208 `else if (p.jobDescriptionText?.trim()) ...`; :221 `function resolveJobStructure(jdSlug ...` :224 `getJob(jdJobId(jdSlug.trim()), workspaceId)`; :317 `const jobStructureJson = resolveJobStructure(p.jdSlug, p.workspace);`\nAnalyzeApi.ts:162 `if (jobDescriptionFile) form.append(\"jobDescription\", ...)` :163 text :166 `if (jdSlug) form.append(\"jdSlug\", jdSlug);`\nanalyzePipelineRef.ts:60 `if (!jdSlug) return { kind: \"disabled\", reason: \"jdless\" };`\nuseAnalyzeFileAccept.ts:61-62 `setters.setJobDescriptionFile(plan.jd.file); library.setSelectedJdSlug(null);`\nanalyzeFileIntakeGate.test.ts:83 `assert.match(jdCommit, /setSelectedJdSlug\\(null\\)/, ...)`\ngrep of writers: setSelectedJdSlug at useAnalyzeFileAccept.ts:62, AnalyzeFormOptionalColumns.tsx:58,67,71, useAnalyzeForm.ts:183, useAnalyzeJdLibrary.ts:93,103,150.\nDeep links: JdsLedgerDetailRail.tsx:139 and app/jds/[slug]/page.tsx:296 `/?tab=analyze&jd=`.\nOverlap check: none of the 15 files is in any r08 or r09 write set (r09 cv-analyze-workspace owns only history/*, analyses.ts, api/analyses/route.ts, DispositionEditor.tsx). Prior challenge titles on analyze-engine/cv-analyze-intake (GitHub stage, result survives tab, intake router, preflight readability) do not cover the JD source.\nperf: node scripts/perf/check-budget.mjs -> app/page.tsx 1441 modules / 9182 KB vs ceiling 1441 / 9181 KB (already red on the working tree)."
+  },
+  {
+    "context": "analyze-workspace",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Seen before: Analyze names this exact CV's prior runs and decisions pre-spend",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/_lib/db/analyses-prior.ts",
+      "app/_lib/db/analyses-tenancy.test.ts",
+      "app/api/analyze/prior/route.ts",
+      "app/api/analyze/prior/route.test.ts",
+      "app/features/tools/analyze/analyzePriorRuns.ts",
+      "app/features/tools/analyze/analyzePriorRuns.test.ts",
+      "app/features/tools/analyze/AnalyzePriorRunsStrip.tsx",
+      "app/features/tools/analyze/AnalyzeFormFooter.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "docs/features/candidates/README.md",
+      "docs/architecture/candidate-data-flow.md"
+    ],
+    "new_files": [
+      "app/_lib/db/analyses-prior.ts",
+      "app/api/analyze/prior/route.ts",
+      "app/api/analyze/prior/route.test.ts",
+      "app/features/tools/analyze/analyzePriorRuns.ts",
+      "app/features/tools/analyze/analyzePriorRuns.test.ts",
+      "app/features/tools/analyze/AnalyzePriorRunsStrip.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md (regenerate with npm run api:docs)",
+      "docs/features/candidates/README.md (also in r09 cv-analyze-workspace A/B write sets: append under the lock)",
+      "perf-budget.json (coordinator: +2 modules in the Analyze chunk of app/page.tsx, which is already 1 KB over its ceiling)"
+    ],
+    "acceptance": [
+      "priorRunQuery({ cvHashes: ['<64-hex>'], jdSlug: 'backend-dev', blind: true }) returns null, so no request is made. In blind mode the footprint is a re-identification channel and the strip is not rendered at all.",
+      "priorRunQuery with no hashes (no CV attached, or crypto.subtle threw) returns null; with 5 hashes it keeps the first MAX_CV_VARIANTS (3); a non-64-hex value is dropped.",
+      "summarizePriorRuns(rows, { jdSlug: 'backend-dev' }) where the same hash has an older 'pass' row for backend-dev and a newer undecided one: verdict 'decided', decision { disposition: 'pass', slug: <older slug>, createdAt }, latest { slug: <newer slug>, score }. The decision is found on whichever row carries it, not only the newest.",
+      "summarizePriorRuns where the hash appears only under other jd_slugs: verdict 'seen-elsewhere', otherRoles capped at 3 with a 'more' count, and each entry links to /history/<slug>. Empty rows: verdict 'none', and the strip renders nothing.",
+      "GET /api/analyze/prior?cv=<h>&jd=backend-dev on a throwaway SQLite with rows seeded in workspace A: returns them with disposition. The same hash seeded in workspace B is not returned; the handler calls requireOperator and requireCapabilityCoded('read'), and with KP_OPERATOR_PASSWORD set and no session it answers 401.",
+      "A store fault answers safeJsonError(..., 'ANALYSES_LIST_FAILED'), reusing the existing code, so no new catalog error code is needed; the strip treats any non-2xx as 'no strip', never as 'never analyzed'.",
+      "Characterization of the premise the strip's warning states: seed (h, backend-dev) with disposition 'pass', save a second (h, backend-dev) row. listAnalysesPage returns the newer row with disposition null, while the prior-runs answer still names the pass and its slug.",
+      "analyses-tenancy.test.ts scans analyses-prior.ts as well: every SQL block there carries a bound workspace_id = ? predicate."
+    ],
+    "premise": [
+      "app/_lib/db/analyses.ts:121-122 - saveAnalysis inserts a new row without a disposition column, so every re-run of a CV creates an undecided row.",
+      "app/_lib/db/analyses.ts:152-199 - History shows only the newest row per (cv_hash, jd_slug) (NOT EXISTS a newer sibling). After a re-run, a candidate already decided 'pass' for a role reappears in History as undecided, and the decision sits on a hidden older row.",
+      "app/_lib/cv-variant.ts:26-30 - cvVariantHash runs unchanged in the browser; app/api/analyze/route.ts:245 persists that same digest as the row's cv_hash (via analyze-run.ts:489-495 and :524-525). The client can therefore compute the exact key the store groups on before submitting anything.",
+      "app/_lib/db/analyses.ts:214-231 - listAnalysesByCvHash exists but selects no disposition and excludes the viewed row; its only UI consumer is the saved report after the fact (app/history/[slug]/page.tsx:114). Nothing reads prior runs before a run.",
+      "app/features/tools/analyze/AnalyzeFormFooter.tsx:119 - the Analyze button's gate knows loading, GitHub, JD, empty and blind-preflight states, and nothing about whether this CV was already scored or decided for this role.",
+      "app/_lib/auth/require-operator.ts:44 plus scripts/review/constitution-check.mjs:477 - a new route passes the constitution lens only by calling requireOperator/isOperator/requireWorkspace (requireCapabilityCoded alone does not match), so the route calls both.",
+      "scripts/docs/feature-doc-map.json:119/142 (candidates README) and :383 (app/api/analyze/** -> candidate-data-flow.md) name the two docs this change owes."
+    ],
+    "rollback": "Additive only: one new read slice, one new GET route, one pure module and one strip mounted by a single line in AnalyzeFormFooter. Reverting the series removes the strip and the route; api-reference.md is regenerated. There is no schema change, no stored state, and no change to how or when an analysis runs.",
+    "gate": "none",
+    "runner_up": "Compare mode on the landed result: re-score the same CV against a second saved role in one click (cache-keyed on the CV bytes) and show the two dials side by side. It lost because it spends engine calls, while the footprint prevents them and protects a recorded decision.",
+    "technique": "cross-role-footprint-linking",
+    "body": "## Summary\nThe recruiter decides blind whether to spend a run. The app already knows, by the CV's content hash, whether this exact document was scored for this role, what it scored and what was decided. A re-run of a candidate decided 'pass' also quietly resurrects them as undecided in History, because History shows only the newest row per (cv_hash, jd_slug) and a new row carries no disposition. A 'Seen before' strip above the Analyze button shows that footprint before the spend: same role, the latest score and date, the recorded decision with a link to the report that holds it, and the other roles this CV was analyzed for.\n\n## Description\nWhen CVs are attached (and the run is not blind), the strip hashes each file with the same `cvVariantHash` the server persists. It asks a new gated read, `GET /api/analyze/prior?cv=<hash>[&cv=...]&jd=<slug>`, and renders `summarizePriorRuns`: verdict `none | seen-elsewhere | seen | decided`. For `decided` it names the disposition and date, links /history/<slug> ('Open the decided report'), and states the consequence in plain words: a new run is listed in History as undecided, and the decision stays on the earlier report. For `seen` (scored, not decided) it offers the latest report link. Other roles are listed up to 3. The Analyze button stays enabled: this is information, not a gate, so no refusal is added and no other surface needs to learn one. The store read lives in a new slice `app/_lib/db/analyses-prior.ts` (imports `./core`, never the db.ts barrel), so it does not touch `analyses.ts`, which r09 cv-analyze-workspace/A rewrites. It is workspace-scoped and pinned by extending the existing source guard. It is a pure read with no read->write, so no lock or re-check strategy applies. Blind mode follows the technique's redaction boundary: no request and no strip, because a footprint names the person the blind screen hides. A demo session (requireOperator rejects the demo workspace), a 4xx/5xx or a hashing failure all degrade to no strip, never to 'never analyzed'. Auth: not on app/_lib/auth/public-routes.ts, and the route calls requireOperator + requireCapabilityCoded('read'). Rate limit: not an open or paid route, so rate-limit-contract.test.ts is untouched. Errors reuse ANALYSES_LIST_FAILED. New catalog keys are strip copy only (about 7 `analyze.prior*` keys, four locales, no em dashes). Perf: +2 modules in the Analyze chunk, where app/page.tsx is already 1 KB over its ceiling, so the coordinator settles it. Sequencing: the strip reads `state.library.selectedJdSlug`, which this deck's slot A keeps as a projection; no file overlaps slot A.\n\n## Flow\n1. `analyzePriorRuns.test.ts` first: query building (blind, empty, cap, malformed hash) and summarizing (decided on an older row, seen, elsewhere, none).\n2. `analyses-prior.ts` (`listPriorRunsByCvHashes(hashes, workspaceId, limit)`: slug, candidate_label, jd_slug, score, created_at, disposition, cv_hash, newest first, bound workspace_id) plus the extended tenancy guard.\n3. Route + route.test.ts on the throwaway SQLite (unit-db.ts first): tenancy, 401, the characterization case.\n4. `AnalyzePriorRunsStrip.tsx`: hash with abort on change, render the verdict through PANEL/NOTICE recipes, dates via useFormatter; mount it in AnalyzeFormFooter above the run row.\n5. Catalogs x4, `npm run api:docs`, a paragraph in docs/features/candidates/README.md and a line in docs/architecture/candidate-data-flow.md (only a content hash crosses the wire, no CV bytes).\n\n## Expected impact\nA re-screen of a known candidate becomes a visible choice: open the report that already exists, or run again knowing what happens to the recorded decision. That removes a class of orphaned decisions (a 'pass' hidden behind a newer undecided row) and saves the wait, and the unit when the cache misses, on duplicate runs. The recruiter also sees, before scoring, that the same document is in play for two other roles.\n\n## Evaluation\nClaim: before a run, Analyze states whether this exact CV was already scored or decided for the selected role, never in blind mode and never across a tenant.\nBefore: 0 of 8 acceptance cases pass (no prior-runs module, route or slice exists).\nAfter: 8 of 8.\nMethod: gate - node:test over analyzePriorRuns.test.ts, app/api/analyze/prior/route.test.ts and analyses-tenancy.test.ts, then the integration gate (tsc, lint, i18n:check, api:check, docs:check, test:perf, test:unit, review:constitution).\nResult: pending build.\nGate: none",
+    "evidence": "base c7690bd4a.\nanalyses.ts:121-122 `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id, cv_hash, engine, engine_provider)` - no disposition.\nanalyses.ts:184-191 `AND NOT EXISTS ( SELECT 1 FROM analyses n WHERE ... n.cv_hash = a.cv_hash AND n.jd_slug IS a.jd_slug AND (n.created_at > a.created_at ...` -> newest row only.\nanalyses.ts:224-227 listAnalysesByCvHash `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at FROM analyses WHERE workspace_id = ? AND cv_hash = ? AND slug != ?` (no disposition).\nhistory/[slug]/page.tsx:114 `for (const other of listAnalysesByCvHash(found.row.cv_hash, ws, slug))` - the sole UI consumer.\ncv-variant.ts:26 `export async function cvVariantHash(file: Blob)` via crypto.subtle; route.ts:245 `out.push({ file, label, cvHash: await cvVariantHash(file) });` persisted through analyze-run.ts:525 `persistAnalysis(..., winnerHash)` and :489-495 `cvHashForLabel(p.variants, single.label)`.\nAnalyzeFormFooter.tsx:119 Analyze `disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || (inputs.cvFiles.length === 0 && !flags.hasGithub) || preflightHolds}`.\nconstitution-check.mjs:477 `const guards = /requireOperator|isOperator|requireWorkspace/.test(body);` require-operator.ts:44 `export async function requireOperator()`; the demo workspace is rejected by isOperator (require-operator.ts:35).\nroute-capability-coverage.test.ts walks only mutating verbs (MUTATING regex) - a GET-only route is outside it.\nanalyses-tenancy.test.ts reads only analyses.ts (`readFileSync(... \"analyses.ts\")`) - the new slice must be added to it.\nMAX_CV_VARIANTS = 3 (app/_lib/upload-constraints.ts:55).\nOverlap: none of the files is in an r08/r09 write set except the four catalogs and docs/features/candidates/README.md (shared surfaces under the lock). The card deliberately does not edit analyses.ts or app/api/analyses/route.ts (r09 cv-analyze-workspace/A). Prior challenge titles: no 'prior run' / footprint-before-run card; the saved report's 'also analyzed for' list is post-run and excludes the same role."
+  }
+]

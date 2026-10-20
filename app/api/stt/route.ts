@@ -15,10 +15,12 @@ import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { withRetryAfter } from "@/app/_lib/throttle-response";
 import { validateAudioUploadServer } from "@/app/_lib/upload-constraints";
 import { getStt, isSttMimeType, SttError, type SttNeeds } from "@/app/_lib/stt";
 import { sttUsageRow } from "@/app/_lib/stt-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
@@ -72,11 +74,9 @@ const STT_ERROR_STATUS: Record<string, number> = {
  *  429 with the wait the engine ASKED for, and no header when it did not say —
  *  a fabricated Retry-After is worse than none. Same shape as /api/tts's. */
 function engineThrottled(retryAfterMs?: number) {
-  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
-  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
-    res.headers.set("retry-after", String(Math.ceil(retryAfterMs / 1000)));
-  }
-  return res;
+  // No window of ours bounds an engine's wait, so none is passed: the shared clamp
+  // rounds it up and sets nothing when the engine said nothing.
+  return withRetryAfter(jsonRefusal("TOO_MANY_REQUESTS", 429), retryAfterMs);
 }
 
 /** Form fields arrive as strings; only an explicit "true"/"1" is a yes. */
@@ -90,7 +90,7 @@ function str(form: FormData, name: string): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   const stt = getStt();
@@ -99,9 +99,9 @@ export async function GET() {
   // renders from this one probe instead of a second round trip per provider.
   const providers = await stt.status();
   return NextResponse.json({ providers, preferred: stt.preference.preferred, allowed: stt.preference.allowed });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`stt:${clientIpFrom(request.headers)}`, STT_RATE_LIMIT)) {
@@ -221,4 +221,4 @@ export async function POST(request: Request) {
     }
     return safeJsonError(err, "api:stt", "STT_FAILED");
   }
-}
+});

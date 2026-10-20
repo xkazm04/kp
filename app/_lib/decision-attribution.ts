@@ -6,7 +6,13 @@
 // comm/ack/reminder sends, manual moves, intake kinds…) and every unmapped kind
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
-import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail } from "@/app/_lib/pipeline-rematch-link";
+import {
+  renderMatchReasons,
+  type MatchReasons,
+  type MatchReasonsTranslator,
+} from "@/app/features/insights/matrix/focus/matchReasons";
+import { coerceMatchReasonFacts, MATCH_VERDICT_KIND, MATCH_VERDICT_REASON_CODE, type MatchReasonFacts } from "./match-verdict";
 
 // Attribution semantics: `auto` = the system initiated the action (policy pass,
 // fan-out, dispatched comm, sentinel); `human` = a person did (a recruiter
@@ -21,6 +27,12 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   advanced: { auto: false, tone: "text-moss" },
   auto_advanced: { auto: true, tone: "text-moss" },
   screening_hold: { auto: true, tone: "text-ink" },
+  // An operator raising (or changing) the approval gate on an entry. auto:false —
+  // this is a person deciding that something needs sign-off, which is exactly the
+  // kind of act the decision log exists to attribute. Until this write landed the
+  // change mutated the row with no event at all, so a state change on the path to
+  // a hire was invisible to the trail.
+  approval_set: { auto: false, tone: "text-ink" },
   interview_scorecard: { auto: true, tone: "text-steel" },
   interview_prep_generated: { auto: true, tone: "text-steel" },
   offer_drafted: { auto: true, tone: "text-steel" },
@@ -39,15 +51,15 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // first. Amber like its suppression sibling: it is the marker a recruiter must notice
   // before they wonder why a campaign skipped someone.
   outreach_opted_out: { auto: false, tone: "text-amber-600" },
-  rejection_sent: { auto: true, tone: "text-coral" },
-  rejected: { auto: false, tone: "text-coral" },
+  rejection_sent: { auto: true, tone: "text-coral-ink" },
+  rejected: { auto: false, tone: "text-coral-ink" },
   applied: { auto: false, tone: "text-steel" },
   re_applied: { auto: false, tone: "text-amber-600" },
   scheduled: { auto: false, tone: "text-steel" },
   interview_scheduled: { auto: false, tone: "text-moss" },
   offer_sent: { auto: false, tone: "text-steel" },
   offer_accepted: { auto: false, tone: "text-moss" },
-  offer_declined: { auto: false, tone: "text-coral" },
+  offer_declined: { auto: false, tone: "text-coral-ink" },
   // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
   // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
   offer_expired: { auto: true, tone: "text-amber-600" },
@@ -59,7 +71,7 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // entry, so never advanced to Hired). A machine refusal, and one a recruiter must chase.
   offer_accept_blocked: { auto: true, tone: "text-amber-600" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
-  auto_rejected: { auto: true, tone: "text-coral" },
+  auto_rejected: { auto: true, tone: "text-coral-ink" },
   // The calibration clean arm's marker (screen-wave.ts:325): the wave DECLINED to
   // auto-reject someone in order to keep an uncontaminated comparison group. Sparing a
   // candidate is a machine decision about that candidate, so it belongs in the operator's
@@ -70,9 +82,13 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // so the event names the failure, not the arm (screen-wave.ts). Still a machine
   // decision about that candidate; amber because an operator should retry the seal.
   screen_wave_holdout_unsealed: { auto: true, tone: "text-amber-600" },
+  // The REVIEWER took this person out of a screening wave in its preview, before
+  // approving it (screen-wave-spare.ts). auto:false: the wave did not decide to keep
+  // them, a named person did, and the event names who.
+  screen_wave_recruiter_spared: { auto: false, tone: "text-moss" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
-  ko_declined: { auto: true, tone: "text-coral" },
+  ko_declined: { auto: true, tone: "text-coral-ink" },
   scored: { auto: true, tone: "text-steel" },
   acknowledgement_sent: { auto: true, tone: "text-steel" },
   interview_invite_sent: { auto: true, tone: "text-steel" },
@@ -92,14 +108,14 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   offer_reminder_sent: { auto: true, tone: "text-steel" },
   // The generated rejection draft, sibling of offer_drafted (automation-run.ts).
   rejection_drafted: { auto: true, tone: "text-steel" },
-  rejection_comms_failed: { auto: true, tone: "text-coral" },
+  rejection_comms_failed: { auto: true, tone: "text-coral-ink" },
   // Its offer-side sibling (pipeline-entry-action.ts): the offer was drafted and an
   // offer row minted, but the message did not go out, so the approval is left open
   // and re-approving re-sends the SAME link. Marked auto like every other
   // comms-failure marker: the delivery attempt the machine made is what failed, not
   // the recruiter's decision, which stands and is sealed on its own.
-  offer_comms_failed: { auto: true, tone: "text-coral" },
-  fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
+  offer_comms_failed: { auto: true, tone: "text-coral-ink" },
+  fairness_gate_unknown_archetype: { auto: true, tone: "text-coral-ink" },
   // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
   // nudges + the fairness backstop's downgrade signal, written via
   // recordAutomationEvent's alert loop. Previously UNMAPPED: they rendered an
@@ -107,10 +123,10 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // test's hardcoded list hid the gap (bug-ui-scan §hiring-automation #4).
   aging_alert: { auto: true, tone: "text-amber-600" },
   stale_alert: { auto: true, tone: "text-amber-600" },
-  fairness_gate_blocked_reject: { auto: true, tone: "text-coral" },
+  fairness_gate_blocked_reject: { auto: true, tone: "text-coral-ink" },
   observed_minted: { auto: true, tone: "text-steel" },
   matched: { auto: true, tone: "text-steel" },
-  intake_degraded: { auto: true, tone: "text-coral" },
+  intake_degraded: { auto: true, tone: "text-coral-ink" },
   comm_resent: { auto: false, tone: "text-steel" },
   moved: { auto: false, tone: "text-steel" },
   added: { auto: false, tone: "text-steel" },
@@ -434,7 +450,7 @@ export function parseSealTraceability(payloadJson: string): SealTraceability | n
 
 // The minimal structural shape of a sealed record this module needs — declared
 // locally so this pure module never imports the server-side decision-record-store.
-type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
+export type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
 
 /** Nearest group-eval record (by |Δt|) to an event, within `windowMs`, or null. Pure
  *  over (eventCreatedAt, records) so the join is testable without a DB. */
@@ -521,6 +537,48 @@ export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: Sea
   }
   const key = `reasons.${reason.reasonCode}`;
   return t.has(key as never) ? t(key as never, p as never) : null;
+}
+
+// ---- (e) The sealed Match verdict (ADR 0018) ---------------------------------------
+//
+// A Match add seals a `match_verdict` record whose `inputs` are the verdict's FACTS
+// (app/_lib/match-verdict.ts) — codes and numbers, no language. These are the reads every
+// surface goes through to turn one into words: the Decisions cohort, the decision-records
+// panel and the reasons meter, so a sealed verdict reads identically in all three and in
+// each reader's own locale (the match.* catalog: fitTier.*, dims.*, reasons.*).
+
+/** The facts a sealed Match verdict carries, or null when the record is not one (another
+ *  kind or reason code) or its inputs are not a valid facts object. Re-validated on read
+ *  through the same coercer the route sealed with, so a garbled or hand-edited payload
+ *  renders as nothing rather than as a half-sentence. */
+export function sealedMatchFacts(record: SealedRecordLike): MatchReasonFacts | null {
+  if (record.kind !== MATCH_VERDICT_KIND || record.reasonCode !== MATCH_VERDICT_REASON_CODE) return null;
+  try {
+    return coerceMatchReasonFacts((JSON.parse(record.payloadJson) as { inputs?: unknown }).inputs);
+  } catch {
+    return null; // an unreadable payload carries no facts — the caller shows the absence
+  }
+}
+
+/** A sealed Match verdict as a surface receives it: when it was sealed, and its facts. */
+export type SealedMatchVerdict = { createdAt: string; facts: MatchReasonFacts };
+
+/** The newest sealed Match verdict among one entry's records (records arrive seq-DESC, so
+ *  the first valid one is the latest add), or null. */
+export function sealedMatchVerdictOf(records: readonly SealedRecordLike[]): SealedMatchVerdict | null {
+  for (const r of records) {
+    const facts = sealedMatchFacts(r);
+    if (facts) return { createdAt: r.createdAt, facts };
+  }
+  return null;
+}
+
+/** Localize a sealed Match verdict through the `match` catalog — renderMatchReasons, the
+ *  same renderer the Match card uses, over the record's facts. Null when the record holds
+ *  no valid facts or the facts have nothing to say (no dimension, no skill name). */
+export function matchVerdictReasons(t: MatchReasonsTranslator, record: SealedRecordLike): MatchReasons | null {
+  const facts = sealedMatchFacts(record);
+  return facts ? renderMatchReasons(facts, t) : null;
 }
 
 // ---- (d) Who acted (UAT LUC-ANA-4) ------------------------------------------------

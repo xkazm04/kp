@@ -12,6 +12,7 @@ import {
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // Provider key store (BYOM + hosted-platform keys), headless-first. Secrets are
@@ -45,13 +46,13 @@ function isScope(value: unknown): value is "byom" | "platform" {
   return value === "byom" || value === "platform";
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ keys: listProviderKeyMeta(), providers: KEYABLE_PROVIDERS });
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
@@ -137,9 +138,9 @@ export async function PUT(request: NextRequest) {
     return jsonRefusal("MODEL_KEY_STALE", 409, { provider: body.provider, keys: listProviderKeyMeta() });
   }
   return NextResponse.json({ ok: true, keys: listProviderKeyMeta() });
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
@@ -150,4 +151,4 @@ export async function DELETE(request: NextRequest) {
   }
   const removed = deleteProviderKey(body.provider, isScope(body.scope) ? body.scope : "byom");
   return NextResponse.json({ ok: true, removed, keys: listProviderKeyMeta() });
-}
+});

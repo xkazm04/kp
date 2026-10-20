@@ -43,7 +43,7 @@ export function AnalysisView({
         </div>
       ) : running ? (
         <div className={`${PANEL} p-8 text-center`}>
-          <Loader2 className="mx-auto animate-spin text-coral" size={26} />
+          <Loader2 className="mx-auto animate-spin text-coral-ink" size={26} />
           <p className="mt-2 text-base font-semibold text-ink">{t("running")}</p>
           <p className="text-sm text-steel">{t("runningHint")}</p>
         </div>
@@ -93,13 +93,13 @@ export function AnalysisView({
           {/* D3 — artifact design + human gate */}
           {!design && !designing ? (
             <button type="button" onClick={startDesign}
-              className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10">
+              className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral-ink hover:bg-coral/10">
               <ClipboardList size={15} /> {t("designCta")}
             </button>
           ) : null}
           {designing ? (
             <div className={`${PANEL} p-6 text-center`}>
-              <Loader2 className="mx-auto animate-spin text-coral" size={22} />
+              <Loader2 className="mx-auto animate-spin text-coral-ink" size={22} />
               <p className="mt-2 text-base font-semibold text-ink">{t("designing")}</p>
               <p className="text-sm text-steel">{t("designingHint")}</p>
             </div>

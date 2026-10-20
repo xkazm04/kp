@@ -115,7 +115,9 @@ export function ControlDock() {
       entries={pass.entries}
       committing={pass.busy}
       commitError={pass.commitError}
-      onCommit={() => void pass.commit()}
+      report={pass.report}
+      onCommit={(approved) => void pass.commit(approved)}
+      onRepreview={() => void pass.dryRun()}
       onClose={pass.dismiss}
     />
   ) : null;

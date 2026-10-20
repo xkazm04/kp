@@ -80,5 +80,11 @@ export function redactAtsRecordForConsent(record: AtsCandidateRecord): AtsCandid
       displayName: maskCandidateName(record.candidate.displayName),
       contact: null,
     },
+    // The sealed rationale goes with the identity: the same withhold-whole rule the mapper
+    // applies to a piiWithheld record (ats-record.ts), for a record built before this
+    // door decided the consent had lapsed.
+    decision: record.decision
+      ? { ...record.decision, rationale: null, rationaleWithheld: record.decision.rationale !== null || record.decision.rationaleWithheld }
+      : null,
   };
 }

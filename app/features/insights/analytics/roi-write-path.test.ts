@@ -12,10 +12,20 @@ const HERE = path.join(process.cwd(), "app", "features", "insights", "analytics"
 const read = (...p: string[]) => readFileSync(path.join(HERE, ...p), "utf8");
 
 test("AnalyticsTypes exports the reserved manual-hours key the targets route already accepts", () => {
+  // The key is RE-EXPORTED from the pure goal-key registry the route validates
+  // against (app/_lib/analytics-target-keys.ts), so the client and the write door
+  // cannot hold two spellings. Still forbids the old defect: a hand-typed literal.
+  const types = read("AnalyticsTypes.ts");
   assert.match(
-    read("AnalyticsTypes.ts"),
-    /export const MANUAL_HOURS_KEY = "manual_hours_per_hire"/,
-    "the client key must match MANUAL_HOURS_TARGET_KEY in db/analytics.ts"
+    types,
+    /MANUAL_HOURS_TARGET_KEY as MANUAL_HOURS_KEY[\s\S]*?from "@\/app\/_lib\/analytics-target-keys"/,
+    "the client key must be the registry's MANUAL_HOURS_TARGET_KEY"
+  );
+  assert.doesNotMatch(types, /export const MANUAL_HOURS_KEY\s*=/, "a hand-mirrored literal can drift from the route");
+  assert.match(
+    readFileSync(path.join(process.cwd(), "app", "_lib", "analytics-target-keys.ts"), "utf8"),
+    /export const MANUAL_HOURS_TARGET_KEY = "manual_hours_per_hire"/,
+    "the registry owns the one spelling"
   );
 });
 

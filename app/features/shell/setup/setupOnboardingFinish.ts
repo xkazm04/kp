@@ -13,11 +13,14 @@ import type { StageDef } from "@/app/_lib/pipeline-stages";
 import {
   foldSetupOutcome,
   inviteBatchResult,
-  type SetupFinishOutcome,
+  isRetryable,
+  SETUP_FINISH_PARTS,
   type SetupFinishPart,
+  type SetupFinishRun,
   type SetupInviteResult,
   type SetupPartResult,
 } from "./setupFinishOutcome";
+import { seatAllows } from "./setupSeat";
 import { relevantSteps, type SetupInvite, type SetupState, type SetupStepId } from "./setupSteps";
 
 /**
@@ -27,21 +30,68 @@ import { relevantSteps, type SetupInvite, type SetupState, type SetupStepId } fr
  * company (org name, currency, brand), team, pipeline and companion writers must not
  * run — not "skip because empty" but "never asked", and a writer that never asked
  * must never fire. The language is the one answer every run gives (it lives on the
- * rail), so it is always written. Pure, so setupOnboardingFinish.test.ts pins it.
+ * rail), so it is written on every run — by a seat that may write it.
+ *
+ * The seat (setupSeat.ts): the language is an ORG-wide setting (setOrgLanguage
+ * takes org:manage, owner-only), so a seat without it — an invited recruiter, an
+ * admin — does not fire a write the server refuses; the rail's language switch has
+ * already set their personal cookie. The other org writes need no extra check: the
+ * steps that collect them are not walked by such a seat (relevantSteps). An
+ * unknown seat writes everything, as before. Pure, so the test pins it.
+ *
+ * `only` narrows a RETRY to the parts that failed (finishRemainder): the walked
+ * parts intersected with it, so a retry can never write a part the run did not own.
  */
-export function finishPartsFor(state: SetupState): SetupFinishPart[] {
+export function finishPartsFor(state: SetupState, only?: readonly SetupFinishPart[]): SetupFinishPart[] {
   const walked = new Set<SetupStepId>(relevantSteps(state).map((s) => s.id));
-  const parts: SetupFinishPart[] = ["language"];
+  const parts: SetupFinishPart[] = seatAllows(state.seat, "org:manage") ? ["language"] : [];
   if (walked.has("company")) parts.push("orgName", "currency", "brand");
   if (walked.has("team")) parts.push("invites");
   if (walked.has("pipeline")) parts.push("pipeline");
   if (walked.has("companion")) parts.push("companion");
-  return parts;
+  return only ? parts.filter((p) => only.includes(p)) : parts;
 }
 
-export async function persistOnboardingSetup(state: SetupState): Promise<SetupFinishOutcome> {
+/**
+ * What a Retry on the receipt re-runs after a partial finish: ONLY the parts that
+ * failed with a retryable reason (isRetryable), and for the invites ONLY the
+ * addresses whose refusal a retry can fix. A landed invite already holds a live
+ * accept link, so re-posting it would mint a second one for the same person; a
+ * landed org name is a write nobody asked to repeat; a permanent refusal (already a
+ * member, forbidden) would only be refused again. Null when nothing is retryable -
+ * the receipt then offers no Retry at all.
+ */
+export function finishRemainder(
+  state: SetupState,
+  run: SetupFinishRun
+): { state: SetupState; parts: SetupFinishPart[] } | null {
+  const failed = run.outcome.ok ? [] : run.outcome.failures;
+  const retryInvites = new Set(
+    run.invites
+      .filter((i) => !i.ok && isRetryable({ part: "invites", code: i.code, httpStatus: i.httpStatus }))
+      .map((i) => i.email)
+  );
+  const again = new Set<SetupFinishPart>();
+  for (const f of failed) {
+    if (f.part === "invites") {
+      if (retryInvites.size > 0) again.add("invites");
+    } else if (isRetryable(f)) again.add(f.part);
+  }
+  if (again.size === 0) return null;
+  return {
+    state: { ...state, invites: state.invites.filter((inv) => retryInvites.has(inv.email)) },
+    parts: SETUP_FINISH_PARTS.filter((p) => again.has(p)),
+  };
+}
+
+/**
+ * Run every write this run owns and report each one - the fold for the closing
+ * claim, and the raw per-part and per-invite results the receipt and a retry need.
+ * `only` narrows a retry (finishRemainder); a part outside it is reported skipped.
+ */
+export async function persistOnboardingSetup(state: SetupState, only?: readonly SetupFinishPart[]): Promise<SetupFinishRun> {
   const results: SetupPartResult[] = [];
-  const parts = new Set(finishPartsFor(state));
+  const parts = new Set(finishPartsFor(state, only));
 
   // Both org settings are REFUSABLE, not merely failable: since the org:manage
   // gate landed on them (org-actions.ts), a recruiter finishing the wizard gets
@@ -55,8 +105,10 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
     const res = await setOrgName(name);
     results.push(res.ok ? { part: "orgName", status: "landed" } : { part: "orgName", status: "refused", code: res.code });
   }
-  const lang = await setOrgLanguage(state.language);
-  results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
+  if (parts.has("language")) {
+    const lang = await setOrgLanguage(state.language);
+    results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
+  } else results.push({ part: "language", status: "skipped" });
   // Same refusable org setting as the two above; always written on a hiring run,
   // because the wizard seeds it from the cookie and a default pick is still an answer.
   if (parts.has("currency")) {
@@ -65,10 +117,11 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
   } else results.push({ part: "currency", status: "skipped" });
 
   results.push(parts.has("brand") ? await persistSetupBrand(state) : { part: "brand", status: "skipped" });
-  results.push(parts.has("invites") ? inviteBatchResult(await sendSetupInvites(state.invites)) : { part: "invites", status: "skipped" });
+  const invites = parts.has("invites") ? await sendSetupInvites(state.invites) : [];
+  results.push(parts.has("invites") ? inviteBatchResult(invites) : { part: "invites", status: "skipped" });
   results.push(parts.has("pipeline") ? await persistPipelineAxis(state) : { part: "pipeline", status: "skipped" });
   results.push(parts.has("companion") ? await persistCompanionConsent(state) : { part: "companion", status: "skipped" });
-  return foldSetupOutcome(results);
+  return { outcome: foldSetupOutcome(results), parts: results, invites };
 }
 
 /**
@@ -138,6 +191,13 @@ export async function persistSetupBrand(state: SetupState): Promise<SetupPartRes
  *
  * Nobody invited is not a failure: an empty list lands vacuously, because
  * skipping the Team step is the documented default answer.
+ *
+ * A landed invite keeps the TOKEN the route answered with (`{ invite: { token } }`):
+ * kp sends no invite mail, so that accept link is the invitation, and the receipt
+ * hands it to the operator to share. It is a capability link - held in memory for
+ * that pane only, never logged. Every answer keeps its HTTP status, because two of
+ * the route's refusals carry no code and only the status says whether a retry can
+ * land (isRetryable).
  */
 export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise<SetupInviteResult[]> {
   const settled = await Promise.allSettled(
@@ -154,10 +214,15 @@ export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise
       const email = invites[i].email;
       // A network rejection has no response and therefore no code: the toast falls
       // back to the generic "couldn't be saved" line rather than inventing one.
-      if (r.status !== "fulfilled") return { email, ok: false, code: null };
-      if (r.value.ok) return { email, ok: true, code: null };
+      if (r.status !== "fulfilled") return { email, ok: false, code: null, token: null, httpStatus: null };
+      const httpStatus = r.value.status;
+      if (r.value.ok) {
+        const body = (await r.value.json().catch(() => null)) as { invite?: { token?: unknown } } | null;
+        const token = typeof body?.invite?.token === "string" && body.invite.token ? body.invite.token : null;
+        return { email, ok: true, code: null, token, httpStatus };
+      }
       const body = (await r.value.json().catch(() => null)) as { code?: unknown } | null;
-      return { email, ok: false, code: typeof body?.code === "string" ? body.code : null };
+      return { email, ok: false, code: typeof body?.code === "string" ? body.code : null, token: null, httpStatus };
     })
   );
 }

@@ -17,6 +17,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   MARKET_LOCALE,
   STALE_AFTER_DAYS,
@@ -26,7 +27,9 @@ import {
   fmtDate,
   fmtInt,
   isFigure,
+  regionScale,
   snapshotAgeDays,
+  type Region,
 } from "./data.ts";
 
 const LOCALES = ["en", "cs", "de", "fr"] as const;
@@ -115,4 +118,33 @@ test("snapshotAgeDays measures the committed snapshot against now", () => {
   assert.equal(snapshotAgeDays("nonsense", now), null);
   // A snapshot dated in the future is a clock skew, not a negative age.
   assert.equal(snapshotAgeDays("2026-12-01", now), 0);
+});
+
+// A region with no figure is NOT a mid-scale region. The scale used to hand back 0.5
+// for a missing median (and for every region when no region had one), and the map
+// painted that as the middle of the salary ramp: a reader saw an ordinary salary
+// where nothing was measured, and with no values at all the legend was hidden while
+// all fourteen regions still wore the same confident green. Null is the no-data
+// answer, and the map owns its neutral fill.
+const SNAPSHOT: Region[] = JSON.parse(readFileSync("data/market_pulse.json", "utf8")).regions;
+
+test("regionScale places every measured region of the real snapshot within [0, 1]", () => {
+  const scale = regionScale(SNAPSHOT, "salary");
+  for (const r of SNAPSHOT) {
+    const v = scale(r);
+    assert.ok(typeof v === "number" && v >= 0 && v <= 1, `${r.code}: ${String(v)}`);
+  }
+});
+
+test("a region with no median has no position on the scale, and the others keep theirs", () => {
+  const regions = SNAPSHOT.map((r, i) => (i === 0 ? { ...r, medianSalary: null } : r));
+  const scale = regionScale(regions, "salary");
+  assert.equal(scale(regions[0]), null, "a missing median must not read as a mid-scale salary");
+  for (const r of regions.slice(1)) assert.equal(typeof scale(r), "number", r.code);
+});
+
+test("with no medians at all, no region is placed on the scale", () => {
+  const regions = SNAPSHOT.map((r) => ({ ...r, medianSalary: null }));
+  const scale = regionScale(regions, "salary");
+  for (const r of regions) assert.equal(scale(r), null, r.code);
 });

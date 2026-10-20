@@ -16,9 +16,12 @@ import { PACKS, PLANS, PLAN_IDS, type Meter, type PlanId } from "../../_lib/bill
  *
  * These pin the seam in the only direction that matters: the PUBLIC number must equal
  * the ENFORCED number. They read the shipped catalogs and the shipped tier list rather
- * than a copy, so there is nothing to keep in sync — PricingSection.tsx itself imports
- * framer-motion/next-intl and cannot be imported here, so its tier table is read from
- * source the way app/api/analyze/analyze-gate-tenancy.test.ts reads its route.
+ * than a copy, so there is nothing to keep in sync — the band itself
+ * (app/landing/site/land/Pricing.tsx, the prototype re-skin that replaced the old
+ * spark/PricingSection.tsx on 2026-09-30) is a server component over next-intl/server
+ * and JSX and cannot be imported here, so its tier table is read from source the way
+ * app/api/analyze/analyze-gate-tenancy.test.ts reads its route. The file name stayed
+ * put so the docs that cite this test keep resolving.
  *
  * The locale sweep covers a dimension `npm run i18n:check` does not: it compares keys,
  * not the LENGTH or the CONTENT of array-valued messages, so a tier that lost a bullet
@@ -27,6 +30,9 @@ import { PACKS, PLANS, PLAN_IDS, type Meter, type PlanId } from "../../_lib/bill
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, "..", "..", "..");
+/** The band a visitor sees on `/#pricing`. */
+const BAND = path.join(REPO, "app", "landing", "site", "land", "Pricing.tsx");
+const bandSource = () => readFileSync(BAND, "utf8");
 const LOCALES = ["en", "cs", "de", "fr"] as const;
 
 type Catalog = {
@@ -44,11 +50,11 @@ const catalog = (locale: string): Catalog =>
 
 const en = catalog("en");
 
-/** The tier ids the section actually renders, read out of its own TIER_STYLES table. */
+/** The tier ids the band actually renders, read out of its own TIER_STYLES table. */
 function renderedTierIds(): string[] {
-  const src = readFileSync(path.join(HERE, "PricingSection.tsx"), "utf8");
+  const src = bandSource();
   const start = src.indexOf("const TIER_STYLES");
-  assert.ok(start >= 0, "PricingSection still declares a TIER_STYLES table");
+  assert.ok(start >= 0, "site/land/Pricing.tsx still declares a TIER_STYLES table");
   const block = src.slice(start, src.indexOf("] as const;", start));
   return [...block.matchAll(/\bid:\s*"([a-z_]+)"/g)].map((m) => m[1]);
 }
@@ -211,4 +217,34 @@ test("every locale offers the same tiers, the same bullets and the same figures"
       `${locale} lists a different number of enterprise capabilities`
     );
   }
+});
+
+test("the band renders the catalog's bullets, overriding only the self-hosted models line", () => {
+  // The re-skinned band reads every name, price and bullet from
+  // landing.pricing.tiers.* — except one: the approved prototype words the
+  // self-hosted card's models bullet without vendor names
+  // (siteLand.pricing.selfhostModels). That is safe only because the self-hosted
+  // tier is not metered. A replacement of a HOSTED tier's bullet would print a
+  // promise the tests above never see, so pin that every override is guarded to
+  // the self-hosted tier, and that the bullets still come from the catalog.
+  const src = bandSource()
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "");
+  assert.match(
+    src,
+    /t\.raw\(`pricing\.tiers\.\$\{id\}\.features`\)/,
+    "the band must read each tier's bullets from landing.pricing.tiers.<id>.features"
+  );
+  const overrides = [...src.matchAll(/features\[[^\]]+\]\s*=(?!=)/g)];
+  assert.ok(overrides.length <= 1, `the band replaces ${overrides.length} bullets; only the self-hosted models line may be`);
+  for (const m of overrides) {
+    const before = src.slice(Math.max(0, (m.index ?? 0) - 200), m.index);
+    assert.match(
+      before,
+      /if\s*\(\s*id\s*===\s*"selfhost"/,
+      "a bullet replacement must be guarded to the self-hosted tier: hosted bullets are metered promises"
+    );
+  }
+  const tiers = en.landing.pricing.tiers;
+  assert.ok(tiers.selfhost.features.length > 1, "the self-hosted tier still has the models bullet the band rewords");
 });

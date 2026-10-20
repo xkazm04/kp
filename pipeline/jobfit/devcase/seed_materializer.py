@@ -21,12 +21,13 @@ import logging
 import re
 from typing import Any
 
+from .ai_drafts import draft_for
 from .models import CaseScenario, RoleSpec
 from .provenance import generate_with_fallback
 
 _LOG = logging.getLogger(__name__)
 
-SEED_PROMPT_VERSION = "seed-materializer-v2"  # v2: canaries — known-ground-truth planted flaws (LLM-era controls #3)
+SEED_PROMPT_VERSION = "seed-materializer-v3"  # v3: one labelled unreviewed AI draft per case (ADR 0027 S2); v2: canaries
 
 # Canaries (LLM-era controls #3): 2-3 subtle, KNOWN-ground-truth flaws planted in the
 # seed contents (a wrong constant, a doc contradicting the data, a misleading comment).
@@ -88,7 +89,13 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
     """Template seed — never fails, and honest about what it is: the prose
     materials become README context plus the forced decisions log. No fake code
     is fabricated deterministically (a wrong-language stub would be worse than
-    none); the LLM path is what makes the seed concrete."""
+    none); the LLM path is what makes the seed concrete.
+
+    S2 (ADR 0027): the one exception is the supplied AI draft — a CURATED file per
+    role family (ai_drafts.py), truthfully labelled as unreviewed AI output the
+    candidate may use, fix or discard, whose flaws carry real ground truth. It is
+    the keyless path's only source of canaries."""
+    draft = draft_for(role.role_family)
     title = case.title or role.title or "Work sample"
     readme = "\n".join(
         [
@@ -105,6 +112,10 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             *[f"{i}. {t.strip()}" for i, t in enumerate(case.tasks or [], start=1)],
             "",
             f"Timebox: ~{case.timebox_hours:g}h. Keep `{DECISIONS_FILE}` up to date as you go.",
+            "",
+            "## Supplied AI draft",
+            "",
+            f"`{draft['path']}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
         ]
     )
     return {
@@ -113,11 +124,13 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
         "files": [
             {"path": "README.md", "contents": readme},
             {"path": DECISIONS_FILE, "contents": _decisions_template(case)},
+            {"path": draft["path"], "contents": draft["contents"]},
         ],
-        "note": "deterministic skeleton — starting materials remain prose; the LLM path materializes concrete files",
-        # No fabricated canaries deterministically — a template flaw with no real ground
-        # truth would grade candidates against noise. Empty = "canary check not run".
-        "canaries": [],
+        "note": "deterministic skeleton — starting materials remain prose plus one labelled AI draft; the LLM path materializes concrete files",
+        # No TEMPLATE canaries — a template flaw with no real ground truth would grade
+        # candidates against noise. The only canaries here are the curated draft's, each
+        # wrong in every case of its family whatever the brief says (ai_drafts.py).
+        "canaries": draft["canaries"],
     }
 
 
@@ -170,8 +183,10 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
     out = deterministic_seed(case, role)
     if not isinstance(payload, dict):
         return out
+    draft = draft_for(role.role_family)
     files: list[dict[str, str]] = []
-    seen: set[str] = set()
+    # The draft path is reserved: a model file there would shadow the labelled draft.
+    seen: set[str] = {draft["path"].casefold()}
     for f in payload.get("files") or []:
         if not isinstance(f, dict):
             continue
@@ -189,6 +204,12 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
         if len(files) >= MAX_SEED_FILES:
             files = files[: MAX_SEED_FILES - 1]
         files.append({"path": DECISIONS_FILE, "contents": _decisions_template(case)})
+    if len(files) >= MAX_SEED_FILES:
+        # Make room for the draft by dropping the last model file that is not the log.
+        last = max(i for i, f in enumerate(files) if f["path"].casefold() != DECISIONS_FILE.casefold())
+        files.pop(last)
+    # Every case gets exactly one labelled draft (S2), the LLM path included.
+    files.append({"path": draft["path"], "contents": draft["contents"]})
     note = str(payload.get("note") or "").strip()
     # Canaries must point INTO the emitted tree — one whose path didn't survive the
     # per-file clamps above is unverifiable, so it is dropped rather than kept as a
@@ -217,6 +238,10 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
         )
         if len(canaries) >= MAX_CANARIES:
             break
+    # The model's own canaries are capped above; the draft's ride beside them (a model
+    # canary reusing a draft id yields, so the draft's flaws are always graded).
+    draft_ids = {c["id"] for c in draft["canaries"]}
+    canaries = [c for c in canaries if c["id"] not in draft_ids] + draft["canaries"]
     return {
         "caseId": case.id,
         "promptVersion": SEED_PROMPT_VERSION,

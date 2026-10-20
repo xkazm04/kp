@@ -260,6 +260,29 @@ function writeConfigRow(
       }
     }
   }
+  // interviewRecordingOffered preservation — the SAME rule, and for the same reason, as
+  // familyFloors above. The compliance row is written wholesale, and its only writer
+  // until now (the jurisdiction picker) sends `{ jurisdiction }` alone: without this, a
+  // recruiter changing the jurisdiction would silently withdraw the audio-recording
+  // offer their workspace had turned on, mid-interview for anyone on a call. An
+  // EXPLICIT `false` is present in the validated config and still clears it, which is
+  // how the toggle turns the offer off.
+  if (result.phase === "compliance" && !("interviewRecordingOffered" in result.config)) {
+    const existing = tierRow(d, result.phase, workspaceId, scope);
+    if (existing) {
+      try {
+        const stored = JSON.parse(existing.config_json) as { interviewRecordingOffered?: unknown };
+        if (typeof stored.interviewRecordingOffered === "boolean") {
+          (result.config as Record<string, unknown>).interviewRecordingOffered = stored.interviewRecordingOffered;
+        }
+      } catch (error) {
+        // Same corruption class as the screening branch, and the same consequence to
+        // record: an unreadable row here silently revokes a consent offer the operator
+        // configured, so it is logged with its tier rather than dropped.
+        recordConfigIssue(result.phase, scope, workspaceId, error);
+      }
+    }
+  }
   const json = JSON.stringify(result.config);
   // STRICTLY increasing, because this stamp is the concurrency token: two saves inside
   // one millisecond would otherwise mint the same version, and the second reader's stale
@@ -280,11 +303,21 @@ function writeConfigRow(
   return result.config as unknown as Record<string, unknown>;
 }
 
+/** The tier a cascade read resolves to for this workspace: its own override when it
+ *  has one, else the org baseline (which is also where a code-default read saves). */
+function shownTier(d: Database.Database, phase: string, workspaceId: string): "org" | "team" {
+  return tierRow(d, phase, workspaceId, "team") ? "team" : "org";
+}
+
 export function setDecisionConfig(
   phase: string,
   config: Record<string, unknown>,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  scope: "org" | "team" = "team",
+  /** `"shown"` writes the tier the caller's cascade read came from, resolved under the
+   *  write lock. An editor that displays the effective config and saves to a fixed tier
+   *  is shadowed the moment another writer creates a team override, and still reports
+   *  success. */
+  scope: "org" | "team" | "shown" = "team",
   /** Optimistic concurrency: the version the caller READ (see getDecisionConfigVersion).
    *  Omit it entirely for a write with no read behind it — server-side writers that
    *  compute the whole config. `null` asserts "nothing was stored when I read". */
@@ -298,7 +331,7 @@ export function setDecisionConfig(
     if (opts.expectedUpdatedAt !== undefined && effectiveUpdatedAt(d, phase, workspaceId) !== opts.expectedUpdatedAt) {
       throw new DecisionConfigStaleError(phase);
     }
-    writeConfigRow(d, phase, config, workspaceId, scope);
+    writeConfigRow(d, phase, config, workspaceId, scope === "shown" ? shownTier(d, phase, workspaceId) : scope);
   });
   tx.immediate();
   retireAnalyticsMemo(workspaceId);
@@ -391,8 +424,24 @@ export function getAllDecisionConfigs(workspaceId: string = DEFAULT_WORKSPACE_ID
 }
 
 /** P1-1 — the workspace's active compliance jurisdiction, normalized (a stale or
- *  hand-edited config can never surface an unknown regime). Server-only; the
- *  candidate disclosure reads it through the public GET /api/compliance. */
+ *  hand-edited config can never surface an unknown regime). Server-only.
+ *
+ *  PASS THE WORKSPACE. The default is `DEFAULT_WORKSPACE_ID`, and a bare call is
+ *  how this function once told every tenant's candidates they were assessed under
+ *  EU law: the value it returns is rendered as the law a person is judged by, so
+ *  answering for the wrong team is a disclosure defect, not a stale read. The
+ *  default exists for single-tenant call paths only.
+ *
+ *  WHO CALLS IT, and with what:
+ *    - `app/_lib/compliance-disclosure.ts` (`disclosureComplianceFor`) — the
+ *      CANDIDATE path. Each public surface resolves the workspace server-side from
+ *      the token or job it has already established and passes the result to
+ *      `AiDisclosure` as props. A client fetch cannot prove which tenant's job a
+ *      candidate is looking at, so this is the only path that can be right.
+ *    - `GET /api/compliance` — the SESSION-BEARING path (the recruiter Decisions
+ *      compliance card, the interview simulator tab), with `currentWorkspace()`.
+ *      That route is GATED, deliberately absent from
+ *      `app/_lib/auth/public-routes.ts`, and is NOT how candidates read this. */
 export function getActiveRegimeId(workspaceId: string = DEFAULT_WORKSPACE_ID): RegimeId {
   return normalizeRegimeId(getDecisionConfig<ComplianceRule>("compliance", workspaceId).jurisdiction);
 }

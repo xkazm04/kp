@@ -22,7 +22,7 @@
  * serializable props + the chrome slots below.
  */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { Capability } from "@/app/_lib/auth/roles";
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
@@ -41,6 +41,8 @@ import { railTile } from "@/app/_components/ui/recipes";
 import { SECTION_ICON } from "./navMeta";
 import { NavPanelItem } from "./NavPanelItem";
 import { NavPanelAction } from "./NavPanelAction";
+
+const SECTION_STORAGE_KEY = "kp.nav.section";
 
 export function NavSectionRail({
   groups,
@@ -118,16 +120,38 @@ export function NavSectionRail({
   // "adjust state from a prior render" pattern) so the panel follows navigation.
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [seenActive, setSeenActive] = useState(navActive);
+  const previousActive = useRef(navActive);
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(SECTION_STORAGE_KEY);
+    } catch { return; /* Storage can be disabled; navigation still works. */ }
+    if (!saved || !groups.some((group) => sectionOf(group) === saved)) return;
+    const frame = requestAnimationFrame(() => setOpenSection((current) => current ?? saved));
+    return () => cancelAnimationFrame(frame);
+  }, [groups]);
+  useEffect(() => {
+    if (previousActive.current === navActive) return;
+    previousActive.current = navActive;
+    try { sessionStorage.setItem(SECTION_STORAGE_KEY, activeSection); } catch { /* Optional preference. */ }
+  }, [navActive, activeSection]);
   if (seenActive !== navActive) {
     setSeenActive(navActive);
     setOpenSection(null);
   }
   const shown = openSection ?? activeSection;
   const shownGroup = groups.find((g) => sectionOf(g) === shown) ?? groups[0];
+  const attentionAnnouncement = showAttention && attention
+    ? groups.flatMap((group) => group.items)
+      .filter((item) => item.badgeKey && attention[item.badgeKey] > 0)
+      .map((item) => `${navText(`tabs.${item.id}`, item.label)}: ${attentionLabel(attention[item.badgeKey!])}`)
+      .join("; ") || attentionLabel(0)
+    : "";
 
-  // Which second-level rows this viewer cannot open, and why. The rows STAY —
-  // disabled, with the capability named — because a door that disappears for the
-  // person who holds the key reads as a broken build (navCapabilities.ts).
+  // Which second-level rows this viewer cannot open, and why. The rows STAY — as
+  // lock doors that open the locked-door panel, the capability named — because a
+  // door that disappears for the person who holds the key reads as a broken build
+  // (navCapabilities.ts).
   const lockedTabs = lockedTabsFor(capabilities);
   const lockedLabel = (cap: Capability) =>
     t("lockedTab", { capability: navText(capabilityLabelKey(cap), cap) });
@@ -143,7 +167,9 @@ export function NavSectionRail({
   // document, so this is at most one extra download per group per session.
   const prefetchSection = (group: NavGroup) => {
     if (!onPrefetchTab) return;
-    for (const item of group.items) onPrefetchTab(item.id);
+    // A locked row opens the locked-door panel, never its tab: warming that chunk
+    // would download code this seat can never render.
+    for (const item of group.items) if (!lockedTabs.has(item.id)) onPrefetchTab(item.id);
   };
 
   const railButton = (group: NavGroup) => {
@@ -157,6 +183,7 @@ export function NavSectionRail({
         type="button"
         onClick={() => {
           setOpenSection(section);
+          try { sessionStorage.setItem(SECTION_STORAGE_KEY, section); } catch { /* Optional preference. */ }
           prefetchSection(group);
         }}
         onMouseEnter={() => prefetchSection(group)}
@@ -178,6 +205,7 @@ export function NavSectionRail({
 
   return (
     <div className="flex h-full w-full min-h-0">
+      <span role="status" aria-live="polite" className="sr-only">{attentionAnnouncement}</span>
       {/* ── Level 1 — icon rail ── */}
       <div className="flex w-[4.75rem] shrink-0 flex-col gap-1 border-r border-stone-200 bg-paper p-2">
         {railTop}
@@ -193,7 +221,7 @@ export function NavSectionRail({
         {panelHeader}
         {/* A real heading (not a styled <p>) so the panel's group name lands in the
             AT heading map; the <nav> below is labelled by the same text. */}
-        <h2 className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
+        <h2 className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel">
           {shownGroup ? groupLabel(shownGroup) : null}
         </h2>
         <nav

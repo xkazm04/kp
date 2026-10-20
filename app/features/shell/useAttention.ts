@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveRefresh } from "./live-refresh";
 import { attentionPollDelayMs, shouldPollNow } from "./attentionPoll";
-import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import { httpStatusOf, sharedGetJson } from "@/app/features/shared/sharedGet";
+import { reportSessionStatus } from "./session/useSessionLapse";
 import type { AttentionKey } from "./tabs";
 
 // SHELL2 — the interactive shell's live attention counts. Loads on mount,
@@ -43,9 +44,12 @@ export function useAttention(): AttentionCounts | null {
           failures.current += 1;
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         failures.current += 1;
-        /* keep the previous counts — see above */
+        // The one periodic read in the shell is the first to see a lapsed session.
+        // A 401 goes to the lapse store (shell/session/), which offers an in-place
+        // sign-in; the badges themselves still keep the previous counts.
+        reportSessionStatus(httpStatusOf(err));
       });
   }, []);
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { closeEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -10,24 +10,26 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // → published, full stop): a filled role kept its apply link live, kept
 // appearing open in the catalog, and kept being ranked against the pool.
 // Idempotent mirror of /publish; the apply page + API gate on the status.
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   // Tenancy (job-postings-lifecycle #1): mirror /publish, which scopes its entry
   // operations to the caller's workspace. Without this, closeEntriesByJobId fell to
   // DEFAULT_WORKSPACE_ID and withdrew NONE of a non-default team's in-flight
   // candidates — the close "succeeded" with withdrawn:0 while the funnel kept
   // chasing a retired role.
-  const ws = await currentWorkspace();
   try {
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    // Ownership gate: the entry withdrawal below is workspace-scoped, but the STATUS
-    // WRITE (setJobStatus) is a bare by-id UPDATE — without this, workspace B could
-    // dark workspace A's live role. Seeded corpus rows (workspace_id NULL) stay
+    // Ownership gate: the entry withdrawal below is workspace-scoped, and on an
+    // AUTHORED role the status write (setJobStatus) is a by-id UPDATE of the row itself
+    // — without this, workspace B could dark workspace A's live role. Seeded corpus rows (workspace_id NULL) stay
     // closable by every tenant; see canWriteJobLifecycle for the reasoning. 404
     // (not 403) so the endpoint doesn't confirm that another tenant's id exists.
     if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    const already = getJobStatus(id) === "closed";
+    // Read and written as THIS team sees the role: on a shared corpus row the status is
+    // the team's own (the lifecycle overlay), so this close retires the role for the
+    // caller's team only, the same team the withdrawal below is scoped to.
+    const already = getJobStatus(id, ws) === "closed";
     let withdrawn = 0;
     // Set when the withdrawal step ITSELF threw: the close committed but the pipeline
     // was NOT reconciled. Without it, "nobody was in flight" and "withdrawing them
@@ -35,7 +37,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // mirrors publish's sourcingWarning. false = the step ran (even if it found nobody).
     let withdrawalFailed = false;
     if (!already) {
-      setJobStatus(id, "closed");
+      setJobStatus(id, "closed", ws);
       // JOB2 — withdraw the role's still-in-flight candidates (mark them role_closed) so
       // a filled role isn't chased and doesn't inflate the active funnel. The Hired
       // candidate is left active. Best-effort: the close already committed, so a
@@ -51,4 +53,4 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   } catch (error) {
     return safeJsonError(error, "api:jobs/close", "JOB_CLOSE_FAILED");
   }
-}
+});

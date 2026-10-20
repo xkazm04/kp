@@ -6,10 +6,14 @@ import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
+import { useRecentTabs } from "./recentTabs";
+import { DEFAULT_TAB, resolveTabParam } from "./tabs";
 import { useCapabilities } from "./useCapabilities";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
 import { useOptionalCompanionDock } from "./companion/CompanionDockProvider";
+import { requestOnboardingReopen } from "./setup/onboardingReopen";
+import { useSetupUnfinished } from "./setup/useSetupUnfinished";
 import { useWorkspaceCommandPaletteItems } from "./useWorkspaceCommandPaletteItems";
 import { useWorkspaceCommandPaletteSearch } from "./useWorkspaceCommandPaletteSearch";
 import { WorkspacePaletteLedger } from "./WorkspacePaletteLedger";
@@ -104,6 +108,7 @@ export function CommandPalette({
   }, [open]);
 
   const recents = useRecents();
+  const recentTabs = useRecentTabs(resolveTabParam(searchParams.get("tab")) ?? DEFAULT_TAB);
   // The palette is a NAVIGATOR: a "Go to Billing" it knows will 403, or a tour
   // command that starts a pipeline write this caller may not perform, is noise
   // that costs a click to discover. Unlike the rail — where a vanished row would
@@ -120,14 +125,22 @@ export function CommandPalette({
     () => (companion ? (q: string) => companion.openDock(q) : null),
     [companion]
   );
+  const setupUnfinished = useSetupUnfinished();
+  const finishSetup = sim && setupUnfinished ? requestOnboardingReopen : null;
   const items = useWorkspaceCommandPaletteItems({
     query,
     hits,
     search,
     recents,
+    recentTabs,
     simRunning: sim ? sim.running : true,
     simStart: sim ? sim.start : () => {},
+    simPaused: sim?.paused ?? false,
+    simPause: sim?.pause ?? null,
+    simResume: sim?.resume ?? null,
+    simStop: sim?.stop ?? null,
     askCandi,
+    finishSetup,
     capabilities,
     nav,
     t,

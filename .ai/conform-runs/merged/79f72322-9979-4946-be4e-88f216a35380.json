@@ -1,0 +1,252 @@
+{
+  "schema": "conform-run/1",
+  "worker": "79f72322-9979-4946-be4e-88f216a35380",
+  "subject": "application-intake-and-conversion",
+  "evaluatedAt": "2026-10-15T21:09:39.593508+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "quick-apply-flow",
+      "subject": "application-intake-and-conversion",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:215 The quick-apply retry handler clears the done state without clearing the honeypot field, locking autofill users who tripped the decoy into an unrecoverable decline loop.",
+      "techniques": [
+        {
+          "technique": "eligibility-gate-versus-bot-defence",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:215 Retrying a decline clears the done card but does not clear the companyUrl honeypot, causing autofill users to loop on retry."
+        },
+        {
+          "technique": "always-live-submit-that-names-the-blocker",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:138 Submit remains activatable when incomplete, resolves the first blocking field, raises an inline alert, and moves focus and scroll to it."
+        },
+        {
+          "technique": "tonally-neutral-eligibility-questions",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:353 Knockout choices hardcode Yes before No and omit a stakes statement before the question, contrary to option-order and stakes requirements."
+        },
+        {
+          "technique": "speed-to-lead-acknowledgement",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:229 Successful quick apply displays the enrichment CTA carrying the scoped lead token to open the full conversational flow prefilled."
+        },
+        {
+          "technique": "recoverable-decline-and-no-dead-ends",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:209 Knockout decline shows must-haves and a retry button but offers no onward alternatives such as talent pooling or other open roles."
+        }
+      ]
+    },
+    {
+      "context": "conversational-apply-flow",
+      "subject": "application-intake-and-conversion",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/apply/[id]/ConversationalApply.tsx:282 The conversation restart handler resets input and transcript messages but does not clear the honeypot value, causing candidates whose browsers filled the decoy to trip bot defence repeatedly on retry.",
+      "techniques": [
+        {
+          "technique": "eligibility-gate-versus-bot-defence",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:282 Restarting the conversation does not reset companyUrl, preserving autofilled honeypot values across retries."
+        },
+        {
+          "technique": "always-live-submit-that-names-the-blocker",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:305 When the server rejects an answer, beginFix jumps directly to that step with the rejected value preserved for editing rather than restarting the chat."
+        },
+        {
+          "technique": "merge-dont-drop-on-reapplication",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/page.tsx:125 Trims already-passed knockout gates and answered steps from the conversational script when opening with an enrichment token."
+        },
+        {
+          "technique": "recoverable-decline-and-no-dead-ends",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:279 A knockout decline requires restarting the entire conversation from question one rather than allowing in-place correction of the failed answer."
+        },
+        {
+          "technique": "speed-to-lead-acknowledgement",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/page.tsx:80 Accepts and validates the opaque lead capability token from the speed-to-lead acknowledgement link to seed existing candidate declarations."
+        }
+      ]
+    },
+    {
+      "context": "apply-surface-tests",
+      "subject": "application-intake-and-conversion",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:188 The conversion tests pin the honeypot field name as company_url while failing to assert the off-screen positioning CSS styles needed to protect the trap against restyle regressions.",
+      "techniques": [
+        {
+          "technique": "eligibility-gate-versus-bot-defence",
+          "verdict": "deviation",
+          "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:188 Pins the decoy field name as company_url and omits test assertions for off-screen CSS positioning rules."
+        },
+        {
+          "technique": "always-live-submit-that-names-the-blocker",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:166 Pins that the quick-apply submit button remains activatable on incomplete inputs and resolves the first blocking control."
+        },
+        {
+          "technique": "tonally-neutral-eligibility-questions",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:50 Source-contract test pins that knockout buttons strictly prohibit the moss success color."
+        },
+        {
+          "technique": "recoverable-decline-and-no-dead-ends",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:144 Pins that conversational apply offers a start-over recovery path on decline."
+        },
+        {
+          "technique": "speed-to-lead-acknowledgement",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:46 Pins that emailed status links append ?lang= to preserve the applicant's language outside session context."
+        },
+        {
+          "technique": "merge-dont-drop-on-reapplication",
+          "verdict": "conformant",
+          "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:102 Pins that prefill answers from a known lead take precedence over cached draft answers."
+        }
+      ]
+    },
+    {
+      "context": "candidate-apply-api",
+      "subject": "application-intake-and-conversion",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/api/apply/[id]/quick/route.ts:94 The route handler returns an eligibility decline response when a honeypot field is filled, misleading autofill users into believing they failed role qualifications.",
+      "techniques": [
+        {
+          "technique": "eligibility-gate-versus-bot-defence",
+          "verdict": "deviation",
+          "evidence": "app/api/apply/[id]/quick/route.ts:94 Returns the human eligibility decline message on honeypot trips rather than dropping silently or quarantining."
+        },
+        {
+          "technique": "speed-to-lead-acknowledgement",
+          "verdict": "deviation",
+          "evidence": "app/api/apply/[id]/route.ts:384 The conversational apply route awaits profile generation in fileApplication before dispatching the acknowledgement, delaying speed-to-lead."
+        },
+        {
+          "technique": "merge-dont-drop-on-reapplication",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/[id]/route.ts:411 Enforces the capability gate, permitting profile rebuilds and writes only when backed by leadToken proof."
+        },
+        {
+          "technique": "always-live-submit-that-names-the-blocker",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/[id]/route.ts:235 Validation refusals return structured error codes naming the specific offending field and maximum limit as data."
+        },
+        {
+          "technique": "recoverable-decline-and-no-dead-ends",
+          "verdict": "deviation",
+          "evidence": "app/api/apply/[id]/route.ts:249 Automated knockout gates act as the final word ending the application without routing to human review or a held state."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "application-intake-and-conversion",
+      "context": "candidate-apply-flow",
+      "reason": "withdrawn after review: reviewer (sonnet): app/_lib/apply-intake.ts:39 only reads the company_url key, and nothing in the code shows autofill populating it; both forms set autoComplete=\"off\" and the tests pin that. The 'no trip metrics' claim is an absence claim the cited line does not show."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T21:09:39.593508+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "application-intake-and-conversion"
+      ],
+      "techniques": [
+        "always-live-submit-that-names-the-blocker",
+        "eligibility-gate-versus-bot-defence",
+        "recoverable-decline-and-no-dead-ends",
+        "speed-to-lead-acknowledgement",
+        "tonally-neutral-eligibility-questions"
+      ],
+      "deviations": 1,
+      "context": "quick-apply-flow",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:09:39.593508+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "application-intake-and-conversion"
+      ],
+      "techniques": [
+        "always-live-submit-that-names-the-blocker",
+        "eligibility-gate-versus-bot-defence",
+        "merge-dont-drop-on-reapplication",
+        "recoverable-decline-and-no-dead-ends",
+        "speed-to-lead-acknowledgement"
+      ],
+      "deviations": 1,
+      "context": "conversational-apply-flow",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:09:39.593508+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "application-intake-and-conversion"
+      ],
+      "techniques": [
+        "always-live-submit-that-names-the-blocker",
+        "eligibility-gate-versus-bot-defence",
+        "merge-dont-drop-on-reapplication",
+        "recoverable-decline-and-no-dead-ends",
+        "speed-to-lead-acknowledgement",
+        "tonally-neutral-eligibility-questions"
+      ],
+      "deviations": 1,
+      "context": "candidate-apply-flow",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:09:39.593508+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "application-intake-and-conversion"
+      ],
+      "techniques": [
+        "always-live-submit-that-names-the-blocker",
+        "eligibility-gate-versus-bot-defence",
+        "merge-dont-drop-on-reapplication",
+        "recoverable-decline-and-no-dead-ends",
+        "speed-to-lead-acknowledgement",
+        "tonally-neutral-eligibility-questions"
+      ],
+      "deviations": 1,
+      "context": "apply-surface-tests",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:09:39.593508+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "application-intake-and-conversion"
+      ],
+      "techniques": [
+        "always-live-submit-that-names-the-blocker",
+        "eligibility-gate-versus-bot-defence",
+        "merge-dont-drop-on-reapplication",
+        "recoverable-decline-and-no-dead-ends",
+        "speed-to-lead-acknowledgement"
+      ],
+      "deviations": 1,
+      "context": "candidate-apply-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

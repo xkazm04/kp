@@ -1,0 +1,85 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* The Line, fused. The world, the sections and the per-step drawings stay the console variant's (about.css and about-art/*).
+   Three things are taken from the cut-paper variant: (1) the timeline itself and its step nodes, (2) the step numbers, the step
+   labels in handwriting and the handwritten notes with arrows attached to the drawings, (3) nothing else.
+   The finish (last section) is the landing variant's "From a blank role to a signed hire", drawn in this world.
+   Type floor 14px; body 16px. Handwriting is never below 22px. */
+.mk.mk-about { --f-hand: var(--font-mk-hand, "Caveat"), "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive; }
+.mk.mk-about .hand { font-family: var(--f-hand); font-weight: 700; letter-spacing: .01em; text-transform: none; }
+
+/* ---------- (1) the timeline: a paper ribbon. Ink tube with a colour core, a dotted track ahead of it. On this dark world the
+   ink tube carries a thin paper rim so its outline reads. ---------- */
+.mk.mk-about .cable path { stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.mk.mk-about .sp-track { stroke: rgba(243, 236, 217, .34); stroke-width: 4px; stroke-dasharray: 2 12; }
+.mk.mk-about .sp-rim { stroke: #fdf8ee; stroke-width: calc(var(--u) * 1.18); opacity: .92; }
+.mk.mk-about .sp-ink { stroke: #17202a; stroke-width: calc(var(--u) * .92); }
+.mk.mk-about .sp-col { stroke-width: calc(var(--u) * .46); }
+.mk.mk-about .cable-top { z-index: 6; }
+.mk.mk-about.reduced .pawn { display: none; }
+.mk.mk-about .pawn { pointer-events: none; transition: opacity .4s; }
+.mk.mk-about .pawn-j { fill: var(--coral); stroke: #17202a; stroke-width: 3.4; }
+.mk.mk-about .pawn .pawn-t { fill: #fffdf8; font: 800 21px var(--f-display); }
+.mk.mk-about .pawn .pl-bg { fill: #17202a; stroke: rgba(253, 248, 238, .75); stroke-width: 2; }
+.mk.mk-about .pawn .pl-tx { fill: #fdf8ee; font: 700 14px var(--f-body); }
+
+/* ---------- (1) the step nodes: a numbered disc, ink ring and offset shadow; it takes the step's colour when the line
+   reaches it, and a pen badge appears where a human decides (a check once signed) ---------- */
+.mk.mk-about .node { gap: 0; }
+.mk.mk-about .nd-disc { position: relative; z-index: 3; display: grid; place-items: center; width: max(48px, calc(var(--u) * 3.7)); height: max(48px, calc(var(--u) * 3.7)); border-radius: 50%;
+  border: 3px solid #17202a; background: #fffdf7; color: #17202a; font: 800 max(17px, calc(var(--u) * 1.3))/1 var(--f-display);
+  box-shadow: calc(var(--u) * .22) calc(var(--u) * .22) 0 #17202a, 0 0 0 3px rgba(253, 248, 238, .9); transition: background .4s, color .4s, transform .6s var(--spring); }
+.mk.mk-about .node[data-state="wait"] .nd-disc,
+.mk.mk-about .node[data-state="ok"] .nd-disc { background: var(--sc); color: var(--sc-ink, #17202a); transform: scale(1.08); }
+.mk.mk-about .nd-pen { position: absolute; z-index: 4; right: calc(var(--u) * -1.15); top: calc(var(--u) * -1.15); width: max(30px, calc(var(--u) * 2)); height: max(30px, calc(var(--u) * 2)); border-radius: 50%; background: var(--amber); border: 3px solid #17202a;
+  display: grid; place-items: center; transform: scale(0) rotate(-40deg); transition: transform .5s var(--spring) .2s, background .3s; }
+.mk.mk-about .nd-pen svg { width: 58%; height: 58%; }
+.mk.mk-about .node[data-state="wait"] .nd-pen,
+.mk.mk-about .node[data-state="ok"] .nd-pen { transform: scale(1) rotate(0); }
+.mk.mk-about .node[data-state="ok"] .nd-pen { background: #8ed7a3; }
+
+/* ---------- (2) step number, label and notes in the cut-paper handwriting ---------- */
+.mk.mk-about .num { position: static; z-index: auto; display: block; margin: 0 0 calc(var(--u) * .8) calc(var(--u) * -.2); font: 800 max(64px, calc(var(--u) * 6.6))/.8 var(--f-display); letter-spacing: -.04em; color: #fffdf8;
+  -webkit-text-stroke: 3px #17202a; text-shadow: calc(var(--u) * .34) calc(var(--u) * .34) 0 var(--sc); opacity: 1; filter: drop-shadow(0 0 1px rgba(253, 248, 238, .95)); font-variation-settings: "opsz" 96; }
+.mk.mk-about .eyebrow.hand { margin: 0; font: 700 max(24px, calc(var(--u) * 1.85))/1 var(--f-hand); letter-spacing: .01em; color: var(--sc-hi); }
+.mk.mk-about .eyebrow .scope { font-family: var(--f-hand); font-size: .8em; border-width: 2px; letter-spacing: 0; padding: 0 .55em; color: #f0e9d4; }
+.mk.mk-about .hand-note { position: absolute; z-index: 5; left: var(--nx, 2%); bottom: calc(100% + var(--ny, 0%)); margin: 0; max-width: calc(var(--u) * 27); font: 700 max(22px, calc(var(--u) * 1.75))/1.05 var(--f-hand); color: color-mix(in srgb, var(--sc-hi) 72%, #fff);
+  transform: rotate(var(--nr, -3deg)); transform-origin: 0 100%; text-shadow: 0 0 8px rgba(7, 20, 23, .95), 0 0 2px rgba(7, 20, 23, .95); pointer-events: none; }
+.mk.mk-about .hn-arrow { display: block; width: calc(var(--u) * 2.8); height: calc(var(--u) * 2); margin: 2px 0 0 calc(var(--u) * 1); overflow: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about.js .step .hand-note { opacity: 0; transition: opacity .7s var(--ease) .5s; }
+  .mk.mk-about.js .step.is-near .hand-note { opacity: 1; }
+}
+
+/* ---------- the finish: the landing variant's closing (seal where the line ends, tag, headline, lede, two calls to action, the
+   invented-sample line, Kandi and the pile of paper), in this world. The pile of paper is the receipts tape. ---------- */
+.mk.mk-about .closing .frame { position: relative; }
+.mk.mk-about .seal { position: absolute; z-index: 5; }
+.mk.mk-about .seal svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 calc(var(--u) * .7) calc(var(--u) * .7) rgba(0, 0, 0, .5)); }
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about.js .closing .seal { opacity: 0; transform: scale(1.8) rotate(14deg); transition: opacity .3s, transform .7s var(--spring); }
+  .mk.mk-about.js .closing.is-near .seal { opacity: 1; transform: none; }
+}
+.mk.mk-about .closing .end-legal { margin: calc(var(--u) * 1.8) 0 0; max-width: 32em; font-size: var(--fs-small); line-height: 1.4; font-style: italic; color: #c3d3d0; }
+.mk.mk-about .closing .legal { margin-top: calc(var(--u) * .5); }
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .mk.mk-about .seal { left: 50%; top: calc(var(--u) * 6.2); width: calc(var(--u) * 9.4); height: calc(var(--u) * 9.4); min-width: 104px; min-height: 104px; margin-left: calc(var(--u) * -4.7); }
+  .mk.mk-about .closing .end-copy { left: 50%; top: calc(var(--u) * 16.8); width: calc(var(--u) * 42); transform: translateX(-50%); text-align: center; }
+  .mk.mk-about .closing .end-h { font-size: max(40px, calc(var(--u) * 5.1)); }
+  .mk.mk-about .closing .end-body,
+.mk.mk-about .closing .end-legal,
+.mk.mk-about .closing .legal { margin-inline: auto; }
+  .mk.mk-about .closing .end-ctas { justify-content: center; }
+  .mk.mk-about .closing .end-unit { left: calc(var(--u) * 2); top: calc(var(--u) * 22); width: calc(var(--u) * 25); }
+  .mk.mk-about .closing .end-unit .sample-cap.sil { position: static; margin-top: calc(var(--u) * .7); text-align: left; }
+  .mk.mk-about .closing .end-kandi { position: absolute; z-index: 4; right: calc(var(--u) * 5); top: calc(var(--u) * 24); width: calc(var(--u) * 13); }
+}
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .seal { left: -20px; top: -34px; width: 104px; height: 104px; margin: 0; }
+  .mk.mk-about .closing .end-copy { padding-left: 46px; padding-top: 34px; }
+  .mk.mk-about .closing .end-unit { margin-top: 30px; }
+  .mk.mk-about .closing .end-kandi { position: relative; right: auto; top: auto; width: 150px; margin: 0 auto; }
+  .mk.mk-about .art { display: flex; flex-direction: column; }
+  .mk.mk-about .hand-note { position: relative; left: auto; bottom: auto; order: -1; margin: 6px 0 10px; max-width: none; transform: rotate(-2deg); transform-origin: 0 50%; }
+  .mk.mk-about .hn-arrow { display: none; }
+  .mk.mk-about .nd-disc { width: 52px; height: 52px; }
+}

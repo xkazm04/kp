@@ -11,7 +11,13 @@
 // Extracted as a pure function (no React) so the ordering is unit-tested directly
 // against the exact regression it prevents: error-first gating.
 import { MATCH_LIMIT_MAX } from "@/app/api/match/match-request";
-import type { MatchRef, WeightVector } from "@/app/features/shared/matchTypes";
+import type { MatchRef, MatchResponse, WeightVector } from "@/app/features/shared/matchTypes";
+
+/** What /api/match answers: the engine's ranking plus the id of the run the server STORED
+ *  it under (db/match-runs.ts). A Match add carries the id so the add door can check the
+ *  facts it seals against that stored result; absent when the run could not be stored
+ *  (an inline candidate, or a store hiccup) and then no add of it can be filed. */
+export type MatchRunResponse = MatchResponse & { matchRunId?: string };
 
 export type MatchViewInput = {
   hasResult: boolean;

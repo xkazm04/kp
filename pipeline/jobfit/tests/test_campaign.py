@@ -289,6 +289,87 @@ class CoerceBoundaryTests(unittest.TestCase):
         self.assertEqual(HOOK_TYPES, ("number", "location", "problem", "skills"))
 
 
+class BoundaryHonestyTests(unittest.TestCase):
+    """The residual catch behind the fact-set gate: what the model wrote is checked
+    for the literal class the gate cannot see. The gate stays the control."""
+
+    def _variant(self, hook_type="problem", hook="h", ad=None):
+        return {
+            "hookType": hook_type,
+            "hook": hook,
+            "adCopy": ad or f"{hook} Apply in about 30 seconds: {URL}",
+            "videoScript": {"hook": hook, "offer": "o", "proof": "p", "cta": f"Apply: {URL}"},
+        }
+
+    def _kept(self, *variants, lang="en", **job_overrides):
+        provider = _FakeProvider(payload={"variants": list(variants)})
+        pack, source = draft_campaign_pack(_job(**job_overrides), lang=lang, apply_url=URL, provider=provider)
+        return pack, source
+
+    def test_a_figure_the_facts_do_not_carry_is_dropped(self):
+        for bad in ("Earn up to 120 000 CZK/month.", "25 days of holiday.", "A team since 2014."):
+            with self.subTest(bad=bad):
+                _, source = self._kept(self._variant(hook=bad))
+                self.assertEqual(source, "deterministic")
+
+    def test_stated_figures_survive_whatever_the_separator(self):
+        for good in ("65 000–95 000 CZK/month.", "65000–95000 CZK/month.", "65,000–95,000 CZK/month.", "95 000 CZK/month."):
+            with self.subTest(good=good):
+                _, source = self._kept(self._variant("number", good))
+                self.assertEqual(source, "llm")
+
+    def test_a_defaulted_pay_band_leaves_no_figure_to_quote(self):
+        """The anchored band is absent from the facts, so a model that recites it
+        anyway (from its own prior) is dropped rather than shipped as a stated pay."""
+        _, source = self._kept(self._variant("number", "65 000–95 000 CZK/month."), defaulted_fields=["salary_band"])
+        self.assertEqual(source, "deterministic")
+
+    def test_quoted_speech_is_dropped_even_under_an_allowed_label(self):
+        _, source = self._kept(self._variant("problem", "“Best team I have worked with,” says Jana."))
+        self.assertEqual(source, "deterministic")
+
+    def test_first_person_voice_is_dropped_in_the_packs_own_language(self):
+        cases = {"en": "I love building React apps here.", "cs": "Já miluji React a můj tým mě podporuje.",
+                 "de": "Ich liebe React und mein Team unterstützt mich.", "fr": "J'adore React et mon équipe me soutient."}
+        for lang, hook in cases.items():
+            with self.subTest(lang=lang):
+                _, source = self._kept(self._variant(hook=hook), lang=lang)
+                self.assertEqual(source, "deterministic")
+
+    def test_the_czech_verb_je_is_not_a_french_pronoun(self):
+        _, source = self._kept(self._variant(hook="Brno je krásné místo pro React."), lang="cs")
+        self.assertEqual(source, "llm")
+
+    def test_banned_boilerplate_is_dropped_in_every_language(self):
+        for lang, hook in {"en": "Competitive salary and a dynamic environment.", "cs": "Konkurenceschopným platem a dynamickým prostředím.",
+                           "de": "Wettbewerbsfähiges Gehalt im dynamischen Team.", "fr": "Un salaire compétitif dans une équipe dynamique."}.items():
+            with self.subTest(lang=lang):
+                _, source = self._kept(self._variant(hook=hook), lang=lang)
+                self.assertEqual(source, "deterministic")
+
+    def test_one_bad_variant_costs_one_variant_not_the_pack(self):
+        pack, source = self._kept(self._variant("skills", "React · TypeScript."), self._variant(hook="25 days of holiday."))
+        self.assertEqual(source, "llm")
+        self.assertEqual([v["hook"] for v in pack["variants"]], ["React · TypeScript."])
+
+    def test_the_prompt_bans_exactly_the_list_the_boundary_enforces(self):
+        provider = _FakeProvider(payload={"variants": [self._variant()]})
+        draft_campaign_pack(_job(), lang="en", apply_url=URL, provider=provider)
+        for phrase in campaign.BANNED_BOILERPLATE:
+            self.assertIn(repr(phrase), provider.prompt)
+
+    def test_the_deterministic_pack_passes_its_own_boundary_in_every_language(self):
+        """A template the checker would drop is a checker bug, not a copy bug."""
+        for lang in ("en", "cs", "de", "fr"):
+            for overrides in ({}, {"salary_band": [], "location": "", "work_mode": "", "detected_skills": []}):
+                with self.subTest(lang=lang, thin=bool(overrides)):
+                    job = _job(**overrides)
+                    pack, _ = draft_campaign_pack(job, lang=lang, apply_url=URL)
+                    facts = campaign._job_facts(job, lang)
+                    for v in pack["variants"]:
+                        self.assertIsNone(campaign._boundary_violation(v, facts, lang, v["applyUrl"]), v["hook"])
+
+
 class CliTests(unittest.TestCase):
     def _run(self, argv):
         out, err = io.StringIO(), io.StringIO()

@@ -9,11 +9,12 @@ import {
 } from "@/app/_lib/db/pipeline";
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
-import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { delivered, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -30,9 +31,18 @@ import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_l
 // maps it to its own transport shape — a NextResponse for the single route, a
 // per-id { ok, reason } row for the batch route.
 //
+// The command bar (/api/pipeline/command → command/execute.ts) is the third bulk
+// door and writes through here too (challenge-r05): it declares `via: "command_bar"`
+// so its seals say which rule decided, and it maps each { status, body } to one of
+// its count / failed / held buckets.
+//
 // Scope: the three board actions — `set_stage` (manual override), `accept`,
 // `reject`. The route keeps owning the non-move actions (set_github, set_notes,
 // reinstate, resolve_intake) since those never appear in a batch.
+//
+// An accept/reject is SEALED BEFORE IT IS WRITTEN, and a decision whose record cannot
+// be sealed is not applied: the three doors hear a coded 503
+// (PIPELINE_DECISION_NOT_SEALED), never a 200 — see the generic path at the bottom.
 
 // gsim-l2-103 — a caller may DECLARE itself the engine (actor:"sim"); only the
 // known non-human value is honored, so the claim can only DOWNGRADE authority
@@ -47,16 +57,61 @@ const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "hum
 // act of deciding, and the override rate can never be computed after the fact.
 // Absent/unparseable detail yields nulls: a decision with no AI verdict behind
 // it (a plain board move) is the normal case, not an error.
-function aiVerdict(entry: PipelineEntry): { aiRecommendation: string | null; aiConfidence: number | null } {
-  if (!entry.approvalDetail) return { aiRecommendation: null, aiConfidence: null };
+//
+// …and the machine's REASON beside the verdict, destroyed by the same write. A
+// `rejection_review` is the policy pass's fairness-cleared reject queued for a human
+// (automation-pass.ts), and its `rationale` is the policy's own words; a screening
+// review carries the screener's. Without these the seal held only the recruiter's
+// side, so a recruiter ratifying the machine's reject with no note sealed the
+// "Recruiter reject from <stage>." template — no reason from either actor.
+// `reasonCode` / `reasonParams` are lifted only when the producer wrote them: the
+// policy pass emits prose only (pipeline/jobfit/automation.py `evaluate_entry`), so
+// they are null on every row it queues today.
+type AiVerdict = {
+  aiRecommendation: string | null;
+  aiConfidence: number | null;
+  aiRationale: string | null;
+  aiReasonCode: string | null;
+  aiReasonParams: Record<string, string | number> | null;
+};
+
+const NO_AI_VERDICT: AiVerdict = {
+  aiRecommendation: null,
+  aiConfidence: null,
+  aiRationale: null,
+  aiReasonCode: null,
+  aiReasonParams: null,
+};
+
+/** The reasonCode's params, kept to the `Record<string, string | number>` shape every
+ *  other sealed reasonParams has (screen-wave.ts, automation-pass.ts); anything else
+ *  is dropped rather than sealed as an arbitrary blob. */
+function reasonParamsOf(raw: unknown): Record<string, string | number> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function aiVerdict(entry: PipelineEntry): AiVerdict {
+  if (!entry.approvalDetail) return NO_AI_VERDICT;
   try {
-    const parsed = JSON.parse(entry.approvalDetail) as { recommendation?: unknown; confidence?: unknown };
+    const parsed = JSON.parse(entry.approvalDetail) as unknown;
+    if (!parsed || typeof parsed !== "object") return NO_AI_VERDICT;
+    const o = parsed as { recommendation?: unknown; confidence?: unknown; rationale?: unknown; reasonCode?: unknown; reasonParams?: unknown };
+    const rationale = typeof o.rationale === "string" ? o.rationale.trim() : "";
+    const reasonCode = typeof o.reasonCode === "string" ? o.reasonCode.trim() : "";
     return {
-      aiRecommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : null,
-      aiConfidence: typeof parsed.confidence === "number" ? parsed.confidence : null,
+      aiRecommendation: typeof o.recommendation === "string" ? o.recommendation : null,
+      aiConfidence: typeof o.confidence === "number" ? o.confidence : null,
+      aiRationale: rationale || null,
+      aiReasonCode: reasonCode || null,
+      aiReasonParams: reasonCode ? reasonParamsOf(o.reasonParams) : null,
     };
   } catch {
-    return { aiRecommendation: null, aiConfidence: null };
+    return NO_AI_VERDICT;
   }
 }
 
@@ -82,7 +137,31 @@ export type EntryActionInput = {
   // offer_review accept. Every route already has it (new URL(request.url).origin).
   origin: string;
   workspaceId: string;
+  // Which bulk door raised this decision. The command bar (the third door, beside the
+  // single and batch routes) declares itself so its seal carries policyVersion
+  // "command-bar" rather than "manual": a typed `reject below 40%` is a rule the
+  // recruiter wrote, and the chain must say which rule decided. Absent = "manual".
+  via?: "command_bar";
+  // The command bar's typed percentage (reject_below), sealed as a decisive input.
+  threshold?: number;
 };
+
+// The post-commit mirrors, injectable so a test can force the one failure a real
+// board cannot produce on demand: a rejection comm that throws AFTER the write
+// committed. Defaults are the real functions; every production caller passes none.
+//
+// `seal` is the PRE-commit seam: the accept/reject decision record, written before
+// the write it records. A test injects a failing seal (a locked chain, a keyed chain
+// whose key went missing) to prove the decision is then refused, not applied.
+// Callers pass any subset; the rest default to the real functions.
+export type EntryActionDeps = {
+  dispatchRejection: typeof dispatchRejection;
+  dispatchAtsEvent: typeof dispatchAtsEvent;
+  invalidateGroupEvalSelection: typeof invalidateGroupEvalSelection;
+  seal: typeof sealDecisionSafe;
+};
+
+const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
@@ -133,10 +212,14 @@ const ok = (body: Record<string, unknown>): EntryActionResult => ({ status: 200,
  * a failed request. A miss costs one stale modal open (which the pool-drift banner
  * still discloses); a throw here would cost the recruiter their decision.
  */
-function expireCachedGroupEvals(entry: PipelineEntry | null | undefined, workspaceId: string): void {
+function expireCachedGroupEvals(
+  entry: PipelineEntry | null | undefined,
+  workspaceId: string,
+  invalidate: typeof invalidateGroupEvalSelection = invalidateGroupEvalSelection
+): void {
   if (!entry) return;
   try {
-    invalidateGroupEvalSelection(entry.jobId ?? entry.jobTitle ?? "unassigned", workspaceId);
+    invalidate(entry.jobId ?? entry.jobTitle ?? "unassigned", workspaceId);
   } catch (error) {
     console.warn("[pipeline-entry-action] group-eval cache expiry failed:", error instanceof Error ? error.message : error);
   }
@@ -233,13 +316,24 @@ export async function extendDraftedOffer(
     });
   }
 
+  // A freshly opened offer always carries its token; a null one has no link to send.
+  if (!offer.token) return err(502, "OFFER_NOT_DISPATCHED");
   const link = `${publicBaseUrl(origin)}/offer/${offer.token}`;
+  // The letter did not go out when the dispatch THREW (the send gate refused) OR when
+  // it RESOLVED with a dead letter / a refusal (challenge-r06 comms-dispatch-relay/A):
+  // the relay records `failed` and returns, so a catch alone heard only half of it and
+  // a dead-lettered offer used to clear the approval and answer `offerExtended: true`.
+  let notDispatched: unknown = null;
   try {
-    await dispatchOffer(entry, draft, link, {
+    const outcome = await dispatchOffer(entry, draft, link, {
       expiresAt: offer.expiresAt,
       startDate: typeof draft.startDate === "string" ? draft.startDate : null,
     });
+    if (!delivered(outcome)) notDispatched = `${outcome.claim}: ${outcome.detail ?? "no detail recorded"}`;
   } catch (dispatchError) {
+    notDispatched = dispatchError;
+  }
+  if (notDispatched !== null) {
     // COMPENSATION (stated deliberately): the approval is LEFT IN PLACE and the
     // offer row is left open. The token was minted but never reached the wire, and
     // getOrCreateOpenOffer is idempotent — so the recruiter's retry re-sends THAT
@@ -247,7 +341,7 @@ export async function extendDraftedOffer(
     // not orphaned. The alternative (clearing the approval here) is the one thing
     // that must not happen: it would leave a live offer link nobody was ever sent,
     // with no gate left on the card to notice.
-    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, dispatchError);
+    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, notDispatched);
     recordAutomationEvent(
       entry.id,
       "offer_comms_failed",
@@ -279,7 +373,11 @@ export async function extendDraftedOffer(
   return ok({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
-export async function runPipelineEntryAction(input: EntryActionInput): Promise<EntryActionResult> {
+export async function runPipelineEntryAction(
+  input: EntryActionInput,
+  overrides: Partial<EntryActionDeps> = {}
+): Promise<EntryActionResult> {
+  const deps: EntryActionDeps = { ...REAL_DEPS, ...overrides };
   const { id, action, toStage, expectedStage, origin, workspaceId } = input;
   // See SIM_ACTOR: an unrecognized/absent value stays "human" (real clicks).
   const simActor = input.actor === SIM_ACTOR;
@@ -317,7 +415,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       // The CAS lost in the gap or the entry is closed out — the caller's view is stale.
       return err(409, "PIPELINE_MOVE_CONFLICT", { entry: fresh });
     }
-    expireCachedGroupEvals(moved, workspaceId);
+    expireCachedGroupEvals(moved, workspaceId, deps.invalidateGroupEvalSelection);
     return ok({ entry: moved });
   }
 
@@ -437,19 +535,100 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
           handoff: "human_round",
         },
       });
-      expireCachedGroupEvals(current, workspaceId);
+      expireCachedGroupEvals(current, workspaceId, deps.invalidateGroupEvalSelection);
       return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
     }
   }
 
   const detail = typeof input.detail === "string" ? input.detail : undefined;
-  const updated = actOnPipelineEntry(
-    id,
-    action as PipelineAction,
-    detail,
-    { ...(expectedStage ? { expectedStage } : {}), actor: simActor ? "system" : "human", actorRef: sealActor },
-    workspaceId
-  );
+  const actOpts = { actor: simActor ? ("system" as const) : ("human" as const), actorRef: sealActor };
+  let updated: PipelineEntry | null;
+  if (action === "accept" || action === "reject") {
+    // SEAL FIRST — the rule screen-wave.ts states for its own rejections ("no seal, no
+    // rejection"), now on the recruiter's commit door too. The seal used to run AFTER
+    // the write, through sealDecisionSafe with its result discarded, so a seal that
+    // failed (a locked DB, a keyed chain whose key went missing) still answered 200,
+    // emailed the candidate and fired the ATS event for a decision with no
+    // tamper-evident record — and only a server log said so. Now the record is the
+    // precondition: no seal, no state change, no letter, no ATS event, and a coded 503
+    // the three doors report as a failure (the single route's status, the batch
+    // route's per-id row, the command bar's `failed` bucket).
+    //
+    // Re-read the row synchronously and seal against IT: the seal must describe the
+    // row the write below is pinned to. Every refusal the write could still answer
+    // from this process is answered here first, before anything is sealed — a moved
+    // stage, and an accept or reject on a closed-out entry (actOnPipelineEntry refuses
+    // both too, and a seal ahead of it would record a decision that never happened —
+    // a repeat reject would also queue a second letter and fire a second ATS event).
+    const live = getPipelineEntry(id, workspaceId);
+    if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+    if (live.stage !== current.stage) return staleResponse(live);
+    if (isTerminalEntryStatus(live.status)) return staleResponse(live);
+    // A Hired entry is status 'active' on the terminal-role stage, so the check above
+    // misses it. Refused BEFORE the seal (operator decision, ask 68bb3639): no record, no
+    // letter, no ATS event. actOnPipelineEntry refuses it too, as the second door.
+    if (action === "reject" && stageHasRole(live.stage, "terminal", axis)) {
+      return err(409, "PIPELINE_ENTRY_HIRED", { entry: live });
+    }
+
+    const trimmedDetail = detail?.trim() ?? "";
+    // Read from the pre-write row, never from the write's result — the write clears
+    // the approval columns the AI verdict lives in.
+    const verdict = aiVerdict(live);
+    const viaCommandBar = input.via === "command_bar";
+    // A reject that RESOLVES a queued rejection_review ratifies the machine's own
+    // reject, so the machine's reason is the decision's reason when the recruiter
+    // typed none — never the template, which says only who clicked and from where.
+    const ratifiedRationale = action === "reject" && live.approvalKind === "rejection_review" ? verdict.aiRationale : null;
+    // A declared programmatic caller is recorded as the engine ("auto:sim"), never a
+    // recruiter — the audit chain must tell the truth about machine actions even
+    // inside a demo.
+    const sealed = deps.seal({
+      kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
+      actor: sealActor,
+      policyVersion: viaCommandBar ? "command-bar" : "manual",
+      candidateRef: id,
+      rationale: trimmedDetail || ratifiedRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
+      reasonCode: action,
+      inputs: {
+        fromStage: live.stage,
+        detail: trimmedDetail || null,
+        // The pair that makes the override rate computable: what the machine
+        // proposed (null when the human acted without an AI verdict on the card),
+        // which gate raised it, and how sure it was.
+        aiRecommendation: verdict.aiRecommendation,
+        aiConfidence: verdict.aiConfidence,
+        // …and WHY the machine proposed it, beside the recruiter's `detail`, so both
+        // actors' reasons are sealed (null when the card carried none).
+        aiRationale: verdict.aiRationale,
+        aiReasonCode: verdict.aiReasonCode,
+        aiReasonParams: verdict.aiReasonParams,
+        approvalKind: live.approvalKind ?? null,
+        // The rule the recruiter typed is a decisive input: "below 40%" and "below
+        // 60%" reject different people, and only the seal can say which was run.
+        // Added only for the command bar, so the manual seal's shape is unchanged.
+        ...(viaCommandBar && typeof input.threshold === "number" ? { threshold: input.threshold } : {}),
+      },
+    });
+    if (!sealed) {
+      // sealDecisionSafe has logged the cause; this line names what was NOT done.
+      console.warn(`[pipeline-entry-action] decision seal failed for ${id} — the ${action} was NOT applied`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: live });
+    }
+    // Adjacent to the seal, NO await between them: nothing in this process can run in
+    // the gap, and the CAS is pinned to the stage the seal was made against.
+    // The residue seal-first accepts (screen-wave.ts names the same one): a write that
+    // loses its CAS AFTER the seal leaves a record of a decision that did not apply.
+    // Only ANOTHER PROCESS writing this row between two synchronous statements can
+    // cause it, and the alternative it replaces is worse — an applied, emailed
+    // decision with no record at all.
+    updated = actOnPipelineEntry(id, action, detail, { expectedStage: live.stage, ...actOpts }, workspaceId);
+    if (!updated) {
+      console.warn(`[pipeline-entry-action] ${id} changed between seal #${sealed.seq} and the write — the sealed ${action} did not apply`);
+    }
+  } else {
+    updated = actOnPipelineEntry(id, action as PipelineAction, detail, { ...(expectedStage ? { expectedStage } : {}), ...actOpts }, workspaceId);
+  }
   if (!updated) {
     // The pre-check passed but the guarded write refused — a concurrent actor moved
     // the stage in the gap (the CAS held) or the row vanished.
@@ -457,41 +636,49 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
     if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
     return staleResponse(fresh);
   }
-  // Seal the HUMAN accept/reject into the tamper-evident decision chain. A declared
-  // programmatic caller is recorded as the engine ("auto:sim"), never a recruiter —
-  // the audit chain must tell the truth about machine actions even inside a demo.
-  if (action === "accept" || action === "reject") {
-    const trimmedDetail = detail?.trim() ?? "";
-    // Read from `current` (the pre-write snapshot), never `updated` — the write
-    // above already cleared the approval columns.
-    const { aiRecommendation, aiConfidence } = aiVerdict(current);
-    sealDecisionSafe({
-      kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
-      actor: sealActor,
-      policyVersion: "manual",
-      candidateRef: id,
-      rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${current.stage}.`,
-      reasonCode: action,
-      inputs: {
-        fromStage: current.stage,
-        detail: trimmedDetail || null,
-        // The pair that makes the override rate computable: what the machine
-        // proposed (null when the human acted without an AI verdict on the card),
-        // which gate raised it, and how sure it was.
-        aiRecommendation,
-        aiConfidence,
-        approvalKind: current.approvalKind ?? null,
-      },
-    });
-  }
   // A human reject is the gate; the candidate hears about it (queued by default).
-  if (action === "reject") await dispatchRejection(updated);
+  //
+  // GUARDED, because the reject above is already COMMITTED: an unguarded throw here
+  // skipped the ATS event and the cache expiry below and answered 500 for a decision
+  // that had happened, so a caller retried a reject that could no longer apply. The
+  // failure is stated instead: a nudge marker on the timeline (the raw cause stays in
+  // the server log, since a pipeline event's detail reaches the Activity feed) and
+  // `commsFailed: true` on the 200. Both mirrors below still run.
+  //
+  // Both failure signals count (challenge-r06 comms-dispatch-relay/A): a THROW, and a
+  // RESOLVED dead letter — the relay records `failed` and returns, which a catch alone
+  // never saw, so a dead-lettered letter read as notified. A `refused` verdict (an
+  // agent on the slate, no mailbox by design) is neither a failure to nudge about nor a
+  // send: no marker, no commsFailed, and the dispatcher recorded no `rejection_sent`.
+  let commsFailed = false;
+  if (action === "reject") {
+    let commsError: unknown = null;
+    try {
+      const outcome = await deps.dispatchRejection(updated);
+      if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+    } catch (thrown) {
+      commsError = thrown;
+    }
+    if (commsError !== null) {
+      commsFailed = true;
+      console.warn(`[pipeline-entry-action] rejection comms failed for ${updated.id}:`, commsError);
+      recordAutomationEvent(
+        updated.id,
+        "rejection_comms_failed",
+        input.via === "command_bar"
+          ? "Rejected via command bar, but the notification failed to queue — nudge manually."
+          : "Rejected, but the notification failed to queue — nudge manually.",
+        workspaceId,
+        sealActor
+      );
+    }
+  }
   // …and so does the customer's system of record, if it subscribed. `candidate.rejected`
   // was offered in the integrations panel and emitted from nowhere: only the hire ever
   // fired, so a connector built on the vocabulary we publish saw half the funnel and
   // silently kept rejected candidates open. Fire-and-forget beside the comm, for the same
   // reason it is: the decision is committed and neither mirror may undo it.
-  if (action === "reject") void dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
-  expireCachedGroupEvals(updated, workspaceId);
-  return ok({ entry: updated });
+  if (action === "reject") void deps.dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
+  expireCachedGroupEvals(updated, workspaceId, deps.invalidateGroupEvalSelection);
+  return ok({ entry: updated, ...(commsFailed ? { commsFailed: true } : {}) });
 }

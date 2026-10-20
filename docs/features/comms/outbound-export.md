@@ -97,7 +97,7 @@ equality, so this list cannot silently drift from the dispatchers:
 
 `acknowledgement`, `outreach`, `rejection`, `ko_decline`, `offer`,
 `offer_reminder`, `consent_expiry`, `interview_confirmation`, `interview_reminder`,
-`interview_invite`, `interviewer_brief`, `schedule_invite`.
+`interview_invite`, `interviewer_brief`, `schedule_invite`, `schedule_nudge`, `interview_letter`.
 
 (`onboarding` and `onboarding_reminder` were retired with the post-hire
 onboarding module. A relay may still receive them from an outbox replay of
@@ -142,6 +142,12 @@ minutes, so `X-Kp-Timestamp` (the SIGNED instant) is re-stamped per attempt whil
 stays put — freezing both would push every late retry outside the 300-second verification
 window. `sentAt` is therefore not a signature input there and the two fields are equal only
 on the first attempt.
+
+The record's `decision` block (additive; still `kp.ats.v1`) is `kind`, `reasonCode`,
+`rationale`, `rationaleWithheld`, `actor`, `automated`, `sealedRecordHash`, `policyVersion`,
+`decidedAt`. `rationale` is the sealed reason text for the server-built reason codes only;
+otherwise it is `null` with `rationaleWithheld: true` (also on any `piiWithheld` record) — see
+the integrations README for the list.
 
 ## 2. Pull — bulk candidate sync
 

@@ -14,7 +14,7 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { saveAnalysis, listAnalysesByCvHash } from "./analyses.ts";
-import { saveProfile, profileStaleness, type ProfileStaleness } from "./profiles.ts";
+import { saveProfile, profileStaleness, profileDivergence, type ProfileStaleness } from "./profiles.ts";
 import { ensureDb } from "./core.ts";
 
 after(() => cleanupUnitDb());
@@ -39,7 +39,10 @@ const analysisBase = {
 
 // The OLD algorithm, verbatim: for each lineage profile, take the newest same-CV
 // analysis (≠ the source slug) and keep it only if it is strictly newer than the
-// source's analyzed-at. This is the oracle the single query must match.
+// source's analyzed-at. This is the oracle the single query must match. Extended
+// (challenge-r05 profile-roster-matrix/B) with the per-profile divergence read —
+// profileDivergence, the rule the single-profile rebuild already asks — so the query's
+// `edited` / `updatedAt` columns are held to the one-at-a-time answer too.
 function oldLoopStaleness(workspaceId: string): Record<string, ProfileStaleness> {
   const db = ensureDb();
   const lineageRows = db
@@ -59,7 +62,14 @@ function oldLoopStaleness(workspaceId: string): Record<string, ProfileStaleness>
     const newer = listAnalysesByCvHash(r.source_cv_hash, workspaceId, r.source_analysis_slug ?? undefined, 1).find(
       (a) => a.created_at > r.source_analyzed_at
     );
-    if (newer) out[r.id] = { newerSlug: newer.slug, newerAnalyzedAt: newer.created_at };
+    if (!newer) continue;
+    const div = profileDivergence(r.id, workspaceId);
+    out[r.id] = {
+      newerSlug: newer.slug,
+      newerAnalyzedAt: newer.created_at,
+      edited: div?.diverged ?? false,
+      updatedAt: div?.editedAt ?? null,
+    };
   }
   return out;
 }
@@ -109,11 +119,28 @@ test("single-query profileStaleness is identical to the old per-profile loop on 
     sourceAnalyzedAt: "2026-06-01T00:00:00.000Z",
   });
 
+  // Profile 5: stale AND hand-edited after its build — the entry must say so.
+  const src5 = saveAnalysis({ ...analysisBase, cvHash: "hash-5" }, WS);
+  stampCreatedAt(src5.slug, "2026-01-01T00:00:00.000Z");
+  const p5 = saveProfile({ ...profileInput, label: "P5" }, WS, {
+    sourceAnalysisSlug: src5.slug,
+    sourceCvHash: "hash-5",
+    sourceAnalyzedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const new5 = saveAnalysis({ ...analysisBase, cvHash: "hash-5", payload: { v: 2 } }, WS);
+  stampCreatedAt(new5.slug, "2026-03-01T00:00:00.000Z");
+  ensureDb()
+    .prepare(`UPDATE profiles SET updated_at = ?, lineage_stamped_at = ? WHERE id = ?`)
+    .run("2026-02-09T00:00:00.000Z", "2026-02-01T00:00:00.000Z", p5.id);
+
   const live = profileStaleness(WS);
   const oracle = oldLoopStaleness(WS);
   assert.deepEqual(live, oracle, "single query must match the per-profile loop exactly");
 
   // Spot-check the intent, not just self-consistency.
   assert.equal(live[p1.id]?.newerSlug, new1.slug, "P1 is stale, pointing at the NEWEST same-CV analysis");
-  assert.equal(Object.keys(live).length, 1, "only P1 is stale; P2/P3/P4 are not");
+  assert.equal(live[p1.id]?.edited, false, "P1 was never edited after its build");
+  assert.equal(live[p5.id]?.edited, true, "P5 carries an edit made after its build");
+  assert.equal(live[p5.id]?.updatedAt, "2026-02-09T00:00:00.000Z", "P5 names the version a refresh must re-assert");
+  assert.deepEqual(Object.keys(live).sort(), [p1.id, p5.id].sort(), "only P1 and P5 are stale; P2/P3/P4 are not");
 });

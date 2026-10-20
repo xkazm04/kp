@@ -214,9 +214,11 @@ test("a subscription webhook upgrades the entitled plan and limits", () => {
     { limit: candidates?.limit, remaining: candidates?.remaining },
     { limit: starterAi, remaining: starterAi - FREE_AI }
   );
-  // 30 included − 8 already used this month + 92 credits
+  // 30 included + 92 credits. The 8 minutes were debited on the free plan (limit 0), so
+  // they came from CREDITS (from_included 0): the re-key onto the subscription anchor
+  // carries only allowance-funded usage into the new window (ADR 0023), never a pack debit.
   const minutes = overview.meters.find((m) => m.meter === "interview_minutes");
-  assert.equal(minutes?.remaining, 30 - 8 + 92);
+  assert.equal(minutes?.remaining, 30 + 92);
 });
 
 test("revoked drops to free but keeps the customer id for the portal", () => {

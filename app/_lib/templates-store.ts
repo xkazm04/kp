@@ -3,6 +3,7 @@ import { openStore } from "./db-path";
 import { randomId } from "./random-id";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { DEFAULT_TEMPLATE_BODY } from "@/app/features/shared/renderTemplate";
+import { addColumns } from "./db/add-columns";
 
 // Company JD templates — full CRUD. Isolated connection (job-ingest/offers/
 // scheduler/decision-config pattern) so we don't touch the fork-active db.ts.
@@ -46,11 +47,7 @@ function db(): Database.Database {
   // Migration for stores created before the tenant tier existed. Existing rows keep
   // workspace_id NULL, i.e. they join the ORG-SHARED library — matching the pre-tier
   // behavior where every template was visible to everyone.
-  try {
-    d.exec(`ALTER TABLE jd_templates ADD COLUMN workspace_id TEXT`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "jd_templates", ["workspace_id TEXT"]);
   // Seed the standard ORG template once (workspace_id NULL). The count is over the ORG
   // tier ONLY, so the company baseline is still seeded into a DB that happens to hold
   // only team-private rows. INSERT OR IGNORE keeps it idempotent under a cold-start

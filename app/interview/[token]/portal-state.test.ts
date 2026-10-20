@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { INTERVIEW_LINK_TTL_DAYS, LIVE_INTERVIEW_RECENCY_MIN } from "@/app/_lib/db/interviews.ts";
-import { interviewInactiveCopyKeys, interviewPortalView } from "./portal-state.ts";
+import { interviewInactiveCopyKeys, interviewPortalOffers, interviewPortalView } from "./portal-state.ts";
 
 function iso(msAgo: number): string {
   return new Date(Date.now() - msAgo).toISOString();
@@ -87,4 +87,31 @@ test("the portal page and all four catalogs split revoked from expired copy", ()
     assert.ok(!cat.interview.expiredBody.includes(" or "), `${locale} expired copy must not keep the ambiguous or`);
     assert.ok(!cat.interview.revokedBody.includes(" or "), `${locale} revoked copy must not keep the ambiguous or`);
   }
+});
+
+// ---- what the portal OFFERS (spark interview-kit-template, WP-D) -----------------------
+// A recruiter's kit REHEARSAL is a test-mode session run on this same portal. It must
+// never be offered an audio recording (the page used to read the workspace setting for
+// every session, while /connect only ever stamps recording consent for candidate mode)
+// and never link to — or mint — a candidate's /status page.
+
+test("a rehearsal (test mode, no entry) is offered neither a recording nor a status link", () => {
+  assert.deepEqual(interviewPortalOffers({ mode: "test", entryId: null }), { recording: false, statusLink: false });
+});
+
+test("a test session that somehow carries an entry still gets neither — it is not a candidate interview", () => {
+  assert.deepEqual(interviewPortalOffers({ mode: "test", entryId: "pe-someone" }), { recording: false, statusLink: false });
+});
+
+test("a candidate interview keeps both; a /simulate demo (candidate mode, no entry) keeps the recording offer it had", () => {
+  assert.deepEqual(interviewPortalOffers({ mode: "candidate", entryId: "pe-1" }), { recording: true, statusLink: true });
+  assert.deepEqual(interviewPortalOffers({ mode: "candidate", entryId: null }), { recording: true, statusLink: false });
+});
+
+test("the portal page reads both offers from interviewPortalOffers, never from the entry or the workspace alone", () => {
+  const src = readFileSync(fileURLToPath(new URL("./page.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /const offers = interviewPortalOffers\(session\);/);
+  assert.match(src, /const statusHref = offers\.statusLink && session\.entryId \? safeStatusHref\(session\.entryId\) : null;/);
+  assert.match(src, /recordingOffered=\{offers\.recording && recordingOffer\(session\.workspaceId\)\}/);
+  assert.doesNotMatch(src, /recordingOffered=\{recordingOffer\(/, "the workspace setting alone no longer decides the offer");
 });

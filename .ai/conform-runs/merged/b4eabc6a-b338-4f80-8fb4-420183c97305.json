@@ -1,0 +1,111 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b4eabc6a-b338-4f80-8fb4-420183c97305",
+ "subject": "subscription-billing-periods",
+ "evaluatedAt": "2026-10-19T01:07:38.200262+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "billing-subscriptions",
+   "subject": "subscription-billing-periods",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/billing/plans.ts:194 Allowance recurrence uses the provider's rolling current-period start as its anchor, so a clamped renewal can shift subsequent locally derived allowance boundaries.",
+   "techniques": [
+    {
+     "technique": "anchor-re-derived-not-chained",
+     "verdict": "deviation",
+     "evidence": "app/_lib/billing/sync.ts:82 Renewals replace the field used as the allowance anchor; anchor/index arithmetic exists, but the original anchor does not survive this update."
+    },
+    {
+     "technique": "boundary-stitch-on-timezone-change",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/plans.ts:186 Local allowance boundaries use hardcoded UTC arithmetic, without a mutable subscriber timezone frame."
+    },
+    {
+     "technique": "hourly-pass-with-derived-idempotency",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/sync.ts:167 Subscription updates originate in provider webhooks; the technique explicitly excludes event-driven billing with upstream intent."
+    },
+    {
+     "technique": "timezone-anchored-period-dates",
+     "verdict": "deviation",
+     "evidence": "app/_lib/billing/plans.ts:230 The window exports instant boundaries without a resolved zone; the recurrence also preserves the anchor's time of day instead of materializing boundary dates at midnight."
+    }
+   ]
+  },
+  {
+   "context": "billing-plan-and-spend",
+   "subject": "subscription-billing-periods",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period labels omit an explicit timezone and can display different calendar dates for the same enforced boundary in different environments.",
+   "techniques": [
+    {
+     "technique": "anchor-re-derived-not-chained",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/meterForecast.ts:85 This context compares supplied boundaries rather than computing subscription recurrence."
+    },
+    {
+     "technique": "boundary-stitch-on-timezone-change",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:68 The component renders an existing period end; it does not open periods or modify the subscription's frame."
+    },
+    {
+     "technique": "hourly-pass-with-derived-idempotency",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/BillingTab.tsx:130 Client refreshes read billing state; they are not a recurring pass that advances periods."
+    },
+    {
+     "technique": "timezone-anchored-period-dates",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period calls use the default false branch, which supplies no timezone; allowance labels explicitly use UTC."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "subscription-billing-periods",
+   "context": "billing-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T01:07:38.200262+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "subscription-billing-periods"
+   ],
+   "techniques": [
+    "anchor-re-derived-not-chained",
+    "boundary-stitch-on-timezone-change",
+    "hourly-pass-with-derived-idempotency",
+    "timezone-anchored-period-dates"
+   ],
+   "deviations": 1,
+   "context": "billing-subscriptions",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T01:07:38.200262+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "subscription-billing-periods"
+   ],
+   "techniques": [
+    "anchor-re-derived-not-chained",
+    "boundary-stitch-on-timezone-change",
+    "hourly-pass-with-derived-idempotency",
+    "timezone-anchored-period-dates"
+   ],
+   "deviations": 1,
+   "context": "billing-plan-and-spend",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

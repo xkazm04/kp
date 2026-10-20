@@ -1,0 +1,133 @@
+[
+  {
+    "context": "devcase-lifecycle",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "The assignment detail reads its own case; the tab stops loading every posting",
+    "size": "L",
+    "effort": 7,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "dbcdecf66",
+    "write_set": [
+      "app/_lib/db/devcase-case-postings.ts",
+      "app/_lib/devcase-postings-view.ts",
+      "app/_lib/devcase-postings-view.test.ts",
+      "app/api/devcase/[id]/channels/route.ts",
+      "app/api/devcase/[id]/channels/route.test.ts",
+      "app/api/devcase/postings/route.ts",
+      "app/api/devcase/lifecycle/route.ts",
+      "app/features/tools/devcases/DevTypes.ts",
+      "app/features/tools/devcases/DevLifecycleSection.tsx",
+      "app/features/tools/devcases/DevTabCasesView.tsx",
+      "app/features/tools/devcases/DevCaseDetail.tsx",
+      "app/features/tools/devcases/useDevTabData.ts",
+      "app/features/tools/devcases/DevTab.tsx",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/devcase-case-postings.ts",
+      "app/_lib/devcase-postings-view.ts",
+      "app/_lib/devcase-postings-view.test.ts",
+      "app/api/devcase/[id]/channels/route.ts",
+      "app/api/devcase/[id]/channels/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "listCasePostings(caseA, wsA) where caseA has 2 postings, caseB has 3, and a corrupt caseA posting sits in wsB -> exactly caseA's 2 postings, each carrying `status` ('open'|'closed'); the SQL filters workspace_id and case_id, never a client-side filter",
+      "GET /api/devcase/[id]/channels for a case owned by another workspace -> 404 DEVCASE_CASE_NOT_FOUND, byte-identical to what GET /api/devcase/[id] answers for the same id (no existence oracle)",
+      "GET /api/devcase/[id]/channels on a case with one evaluated submission -> that submission's `outcome`, `promotePreview` and the posting's `inFlight` deep-equal the same posting's entry in GET /api/devcase/postings (one enrichment module, two routes)",
+      "GET /api/devcase/lifecycle: a lifecycle whose case has two postings with 1 and 2 submissions and one live attempt -> row carries submissionCount 3 and inFlight.live 1; a lifecycle with caseId null -> submissionCount 0 and inFlight zeros (not an absent key)",
+      "GET /api/devcase/postings response shape is unchanged (existing route.test.ts passes untouched; e2e/journey-one-thread.spec.ts:309 still reads submissions inlined)",
+      "Source guard: app/features/tools/devcases/useDevTabData.ts no longer contains the string \"/api/devcase/postings\" and DevLifecycleSection.tsx takes no `postings` prop - the studio's mount reads no workspace-wide posting fold"
+    ],
+    "premise": [
+      "app/features/tools/devcases/useDevTabData.ts:81-85 loads GET /api/devcase/postings on every studio mount (called at :107) - every posting of the workspace with every submission inlined",
+      "app/api/devcase/postings/route.ts:22 is an N+1: listPostings(ws) then listSubmissions(p.id, ws) per posting; app/_lib/db/devcase.ts:846 - the per-posting branch of listSubmissions has no LIMIT (only the workspace-wide branch at :847 takes one)",
+      "app/api/devcase/postings/route.ts:23-41 then runs latestOutcomeByRefs over every submission id and a promoteVerdict per evaluated submission - all of it for a list the tab mostly does not render",
+      "app/features/tools/devcases/DevTab.tsx:159 reloads that whole fold on EVERY finished evaluate_submission task, and :164 again on every finished lifecycle step",
+      "app/features/tools/devcases/DevCaseDetail.tsx:65 - the detail re-derives its channels client-side (postings.filter(p => p.caseId === kase.id)) and :69-80 its cohort and shortlist from that filter",
+      "app/features/tools/devcases/DevLifecycleSection.tsx:32-39 - the only other consumer needs two COUNTS per case (submissions and in-flight), yet receives the full fold",
+      "app/api/devcase/[id]/route.ts:7-13 - r03 already moved the case record to a by-id read for exactly this reason (500 full designs on the wire); the postings half of the same reader was left on the workspace fold",
+      "app/api/devcase/lifecycle/route.ts:18 - the lifecycle list carries no per-case counts, which is why the section borrows the postings fold"
+    ],
+    "rollback": "Revert the series: the workspace postings route keeps its exact shape throughout (it only delegates to the extracted view module), so reverting the client commits restores the fold-driven detail with no data or schema change; the new slice and route are additive and hold no state.",
+    "gate": "architecture",
+    "runner_up": "Devcase slice-2 doors ask the seat: judge publish/close/redesign/promote/lifecycle/feedback out of route-capability-coverage's ALLOWED list - held back because its UI half would consume app/features/shell/useCapabilities.ts, which r08 workspace-shell-core/A is rewriting.",
+    "technique": "portable-read-definitions",
+    "body": "## Summary\nThe assignment detail reader fetches its own case's channels, shortlist inputs and in-flight counts by id; the lifecycle list carries its per-case counts; and the Dev studio stops loading every posting, every submission and every evaluation in the workspace on mount and after each evaluation.\n\n## Description\nr03 split the case record off the list (GET /api/devcase/[id]) but left the other half of the same reader on `GET /api/devcase/postings`: a workspace-wide fold that inlines every submission of every posting (an N+1 with an unbounded per-posting read), joins outcomes and computes a promote verdict for each, and is re-fetched after every `evaluate_submission` and every lifecycle step. Its two consumers need far less: CaseDetail filters it down to one case client-side, and LifecycleSection folds it down to two integers per case. The move: (1) extract the enrichment (outcome join, promote preview, in-flight aggregate) from the postings route into `app/_lib/devcase-postings-view.ts` so both routes answer it identically; (2) a slice `app/_lib/db/devcase-case-postings.ts` with `listCasePostings(caseId, ws)` (SQL-scoped, status carried) and `caseIntakeCounts(caseIds, ws)` (one GROUP BY for submissions; in-flight folded from inFlightAttemptsByPosting); (3) `GET /api/devcase/[id]/channels` (requireOperator + the same owner check as [id]); (4) GET /api/devcase/lifecycle attaches `submissionCount` and `inFlight` per row; (5) CaseDetailById loads case + channels together under one version key that DevTab bumps on `evaluate_submission` and lifecycle completions; LifecycleSection reads counts off the row. The workspace route is kept, unchanged, for the e2e journeys.\n\nNot a new slice of devcase.ts: that module is on every studio route's import graph (the devcase-ledger.ts precedent). No new table, no tenancy manifest change. Read-only - no read->write, so no lock strategy is needed. Perf: the channels route pulls the same graph the postings route does today (dev-outcomes, devcase-promote-verdict, devcase-orchestrator for activePromoteFloor) under the `app/api/**/route.ts` glob budget; the lifecycle route gains only the count slice + devcase-inflight, not the view module. Neither app/page.tsx nor the task-hub graph is touched. Must not share a wave with this context's slot-B card (both edit DevCaseDetail.tsx and DevTypes.ts).\n\n## Flow\nOpen a row -> CaseDetailById fetches /api/devcase/{id} and /api/devcase/{id}/channels in parallel -> CaseDetail renders shortlist/cohort/channels from its own postings -> an evaluation finishes -> DevTab bumps the detail version (re-reads ONE case) and reloads lifecycles (counts ride the rows) -> no workspace fold is ever requested by the studio.\n\n## Expected impact\nStudio mount and every evaluation completion stop shipping the workspace's entire submission/evaluation corpus; the detail's data is scoped by SQL instead of by a client filter; the lifecycle section's counts cover exactly its rows. It also puts posting `status` on the detail's typed wire, which the client type drops today - the prerequisite for any honest live/closed rendering.\n\n## Evaluation\nClaim: the detail and lifecycle section read case-scoped data and the studio never loads the workspace posting fold.\nBefore: 0 of 6 acceptance cases pass.\nAfter: 6 of 6.\nMethod: gate - node:test over the view module, the new route (real handlers, temp KP_DB_PATH) and the lifecycle GET, plus the source guard; npm run test:perf for the route-graph budget; existing postings route.test.ts unchanged.\nResult: pending build.\nGate: architecture.",
+    "evidence": "useDevTabData.ts:81-84 `const { data: postings, reload: loadPostings } = useLoader<Posting[]>(\"/api/devcase/postings\", ...)`; :107 `loadPostings();` in the mount effect.\npostings/route.ts:22 `const postings = listPostings(ws).map((p) => ({ ...p, submissions: listSubmissions(p.id, ws) }));`\ndevcase.ts:846 `? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? AND workspace_id = ? ORDER BY received_at DESC`).all(postingId, workspaceId)` (no LIMIT on this branch).\nDevTab.tsx:159 `if (kinds.has(\"evaluate_submission\")) loadPostings();`\nDevCaseDetail.tsx:65 `const casePostings = postings.filter((p) => p.caseId === kase.id);`\nDevLifecycleSection.tsx:35 `const n = p.submissions?.length ?? p.submissionCount ?? 0;` and :39 `const inFlight = inFlightByCase(postings);` - counts only.\nlifecycle/route.ts:18 `return NextResponse.json({ lifecycles: listLifecycles(50, await currentWorkspace()) });`\ngrep of app/ for \"api/devcase/postings\" outside tests/comments: only useDevTabData.ts:82 (UI) - e2e/journey-one-thread.spec.ts:215,309 and e2e/token-doors-axe.spec.ts:186 read it too, hence the route is kept."
+  },
+  {
+    "context": "devcase-lifecycle",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Closed intake reads closed: stop, reopen, and no dead links handed out",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "base_sha": "dbcdecf66",
+    "write_set": [
+      "app/features/tools/devcases/devcaseIntakeState.ts",
+      "app/features/tools/devcases/devcaseIntakeState.test.ts",
+      "app/api/devcase/[id]/intake/route.ts",
+      "app/api/devcase/[id]/intake/route.test.ts",
+      "app/_lib/db/devcase.ts",
+      "app/api/devcase/publish/route.ts",
+      "app/api/route-capability-coverage.test.ts",
+      "app/_lib/db/devcase-ledger.ts",
+      "app/_lib/db/devcase-ledger.test.ts",
+      "app/_lib/api-response.ts",
+      "app/features/tools/devcases/DevTypes.ts",
+      "app/features/tools/devcases/DevCaseDetail.tsx",
+      "app/features/tools/devcases/DevCaseDetailHeader.tsx",
+      "app/features/tools/devcases/DevPublishConfirm.tsx",
+      "app/features/tools/devcases/DevCaseDetailChannels.tsx",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/devcases/devcaseIntakeState.ts",
+      "app/features/tools/devcases/devcaseIntakeState.test.ts",
+      "app/api/devcase/[id]/intake/route.ts",
+      "app/api/devcase/[id]/intake/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "intakeOf([]) -> {state:'unpublished'}; intakeOf([{status:'open'},{status:'closed'}]) -> {state:'live', open:1, closed:1}; intakeOf([{status:'closed'}]) -> {state:'closed', open:0, closed:1}",
+      "intakeAction({state:'live'}, lifecycleStage:null) -> 'stop'; ({state:'live'}, 'collecting') -> null (the lifecycle row's Close owns it); ({state:'closed'}, null|'closed') -> 'reopen'; ({state:'unpublished'}) -> 'publish'",
+      "POST /api/devcase/[id]/intake {action:'stop'} on a case with no lifecycle and one open posting (recruiter seat) -> 200 {closed:1}; the posting's status is 'closed'; POST /api/devcase/inbound with its token -> 410 POSTING_CLOSED; one dev_audit row action 'intake_stopped' ref=caseId",
+      "Same call on a case whose newest lifecycle is 'collecting' -> 409 DEVCASE_INTAKE_LIFECYCLE_OWNS and the posting is still 'open'",
+      "Repeat stop on the already-stopped case -> 200 {closed:0} (the UPDATE re-asserts status='open'; nothing re-written, no second audit row)",
+      "Viewer seat: POST /api/devcase/publish and POST /api/devcase/[id]/intake -> 403 coded; route-capability-coverage.test.ts ALLOWED no longer lists devcase/publish/route.ts",
+      "Ledger: a case with no lifecycle whose only posting is closed -> stage 'closed' (not 'published'), so devcase-sla's stall rule no longer flags it; an open posting still -> 'published'; facets include 'closed'",
+      "After a stop, POST /api/devcase/publish on the same case -> alreadyPublished:false and a token different from the stopped one (reopen mints a fresh link; the old one stays 410)"
+    ],
+    "premise": [
+      "app/features/tools/devcases/DevCaseDetail.tsx:66 `const published = casePostings.length > 0;` - any posting, open or closed, reads as live",
+      "app/features/tools/devcases/DevTypes.ts:157-170 - the client Posting type has no `status`, though the server row carries it (app/_lib/db/devcase.ts:668 in rowToPosting, used by listPostings at :754) and it is already on the wire",
+      "app/features/tools/devcases/DevCaseDetailHeader.tsx:109 disables Publish when `published` and :114 labels it 'Published' - a closed case can never be reopened from the UI",
+      "app/api/devcase/publish/route.ts:37-39 - the server deliberately treats a publish after a close-out as a genuine new posting; the UI simply cannot reach it",
+      "app/features/tools/devcases/DevCaseDetailChannels.tsx:37 renders the copy-link pill and :39 the manual-intake SubmissionForm for EVERY posting - a closed channel hands out a link that answers 410 (app/api/devcase/inbound/route.ts:67-72) and offers a form that the submit route refuses as POSTING_CLOSED (app/api/devcase/submit/route.ts:75)",
+      "app/features/tools/devcases/DevCaseDetail.tsx:189-193 - a closed case with no submissions shows the 'waiting for applicants' panel",
+      "app/features/tools/devcases/DevCaseDetail.tsx:94-97 - a per-posting close was explicitly deferred for lack of a door; the only close is the lifecycle's, so a case published from this detail (no lifecycle) has no way to stop intake at all",
+      "app/api/devcase/lifecycle/[id]/close/route.ts:41 - a second close of a closed lifecycle returns alreadyClosed BEFORE enumerating postings (:53), so a posting reopened after close-out could never be closed by that door - the stop door must exist before reopen is offered",
+      "app/_lib/db/devcase-ledger.ts:145 and :178 read 'published' whenever ANY posting exists; app/_lib/db/devcase-ledger.test.ts:65 names the rule 'an open posting reads published' but the SQL never checks status; app/_lib/devcase-sla.ts:17 counts 'published' as a stall-able open stage",
+      "app/api/route-capability-coverage.test.ts:115 - devcase/publish/route.ts is still an unjudged slice-2 door: minting a live candidate-facing token asks no capability, while its sibling POST /api/devcase asks pipeline:write (app/api/devcase/route.ts:96)"
+    ],
+    "rollback": "Revert the series: the stop door only flips dev_postings.status open->closed (the same write the lifecycle close makes) and a reopen is an ordinary publish, so no row is left in a state the pre-change code cannot read; the ledger SQL change is a projection only; the capability gate reverts by restoring the ALLOWED line.",
+    "gate": "policy-tighten",
+    "runner_up": "Publish flow as one tested reducer: confirming/ack/publishing/published collapse from 19 threaded props (DevCaseDetailHeader.tsx:13-53) into a pure state machine - dropped as mostly a refactor once the intake state above exists.",
+    "technique": "draft-live-and-closed-as-distinct-states",
+    "body": "## Summary\nThe assignment detail tells live intake from closed intake and lets the recruiter act on it: a live case with no lifecycle can be stopped, a closed case can be reopened (a fresh link, the old one stays dead), closed channels stop offering their dead link and a manual-intake form that is refused, and the Assignments table stops calling a closed case 'published'.\n\n## Description\nThe store has had open/closed postings since W5-3 and the publish route already reopens after a close, but the detail never reads the status: `published = casePostings.length > 0`. So after a close-out (or the r07 fence withdrawing a token) the header says Published and is disabled, every channel card still copies an apply URL that answers 410 and offers a form the submit route refuses, and a closed case with no applicants says it is waiting for them. A case published from this detail (no lifecycle) has no way to stop intake at all - the detail's own comment records the deferral. The ledger repeats the confusion in SQL, which also lets the stall chip fire on a closed case.\n\nBuild: (1) `devcaseIntakeState.ts` - `intakeOf(postings)` -> unpublished | live | closed with counts, and `intakeAction(intake, lifecycleStage)` -> publish | stop | reopen | null; (2) `POST /api/devcase/[id]/intake {action:'stop'}` - requireOperator, `requireCapabilityCoded('pipeline:write')`, ownedDevCase, then `closeCaseIntake(caseId, ws)` in devcase.ts: a `db.transaction(...).immediate()` that reads the case's newest lifecycle and refuses (409 DEVCASE_INTAKE_LIFECYCLE_OWNS) unless it is absent or 'closed', then `UPDATE dev_postings SET status='closed' WHERE workspace_id=? AND case_id=? AND status='open'` (lock AND re-check: the write lock keeps an orchestrator mint from interleaving, the WHERE makes a repeat a zero-change no-op). It sends NO candidate comms - stopping intake is not a rejection; the lifecycle's Close stays the door that wraps up submitters (closing-withdraws-candidates-in-flight). recordAudit({actor:'human', action:'intake_stopped', ref: caseId}); (3) publish asks `pipeline:write` (the reopen half must not be looser than the stop half); (4) UI - every surface that shows the status or offers the refused action: header button (Publish / Stop intake / Reopen, disabled with a reason when a live lifecycle owns intake), DevPublishConfirm gains a reopen variant saying the old link stays closed, channel cards render closed channels with a closed chip, the token as inert text and no SubmissionForm, the waiting panel says intake is closed; (5) ledger stage: open posting -> 'published', only closed postings -> 'closed'. New codes DEVCASE_INTAKE_LIFECYCLE_OWNS (REFUSAL) and DEVCASE_INTAKE_STOP_FAILED (STORE) = four catalog entries each, plus the UI keys, in all four locales. The route is NOT admitted by app/_lib/auth/public-routes.ts (it only lists /api/devcase/session and /api/devcase/inbound), so it sits behind the fail-closed gate; api-reference.md regenerated with npm run api:docs. No new table. Stop's fetch lives in CaseDetail (the LifecycleRow close precedent), so DevTab/useDevTabActions are untouched. Must not share a wave with slot A (DevCaseDetail.tsx, DevTypes.ts).\n\n## Flow\nOpen a manual live assignment -> header shows 'Live - Stop intake' -> confirm -> postings close, cards show Closed, apply link now inert, ledger row reads Closed -> later 'Reopen' -> confirm names that a new link is minted and the old one stays closed -> publish mints a fresh open posting -> 'Stop intake' is available again. On a lifecycle-run assignment that is still collecting, the header states that the lifecycle row's Close ends intake (with wrap-up notes).\n\n## Expected impact\nA recruiter can finally end intake on an assignment published by hand, can reopen one that was closed, never copies a dead link to a candidate, never types a manual submission into a refused form, and the Assignments table's stage and stall chip stop contradicting the store. Also closes one slice-2 capability door.\n\n## Evaluation\nClaim: intake state is read from posting status on every surface that shows it, and stop/reopen are offered exactly when they are legal.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over devcaseIntakeState.ts, the intake and publish routes driven as real handlers with seat fixtures (write-capability-gate precedent), devcase-ledger.test.ts; npm run i18n:check, api:check, test:unit.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "DevCaseDetail.tsx:66 `const published = casePostings.length > 0;`\nDevCaseDetail.tsx:94-97 `NOTE: the fix sketch's third leg - an in-surface \"Close posting\" control - is intentionally SKIPPED here: there is no per-posting close endpoint (only /api/devcase/lifecycle/[id]/close ...)`\nDevCaseDetailHeader.tsx:109 `disabled={published || publishing}`; :114 `{published ? t(\"published\") : ...}`\nDevCaseDetailChannels.tsx:37 `<ApplyTokenPill token={p.token} />`; :39 `<SubmissionForm postingId={p.id} onDone={onDone} />` - no status check.\nDevTypes.ts:157-170 Posting = {id, caseId, channel, token, roleTitle, caseTitle, submissionCount?, submissions?, inFlight?} - no status. devcase.ts:668 `status: r.status as string,` in rowToPosting.\npublish/route.ts:37-39 `a CLOSED posting is deliberately excluded from the dedup, so a re-publish after a close-out is a genuine new posting`.\ninbound/route.ts:67-71 `if (posting.status === \"closed\") { ... return jsonRefusal(\"POSTING_CLOSED\", 410);`\nclose/route.ts:41 `if (!claimLifecycleClose(id)) return NextResponse.json({ ok: true, alreadyClosed: true, notified: 0 });` precedes the posting enumeration at :53.\ndevcase-ledger.ts:145 `COALESCE(lc.stage, CASE WHEN pc.case_id IS NOT NULL THEN 'published' ELSE 'approved' END) AS stage` - `posted` CTE (:136-140) groups dev_postings with no status filter.\ndevcase-sla.ts:17 `const OPEN_STAGES = new Set([\"collecting\", \"published\"]);`\nroute-capability-coverage.test.ts:115 `[\"devcase/publish/route.ts\", \"slice 2 candidate — ungated when this ratchet landed; not yet judged\"]`\nPrior decks: no card on posting status/intake stop-reopen (r06 devcase-session-api/B made the lifecycle CLOSE name in-flight attempts; r07 devcase-orchestration/A fenced the runner). Open leftover 'Let a recruiter rotate a leaked apply token without closing intake' (risk 3) is NOT restated: rotation keeps intake open; this card is about intake state."
+  }
+]

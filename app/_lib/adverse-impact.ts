@@ -38,6 +38,93 @@ export const FOUR_FIFTHS = 0.8;
  */
 export const ADVERSE_IMPACT_MIN_COHORT = 30;
 
+/**
+ * The significance companion's level: a two-sided p below this is "statistically
+ * significant", about the two-standard-deviation line agencies and courts read. The
+ * ratio alone is a screen that errs in both directions (29 CFR 1607.4D names both): at
+ * small N a 0.6 ratio can be chance, and at large N a 0.95 ratio can be a real gap. So
+ * every measured ratio carries this test beside it, and the verdict reads both.
+ */
+export const SIGNIFICANCE_ALPHA = 0.05;
+
+/**
+ * Two-sided Lancaster mid-P exact test for one group against the reference, on the
+ * 2x2 table selected / not selected. Chosen over plain Fisher's exact test because
+ * Fisher's is conservative at the cohort sizes this check sees (it misses real gaps),
+ * while mid-P holds close to the nominal error rate with more power. It is exact at
+ * every size and converges on the familiar Z-test at large N, so there is no switch
+ * between a small-sample and a large-sample method. Tables exactly as likely as the
+ * observed one count half: that is the mid-P correction.
+ */
+export function midPExactTwoSided(aSelected: number, aTotal: number, bSelected: number, bTotal: number): number {
+  const n = aTotal + bTotal;
+  const k = aSelected + bSelected;
+  const lf = new Float64Array(n + 1);
+  for (let i = 2; i <= n; i++) lf[i] = lf[i - 1] + Math.log(i);
+  const logP = (x: number) =>
+    lf[k] + lf[n - k] + lf[aTotal] + lf[bTotal] - lf[n] - lf[x] - lf[aTotal - x] - lf[k - x] - lf[bTotal - k + x];
+  const observed = logP(aSelected);
+  let less = 0;
+  let equal = 0;
+  for (let x = Math.max(0, k - bTotal); x <= Math.min(k, aTotal); x++) {
+    const lp = logP(x);
+    if (lp < observed - 1e-7) less += Math.exp(lp);
+    else if (lp <= observed + 1e-7) equal += Math.exp(lp);
+  }
+  return Math.min(1, less + equal / 2);
+}
+
+/** The power a comparison is read at: a group whose true rate sits at or below the
+ *  {@link detectableRatio} is shown as a significant gap at least this often. */
+export const DETECTABLE_POWER = 0.8;
+
+function normalCdf(z: number): number {
+  // Abramowitz & Stegun 7.1.26 (erf), accurate to ~1.5e-7 — far finer than a power
+  // statement needs, and dependency-free like the rest of this module.
+  const t = 1 / (1 + (0.3275911 * Math.abs(z)) / Math.SQRT2);
+  const y =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
+      Math.exp((-z * z) / 2);
+  return z >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+}
+
+/** Power of the two-sided 5% two-proportion test to separate rates p0 and p1. */
+function comparisonPower(p0: number, n0: number, p1: number, n1: number): number {
+  const pooled = (n0 * p0 + n1 * p1) / (n0 + n1);
+  const seNull = Math.sqrt(pooled * (1 - pooled) * (1 / n0 + 1 / n1));
+  const seAlt = Math.sqrt((p0 * (1 - p0)) / n0 + (p1 * (1 - p1)) / n1);
+  if (seAlt === 0) return 1;
+  return normalCdf((p0 - p1 - 1.959964 * seNull) / seAlt);
+}
+
+/**
+ * What a comparison could have SEEN. The largest ratio (group rate ÷ reference rate) at
+ * which a group that truly selects at that ratio would still be shown as a significant
+ * gap {@link DETECTABLE_POWER} of the time, given the reference's rate and both group
+ * sizes. 0.33 reads: "this sample only reliably shows a group selected at a third of the
+ * reference rate or less". 0 means it could not reliably show even a group that was never
+ * selected at all. null when there is no reference rate to compare against.
+ *
+ * A non-significant result is silent about every gap smaller than this, so a "clean" or
+ * "not significant" line that omits it reads as parity when it is only blindness. The
+ * significant direction needs no such statement: the exact test holds its error rate at
+ * any size, which is why no floor is placed on selections (a numerator floor would
+ * suppress the zero-selected case, the most severe one).
+ */
+export function detectableRatio(referenceRate: number, referenceTotal: number, groupTotal: number): number | null {
+  if (!(referenceRate > 0) || referenceTotal <= 0 || groupTotal <= 0) return null;
+  if (comparisonPower(referenceRate, referenceTotal, 0, groupTotal) < DETECTABLE_POWER) return 0;
+  let lo = 0;
+  let hi = 1; // power falls as the ratio rises toward 1
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (comparisonPower(referenceRate, referenceTotal, referenceRate * mid, groupTotal) >= DETECTABLE_POWER) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /** Aggregate counts for one group the recruiter supplies. */
 export type GroupCount = { group: string; selected: number; total: number };
 
@@ -111,9 +198,25 @@ export type GroupImpact = {
    *  meeting {@link ADVERSE_IMPACT_MIN_COHORT} can be the reference, and EXACTLY one
    *  row carries it — even when two pasted rows share a group name. */
   isReference: boolean;
+  /** True when the row's counts were impossible as supplied (negative, selected above
+   *  total, or non-finite) and were clamped into range. A clamped row can become the
+   *  reference at an invented rate, so the UI must say the analysis ran on repaired input. */
+  clamped: boolean;
   /** True when this group's own sample (total) meets {@link ADVERSE_IMPACT_MIN_COHORT}.
    *  When false the UI must render an "insufficient sample" state — NOT a verdict. */
   reliable: boolean;
+  /** Selections this group is short of the reference RATE: referenceRate × total −
+   *  selected, 0 at or above it. A count of people, so it grows with N exactly as a
+   *  p-value shrinks: 40 short is noise across 100,000 applicants and decisive across
+   *  100. Read it as a share of the group (shortfall ÷ total) beside the p-value, never
+   *  alone. null where there is no ratio, and on the reference row. */
+  shortfall: number | null;
+  /** Two-sided mid-P exact p-value against the reference ({@link midPExactTwoSided}).
+   *  null where there is no ratio, and on the reference row. */
+  pValue: number | null;
+  /** pValue < {@link SIGNIFICANCE_ALPHA}. A ratio below 0.8 that is not significant is
+   *  a pattern to watch, not a finding; a significant gap above 0.8 is still a gap. */
+  significant: boolean;
 };
 
 export type AdverseImpactResult = {
@@ -122,6 +225,22 @@ export type AdverseImpactResult = {
   referenceGroup: string | null;
   /** True when any group falls below the four-fifths threshold. */
   anyAdverseImpact: boolean;
+  /** True when a group is below the threshold AND its gap is statistically significant. */
+  anySignificantAdverse: boolean;
+  /** True when a group clears the threshold but still selects significantly less often
+   *  than the reference: the large-sample gap the four-fifths screen alone misses. */
+  anySignificantGapAboveThreshold: boolean;
+  /** Rows whose counts were clamped (see {@link GroupImpact.clamped}); 0 when the input was clean. */
+  clampedRows: number;
+  /** The selection rate the others were measured against, or null when none qualifies. A
+   *  reader who can see the yardstick was 100% over 31 people can discount the page. */
+  referenceRate: number | null;
+  /** Rows that could not be assessed (below the floor). A headline that says "no group
+   *  falls below" must also say how many groups it never measured. */
+  unassessedGroups: number;
+  /** {@link detectableRatio} of the LEAST sensitive comparison made — the gap below which
+   *  a non-significant verdict says nothing. null when no comparison was made. */
+  detectableRatio: number | null;
   /** True only when at least two groups meet {@link ADVERSE_IMPACT_MIN_COHORT} — the
    *  minimum to anchor a reference and measure one comparison against it. When false
    *  the sample is too small to assess and the UI MUST show "insufficient sample"
@@ -129,12 +248,14 @@ export type AdverseImpactResult = {
   reliable: boolean;
 };
 
-function clampCounts(g: GroupCount): { group: string; selected: number; total: number } {
+function clampCounts(g: GroupCount): { group: string; selected: number; total: number; clamped: boolean } {
   const total = Math.max(0, Math.floor(Number(g.total) || 0));
   // A selected count above the total (or negative) is bad data — clamp into range
   // rather than producing a >100% selection rate that would corrupt the reference.
   const selected = Math.min(total, Math.max(0, Math.floor(Number(g.selected) || 0)));
-  return { group: g.group, selected, total };
+  // Surface the repair: bad input moves a data-chosen reference, so it is fairness logic.
+  const clamped = selected !== g.selected || total !== g.total;
+  return { group: g.group, selected, total, clamped };
 }
 
 /**
@@ -186,6 +307,9 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     const ratioMeasurable = reference !== null && referenceRate > 0 && g.reliable;
     const impactRatio = ratioMeasurable ? g.selectionRate / referenceRate : null;
     const adverseImpact = impactRatio !== null && !isReference && impactRatio < FOUR_FIFTHS;
+    const compared = impactRatio !== null && !isReference && reference !== null;
+    const shortfall = compared ? Math.max(0, referenceRate * g.total - g.selected) : null;
+    const pValue = compared ? midPExactTwoSided(g.selected, g.total, reference.selected, reference.total) : null;
     return {
       group: g.group,
       selected: g.selected,
@@ -194,14 +318,57 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
       impactRatio,
       adverseImpact,
       isReference,
+      clamped: g.clamped,
       reliable: g.reliable,
+      shortfall,
+      pValue,
+      significant: pValue !== null && pValue < SIGNIFICANCE_ALPHA,
     };
   });
+
+  // The least sensitive comparison bounds what a non-significant verdict can claim.
+  const detectable = reference
+    ? groups
+        .filter((g) => g.pValue !== null)
+        .map((g) => detectableRatio(referenceRate, reference.total, g.total))
+        .filter((d): d is number => d !== null)
+    : [];
+  const weakestDetectable = detectable.length > 0 ? Math.min(...detectable) : null;
 
   return {
     groups,
     referenceGroup: reference?.group ?? null,
     anyAdverseImpact: reliable && groups.some((g) => g.adverseImpact),
+    anySignificantAdverse: reliable && groups.some((g) => g.adverseImpact && g.significant),
+    anySignificantGapAboveThreshold:
+      reliable && groups.some((g) => !g.adverseImpact && g.significant && (g.shortfall ?? 0) > 0),
+    clampedRows: groups.filter((g) => g.clamped).length,
+    referenceRate: reference ? referenceRate : null,
+    unassessedGroups: groups.filter((g) => !g.reliable).length,
+    detectableRatio: reliable ? weakestDetectable : null,
     reliable,
   };
+}
+
+/**
+ * The headline state of a result. Five measured states plus two that are NOT findings:
+ * `insufficient` (no pair of groups clears the floor) and `cleanPartial` (the assessed
+ * groups show nothing, but some groups were never assessed). `cleanPartial` is its own
+ * state because a headline that says "no group falls below" over groups it never
+ * measured reads as a clean bill; the mix belongs in the headline, not a footnote.
+ */
+export type AdverseImpactVerdict =
+  | "insufficient"
+  | "adverse"
+  | "belowNotSignificant"
+  | "significantGap"
+  | "cleanPartial"
+  | "clean";
+
+export function adverseImpactVerdict(impact: AdverseImpactResult | null): AdverseImpactVerdict {
+  if (!impact || !impact.reliable) return "insufficient";
+  if (impact.anySignificantAdverse) return "adverse";
+  if (impact.anyAdverseImpact) return "belowNotSignificant";
+  if (impact.anySignificantGapAboveThreshold) return "significantGap";
+  return impact.unassessedGroups > 0 ? "cleanPartial" : "clean";
 }

@@ -32,6 +32,7 @@ from pipeline.jobfit.ats import (
     verify_gaps_against_cv,
     verify_skills_in_cv,
 )
+from pipeline.jobfit.jobs import Job, JobRequirement
 from pipeline.jobfit import taxonomy
 from pipeline.jobfit.extractors import clean_text
 from pipeline.jobfit.profiling import build_profile
@@ -92,6 +93,19 @@ class IndependentHarvestTest(unittest.TestCase):
 
 
 class AuthoritativeJobSkillsTest(unittest.TestCase):
+    def test_structured_job_requirements_define_the_keyword_universe(self) -> None:
+        job = Job(
+            id="job-1", title="Engineer", company="Acme", location="Prague",
+            requirements=[JobRequirement(skill="Rust")],
+        )
+        coverage = evaluate_keyword_coverage(
+            _CV, _JD,
+            job_skills=[requirement.skill for requirement in job.requirements],
+            matching_skills=[], missing_skills=[],
+        )
+        self.assertEqual({hit.keyword.lower() for hit in coverage.hits}, {"rust"})
+        self.assertFalse(_hit_for(coverage, "rust").matched)
+
     def test_explicit_job_skills_bypass_the_harvest(self) -> None:
         # When a caller has an authoritative requirements list (e.g. structured
         # job requirements in the seed path), it is used verbatim and the JD-text

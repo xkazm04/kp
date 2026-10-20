@@ -22,7 +22,7 @@ import { useTranslations } from "next-intl";
  * client-only (useSearchParams — mounted under Suspense in SparkHome). Renders
  * nothing without the param, so the landing pays nothing.
  */
-export function DemoUnavailableNotice() {
+export function DemoUnavailableNotice({ signupOpen = false }: { signupOpen?: boolean }) {
   // The whole-"landing" namespace form (the sections' own convention): the
   // namespace union next-intl derives for this catalog doesn't accept the
   // nested "landing.demoNotice" path.
@@ -50,10 +50,24 @@ export function DemoUnavailableNotice() {
           >
             {t("nav.about")}
           </a>
+          {signupOpen ? (
+            <a
+              href="/signup"
+              className="ml-4 inline-block font-semibold underline decoration-2 underline-offset-2 hover:text-[#d65a4a]"
+            >
+              {t("hero.ctaPrimary")}
+            </a>
+          ) : null}
         </div>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            const url = new URL(document.URL);
+            url.searchParams.delete("demo");
+            url.searchParams.delete("code");
+            window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+            setDismissed(true);
+          }}
           aria-label={t("demoNotice.dismiss")}
           title={t("demoNotice.dismiss")}
           className="shrink-0 rounded-md p-1 text-[#141414] transition-colors hover:bg-[#141414]/10"

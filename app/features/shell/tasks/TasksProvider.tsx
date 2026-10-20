@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   initialTasksPollState,
@@ -55,16 +55,21 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     initialTasksPollState<Task>
   );
   const { tasks, startError, loadFailed } = state;
+  const [knownKinds, setKnownKinds] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     try {
       const r = await fetch("/api/tasks");
-      const p = (await r.json().catch(() => ({}))) as { tasks?: unknown };
+      const p = (await r.json().catch(() => ({}))) as { tasks?: unknown; kinds?: unknown };
       if (!r.ok || !Array.isArray(p.tasks)) {
         dispatch({ type: "pollFailed" });
         return;
       }
       dispatch({ type: "polled", tasks: p.tasks as Task[] });
+      if (Array.isArray(p.kinds) && p.kinds.every((kind) => typeof kind === "string")) {
+        const nextKinds = p.kinds as string[];
+        setKnownKinds((prev) => prev.length === nextKinds.length && prev.every((kind, i) => kind === nextKinds[i]) ? prev : nextKinds);
+      }
     } catch {
       /* transient — the next (backed-off) tick retries, and the flag lets the view say so meanwhile */
       dispatch({ type: "pollFailed" });
@@ -72,7 +77,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const startTask = useCallback(
-    async (kind: string, params: Record<string, unknown> = {}) => {
+    async (kind: Parameters<TasksCtx["startTask"]>[0], params: Record<string, unknown> = {}) => {
       try {
         const r = await fetch("/api/tasks", {
           method: "POST",
@@ -111,9 +116,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   );
 
   const retryTask = useCallback(
-    async (id: string) => {
+    async (id: string, scope?: Parameters<TasksCtx["retryTask"]>[1]) => {
       try {
-        const r = await fetch(`/api/tasks/${id}/retry`, { method: "POST" });
+        // No body = the whole-run replay; a scope asks the server for the subset only.
+        const init: RequestInit = scope
+          ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope }) }
+          : { method: "POST" };
+        const r = await fetch(`/api/tasks/${id}/retry`, init);
         const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
         if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
         dispatch({ type: "actionOk" });
@@ -214,6 +223,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<TasksCtx>(
     () => ({
       tasks,
+      knownKinds,
       running: tasks.filter(ACTIVE),
       startTask,
       retryTask,
@@ -227,7 +237,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       loadFailed,
       queueUnreachable: queueUnreachable(state),
     }),
-    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen, loadFailed, state]
+    [tasks, knownKinds, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen, loadFailed, state]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

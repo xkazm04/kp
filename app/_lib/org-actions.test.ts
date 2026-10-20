@@ -65,7 +65,7 @@ process.env.KP_SECRET = "org-actions-test-secret";
 process.env.KP_OPERATOR_PASSWORD = "org-actions-test-password";
 
 const { setOrgCurrency, setOrgLanguage, setOrgName } = await import("./org-actions.ts");
-const { createWorkspace, getWorkspaceDefaultLocale } = await import("./db/workspaces.ts");
+const { createWorkspace, getWorkspaceDefaultLocale, setWorkspaceDefaultLocale } = await import("./db/workspaces.ts");
 const { createUser } = await import("./db/users.ts");
 const { upsertMembership } = await import("./db/memberships.ts");
 const { signSession } = await import("./auth/session.ts");
@@ -162,4 +162,62 @@ test("the language write reaches EVERY team in the org, not just the caller's", 
   assert.equal(getWorkspaceDefaultLocale(team.id), "fr", "the caller's team");
   assert.equal(getWorkspaceDefaultLocale(second.id), "fr", "…and every sibling team in the same org");
   assert.notEqual(getWorkspaceDefaultLocale(outside.id), "fr", "never across the tenant boundary");
+});
+
+// ---- one org language authority (challenge-r04 db-org-users-channels/A) ----------
+//
+// The fan-out above reached every team that existed AT CALL TIME. A team created
+// afterwards was born with the column default ('cs'), and the org's own row
+// (organizations.default_locale) was never written at all. The org row is now the
+// authority, a team follows it by ABSENCE of an override, and the tab's write keeps
+// its org-wide reach by clearing every override inside the org.
+const { getOrganization, createOrganization, setOrganizationLocale } = await import("./db/organizations.ts");
+const { ensureDb } = await import("./db/core.ts");
+
+function legacyLocale(id: string): string | null {
+  const r = ensureDb().prepare(`SELECT default_locale AS v FROM workspaces WHERE id = ?`).get(id) as { v: string | null } | undefined;
+  return r?.v ?? null;
+}
+
+test("a team created AFTER the language write inherits the org's language, not the column default", async () => {
+  signedInAs(owner);
+  assert.deepEqual(await setOrgLanguage("de"), { ok: true });
+  const late = createWorkspace("Late team", ORG);
+  assert.equal(getWorkspaceDefaultLocale(late.id), "de", "born into a German org, the team writes German to candidates");
+});
+
+test("the language lands on the ORG row; every team follows it, a later one too; other orgs keep theirs", async () => {
+  const other = createOrganization("Elsewhere a.s.");
+  setOrganizationLocale("de", other.id);
+  const otherTeam = createWorkspace("Elsewhere team", other.id);
+  signedInAs(owner);
+  assert.deepEqual(await setOrgLanguage("fr"), { ok: true });
+  assert.equal(getOrganization(ORG)!.defaultLocale, "fr", "one row holds the org's language");
+  assert.equal(getWorkspaceDefaultLocale(team.id), "fr");
+  const born = createWorkspace("Born after the write", ORG);
+  assert.equal(getWorkspaceDefaultLocale(born.id), "fr", "a team created after the call follows the org");
+  assert.equal(getWorkspaceDefaultLocale(otherTeam.id), "de", "a team in a different org keeps its own org's language");
+  assert.equal(getOrganization(other.id)!.defaultLocale, "de");
+});
+
+test("the Organization tab's write clears every team override inside the org — the same org-wide reach", async () => {
+  const sibling = createWorkspace("Sibling with an override", ORG);
+  setWorkspaceDefaultLocale("en", sibling.id);
+  assert.equal(getWorkspaceDefaultLocale(sibling.id), "en", "precondition: the sibling chose English");
+  signedInAs(owner);
+  assert.deepEqual(await setOrgLanguage("fr"), { ok: true });
+  assert.equal(getWorkspaceDefaultLocale(sibling.id), "fr", "no team of the org resolves anything but the org's language");
+  assert.equal(getWorkspaceDefaultLocale(team.id), "fr");
+});
+
+test("downgrade mirror: the legacy column of every team in the org carries the new language", async () => {
+  const sibling = createWorkspace("Mirror sibling", ORG);
+  setWorkspaceDefaultLocale("en", sibling.id);
+  signedInAs(owner);
+  assert.deepEqual(await setOrgLanguage("de"), { ok: true });
+  const rows = ensureDb().prepare(`SELECT id FROM workspaces WHERE org_id = ?`).all(ORG) as { id: string }[];
+  assert.ok(rows.length >= 3);
+  for (const { id } of rows) {
+    assert.equal(legacyLocale(id), "de", `an older image reading only workspaces.default_locale hears 'de' for ${id}`);
+  }
 });

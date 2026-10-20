@@ -31,7 +31,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { rateLimit } from "../_lib/rate-limit.ts";
+import { rateLimit, rateLimitRetryAfterMs } from "../_lib/rate-limit.ts";
 
 const apiDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -105,6 +105,26 @@ type RouteSpec = {
   /** Window in ms, and the source text it is written as. Defaults to the 10-minute window. */
   windowMs?: number;
   windowSrc?: string;
+  /** The name of the const the key template is hoisted into, so the SAME key feeds the
+   *  limiter and the retry read (challenge 2026-09-22 shared-api-utilities/B). The route
+   *  must define `const <keyConst> = <key>;` before the call, and the pinned call becomes
+   *  `rateLimit(<keyConst>, <opts>)`. */
+  keyConst?: string;
+  /** The refusal SAYS WHEN: `jsonThrottled(rateLimitRetryAfterMs(<keyConst>), <window>)`
+   *  — a Retry-After read off the window that refused, never a constant, and no header
+   *  when there is no honest figure (app/_lib/throttle-response.ts). The bare
+   *  `jsonRefusal("TOO_MANY_REQUESTS", 429)` is then FORBIDDEN at this call: a door that
+   *  learned to say when must not quietly forget. Requires `keyConst`. Set on the
+   *  machine-called public doors first; any other door may adopt it one row at a time. */
+  retryAfter?: true;
+  /** The limiter is a CHAIN LINK, not a call in the body: the route declares
+   *  `route(<gates>, withRateLimit({ key: ({ request }) => <key>, <opts> }))(handler)`
+   *  (app/_lib/auth/route-guards.ts). Migrated, not deleted: the same key, limit, window
+   *  and gate-before-limiter order are pinned, now against the declaration. The refusal
+   *  shape belongs to the guard and is pinned once below. Incompatible with
+   *  `servedBefore` (a guard runs ahead of every gate the handler owns): a limiter that
+   *  must stay behind a cheaper refusal stays a call in the body. */
+  chain?: true;
 };
 
 const ROUTES: RouteSpec[] = [
@@ -157,6 +177,32 @@ const ROUTES: RouteSpec[] = [
     expensive: "startTask(",
   },
   {
+    // ADDED spark analyze-v2-cohort (Cohort Studio). POST starts an `analyze_cohort` task:
+    // up to COHORT_CAP paid CV analyses plus a comparative pass run under two orders. Per
+    // IP, 10/10min — one start is a whole screening session, not a click. Ahead of the
+    // body parse, the member resolution, the billing reservation and the row insert, so a
+    // flood is refused before it costs a read. GET (the recent strip) spends nothing.
+    rel: "./analyze/cohort/route.ts",
+    key: "`analyze-cohort:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // MIGRATED to the chain (169ec082): route(withOperator, withCapability, withRateLimit).
+    chain: true,
+    expensive: 'startTask("analyze_cohort"',
+  },
+  {
+    // ADDED spark analyze-v2-cohort. The proposal ranks the workspace pool against the
+    // role through the recruiter_cli child (rankPoolForJob) — the same spawn and the same
+    // 30/10min shape as ./jobs/[id]/candidates. The unknown/foreign-JD 404 answers first
+    // and free.
+    rel: "./analyze/cohort/proposal/route.ts",
+    key: "`analyze-cohort-proposal:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await buildCohortProposal(",
+    servedBefore: "!loadJd(jd, ws)",
+  },
+  {
     // ADDED scan-sweep 2026-08-22. This route reaches the SAME startTask that
     // ./analyze throttles and ./jds/generate operator-gates — it had neither, so an
     // anonymous /api/demo session could spend unbounded LLM credit through it.
@@ -183,7 +229,9 @@ const ROUTES: RouteSpec[] = [
     // substring also appears in this route's header comment, which precedes the
     // limiter, so the generic marker would fail on prose rather than on ordering.
     expensive: "startTask(task.kind",
-    servedBefore: "RETRYABLE.has(task.status)",
+    // The ownership + status (+ scope) refusals are one pure call now
+    // (app/_lib/task-fanout.ts retryDecision); it must still precede the limiter.
+    servedBefore: "retryDecision(task, body?.scope)",
   },
   // The four PUBLIC apply surfaces. Every one is unauthenticated, spawns the
   // deterministic profile_cli and writes a pipeline entry, and every one has
@@ -199,7 +247,11 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "APPLY_RATE_LIMIT",
     optsDef: "const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "buildApplicantProfile(",
+    // The profile build (the Python spawn) runs inside the shared filing core since
+    // challenge 2026-09-22 candidate-apply-api/A, so the call that reaches it is the
+    // marker. The route may no longer build on its own: application-filing.test.ts
+    // and apply-intake-scope.test.ts forbid `buildApplicantProfile(` in it.
+    expensive: "fileApplication(",
     windowMs: 60_000,
     windowSrc: "60_000",
   },
@@ -678,6 +730,100 @@ const ROUTES: RouteSpec[] = [
     // The idempotent retry reply must keep answering for free, forever.
     servedBefore: "alreadyCompleted: true",
   },
+  {
+    // ADDED with the route (spark ai-interview-parity, ADR 0010). The live call's
+    // producer channel: a public token door that WRITES — every finalized turn, the
+    // interviewer model's tool calls, the director's stage directions — so it is
+    // budgeted like its siblings. Per-TOKEN only, like /connect: the link is the
+    // credential, and one candidate's call is exactly one token. 240/10min = one
+    // exchange every 2.5 s sustained, above an honest call's pace (one post per
+    // finalized turn and per tool call, plus a slow heartbeat).
+    rel: "./interview/director/route.ts",
+    key: "`interview-director:${token}`",
+    limit: 240,
+    optsSrc: "DIRECTOR_RATE_LIMIT",
+    optsDef: "const DIRECTOR_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The whole exchange — persist, apply the tool, decide, record — is one call.
+    expensive: "runDirectorStep(",
+    // The lifecycle refusals keep their 404/409 semantics ahead of the budget.
+    servedBefore: 'jsonRefusal("INTERVIEW_NOT_LIVE", 409)',
+  },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's opt-in
+    // microphone upload: a public token door whose body is RAW AUDIO, so every accepted
+    // call buffers up to 2 MB and then appends to a file on the operator's volume — the
+    // ./extract-text rationale, with a disk write at the end of it. Per-TOKEN only, like
+    // its /connect and /director siblings: the interview link IS the credential and one
+    // call is exactly one token, so an IP component would only punish a shared NAT.
+    // 240/10min = one chunk every 2.5 s sustained, well above the hook's 10 s timeslice
+    // plus its sequential retries.
+    rel: "./interview/recording/route.ts",
+    key: "`interview-recording:${token}`",
+    limit: 240,
+    optsSrc: "RECORDING_RATE_LIMIT",
+    optsDef: "const RECORDING_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The body read is the expensive work: the heap, and the filesystem append behind it.
+    expensive: "readBytesWithLimit(",
+    // The consent/offer 403 and the lifecycle 409 keep their semantics ahead of the
+    // budget — a call that is not being recorded must never spend a slot, and the
+    // refusal it gets is what stops the browser's hook.
+    servedBefore: 'jsonRefusal("INTERVIEW_RECORDING_NOT_OFFERED", 403)',
+  },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's own
+    // "delete my interview recording" door, on the PUBLIC status token. Same posture as
+    // its /data and /stop cousins and for the same reason: an anonymous, token-authed
+    // public door whose verb is an IRREVERSIBLE write, so the limiter runs BEFORE the
+    // token lookup and a flood never reaches the store. Keyed per client AND token, so
+    // the shared client key an untrusted proxy produces still gives each candidate
+    // their own bucket. 10/min: this is a decision a person makes once.
+    rel: "./status/[token]/recording/route.ts",
+    key: "`status-recording-delete:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "RECORDING_DELETE_RATE_LIMIT",
+    optsDef: "const RECORDING_DELETE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "deleteEntryRecordings(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED with the route (spark interview-feedback-letter, WP-alpha). The candidate's
+    // "ask for feedback on my interview" door, on the PUBLIC status token — the NPS door's
+    // posture: an anonymous, token-authed WRITE, and this one also queues a model-backed
+    // draft. The limiter runs BEFORE the token lookup, so a flood never reaches the store
+    // or the task queue. Keyed per client AND token, like every status sibling. 10/min: a
+    // candidate asks once, and a repeat is answered from the row without queuing anything.
+    rel: "./status/[token]/letter/route.ts",
+    key: "`status-letter:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "LETTER_REQUEST_RATE_LIMIT",
+    optsDef: "const LETTER_REQUEST_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The first store read — the record, the insert and the queued draft all follow it.
+    expensive: "getEntryIdByStatusToken(token)",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED with the route (challenge-r06 application-status-page/B). The candidate's
+    // "send it to my email again" door, on the PUBLIC status token: an anonymous,
+    // token-authed door that ends in a candidate EMAIL. The limiter runs BEFORE the token
+    // lookup, so a flood never reaches the store or the dispatcher. Keyed per client AND
+    // token, like every status sibling. 10/min is the letter door's cap; the real bound
+    // on mail is the per-entry once-a-day cooldown behind it (candidate-next-action-server.ts).
+    rel: "./status/[token]/resend/route.ts",
+    key: "`status-resend:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "RESEND_RATE_LIMIT",
+    optsDef: "const RESEND_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getEntryIdByStatusToken(token)",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it
@@ -719,6 +865,21 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'const quota = meterGate("interview_minutes"',
   },
   {
+    // ADDED challenge-r10 interview-execution-scoring/B. The session rescore door:
+    // re-runs AI scorecard synthesis on a completed interview session holding a
+    // transcript that dropped or failed scoring. Operator-gated and throttled per
+    // session ID (10/10min). The 404 (session not found) and 409 (not unscored)
+    // answer before the limiter so a rejected call costs no budget.
+    rel: "./interview/sessions/[id]/rescore/route.ts",
+    key: "`interview-rescore:${id}`",
+    limit: 10,
+    optsSrc: "RESCORE_RATE_LIMIT",
+    optsDef: "const RESCORE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "finalizeCandidateInterviewScoring(",
+    servedBefore: "interviewScoringState(",
+  },
+  {
     rel: "./devcase/session/[id]/chat/route.ts",
     // Per-SESSION burst. 30/10min = one message per 20s sustained — roughly 2-3x the
     // fastest honest loop (generate ~3-10s, read the reply, type a follow-up), so a
@@ -729,7 +890,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "runSessionChat(",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics
     // ahead of the throttle, so a rejected call never consumes budget.
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     rel: "./intake/[id]/message/route.ts",
@@ -891,7 +1052,7 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "24 * 60 * 60_000",
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runSessionChat(",
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /perfect 2026-09-02 (api-devcase-1), with the limiter itself. The FLUSH is
@@ -909,7 +1070,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "appendDevSessionEvents(id, events)",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics ahead
     // of the throttle, so a rejected flush never consumes budget.
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // The flush's per-apply-TOKEN daily aggregate — same collective budget shape as the
@@ -929,7 +1090,7 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "24 * 60 * 60_000",
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "appendDevSessionEvents(id, events)",
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /perfect wave 23 (devcase-candidate-and-devcase), with the limiter itself.
@@ -953,7 +1114,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "await intakeSubmission({",
     // The 403 token check and the 404/410 lifecycle refusals keep their semantics ahead
     // of the throttle, so a rejected finalize never consumes a real candidate's slot.
-    servedBefore: 'jsonRefusal("SESSION_TOKEN_REQUIRED", 403)',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /explorer 2026-09-01, with the limiter itself. The heaviest compute
@@ -1041,7 +1202,7 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     // The go-live's FIRST spawning step; the rediscovery alert fan-out follows it. The
     // limiter also precedes the billing transaction, so a throttled call cannot debit.
-    expensive: "await runSourceForRole(role, {",
+    expensive: "await runGoLive(",
     // The 404 and the ownership gate keep their semantics ahead of the throttle.
     servedBefore: "canWriteJobLifecycle(id, ws)",
   },
@@ -1071,8 +1232,10 @@ const ROUTES: RouteSpec[] = [
     expensive: 'runAutomationTask(entry.id, "outreach"',
     // The GDPR suppression 409 (and the 404/400 above it) run first, so a reach-out that
     // was never going to send costs no budget — and the limiter precedes the first WRITE
-    // (createPipelineEntry) as well as the draft.
-    servedBefore: "candidateOutreachSuppression(body.candidateId)",
+    // (createPipelineEntry) as well as the draft. Anchored on the refusal itself, not on
+    // the predicate's name: the gate is the one rediscovery eligibility predicate
+    // (withheldCandidateIds, pinned by rediscovery-eligibility.test.ts).
+    servedBefore: 'jsonRefusal("COMMS_SUPPRESSED", 409',
   },
   {
     // ADDED /perfect 2026-09-03 (jobs-workspace-2), with the limiter itself. The
@@ -1092,6 +1255,47 @@ const ROUTES: RouteSpec[] = [
     // The visibility 404 (unknown / other-tenant role) keeps its semantics ahead of
     // the throttle, so a rejected call never consumes budget.
     servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
+    // ADDED with the route (spark interview-kit-template, 2026-09-18). The ninth jobs
+    // spend door: POST accepts a BACKGROUNDED `interview_kit` task — one model call that
+    // authors the whole kit (every competency, every question, the FAQ) from the role's
+    // own text plus its promoted RoleBrief. Capability-gated, and open mode makes that
+    // gate a documented no-op for the whole API, so it self-limits on the same 20/10min
+    // budget its sibling once-per-role doors carry. The PUT and ./publish beside it are
+    // NOT limited and deliberately so: they are ordinary authenticated row writes that
+    // spend nothing and spawn nothing, which is where this app draws the line.
+    rel: "./jobs/[id]/interview-kit/route.ts",
+    key: "`jobs-interview-kit:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "INTERVIEW_KIT_RATE_LIMIT",
+    optsDef: "const INTERVIEW_KIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its first argument: a bare `startTask(` also appears in the
+    // import line, which precedes the limiter.
+    expensive: 'startTask("interview_kit"',
+    // Authority and ownership both answer ahead of the throttle, so a refused seat and an
+    // other-tenant role never consume budget — and never learn which job ids exist.
+    servedBefore: "canWriteJobLifecycle(id, ws)",
+  },
+  {
+    // ADDED with the route (spark interview-kit-template WP-D, 2026-09-18). The kit
+    // REHEARSAL door mints the same kind of billable, entry-less practice session
+    // /simulate does — a test-mode interview pinned to one kit version — and on a
+    // SELF-HOSTED install it skips meterGate, so there this limiter is the only bound on
+    // how many sessions one caller can mint. Same budget as /simulate: 20/10min per IP.
+    rel: "./jobs/[id]/interview-kit/rehearse/route.ts",
+    key: "`interview-kit-rehearse:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REHEARSE_RATE_LIMIT",
+    optsDef: "const REHEARSE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The session row IS the billable artifact here, exactly as on /simulate.
+    expensive: "const session = createInterviewSession({",
+    // Every refusal answers ahead of the budget — the seat, the job, the kit, the
+    // keyless 503 and the billing 402 spend nothing and must not be masked by a 429.
+    // The 402 is the LAST of them, so pinning it pins the rest's order too.
+    servedBefore: 'jsonRefusal("BILLING_QUOTA_EXCEEDED", 402',
   },
   {
     // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
@@ -1192,9 +1396,9 @@ const ROUTES: RouteSpec[] = [
     // that dispatches candidate outreach — and it was the one entry point to it with
     // no throttle at all. Operator-gated, but open mode makes that gate a no-op for
     // the whole API, so the limiter is the real bound. 6/10min per IP: a sweep runs
-    // for minutes, so six is far above any human pace, and the per-candidate commands
-    // on the same route (reject_below / advance_top) are deliberately NOT throttled —
-    // they are bounded by the previewed cohort and spawn nothing.
+    // for minutes, so six is far above any human pace. The per-candidate commands on
+    // the same route (reject_below / advance_top) spend their OWN window — the row
+    // below — since idea d6f86aa9.
     rel: "./pipeline/command/route.ts",
     key: "`pipeline-command-policy:${clientIpFrom(request.headers)}`",
     limit: 6,
@@ -1207,6 +1411,61 @@ const ROUTES: RouteSpec[] = [
     // The operator gate keeps serving (refusing) freely ahead of the budget: a
     // non-operator must never be able to spend another caller's window.
     servedBefore: "const denied = await requireOperator();",
+  },
+  {
+    // ADDED 2026-10-07 (idea d6f86aa9), with the limiter itself. A CONFIRMED
+    // `reject below N%` / `advance top N` fans out over every matching entry and each
+    // target can queue candidate email (the rejection letter; the invite or assignment
+    // an advance sets off). They used to be "bounded by the previewed cohort", which
+    // bounds one wave, never how many waves a loop runs. 20/10min per IP, its own
+    // bucket beside run_policy's; the preview writes nothing and stays free.
+    rel: "./pipeline/command/route.ts",
+    key: "`pipeline-command-exec:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "EXECUTE_RATE_LIMIT",
+    optsDef: "const EXECUTE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await executeCommandTargets({",
+    // The preview branch returns before the budget is spent.
+    servedBefore: "if (!body.confirm) {",
+  },
+  {
+    // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The
+    // per-card door's move/decide actions (set_stage / accept / reject / approve_event)
+    // each can queue candidate email, and the door had no throttle while the bulk doors
+    // beside it did; with the add door's reopen, reject → re-add → reject could mail one
+    // candidate without bound. 300/10min per IP is far above a recruiter dragging cards.
+    rel: "./pipeline/[id]/route.ts",
+    key: "`pipeline-entry-move:${clientIpFrom(request.headers)}`",
+    limit: 300,
+    optsSrc: "MOVE_RATE_LIMIT",
+    optsDef: "const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "const result = await runPipelineEntryAction({",
+    // The branches that send nothing (notes, evidence, reinstate, intake) return before
+    // the budget is spent — the drawer's notes autosave through set_notes.
+    servedBefore: 'if (action === "resolve_intake") {',
+  },
+  {
+    // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The add
+    // door files an entry, can reopen a rejected one and seals a Match verdict per
+    // call, and it carried no throttle at all while its siblings (batch, command,
+    // stage-migration) did. 600/10min sits far above the Fit Matrix's sequential bulk
+    // add; the role demo and the automation pass create entries in-process and never
+    // reach this door. The key carries the WORKSPACE beside the IP, so a demo visitor
+    // filling the shared no-proxy bucket cannot lock a real team out of adding.
+    rel: "./pipeline/route.ts",
+    key: "`pipeline-add:${ws}:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "ADD_RATE_LIMIT",
+    optsDef: "const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The SEAL is the first write (ADR 0018's seal-first order), so the budget must be
+    // spent before it — and therefore before the insert that follows it.
+    expensive: "const sealed = sealDecisionSafe(",
+    // The last cheap refusal — the rediscovery eligibility gate — keeps its semantics
+    // ahead of the throttle, as do the shape refusals above it.
+    servedBefore: 'jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409',
   },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-jd-library), with the limiters themselves. The
@@ -1258,7 +1517,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "ingestJobAd(jd.body,",
     // The already-ingested short-circuit parses nothing, so it must neither consume
     // nor be masked by the budget.
-    servedBefore: "if (getJob(jobId)) {",
+    servedBefore: "if (getJob(jobId, ws)) {",
   },
   {
     // The loosest of the four on purpose: a save is the CHEAPEST door (a
@@ -1352,7 +1611,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "MIGRATION_RATE_LIMIT",
     optsDef: "const MIGRATION_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "migratePipelineStages(migrations, ws)",
+    expensive: "migratePipelineStages(migrations, next.stages, ws)",
     servedBefore: 'jsonRefusal("PIPELINE_MIGRATION_REQUIRED", 409',
   },
   {
@@ -1477,6 +1736,8 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "RECEIVER_WRITE_RATE_LIMIT",
     optsDef: "const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
+    keyConst: "limitKey",
+    retryAfter: true,
     expensive: "revokeChannelWebhook(token",
     servedBefore: "await requireOperator()",
   },
@@ -1510,7 +1771,9 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "RELAY_RATE_LIMIT",
     optsDef: "const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "setRelayConfig(body)",
+    // The store write; the spread carries the session-stamped `ownerOrgId` the limiter
+    // must still sit in front of (F-2, 2026-10-06).
+    expensive: "setRelayConfig({ ...body, ownerOrgId })",
   },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (integrations-settings), with the limiters themselves. The
@@ -1630,6 +1893,94 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "validateScreeningOverride(body.override)",
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (role-run gate doors, ADR-0011 §3). Preview and commit share ONE
+  // budget key: a commit is always preceded by a preview. The malformed-body 400 and the
+  // unknown-run 404 are served ahead of the throttle, so a request that could never act
+  // spends none of the window.
+  {
+    rel: "./role-runs/[id]/gate/preview/route.ts",
+    key: "`role-run-gate:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "GATE_RATE_LIMIT",
+    optsDef: "const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "previewRoleRunGate(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  {
+    rel: "./role-runs/[id]/gate/commit/route.ts",
+    key: "`role-run-gate:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "GATE_RATE_LIMIT",
+    optsDef: "const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "resolveRoleRunGateSubject(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  // ------------------------------------------------------------------
+  // ADDED with the routes (live role-run triggers, ADR-0011). Start and advance share ONE budget
+  // key: each pass can spend model calls. The missing-job 400, unknown-job and unknown-run 404s
+  // are served ahead of the throttle.
+  {
+    rel: "./role-runs/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getOrCreateRoleRun(",
+    servedBefore: 'jsonRefusal("ROLE_RUN_JOB_NOT_FOUND", 404)',
+  },
+  {
+    rel: "./role-runs/[id]/advance/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "advanceRoleRunLive(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  // ------------------------------------------------------------------
+  // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
+  // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
+  // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the
+  // cheap coded refusals (not found, moved, consent withheld, a text that cannot be
+  // stored), so a request that could never act spends none of the window.
+  {
+    // Approving SENDS a candidate email. 30/10min per IP: one human decision per click.
+    rel: "./decisions/feedback-letters/[id]/approve/route.ts",
+    key: "`feedback-letter-approve:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "APPROVE_RATE_LIMIT",
+    optsDef: "const APPROVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterApprove(id, { finalText, decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  {
+    rel: "./decisions/feedback-letters/[id]/decline/route.ts",
+    key: "`feedback-letter-decline:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "DECLINE_RATE_LIMIT",
+    optsDef: "const DECLINE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterDecline(id, { decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_MOVED", 409, { state: letter.state })',
+  },
+  {
+    // A redraft spawns the drafting CLI and, with a model configured, a paid call. The
+    // tightest of the three; the task's own `cheap` class and its dedupe sit behind it.
+    rel: "./decisions/feedback-letters/[id]/redraft/route.ts",
+    key: "`feedback-letter-redraft:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REDRAFT_RATE_LIMIT",
+    optsDef: "const REDRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'startTask("interview_letter",',
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (billing-ui), with the limiters themselves. The two
   // BILLING doors had no throttle at all — the only doors in the app that reach a
   // MERCHANT OF RECORD. Both were guarded by `requireOperator()` alone, and open mode
@@ -1655,12 +2006,15 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "WEBHOOK_RATE_LIMIT",
     optsDef: "const WEBHOOK_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
+    // Polar re-delivers a non-2xx and honours Retry-After: the refusal says when.
+    keyConst: "limitKey",
+    retryAfter: true,
     // The limiter precedes the BODY READ, not just the ingest: what an anonymous
     // caller can make us allocate is the whole point of throttling this door.
     expensive: "await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES)",
     // "Billing is not configured" costs an env read and tells an operator their
     // setup is incomplete — it must keep answering while the window is spent.
-    servedBefore: '{ error: "Billing is not configured." }',
+    servedBefore: 'jsonRefusal("BILLING_NOT_CONFIGURED", 503)',
   },
   {
     rel: "./billing/checkout/route.ts",
@@ -1725,7 +2079,9 @@ const ROUTES: RouteSpec[] = [
   // unset) makes a documented no-op for the WHOLE API — so, exactly as for the JD
   // library's spend doors, the limiter is the real bound and not a second belt.
   {
-    // The three write verbs (PUT progress, POST import, PATCH weave) share ONE bucket
+    // The three write verbs (PUT progress, POST import, PATCH weave — and PATCH
+    // { kitOverlay }, the recruiter's per-candidate kit overlay, which is the same verb
+    // and the same key: spark interview-kit-template WP-C) share ONE bucket
     // on purpose: they mutate the same artifact, so a per-verb allowance would just be
     // three windows to walk in turn. 600/10 min is deliberately loose and the reason is
     // pinned here so nobody "tightens" it into a bug: the checklist/notes PUT is
@@ -1759,7 +2115,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "SCORECARD_RATE_LIMIT",
     optsDef: "const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "saveHumanScorecard(entry, scorecard)",
+    expensive: "fileHumanScorecard(entry, scorecard, key)",
     servedBefore: 'jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400)',
   },
   // ------------------------------------------------------------------
@@ -1862,6 +2218,17 @@ const ROUTES: RouteSpec[] = [
     expensive: "upsertJobseekerProfile(",
   },
   {
+    // The seeker's own erasure door: deletes their whole /me record. Tighter than the
+    // PUT because nobody erases themselves more than a handful of times.
+    rel: "./jobseeker/profile/route.ts",
+    key: "`jobseeker-profile-erase:${clientIpFrom(request.headers)}`",
+    limit: 5,
+    optsSrc: "ERASE_RATE_LIMIT",
+    optsDef: "const ERASE_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "eraseJobseekerData(",
+  },
+  {
     // A create spawns one Python child for the deterministic opening. The cheap
     // refusals (no profile yet) run first so a rejected call never consumes budget.
     rel: "./jobseeker/dialogs/route.ts",
@@ -1894,6 +2261,74 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "getJobseekerProfile(",
   },
+  {
+    // Each hit launches a headless browser: 20/10min per IP, before the profile read
+    // and the render (renders also queue one at a time inside cv-pdf.ts).
+    rel: "./jobseeker/cv.pdf/route.ts",
+    key: "`jobseeker-cv-pdf:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "PDF_RATE_LIMIT",
+    optsDef: "const PDF_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "renderCvPdf(",
+  },
+  // The seeker's CV archive and cross-session UI state (docs/features/jobseeker/README.md):
+  // store reads and small writes behind the operator gate, self-limited per IP because
+  // open mode makes the gate a no-op. Each limiter sits before the store call it names.
+  {
+    rel: "./jobseeker/cvs/route.ts",
+    key: "`jobseeker-cvs-list:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "LIST_RATE_LIMIT",
+    optsDef: "const LIST_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "listJobseekerCvs(",
+  },
+  {
+    rel: "./jobseeker/cvs/route.ts",
+    key: "`jobseeker-cvs-record:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RECORD_RATE_LIMIT",
+    optsDef: "const RECORD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "recordJobseekerCv(",
+  },
+  {
+    rel: "./jobseeker/cvs/reuse/route.ts",
+    key: "`jobseeker-cvs-reuse:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "REUSE_RATE_LIMIT",
+    optsDef: "const REUSE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "findJobseekerCvByText(",
+  },
+  {
+    rel: "./jobseeker/cvs/[id]/use/route.ts",
+    key: "`jobseeker-cvs-use:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "USE_RATE_LIMIT",
+    optsDef: "const USE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerCv(",
+  },
+  {
+    rel: "./jobseeker/ui-state/route.ts",
+    key: "`jobseeker-ui-state-read:${clientIpFrom(request.headers)}`",
+    limit: 240,
+    optsSrc: "READ_RATE_LIMIT",
+    optsDef: "const READ_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getCvDesignState(",
+  },
+  {
+    rel: "./jobseeker/ui-state/route.ts",
+    key: "`jobseeker-ui-state-write:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "WRITE_RATE_LIMIT",
+    optsDef: "const WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setCoverNote(",
+  },
   // jobseeker — WP4c: the scan door, the feed, the seeker's status moves and the
   // on-demand deep-dive. The scan is minutes of third-party fetching plus Python spawns
   // and bounded model calls; the deep-dive is two model calls; the two posting doors are
@@ -1916,6 +2351,15 @@ const ROUTES: RouteSpec[] = [
     expensive: "listJobseekerPostings(",
   },
   {
+    // The Weigh step's one-posting read (GET), one per J/K step through the list;
+    // 240/10min per IP. Same file as the PATCH row below, its own key and budget.
+    rel: "./jobseeker/postings/[id]/route.ts",
+    key: "`jobseeker-posting-read:${clientIpFrom(request.headers)}`",
+    limit: 240,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerPosting(",
+  },
+  {
     // One status write per card click; 120/10min per IP.
     rel: "./jobseeker/postings/[id]/route.ts",
     key: "`jobseeker-postings-write:${clientIpFrom(request.headers)}`",
@@ -1931,6 +2375,28 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "deepDivePosting(",
   },
+  // jobseeker — the web research of the target titles and the seeker's own GitHub read.
+  {
+    // One web session on the pinned model (Claude Sonnet 5.5, WebSearch + WebFetch, up to
+    // 16 turns, a few dimes); 6 per HOUR per IP. A fresh stored answer is served before
+    // any spawn, but still behind the limiter (the POST always means "research now").
+    rel: "./jobseeker/research/route.ts",
+    key: "`jobseeker-research:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runPythonCli(",
+    windowMs: 60 * 60_000,
+    windowSrc: "60 * 60_000",
+  },
+  {
+    // One read = 1 + up to 3 list pages + up to 12 /languages calls against GitHub's own
+    // budget (60 an hour without a token), then one derivation spawn; 10/10min per IP.
+    rel: "./jobseeker/github/route.ts",
+    key: "`jobseeker-github:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "readSeekerGithub(",
+  },
   // jobseeker — round 26: the feed's last-seen anchor.
   {
     // One write per departure (visibilitychange → hidden, pagehide) or explicit
@@ -1944,6 +2410,301 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "advanceFeedAnchor(",
   },
+  // gigs — WP4 (docs/features/gigs/README.md). ADDED deliberately with the doors: every
+  // /api/gigs write is operator-gated, and open mode makes that a no-op, so each
+  // self-limits per IP before the body is read. The two that spend are the tight ones:
+  // the scan (third-party API reads under the shared politeness budget) and the
+  // specialist hire (a persona minted in Personas — mintAndDispatch's own limiter still
+  // applies behind this one); dispatch and review's `revise` start a metered Personas run.
+  {
+    // 6/10min, the job-seeker scan's budget: the dedupe key already folds a double-click
+    // onto the scan in flight.
+    rel: "./gigs/scan/route.ts",
+    key: "`gigs-scan:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // 10/10min, the agents dispatch door's budget: a hire is a rare, deliberate act.
+    rel: "./gigs/specialists/route.ts",
+    key: "`gigs-specialist-hire:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "hireGigSpecialist(",
+  },
+  {
+    // Every accepted call is a metered Personas run; 20/10min per IP.
+    rel: "./gigs/[id]/dispatch/route.ts",
+    key: "`gigs-dispatch:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "dispatchGigAttempt(ws",
+  },
+  {
+    // A review write per click; `revise` re-dispatches, so the bucket sits before it.
+    rel: "./gigs/attempts/[id]/route.ts",
+    key: "`gigs-review:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "applyGigReview(ws",
+  },
+  {
+    // A forwarded brief: one write, the honeypot scan and a qualification pass.
+    rel: "./gigs/route.ts",
+    key: "`gigs-forward:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createManualGig(ws",
+  },
+  {
+    // decline / withdraw / clear_suspect: one status write per click.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-write:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "clearGigSuspect(ws",
+  },
+  {
+    // WP14 accept / process: the accept loop queues research (a web-researched model call),
+    // so it spends the research door's bucket before anything moves. ADDED deliberately.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-research:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'externalRunner("gig_loop")(',
+  },
+  {
+    // …and queues plans (one to three seats), so it spends the plans doors' bucket too.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'externalRunner("gig_loop")(',
+  },
+  {
+    // One append-only verdict plus its lessons and the source's streak.
+    rel: "./gigs/[id]/outcome/route.ts",
+    key: "`gigs-outcome:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "recordGigOutcome(ws",
+  },
+  {
+    // Creating a source; the PATCH below shares the bucket (same table, same pace).
+    rel: "./gigs/sources/route.ts",
+    key: "`gigs-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createGigSource(",
+  },
+  {
+    rel: "./gigs/sources/[id]/route.ts",
+    key: "`gigs-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "acknowledgeGigSource(ws",
+  },
+  {
+    // On-demand research: up to three third-party page reads under the shared politeness
+    // budget plus one model call. 20/10min per IP, the dispatch door's budget.
+    rel: "./gigs/[id]/research/route.ts",
+    key: "`gigs-research:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "researchGig(ws",
+  },
+  {
+    // gig-mastery: proposing plans spends three model calls per gig (one of them Opus at
+    // xhigh effort). 20/10min per IP, the research door's budget; the one-gig door and the
+    // bulk door below share the bucket, so a selection cannot be split to multiply it.
+    rel: "./gigs/[id]/plans/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    rel: "./gigs/plans/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // Rewriting a gig's report now: one pinned model call (Sonnet 5.5 at high effort) per
+    // accepted POST. 20/10min per IP, the plans door's budget; GET (the file) is not limited.
+    rel: "./gigs/[id]/report/route.ts",
+    key: "`gigs-report:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // Writing a freelance gig's client proposal now: one pinned model call (Sonnet 5.5 at
+    // high effort) per accepted POST. 20/10min per IP, the report door's budget; GET (the
+    // file) is not limited.
+    rel: "./gigs/[id]/proposal/route.ts",
+    key: "`gigs-proposal:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // Accepting a plan: one CAS write per click, the review desk's pace.
+    rel: "./gigs/[id]/plans/[planId]/accept/route.ts",
+    key: "`gigs-plan-accept:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "acceptGigPlan(ws",
+  },
+  {
+    // Preparing a gig's workspace: disk writes under the gigs root plus up to two calls to
+    // the local Personas app. 20/10min per IP, the research door's budget.
+    rel: "./gigs/[id]/workspace/route.ts",
+    key: "`gigs-workspace:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "prepareGigProject(ws",
+  },
+  {
+    // The on-demand analogue of the clock's gig_sync (the headless dry run polls it):
+    // one sync pass opens a socket to the local Personas app per in-flight attempt, so
+    // it self-limits per IP before the pass. 20/10min, the dispatch/workspace budget.
+    rel: "./gigs/sync/route.ts",
+    key: "`gigs-sync:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "syncGigAttempts(ws",
+  },
+  {
+    // ADDED with the route (WP16, 2026-09-30): the reward-rules purge reads the USD rate
+    // table (one outbound request) and deletes in bulk. 5/10min per IP, ahead of the work.
+    rel: "./gigs/purge/route.ts",
+    key: "`gigs-purge:${clientIpFrom(request.headers)}`",
+    limit: 5,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runGigPurge(ws",
+  },
+  {
+    // The registry lander's stamp: one UPDATE batch per landing commit.
+    rel: "./gigs/lessons/route.ts",
+    key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "markGigLessonsLanded(ws",
+  },
+  // ── machine-called public doors (challenge 2026-09-22 shared-api-utilities/B) ──
+  // Each is knocked on by a MACHINE that acts on Retry-After — a third-party board or a
+  // Zapier relay, a Personas agent, the public apply form's channel relay. None was on
+  // this table, so nothing pinned their budgets here; they join it WITH the refusal
+  // that says when, so a relay backs off once instead of probing a full bucket blind.
+  {
+    // 60/min per token+IP, FIRST in the handler: ahead of the token lookup, so a flood
+    // never reaches the store and an unknown token cannot be probed at any rate.
+    rel: "./channels/inbound/[token]/route.ts",
+    key: "`inbound:${token}:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RATE_LIMIT",
+    optsDef: "const RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getActiveChannelWebhook(token)",
+    keyConst: "limitKey",
+    retryAfter: true,
+  },
+  {
+    // Same shape for the agent report receiver (report-throttle.test.ts drives it).
+    rel: "./agents/report/[token]/route.ts",
+    key: "`agent-report:${token}:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RATE_LIMIT",
+    optsDef: "const RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getHiredAgentByReportToken(token)",
+    keyConst: "limitKey",
+    retryAfter: true,
+  },
+  {
+    // The public apply webhook's BURST bucket: per apply TOKEN, never per IP (applicants
+    // share NATs, an abuser rotates IPs). After the credential, lifecycle and field
+    // refusals, which keep answering without spending an applicant's slot.
+    rel: "./devcase/inbound/route.ts",
+    key: "`devcase-inbound:${token}`",
+    limit: 30,
+    limitSrc: "BURST_LIMIT",
+    limitDef: "const BURST_LIMIT = 30;",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await intakeSubmission(",
+    servedBefore: 'jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400)',
+    keyConst: "burstKey",
+    retryAfter: true,
+  },
+  {
+    // …and its DAILY aggregate, whose refusal names the daily window's own wait.
+    rel: "./devcase/inbound/route.ts",
+    key: "`devcase-inbound-day:${token}`",
+    limit: 300,
+    limitSrc: "DAILY_LIMIT",
+    limitDef: "const DAILY_LIMIT = 300;",
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await intakeSubmission(",
+    servedBefore: 'jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400)',
+    keyConst: "dayKey",
+    retryAfter: true,
+  },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r08 cv-analysis-archetypes/B. The read sibling of apply-threshold:
+  // /floor-preview spends the SAME calibration scans plus two screening-wave dry runs
+  // per role with an active Screened cohort. Seat-gated like the write (operator +
+  // pipeline:write) and the junk-family 400 answers first, so the limiter sits after
+  // those cheap refusals and ahead of the first calibration scan.
+  {
+    rel: "./analytics/calibration/floor-preview/route.ts",
+    key: "`floor-preview:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "FLOOR_PREVIEW_RATE_LIMIT",
+    optsDef: "const FLOOR_PREVIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "liveScreeningRecommendation(ws, roleFamily)",
+    servedBefore: 'jsonRefusal("CALIBRATION_FAMILY_UNKNOWN", 400)',
+  },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r09 voice-provider-io/B. The operator's voice readiness probe
+  // mints one short-lived credential per configured provider and opens no
+  // conversation; whether a provider meters an unused mint is not verifiable here, so
+  // the POST is operator-triggered only (the GET never mints) and IP-limited to 6 per
+  // 10 min. The KP_OFFLINE refusal answers before the budget, so a sealed install
+  // spends none of it.
+  {
+    rel: "./voice/readiness/route.ts",
+    key: "`voice-readiness:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await probeVoiceProviders(",
+    servedBefore: 'jsonRefusal("VOICE_READINESS_OFFLINE", 503)',
+  },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r09 comms-locale-optout/B. The third open write on the stop door:
+  // the candidate's chosen letter language. Same posture as its stop-write sibling —
+  // anonymous, token-authed, keyed per client AND token, limited BEFORE the token
+  // lookup so a flood never reaches the store. 20/min: a person clicks a few times.
+  {
+    rel: "./stop/[token]/language/route.ts",
+    key: "`stop-language:${clientIpFrom(request.headers)}:${token}`",
+    limit: 20,
+    optsSrc: "STOP_LANGUAGE_RATE_LIMIT",
+    optsDef: "const STOP_LANGUAGE_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "findEntryByOptOutToken(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
 ];
 
 for (const spec of ROUTES) {
@@ -1951,12 +2712,50 @@ for (const spec of ROUTES) {
   const windowSrc = spec.windowSrc ?? "10 * 60_000";
   test(`${spec.rel} gates the expensive work behind the shared limiter (${spec.key} — ${spec.limit}/${windowSrc})`, () => {
     const src = read(spec.rel);
+    if (spec.chain) {
+      assert.ok(!spec.servedBefore, "a chain limiter runs before every gate the handler owns; use a body call for servedBefore");
+      assert.match(src, /from "@\/app\/_lib\/auth\/route-guards"/, "must take the limiter from the shared guards");
+      assert.match(src, /from "@\/app\/_lib\/auth\/workspace-context"/, "must enter through route(...)");
+      const optsText = spec.optsSrc ? `...${spec.optsSrc}` : `limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc}`;
+      const link = `withRateLimit({ key: ({ request }) => ${spec.key}, ${optsText} })`;
+      const linkAt = src.indexOf(link);
+      assert.ok(linkAt >= 0, `expected the pinned chain link:\n  ${link}`);
+      if (spec.optsDef) {
+        const optsAt = src.indexOf(spec.optsDef);
+        assert.ok(optsAt >= 0 && optsAt < linkAt, `expected the pinned options before the chain:\n  ${spec.optsDef}`);
+        assert.ok(
+          spec.optsDef.includes(`limit: ${spec.limit}`) && spec.optsDef.includes(`windowMs: ${windowSrc}`),
+          "the pinned options line must spell out the limit and window",
+        );
+      }
+      // The declaration: `route(` opens the chain, the limiter is a link in it, and the
+      // handler (`)(async`) follows - so the limiter precedes ALL the work it guards.
+      const open = src.lastIndexOf("route(", linkAt);
+      const handlerAt = src.indexOf(")(async", linkAt);
+      assert.ok(open >= 0 && handlerAt > linkAt, "the limiter must be a link inside route(...) ahead of the handler");
+      // Any gate guard is written BEFORE the limiter, so an unauthorised caller is
+      // refused without spending the budget - the order the hand-written route kept.
+      const chainText = src.slice(open, linkAt);
+      for (const gate of ["withOperator", "withCapability("]) {
+        if (src.slice(open, handlerAt).includes(gate)) assert.ok(chainText.includes(gate), `${gate} must precede the limiter in the chain`);
+      }
+      assert.ok(src.indexOf(spec.expensive, handlerAt) > handlerAt, `the limiter must precede ${spec.expensive}`);
+      return;
+    }
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
     const opts = spec.optsSrc ?? `{ limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} }`;
-    const call = `rateLimit(${spec.key}, ${opts})`;
+    const call = `rateLimit(${spec.keyConst ?? spec.key}, ${opts})`;
     const at = src.indexOf(call);
     assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
+
+    // A hoisted key is still the PINNED key: the const is defined with exactly the
+    // template this row claims, before the call, so re-keying stays a red test.
+    if (spec.keyConst) {
+      const keyDef = `const ${spec.keyConst} = ${spec.key};`;
+      const keyAt = src.lastIndexOf(keyDef, at);
+      assert.ok(keyAt >= 0, `expected the pinned key definition before the call:\n  ${keyDef}`);
+    }
 
     // When the limit is a named constant, its defining line (with the pinned
     // VALUES) must exist and precede the call — the budget stays contract-locked.
@@ -1993,6 +2792,20 @@ for (const spec of ROUTES) {
           `{ error: REFUSAL_ERRORS.${spec.refusalCode}, code: "${spec.surfaceCode}" }`,
       );
       assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+    } else if (spec.retryAfter) {
+      // The refusal SAYS WHEN, from the window that refused (the same key, the same
+      // window this row pins) — and the silent shape is forbidden at this call.
+      assert.ok(spec.keyConst, "a retryAfter row must hoist its key (keyConst) so the read uses the SAME key");
+      const windowExpr = spec.optsSrc ? `${spec.optsSrc}.windowMs` : windowSrc;
+      const throttled = `jsonThrottled(rateLimitRetryAfterMs(${spec.keyConst}), ${windowExpr})`;
+      assert.ok(refusal.includes(throttled), `the refusal must say when:\n  ${throttled}`);
+      const next = refusal.indexOf("rateLimit(", 1);
+      const own = next > 0 ? refusal.slice(0, next) : refusal;
+      assert.ok(
+        !own.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
+        "a door that says when must not fall back to the silent 429 at this call",
+      );
+      assert.match(src, /from "@\/app\/_lib\/throttle-response"/, "…through the ONE shared clamp");
     } else {
       assert.ok(
         refusal.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
@@ -2015,7 +2828,7 @@ for (const spec of ROUTES) {
     }
   });
 
-  test(`${spec.rel} (${spec.key}): hit ${spec.limit + 1} inside one window is refused → 429`, () => {
+  test(`${spec.rel} (${spec.key}): hit ${spec.limit + 1} inside one window is refused → 429`, async () => {
     // Drive the real in-process limiter with the route's pinned config. `nowMs`
     // is injectable, so the window arithmetic is deterministic; the key is
     // test-unique so specs can't starve each other (keys are independent).
@@ -2033,14 +2846,39 @@ for (const spec of ROUTES) {
       false,
       "the next hit inside the window must be refused — the route returns 429",
     );
+    if (spec.retryAfter) {
+      // The refused caller is told WHEN, from this row's own window: the wait is
+      // positive, never past the window, and the header the shared clamp builds from
+      // it is delta-seconds inside the same bound.
+      const wait = rateLimitRetryAfterMs(key, t0 + spec.limit);
+      assert.ok(wait != null && wait > 0 && wait <= windowMs, `the refusal's wait lies inside the window, got ${wait}`);
+      const { jsonThrottled } = await import("../_lib/throttle-response.ts");
+      const header = Number(jsonThrottled(wait, windowMs).headers.get("Retry-After"));
+      assert.ok(
+        Number.isInteger(header) && header >= 1 && header <= Math.ceil(windowMs / 1000),
+        `Retry-After is delta-seconds within the bucket's window, got ${header}`,
+      );
+    }
     // A fresh window admits again: a throttled caller recovers without a restart.
     assert.equal(
       rateLimit(key, { limit: spec.limit, windowMs }, t0 + windowMs + 1),
       true,
       "a fresh window must admit again",
     );
+    if (spec.retryAfter) {
+      assert.equal(rateLimitRetryAfterMs(key, t0 + windowMs + 1), null, "an admitting window claims no wait");
+    }
   });
 }
+
+// The chain's limiter answers through the same chokepoint the body calls used: ONE place
+// builds the 429 for every chain row above, so it is pinned here once rather than per row.
+test("withRateLimit refuses through the chokepoint, with Retry-After only when asked", () => {
+  const guards = readFileSync(fileURLToPath(new URL("../_lib/auth/route-guards.ts", import.meta.url)), "utf8");
+  assert.ok(guards.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'), "the silent shape is the registered coded 429");
+  assert.ok(guards.includes("jsonThrottled(rateLimitRetryAfterMs(key), config.windowMs)"), "the retryAfter shape reads the window that refused");
+  assert.ok(guards.includes("rateLimit(key, { limit: config.limit, windowMs: config.windowMs })"), "it spends the same shared limiter");
+});
 
 // A coded refusal may not quietly become a DIFFERENT refusal. Every route above
 // that answers the throttle with `jsonRefusal("TOO_MANY_REQUESTS", 429)` is
@@ -2049,7 +2887,7 @@ for (const spec of ROUTES) {
 // rather than imported: api-response.ts pulls in next/server, which the unit
 // runner does not resolve.)
 test('REFUSAL_ERRORS.TOO_MANY_REQUESTS is RATE_LIMITED_ERROR itself, not a copy of it', () => {
-  const src = readFileSync(fileURLToPath(new URL("../_lib/api-response.ts", import.meta.url)), "utf8");
+  const src = readFileSync(fileURLToPath(new URL("../_lib/api-errors/refusal-errors.ts", import.meta.url)), "utf8");
   assert.match(
     src,
     /^ {2}TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,$/m,
@@ -2057,7 +2895,7 @@ test('REFUSAL_ERRORS.TOO_MANY_REQUESTS is RATE_LIMITED_ERROR itself, not a copy 
   );
   assert.match(
     src,
-    /import \{ RATE_LIMITED_ERROR \} from "\.\/rate-limit";/,
+    /import \{ RATE_LIMITED_ERROR \} from "\.\.\/rate-limit";/,
     "…and import it, so the two can never say different things",
   );
 });
@@ -2075,6 +2913,13 @@ test("./interview/connect/route.ts throttles by token, not by caller IP", () => 
     src.includes("if (token && !rateLimit(`interview-connect:"),
     "tokenless lab sessions carry no token to charge — they stay on their own dev-only gate",
   );
+});
+
+// The director channel is the same candidate on the same link, mid-call: keyed by the
+// token alone, never by an IP the candidate's network may share or rotate.
+test("./interview/director/route.ts throttles by token, not by caller IP", () => {
+  const src = read("./interview/director/route.ts");
+  assert.doesNotMatch(src, /clientIpFrom/, "the director throttle must be keyed by token only");
 });
 
 // Same rule for the dev-case chat aggregate: the apply link is the credential, and an
@@ -2099,19 +2944,18 @@ for (const rel of [
   test(`${rel} re-checks the owning apply token — a session id alone is not authority`, () => {
     const src = read(rel);
     assert.match(src, /from "@\/app\/_lib\/devcase-session-auth"/, "must reuse the shared token check");
-    const at = src.indexOf("sessionTokenMatches(session.token, body.token)");
-    assert.ok(at >= 0, "expected the apply-token re-check against the session's own token");
-    const refusal = src.slice(at, at + 240);
-    // One call now pins both facts: the shared refusal code (which the candidate
-    // page localizes) and the status.
-    assert.match(
-      refusal,
-      /jsonRefusal\("SESSION_TOKEN_REQUIRED",\s*403\)/,
-      "the refusal must use the shared code at 403"
-    );
-    // 403, never 404/409: those two tell LiveWorkSurface the session is dead and to
-    // re-mint, which would spin the per-token/day session quota on an unauthorized call.
-
+    // challenge-r06 devcase-session-api/A: the proof is ONE door guard (openSessionDoor),
+    // not a hand-copied check per route. A keyed row demands its per-attempt session key,
+    // a legacy row the apply token; the guard answers SESSION_TOKEN_REQUIRED at 403
+    // (devcase-session-auth.ts), never 404/409, which tell LiveWorkSurface the session is
+    // dead and to re-mint. Behaviour: api/devcase/session/session-key.test.ts.
+    const at = src.indexOf("door.authorize(request.headers, body.token)");
+    assert.ok(at >= 0, "expected the door guard's proof check");
+    assert.match(src.slice(at, at + 120), /if \(denied\) return denied;/, "a failed proof answers the guard's refusal");
+    // …before the first limiter, so a refused caller never spends the owner's budget.
+    const limiterAt = src.indexOf("rateLimit(`devcase-");
+    assert.ok(limiterAt > at, "the proof must run before any limiter");
+    assert.doesNotMatch(src, /sessionTokenMatches\(/, "no route re-implements the proof");
   });
 }
 
@@ -2288,7 +3132,8 @@ test("every route that enqueues a task throttles first", () => {
     // (app/_lib/task-budget.ts `enforceTaskBudget`), which IS a rateLimit call under
     // the task doors' own keys — a route that goes through it is throttled, and a
     // walk that only knew the raw call would report it as a hole.
-    const limiter = src.search(/\brateLimit\(|\benforceTaskBudget\(/);
+    // …or the chain link `withRateLimit(` (route-guards.ts): the same bucket, declared on the export.
+    const limiter = src.search(/\brateLimit\(|\bwithRateLimit\(|\benforceTaskBudget\(/);
     const rel = path.relative(apiDir, file).split(path.sep).join("/");
     if ((limiter < 0 || limiter > call) && !UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(rel);
     if (limiter >= 0 && limiter < call && UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(`${rel} (FIXED — delete it from UNTHROTTLED_ENQUEUE)`);
@@ -2349,7 +3194,10 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
       src.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
       `${verb}: the refusal must still go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
     );
-    assert.ok(src.includes("Retry-After"), `${verb}: a tripped throttle must send Retry-After`);
+    // Retry-After through the ONE shared clamp (challenge 2026-09-22 shared-api-utilities/B),
+    // never a hand-set header: the copied clamp login and invite each carried is gone.
+    assert.ok(src.includes("withRetryAfter("), `${verb}: a tripped throttle must send Retry-After via withRetryAfter`);
+    assert.doesNotMatch(src, /headers\.set\(\s*["'`]retry-after["'`]/i, `${verb}: no hand-set Retry-After`);
     // EVERY attempt counts, success included — like register, and unlike login.
     // What is bounded is provisioning and invitee disclosure, not guessing, so a
     // successful redeem must still spend its slot.
@@ -2398,8 +3246,11 @@ test(`${SKILL_PAGE}: the credential read is throttled per client AND token, befo
   const expensiveAt = src.indexOf("verifySkillProfileToken(token)");
   assert.ok(expensiveAt > at, "the limiter must precede verifySkillProfileToken");
 
-  // The refusal a page can actually give: rendered copy, in the reader's language.
-  assert.match(src.slice(at, at + 1200), /t\("throttledTitle"\)/, "the throttled branch must render its own copy");
+  // The refusal a page can actually give: rendered copy, in the reader's language. The markup is
+  // the composition-kit letter (Gate 2), which renders the throttled copy for this card kind.
+  assert.match(src.slice(at, at + 1200), /card=\{\{ kind: "throttled" \}\}/, "the throttled branch must render the throttled letter");
+  const view = read("../skill/[token]/kit/SkillKitView.tsx");
+  assert.match(view, /t\("throttledTitle"\)/, "the throttled letter must render its own copy");
 });
 
 test(`${SKILL_PAGE}: hit ${SKILL_PAGE_LIMIT.limit + 1} inside one window is refused`, () => {
@@ -2500,7 +3351,79 @@ test("RATE_LIMITED_ERROR is internal to the refusal registry — nothing else im
     });
   assert.deepEqual(
     importers,
-    ["_lib/api-response.ts"],
+    ["_lib/api-errors/refusal-errors.ts"],
     "only the refusal registry may import the raw 429 message; every route answers the CODE",
   );
+});
+
+// ── Retry-After has ONE author (challenge 2026-09-22 shared-api-utilities/B) ──────────
+// Four routes used to hand-roll the header, and two of them carried the same clamp
+// verbatim. The clamp — delta-seconds rounded up, never 0, capped at the window, and NO
+// header when there is no honest figure — now lives once in app/_lib/throttle-response.ts.
+test("no route sets Retry-After by hand — login, invite, tts and stt delegate to withRetryAfter", () => {
+  const handSet: string[] = [];
+  const copiedClamp: string[] = [];
+  for (const file of walk(apiDir)) {
+    const src = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+    const rel = path.relative(apiDir, file).split(path.sep).join("/");
+    if (/headers\.set\(\s*["'`]retry-after["'`]/i.test(src)) handSet.push(rel);
+    if (/Math\.max\(1, Math\.ceil\(\w+ \/ 1000\)\)/.test(src)) copiedClamp.push(rel);
+  }
+  assert.deepEqual(handSet, [], "these routes set Retry-After by hand — use withRetryAfter / jsonThrottled");
+  assert.deepEqual(copiedClamp, [], "these routes re-type the Retry-After clamp — it lives in throttle-response.ts");
+
+  for (const rel of ["./auth/login/route.ts", "./invite/[token]/route.ts", "./tts/route.ts", "./stt/route.ts"]) {
+    const src = read(rel);
+    assert.match(src, /import \{[^}]*\bwithRetryAfter\b[^}]*\} from "@\/app\/_lib\/throttle-response";/, `${rel} imports the shared clamp`);
+    assert.ok(src.includes("withRetryAfter("), `${rel} delegates its Retry-After to withRetryAfter`);
+  }
+  // Their semantics hold. login: the LONGER of the two tripped windows, capped at the
+  // caller's own window. tts/stt: the header only when the ENGINE gave a wait, with no
+  // window of ours to cap it (the per-IP refusal still claims no wait at all).
+  const login = read("./auth/login/route.ts");
+  assert.ok(login.includes("Math.max(\n    throttleRetryAfterMs(key, opts) ?? 0,"), "login still takes the longer tripped window");
+  assert.ok(login.includes("withRetryAfter(res, remainingMs, opts.windowMs)"), "login caps at the caller's window");
+  const invite = read("./invite/[token]/route.ts");
+  assert.ok(invite.includes("withRetryAfter(res, throttleRetryAfterMs(key, INVITE_THROTTLE), INVITE_THROTTLE.windowMs)"), "invite caps at its own window");
+  for (const rel of ["./tts/route.ts", "./stt/route.ts"]) {
+    assert.ok(
+      read(rel).includes('return withRetryAfter(jsonRefusal("TOO_MANY_REQUESTS", 429), retryAfterMs);'),
+      `${rel}: the engine's own wait, uncapped, and nothing when the engine said nothing`,
+    );
+  }
+});
+
+// ADDED challenge-r02 analyze-engine/A. A CV run's GitHub deep-dive is a STAGE of the
+// analyze task now, so ./analyze carries the deep-dive door's two guards for the handle
+// that rides it. Neither is a refusal: the CV run the recruiter asked for is otherwise
+// valid, so a guard that fails DROPS the handle with a code and the run still starts.
+// That is why this is its own case rather than a ROUTES row (every row there pins a 429).
+test("./analyze/route.ts charges a riding GitHub handle to the SAME github-analysis budget, and a throttle drops the handle instead of refusing the run", () => {
+  const src = read("./analyze/route.ts");
+  const call = "rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })";
+  const at = src.indexOf(call);
+  assert.ok(at >= 0, `expected the deep-dive's pinned limiter, the same key and budget as ./github-analysis:\n  ${call}`);
+  // …the same bucket the door charges, so a handle cannot buy a second allowance.
+  assert.ok(read("./github-analysis/route.ts").includes(call), "the door still charges this exact bucket");
+
+  // Charged only once the run is certain to start: after the authoritative reservation
+  // refusal, before startTask — and only for a handle that survived the blind and
+  // capability checks (both read before it).
+  const reserveAt = src.indexOf('if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED"');
+  const startAt = src.indexOf('startTask("analyze"');
+  assert.ok(reserveAt >= 0 && reserveAt < at, "a run refused for quota spends none of the GitHub budget");
+  assert.ok(at < startAt, "the budget is charged before the task starts");
+  const handleAt = src.indexOf("const githubHandle = !blind &&");
+  const capAt = src.indexOf('await can("pipeline:write")');
+  assert.ok(handleAt >= 0 && handleAt < at, "a blind run never forwards (or charges) a handle");
+  assert.ok(capAt > handleAt && capAt < reserveAt, "the capability is read before the reservation count (no await after it)");
+
+  // The throttle is NOT a 429 for the CV run: the handle is dropped with the deep-dive
+  // namespace's throttle code, and the run proceeds to startTask.
+  const branch = src.slice(at, at + 200);
+  assert.ok(branch.includes('params.githubDropped = "REQUEST_THROTTLED"'), "a throttled handle is dropped, coded");
+  assert.ok(!branch.includes("429"), "the CV run is never refused because its optional deep-dive was throttled");
+
+  // The run's OWN limiter is untouched and still precedes everything.
+  assert.ok(src.indexOf("rateLimit(`analyze:${clientIpFrom(request.headers)}`") < at);
 });

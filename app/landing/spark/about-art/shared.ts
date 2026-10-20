@@ -1,23 +1,18 @@
 /*
- * Shared choreography for the /about step illustrations.
- *
- * Every step art replays when it re-enters the viewport (`once: false`), so
- * scrolling the page up and down keeps it alive. These two constants were
- * duplicated into each of the seven illustrations back when they all lived in
- * one 416-line file.
+ * The /about phase list and its anchor ids (see below).
  */
-export const ENTER = { once: false, amount: 0.5 } as const;
-export const DRAW = { duration: 1, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] };
 
 /*
  * THE PHASE LIST IS DATA, AND THIS IS WHERE IT LIVES.
  *
  * The literal-array + derived-union idiom the repo uses for every closed
  * vocabulary (`i18n/locales.ts`, `features/shell/tabs.ts`): the order here IS
- * the order /about walks, `AboutCurve` derives both its step rows and its
- * serpentine spine from it, `about-art/index.tsx` keys an exhaustive `Record`
- * off the union, and `MarketingClaims.test.ts` reads it to check that every
- * phase carries copy in all four catalogs.
+ * the order /about walks: `app/landing/site/about/steps.ts` re-exports it as
+ * STEP_KEYS and keys its per-step paint off the union, AboutPage/AboutLine draw
+ * one station per entry, `app/about/page.tsx` builds the JSON-LD HowTo from it,
+ * and `MarketingClaims.test.ts` reads it to check that every phase carries copy
+ * in all four catalogs. (The old AboutCurve and about-art/*Art.tsx it once fed
+ * were retired on 2026-09-30; this module stays as the list's home.)
  *
  * `assignment` was missing until 2026-08-28. The landing's `#proof` band leads
  * with the work sample — it is the product's headline differentiator — and the
@@ -43,7 +38,7 @@ export type AboutStepKey = (typeof ABOUT_STEP_KEYS)[number];
 
 /*
  * The step's anchor id — stable, page-order-based, and the SAME string the
- * section rail, the phone menu and a shared `/about#step-07` link all use.
+ * About stepper, the JSON-LD HowTo and a shared `/about#step-07` link all use.
  * Deliberately not the phase key: the number is what the page shows on the
  * node and in the eyebrow, so `#step-07` is the id a reader can predict.
  */

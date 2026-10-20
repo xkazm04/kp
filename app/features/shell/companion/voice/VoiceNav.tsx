@@ -49,6 +49,21 @@ export function VoiceNav({ history, className = "" }: { history: VoiceHistory; c
       <span className="nums min-w-[4.5rem] text-center text-sm text-steel">
         {t("voiceMode.position", { index: history.position, total: history.total })}
       </span>
+      <ol className="flex max-w-28 min-w-0 items-center gap-0.5 overflow-x-auto py-1" aria-label={t("voiceMode.label")}>
+        {history.entries.map((entry, index) => (
+          <li key={entry.id} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => history.goTo(index)}
+              aria-label={t("voiceMode.position", { index: index + 1, total: history.total })}
+              aria-current={index === history.index ? "step" : undefined}
+              className="focus-ring grid h-6 w-6 place-items-center rounded-full"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${index === history.index ? "bg-coral" : "bg-stone-400"}`} aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ol>
       <button
         type="button"
         onClick={history.newer}

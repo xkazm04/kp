@@ -1,12 +1,13 @@
 "use client";
 
-// Capability scores header (transfer chip, provenance strip, confidence,
-// authenticity, per-dimension bars, strengths/concerns) — split out of
-// DevEvalPanel.tsx.
+// Capability scores header (case score + transfer chips, provenance strip,
+// confidence, authenticity, per-dimension bars with their contributions,
+// strengths/concerns) — split out of DevEvalPanel.tsx.
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { assertScore, formatFraction } from "@/app/_lib/format";
 import { findingsSource } from "./DevHelpers";
+import { formatContribution, headlineFor } from "./devcaseScoreHeadline";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { ScoreBar } from "./DevScoreBar";
 import { LOW_CONFIDENCE } from "./DevTypes";
@@ -40,6 +41,11 @@ export function DevEvalPanelScores({
   const e = ev.evaluation ?? {};
   const x = ev.transfer ?? {};
   const authenticityReasons = (ev.authenticity?.reasons ?? []).map(reasonText).filter(Boolean);
+  // The headline is the rubric-weighted case score, and by construction the sum of the
+  // contributions printed beside the bars (devcaseScoreHeadline.ts). Transfer keeps its own chip:
+  // it is what the promote verdict reads, and on the LLM path it is an independent judgement.
+  const headline = headlineFor(e, x, breakdown);
+  const rowByName = new Map(headline.rows.map((r) => [r.name, r]));
 
   return (
     <>
@@ -47,6 +53,18 @@ export function DevEvalPanelScores({
       <div className="mb-1 flex items-center gap-2">
         <span className="text-micro font-semibold uppercase tracking-wide text-steel">{tr("capabilityScores")}</span>
         <span className="ml-auto text-micro uppercase text-steel">
+          <span
+            title={
+              headline.kind === "composite"
+                ? headline.missing.length
+                  ? tr("caseScorePartialTitle", { dimensions: headline.missing.join(", "), pct: Math.round(headline.scoredWeight * 100) })
+                  : tr("caseScoreTitle")
+                : tr("caseScoreLegacyTitle")
+            }
+          >
+            {tr("caseScore")} <b className="text-ink">{headline.kind === "composite" ? assertScore(headline.value, "overallScore") : "—"}</b>
+          </span>{" "}
+          ·{" "}
           {tr("transfer")} <b className="text-ink">{x.transferScore != null ? assertScore(x.transferScore, "transferScore") : "—"}</b> ·{" "}
           {/* A Live Work Surface submission has no git history BY DESIGN, so the
               commit count is structurally 0 for it — and "0 commits" beside a score
@@ -65,7 +83,7 @@ export function DevEvalPanelScores({
         {e.confidence != null ? (
           <span
             title={tr("confidenceTitle")}
-            className={`text-micro uppercase ${e.confidence <= LOW_CONFIDENCE ? "font-semibold text-coral" : "text-steel"}`}
+            className={`text-micro uppercase ${e.confidence <= LOW_CONFIDENCE ? "font-semibold text-coral-ink" : "text-steel"}`}
           >
             {tr("confidence", { pct: formatFraction(e.confidence, { label: "confidence" }) })}
           </span>
@@ -82,7 +100,7 @@ export function DevEvalPanelScores({
             }
             className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${
               ev.authenticity.band === "suspect"
-                ? "bg-coral/15 text-coral"
+                ? "bg-coral/15 text-coral-ink"
                 : ev.authenticity.band === "mixed"
                   ? "bg-amber-100 text-amber-700"
                   : "bg-moss/15 text-moss"
@@ -93,10 +111,29 @@ export function DevEvalPanelScores({
         ) : null}
       </div>
       <div className="space-y-1">
-        {breakdown.map((d, i) => (
-          <ScoreBar key={d.name} label={d.label} value={d.score} weight={d.weight} title={d.description} index={i} />
-        ))}
+        {breakdown.map((d, i) => {
+          const row = rowByName.get(d.name);
+          return (
+            <div key={d.name} className="flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <ScoreBar label={d.label} value={d.score} weight={d.weight} title={d.description} index={i} />
+              </div>
+              {headline.kind === "composite" ? (
+                row && row.contribution != null ? (
+                  <span className="w-9 shrink-0 text-right text-micro tabular-nums text-steel" title={tr("contributionTitle", { points: row.contribution.toFixed(1), label: d.label })}>
+                    {formatContribution(row.contribution)}
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-right text-micro text-stone-400" title={tr("notScoredTitle", { label: d.label })}>
+                    {tr("notScored")}
+                  </span>
+                )
+              ) : null}
+            </div>
+          );
+        })}
       </div>
+      {headline.kind === "legacy" && breakdown.length ? <p className="mt-1 text-micro text-steel">{tr("weightsNotApplied")}</p> : null}
       {e.summary ? <p className="mt-1.5 text-micro text-ink">{e.summary}</p> : null}
       {hasFindings ? (
         // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #5): stack to one
@@ -117,7 +154,7 @@ export function DevEvalPanelScores({
           ) : null}
           {(e.concerns ?? []).length ? (
             <div>
-              <p className="font-semibold text-coral">{tr("concerns")}</p>
+              <p className="font-semibold text-coral-ink">{tr("concerns")}</p>
               <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-ink">
                 {(e.concerns ?? []).map((c, i) => (
                   <li key={i}>{c}</li>

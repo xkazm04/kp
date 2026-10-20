@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { coerceOrgDumpPayload, planOrgRestore, PortabilityError, restoreOrg } from "@/app/_lib/db-portability";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { coerceOrgDumpPayload, planOrgRestore, restoreOrg } from "@/app/_lib/db-portability";
+import { answerFailure, jsonRefusal } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Restore a kp-org-dump file into THE CALLER'S OWN ORGANIZATION. Two-step by
 // design: the default call is a DRY RUN returning the plan (per-table rows in the
@@ -37,7 +38,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 // (billing/webhook, agents/report/[token]).
 const MAX_IMPORT_BODY_BYTES = 32 * 1024 * 1024;
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireOrgCapability("org:manage");
@@ -91,11 +92,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ restored: summary });
   } catch (error) {
     // A DECISION the engine made (a foreign file, a scope another org now owns, an
-    // unsafe identifier) carries its own code and status — answer it as the refusal it
-    // is, in the reader's language. Anything else is an accident (better-sqlite3, fs)
-    // whose message names tables and the absolute db path, and goes behind the generic
-    // 500 with its raw text in the server log only.
-    if (error instanceof PortabilityError) return jsonRefusal(error.code, error.status);
-    return safeJsonError(error, "api:workspace/import", "WORKSPACE_RESTORE_FAILED");
+    // unsafe identifier) is a PortabilityError — a Refusal carrying its own code and
+    // status, answered as the refusal it is, in the reader's language. Anything else is
+    // an accident (better-sqlite3, fs) whose message names tables and the absolute db
+    // path, and goes behind the generic 500 with its raw text in the server log only.
+    return answerFailure(error, "api:workspace/import", "WORKSPACE_RESTORE_FAILED");
   }
-}
+});

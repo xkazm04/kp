@@ -1,9 +1,9 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
-import { robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { robustOrderEntries, robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
-import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
+import { isFairnessAligned, schemesVary } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness, FairnessScheme, RobustnessStatus } from "@/app/features/shared/groupEvalTypes";
 
 // ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
@@ -24,10 +24,14 @@ const fmtScheme = (s: FairnessScheme, i: SchemeInitials): string =>
 export function FairnessPanel({
   fairness,
   headlineOrder,
+  headlineIds,
   robustness,
 }: {
   fairness: Fairness | null;
   headlineOrder: string[];
+  // payload.recommendedIds — the headline order as ranker identities. With the
+  // matrix's rankingIds it makes the order verdict compare people, not names.
+  headlineIds?: string[];
   robustness?: RobustnessStatus;
 }) {
   const t = useTranslations("decisions.groupEval");
@@ -70,7 +74,9 @@ export function FairnessPanel({
   }
   const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
   const schemeInitials: SchemeInitials = { skills: t("schemeSkillsShort"), career: t("schemeCareerShort"), personal: t("schemePersonalShort") };
-  const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
+  // Variance is read from the schemes, as the sealed status reads it: every candidate
+  // carries a weight note (a baseline one included), so notes cannot tell a no-op apart.
+  const adjusted = robustness !== "not_varied" && schemesVary(fairness);
 
   if (!adjusted) {
     // Uniform weights: every scheme is identical, so "order unchanged" is guaranteed a
@@ -90,7 +96,7 @@ export function FairnessPanel({
   // the comparison runs on the matrix's OWN field — a bare length check fell through to
   // the "agrees" copy and reported agreement with a headline that was never compared.
   // null = unanswerable: state nothing rather than reassure (see robustOrderVerdict).
-  const orderVerdict = robustOrderVerdict(ranking, headlineOrder);
+  const orderVerdict = robustOrderVerdict(ranking, headlineOrder, { rankingIds: fairness.rankingIds, headlineIds });
 
   return (
     <section>
@@ -135,7 +141,7 @@ export function FairnessPanel({
                     <span
                       className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${
                         i === j
-                          ? "bg-coral/10 text-coral ring-1 ring-coral/30 underline decoration-dotted decoration-2 underline-offset-2"
+                          ? "bg-coral/10 text-coral-ink ring-1 ring-coral/30 underline decoration-dotted decoration-2 underline-offset-2"
                           : "bg-stone-100 text-ink"
                       }`}
                       title={i === j ? t("ownWeighting") : t("crossWeighting", { label: l, other })}
@@ -154,10 +160,12 @@ export function FairnessPanel({
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className={META_LABEL}>{t("robustOrder")}</span>
-        {ranking.map((l, i) => (
-          <span key={i} className="inline-flex items-center gap-1.5">
+        {/* Keyed and labelled by candidate id (robustOrderEntries): two namesakes are
+            two pills, and a KO'd namesake no longer removes the eligible one. */}
+        {robustOrderEntries(fairness).map((entry, i) => (
+          <span key={entry.key} className="inline-flex items-center gap-1.5">
             {i > 0 ? <ArrowRight size={12} className="text-steel" aria-hidden /> : null}
-            <Pill tone={i === 0 ? "moss" : "neutral"}>{l}</Pill>
+            <Pill tone={i === 0 ? "moss" : "neutral"}>{entry.label}</Pill>
           </span>
         ))}
       </div>

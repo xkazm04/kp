@@ -4,7 +4,7 @@
 // out of the section component so its JSX stays under the 200-line cap.
 import { useEffect, useState } from "react";
 import { DEFAULT_REGIME_ID, getRegime, type RegimeId } from "@/app/_lib/compliance-regimes";
-import { foldJurisdiction, foldRetentionMonths, type RegimeConfidence } from "./decisionsComplianceFold";
+import { foldJurisdiction, foldRecordingOffered, foldRetentionMonths, type RegimeConfidence } from "./decisionsComplianceFold";
 
 export function useComplianceJurisdiction(standardFallback: string) {
   const [jurisdiction, setJurisdiction] = useState<RegimeId>(DEFAULT_REGIME_ID);
@@ -29,6 +29,12 @@ export function useComplianceJurisdiction(standardFallback: string) {
   // was therefore right most of the time, which is precisely what made a wrong
   // one undetectable.
   const [retentionMonths, setRetentionMonths] = useState<number | null>(null);
+  // WP3 — whether candidates are OFFERED an audio recording of their AI interview.
+  // Three states on purpose (see foldRecordingOffered): `null` is "not read", and the
+  // control stays DISABLED there, because the compliance row is written wholesale and a
+  // click from an unread state would post the placeholder jurisdiction over the saved
+  // one. Default OFF: no deployment starts holding candidate audio by accident.
+  const [recordingOffered, setRecordingOffered] = useState<boolean | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -40,6 +46,7 @@ export function useComplianceJurisdiction(standardFallback: string) {
         setRegimeConfidence(read.regime);
         setSavedJurisdiction(read.jurisdiction);
         setJurisdiction(read.jurisdiction);
+        setRecordingOffered(foldRecordingOffered(true, p));
       })
       .catch(() => {
         // NOT swallowed: the failure IS the posture. Recording it is what lets the
@@ -88,8 +95,42 @@ export function useComplianceJurisdiction(standardFallback: string) {
     }
   };
 
+  /** Turn the candidate audio-recording offer on or off (WP3).
+   *
+   *  The compliance row is written WHOLESALE, so the jurisdiction rides along — which is
+   *  exactly why this is refused until the config read has landed (`recordingOffered !==
+   *  null`): posting the placeholder regime over a saved one to flip an unrelated flag
+   *  would change the candidate-facing disclosure as a side effect. Optimistic with the
+   *  same rollback as `pick`: a failed save must never leave the panel claiming an offer
+   *  the interview portal is not making. */
+  const toggleRecording = async (next: boolean) => {
+    if (recordingOffered === null || saving) return;
+    const prev = recordingOffered;
+    setRecordingOffered(next);
+    setSaving(true);
+    setSaveState(null);
+    try {
+      const r = await fetch("/api/decisions/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase: "compliance", config: { jurisdiction: savedJurisdiction, interviewRecordingOffered: next } }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setSaveState("saved");
+    } catch {
+      // Never a silent revert: the toggle goes back to the last value the SERVER
+      // confirmed, and the shared saveState line says the write failed — a panel
+      // showing "recording offered" that the portal never offers is the one state
+      // this control must not be able to reach.
+      setRecordingOffered(prev);
+      setSaveState("failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const regime = getRegime(jurisdiction);
   const standard = regime.adverseImpactStandard ?? standardFallback;
 
-  return { jurisdiction, regimeConfidence, saving, saveState, retentionMonths, pick, regime, standard };
+  return { jurisdiction, regimeConfidence, saving, saveState, retentionMonths, pick, regime, standard, recordingOffered, toggleRecording };
 }

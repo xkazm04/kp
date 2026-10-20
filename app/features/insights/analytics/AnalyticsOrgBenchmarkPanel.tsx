@@ -60,7 +60,7 @@ function Metric({
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro">
         <span className="text-steel">{orgLabel}</span>
         {better === null ? null : (
-          <span className={`font-semibold ${better ? "text-moss" : "text-coral"}`}>{better ? aheadLabel : behindLabel}</span>
+          <span className={`font-semibold ${better ? "text-moss" : "text-coral-ink"}`}>{better ? aheadLabel : behindLabel}</span>
         )}
       </div>
     </div>

@@ -62,7 +62,7 @@ test("the events route threads the caller's workspace into its reads and no long
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(path.join(dir, "route.ts"), "utf8");
   // The route resolves the caller's tenant once...
-  assert.match(src, /currentWorkspace\(\)/, "the route must resolve currentWorkspace()");
+  assert.match(src, /withWorkspace\(async \(ws: string/, "the route must receive the caller's workspace from withWorkspace");
   // ...and passes it (as `ws`) to each remaining read — a bare call with no
   // workspace argument would silently fall to DEFAULT_WORKSPACE_ID again.
   assert.match(src, /listPipelineEventsSince\([^)]*\bws\b[^)]*\)/, "since-cursor read must be workspace-scoped");
@@ -71,4 +71,6 @@ test("the events route threads the caller's workspace into its reads and no long
   // requireOperator() gate (the sibling [id]/timeline routes are gated). It was
   // dead code and is removed; if it ever comes back it MUST be operator-gated.
   assert.doesNotMatch(src, /listPipelineEventsForEntry/, "the ungated per-entry branch must stay removed (gate with requireOperator if reintroduced)");
+  assert.match(src, /jsonRefusal\("PIPELINE_EVENTS_CURSOR_INVALID", 400\)/, "an invalid since cursor must carry a localizable code");
+  assert.doesNotMatch(src, /error: "since must be/, "the cursor refusal must not regress to English prose");
 });

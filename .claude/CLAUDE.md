@@ -92,8 +92,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   alternates, no theme flash — filtered as
                               #   `shell.spec`, not `shell`)
                               # + journey-role-to-schedule + journey-one-thread
-                              # + activity-detail (Insights → Activity row detail,
-                              #   incl. the null-request_id degraded case)
+                              # + activity-detail (Insights → Activity row detail:
+                              #   drives one keyless campaign task so the ledger
+                              #   has a row linked to its run — no empty-ledger skip)
                               # + analytics-sections (the ?sec= switcher, its
                               #   fallback, and that it writes nothing to the URL)
                               # + quality-tables (the server-paged decision log and
@@ -102,6 +103,15 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   is consumed, a repeat link still works)
                               # + locale-smoke (a cs cookie really paints Czech —
                               #   the suite is otherwise English-only)
+                              # + journey-board (the Journeys overlay: it opens, it
+                              #   renders the real ledger with NO page error, an
+                              #   absence states its reason without a hover, and Esc
+                              #   returns to the tab behind it. It exists because the
+                              #   board shipped typecheck/lint/unit green and then did
+                              #   not render — a missing ICU argument on every unmapped
+                              #   event kind, and a `fixed inset-0` overlay contained by
+                              #   the tab panel's animation transform instead of the
+                              #   viewport, so it measured 1264x0)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see
@@ -162,6 +172,10 @@ When writing or changing components, always assume **both** themes:
   suffices.
 - Verify new surfaces in both themes before finishing (the appearance control
   on the sidebar rail).
+- The keyboard-side summary (type floor, radius, button heights, don't-hand-roll
+  table) is `.claude/rules/ui.md`, loaded for `app/**/*.tsx|css`. The style ratchet
+  `app/_components/ui/style-debt.test.ts` (ceilings in `style-debt.json`) fails
+  `npm run test:unit` when a raw style step grows in any file.
 
 ## Documentation Sync — update the doc in the same change
 
@@ -278,6 +292,14 @@ The ones that actually bite:
   — a row count cannot tell "never seeded" from "seeded, then legitimately
   emptied", and the difference is demo data reappearing in a real install
   (`app/_lib/db/seed-marks.ts`).
+- **Every non-public route enters through `app/_lib/auth/workspace-context.ts`.**
+  `export const GET = withWorkspace(async (ws: string, request: Request) => {...})` (or
+  `withSession` when no tenant is needed, or `route(withOperator, withCapability(c),
+  withRateLimit({...}))(handler)` for a gated, throttled door). The handler is handed the
+  workspace; it never calls `currentWorkspace()` itself. Session 401 comes first, then the
+  chain's guards in written order, then the handler's own gates (ADR 0026
+  `0026-route-chain-refusal-order`). Public token routes are NOT wrapped. Ratchet:
+  `app/api/route-workspace-coverage.test.ts` (its allowlist can only shrink).
 - **Rate-limit contract tests pin limiter call sites.**
   `app/api/rate-limit-contract.test.ts` asserts which open/paid routes call
   `rateLimit()` and how — adding, moving, or re-keying a limiter means updating

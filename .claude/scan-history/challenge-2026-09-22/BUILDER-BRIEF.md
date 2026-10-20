@@ -1,0 +1,102 @@
+# Challenge builder brief — /scan-sweep 3.4.0 `--challenge`, kp, 2026-09-22
+
+You build ONE approved challenge card in the kp repository
+(`C:\Users\kazda\kiro\kp`), on branch `main`, in the SHARED main checkout.
+**Commit on this branch; never push, never open a PR, never `git stash`, never
+reset or discard anything you did not write.** Other builders are working in this
+same checkout RIGHT NOW on disjoint files.
+
+Your card is `.claude/scan-history/challenge-2026-09-22/cards/<ctx>.json`, slot
+named in your prompt, plus any `revise` line in `critic.json` for that card
+(the coordinator's prompt repeats it — the revision wins over the card).
+
+Read first: `.claude/CLAUDE.md` (repo law — the conventions that bite), the
+`## Challenge mode` block and `## Gates` in `.claude/scan-sweep/config.md`,
+and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` §7.
+
+## Order — do not reorder
+
+1. **Re-verify the premise** on the current tree (`git log -3` first; note the
+   base sha). If the central premise is false, stop: write the result file with
+   `status: "demoted"` and why. No code.
+2. **Write the acceptance cases as tests first** (node:test, `*.test.ts`, colocated
+   with the `.ts` module they exercise). Run them and watch them FAIL. Record how
+   many cases were red. kp cannot import `.tsx` in unit tests — test the `.ts`
+   logic; extract a `.ts` module from a component if the card needs it.
+   Run a single test file with:
+   `node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning --test-isolation=process --test "<file>"`
+3. **Build** inside the card's `write_set` (+ its tests, + one coupled doc the
+   `scripts/docs/feature-doc-map.json` names for the source you touch, + shared
+   surfaces under the lock). You may shrink the write set. Growing it by more than
+   that is a demotion: revert your uncommitted work, `status: "demoted"`.
+4. **Green**: your tests pass, then each gate, each on its own, exit code
+   asserted (`cmd && next`, never piped to tail, never `;`):
+   `npx tsc --noEmit -p tsconfig.json`, `npx eslint <your dirs>`,
+   `npm run i18n:check` (if you touched UI strings / messages),
+   `npm run design:check` (if you touched classNames), `npm run api:check` (if you
+   touched `app/api/**/route.ts` — fix with `npm run api:docs`),
+   `npm run docs:check`, `npm run lint:ts-ratchet`, and the unit tests of every
+   test file in your touched directories — THEN, before your last commit, the FULL
+   `npm run test:unit` (~80s) and `npm run test:perf`. Added after waves 1-2: kp
+   keeps source-guard and ratchet tests OUTSIDE the folder they guard
+   (`app/_components/ui/recipes-literals.test.ts` counts hand-typed recipe strings
+   repo-wide; `devcase-studio-robustness.test.ts` pins route source; `perf-budget.json`
+   caps each route's and `app/page.tsx`'s import graph), and three wave-2 breaks
+   were exactly those. `test:perf` is ALREADY red on `llm-config.ts` 322/320 and
+   `job-ingest.ts` 403/400 — ignore those two lines only; any other overage line is
+   yours. Compose recipes from `app/_components/ui/recipes.ts` (PANEL, ICON_TILE,
+   BTN_*, …) rather than re-typing their class strings. A source-guard test that pins
+   the OLD expression of code you correctly changed: update it to pin the new AND
+   still forbid the old defect, in the same commit. A whole-tree gate (tsc) red on a path you did NOT touch is a
+   sibling builder's in-flight work: wait ~60s and re-run once; if still red on
+   foreign paths only, record it in `notes` and proceed. Two failed attempts to
+   turn YOUR red green -> revert your uncommitted work, `status: "demoted"`.
+5. **Commit a short series**, each commit green:
+   `test(<ctx>): <what the cases pin>` then `feat|refactor(<ctx>): <card title>`.
+   Body: the lens, `Challenge: 2026-09-22 <ctx>/<slot>`, the re-measured
+   `Acceptance: N of N (was 0 of N)`, and a `Doc-sync:` trailer ONLY if no doc
+   applies (otherwise update the doc). End every message with
+   `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+## Shared checkout rules (these replace isolation)
+
+- **Commit ONLY with `git commit -m ... -- <path> <path>`** (explicit paths after
+  `--`; new files must be `git add <path>`-ed first). Never a bare `git commit`,
+  never `git add -A/./-u`. Before committing, `git diff --cached --stat` — if a
+  path you did not add is staged, leave it alone (it is a sibling's), your
+  `-- <paths>` commit will not take it.
+- **Line endings**: before staging, `perl -pi -e 's/\r\n/\n/g' <your files>`, then
+  `git diff --stat --ignore-all-space` vs `git diff --stat` must agree.
+- **Shared surfaces lock** (messages/*.json, docs/architecture/api-reference.md,
+  ts-debt.json, test-quarantine.json, perf-budget.json,
+  scripts/docs/feature-doc-map.json, app/api/*-contract.test.ts,
+  app/_lib/tenancy.ts, app/features/shell/tabs.ts, AND — for this run — every
+  file under `docs/`, because several cards share a feature doc):
+  take the lock with `mkdir .git/scan-sweep-challenge.lock` (retry every 5s until
+  it succeeds; if it is older than 10 minutes, report and take it), make the edit,
+  commit it ALONE immediately with `-- <those paths>`, then
+  `rmdir .git/scan-sweep-challenge.lock`. Append at the END of a JSON object /
+  list; never reformat or reorder a file. All four locale catalogs get the same
+  keys in the same commit — write real cs/de/fr translations (formal register,
+  no em dashes in catalog copy), not English copies.
+- If `git commit` fails on `index.lock`, wait a few seconds and retry.
+- Never run `npm run build`, `npm run dev`, or anything that touches `.next` —
+  the operator's dev servers are running.
+- Use the Write/Edit tools for any file content containing backslashes (regex,
+  paths) — shell heredocs eat them.
+
+## Result — write BEFORE you reply
+
+`.claude/scan-history/challenge-2026-09-22/builds/<ctx>--<slot>.json`:
+
+```json
+{"card":"<ctx>/<slot>","title":"...","status":"landed|demoted|partial",
+ "base":"<sha>","shas":["..."],"tests_added":["path"],
+ "cases_red_before":0,"cases_green_after":0,"cases_total":0,
+ "gates":{"tsc":0,"eslint":0,"i18n":0,"design":0,"docs":0,"api":null,"unit":0},
+ "files_changed":0,"lines_changed":0,
+ "deviations_from_card":"...","notes":"..."}
+```
+
+(`gates` values are exit codes, `null` when not applicable.) Then reply in <= 10
+lines: status, shas, cases, anything the coordinator must know for integration.

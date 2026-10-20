@@ -25,9 +25,14 @@ are deterministic; ``winnability_cli`` wires it to the pool + a draft Job.
 
 from __future__ import annotations
 
+from itertools import combinations
+
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig
-from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
+from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, _norm_currency, ko_filter, score_job
+
+# Must-haves considered for the pair fallback: C(8, 2) = 28 extra passes at most.
+_PAIR_CANDIDATES = 8
 
 
 def _same_currency(a: str | None, b: str | None) -> bool:
@@ -86,6 +91,26 @@ def assess_winnability(
             loose_gates.append({"kind": "education", "value": job.min_education, "eligibleDelta": delta})
     loose_gates.sort(key=lambda g: g["eligibleDelta"], reverse=True)
 
+    # --- Masked gates. A single-gate delta only counts people that gate blocks ALONE,
+    # so anyone failing two gates is recovered by neither lever: the sum of the
+    # deltas UNDERSTATES what removing the gates together restores, and when every
+    # excluded candidate fails two gates each delta is 0 and looseGates is empty on
+    # exactly the pool the gates jointly empty. One extra pass with every levered
+    # gate removed exposes it; it is reported as its own row, never folded into the
+    # per-gate deltas, because it names no single culprit.
+    joint_gates: list[dict] = []
+    for lang in dict.fromkeys(job.languages):
+        joint_gates.append({"kind": "language", "value": lang})
+    if job.min_education and job.min_education != "none":
+        joint_gates.append({"kind": "education", "value": job.min_education})
+    joint_loosen: dict | None = None
+    if len(joint_gates) >= 2:
+        variant = job.model_copy(update={"languages": [], "min_education": "none"})
+        joint_delta = len(_eligible(candidates, variant)) - len(base_elig)
+        sole_sum = sum(g["eligibleDelta"] for g in loose_gates)
+        if joint_delta > sole_sum:
+            joint_loosen = {"eligibleDelta": joint_delta, "soleBlockerSum": sole_sum, "gates": joint_gates}
+
     # --- Must-have demote counterfactuals: flip one must_have to nice_to_have,
     # recount the QUALIFIED pool. Skills aren't hard gates — they cap the score —
     # so the lever here is "qualified" (eligible AND scoring well), not eligibility.
@@ -111,6 +136,28 @@ def assess_winnability(
     # Surface the must-have that frees up the most candidates first.
     must_haves.sort(key=lambda m: (m["qualifiedDelta"], m["missingAmongEligible"]), reverse=True)
 
+    # A candidate several must-haves short can sit under the bar by more than any ONE
+    # demotion buys (each moves the score a few points), so every single delta reads 0
+    # and the verdict "the pool is not close" is wrong: a PAIR reaches it. Only when no
+    # single lever moves anyone, try each pair of must-haves that some eligible candidate
+    # lacks (demoting one a candidate HOLDS lowers their score, so a demote-everything
+    # pass is not a bound). Pairs are real counterfactuals like the singles, ranked
+    # best-first, capped at _PAIR_CANDIDATES skills so the extra passes stay bounded.
+    joint_demote: list[dict] = []
+    if not any(m["qualifiedDelta"] > 0 for m in must_haves):
+        lacking = [m["skill"] for m in must_haves if m["missingAmongEligible"] > 0][:_PAIR_CANDIDATES]
+        kinds = {r.skill: idx for idx, r in enumerate(requirements) if r.kind == "must_have"}
+        for a, b in combinations(dict.fromkeys(lacking), 2):
+            demoted = [
+                r.model_copy(update={"kind": "nice_to_have"}) if idx in (kinds[a], kinds[b]) else r
+                for idx, r in enumerate(requirements)
+            ]
+            variant = job.model_copy(update={"requirements": demoted})
+            delta = len(_qualified(candidates, job=variant, eligible=base_elig, threshold=fit_threshold)) - len(base_qual)
+            if delta > 0:
+                joint_demote.append({"skills": [a, b], "qualifiedDelta": delta})
+        joint_demote.sort(key=lambda p: p["qualifiedDelta"], reverse=True)
+
     # --- Salary vs market. role_band lives in `taxonomy`, but `jobs` already
     # imports it to anchor bands at parse time; read it through that re-export so
     # this module's import surface stays inside the matching/jobs core.
@@ -128,8 +175,22 @@ def assess_winnability(
     # so we SILENCE it rather than emit a confident-but-wrong verdict — the exact
     # cross-currency trap the TS isSameCurrency guard was built to prevent.
     market_currency = ACTIVE_MARKET.currency
-    job_currency = market.currency
+    # The currency the POSTING stated when it stated one (the seeker-side _salary_flag
+    # reads it the same way); only an ad that named none is read in the units of the
+    # market it was authored for. Answering every ad in the market's currency compared
+    # a EUR-stated range with the CZK benchmark as if it were CZK.
+    job_currency = _norm_currency(job.salary_currency) if job.salary_currency else market.currency
     comparable = _same_currency(job_currency, market_currency)
+    # Both sides of the comparison must be STATED by the ad. A salary_band stamped from
+    # the market anchor IS the market band, so top-vs-floor against itself can never
+    # read "below" and the coach answers a clean "not below market" for an ad that
+    # named no pay; a seniority stamped from DEFAULT_POLICY selects the band of a level
+    # the ad never claimed, so a stated range is judged against an assumed one. The
+    # seeker-side _salary_flag already reads a defaulted band as "posting states no
+    # pay"; this is the same rule. Silence (None), never a verdict.
+    assumed = [f for f in ("salary_band", "seniority") if f in job.defaulted_fields]
+    if "salary_band" in assumed:
+        job_band = None
     salary: dict = {
         "family": job.role_family,
         "seniority": job.seniority,
@@ -143,10 +204,14 @@ def assess_winnability(
         # None (not False) when the currencies aren't comparable: honestly absent,
         # never a wrong "not below market" claim across an unconverted FX gap.
         "belowMarket": (
-            bool(job_band and market_band and job_band[1] < market_band[0]) if comparable else None
+            bool(job_band and market_band and job_band[1] < market_band[0])
+            if comparable and not assumed
+            else None
         ),
+        # Which of the ad's own inputs the verdict was silenced for (empty = none).
+        "assumedInputs": assumed,
     }
-    if comparable and job_band and market_band and market_band[0] > 0:
+    if comparable and not assumed and job_band and market_band and market_band[0] > 0:
         # How far the JD's top sits relative to the market floor (negative = below).
         salary["topVsMarketFloorPct"] = round(100 * (job_band[1] - market_band[0]) / market_band[0])
 
@@ -156,6 +221,8 @@ def assess_winnability(
         "qualified": len(base_qual),
         "fitThreshold": fit_threshold,
         "looseGates": loose_gates,
+        **({"jointLoosen": joint_loosen} if joint_loosen else {}),
         "looseMustHaves": must_haves,
+        **({"jointDemote": joint_demote} if joint_demote else {}),
         "salary": salary,
     }

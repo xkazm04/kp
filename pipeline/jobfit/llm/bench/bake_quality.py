@@ -10,6 +10,15 @@ Usage:
     python -m pipeline.jobfit.llm.bench.bake_quality tmp/l6-a tmp/l6-b tmp/l6-c
     # then commit app/_lib/llm-quality-scores.ts (do NOT hand-edit it)
 
+    # Reproduce the committed bake (its judge was fable-5, NOT the default label):
+    #   dirs: tmp/bench/round-20260811/{n4-api-keep,n4-api2-keep,n4-api3,n4-cli}
+    #   flags: --judge fable-5 --measured-at 2026-08-12T00:49:23.000Z
+    # The records already carry judge scores, so a re-bake spends nothing.
+
+Each cell also carries ``costPerTaskUsd`` (median spend of served LLM rows; null
+when unpriced) and the file a ``targets`` map (slug -> bench provider/model), which
+the Models > Quality board uses to price and pin a pick.
+
 Re-bake after every fresh matrix run; the TS is generated, not source of truth.
 """
 
@@ -77,6 +86,16 @@ def _cell(records: list[dict[str, Any]]) -> dict[str, Any] | None:
     dims = {k: (m if (m := _med_dim(judged, k)) is not None else score_med) for k in _DIMS}
     valids = [bool(r.get("valid")) for r in llm]
     p50s = [int(r.get("wall_ms") or 0) for r in llm]
+    # Price per task = median spend of the model's REAL answers (served LLM rows).
+    # A deterministic fallback costs nothing and an errored row may carry a partial
+    # spend; neither is the price of this model's work. A row with no numeric
+    # cost_usd is UNPRICED (the CLI adapter reports None when the envelope had no
+    # cost), so a cell with no priced row is null - never 0, never "free".
+    costs = [
+        float(c)
+        for r in llm
+        if isinstance((c := r.get("cost_usd")), (int, float)) and not isinstance(c, bool)
+    ]
     return {
         **dims,
         "score": score_med,
@@ -85,17 +104,25 @@ def _cell(records: list[dict[str, Any]]) -> dict[str, Any] | None:
         # Reliability over ALL attempts (errors + fallbacks in the denominator).
         "llmRate": round(len(llm) / len(records), 2) if records else 0.0,
         "p50Ms": int(median(p50s)) if p50s else 0,
+        "costPerTaskUsd": round(median(costs), 6) if costs else None,
     }
 
 
-def bake(dirs: list[str], *, judge: str = "claude-cli") -> str:
+def bake(dirs: list[str], *, judge: str = "claude-cli", measured_at: str | None = None) -> str:
     rows = _load(dirs)
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     models_seen: list[str] = []
+    # slug -> the exact bench (provider, model) that produced it: what a routing pin
+    # needs to reproduce the measured cell. First provider seen wins (a bench run
+    # measures each slug through one provider).
+    targets: dict[str, dict[str, str]] = {}
     for r in rows:
         model = r["model"]
         if model not in models_seen:
             models_seen.append(model)
+        provider = r.get("provider")
+        if isinstance(provider, str) and provider and model not in targets:
+            targets[model] = {"provider": provider, "model": model}
         groups[(r["use_case"], model)].append(r)
 
     cells: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -109,12 +136,15 @@ def bake(dirs: list[str], *, judge: str = "claude-cli") -> str:
     limit = max((len(v) for v in groups.values()), default=0)
 
     payload = {
-        "measuredAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        # --measured-at makes a re-bake of an old run reproducible (the stamp is the
+        # run's, not the bake's).
+        "measuredAt": measured_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "judge": judge,
         "limit": limit,
         "models": models_seen,
         # dict() to drop the defaultdict type; sorted ops for a stable diff.
         "cells": {op: cells[op] for op in sorted(cells)},
+        "targets": {m: targets[m] for m in models_seen if m in targets},
     }
     body = json.dumps(payload, ensure_ascii=False, indent=2)
     return (
@@ -136,10 +166,20 @@ def bake(dirs: list[str], *, judge: str = "claude-cli") -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("dirs", nargs="+", help="Bench output dirs (each with records.jsonl).")
-    ap.add_argument("--judge", default="claude-cli", help="Judge engine label baked into the file.")
+    ap.add_argument(
+        "--judge",
+        default="claude-cli",
+        help="Judge engine label baked into the file (the committed 2026-08-12 bake: fable-5).",
+    )
+    ap.add_argument(
+        "--measured-at",
+        default=None,
+        help="ISO stamp of the source run (default: now). Pass the committed value to re-bake reproducibly.",
+    )
     args = ap.parse_args(argv)
-    ts = bake(args.dirs, judge=args.judge)
-    _OUT.write_text(ts, encoding="utf-8")
+    ts = bake(args.dirs, judge=args.judge, measured_at=args.measured_at)
+    # newline="\n": a Windows bake used to write CRLF into a file the repo keeps LF.
+    _OUT.write_text(ts, encoding="utf-8", newline="\n")
     print(f"wrote {_OUT.relative_to(_ROOT)} ({len(ts)} bytes)")
     return 0
 

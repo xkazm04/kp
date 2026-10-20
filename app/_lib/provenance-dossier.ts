@@ -1,5 +1,5 @@
 import type { AnalysisResult } from "./schemas.generated";
-import { splitSanityChecks } from "./sanity-checks";
+import { trustLedger } from "./sanity-checks";
 
 // Evidence-linked explainable verdict (idea-0832ec48). The analysis already
 // carries everything an auditable decision needs — per-component scores, the
@@ -125,7 +125,7 @@ export function buildProvenanceDossier(
   }
 
   // The trust ledger: which automated sanity checks warned vs passed.
-  const { warns, oks } = splitSanityChecks(analysis.sanityChecks ?? []);
+  const { warns, oks } = trustLedger(analysis);
   out.push(
     section(
       "Trust ledger (automated sanity checks)",

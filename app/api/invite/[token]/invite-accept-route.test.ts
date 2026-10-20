@@ -172,3 +172,16 @@ test("GET previews a redeemable invite and 404s an unknown token", async () => {
   assert.equal(body.needsName, true, "a brand-new invitee supplies their name");
   assert.equal((await get("inv-nope")).status, 404);
 });
+
+// ---- challenge-r04 auth-session-rbac/A: the one attribute set --------------------------
+
+test("redeem answers the session and kp_entered with exactly login's attribute set", async () => {
+  const invite = mint("route.attrs@csas.cz");
+  const res = await redeem(invite.token, { name: "Route Attrs", password: "a-strong-pw-1" });
+  assert.equal(res.status, 200);
+  const attrSet = (line: string | undefined) => (line ?? "").split(";").slice(1).map((a) => a.trim().toLowerCase()).sort();
+  assert.deepEqual(attrSet(setCookie(res, SESSION_COOKIE)), ["httponly", "max-age=604800", "path=/", "samesite=lax", "secure"]);
+  assert.deepEqual(attrSet(setCookie(res, ENTERED_COOKIE)), ["max-age=604800", "path=/", "samesite=lax", "secure"]);
+  const session = verifySession(cookieValue(res, SESSION_COOKIE));
+  assert.equal(session?.org, ORG, "org read from the invitee's users row");
+});

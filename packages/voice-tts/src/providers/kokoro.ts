@@ -7,6 +7,8 @@
 import path from "node:path";
 import { isReadableFile, resolveBinary, sidecarHome } from "../node/resolve-bin.ts";
 import { readWav, runSidecar, withScratchDir } from "../node/spawn.ts";
+import { primaryLanguage } from "../validate.ts";
+import { pickVoice } from "../voice-pick.ts";
 import { TtsError, type TtsAudio, type TtsHost, type TtsProbe, type TtsProvider, type TtsRequest, type TtsVoice } from "../types.ts";
 
 const TIMEOUT_MS = 90_000;
@@ -61,9 +63,10 @@ export class KokoroTts implements TtsProvider {
       .map((s) => s.trim())
       .filter(Boolean)
       .flatMap((pair) => {
-        const [id, sid] = pair.split(":");
+        const [id, sid, lang] = pair.split(":");
         const n = Number(sid);
-        return id && Number.isInteger(n) ? [{ id, label: id, language: null, sid: n }] : [];
+        const language = lang ? primaryLanguage(lang) : null;
+        return id && Number.isInteger(n) ? [{ id, label: id, language, sid: n }] : [];
       });
     return [...BUILTIN_VOICES, ...extra.filter((e) => !BUILTIN_VOICES.some((b) => b.id === e.id))];
   }
@@ -77,7 +80,10 @@ export class KokoroTts implements TtsProvider {
     else if (!isReadableFile(f.model)) probe = { state: "absent", reason: `no model.onnx in ${this.modelDir()}`, setup: INSTALL_HINT };
     else if (!isReadableFile(f.voices) || !isReadableFile(f.tokens))
       probe = { state: "broken", reason: `${this.modelDir()} is missing voices.bin or tokens.txt (partial download?)` };
-    else probe = { state: "ready", detail: `${this.catalog().length} voice(s)` };
+    else {
+      const languages = [...new Set(this.catalog().map((v) => v.language).filter((l): l is string => Boolean(l)))].sort();
+      probe = { state: "ready", detail: `${this.catalog().length} voice(s)`, languages };
+    }
     this.host.log?.({ type: "probe", provider: this.id, probe, ms: Date.now() - started });
     return probe;
   }
@@ -92,8 +98,10 @@ export class KokoroTts implements TtsProvider {
     const f = this.files();
     if (!isReadableFile(f.model)) throw new TtsError("unavailable", "kokoro model not installed", this.id);
     const catalog = this.catalog();
-    const voice = req.voiceId ? catalog.find((v) => v.id === req.voiceId) : catalog[0];
-    if (!voice) throw new TtsError("invalid_voice", `unknown voice ${req.voiceId}`, this.id);
+    const lang = primaryLanguage(req.language);
+    const pick = pickVoice(catalog, { voiceId: req.voiceId, language: lang });
+    if (!pick) throw new TtsError("invalid_voice", `unknown voice ${req.voiceId}`, this.id);
+    const voice = pick.voice;
     return withScratchDir("voice-tts-kokoro-", async (dir) => {
       const out = path.join(dir, "out.wav");
       const args = [

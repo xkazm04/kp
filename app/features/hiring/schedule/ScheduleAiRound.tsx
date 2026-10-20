@@ -9,6 +9,7 @@
 // (workspace history) + the pending calendar-gated entries the tab already holds.
 // Link generation reuses POST /api/interview/create (mints + emails the tokenized
 // /interview/<token> link; the URL is also copied to the clipboard here).
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
@@ -18,12 +19,22 @@ import type { InterviewSessionSummary } from "@/app/_lib/db/interviews";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { IvStatus } from "./useScheduleTab";
 import { ScheduleAiLedger } from "./ScheduleAiLedger";
+import { ScheduleAiRoundCompleted } from "./ScheduleAiRoundCompleted";
+
+// Mounted here as well as on the human round: in an AI-only hiring plan ScheduleTab
+// renders THIS component instead of the calendar surface, and the transcript modal hung
+// off that surface alone — so the whole interview record was unreachable for the plan
+// that produces it. Code-split like its sibling: it only loads on the click.
+const InterviewTranscriptModal = dynamic(() =>
+  import("./ScheduleInterviewTranscriptModal").then((m) => ({ default: m.InterviewTranscriptModal }))
+);
 
 export function ScheduleAiRound({ calendarEntries, interviews }: { calendarEntries: SchedEntry[]; interviews: Record<string, IvStatus> }) {
   const t = useTranslations("scheduleTab");
   const tAi = useTranslations("scheduleTab.aiRound");
   const errMsg = useErrorMessage();
   const [generating, setGenerating] = useState<string | null>(null);
+  const [transcriptEntry, setTranscriptEntry] = useState<SchedEntry | null>(null);
   const { data, error, reload } = useJsonFetch<{ sessions?: InterviewSessionSummary[] }>("/api/interview/sessions", t("loadFailed"));
   const sessions = data?.sessions ?? [];
 
@@ -70,5 +81,11 @@ export function ScheduleAiRound({ calendarEntries, interviews }: { calendarEntri
 
   if (error) return <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>;
   if (data === null) return <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
-  return <ScheduleAiLedger sessions={sessions} awaiting={awaiting} interviews={interviews} generating={generating} onGenerate={generateLink} />;
+  return (
+    <div className="space-y-5">
+      <ScheduleAiLedger sessions={sessions} awaiting={awaiting} interviews={interviews} generating={generating} onGenerate={generateLink} />
+      <ScheduleAiRoundCompleted sessions={sessions} onTranscript={setTranscriptEntry} />
+      {transcriptEntry ? <InterviewTranscriptModal entry={transcriptEntry} onClose={() => setTranscriptEntry(null)} /> : null}
+    </div>
+  );
 }

@@ -144,3 +144,27 @@ test("reduceHtmlForAuthoring: drops script/style, keeps 3 exemplars of repeated 
   assert.match(withLd, /application\/ld\+json/);
   assert.match(withLd, /"@type": "JobPosting"/);
 });
+
+test("validateRules: a regex locator with a nested quantifier (catastrophic backtracking) is refused", () => {
+  const url = { field: "url", locator: { kind: "css", expr: "a", attr: "href" }, cardinality: "many", pick: "first", post: ["absUrl"], required: true };
+  const regexUrl = (expr: string) => validateRules([{ ...url, locator: { kind: "regex", expr } }]);
+  for (const expr of ["(a+)+", "((?:ab)+)+c", "(?:x*)*(y)", String.raw`((?:\w+\s?)*)$`, "(a+){2,}", "((a|b+)+?)z"]) {
+    const r = regexUrl(expr);
+    assert.ok(isRulesError(r), `${expr} must be refused`);
+    assert.match(r.error, /nested quantifier/, expr);
+  }
+  // Quantifiers that do not nest, escaped parens and quantifier chars inside a class are fine.
+  for (const expr of ['href="([^"]+)"', String.raw`(\d+)-(?:x)+`, "[(+*)]+(a)", String.raw`\(a+\)+(b)`, "(a+)(?:b)?"]) {
+    assert.ok(!isRulesError(regexUrl(expr)), `${expr} must be accepted`);
+  }
+});
+
+test("runRules: a regex locator is capped in matches, and a stored nested-quantifier rule is a miss, never run", () => {
+  const url: ExtractionRule = { field: "url", locator: { kind: "regex", expr: "(a)" }, cardinality: "many", pick: "first", post: [], required: true };
+  const { perRule } = runRules([url], "a".repeat(5000), BASE);
+  const matched = perRule.find((r) => r.field === "url")!.matched;
+  assert.ok(matched <= 1000, `${matched} matches collected from one page`);
+  // A rule saved before validation refused nested quantifiers still never runs.
+  const nested: ExtractionRule = { ...url, locator: { kind: "regex", expr: "((?:ab)+)+c" } };
+  assert.equal(runRules([nested], "ababc", BASE).perRule.find((r) => r.field === "url")!.matched, 0);
+});

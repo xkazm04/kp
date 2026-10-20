@@ -25,9 +25,11 @@ from typing import Any, Literal, NamedTuple
 from pydantic import Field, field_validator
 
 from . import registry
+from .education import education_gate, is_degree_unstated
 from .jobs import Job
 from .market_config import ACTIVE_MARKET
 from .models import _Base
+from .target_titles import has_title_form, matched_target_title, target_families
 from .taxonomy import (
     DEFAULT_PROVENANCE,
     WORD_RE,
@@ -42,7 +44,6 @@ from .taxonomy import (
 )
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
-_EDU_RANK = {"none": 0, "high_school": 1, "university": 2, "bachelor": 3, "master": 4, "phd": 5}
 
 # Language alias buckets so "Czech (native)" satisfies a "Czech" requirement. Now
 # data-driven (data/taxonomy.json::language_aliases, loaded + validated in
@@ -123,6 +124,11 @@ class MatchCandidate(_Base):
     skill_provenance: dict[str, str] = Field(default_factory=dict)
     # readiness model output (replaces years/seniority for early-career); set by the transform.
     potential_score: float | None = None
+    # The readiness the historical arithmetic gave when it counted bare self_declared
+    # claims as learning velocity (C6b, leak c); set by the transform only when it
+    # differs from potential_score. Read by ``score_job(..., proof=None)`` and by the
+    # proof path's reasons line, never by the product total.
+    bare_claim_potential_score: float | None = None
     learning_signals: list[str] = Field(default_factory=list)
     aspirations: list[str] = Field(default_factory=list)
     # career-switcher: meta-skills mapped from a prior domain, credited at professional level.
@@ -143,6 +149,12 @@ class MatchCandidate(_Base):
     # ISO-3166-1 alpha-2, lower-case ("cz", "de"). The Job model carries no country
     # field today, so these match on location text only (see eligibility_flags).
     preferred_countries: list[str] = Field(default_factory=list)
+    # The seeker's STATED direction (JobseekerPreferences.targetTitles /
+    # targetRoleFamilies, overlaid by transform.apply_preferences). Read ONLY by the
+    # career-direction term (see _target_alignment / score_career) — a preference fit,
+    # never skill evidence. Both empty (every recruiter path) = scoring unchanged.
+    target_titles: list[str] = Field(default_factory=list)
+    target_role_families: list[str] = Field(default_factory=list)
     label: str = "Candidate"
     # Compact CV-derived context for the reasoning layer (Layer C) so the rationale
     # can cite a concrete, candidate-specific fact instead of generic boilerplate.
@@ -151,7 +163,7 @@ class MatchCandidate(_Base):
     experience_highlights: list[str] = Field(default_factory=list)
     work_links: list[str] = Field(default_factory=list)
 
-    @field_validator("potential_score")
+    @field_validator("potential_score", "bare_claim_potential_score")
     @classmethod
     def _clamp_potential_score(cls, v: float | None) -> float | None:
         """Enforce the 0-1 readiness contract at the trust boundary.
@@ -254,6 +266,30 @@ class EligibilityFlag(_Base):
     detail: str
 
 
+TargetState = Literal["target", "family", "past", "none"]
+
+
+class TargetAlignment(_Base):
+    """How a posting sits against the seeker's STATED direction (seeker path only).
+
+    * ``target`` — the posting title matches a stated target title (``matched_title``
+      is the seeker's own wording of it; see target_titles.matched_target_title);
+    * ``family`` — no title hit, but the posting's role family is one of
+      ``target_families`` (stated families + the families the stated titles route to);
+    * ``past``   — neither, but the posting's family is the profile's own (CV) family,
+      ``past_family`` — where the seeker has been, not where they said they are going;
+    * ``none``   — none of these.
+
+    Absent (None) on MatchResult when the seeker stated no target at all, so every
+    recruiter payload is unchanged.
+    """
+
+    state: TargetState
+    matched_title: str | None = None
+    target_families: list[str] = Field(default_factory=list)
+    past_family: str | None = None
+
+
 class MatchResult(_Base):
     job_id: str
     title: str
@@ -264,6 +300,9 @@ class MatchResult(_Base):
     role_family: str = ""
     salary_band: list[int] = Field(default_factory=list)
     total: int = 0
+    # The arithmetic that made this score: proof_scorer_version(proof), or
+    # LEGACY_SCORER_VERSION under ``proof=None``. A slug (TS SCORER_VERSION_RE).
+    scorer_version: str = ""
     # Server-computed banding so cards/recruiter/sim share one badge (see fit_tier_for).
     fit_tier: FitTier = "partial"
     skills_score: float = 0.0
@@ -297,15 +336,37 @@ class MatchResult(_Base):
     # work_mode). ADDITIVE and back-compatible: absent or empty means "not read".
     # Never an input to total, fit_tier or the KO filter — see eligibility_flags.
     eligibility: list[EligibilityFlag] = Field(default_factory=list)
+    # The posting against the seeker's stated direction (see TargetAlignment). None —
+    # and so absent from the exclude_none dump — when no target was stated.
+    target_alignment: TargetAlignment | None = None
+
+
+KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+
+
+class BlockedMatch(_Base):
+    """A job the KO filter removed, returned ONLY when ``match(include_blocked=True)``.
+
+    ``ko_keys``/``ko_details`` are ko_filter's own verdict (one entry per failed gate,
+    in ko_filter's order); ``result`` is the MatchResult scored AS IF the gate were
+    lifted — score_job is gate-independent, and its eligibility flags now show the
+    KO-mirrored axis as ``flag``. The as-if total is information for the seeker, never
+    a rank: a blocked job is not in ``matches`` and never counts toward ``returned``.
+    """
+
+    job_id: str
+    ko_keys: list[KoReasonKey] = Field(default_factory=list)
+    ko_details: list[str] = Field(default_factory=list)
+    result: MatchResult
 
 
 class MatchResponse(_Base):
     candidate: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
     matches: list[MatchResult] = Field(default_factory=list)
-
-
-KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+    # None unless the caller asked (include_blocked): the dump is exclude_none, so the
+    # recruiter /api/match payload stays byte-identical without the flag.
+    blocked: list[BlockedMatch] | None = None
 
 
 class KoReason(_Base):
@@ -382,11 +443,11 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
         if not entry_ok and (job_rank - cand_rank) >= 2:
             reasons.append(KoReason(key="seniority", detail=f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)"))
 
-    # Minimum education (skip when the candidate's level is unknown — uncertainty).
-    if job.min_education and job.min_education != "none":
-        cand_edu = _EDU_RANK.get(candidate.education_level)
-        if cand_edu is not None and cand_edu < _EDU_RANK.get(job.min_education, 0):
-            reasons.append(KoReason(key="education", detail=f"below minimum education ({job.min_education})"))
+    # Minimum education: only a MEASURED shortfall knocks out. An unknown level, and
+    # a school named with no degree ("university" on the candidate side), are
+    # "uncertain" — they widen the band (_confidence) instead (education.py).
+    if education_gate(candidate.education_level, job.min_education) == "below":
+        reasons.append(KoReason(key="education", detail=f"below minimum education ({job.min_education})"))
 
     # Required languages (lenient: skip when the candidate lists none).
     if candidate.languages:
@@ -597,8 +658,88 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
     return "adjacency" if adjacency else "provenance"
 
 
+# -- Proof weights: kp's DEFAULT scorer (scoring hunt C6, adopted 2026-10-18) -
+#
+# ADR 0027, Decision 2026-10-18: the operator adopted these weights as the product
+# default although the C6 targets were not met (free-claim gain +13.67 against <= 2.0,
+# 7/66 best-job crossings); C6b closes the remaining leaks. ``score_job`` with no
+# ``proof=`` argument now runs them. ``proof=None`` still runs exactly the historical
+# arithmetic, which the C5 harness (eval/matching_era_eval.py --legacy) measures
+# before/after; ``score_skills`` itself stays the primitive and defaults to that arithmetic.
+#
+# Two levers, both read off the posting itself:
+#
+#   * ``learnable_must_weight`` (lambda < 1) — a must-have the posting marks
+#     ``hardness="learnable"`` weighs lambda instead of 1.0, so a gap the employer
+#     says it will train costs less than a prerequisite gap, and holding it earns
+#     less than holding a prerequisite.
+#   * ``self_declared_learnable`` — a bare ``self_declared`` claim on a learnable
+#     must-have is credited at this fraction of what it earns today. A learnable
+#     skill is exactly the one a keyword can be written for at no cost; evidence
+#     (any provenance above self_declared) keeps its full credit.
+#   * ``self_declared_requirement`` (C6b, leak a) — the same discount on every other
+#     requirement: a prerequisite must-have or a nice-to-have. A keyword costs as
+#     little to write for a prerequisite as for a learnable skill; only the weight of
+#     the requirement differs, and that is the posting's to set, not the claim's.
+#
+# Lambda is "learnable" in the plain sense: it was chosen by sweeping the C5
+# twin-cast harness, and the frontier that sweep found is pinned in
+# test_matching_proof_preview.py.
+#
+# Scorer-version stamps are slugs (the TS add door's SCORER_VERSION_RE:
+# ^[a-z0-9][a-z0-9._-]{0,39}$), so a stored score names the arithmetic that made it.
+# proof-weights.1 = C6 (learnable must-haves only); proof-weights.2 = C6b, which also
+# discounts bare claims on prerequisites and nice-to-haves.
+PROOF_SCORER_STAMP = "proof-weights.2"
+PROOF_PREVIEW_STAMP = PROOF_SCORER_STAMP  # the pre-adoption name
+# What every score stored before the stamp existed was made by (the TS side's
+# MATCH_SCORER_VERSION); ``proof=None`` still emits it.
+LEGACY_SCORER_VERSION = "match-scorer.v1"
+
+
+class ProofWeights(NamedTuple):
+    learnable_must_weight: float = 0.8
+    self_declared_learnable: float = 0.05
+    self_declared_requirement: float = 0.05
+
+
+PROOF_PREVIEW_WEIGHTS = ProofWeights()
+# The product default. A separate name so a caller reads "the default", not "the preview".
+DEFAULT_PROOF_WEIGHTS = PROOF_PREVIEW_WEIGHTS
+
+
+class ProofReason(NamedTuple):
+    """One requirement whose credit the preview changed, and why — the reasons line."""
+
+    skill: str
+    code: str  # learnable_weight | self_declared_discount
+    base_weight: float
+    preview_weight: float
+    base_credit: float
+    preview_credit: float
+    text: str
+
+
+def proof_scorer_version(proof: ProofWeights = DEFAULT_PROOF_WEIGHTS) -> str:
+    """The stamp a proof-weighted score carries: never mistakable for the legacy arithmetic's."""
+    return (
+        f"{PROOF_SCORER_STAMP}-lam{proof.learnable_must_weight:g}-sd{proof.self_declared_learnable:g}"
+        f"-sr{proof.self_declared_requirement:g}"
+    )
+
+
+def _is_self_declared(provenance: str | None) -> bool:
+    if not provenance:
+        return DEFAULT_PROVENANCE == "self_declared"
+    return provenance.strip().lower().replace(" ", "_").replace("-", "_") == "self_declared"
+
+
 def score_skills(
-    candidate: MatchCandidate, job: Job
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
 ) -> tuple[float, list[str], list[str], dict[str, float], dict[str, dict[str, Any]]]:
     must_w, nice_w = 1.0, 0.4
     acc = 0.0
@@ -613,12 +754,30 @@ def score_skills(
         weight = must_w if req.kind == "must_have" else nice_w
         best = 0.0
         best_cs: str | None = None
+        learnable_must = proof is not None and req.kind == "must_have" and req.hardness == "learnable"
+        # C6b (a): a bare claim on a prerequisite must-have or a nice-to-have is as free to
+        # write as one on a learnable must-have, so it is discounted too.
+        if proof is None:
+            discount = 1.0
+        elif learnable_must:
+            discount = proof.self_declared_learnable
+        else:
+            discount = proof.self_declared_requirement
+        base_best = 0.0
         for cs in candidate.skills:
             prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
             s = skill_match_score(cs, req.skill, prov)
+            base_best = max(base_best, s)
+            if discount < 1.0 and _is_self_declared(prov):
+                s *= discount
             if s > best:
                 best = s
                 best_cs = cs
+        if learnable_must:
+            _proof_reason(proof_reasons, req.skill, weight, proof.learnable_must_weight, base_best, best)
+            weight = proof.learnable_must_weight
+        elif proof is not None and best < base_best:
+            _proof_reason(proof_reasons, req.skill, weight, weight, base_best, best, kind=_requirement_label(req))
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
@@ -647,8 +806,88 @@ def score_skills(
     return round(score, 4), matched, missing, strength, unproven
 
 
+def _requirement_label(req: Any) -> str:
+    if req.kind == "must_have":
+        return f"{req.hardness or 'prerequisite'} must-have"
+    return "nice-to-have"
+
+
+def _proof_reason(
+    out: list[ProofReason] | None,
+    skill: str,
+    base_w: float,
+    preview_w: float,
+    base_best: float,
+    best: float,
+    *,
+    kind: str = "learnable must-have",
+) -> None:
+    """Record why the proof weights moved one requirement's credit (one line each)."""
+    if out is None:
+        return
+    base_credit, preview_credit = round(base_best * base_w, 4), round(best * preview_w, 4)
+    if best < base_best:
+        code = "self_declared_discount"
+        text = (
+            f"{skill}: {kind} backed only by a self-declared claim — credited "
+            f"{preview_credit:g} instead of {base_credit:g} (weight {preview_w:g}, claim at "
+            f"{best:.2f} instead of {base_best:.2f})"
+        )
+    elif base_best > 0.0:
+        code = "learnable_weight"
+        text = (
+            f"{skill}: the posting marks this must-have learnable — weighted {preview_w:g} instead "
+            f"of {base_w:g}, credited {preview_credit:g} instead of {base_credit:g}"
+        )
+    else:
+        code = "learnable_weight"
+        text = (
+            f"{skill}: missing, but the posting marks this must-have learnable — the gap "
+            f"weighs {preview_w:g} instead of {base_w:g}"
+        )
+    out.append(ProofReason(skill, code, base_w, preview_w, base_credit, preview_credit, text))
+
+
+def _target_alignment(candidate: MatchCandidate, job: Job) -> TargetAlignment | None:
+    """The posting against the seeker's stated direction, or None when nothing usable
+    was stated (no title with a matchable form, no known family) — which is every
+    recruiter-side candidate, so their scores cannot move."""
+    titles = [t for t in candidate.target_titles if has_title_form(t)]
+    families = target_families(titles, candidate.target_role_families)
+    if not titles and not families:
+        return None
+    past = candidate.role_family or None
+    hit = matched_target_title(job.title or "", titles)
+    if hit is not None:
+        state: TargetState = "target"
+    elif job.role_family and job.role_family in families:
+        state = "family"
+    elif past and job.role_family == past:
+        state = "past"
+    else:
+        state = "none"
+    return TargetAlignment(state=state, matched_title=hit, target_families=families, past_family=past)
+
+
+# The family term of the career score when the seeker STATED a direction. The past
+# (CV) family is deliberately not on this map: once a seeker says where they are
+# going, where they have been is no longer a full match — it falls to the same floor
+# as an unrelated family. A family hit is short of a title hit because a family is
+# wide ("data_ai" holds analysts and ML engineers alike).
+_TARGET_FAMILY_FIT: dict[str, float] = {"target": 1.0, "family": 0.75}
+
+
+def _family_fit(candidate: MatchCandidate, job: Job, otherwise: float) -> float:
+    alignment = _target_alignment(candidate, job)
+    if alignment is None:
+        return 1.0 if candidate.role_family == job.role_family else otherwise
+    return _TARGET_FAMILY_FIT.get(alignment.state, otherwise)
+
+
 def score_career(candidate: MatchCandidate, job: Job) -> float:
-    family = 1.0 if candidate.role_family == job.role_family else 0.35
+    # Without a stated target this is exactly the historical rule (the CV family is a
+    # 1.0, anything else 0.35) — byte-identical for every recruiter caller.
+    family = _family_fit(candidate, job, 0.35)
     cand_rank = _SENIORITY_RANK.get(candidate.seniority, 2)
     job_rank = _SENIORITY_RANK.get(job.seniority, 2)
     seniority_proximity = 1.0 - abs(cand_rank - job_rank) / 3.0
@@ -722,7 +961,14 @@ def embedding_texts_for(candidate: MatchCandidate, job: Job) -> list[str]:
     return list(_personal_embed_pair(candidate, job))
 
 
-def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
+def score_personal(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    embedder: Any | None = None,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
+) -> float:
     """Keyword heuristic by default; the embedding bridge when opted in.
 
     Blends language coverage with the overlap of the candidate's traits/skills
@@ -739,6 +985,12 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
       ``--embeddings``) — embedding cosine between the candidate's own words and
       the ad, so paraphrases finally meet without sharing a token. Fail-open:
       any bridge failure falls back to the keyword term.
+
+    ``proof`` (C6b, leak b; ``score_job`` passes the default) gates the keyword term:
+    a skill held only as a bare ``self_declared`` claim counts
+    ``proof.self_declared_requirement`` of a hit instead of a whole one, the same
+    discount ``score_skills`` gives it on a requirement. Traits are not skill claims and
+    keep a whole hit. ``proof=None`` stays the historical arithmetic.
     """
     overlap: float | None = None
     if embedder is not None:
@@ -753,6 +1005,16 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         # skill families with short canonical names.
         tokens = [t for t in (candidate.traits + candidate.skills) if t]
         hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
+        bare: list[str] = []
+        if proof is not None:
+            bare = [
+                s
+                for s in candidate.skills
+                if s
+                and _is_self_declared(candidate.skill_provenance.get(s, candidate.provenance_default))
+                and _term_in_words(s, desc_words)
+            ]
+        gated_hits = hits - len(bare) * (1.0 - proof.self_declared_requirement) if bare else hits
         # Saturation denominator, formerly a bare ``/5.0``: a fixed constant tied to
         # NEITHER the ad's demand nor its keyword surface, so a focused ad and a
         # keyword-dense one both maxed out at 5 hits and an 8-token overlap could
@@ -761,7 +1023,10 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         # preserve the prior calibration for a typical ad, so a keyword-rich role
         # genuinely separates a broad candidate from a narrow one.
         n_must_have = sum(1 for r in job.requirements if r.kind == "must_have")
-        overlap = min(1.0, hits / max(_OVERLAP_DENOM_FLOOR, n_must_have))
+        denom = max(_OVERLAP_DENOM_FLOOR, n_must_have)
+        overlap = min(1.0, gated_hits / denom)
+        if bare:
+            _overlap_reason(proof_reasons, bare, min(1.0, hits / denom), overlap, proof.self_declared_requirement)
     # Language coverage joins the blend only when the ad STATES a language
     # requirement. An ad naming none carries no language signal, so rather than the
     # old free full-credit 1.0 — a fixed 0.5 gift to `personal` on every
@@ -771,6 +1036,27 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
     # (_language_coverage still returns 1.0 for score_motivation, unchanged.)
     lang_cov = _language_coverage(candidate, job) if job.languages else _NEUTRAL_LANGUAGE_COVERAGE
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
+
+
+def _overlap_reason(
+    out: list[ProofReason] | None, bare: list[str], base_overlap: float, overlap: float, weight: float
+) -> None:
+    """One reasons line for the personal overlap the proof weights withheld from bare claims."""
+    if out is None or overlap >= base_overlap:
+        return
+    names = ", ".join(bare)
+    out.append(
+        ProofReason(
+            "personal overlap",
+            "self_declared_overlap",
+            1.0,
+            weight,
+            round(base_overlap, 4),
+            round(overlap, 4),
+            f"personal fit: the ad's words {names} are matched only by self-declared skill claims — "
+            f"each counts {weight:g} of a hit, overlap {overlap:.2f} instead of {base_overlap:.2f}",
+        )
+    )
 
 
 def _language_coverage(candidate: MatchCandidate, job: Job) -> float:
@@ -809,8 +1095,11 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
     (``in``, ``v``, ``na``) must still not hit, which is why the length guard
     is not simply deleted.
     """
-    family_hit = 1.0 if candidate.role_family == job.role_family else 0.3
-    asp = " ".join(candidate.aspirations).casefold()
+    # With a stated target the family term reads the seeker's direction, as the
+    # career score does for BAU (for early-career the career slot is POTENTIAL, so
+    # this "fit" slot is where direction lives); without one it is unchanged.
+    family_hit = _family_fit(candidate, job, 0.3)
+    asp =" ".join(candidate.aspirations).casefold()
     title = (job.title or "").casefold()
     aspiration_hit: float | None = None
     pair = _motivation_embed_pair(candidate, job) if embedder is not None else None
@@ -977,7 +1266,9 @@ _BAND_MODERATE_AT = 8
 _BAND_WIDE_AT = 12
 
 
-def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str]) -> Confidence:
+def _confidence(
+    candidate: MatchCandidate, total: int, missing_musts: list[str], job_min_education: str | None = None
+) -> Confidence:
     """Honest score band + the specific reasons it is wide.
 
     Each uncertainty source both widens the band and records a recruiter-readable
@@ -1008,6 +1299,13 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     if candidate.education_level == "unknown":
         spread += 4
         add("Education level unknown", "eduUnknown")
+    elif is_degree_unstated(candidate.education_level) and (
+        education_gate(candidate.education_level, job_min_education) == "uncertain"
+    ):
+        # The CV names a school but no degree, and the role asks for more than "any
+        # degree": the floor is unverified, not failed — widen, never KO.
+        spread += 4
+        add("Degree not stated: the CV names a school but no degree title", "eduDegreeUnstated")
     if not candidate.languages:
         spread += 4
         add("No languages listed", "noLanguages")
@@ -1042,11 +1340,37 @@ class _Dimensions(NamedTuple):
     unproven: dict[str, dict[str, Any]]
 
 
-def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> _Dimensions:
-    skills, matched, missing, matched_strength, unproven = score_skills(candidate, job)
+def _score_dimensions(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    embedder: Any | None = None,
+    proof: ProofWeights | None = DEFAULT_PROOF_WEIGHTS,
+    proof_reasons: list[ProofReason] | None = None,
+) -> _Dimensions:
+    skills, matched, missing, matched_strength, unproven = score_skills(
+        candidate, job, proof=proof, proof_reasons=proof_reasons
+    )
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
+        bare = candidate.bare_claim_potential_score
+        if bare is not None and candidate.potential_score is not None:
+            if proof is None:
+                career = bare  # the historical arithmetic counted bare claims as velocity
+            elif proof_reasons is not None and bare > career:
+                proof_reasons.append(
+                    ProofReason(
+                        "potential",
+                        "self_declared_velocity",
+                        1.0,
+                        0.0,
+                        round(bare, 4),
+                        round(career, 4),
+                        f"potential: skills claimed only as self-declared no longer count toward "
+                        f"learning velocity — readiness {career:g} instead of {bare:g}",
+                    )
+                )
         # potential_score is validated to [0,1] only at the Pydantic boundary; a candidate
         # built outside it (model_construct / direct field set) could overflow the career
         # bar (and a NaN would slip past the headline min/max). Clamp defensively here so
@@ -1055,7 +1379,7 @@ def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | No
         personal = score_motivation(candidate, job, embedder=embedder)
     else:
         career = score_career(candidate, job)
-        personal = score_personal(candidate, job, embedder=embedder)
+        personal = score_personal(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     return _Dimensions(skills, career, personal, matched, missing, matched_strength, unproven)
 
 
@@ -1073,8 +1397,15 @@ def score_job(
     *,
     weights: dict[str, float] | None = None,
     embedder: Any | None = None,
+    proof: ProofWeights | None = DEFAULT_PROOF_WEIGHTS,
+    proof_reasons: list[ProofReason] | None = None,
 ) -> MatchResult:
-    dims = _score_dimensions(candidate, job, embedder=embedder)
+    # The proof weights are the product default (ADR 0027, 2026-10-18). Pass a list as
+    # ``proof_reasons`` and it receives one ProofReason per learnable must-have whose
+    # credit they changed. ``proof=None`` is the explicit way to run the historical
+    # arithmetic (the C5 harness's before/after). The result is stamped with the scorer
+    # version that made it, so a stored score names its arithmetic.
+    dims = _score_dimensions(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     skills, career, personal = dims.skills, dims.career, dims.personal
     matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
     unproven = dims.unproven
@@ -1095,12 +1426,13 @@ def score_job(
         role_family=job.role_family,
         salary_band=job.salary_band,
         total=total,
+        scorer_version=proof_scorer_version(proof) if proof is not None else LEGACY_SCORER_VERSION,
         fit_tier=tier,
         skills_score=skills,
         career_score=career,
         personal_score=personal,
         score_breakdown=breakdown,
-        confidence=_confidence(candidate, total, missing),
+        confidence=_confidence(candidate, total, missing, job.min_education),
         matched_skills=matched,
         # DISPLAY provenance — deliberately NOT `provenance_default` (UAT RECON-02).
         # provenance_default is "professional" for every BAU candidate, so falling
@@ -1128,6 +1460,7 @@ def score_job(
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
         # Computed AFTER total/tier so it cannot feed them; a pure read of the pair.
         eligibility=eligibility_flags(candidate, job),
+        target_alignment=_target_alignment(candidate, job),
     )
 
 
@@ -1163,6 +1496,11 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
         "matrix": matrix,
         "own": own,
         "mean": mean,
+        # The robust order as INDICES into the pool — identity, not display name.
+        # Two candidates can share a label (namesakes, or every unnamed profile's
+        # 'Candidate' fallback), so a consumer that excludes or compares by label
+        # conflates them; fairness_check maps this to candidate ids (rankingIds).
+        "order": order,
         "ranking": [labels[i] for i in order],
     }
 
@@ -1179,6 +1517,12 @@ def _candidate_assumption_pairs(candidate: MatchCandidate) -> list[tuple[str, La
 
     if candidate.education_level == "unknown":
         add("Education level unknown — not penalized (absence of evidence, not a fail).", "eduUnknown")
+    elif is_degree_unstated(candidate.education_level):
+        add(
+            "Degree not stated — the CV names a school but no degree title; a degree floor is "
+            "treated as unverified, not failed.",
+            "eduDegreeUnstated",
+        )
     if not candidate.languages:
         add("No languages listed — language KO skipped rather than failed.", "noLanguages")
     if candidate.archetype in _EARLY_CAREER:
@@ -1243,6 +1587,7 @@ def match(
     *,
     limit: int = 50,
     weights: dict[str, float] | None = None,
+    include_blocked: bool = False,
 ) -> MatchResponse:
     """Run the full KO -> score -> rank pipeline over a job corpus.
 
@@ -1251,15 +1596,22 @@ def match(
     the whole ranking re-weights consistently. Omitted -> the archetype baseline
     (scoring identical to before). The resolved vector + the archetype's allowed
     bounds ride back on the candidate block so the UI can render bounded sliders
-    seeded at the values actually used."""
+    seeded at the values actually used.
+
+    ``include_blocked`` (the seeker scan) additionally returns every KO'd job as a
+    :class:`BlockedMatch` — its gate and its as-if score — in input order and NOT
+    capped by ``limit`` (the caller stores a verdict per job). Off by default, and then
+    nothing is scored beyond the survivors and ``blocked`` is absent from the dump."""
     survivors: list[Job] = []
     ko_reason_lists: list[list[KoReason]] = []
+    ko_jobs: list[tuple[Job, list[KoReason]]] = []
     for job in jobs:
         passed, reasons = ko_filter(candidate, job)
         if passed:
             survivors.append(job)
         else:
             ko_reason_lists.append(reasons)
+            ko_jobs.append((job, reasons))
 
     # Resolve once (clamp to the archetype's bounds + renormalize to sum 1) so the
     # whole pool is ranked under one comparable yardstick, not a per-job vector.
@@ -1270,6 +1622,19 @@ def match(
         reverse=True,
     )
     top = scored[:limit]
+    blocked = (
+        [
+            BlockedMatch(
+                job_id=job.id,
+                ko_keys=[r.key for r in reasons],
+                ko_details=[r.detail for r in reasons],
+                result=score_job(candidate, job, weights=resolved),
+            )
+            for job, reasons in ko_jobs
+        ]
+        if include_blocked
+        else None
+    )
     return MatchResponse(
         candidate={
             "label": candidate.label,
@@ -1302,6 +1667,7 @@ def match(
             "koReasons": aggregate_ko_reasons(ko_reason_lists),
         },
         matches=top,
+        blocked=blocked,
     )
 
 

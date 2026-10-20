@@ -147,7 +147,11 @@ test("the Art. 14 row does not re-assert the absolute the landing retired", () =
   );
   // The honest half, which the landing keeps and which nothing configurable can
   // take away. Pinned by SUBJECT so the sentence can be reworded.
-  assert.match(art14.summary, /rejection is always a person|no gate can delegate/i, "the rejection absolute is the claim worth making, and it must be made");
+  assert.match(art14.summary, /every rejection except the apply knockout is a person|no gate can delegate/i, "the rejection guarantee is the claim worth making, and it must be made");
+  // …and it must name its one exception: the apply knockout is automatic (the owner kept it so
+  // and chose to say so), so an unqualified "always a person's" is false while that gate exists.
+  assert.match(art14.summary, /apply knockout/i, "the Art. 14 row names the automatic knockout decline");
+  assert.match(art14.summary, /ask a person to review/i, "…and the review route the declined candidate is given");
   // And the qualifier that makes the other two honest, exactly as the landing's
   // four catalogs have to carry "by default" (MarketingClaims.test.ts).
   assert.match(

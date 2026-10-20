@@ -1,0 +1,282 @@
+{
+ "schema": "conform-run/1",
+ "worker": "481e157e-ec62-4b43-b670-53e9a7c647cd",
+ "subject": "conversation-orchestration",
+ "evaluatedAt": "2026-10-16T23:25:50.777238+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "shell-companion",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/companion/companionPrefs.ts:23 Dock and voice are two drawings of one conversation, so a long answer and a pending choice are not routed by whether the operator must read or only decide, and the collapsed mark cannot answer a proposal.",
+   "techniques": [
+    {
+     "technique": "layered-avatar-state-machine",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/CompanionDockBody.tsx:141 The always-visible rest control is a static mark; working and unread share one dot with no text state and no turn-event machine."
+    },
+    {
+     "technique": "narration-promote-on-finish",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/useCompanionThread.ts:30 Settlement swaps in the server's stored turns. This hook has no ephemeral beat list to attach."
+    },
+    {
+     "technique": "progress-beat-grammar",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/CompanionDockBody.tsx:434 A turn in flight only changes this boolean sentence. Nothing lifts model-authored lines out of a stream."
+    },
+    {
+     "technique": "recall-transparency",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/CompanionDockBody.tsx:419 After settlement the insight is a read-only span, capped at two. It cannot be opened or corrected, and it is not shown while the turn runs."
+    },
+    {
+     "technique": "structured-visual-replies",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/companion/CompanionDockBody.tsx:413 Blocks are re-coerced at draw time, their drop count is separate from dropped proposals, and ChatBlocks sits outside the 85% marginalia row."
+    },
+    {
+     "technique": "two-surface-doctrine",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/companionPrefs.ts:23 The mode switch is presentation of one thread. The rest pill shows a proposal count and only opens the dock."
+    }
+   ]
+  },
+  {
+   "context": "companion-ai",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/companion-blocks.ts:72 A missing chart point is deleted and the later numbers stay, so they are drawn against earlier category labels instead of the series being dropped.",
+   "techniques": [
+    {
+     "technique": "layered-avatar-state-machine",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-run.ts:34 This module moves a finished payload and draws no presence."
+    },
+    {
+     "technique": "model-proposed-quick-replies",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-actions.ts:86 These are consequential actions that run only after accept, which this technique keeps off the suggestion-chip path. There is no composer here."
+    },
+    {
+     "technique": "narration-promote-on-finish",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-run.ts:146 A turn is a reply or a throw. This function has no beat list to attach."
+    },
+    {
+     "technique": "progress-beat-grammar",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-run.ts:30 One blocking spawn returns the finished turn. This file does not teach a line grammar or sieve tokens."
+    },
+    {
+     "technique": "recall-transparency",
+     "verdict": "conformant",
+     "evidence": "app/_lib/companion-run.ts:38 The payload carries a mechanical insight, keeps memory-off distinct from an empty recall list, and leaves an old turn with no insight blank."
+    },
+    {
+     "technique": "show-dont-tell-walkthrough",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-run.ts:88 Grounding is a JSON fact sheet for the model to state, not a registry of interface targets."
+    },
+    {
+     "technique": "structured-visual-replies",
+     "verdict": "deviation",
+     "evidence": "app/_lib/companion-blocks.ts:72 A hole is filtered out of the series rather than dropping the series. Caps, blank-row removal, and the added drop count are otherwise in place."
+    },
+    {
+     "technique": "two-surface-doctrine",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-dock-states.ts:78 This helper only chooses close versus stop for speech. It does not route reading against choosing."
+    }
+   ]
+  },
+  {
+   "context": "shell-companion-voice",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:54 Tables and charts scroll inside the voice strip, so the surface the operator keeps up while working paginates reading material instead of sending them to the conversation.",
+   "techniques": [
+    {
+     "technique": "layered-avatar-state-machine",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:136 The wait is a sentence. These files have no face, loops, or turn-state vocabulary."
+    },
+    {
+     "technique": "model-proposed-quick-replies",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:60 The only controls under an answer are accept-or-decline proposal cards. These files have no composer and no message chips."
+    },
+    {
+     "technique": "narration-promote-on-finish",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/CompanionVoiceTicker.tsx:88 During a fetch the strip keeps the last settled answer. There is no beat list to write."
+    },
+    {
+     "technique": "progress-beat-grammar",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:143 The strip paints the thread's busy flag as a fixed sentence. It never receives a token tail."
+    },
+    {
+     "technique": "recall-transparency",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:121 Recall is a read-only insight span, default cap one, with no open or forget, and only on a settled entry."
+    },
+    {
+     "technique": "structured-visual-replies",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:107 The strip re-coerces blocks when drawing them and shows that drop count apart from dropped actions, through the same ChatBlocks renderer."
+    },
+    {
+     "technique": "two-surface-doctrine",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoiceNav.tsx:50 The strip walks earlier answers by index. Ambient history plus a scrolling table makes this a small conversation, and decisions are Accept and Decline rather than numbered options."
+    }
+   ]
+  },
+  {
+   "context": "companion-appmaster",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/companion_cli.py:372 A companion turn is one blocking completion whose standing prompt teaches tone, blocks, voice, and actions, and never a progress line the runtime could lift while the operator waits.",
+   "techniques": [
+    {
+     "technique": "layered-avatar-state-machine",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_cli.py:295 This process returns text for one surface. It does not draw a presence."
+    },
+    {
+     "technique": "model-proposed-quick-replies",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_cli.py:227 The spoken contract forbids an offer. The only proposals taught are kp:action fences that become accept-or-decline cards, not two to four messages in the operator's voice."
+    },
+    {
+     "technique": "narration-promote-on-finish",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_cli.py:524 The durable write is the reply episode. This function has no beat list to promote on success or failure."
+    },
+    {
+     "technique": "progress-beat-grammar",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_cli.py:372 The call is not a live tail, and the always-on addenda assembled above it are tone, blocks, and voice, with no beat marker."
+    },
+    {
+     "technique": "recall-transparency",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/companion_brain.py:516 Insight is one mechanical sentence; directional echoes and same-day commands are dropped, and a bare command gets an empty insight so nothing is shown. No forget or tombstone function is in this module."
+    },
+    {
+     "technique": "show-dont-tell-walkthrough",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_blocks.py:3 These modules parse prose and fenced blocks. A search of companion_cli.py, companion_blocks.py, and companion_brain.py found no walkthrough registry."
+    },
+    {
+     "technique": "structured-visual-replies",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/companion_blocks.py:25 Over-long arrays are truncated, bad blocks are dropped and counted apart from actions, fences come out before the prose cut, and the prompt interpolates the validator's constants. A cut table is not labelled as a partial count."
+    },
+    {
+     "technique": "two-surface-doctrine",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_blocks.py:80 The voice section is another wording of the same reply, not a second surface with numbered decisions."
+    }
+   ],
+   "registryProposal": "progress-beat-grammar and the in-flight half of recall-transparency assume a token tail the runtime can sieve and preview. A turn that is one blocking completion has no tail; the standard does not say whether that shape must grow a stream or whether a fixed waiting sentence is enough."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "conversation-orchestration",
+   "context": "chat-markdown-icons",
+   "reason": "conformant with fewer than two techniques shown realized"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T23:25:50.777238+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [
+    "layered-avatar-state-machine",
+    "narration-promote-on-finish",
+    "progress-beat-grammar",
+    "recall-transparency",
+    "structured-visual-replies",
+    "two-surface-doctrine"
+   ],
+   "deviations": 1,
+   "context": "shell-companion",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T23:25:50.777238+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [
+    "layered-avatar-state-machine",
+    "model-proposed-quick-replies",
+    "narration-promote-on-finish",
+    "progress-beat-grammar",
+    "recall-transparency",
+    "show-dont-tell-walkthrough",
+    "structured-visual-replies",
+    "two-surface-doctrine"
+   ],
+   "deviations": 1,
+   "context": "companion-ai",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T23:25:50.777238+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [
+    "layered-avatar-state-machine",
+    "model-proposed-quick-replies",
+    "narration-promote-on-finish",
+    "progress-beat-grammar",
+    "recall-transparency",
+    "structured-visual-replies",
+    "two-surface-doctrine"
+   ],
+   "deviations": 1,
+   "context": "shell-companion-voice",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T23:25:50.777238+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [
+    "layered-avatar-state-machine",
+    "model-proposed-quick-replies",
+    "narration-promote-on-finish",
+    "progress-beat-grammar",
+    "recall-transparency",
+    "show-dont-tell-walkthrough",
+    "structured-visual-replies",
+    "two-surface-doctrine"
+   ],
+   "deviations": 1,
+   "context": "companion-appmaster",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

@@ -2,8 +2,6 @@
 // cannot grow an operator toolbar without a red test: Edit/Archive/History already
 // sit behind `canManage`, and Analyze CV + the job-board Publish teaser must too.
 
-import { LOCALES } from "@/i18n/locales";
-
 export const PUBLIC_JD_HEADER_ACTIONS = ["apply", "notAccepting", "publish", "analyzeCv"] as const;
 export type PublicJdHeaderAction = (typeof PUBLIC_JD_HEADER_ACTIONS)[number];
 
@@ -18,21 +16,31 @@ export function publicJdHeaderActions(opts: {
   return actions;
 }
 
-/** hreflang + canonical for a live public JD. Archived roles stay noindex and
- *  must not advertise language alternates of a page we do not want ranked. */
+/** hreflang + canonical for the public JD page, derived from what it SERVES.
+ *
+ *  The offer is the posting's source language plus every language with a fresh
+ *  stored translation (jdPublicVariant.ts), never the whole LOCALES list: a
+ *  `?lang=de` with nothing rendered serves the English original, so advertising it
+ *  as German content was a claim the page could not keep. Each served variant is
+ *  self-canonical (a shared canonical folded the translations into the original, so
+ *  a translated page could never rank); the bare path and any unserved `?lang=`
+ *  canonicalise to the original.
+ *
+ *  Always returns an object. Next merges metadata SHALLOWLY, so a page that omits
+ *  `alternates` inherits app/layout.tsx's four `./?lang=` alternates; an archived
+ *  (noindex) role sets an explicit empty `languages` to override them. */
 export function publicJdAlternates(
   slug: string,
-  archived: boolean,
-): { canonical: string; languages: Record<string, string> } | undefined {
-  if (archived) return undefined;
+  opts: { archived: boolean; sourceLang: string; servedLangs: readonly string[]; requested: string | null },
+): { canonical: string; languages: Record<string, string> } {
   const path = `/jds/${encodeURIComponent(slug)}`;
-  return {
-    canonical: path,
-    languages: {
-      ...Object.fromEntries(LOCALES.map((l) => [l, `${path}?lang=${l}`])),
-      "x-default": path,
-    },
-  };
+  if (opts.archived) return { canonical: path, languages: {} };
+  const offered = [opts.sourceLang, ...opts.servedLangs.filter((l) => l !== opts.sourceLang)];
+  const languages: Record<string, string> = {};
+  for (const lang of offered) languages[lang] = `${path}?lang=${lang}`;
+  languages["x-default"] = path;
+  const self = opts.requested && offered.includes(opts.requested) ? `${path}?lang=${opts.requested}` : path;
+  return { canonical: self, languages };
 }
 
 /** Apply on the public page: linked job is open AND the JD itself is not archived. */

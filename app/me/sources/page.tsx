@@ -2,6 +2,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listJobseekerSources } from "@/app/_lib/db/jobseeker-sources";
 import { sourcesCatalog } from "@/app/_lib/jobseeker/sources-catalog";
 import { SourcesPage } from "@/app/features/jobseeker/SourcesPage";
+import { SieveSideFrame } from "@/app/features/jobseeker/sieve/SieveSideFrame";
 
 // /me/sources — the three-tier acquisition list (docs/features/jobseeker/README.md,
 // "Feed, fit dialog, sources UI"). The layout is the gate.
@@ -19,5 +20,12 @@ export const instant = false;
 
 export default async function MeSourcesPage() {
   const ws = await currentWorkspace();
-  return <SourcesPage initial={{ catalog: sourcesCatalog(), sources: listJobseekerSources(ws) }} />;
+  // Beside the flow, in its frame: the flow's Sources step switches the catalog on and
+  // off; this page keeps the doors it does not — a board by host, an ATS by company slug,
+  // extraction rules and their preview.
+  return (
+    <SieveSideFrame page="sources">
+      <SourcesPage initial={{ catalog: sourcesCatalog(), sources: listJobseekerSources(ws) }} />
+    </SieveSideFrame>
+  );
 }

@@ -46,9 +46,9 @@ export function SchedulerControl({
     return (
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
         <span className="flex items-center gap-1.5 font-medium text-ink">
-          <Clock size={14} className="text-coral" /> {t("clock")}
+          <Clock size={14} className="text-coral-ink" /> {t("clock")}
         </span>
-        <span role="status" className="inline-flex items-center gap-1 font-medium text-coral">
+        <span role="status" className="inline-flex items-center gap-1 font-medium text-coral-ink">
           <AlertTriangle size={14} className="shrink-0" /> {st.error}
         </span>
       </div>

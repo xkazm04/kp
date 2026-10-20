@@ -28,6 +28,7 @@ from typing import Any
 
 from ._cli import configure_stdio, emit_error, invalid_input
 from .archetype import detect_archetype
+from .education import CANDIDATE_LEVELS
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
 
@@ -43,7 +44,7 @@ from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
 # / taxonomy.py) so a kind/level/provenance added there is accepted here too,
 # instead of a hand-kept copy that silently rejects new values (idea-ba28f11b).
 _SKILL_LEVELS = set(SKILL_LEVELS)
-_EDU_LEVELS = {"phd", "master", "bachelor", "university", "unknown"}
+_EDU_LEVELS = frozenset(CANDIDATE_LEVELS)
 _EVIDENCE_KINDS = set(EVIDENCE_KINDS)
 
 # The shape we ask Gemini to return. Mirrors the manual intake fields so the
@@ -99,7 +100,7 @@ def _as_bool(value: Any) -> bool:
     return False
 
 
-def _one_of(value: Any, allowed: set[str], default: str) -> str:
+def _one_of(value: Any, allowed: set[str] | frozenset[str], default: str) -> str:
     v = value.strip().lower() if isinstance(value, str) else ""
     return v if v in allowed else default
 

@@ -1,0 +1,36 @@
+{
+  "id": "followup-invite-suppression",
+  "closes_loop_open_from": "comms-locale-optout/A",
+  "status": "shipped",
+  "base": "f43d8320c",
+  "commits": [
+    { "sha": "8b293dc05", "subject": "fix(interview-invite): the voice-screen mint asks the send gate first" },
+    { "sha": "3b2b57728", "subject": "docs(interviews): the voice-screen mint door refuses a suppressed candidate" }
+  ],
+  "files": [
+    "app/_lib/interview-invite.ts",
+    "app/_lib/interview-invite.test.ts",
+    "app/api/interview/create/route.ts",
+    "docs/features/interviews/README.md"
+  ],
+  "change": "mintAndInviteVoiceScreen calls entryContactability(entry, 'interview_invite') after the live-call guard and before the kit pin + grounded build; a coded refusal returns { ok:false, refusal:'COMMS_SUPPRESSED' } and POST /api/interview/create answers jsonRefusal('COMMS_SUPPRESSED', 409). Unaddressable / agent verdicts carry no code and fall through unchanged; a missing entry falls through to the build's existing not-found. Stage-hook suppressed-arrival parking untouched.",
+  "tests": {
+    "file": "app/_lib/interview-invite.test.ts",
+    "red_before": [
+      "a lapsed-but-unswept consent is refused with COMMS_SUPPRESSED before any build or mint (was ok:true, session minted)",
+      "an erased candidate is refused with COMMS_SUPPRESSED before any build or mint (was ok:true, session minted)"
+    ],
+    "green_after": "2/2; also green: comms-contactability, stage-hooks, interview-spend-doors, interview-entry-tenancy, rate-limit-contract, error-response-contract"
+  },
+  "gates": {
+    "tsc": "no error in touched files (tree has unrelated in-flight errors from other sessions: candidate-timeline/human-scorecard-set tests, untracked kpi-sim/ copy)",
+    "eslint": "clean on touched files",
+    "api:check": "pass (no route/method/auth change)",
+    "review:constitution": "no finding (f43d8320c..8b293dc05)",
+    "test:perf": "measured on an archive of base + my two source files: only app/api/interview/create/route.ts moved, 184->185 modules, 2660->2667 KB, within its group ceiling; no budget raise. The live tree's test:perf is red on other sessions' uncommitted work (hire-from-need, analyze, redraft, approve routes), not this change."
+  },
+  "notes": [
+    "Verdict-then-mint holds no lock by design; sendComm re-checks at dispatch.",
+    "Took and released .git/scan-sweep-challenge.lock for the docs hunk only; staged that hunk alone via the index (another session's hunks in the same file had landed meanwhile)."
+  ]
+}

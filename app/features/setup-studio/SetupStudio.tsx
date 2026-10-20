@@ -294,7 +294,7 @@ export function SetupStudio() {
                   busy ? "animate-pulse bg-coral motion-reduce:animate-none" : "bg-stone-300"
                 }`}
               />
-              <p role="status" aria-live="polite" className={`text-body ${state.statusIsError ? "text-coral" : "text-steel"}`}>
+              <p role="status" aria-live="polite" className={`text-body ${state.statusIsError ? "text-coral-ink" : "text-steel"}`}>
                 {state.status}
               </p>
             </div>

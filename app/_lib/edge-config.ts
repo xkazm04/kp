@@ -15,6 +15,8 @@
 
 import type Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { addColumns } from "./db/add-columns";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { assertPublicHttpsEndpoint } from "./safe-url";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "./ats-secret";
 import { generateEdgeKeypair } from "./edge-crypto";
@@ -33,6 +35,17 @@ export class EdgeConfigError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "EdgeConfigError";
+  }
+}
+
+/** A write by an organization that does not own the stored pairing (F-3). A REFUSAL
+ *  (403, nothing written), not a validation failure. Subclasses EdgeConfigError so an
+ *  existing `instanceof` catch still sees it; callers that care about the difference
+ *  check this class FIRST (the route does, so it answers 403 rather than 400). */
+export class EdgeOwnershipError extends EdgeConfigError {
+  constructor(message: string) {
+    super(message);
+    this.name = "EdgeOwnershipError";
   }
 }
 
@@ -70,6 +83,12 @@ export type EdgePublicConfig = {
   /** Where a "your studio has mail" nudge is sent. An ntfy topic URL, a webhook, or
    *  null (the edge then still counts, and nothing is sent). */
   nudgeTarget: string | null;
+  /** The organization whose operator saved this pairing, or null when nothing is paired
+   *  (and for a row written before the column existed, which reads as the default org —
+   *  see setEdgeConfig). NOT a secret: it is an org id, the same one the caller's own
+   *  session carries, and the card has to be able to say whose pairing this is. Only that
+   *  organization may re-point, unpair or re-key the install's edge (F-3). */
+  ownerOrgId: string | null;
   /** env ▸ config ▸ null, so the editor can say the env var is in charge. */
   envConfigured: boolean;
   /** KP_OFFLINE=1 — the edge is off regardless of everything above. */
@@ -86,6 +105,11 @@ export type ResolvedEdge = {
   privateJwk: string | null;
   cursor: number;
   source: "env" | "config";
+  /** The organization that saved the STORED pairing; null for a legacy row (read as the
+   *  default org) and meaningless when `source` is "env". The drain carries it so a
+   *  ref-addressed effect — a delivery receipt — can refuse to write into another
+   *  organization's ledger (edge-drain.ts applyEvent, F-3). */
+  ownerOrgId: string | null;
 };
 
 let _db: Database.Database | null = null;
@@ -106,21 +130,22 @@ function db(): Database.Database {
       last_error_kind TEXT,
       pending INTEGER,
       nudge_target TEXT,
+      owner_org_id TEXT,
       updated_at TEXT
     );
   `);
-  // Migrations for stores created before the drain LEDGER existed. The card used to
-  // show two facts (cursor, last error) while the engine already knew four; `pending`
-  // in particular was fetched on every drain and thrown away, so a 500-event backlog
-  // looked identical to an empty queue. Same idiom as offers-store.ts: try, and treat
-  // the duplicate-column error as the success it is.
-  for (const column of ["last_error_kind TEXT", "pending INTEGER"]) {
-    try {
-      d.exec(`ALTER TABLE edge_config ADD COLUMN ${column}`);
-    } catch {
-      /* column already exists — the ALTER is the migration and this is idempotent */
-    }
-  }
+  // Stores older than each of these columns. `addColumns` probes `PRAGMA table_info`, adds
+  // only what is missing, and throws anything that is not a lost duplicate-column race —
+  // the swallow-all `catch` this replaced also absorbed READONLY/FULL/IOERR and then
+  // memoized a connection whose table lacked the column (db/add-columns.ts).
+  //   • `last_error_kind` / `pending` — the drain LEDGER. The card used to show two facts
+  //     (cursor, last error) while the engine already knew four; `pending` in particular was
+  //     fetched on every drain and thrown away, so a 500-event backlog looked identical to
+  //     an empty queue.
+  //   • `owner_org_id` (F-3) — NULLABLE with no default on purpose: a backfilled org id
+  //     would be a guess, and both doors read NULL as "the default org", which is what every
+  //     single-org install already is. The first save after an upgrade stamps the real one.
+  addColumns(d, "edge_config", ["last_error_kind TEXT", "pending INTEGER", "owner_org_id TEXT"]);
   _db = d;
   return d;
 }
@@ -137,13 +162,14 @@ type Row = {
   last_error_kind: string | null;
   pending: number | null;
   nudge_target: string | null;
+  owner_org_id: string | null;
 };
 
 function readRow(): Row | undefined {
   return db()
     .prepare(
       `SELECT edge_url, edge_secret, public_jwk, private_jwk, cursor, last_drain_at,
-              last_heartbeat_at, last_error, last_error_kind, pending, nudge_target
+              last_heartbeat_at, last_error, last_error_kind, pending, nudge_target, owner_org_id
          FROM edge_config WHERE id = 1`
     )
     .get() as Row | undefined;
@@ -201,6 +227,9 @@ export function getEdgeConfig(): EdgePublicConfig {
     lastError: row?.last_error ?? null,
     lastErrorKind: isEdgeErrorKind(row?.last_error_kind) ? row.last_error_kind : null,
     nudgeTarget: process.env.KP_NUDGE_TARGET?.trim() || row?.nudge_target || null,
+    // The STORED row's owner, never the env's: an env pairing is host-level and has no
+    // owning organization (see setEdgeConfig's refusal and edge-drain's receipt check).
+    ownerOrgId: row?.owner_org_id ?? null,
     envConfigured: Boolean(process.env.KP_EDGE_URL),
     offline: edgeOffline(),
   };
@@ -250,6 +279,7 @@ export function resolveEdgeDetailed(): EdgeResolution {
       privateJwk: privateJwk.value,
       cursor: row?.cursor ?? 0,
       source: envUrl ? "env" : "config",
+      ownerOrgId: row?.owner_org_id ?? null,
     },
   };
 }
@@ -272,16 +302,82 @@ function validateUrl(raw: unknown): string | null {
   }
 }
 
+/** The caller's organization, as the DOORS record it. Omitted it becomes null, which
+ *  folds to the default org — so a server-internal write with no session (tests,
+ *  fixtures) lands exactly where it did before the column existed. */
+function validateOwnerOrgId(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "string") throw new EdgeConfigError("ownerOrgId must be a string.");
+  return raw.trim().slice(0, 120) || null;
+}
+
+/**
+ * MAY `callerOrgId` rewrite the stored pairing? (F-3)
+ *
+ * Returns the refusal reason, or null when the write is allowed. Allowed when nothing is
+ * paired (`edge_url IS NULL`) — an unpaired install is claimable by whoever pairs it next
+ * — and when the caller's org IS the owner. NULL ON EITHER SIDE IS THE DEFAULT ORG: a row
+ * written before the column existed, and a door with no session, both fold to
+ * `org-default`, so the single-org self-host is unchanged and the boundary only bites
+ * where there really are two organizations.
+ *
+ * The reason names two org ids and nothing else: operator vocabulary, no credentials.
+ */
+function ownershipRefusal(row: Row | undefined, callerOrgId: string | null): string | null {
+  if (!row?.edge_url) return null;
+  const owner = row.owner_org_id ?? DEFAULT_ORG_ID;
+  const caller = callerOrgId ?? DEFAULT_ORG_ID;
+  if (owner === caller) return null;
+  return (
+    `this install's edge pairing belongs to organization "${owner}", but the caller belongs to ` +
+    `organization "${caller}" — only the owning organization may re-point, unpair or re-key it`
+  );
+}
+
+/**
+ * Refuse a non-owner BEFORE anything irreversible happens. The pair door's guard: it
+ * mints and publishes this install's sealing keypair, which is never rotated, so the
+ * check has to run before `ensureEdgeKeypair` and before any fetch to the edge.
+ *
+ * Deliberately a separate READ here rather than a precondition: publishing a key does not
+ * rewrite the pairing, so there is nothing for a concurrent save to clobber — the write
+ * door's own check runs inside its IMMEDIATE transaction, where it matters.
+ */
+export function assertEdgeWritableBy(callerOrgId: string | null): void {
+  let row: Row | undefined;
+  try {
+    row = readRow();
+  } catch {
+    // An unreadable store is not an ownership answer; the operation's own error path
+    // reports it (resolveEdgeDetailed treats the same failure as "no edge").
+    return;
+  }
+  const refusal = ownershipRefusal(row, callerOrgId);
+  if (refusal) throw new EdgeOwnershipError(refusal);
+}
+
 /**
  * Pair (or unpair) the edge.
  *
  * Secret handling is the ats-config-store contract: omitted keeps, "" clears, a
  * string replaces. Unpairing (url = null) also RESETS the cursor: a later re-pair
  * to a different edge must not resume at a sequence number that edge never issued —
- * it would skip every event below it, silently.
+ * it would skip every event below it, silently. It also CLEARS the owner, so an
+ * unpaired install can be claimed by whoever pairs it next (F-3).
+ *
+ * `ownerOrgId` is the CALLER's organization, and it is both the authorization and the
+ * stamp: a write by any other org than the stored row's owner is refused, and an accepted
+ * write re-stamps the owner (so a re-save hands the install over deliberately). The doors
+ * read it from the session, never from the request body.
  */
-export function setEdgeConfig(input: { url?: unknown; secret?: unknown; nudgeTarget?: unknown }): EdgePublicConfig {
+export function setEdgeConfig(input: {
+  url?: unknown;
+  secret?: unknown;
+  nudgeTarget?: unknown;
+  ownerOrgId?: unknown;
+}): EdgePublicConfig {
   const url = validateUrl(input.url);
+  const ownerOrgId = validateOwnerOrgId(input.ownerOrgId);
   // Validate and ENCRYPT before the transaction opens: better-sqlite3 transactions
   // are synchronous and must stay short, and a throw inside one would roll the write
   // back anyway. `undefined` here means "keep what is stored" (ats-config contract).
@@ -312,21 +408,33 @@ export function setEdgeConfig(input: { url?: unknown; secret?: unknown; nudgeTar
   db()
     .transaction(() => {
       const row = readRow();
+      // THE ORG BOUNDARY, inside the write lock (F-3). Not a separate read before the
+      // transaction, for the same reason "keep the stored secret" is not: a concurrent save
+      // landing between a pre-check and this write would hand the pairing to an org this
+      // call never authorized. A refusal throws, so the transaction rolls back and nothing
+      // is written — the row the caller may not have stays exactly as it was.
+      const refusal = ownershipRefusal(row, ownerOrgId);
+      if (refusal) throw new EdgeOwnershipError(refusal);
       const storedSecret = nextSecret === undefined ? (row?.edge_secret ?? null) : nextSecret;
       const nudgeTarget = nextNudge === undefined ? (row?.nudge_target ?? null) : nextNudge;
       db()
         .prepare(
-          `INSERT INTO edge_config (id, edge_url, edge_secret, nudge_target, cursor, last_error, updated_at)
-       VALUES (1, ?, ?, ?, COALESCE((SELECT cursor FROM edge_config WHERE id = 1), 0), NULL, ?)
+          `INSERT INTO edge_config (id, edge_url, edge_secret, nudge_target, owner_org_id, cursor, last_error, updated_at)
+       VALUES (1, ?, ?, ?, ?, COALESCE((SELECT cursor FROM edge_config WHERE id = 1), 0), NULL, ?)
        ON CONFLICT(id) DO UPDATE SET
          edge_url = excluded.edge_url,
          edge_secret = excluded.edge_secret,
          nudge_target = excluded.nudge_target,
+         owner_org_id = excluded.owner_org_id,
          cursor = CASE WHEN excluded.edge_url IS NULL THEN 0 ELSE edge_config.cursor END,
          last_error = NULL,
          updated_at = excluded.updated_at`
         )
-        .run(url, url ? storedSecret : null, nudgeTarget, now);
+        // UNPAIRING RELEASES THE CLAIM: with no url there is no pairing to own, so the
+        // owner is cleared too and the next organization to pair becomes the owner.
+        // Leaving a stale owner behind would mean an org that walks away takes the
+        // install's transport with it, unrecoverably.
+        .run(url, url ? storedSecret : null, nudgeTarget, url ? ownerOrgId : null, now);
     })
     .immediate();
   return getEdgeConfig();

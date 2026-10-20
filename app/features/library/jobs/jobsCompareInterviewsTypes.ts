@@ -1,8 +1,10 @@
 // Shared types + style maps for the JobsCompareInterviews split — extracted
 // verbatim so the tab file stays under the 200-line split threshold.
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { HumanScorecardView } from "@/app/_lib/human-scorecard-set";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import type { AxisCoverage } from "@/app/_lib/interview-axis-coverage";
 
 export type Candidate = {
   entryId: string | null;
@@ -15,9 +17,10 @@ export type Candidate = {
   // Skills this interview minted as observed-provenance evidence (the
   // case-grounded gates) — the highest-trust artifact, stamped visibly below.
   observedSkills: string[];
-  // A recruiter's human scorecard for this candidate (PREP1), if one was filled —
-  // shown beside the AI screen so a human-led round isn't invisible here.
-  humanScorecard?: Scorecard | null;
+  // Every human scorecard on this candidate (PREP1) — one per (interviewer, round),
+  // newest first, each saying whose it is — shown beside the AI screen so a human-led
+  // round isn't invisible here, and a second interviewer never hides the first.
+  humanScorecards?: HumanScorecardView[];
   // True for a candidate whose round was HUMAN-led (human scorecard, no voice
   // session) — their blank AI ratings mean "not AI-interviewed", not "synthesis
   // failed", and the chip below says so.
@@ -26,6 +29,10 @@ export type Candidate = {
   // to the AI scorecard — DESCRIPTIVE conversational-dynamics signals, rendered
   // neutrally below the verdict badges. Null for a human-led / legacy round.
   telemetry?: InterviewTelemetry | null;
+  // What the interview DIRECTOR recorded per rubric axis (covered / asked / never
+  // reached / not planned) and the kit must-asks the call ended owing (null = no
+  // end_interview on record, so unknown). Null for an undirected or human-led round.
+  coverage?: AxisCoverage | null;
 };
 
 // Keyed by the InterviewRecommendation union so every canonical verdict is
@@ -37,4 +44,4 @@ export const CONF_STYLE: Record<string, string> = {
   wide: "text-dial-amber",
 };
 export const ratingColor = (r: number) =>
-  r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral" : "bg-stone-100 text-ink";
+  r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral-ink" : "bg-stone-100 text-ink";

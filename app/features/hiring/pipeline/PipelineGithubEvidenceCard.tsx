@@ -9,6 +9,12 @@
 import { ExternalLink, GitBranch } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
+import {
+  GITHUB_NOT_SEEN_CLASS,
+  GITHUB_NOT_SEEN_KEY,
+  GITHUB_NOT_SEEN_TITLE_KEY,
+  notSeenInPublicRepos,
+} from "./PipelineCandidateDrawerTypes";
 
 export function PipelineGithubEvidenceCard({
   github,
@@ -25,6 +31,7 @@ export function PipelineGithubEvidenceCard({
 }) {
   const t = useTranslations("pipeline.drawer");
   if (github) {
+    const notSeen = notSeenInPublicRepos(github);
     return (
       <div className="rounded-md border border-stone-200 bg-white p-3">
         <div className="flex items-center justify-between gap-2">
@@ -35,7 +42,7 @@ export function PipelineGithubEvidenceCard({
             href={github.profileUrl}
             target="_blank"
             rel="noreferrer"
-            className="focus-ring font-mono text-sm text-coral hover:underline"
+            className="focus-ring font-mono text-sm text-coral-ink hover:underline"
           >
             @{github.username}
           </a>
@@ -46,9 +53,14 @@ export function PipelineGithubEvidenceCard({
             <span className="font-semibold text-moss">{t("githubEvidenced")}</span> {github.confirmedSkills.join(", ")}
           </p>
         ) : null}
-        {github.unverifiedClaims.length ? (
+        {/* Skills the review did not see in public repo signals. Absence of public
+            evidence is not a false claim, so the label is neutral (notSeenInPublicRepos in PipelineCandidateDrawerTypes.ts). */}
+        {notSeen.length ? (
           <p className="mt-1 text-sm text-ink">
-            <span className="font-semibold text-amber-700">{t("githubUnverified")}</span> {github.unverifiedClaims.join(", ")}
+            <span className={GITHUB_NOT_SEEN_CLASS} title={t(GITHUB_NOT_SEEN_TITLE_KEY)}>
+              {t(GITHUB_NOT_SEEN_KEY)}
+            </span>{" "}
+            {notSeen.join(", ")}
           </p>
         ) : null}
         {github.hiddenStrengths.length ? (
@@ -89,7 +101,7 @@ export function PipelineGithubEvidenceCard({
           href={`https://github.com/${githubHandle}`}
           target="_blank"
           rel="noreferrer"
-          className="focus-ring font-mono text-sm text-coral hover:underline"
+          className="focus-ring font-mono text-sm text-coral-ink hover:underline"
         >
           @{githubHandle}
         </a>
@@ -101,7 +113,7 @@ export function PipelineGithubEvidenceCard({
         disabled={ghBusy}
         className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
       >
-        <GitBranch size={13} className="text-coral" /> {ghBusy ? t("githubRunning") : t("githubRun")}
+        <GitBranch size={13} className="text-coral-ink" /> {ghBusy ? t("githubRunning") : t("githubRun")}
       </button>
       {ghErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{ghErr}</p> : null}
     </div>

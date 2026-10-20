@@ -88,22 +88,165 @@ def _first_sentences(text: str, n: int = 2) -> str:
     return " ".join(p for p in parts[:n] if p).strip()[:240]
 
 
+# --- dated roles ------------------------------------------------------------------------
+#
+# A CV's experience is a list of DATED roles, and the keyless draft used to return one
+# blob titled "Summary": the matcher then read a career as one sentence, and a generated
+# CV had no entries to lay out. Roles are split where a line carries a date range, inside
+# an experience section only (an education line's "2012 - 2019" is not a job), and the
+# total is the UNION of the dated intervals, never their sum (registry technique
+# tenure-and-date-range-reading): overlapping roles do not inflate it, a range that runs
+# backwards is dropped rather than subtracted, and a year-only end is read at mid-year.
+
+_MONTH_YEAR = r"(?:(?:0?[1-9]|1[0-2])[./](?:19|20)\d\d)"
+_YEAR = r"(?:19|20)\d\d"
+_OPEN_END = r"(?:present|now|current|today|dosud|současnost|soucasnost|nyní|nyni|heute|aktuell|aujourd'hui|actuel|actuellement)"
+_POINT = rf"(?:{_MONTH_YEAR}|{_YEAR})"
+_DATE_RANGE = re.compile(rf"({_POINT})\s*(?:-|–|—|to|až|bis|à)\s*({_POINT}|{_OPEN_END})", re.I)
+_EXPERIENCE_HEADINGS = ("experience", "work experience", "employment", "prior experience", "career", "zkušenosti", "pracovní zkušenosti", "praxe", "berufserfahrung", "erfahrung", "expérience", "expérience professionnelle")
+_OTHER_HEADINGS = ("education", "skills", "languages", "profile", "summary", "projects", "certifications", "interests", "vzdělání", "dovednosti", "jazyky", "profil", "ausbildung", "kenntnisse", "sprachen", "formation", "compétences", "langues", "projekty", "projets", "projekte")
+
+
+_SINGLE_YEAR = re.compile(rf"^({_YEAR})(?!\d)\s*[:–—-]?\s*(?=\S)")
+
+
+def _heading_of(line: str) -> str | None:
+    """'experience' / 'other' for a line that IS a section heading (dates allowed on it).
+    An unknown ALL-CAPS label ("SW ANALYSIS", "LLM RELATED") is a heading too — of some
+    other section — so a sidebar's skill groups never run on inside the last role."""
+    bare = _DATE_RANGE.sub("", line).strip().strip(":：-–—#*_ ").casefold()
+    if not bare or len(bare) > 40:
+        return None
+    if bare in _EXPERIENCE_HEADINGS:
+        return "experience"
+    if bare in _OTHER_HEADINGS:
+        return "other"
+    raw = _DATE_RANGE.sub("", line).strip().strip(":：-–—#*_ ")
+    letters = [ch for ch in raw if ch.isalpha()]
+    if len(letters) >= 4 and len(raw) <= 30 and all(ch.isupper() for ch in letters):
+        return "other"
+    return None
+
+
+def _point_value(raw: str, now: float, *, end: bool) -> float | None:
+    raw = raw.strip()
+    if re.fullmatch(_OPEN_END, raw, re.I):
+        return now
+    m = re.fullmatch(r"(0?[1-9]|1[0-2])[./]((?:19|20)\d\d)", raw)
+    if m:
+        return int(m.group(2)) + (int(m.group(1)) - (0 if end else 1)) / 12
+    if re.fullmatch(_YEAR, raw):
+        return int(raw) + 0.5  # year precision: the midpoint, never a padded January
+    return None
+
+
+def _union_years(ranges: list[tuple[float, float]]) -> float:
+    total = 0.0
+    cur: tuple[float, float] | None = None
+    for a, b in sorted(ranges):
+        if cur and a <= cur[1] + 1 / 12:  # adjacent across a month boundary: one stretch
+            cur = (cur[0], max(cur[1], b))
+            continue
+        if cur:
+            total += cur[1] - cur[0]
+        cur = (a, b)
+    if cur:
+        total += cur[1] - cur[0]
+    return total
+
+
+def dated_roles(text: str, now: float | None = None) -> tuple[list[dict[str, Any]], float | None]:
+    """(roles, union_years). Each role is ``{title, text, dates}``; ``union_years`` is the
+    measure of the union of the parsed intervals (None when no range parsed)."""
+    import time
+
+    clock = now if now is not None else time.gmtime().tm_year + (time.gmtime().tm_mon - 1) / 12
+    lines = [ln.strip() for ln in (text or "").splitlines()]
+    roles: list[dict[str, Any]] = []
+    intervals: list[tuple[float, float]] = []
+    section: str | None = None
+    current: dict[str, Any] | None = None
+
+    def close() -> None:
+        nonlocal current
+        if current:
+            current["text"] = " ".join(current.pop("lines")).strip()[:600]
+            roles.append(current)
+        current = None
+
+    for line in lines:
+        if not line:
+            close()  # a blank line ends an entry: the sidebar that follows is not its text
+            continue
+        kind = _heading_of(line)
+        if kind:
+            close()
+            section = kind
+            continue
+        m = _DATE_RANGE.search(line)
+        single = None if m else _SINGLE_YEAR.match(line)
+        if section == "experience" and (m or single):
+            close()
+            if m:
+                start = _point_value(m.group(1), clock, end=False)
+                stop = _point_value(m.group(2), clock, end=True)
+                dates = m.group(0).strip()
+                head = (line[: m.start()] + " " + line[m.end() :]).strip(" :–—-|,")
+            else:
+                year = int(single.group(1))
+                start, stop = float(year), year + 1.0  # one year-precision year
+                dates = single.group(1)
+                head = line[single.end() :].strip(" :–—-|,")
+            if start is not None and stop is not None and stop >= start:
+                intervals.append((start, stop))
+            current = {"head": head, "role": None, "dates": dates, "lines": []}
+            continue
+        if current is None:
+            continue
+        if current["role"] is None and not current["lines"] and len(line) <= 70 and not line.endswith((".", ";")):
+            current["role"] = line
+            continue
+        current["lines"].append(line)
+    close()
+
+    out: list[dict[str, Any]] = []
+    for r in roles:
+        role, head = r.get("role"), r.get("head") or ""
+        # "2019 - 2020: Moneta, a.s." carries the org on the date line and the role under it;
+        # a role line may itself be "Role - detail", which stays whole.
+        title = f"{role} — {head}" if role and head else (role or head or "Role")
+        out.append({"title": f"{title} ({r['dates']})"[:160], "text": r["text"], "dates": r["dates"]})
+    return out, (round(_union_years(intervals), 1) if intervals else None)
+
+
 def deterministic_draft(text: str, lang: str = "en") -> dict[str, Any]:
     """A DRAFT_SCHEMA payload read from ``text`` with no model. Pure."""
     body = text or ""
     # ``detected`` is what the taxonomy saw and is what votes on the role family;
     # ``skills`` is what the draft CLAIMS, so the role words are dropped from it.
     detected = [r["skill"] for r in detect_requirements(body)]
-    skills = [s for s in detected if not is_role_word(s)]
+    skills = list(dict.fromkeys(s.strip() for s in detected if s.strip() and not is_role_word(s)))
     seniority = detect_seniority(_first_sentences(body, 3)) or detect_seniority(body[:400])
     level = _SENIOR_TO_LEVEL.get(seniority or "", "working")
+    roles, union_years = dated_roles(body)
+    # A stated figure ("8 years of …") wins; else the union of the dated roles.
     years = detect_min_years(body)
+    if years is None and union_years is not None:
+        years = union_years
     languages = detect_languages(body)
     name = _display_name(body)
     # Places are read from the header lines only (a CV names its city up top; the body
     # names every city the person ever worked in), never from the name line itself,
     # and a "place" longer than three words is a sentence fragment, not a city.
-    header_lines = [ln for ln in body.splitlines()[:6] if ln.strip() and (not name or name not in ln or " - " in ln or "," in ln)]
+    # A section heading ("PROFILE", "Experience") is never a place.
+    # The header ends at the first section heading: a "PROFILE" label and the paragraph
+    # under it are never where the CV states its place.
+    header_lines: list[str] = []
+    for ln in body.splitlines()[:6]:
+        if _heading_of(ln) is not None:
+            break
+        if ln.strip() and (not name or name not in ln or " - " in ln or "," in ln):
+            header_lines.append(ln)
     header = chr(10).join(header_lines)
     places = parse_locations(header.replace(name, " ") if name else header)
     candidates = [
@@ -128,10 +271,14 @@ def deterministic_draft(text: str, lang: str = "en") -> dict[str, Any]:
             aspirations.append(a)
         if len(aspirations) >= 3:
             break
-    summary = _first_sentences(body)
     experiences: list[dict[str, Any]] = []
-    if summary:
-        experiences.append({"kind": "job", "title": "Summary", "text": summary, "skills": skills[:6], "link": None})
+    for role in roles:
+        found = [s for s in (r["skill"] for r in detect_requirements(role["text"] + " " + role["title"])) if not is_role_word(s)]
+        experiences.append({"kind": "job", "title": role["title"], "text": role["text"], "skills": found[:8], "link": None})
+    if not experiences:
+        summary = _first_sentences(body)
+        if summary:
+            experiences.append({"kind": "job", "title": "Summary", "text": summary, "skills": skills[:6], "link": None})
     enrolled = bool(_STUDENT.search(body))
     return {
         "display_name": name,

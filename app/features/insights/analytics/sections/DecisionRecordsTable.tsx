@@ -33,7 +33,7 @@ import {
   matchesSubject,
   resolveAuditTimeZone,
   shortHash,
-} from "../analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
 import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 
@@ -217,7 +217,7 @@ export function DecisionRecordsTable({
                       {subjectEntry?.live ? (
                         <Link
                           href={boardHref(subjectEntry.label)}
-                          className="focus-ring rounded text-ink underline-offset-2 hover:text-coral hover:underline"
+                          className="focus-ring rounded text-ink underline-offset-2 hover:text-coral-ink hover:underline"
                         >
                           {subjectEntry.label}
                         </Link>

@@ -94,8 +94,18 @@ test("runAgentFit spawns with agentFitArgs and defaults lang to the workspace lo
   );
   assert.match(
     src,
-    /spawnPython\(agentFitArgs\(jobPath, catalogPath, lang\), \{ signal, env: buildLlmConfigEnv\(\) \}\)/,
-    "the spawn must use the argv builder above (and keep buildLlmConfigEnv, which routes BYOM keys)",
+    /agentFitArgs\(paths\.job, paths\.catalog, lang\)/,
+    "the spawn must use the argv builder above",
+  );
+  assert.match(
+    src,
+    /env: buildLlmConfigEnv\(\)/,
+    "and keep buildLlmConfigEnv, which routes BYOM keys",
+  );
+  assert.match(
+    src,
+    /timeoutMs: AGENT_FIT_TIMEOUT_MS/,
+    "and pass an explicit deadline instead of inheriting the 10-minute hang backstop",
   );
   // …and the workspace column the default reads is real and settable, so the
   // default is a live value rather than a name that resolves to the fallback.

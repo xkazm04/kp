@@ -19,6 +19,7 @@ import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow }
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
 import { resolveProviderApiKey } from "./provider-key-precedence";
 import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
+import { PINNED_USE_CASES as PINNED } from "./llm-pins";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
@@ -55,8 +56,18 @@ export const LLM_USE_CASES = [
   "cv_polish",
   "fit_dialog",
   "extraction_rules",
+  "role_research",
+  "gig_brief",
+  "gig_plan",
+  "gig_report",
+  "gig_proposal",
 ] as const;
 export type LlmUseCase = (typeof LLM_USE_CASES)[number];
+
+/** The call-site pins (llm-pins.ts, import-free so the Models panel can read it too),
+ *  typed here against the use-case catalogue. */
+export type PinnedUseCase = import("./llm-pins").PinnedUseCase & { provider: LlmProvider };
+export const PINNED_USE_CASES = PINNED as Readonly<Partial<Record<LlmUseCase, PinnedUseCase>>>;
 
 export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);
@@ -308,6 +319,37 @@ function toUseCaseEntry(row: LlmConfigRow): UseCaseEntry {
   if (Number.isInteger(timeoutS) && timeoutS > 0) params.timeoutS = timeoutS;
   if (Object.keys(params).length > 0) entry.params = params;
   return entry;
+}
+
+/**
+ * The analyze cache's model axis (cache-key.ts `llmRoute`): the provider, model and
+ * params that serve `useCase`, plus that provider's non-secret endpoint, as a stable
+ * string. The model is part of the instrument - a key that pins the prompt but not
+ * the model served the previous model's reading for a whole TTL after the operator
+ * re-routed cv_analysis. "" when no routing row exists, so the default route keeps
+ * its pre-axis key. Never carries a credential: which key pays does not change the
+ * answer, and a secret has no business inside a cache key.
+ */
+export function llmRouteFingerprint(useCase: string): string {
+  const row = listLlmConfig().find((r) => r.useCase === useCase);
+  if (!row) return "";
+  const entry = toUseCaseEntry(row);
+  // Same precedence buildLlmConfigEnv applies: byom beats platform for one provider.
+  const keyRow = listProviderKeys()
+    .filter((k) => k.provider === row.provider)
+    .sort((a, b) => (a.scope === b.scope ? 0 : a.scope === "platform" ? -1 : 1))
+    .at(-1);
+  const meta = keyRow?.meta ?? {};
+  const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+  return JSON.stringify({
+    provider: entry.provider,
+    model: entry.model ?? null,
+    maxTokens: entry.params?.maxTokens ?? null,
+    timeoutS: entry.params?.timeoutS ?? null,
+    endpoint: str(meta.endpoint),
+    apiVersion: str(meta.apiVersion),
+    baseUrl: str(meta.baseUrl),
+  });
 }
 
 /**

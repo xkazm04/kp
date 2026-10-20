@@ -1,0 +1,128 @@
+[
+  {
+    "context": "pipeline-move-bulk-operations",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Bulk selection as one reducer: confirms sign the cohort, ghosts prune",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/features/hiring/pipeline/pipelineBulkSelection.ts",
+      "app/features/hiring/pipeline/pipelineBulkSelection.test.ts",
+      "app/features/hiring/pipeline/pipelineBulkConfirm.ts",
+      "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts",
+      "app/features/hiring/pipeline/pipelineSelectionScope.ts",
+      "app/features/hiring/pipeline/pipelineSelectionScope.test.ts",
+      "app/features/hiring/pipeline/usePipelineBulk.ts",
+      "app/features/hiring/pipeline/usePipelineBulk.test.ts",
+      "app/features/hiring/pipeline/PipelineBulkActionBar.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/pipeline/pipelineBulkSelection.ts",
+      "app/features/hiring/pipeline/pipelineBulkSelection.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "bulkSelectionReducer({selected:{a,b,c,d}, confirm:{which:'reject', scope:S, cohort:sig}}, {type:'settled', keep:{c}}) -> confirm === null and selected === {c} (before: bulkMove's setSelectedIds(failures) at usePipelineBulk.ts:256 dispatches nothing, so an armed reject/outreach confirm survives a bulk move)",
+      "arm reject while the actionable cohort is {a:Screened:screening_review, b:Screened:screening_review}; a poll makes selected c awaiting -> armedConfirm(state, S, cohortSignature(current)) === null, so the next click re-arms naming 3 instead of firing on 3 under a confirm that said 2 (before: armed, scope-only check pipelineBulkConfirm.ts:88-89)",
+      "arm reject over {a,b}; a poll moves b Screened -> Interview (still awaiting) -> armedConfirm === null (status drift invalidates the signed set)",
+      "reconcileSelection(selected {a,b,g}, entries [a,b]) -> {selected:{a,b}, pruned:['g']}; selectionOutsideVisible over the reconciled set counts 0 for g (before: g, closed by another actor and dropped from the board by db/pipeline.ts:776, is counted as 'hidden by the current filter' forever)",
+      "foldBatchSettle({attempted:[a,b,c], untouched:[d], response:{ok:true, results:[{a ok},{b fail PIPELINE_MOVE_CONFLICT},{c fail PIPELINE_MOVE_CONFLICT}]}}) -> keep {b,c,d}, result {ok:1, failed:2, reasonCodes:['PIPELINE_MOVE_CONFLICT']}",
+      "foldBatchSettle with a whole-request refusal {ok:false, status:403, code:'FORBIDDEN_CAPABILITY', capability:'pipeline:write'} -> keep every attempted + untouched id, reasonCodes ['FORBIDDEN_CAPABILITY'], refusalCapability 'pipeline:write', reason null; with {ok:false} (transport) -> reasonKey 'bulkRequestFailed', codes []",
+      "outreach task fails after the recruiter changed the selection -> settle reports failed = size of the cohort the task was STARTED with, not selectedIds.size at completion (before: usePipelineBulk.ts:455)",
+      "source guard: usePipelineBulk.ts calls setSelectedIds nowhere (9 call sites today); every selection change is a reducer event"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/usePipelineBulk.ts:256 - bulkMove ends with setSelectedIds(failures) and never dispatches selectionChanged/fired, unlike bulkDecide (:292) and bulkInvite (:343); an armed confirm outlives the cohort change the settle causes",
+      "app/features/hiring/pipeline/pipelineBulkConfirm.ts:88-89 - armedConfirm compares only state.scope === currentScope; the confirm carries no identity of WHICH rows it was armed over",
+      "app/features/hiring/pipeline/usePipelineBoardData.ts:230 - the 30s poll only pauses for an open drawer or a hidden tab, so entries (approvalKind, stage) change under an armed confirm in select mode",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:276-279 - bulkDecide re-derives the awaiting set from the latest entries at fire time; PipelineBulkDecideRow.tsx confirm text reads selectedAwaiting.length live, so the fired set is whatever the last poll made it, not the set confirmed",
+      "app/_lib/db/pipeline.ts:776 - the board list excludes TERMINAL_STATUS rows, so a selected entry closed by another actor vanishes from entries while its id stays in selectedIds",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:114-117 - selectionOutsideVisible(selectedIds, filteredEntries) counts such a ghost id as hidden-by-filter; PipelineBulkActionBar.tsx:100 and :158 print selectedIds.size including it",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:453-458 - a failed outreach task reports failed: selectedIds.size read at completion, not the cohort started",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:239-266, 303-330, 365-408 - the failures-stay-selected + refusal fold is written three times (and a fourth, different one at :467-473)"
+    ],
+    "rollback": "Pure additive module plus a hook rewrite behind an unchanged return shape (PipelineBulkState); reverting the commit series restores the useState/useReducer pair with no data, route or schema involvement.",
+    "gate": "policy-tighten",
+    "runner_up": "Saved views become team data on the workspace (pipelineBoardStorage.ts keeps them per-browser in localStorage), adopting the read-once-offer-to-team path r03 built for SLAs.",
+    "technique": "cohort-drift-forces-a-fresh-review",
+    "body": "## Summary\nReplace the bulk hook's five loose state cells (selectedIds, bulkResult, bulkConfirm, outreachTaskId, bulkBusy) and their hand-dispatched disarms with ONE pure reducer, `pipelineBulkSelection.ts`, whose armed confirm is signed over the actionable cohort (id + stage + approvalKind), whose settle event is the only way an action changes the selection, and which prunes ids that left the board.\n\n## Description\nThe round-5 lesson in `pipelineBulkConfirm.ts` was that a disarm rule written per call site leaks; the scope stamp fixed filters by derivation. The same rule is still per call site for everything else: 9 `setSelectedIds` call sites, 5 of them paired with a manual `selectionChanged`, and `bulkMove` (usePipelineBulk.ts:256) forgets it. The confirm also signs only the visible scope, not the people: the 30s poll keeps running in select mode, so a reject armed over 2 awaiting candidates fires on however many are awaiting when clicked - exactly the membership/status drift the recruiting standard says must force a fresh review. And because the board drops closed rows (db/pipeline.ts:776) while the selection keeps their ids, the bar's count and its 'hidden by the current filter' disclosure both include people who are no longer there.\nThe move: (1) `pipelineBulkSelection.ts` - `bulkSelectionReducer` over events {toggle, updateCell, selectAll, clear, reconcile(entries), arm(which, scope, cohort), cancel, settled(keep, result)}; `cohortSignature(entries, which)` (sorted id:stage:approvalKind of the rows the armed action would touch); `armedConfirm(state, scope, cohort)`; `reconcileSelection`; `foldBatchSettle` (the ONE failures-stay-selected fold, whole-request refusal overriding per-id codes). (2) `pipelineBulkConfirm.ts` keeps its reducer as the confirm slot inside it (existing tests keep passing, gain a cohort arg). (3) `usePipelineBulk.ts` becomes the network around the reducer with the same returned API. (4) The bar states pruned ghosts once ('2 left the board and were deselected').\n\n## Flow\nclick/poll -> event -> reducer (selection, confirm, result) -> derived armed = scope AND cohort unchanged -> action fires the SIGNED id set -> response -> foldBatchSettle -> settled(keep, result) -> confirm null. Poll -> reconcile(entries) -> ghosts pruned + disclosed.\n\n## Expected impact\nA destructive bulk confirm can no longer fire on people it did not name (drift closes by derivation, like the scope stamp did), counts stop including departed candidates, and every future bulk control (r03's Subway select, a command-bar hand-off) gets the grammar by dispatching one event instead of re-learning four folds.\n\n## Evaluation\nClaim: every bulk selection change and confirm-validity decision is a pure reducer transition; drift and settles disarm; ghosts prune.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test over pipelineBulkSelection.test.ts / pipelineBulkConfirm.test.ts / pipelineSelectionScope.test.ts / usePipelineBulk.test.ts source guard, then tsc, lint, i18n:check, test:unit\nResult: pending (scout)\nGate: policy-tighten",
+    "evidence": "usePipelineBulk.ts:256 `setSelectedIds(failures);` (no dispatch in bulkMove 208-269) vs :292 `dispatchBulkConfirm({ type: \"fired\" });` in bulkDecide and :343 in bulkInvite. pipelineBulkConfirm.ts:88-89 `export function armedConfirm(state, currentScope) { return state && state.scope === currentScope ? state.which : null; }`. grep -c 'setSelectedIds(' usePipelineBulk.ts -> 9. usePipelineBoardData.ts:230 `if (!drawerOpenRef.current && !document.hidden) {` (no select-mode pause). db/pipeline.ts:776 `FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?`. usePipelineBulk.ts:114-117 `selectionOutsideVisible(selectedIds, filteredEntries)`. usePipelineBulk.ts:453-458 `setBulkResult({ ok: 0, failed: selectedIds.size, verb: \"drafted\", ... })`. Registry: recruiting/bulk-adverse-action-governance technique cohort-drift-forces-a-fresh-review ('what the earlier approval still authorizes ... only the people it named'; membership and status drift invalidate). Build note: shares usePipelineBulk.ts / pipelineBulkConfirm.ts / PipelineBulkActionBar.tsx with slot B - build A first, B on top."
+  },
+  {
+    "context": "pipeline-move-bulk-operations",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Bulk move previews what it sets off: invites, assignments, erased offers",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/pipeline-arrival-plan.ts",
+      "app/_lib/pipeline-arrival-plan.test.ts",
+      "app/_lib/stage-hooks.ts",
+      "app/api/pipeline/batch/route.ts",
+      "app/api/pipeline/batch/route.test.ts",
+      "app/features/hiring/pipeline/pipelineBulkMovePreview.ts",
+      "app/features/hiring/pipeline/pipelineBulkMovePreview.test.ts",
+      "app/features/hiring/pipeline/usePipelineBulk.ts",
+      "app/features/hiring/pipeline/pipelineBulkConfirm.ts",
+      "app/features/hiring/pipeline/PipelineBulkActionBar.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/pipeline-arrival-plan.ts",
+      "app/_lib/pipeline-arrival-plan.test.ts",
+      "app/features/hiring/pipeline/pipelineBulkMovePreview.ts",
+      "app/features/hiring/pipeline/pipelineBulkMovePreview.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "planArrival({stage:'Screened', status:'active', approvalKind:null}, 'Interview', default axis, plan whose Interview step's first round is kind 'ai' gate 'auto', planSaved:true) -> {effect:'ai_invite'}; same with gate 'human' -> 'ai_invite_held'; gate 'human' with planSaved:false -> 'ai_invite' (mirrors effectiveInterviewGate, stage-hooks.ts:175)",
+      "planArrival to a homework-role column -> 'homework'; to a custom-role column or an interview column whose first round is human -> 'plain'",
+      "planArrival for an entry with approvalKind 'offer_review' -> clears:'offer_review', holdBack:true; 'scorecard_review' -> clears:'scorecard_review', holdBack:false (disclosed, not blocked)",
+      "planArrival to a terminal-role column -> 'refused_terminal'; entry already on toStage -> 'noop'; entry status 'rejected' -> 'closed'",
+      "parity on a composed axis [Applied/entry, Case/homework, Chat/interview, Offer/offer, Done/terminal] in a unit DB: planArrival 'refused_terminal' iff runPipelineEntryAction set_stage answers 422 PIPELINE_TERMINAL_NOT_MANUAL, and runStageEnteredHook takes the branch (homework / not_interview_role / no_ai_round / held) that planArrival named, because the hook now reads arrivalEffect() for that decision",
+      "POST /api/pipeline/batch {dryRun:true, items:[3 x set_stage]} -> 200, each result {id, ok:true, preview:{effect, clears, holdBack}}; pipeline_entries rows and the pipeline_events count are byte-identical afterwards and no stage-entered hook is scheduled",
+      "summarizeMovePreview(previews) over 8 rows -> {moving:5, alreadyThere:2, invitesNow:2, invitesHeld:1, homework:0, offersHeld:1, verdictsCleared:1, stale:0}, needsConfirm:true; an all-'plain' preview -> needsConfirm:false (one click still commits)",
+      "commitItemsFromPreview(preview, selection) excludes holdBack ids (they stay selected, reason key bulkMoveOfferHeld) and carries each item's previewed stage as expectedStage, so a row that moved after the preview is a per-id 409, not a silent move"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/PipelineBulkActionBar.tsx:152-159 - 'Move {count}' calls onBulkMove directly; only reject and outreach are confirm-gated (pipelineBulkConfirm.ts:39 which: 'reject' | 'outreach')",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:226-237 - bulkMove builds set_stage items and POSTs them with no preview of consequences",
+      "app/_lib/db/pipeline.ts:3305 - setPipelineEntryStage runs `SET stage=?, approval_kind=NULL, approval_detail=NULL`: any pending approval on a moved row is erased",
+      "app/_lib/pipeline-entry-action.ts extendDraftedOffer (`draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {}`, ~line 209 at read time; file is under edit by r05 A) - a drafted offer's terms live ONLY in approval_detail until extended, so a bulk move destroys them; the accept/reject path seals the AI verdict first (aiVerdict comment), set_stage does not",
+      "app/_lib/db/pipeline.ts:3323 + app/_lib/stage-hooks.ts:216-252 - every committed move schedules the arrival hook: a homework-role column mails a work-sample assignment (designing one via LLM first when the job has none, stage-hooks-homework.ts:124), an interview column whose first round is AI mints a voice-screen link and emails it (auto gate) or parks it",
+      "app/_lib/stage-hooks.ts:175-181 - effectiveInterviewGate treats a never-saved plan as 'auto' while the plan editor shows 'human', so the recruiter cannot infer from the UI whether a bulk move into Interview sends N invites",
+      "app/api/pipeline/batch/route.ts:94-128 - the batch loop is the single server door for the bulk move; nothing on it can answer 'what would this do' without doing it"
+    ],
+    "rollback": "No schema, no new route, no new event kind: dryRun is an additive body flag the old client never sends, the planner is a new pure module the hook reads for a decision it already made, and the bar's preview is client state. Reverting the series restores one-click move; nothing persisted depends on it.",
+    "gate": "contract",
+    "runner_up": "Undo a bulk move (re-post the cohort with toStage/expectedStage swapped) - rejected as the weaker leap: it cannot restore an erased offer draft or un-send an invite, which is exactly why the preview must come first; and it sits close to r05's undo-a-wave card.",
+    "technique": "blast-radius-computation",
+    "body": "## Summary\nMake the board's bulk 'Move N' say what the move will set off BEFORE it fires - how many get an AI interview invite now, how many are parked for a human, how many get a work-sample assignment, how many pending decisions it erases - arm a confirm when anything leaves the building or is destroyed, and hold back candidates whose drafted offer the move would wipe.\n\n## Description\nToday the most consequential one-click control on the board is the least guarded. Moving 12 cards into Interview schedules 12 arrival hooks that can mint voice-screen links and email them; moving into a homework column mails assignments (and may design a case with an LLM first); and every moved row loses its pending approval, including a drafted offer whose terms exist nowhere else. The recruiter sees none of that, and cannot infer it: the plan editor shows 'human' for a gate the hook treats as 'auto' on a never-saved plan.\nThe move, following blast-radius-computation (the preview and the execution share one implementation):\n1. `app/_lib/pipeline-arrival-plan.ts` (pure): `arrivalEffect(toStage, axis, plan, planSaved)` -> ai_invite | ai_invite_held | homework | plain | refused_terminal, and `planArrival(entry, toStage, ...)` adding noop/closed and `clears`/`holdBack` from approvalKind.\n2. `stage-hooks.ts` reads `arrivalEffect` for its homework/interview/AI-round/gate branch, so the preview cannot describe a hook that no longer exists.\n3. `batch/route.ts`: `dryRun: true` answers per-id `preview` through the same gates, CAS read and axis, writing nothing.\n4. `pipelineBulkMovePreview.ts` (pure): `summarizeMovePreview`, `needsConfirm`, `commitItemsFromPreview`.\n5. `usePipelineBulk` + the bar: first click previews; a consequential preview arms a 'move' confirm (single-slot reducer, scope-stamped) showing the sentence; the commit sends exactly the previewed set with the previewed stages as expectedStage; offer holders stay selected with a reason. All-plain moves still commit in one click.\n\n## Flow\nMove N -> POST batch {dryRun} -> per-id planArrival -> summary line ('5 move · 2 get an AI interview invite now · 1 held for you · 1 drafted offer kept back') -> Confirm -> POST batch (commit set) -> fold -> board reload.\n\n## Expected impact\nNo candidate is emailed an interview or assignment, and no drafted offer is destroyed, by a bulk gesture the recruiter did not see described. It is the pipeline-stage-modelling rule made visible: automated actions fire by role, so the surface that moves people by role must say what the role will do.\n\n## Evaluation\nClaim: a bulk move reports its arrival consequences from the same planner the hook executes, confirm-gates any outbound/destructive effect, and never erases a drafted offer.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test over pipeline-arrival-plan.test.ts (incl. unit-DB parity with runPipelineEntryAction and runStageEnteredHook), batch/route.test.ts (dryRun writes nothing), pipelineBulkMovePreview.test.ts; then tsc, lint, i18n:check, api:check (no method change), test:unit\nResult: pending (scout)\nGate: contract",
+    "evidence": "PipelineBulkActionBar.tsx:152-159 `<button ... onClick={onBulkMove} ...>{bulkBusy ? t(\"bulkMoving\") : t(\"bulkApply\", { count: selectedIds.size })}</button>` (no arm). pipelineBulkConfirm.ts:39 `export type BulkConfirm = { which: \"reject\" | \"outreach\"; scope: string } | null;`. db/pipeline.ts:3305 `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?` then :3323 `notifyStageEntered(result, fromStage, ...)`. stage-hooks.ts:216 `if (stageHasRole(stage, \"homework\", axis)) {` :220 `if (!stageHasRole(stage, \"interview\", axis)) return { outcome: \"skipped\", reason: \"not_interview_role\" };` :225 `const step = planStep(getInterviewPlan(workspaceId), stage);` :252 `if (effectiveInterviewGate(step, workspaceId) === \"human\") {`. stage-hooks-homework.ts:124 `return await designThenInvite(entry, jobId, stage, workspaceId, opts);`. batch/route.ts:27 `const BATCH_ACTIONS = new Set([\"set_stage\", \"accept\", \"reject\"]);` and :94-128 the write-only loop. Registry: software-engineering entity-lifecycle technique blast-radius-computation ('the preview and the execution share one implementation'); recruiting pipeline-stage-modelling (automated actions keyed by role). Not a re-proposal: r02 'Commit the pass you previewed' is the automation POLICY pass modal; r03 'Make the Subway a working board' adds select/move gestures; r05 B is command-bar reject undo. Build after slot A (shared usePipelineBulk.ts / pipelineBulkConfirm.ts / PipelineBulkActionBar.tsx) and after r05 lands (it edits pipeline-entry-action.ts, which this card deliberately leaves out of its write set)."
+  }
+]

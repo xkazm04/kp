@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db/analytics";
-import { listCorpusJobs } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { countOpenRoles } from "@/app/_lib/db/jobs";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
 import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
-import { buildMetricPack, renderMetricPack, type MetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
+import { buildMetricPack, paceFromMomentum, renderMetricPack, type MetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
 import { metricPackStrings } from "@/app/_lib/metric-pack-strings";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
@@ -19,6 +19,9 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 //   GET /api/analytics/metric-pack            -> JSON
 //   GET /api/analytics/metric-pack?format=md  -> the one-page Markdown
 //   GET /api/analytics/metric-pack?days=90    -> windowed (default: all time)
+//
+// The JSON form is what the in-app preview reads (MetricPackPreview.tsx); each
+// blocking row carries its accrual `need`, whose note the Markdown caveat repeats.
 
 // THROTTLE (2026-09-03). One hit assembles the whole analytics aggregate, walks the
 // entire open-role corpus, reads every membership on the team and summarises the NPS
@@ -71,31 +74,21 @@ async function dateTheSpendBasis(pack: MetricPack, locale: string, asOf: string 
   };
 }
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseWindowDays(searchParams.get("days"));
     if (!rateLimit(`metric-pack:${clientIpFrom(request.headers)}`, METRIC_PACK_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
 
     const analytics = pipelineAnalytics(windowDays, undefined, ws);
 
-    // Capacity's two terms. The open-role definition is unchanged — a NULL status is a
-    // seeded/live corpus row and counts, only 'draft' (not live) and 'closed' (no longer
-    // accepting) are excluded — but it is now asked of `listCorpusJobs`, which encodes
-    // exactly that rule (`status IS NULL OR status = 'published'`, the same predicate as
-    // `openOnly` / `isJobOpenForApplications`) and returns EVERY matching row.
-    //
-    // It used to be a `.filter()` over `listJobs({}, ws)`, which is the paginated BROWSE
-    // read: no `limit` means `LIMIT 300`, and a caller-supplied one is capped at 500. So a
-    // workspace carrying more visible openings than that had its open-role count silently
-    // truncated to the cap — 350 live roles across 10 recruiters reported "300 open roles"
-    // and 30.0 roles/recruiter instead of 35.0, labelled `measured` (sample 300 ≥
-    // MIN_OPEN_ROLES) in the one artifact that is meant to survive procurement. A count is
-    // not a page.
-    const openRoles = listCorpusJobs(ws).length;
+    // Capacity is requisitions this workspace actually carries, not the shared
+    // reference corpus every tenant can browse. The DB's unbounded count keeps
+    // owned openings separate from visible corpus roles and cannot truncate at
+    // the jobs browse page's 300-row cap.
+    const openRoles = countOpenRoles(ws).own;
     const recruiters = listMembershipsForWorkspace(ws).filter((m) => CARRYING_ROLES.has(m.role)).length;
 
     const input: MetricPackInput = {
@@ -116,6 +109,10 @@ export async function GET(request: Request) {
         return { score: s.rawScore, responses: s.responses };
       })(),
       windowDays,
+      // The thin rows' accrual horizon: hires per week over the payload's own momentum
+      // series (sized to the window), so the date needs no second store read. No hires
+      // in the series is pace 0, and every hire-accrued shortfall then says no-pace.
+      pace: { hiresPerWeek: paceFromMomentum(analytics.momentum) },
     };
 
     // The pack is read by whoever asked for it on this very request — a UI user, not
@@ -144,4 +141,4 @@ export async function GET(request: Request) {
     // carries constraint text and the absolute db path.
     return safeJsonError(error, "api:analytics/metric-pack", "ANALYTICS_METRIC_PACK_FAILED");
   }
-}
+});

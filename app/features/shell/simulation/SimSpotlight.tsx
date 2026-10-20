@@ -96,7 +96,7 @@ export function SimSpotlight() {
               : { bottom: -6, left: pointerLeft, borderBottomWidth: 1, borderRightWidth: 1 }
           }
         />
-        <p className="text-meta font-semibold uppercase tracking-wide text-coral">{spotlight.title}</p>
+        <p className="text-meta font-semibold uppercase tracking-wide text-coral-ink">{spotlight.title}</p>
         <p className="mt-0.5 text-sm leading-snug text-ink">{spotlight.caption}</p>
       </div>
     </div>

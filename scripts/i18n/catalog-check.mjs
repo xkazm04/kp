@@ -170,9 +170,68 @@ export function dashError(value) {
   return null;
 }
 
+// ---- Control characters --------------------------------------------------------
+// A C0 control character in catalog copy is never intended. The one that reached
+// production was U+0001: a regex backreference written into a French string where a
+// colon or semicolon belonged, 33 times in one file, invisible in an editor and passed
+// by every other check here. It is REPORTED, not stripped: deleting it leaves a gap
+// where the punctuation was, and the right mark is only recoverable from the default
+// locale. Tab, LF and CR are legal in a message.
+const CONTROL_CHAR = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+export function controlCharError(value) {
+  const m = CONTROL_CHAR.exec(value);
+  if (!m) return null;
+  const hex = m[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, "0");
+  const ctx = JSON.stringify(value.slice(Math.max(0, m.index - 12), m.index + 13));
+  return `control character U+${hex} in ${ctx} — a lost or mangled punctuation mark; restore it from the default locale`;
+}
+
+// ---- Carried literals ------------------------------------------------------------
+// URLs, email addresses and multi-digit numbers in the default-locale copy must reach
+// every translation by IDENTITY, not by count: a count passes a transposed digit and an
+// edited host, which is how this class fails. Direction is source to target only: a
+// single digit rendered as a word ("1" -> "un") and a spelled-out number rendered as
+// digits ("thirty" -> "30") are legitimate, so only the source's literals are demanded.
+// Placeholders are stripped first (they are the parity check's job), and a reserved
+// example domain is exempt because a translation localises it on purpose
+// (you@example.com -> vous@exemple.com). A key whose last segment ends in "Placeholder"
+// is exempt for the same reason: it is an illustrative sample for an input
+// (name@company.com, github.com/owner/repo) that every locale localises. Measured
+// 2026-10-14 on this repo's catalogs: without that exemption 7 keys per locale fire,
+// all samples; with it the shipped catalogs carry no literal drift.
+const URL_LITERAL = /https?:\/\/[\w-]+(?:\.[\w-]+)+[^\s)"'<>]*/g;
+const EMAIL_LITERAL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const NUMBER_LITERAL = /\d{2,}/g;
+export function carriedLiterals(value) {
+  const bare = value.replace(/\{[^{}]*\}/g, " ");
+  const urls = bare.match(URL_LITERAL) ?? [];
+  const rest = bare.replace(URL_LITERAL, " ");
+  const emails = (rest.match(EMAIL_LITERAL) ?? []).filter((e) => !/@example\.[a-z]+$/i.test(e));
+  const numbers = rest.replace(EMAIL_LITERAL, " ").match(NUMBER_LITERAL) ?? [];
+  return [...urls.map((v) => ["URL", v]), ...emails.map((v) => ["email", v]), ...numbers.map((v) => ["number", v])];
+}
+export function literalErrors(baseValue, value) {
+  const have = value.replace(/\{[^{}]*\}/g, " ");
+  const out = [];
+  for (const [kind, literal] of carriedLiterals(baseValue)) {
+    if (!have.includes(literal)) out.push(`${kind} "${literal}" from the default locale is missing or altered`);
+  }
+  return out;
+}
+
+// A message whose syntax does not parse is ONE defect. Brace balance is the cheap
+// fast-fail for the ICU compile, so the compile does not also report it, and the
+// placeholder and literal checks (which read a parse that does not exist) are skipped
+// for that unit by the caller: see syntaxError().
+export function syntaxError(value, locale) {
+  return braceError(value) || icuError(value, locale);
+}
+
 function contentProblems(locale, address, value) {
   const out = [];
-  const err = braceError(value) || icuError(value, locale);
+  const ctrl = controlCharError(value);
+  if (ctrl) out.push(`${locale}: "${address}" — ${ctrl}`);
+  const err = syntaxError(value, locale);
   if (err) out.push(`${locale}: "${address}" — ${err}`);
   const dash = dashError(value);
   if (dash) out.push(`${locale}: "${address}" — ${dash}`);
@@ -190,6 +249,12 @@ function contentProblems(locale, address, value) {
  */
 export function checkCatalogs(catalogs, defaultLocale) {
   const problems = [];
+  // Structured twin of the target-side problems that a SHARED SOURCE can cause:
+  // a placeholder the translation lost or invented, a message that will not
+  // compile, a key the locale lacks. Dash and orphan findings are excluded: they
+  // are the translator's own punctuation or leftovers, not what a source forces.
+  const targetFindings = [];
+  const note = (locale, address, check) => targetFindings.push({ locale, address, check });
   const walked = new Map();
   let totalUnits = 0;
   let totalCounted = 0;
@@ -237,18 +302,32 @@ export function checkCatalogs(catalogs, defaultLocale) {
 
     for (const [address, baseValue] of base.units) {
       if (!units.has(address)) {
-        if (!inMismatchedList(address)) problems.push(`${locale}: missing key "${address}" (present in ${defaultLocale})`);
+        if (!inMismatchedList(address)) {
+          problems.push(`${locale}: missing key "${address}" (present in ${defaultLocale})`);
+          note(locale, address, "missing-key");
+        }
         continue;
       }
       const value = units.get(address);
       problems.push(...contentProblems(locale, address, value));
+      if (braceError(value) || icuError(value, locale)) note(locale, address, "icu-syntax");
+      // Precondition: a unit that does not parse already has its one finding above.
+      if (syntaxError(value, locale)) continue;
+      const isSample = /Placeholder$/.test(address.split(".").pop().replace(/\[\d+\]$/, ""));
+      for (const e of isSample ? [] : literalErrors(baseValue, value)) problems.push(`${locale}: "${address}" — ${e}`);
       const baseVars = argNames(baseValue);
       const localeVars = argNames(value);
       for (const v of baseVars) {
-        if (!localeVars.has(v)) problems.push(`${locale}: "${address}" — missing placeholder {${v}}`);
+        if (!localeVars.has(v)) {
+          problems.push(`${locale}: "${address}" — missing placeholder {${v}}`);
+          note(locale, address, "placeholder-missing");
+        }
       }
       for (const v of localeVars) {
-        if (!baseVars.has(v)) problems.push(`${locale}: "${address}" — unexpected placeholder {${v}} (not in ${defaultLocale})`);
+        if (!baseVars.has(v)) {
+          problems.push(`${locale}: "${address}" — unexpected placeholder {${v}} (not in ${defaultLocale})`);
+          note(locale, address, "placeholder-unexpected");
+        }
       }
     }
     for (const [address, value] of units) {
@@ -264,6 +343,7 @@ export function checkCatalogs(catalogs, defaultLocale) {
 
   return {
     problems,
+    sourceSuspects: sourceSuspects(targetFindings),
     baseKeys: [...base.units.keys()],
     coverage: {
       locales: catalogs.length,
@@ -274,4 +354,32 @@ export function checkCatalogs(catalogs, defaultLocale) {
       totalCounted
     }
   };
+}
+
+/**
+ * Source defects from cross-language agreement: a source string whose targets fail
+ * checks in TWO OR MORE locales is more likely a defect of the shared source (an
+ * untyped placeholder, a fragment) than two translators slipping on one string.
+ * Advisory: it ranks triage, it does not block and it does not replace the
+ * per-locale findings. Every suspect cites each locale and the check that failed.
+ * The floor is an absolute count of distinct failing locales.
+ */
+export function sourceSuspects(findings, floor = 2) {
+  const byAddress = new Map();
+  for (const f of findings) {
+    if (!byAddress.has(f.address)) byAddress.set(f.address, new Map());
+    const perLocale = byAddress.get(f.address);
+    if (!perLocale.has(f.locale)) perLocale.set(f.locale, new Set());
+    perLocale.get(f.locale).add(f.check);
+  }
+  const out = [];
+  for (const [address, perLocale] of byAddress) {
+    if (perLocale.size < floor) continue;
+    out.push({
+      address,
+      locales: [...perLocale.keys()].sort(),
+      failures: [...perLocale].map(([locale, checks]) => ({ locale, checks: [...checks].sort() }))
+    });
+  }
+  return out.sort((a, b) => b.locales.length - a.locales.length || a.address.localeCompare(b.address));
 }

@@ -93,7 +93,7 @@ test("pipelineCalibrationPairs pairs the acting match_score with the screen-gate
 test("the hire axis scores ONLY a reached-Hired entry as a success", () => {
   // Reaches Hired: Screened → Interview → Offer → Hired.
   const hired = addEntry(88, HIRED_FAMILY);
-  for (let step = 0; step < 3; step += 1) assert.ok(actOnPipelineEntry(hired.id, "accept"));
+  for (let step = 0; step < 3; step += 1) assert.ok(actOnPipelineEntry(hired.id, "accept", undefined, { outcome: "offer_accepted" }));
 
   // Interviewed and still there: a SUCCESS on the advance axis, and on the hire
   // axis not an outcome at all — they may yet be hired. This single entry is the
@@ -227,9 +227,21 @@ test("the calibration route reads the acting producer by default and labels what
   );
   // The screening-floor suggestion is derived from advance rates; deriving it from
   // hire rates would silently change what a floor move is defended by.
+  // (challenge-r08 cv-analysis-archetypes/B: the derivation moved into the one helper
+  // all three calibration routes share; the route still gates it on the advance axis
+  // and the helper reads both its pair sets on that axis.)
   assert.match(
     routeSrc,
-    /outcome === "advance" \? recommendScreeningThreshold/,
+    /outcome === "advance"\s*\?\s*liveScreeningRecommendation\(/,
     "the threshold recommendation stays on the advance axis"
+  );
+  assert.equal(
+    (
+      readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../calibration-recommendation.ts"), "utf8").match(
+        /outcome: "advance"/g
+      ) ?? []
+    ).length,
+    2,
+    "the shared derivation reads both its pairs and its clean arm on the advance axis"
   );
 });

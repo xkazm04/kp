@@ -161,6 +161,8 @@ export function CompanionDock() {
         busy={dock.thread.busy}
         unread={dock.unread}
         label={t("dock.open")}
+        proposalCount={attention?.companion ?? 0}
+        proposalLabel={t("state.proposals", { count: attention?.companion ?? 0 })}
         focusOnMount={focusRest}
       />
     );
@@ -255,7 +257,7 @@ function CompanionToolbar({
 }) {
   return (
     <header className="relative z-10 flex items-center justify-between gap-2 border-b border-stone-200 bg-paper/95 px-3 py-2 backdrop-blur">
-      <p className="text-meta uppercase tracking-wide text-coral">{eyebrow}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{eyebrow}</p>
       <div role="group" aria-label={label} className="flex items-center gap-0.5">
         {extra}
         <button

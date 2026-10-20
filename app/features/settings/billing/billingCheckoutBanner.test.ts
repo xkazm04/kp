@@ -10,14 +10,14 @@ import { checkoutBannerState, shouldTrackCheckoutCompleted } from "./billingChec
 
 test("no banner when this isn't a checkout return", () => {
   assert.equal(
-    checkoutBannerState({ isCheckoutReturn: false, pollWindowElapsed: true, planReflectsPaid: true }),
+    checkoutBannerState({ isCheckoutReturn: false, pollWindowElapsed: true, entitlementReflected: true }),
     null,
   );
 });
 
 test("confirming while the webhook is still landing (window open, plan not yet paid)", () => {
   assert.equal(
-    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: false, planReflectsPaid: false }),
+    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: false, entitlementReflected: false }),
     "confirming",
   );
 });
@@ -25,11 +25,11 @@ test("confirming while the webhook is still landing (window open, plan not yet p
 test("confirmed ONLY once the billing state reflects a paid plan", () => {
   // Even before the poll window elapses, a reflected paid plan is a genuine success.
   assert.equal(
-    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: false, planReflectsPaid: true }),
+    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: false, entitlementReflected: true }),
     "confirmed",
   );
   assert.equal(
-    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: true, planReflectsPaid: true }),
+    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: true, entitlementReflected: true }),
     "confirmed",
   );
 });
@@ -37,7 +37,7 @@ test("confirmed ONLY once the billing state reflects a paid plan", () => {
 test("the timer alone NEVER asserts success — window elapsed but plan not reflected is 'unconfirmed'", () => {
   // This is the exact bug: the fixed timer used to flip to 'done' here and claim a plan.
   assert.equal(
-    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: true, planReflectsPaid: false }),
+    checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: true, entitlementReflected: false }),
     "unconfirmed",
   );
 });

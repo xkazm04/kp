@@ -94,5 +94,13 @@ class RedFlagBucketTest(unittest.TestCase):
         self.assertIn("1 evidence gap(s)", kit.summary)
 
 
+class CoreQuestionBucketsTest(unittest.TestCase):
+    def test_kit_has_behavioral_and_technical_questions(self) -> None:
+        kit = build_interview_kit(_candidate(), _job_fit([]))
+        buckets = {question.bucket for question in kit.questions}
+        self.assertIn("behavioral", buckets)
+        self.assertIn("technical", buckets)
+
+
 if __name__ == "__main__":
     unittest.main()

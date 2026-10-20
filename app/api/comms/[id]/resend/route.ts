@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
+import { getOutboxEntry, getPostingByToken, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { CommsSuppressedError, sendComm } from "@/app/_lib/comms";
+import { CommsBodyRejectedError, CommsSuppressedError, sendComm } from "@/app/_lib/comms";
 import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -25,6 +25,22 @@ const resendInFlight = new Set<string>();
 // each one read first) and pins a scripted loop at 6/min.
 const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
+/** The comms kind dispatchCaseInvite writes (stage-hooks-homework.ts reads it back). */
+const CASE_INVITE_KIND = "case_invite";
+/** The apply link dispatchCaseInvite interpolates: `${base}/devcase/apply/<token>`. */
+const APPLY_LINK_TOKEN = /\/devcase\/apply\/([A-Za-z0-9_-]+)/g;
+
+/** True when an assignment letter's apply link no longer collects work: a token no
+ *  posting of THIS team answers to, or one whose posting is not open. A letter with no
+ *  apply link at all is not judged here (nothing to go dead). */
+function caseInviteLinkIsDead(body: string, workspaceId: string): boolean {
+  const tokens = [...body.matchAll(APPLY_LINK_TOKEN)].map((m) => m[1]);
+  return tokens.some((token) => {
+    const posting = getPostingByToken(token);
+    return !posting || posting.workspaceId !== workspaceId || posting.status !== "open";
+  });
+}
+
 // W6-1 (SIM2/DEVO5/DEVS4) — re-deliver a dead-lettered (or stuck-queued) comm.
 // The system DELIBERATELY never auto-resends: business sends are gated on
 // durable event markers (the hasEvent pattern), so re-running automation skips
@@ -33,7 +49,7 @@ const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // message re-dispatches through the live channel as a NEW outbox row (the
 // original row is untouched, the trail stays append-only), and the resend is
 // stamped on the candidate's history when the ref resolves to an entry.
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // Identity first: a demo cookie is a valid session the proxy accepts, and
   // comms_relay_config is a single global row — without this, an anonymous demo
   // workspace dead-letter POSTs a real candidate-shaped envelope at the install's
@@ -62,15 +78,29 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         ? overrideBody.recipient.trim()
         : null;
 
-    const ws = await currentWorkspace();
     const original = getOutboxEntry(id, ws);
-    if (!original) return NextResponse.json({ error: "Message not found." }, { status: 404 });
+    // A `bounced` row is a delivery RECEIPT the relay wrote (comms-receipt.ts), not a
+    // message: its body is the relay's own detail text and its messageId is whatever the
+    // relay echoed. Re-sending it mailed relay-authored text to the candidate (or to a
+    // corrected address) under an identity kp never minted. A bounced SEND is resent by
+    // its own `sent` row, which this does not touch.
+    if (!original || original.status === "bounced") return NextResponse.json({ error: "Message not found." }, { status: 404 });
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
       return NextResponse.json({ error: "Message is missing fields and can't be resent." }, { status: 422 });
     }
     // A (SIM) row was recorded on the simulation channel precisely so it never reaches
     // the relay (wave 16); resending it would. Refuse with a code the outbox renders.
     if (original.channel === SIM_COMMS_CHANNEL) return jsonRefusal("COMM_SIMULATION_ROW", 409);
+    // No dead links handed out (challenge-r09 devcase-lifecycle/B). An assignment letter
+    // carries its posting's apply link in the stored body, and this door re-sends that
+    // body verbatim — so once the posting's intake was stopped (or its token no longer
+    // resolves) the resend would mail a link that answers 410. Refused with the code the
+    // apply door itself answers. The outbox row carries no posting status, so no client
+    // can withhold the button for this; the refusal is the guard and the button renders
+    // the coded reason.
+    if (original.kind === CASE_INVITE_KIND && caseInviteLinkIsDead(original.body, ws)) {
+      return jsonRefusal("POSTING_CLOSED", 410);
+    }
     // Per-IP, AFTER the cheap refusals (in-flight, unknown id, missing fields) so a
     // rejected click costs no budget, and BEFORE the dedup read and the relay call.
     if (!rateLimit(`comms-resend:${clientIpFrom(request.headers)}`, RESEND_RATE_LIMIT)) {
@@ -112,6 +142,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // an entry-less comm (a KO decline) would otherwise resend into the default
       // team's Comms Center and vanish from the one that triggered it.
       workspaceId: ws,
+      // ONE identity per logical message: the original's id is both the envelope
+      // `messageId` and the Idempotency-Key, so a receiver that already accepted the
+      // first attempt drops this one, and a receipt echoing the id still names this
+      // message. A legacy row has none — sendComm mints a fresh one for it.
+      messageId: original.messageId ?? undefined,
     });
     if (original.ref && getPipelineEntry(original.ref, ws)) {
       recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`, ws);
@@ -126,8 +161,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // decision as a 500 the recruiter would retry. 409: the door works, the state
     // forbids it.
     if (error instanceof CommsSuppressedError) return jsonRefusal("COMMS_SUPPRESSED", 409);
+    // A letter over the length cap is refused deterministically in sendComm; a 500 would read as retryable.
+    if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
     return safeJsonError(error, "api:comms:resend", "OUTREACH_FAILED");
   } finally {
     resendInFlight.delete(id);
   }
-}
+});

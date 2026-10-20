@@ -1,0 +1,218 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 04 - SCREEN (every CV, read for real). Scoped under .dio-screen; keyframes are prefixed dio-screen-.
+   Sized in u on desktop; the phone block at the end reflows the scene into normal flow (px, nothing scaled).
+   Side 'r' mirrors the layout (the result always flows toward the page line); the base drawing is the complete end state. */
+
+.mk.mk-about .dio-screen { --coral-d: color-mix(in srgb, var(--sc) 62%, var(--ink)); --ok: var(--led-ok); --wait: var(--led-wait); }
+
+/* ---------- gradient ramps ---------- */
+.mk.mk-about .dio-screen .br0 { stop-color: color-mix(in srgb, var(--amber-hi) 52%, #fffaf0); }
+.mk.mk-about .dio-screen .br1 { stop-color: var(--amber-hi); }
+.mk.mk-about .dio-screen .br2 { stop-color: var(--amber); }
+.mk.mk-about .dio-screen .br3 { stop-color: color-mix(in srgb, var(--amber) 58%, var(--ink)); }
+.mk.mk-about .dio-screen .hd0 { stop-color: color-mix(in srgb, var(--sc-hi) 60%, #fffaf0); }
+.mk.mk-about .dio-screen .hd1 { stop-color: var(--sc-hi); }
+.mk.mk-about .dio-screen .hd2 { stop-color: var(--coral-d); }
+.mk.mk-about .dio-screen .lg0 { stop-color: #fffdf6; }
+.mk.mk-about .dio-screen .lg1 { stop-color: color-mix(in srgb, var(--cream) 78%, var(--sc-hi)); }
+.mk.mk-about .dio-screen .sh0 { stop-color: #03090c; stop-opacity: .5; }
+.mk.mk-about .dio-screen .sh1 { stop-color: #03090c; stop-opacity: .2; }
+.mk.mk-about .dio-screen .sh2 { stop-color: #03090c; stop-opacity: 0; }
+
+/* ---------- stage ---------- */
+.mk.mk-about .dio-screen .sc-stage { position: absolute; inset: 0; z-index: 1; }
+.mk.mk-about .dio-screen .sc-stage > * { position: absolute; }
+
+/* the sheet: cream paper, 15 lines of "text" (bars), three of them evidence */
+.mk.mk-about .dio-screen .sc-sheet {
+  left: calc(var(--u) * 6.2); top: calc(var(--u) * 1.7); width: calc(var(--u) * 13.4); height: calc(var(--u) * 21.4); padding: calc(var(--u) * 1);
+  border-radius: calc(var(--u) * .55); background: linear-gradient(165deg, #fffdf6, var(--cream) 46%, #efe6d2); color: var(--ink); overflow: hidden; rotate: -1.1deg;
+  box-shadow: 0 calc(var(--u) * .35) calc(var(--u) * .9) rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1);
+}
+.mk.mk-about .dio-screen .sc-sheet::after { content: ""; position: absolute; right: 0; top: 0; width: calc(var(--u) * 2.2); height: calc(var(--u) * 2.2); background: linear-gradient(225deg, rgba(23, 32, 42, .0) 50%, #d8ccb0 50%); border-bottom-left-radius: calc(var(--u) * .45); box-shadow: -1px 1px 0 rgba(23, 32, 42, .18); }
+.mk.mk-about .dio-screen .sc-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: calc(var(--u) * .8); height: calc(var(--u) * 2.6); margin-bottom: calc(var(--u) * 1); }
+.mk.mk-about .dio-screen .sc-av { width: calc(var(--u) * 2.4); height: calc(var(--u) * 2.4); border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--steel-hi) 60%, #fff), var(--steel)); box-shadow: 0 0 0 max(1.5px, calc(var(--u) * .1)) var(--ink); }
+.mk.mk-about .dio-screen .sc-hb { display: grid; gap: calc(var(--u) * .5); }
+.mk.mk-about .dio-screen .sc-hb i { display: block; height: calc(var(--u) * .5); border-radius: 99px; width: var(--w); background: rgba(23, 32, 42, .62); }
+.mk.mk-about .dio-screen .sc-hb i + i { background: rgba(23, 32, 42, .3); }
+.mk.mk-about .dio-screen .sc-tag { width: calc(var(--u) * 1.5); height: calc(var(--u) * .9); margin-right: calc(var(--u) * 1.6); border-radius: 99px; background: var(--amber-hi); box-shadow: 0 0 0 max(1px, calc(var(--u) * .08)) var(--ink); }
+.mk.mk-about .dio-screen .sc-lines i { display: block; height: calc(var(--u) * .5); margin-bottom: calc(var(--u) * .62); border-radius: 99px; width: var(--w); background: rgba(23, 32, 42, .2); }
+.mk.mk-about .dio-screen .sc-lines i.ev { background: var(--sc); box-shadow: 0 0 0 calc(var(--u) * .28) color-mix(in srgb, var(--sc) 24%, transparent); }
+.mk.mk-about .dio-screen .sc-scan { position: absolute; display: block; left: -4%; width: 108%; top: 0; height: calc(var(--u) * .36); background: var(--sc-hi); border-radius: 99px; opacity: 0; z-index: 2; box-shadow: 0 0 calc(var(--u) * 1) var(--sc-hi), 0 calc(var(--u) * -1.6) calc(var(--u) * 1.4) color-mix(in srgb, var(--sc-hi) 45%, transparent); }
+
+/* the fairness gate: post + striped boom arm. Static end state = lifted (the gate ran first). */
+.mk.mk-about .dio-screen .sc-gate { left: calc(var(--u) * .9); top: calc(var(--u) * 8.3); width: calc(var(--u) * 5.6); height: calc(var(--u) * 5.2); }
+.mk.mk-about .dio-screen .sc-post { position: absolute; left: calc(var(--u) * .3); top: calc(var(--u) * .9); width: calc(var(--u) * 1.25); height: calc(var(--u) * 4.3); border-radius: calc(var(--u) * .4) calc(var(--u) * .4) calc(var(--u) * .25) calc(var(--u) * .25); background: linear-gradient(90deg, #5b6b73, #2a353c 60%, #1b242a); box-shadow: 0 0 0 max(2px, calc(var(--u) * .16)) var(--ink), 0 calc(var(--u) * .3) calc(var(--u) * .4) rgba(0, 0, 0, .5), inset calc(var(--u) * .12) 0 0 rgba(255, 255, 255, .35); }
+.mk.mk-about .dio-screen .sc-lamp { position: absolute; left: 50%; top: calc(var(--u) * .3); width: calc(var(--u) * .62); height: calc(var(--u) * .62); margin-left: calc(var(--u) * -.31); border-radius: 50%; background: var(--ok); box-shadow: 0 0 calc(var(--u) * .7) var(--ok), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .6); }
+.mk.mk-about .dio-screen .sc-arm {
+  position: absolute; left: calc(var(--u) * .92); top: calc(var(--u) * 1.02); width: calc(var(--u) * 5); height: calc(var(--u) * .95); transform-origin: calc(var(--u) * .1) 50%; rotate: -84deg; z-index: 1;
+  border-radius: 99px; background: repeating-linear-gradient(-45deg, var(--sc) 0 calc(var(--u) * .75), var(--cream) calc(var(--u) * .75) calc(var(--u) * 1.5));
+  box-shadow: 0 0 0 max(2px, calc(var(--u) * .16)) var(--ink), 0 calc(var(--u) * .28) calc(var(--u) * .4) rgba(0, 0, 0, .45), inset 0 calc(var(--u) * .16) 0 rgba(255, 255, 255, .35);
+}
+.mk.mk-about .dio-screen .sc-tail { position: absolute; left: calc(var(--u) * -.1); top: calc(var(--u) * .78); width: calc(var(--u) * 1.15); height: calc(var(--u) * 1.4); border-radius: calc(var(--u) * .4); background: linear-gradient(#3a464d, #1b242a); box-shadow: 0 0 0 max(2px, calc(var(--u) * .14)) var(--ink); }
+/* 6.6u, not the prototype's 5.7u: the longest word of the label (FAIRNESS in English, FÉROVOSTI, FAIRNESS-) must fit
+   its box (82px floor: the label never goes under 14px while --u shrinks); the text keeps its anchored edge, so English reads exactly as before */
+.mk.mk-about .dio-screen .sc-gl { left: calc(var(--u) * .5); top: calc(var(--u) * 13.9); width: max(calc(var(--u) * 6.6), 82px); letter-spacing: .02em; }
+
+/* threads */
+.mk.mk-about .dio-screen .sc-svg { left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.mk.mk-about .dio-screen[data-side="r"] .sc-svg { transform: scaleX(-1); }
+.mk.mk-about .dio-screen .th-under { fill: none; stroke: rgba(0, 0, 0, .45); stroke-width: .42; stroke-linecap: round; }
+.mk.mk-about .dio-screen .th-line { fill: none; stroke: var(--sc-hi); stroke-width: .2; stroke-linecap: round; }
+.mk.mk-about .dio-screen .th-knot { fill: var(--sc-hi); stroke: var(--ink); stroke-width: .1; r: .34px; }
+
+/* chips */
+.mk.mk-about .dio-screen .sc-chips { left: calc(var(--u) * 23.6); top: 0; width: calc(var(--u) * 15.4); height: 100%; margin: 0; padding: 0; list-style: none; }
+.mk.mk-about .dio-screen .sc-chip {
+  position: absolute; left: 0; right: 0; height: calc(var(--u) * 3.9); display: grid; grid-template-columns: calc(var(--u) * 1.3) minmax(0, 1fr); column-gap: calc(var(--u) * .6); align-content: center; align-items: center;
+  padding: 0 calc(var(--u) * .8) 0 calc(var(--u) * .6); border-radius: calc(var(--u) * .8);
+  background: linear-gradient(180deg, #1c2d34, #121e24); box-shadow: 0 0 0 max(1.5px, calc(var(--u) * .12)) color-mix(in srgb, var(--sc) 75%, var(--ink)), 0 calc(var(--u) * .3) 0 rgba(0, 0, 0, .4), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .1);
+}
+.mk.mk-about .dio-screen .sc-chip1 { top: calc(var(--u) * 3.6); } .mk.mk-about .dio-screen .sc-chip2 { top: calc(var(--u) * 8.8); } .mk.mk-about .dio-screen .sc-chip3 { top: calc(var(--u) * 14); }
+.mk.mk-about .dio-screen .sc-port { grid-row: 1 / span 2; width: calc(var(--u) * 1.15); height: calc(var(--u) * 1.15); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffaf0, var(--sc-hi) 45%, var(--sc)); box-shadow: 0 0 0 max(1.5px, calc(var(--u) * .1)) var(--ink), 0 0 calc(var(--u) * .5) color-mix(in srgb, var(--sc) 70%, transparent); }
+.mk.mk-about .dio-screen .sc-ct { grid-column: 2; font-weight: 800; font-size: var(--fs-body); line-height: 1.1; color: var(--lcd-fg); white-space: nowrap; }
+.mk.mk-about .dio-screen .sc-m { grid-column: 2; position: relative; display: block; height: max(5px, calc(var(--u) * .38)); margin-top: calc(var(--u) * .35); border-radius: 99px; background: rgba(243, 236, 217, .16); overflow: hidden; }
+.mk.mk-about .dio-screen .sc-m i { position: absolute; inset: 0; width: var(--w); border-radius: inherit; background: linear-gradient(90deg, var(--sc), var(--sc-hi)); transform-origin: left center; }
+.mk.mk-about .dio-screen .sc-m3 i { width: 100%; background: repeating-linear-gradient(90deg, var(--sc-hi) 0 calc(var(--u) * .7), transparent calc(var(--u) * .7) calc(var(--u) * 1.05)); }
+
+/* score: 87 on a 0-100 ruler that splits "held for a human" from "advances" */
+.mk.mk-about .dio-screen .sc-score { --v: 87; left: calc(var(--u) * 23.6); top: calc(var(--u) * 19.3); width: calc(var(--u) * 15.4); height: calc(var(--u) * 9.7); }
+.mk.mk-about .dio-screen .sc-num { position: absolute; left: 0; top: calc(var(--u) * -.4); font-family: var(--f-display); font-weight: 800; letter-spacing: -.04em; line-height: 1; font-size: max(56px, calc(var(--u) * 6.6)); color: #fff9ea; font-variant-numeric: tabular-nums; text-shadow: 0 calc(var(--u) * .2) 0 var(--coral-d), 0 0 calc(var(--u) * 1.6) color-mix(in srgb, var(--sc) 60%, transparent); }
+.mk.mk-about .dio-screen .sc-range { position: absolute; right: 0; top: calc(var(--u) * .2); }
+.mk.mk-about .dio-screen .sc-adv { position: absolute; right: 0; top: calc(var(--u) * 2.2); padding: calc(var(--u) * .28) calc(var(--u) * .7); border-radius: 99px; background: var(--ok); color: var(--ink); box-shadow: 0 0 0 max(1.5px, calc(var(--u) * .1)) var(--ink), 0 0 calc(var(--u) * .9) color-mix(in srgb, var(--ok) 70%, transparent); }
+.mk.mk-about .dio-screen .sc-rule { position: absolute; left: 0; right: 0; top: calc(var(--u) * 6.7); height: calc(var(--u) * .95); border-radius: 99px; background: rgba(243, 236, 217, .14); box-shadow: inset 0 calc(var(--u) * .12) calc(var(--u) * .2) rgba(0, 0, 0, .6), 0 0 0 max(1px, calc(var(--u) * .08)) rgba(243, 236, 217, .25); }
+.mk.mk-about .dio-screen .sc-zone { position: absolute; right: 0; top: 0; bottom: 0; width: 25%; border-radius: 0 99px 99px 0; background: color-mix(in srgb, var(--ok) 34%, transparent); }
+.mk.mk-about .dio-screen .sc-fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--v) * 1%); border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, var(--sc) 70%, var(--ink)), var(--sc-hi)); }
+.mk.mk-about .dio-screen .sc-thr { position: absolute; left: 75%; top: calc(var(--u) * -.4); bottom: calc(var(--u) * -.4); width: max(2px, calc(var(--u) * .14)); background: var(--lcd-fg); opacity: .8; border-radius: 2px; }
+.mk.mk-about .dio-screen .sc-mark { position: absolute; top: 50%; left: calc(var(--v) * 1%); width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); margin: calc(var(--u) * -.75) 0 0 calc(var(--u) * -.75); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffaf0, var(--sc-hi) 50%, var(--sc)); box-shadow: 0 0 0 max(2px, calc(var(--u) * .14)) var(--ink), 0 calc(var(--u) * .25) calc(var(--u) * .4) rgba(0, 0, 0, .5); }
+.mk.mk-about .dio-screen .sc-held { position: absolute; left: 0; top: calc(var(--u) * 8.1); color: var(--lcd-dim); }
+.mk.mk-about .dio-screen .sc-score.is-low .sc-adv { background: rgba(243, 236, 217, .16); color: var(--lcd-dim); box-shadow: 0 0 0 max(1.5px, calc(var(--u) * .1)) rgba(243, 236, 217, .3); }
+.mk.mk-about .dio-screen .sc-score.is-low .sc-held { color: var(--wait); }
+
+/* mirrored layout: the sheet and gate go to the outer (right) side, chips and score to the inner one */
+.mk.mk-about .dio-screen[data-side="r"] .sc-sheet { left: auto; right: calc(var(--u) * 6.2); rotate: 1.1deg; }
+.mk.mk-about .dio-screen[data-side="r"] .sc-gate { left: auto; right: calc(var(--u) * .9); transform: scaleX(-1); }
+.mk.mk-about .dio-screen[data-side="r"] .sc-gl { left: auto; right: calc(var(--u) * .5); text-align: right; }
+.mk.mk-about .dio-screen[data-side="r"] .sc-chips,
+.mk.mk-about .dio-screen[data-side="r"] .sc-score { left: auto; right: calc(var(--u) * 23.6); }
+
+/* ---------- hero: the loupe, on the bezel's bottom outer corner ---------- */
+.mk.mk-about .dio-screen .dio-hero--a { bottom: calc(var(--u) * -2.5); left: calc(var(--u) * -2.9); width: calc(var(--u) * 15.5); height: calc(var(--u) * 15.5); }
+.mk.mk-about .dio-screen[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -2.9); }
+.mk.mk-about .dio-screen .lp-ink { stroke: var(--ink); stroke-width: 5; stroke-linejoin: round; }
+.mk.mk-about .dio-screen .lp-grip { fill: none; stroke: var(--coral-d); stroke-width: 4; stroke-linecap: round; opacity: .75; }
+.mk.mk-about .dio-screen .lp-hi { fill: none; stroke: #fffaf0; stroke-width: 3.4; stroke-linecap: round; opacity: .55; }
+.mk.mk-about .dio-screen .lp-ring { fill: none; stroke: var(--ink); stroke-width: 3.4; opacity: .85; }
+.mk.mk-about .dio-screen .lp-rimhi { fill: none; stroke: #fffaf0; stroke-width: 5.4; stroke-linecap: round; opacity: .9; }
+.mk.mk-about .dio-screen .lp-rivet { fill: var(--amber-hi); stroke: var(--ink); stroke-width: 2; }
+.mk.mk-about .dio-screen .lp-bar { fill: rgba(23, 32, 42, .36); }
+.mk.mk-about .dio-screen .lp-evbg { fill: color-mix(in srgb, var(--sc) 26%, transparent); }
+.mk.mk-about .dio-screen .lp-ev { fill: var(--sc); }
+.mk.mk-about .dio-screen .lp-evdot { fill: var(--cream); stroke: var(--ink); stroke-width: 2.4; }
+.mk.mk-about .dio-screen .lp-glassedge { fill: none; stroke: var(--ink); stroke-width: 3.4; }
+.mk.mk-about .dio-screen .lp-glint { fill: none; stroke: #fff; stroke-width: 7; stroke-linecap: round; opacity: .85; }
+.mk.mk-about .dio-screen .lp-glintdot { fill: #fff; opacity: .9; }
+.mk.mk-about .dio-screen .lp-band { fill: #fff; opacity: 0; }
+.mk.mk-about .dio-screen .hs-sp { fill: #fffaf0; transform-box: fill-box; transform-origin: center; }
+.mk.mk-about .dio-screen .hs-sp2 { fill: var(--sc-hi); }
+.mk.mk-about .dio-screen .hs-sp3 { fill: var(--amber-hi); }
+
+/* ---------- motion ---------- */
+@keyframes mka-dio-screen-sheet { from { opacity: 0; transform: translateY(calc(var(--u) * 1)); } }
+@keyframes mka-dio-screen-arm { from { rotate: 0deg; } 60% { rotate: -90deg; } }
+@keyframes mka-dio-screen-lamp { 0%, 55% { background: var(--sc-hi); box-shadow: 0 0 calc(var(--u) * .7) var(--sc-hi), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .6); } }
+@keyframes mka-dio-screen-scan { 0% { top: 0; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { top: calc(100% - var(--u) * .36); opacity: 0; } }
+@keyframes mka-dio-screen-read { from { opacity: .3; } }
+@keyframes mka-dio-screen-hl { from { background: rgba(23, 32, 42, .2); box-shadow: 0 0 0 0 transparent; } }
+@keyframes mka-dio-screen-draw { from { stroke-dashoffset: 1.02; } }
+@keyframes mka-dio-screen-chip { from { opacity: 0; transform: translateX(calc(var(--u) * -.9)); } }
+@keyframes mka-dio-screen-fill { from { transform: scaleX(0); } }
+@keyframes mka-dio-screen-fade { from { opacity: 0; } }
+@keyframes mka-dio-screen-hero { from { opacity: 0; transform: translate(calc(var(--u) * -1.4), calc(var(--u) * 1.6)) rotate(-8deg); } }
+@keyframes mka-dio-screen-bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(calc(var(--u) * -.28)) rotate(-1.2deg); } }
+@keyframes mka-dio-screen-sweep { 0% { transform: translateX(-90px); opacity: 0; } 12% { opacity: .5; } 40% { transform: translateX(210px); opacity: 0; } 100% { transform: translateX(210px); opacity: 0; } }
+@keyframes mka-dio-screen-twinkle { 0%, 100% { opacity: .55; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.18); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-screen .th-under,
+.mk.mk-about .dio-screen .th-line { stroke-dasharray: 1.02 1.02; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-sheet,
+.mk.mk-about .dio-screen:not(.is-in) .sc-chip,
+.mk.mk-about .dio-screen:not(.is-in) .sc-score,
+.mk.mk-about .dio-screen:not(.is-in) .dio-hero,
+.mk.mk-about .dio-screen:not(.is-in) .sc-gl { opacity: 0; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-arm { rotate: 0deg; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-lamp { background: var(--sc-hi); }
+  .mk.mk-about .dio-screen:not(.is-in) .th-under,
+.mk.mk-about .dio-screen:not(.is-in) .th-line { stroke-dashoffset: 1.02; }
+  .mk.mk-about .dio-screen:not(.is-in) .th-knot { opacity: 0; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-lines i { opacity: .3; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-lines i.ev { background: rgba(23, 32, 42, .2); box-shadow: none; }
+  .mk.mk-about .dio-screen:not(.is-in) .sc-m i { transform: scaleX(0); }
+
+  .mk.mk-about .dio-screen.is-in .sc-sheet { animation: mka-dio-screen-sheet .6s var(--ease) both; }
+  .mk.mk-about .dio-screen.is-in .sc-gl { animation: mka-dio-screen-fade .5s ease both .15s; }
+  .mk.mk-about .dio-screen.is-in .sc-arm { animation: mka-dio-screen-arm 1s var(--spring) both .3s; }
+  .mk.mk-about .dio-screen.is-in .sc-lamp { animation: mka-dio-screen-lamp 1.4s ease both .3s; }
+  .mk.mk-about .dio-screen.is-in .sc-scan { animation: mka-dio-screen-scan 1.7s linear both .85s; }
+  .mk.mk-about .dio-screen.is-in .sc-lines i { animation: mka-dio-screen-read .35s ease both; animation-delay: var(--d); }
+  .mk.mk-about .dio-screen.is-in .sc-lines i.ev { animation: mka-dio-screen-read .35s ease both, mka-dio-screen-hl .5s ease both; animation-delay: var(--d), var(--d); }
+  .mk.mk-about .dio-screen.is-in .th-under,
+.mk.mk-about .dio-screen.is-in .th-line { animation: mka-dio-screen-draw .75s var(--ease) both; animation-delay: calc(1.55s + var(--i) * .22s); }
+  .mk.mk-about .dio-screen.is-in .th-knot { animation: mka-dio-screen-fade .3s ease both; animation-delay: calc(1.55s + var(--i) * .22s); }
+  .mk.mk-about .dio-screen.is-in .sc-chip { animation: mka-dio-screen-chip .55s var(--ease) both; animation-delay: calc(1.85s + var(--i) * .22s); }
+  .mk.mk-about .dio-screen.is-in .sc-m i { animation: mka-dio-screen-fill .8s var(--ease) both; animation-delay: calc(2.1s + var(--i) * .22s); }
+  .mk.mk-about .dio-screen.is-in .sc-score { animation: mka-dio-screen-fade .5s ease both 2.3s; }
+  .mk.mk-about .dio-screen.is-in .dio-hero--a { animation: mka-dio-screen-hero .9s var(--spring) both .1s; }
+  .mk.mk-about .dio-screen.is-in .lp-page .lp-band { animation: mka-dio-screen-sweep 6.5s ease-in-out infinite 3s; }
+  .mk.mk-about .dio-screen.is-in .hs-sp1 { animation: mka-dio-screen-twinkle 3.2s ease-in-out infinite 1s; }
+  .mk.mk-about .dio-screen.is-in .hs-sp2 { animation: mka-dio-screen-twinkle 4s ease-in-out infinite 1.7s; }
+  .mk.mk-about .dio-screen.is-in .hs-sp3 { animation: mka-dio-screen-twinkle 3.6s ease-in-out infinite .5s; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-screen.is-in .dio-hero--a svg { animation: mka-dio-screen-bob 6s ease-in-out infinite 1.2s; transform-origin: 30% 90%; }
+}
+
+/* ---------- phones and portrait windows: normal flow, single column, px sizes (nothing is scaled) ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-screen .gl { padding: 16px 14px 24px; }
+  .mk.mk-about .dio-screen .sc-stage { position: relative; inset: auto; display: flex; flex-direction: column; gap: 14px; }
+  .mk.mk-about .dio-screen .sc-stage > * { position: relative; left: auto; right: auto; top: auto; width: auto; height: auto; }
+  .mk.mk-about .dio-screen[data-side="r"] .sc-stage > * { left: auto; right: auto; }
+  .mk.mk-about .dio-screen .sc-gate,
+.mk.mk-about .dio-screen .sc-svg { display: none; }
+  .mk.mk-about .dio-screen .sc-gl,
+.mk.mk-about .dio-screen[data-side="r"] .sc-gl { order: 0; display: flex; align-items: center; gap: 10px; width: auto; text-align: left; letter-spacing: .06em; }
+  .mk.mk-about .dio-screen .sc-gl::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok), 0 0 0 2px var(--ink); }
+  .mk.mk-about .dio-screen .sc-sheet,
+.mk.mk-about .dio-screen[data-side="r"] .sc-sheet { order: 1; width: 100%; height: 214px; padding: 12px; border-radius: 10px; rotate: none; }
+  .mk.mk-about .dio-screen .sc-sheet::after { width: 28px; height: 28px; }
+  .mk.mk-about .dio-screen .sc-head { height: 40px; margin-bottom: 12px; gap: 12px; }
+  .mk.mk-about .dio-screen .sc-av { width: 36px; height: 36px; box-shadow: 0 0 0 2px var(--ink); }
+  .mk.mk-about .dio-screen .sc-hb { gap: 7px; } .mk.mk-about .dio-screen .sc-hb i { height: 8px; }
+  .mk.mk-about .dio-screen .sc-tag { width: 24px; height: 14px; margin-right: 26px; box-shadow: 0 0 0 1.5px var(--ink); }
+  .mk.mk-about .dio-screen .sc-lines i { height: 8px; margin-bottom: 10px; }
+  .mk.mk-about .dio-screen .sc-lines i:nth-child(n+9) { display: none; }
+  .mk.mk-about .dio-screen .sc-lines i.ev { box-shadow: 0 0 0 4px color-mix(in srgb, var(--sc) 24%, transparent); }
+  .mk.mk-about .dio-screen .sc-scan { height: 5px; }
+  .mk.mk-about .dio-screen .sc-chips,
+.mk.mk-about .dio-screen[data-side="r"] .sc-chips { order: 2; display: grid; gap: 9px; height: auto; }
+  .mk.mk-about .dio-screen .sc-chips::before { content: ""; position: absolute; left: 19px; top: 24px; bottom: 24px; width: 3px; background: var(--sc-hi); border-radius: 2px; opacity: .8; }
+  .mk.mk-about .dio-screen .sc-chip { position: relative; left: auto; right: auto; top: auto; height: 54px; grid-template-columns: 22px minmax(0, 1fr); column-gap: 12px; padding: 0 14px 0 9px; border-radius: 12px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--sc) 75%, var(--ink)), 0 4px 0 rgba(0, 0, 0, .4); }
+  .mk.mk-about .dio-screen .sc-chip1,
+.mk.mk-about .dio-screen .sc-chip2,
+.mk.mk-about .dio-screen .sc-chip3 { top: auto; }
+  .mk.mk-about .dio-screen .sc-port { width: 22px; height: 22px; box-shadow: 0 0 0 2px var(--ink); }
+  .mk.mk-about .dio-screen .sc-m { height: 6px; margin-top: 6px; }
+  .mk.mk-about .dio-screen .sc-score,
+.mk.mk-about .dio-screen[data-side="r"] .sc-score { order: 3; height: 128px; margin-left: 108px; margin-right: 0; }
+  .mk.mk-about .dio-screen[data-side="r"] .sc-score { margin-left: 0; margin-right: 108px; }
+  .mk.mk-about .dio-screen .sc-num { top: -6px; font-size: 68px; }
+  .mk.mk-about .dio-screen .sc-adv { top: 30px; padding: 3px 10px; }
+  .mk.mk-about .dio-screen .sc-rule { top: 82px; height: 14px; }
+  .mk.mk-about .dio-screen .sc-thr { top: -6px; bottom: -6px; width: 3px; }
+  .mk.mk-about .dio-screen .sc-mark { width: 24px; height: 24px; margin: -12px 0 0 -12px; box-shadow: 0 0 0 2.5px var(--ink); }
+  .mk.mk-about .dio-screen .sc-held { top: 108px; }
+  .mk.mk-about .dio-screen .dio-hero--a { width: 122px; height: 122px; left: -6px; bottom: -22px; }
+  .mk.mk-about .dio-screen[data-side="r"] .dio-hero--a { left: auto; right: -6px; }
+}

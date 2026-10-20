@@ -1,0 +1,21 @@
+{
+  "card": "billing-subscriptions/B",
+  "title": "Daily subscription reconcile: flag a lost webhook, never rewrite state",
+  "status": "landed",
+  "base": "93aa36bd3",
+  "shas": ["77e26d344", "d963ba9e5", "38d621ea2", "c21568573", "201d080b5"],
+  "tests_added": [
+    "app/_lib/billing/subscription-reconcile.test.ts",
+    "app/_lib/billing/polar-gateway.test.ts (3 cases appended)",
+    "app/_lib/billing/alerts.test.ts (1 case appended, closed-vocabulary pin updated)",
+    "app/_lib/db/billing-tenancy.test.ts (DEPLOYMENT_ENUMERATIONS exemption, pinned read-only + bounded)"
+  ],
+  "cases_red_before": 13,
+  "cases_green_after": 13,
+  "cases_total": 13,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": 0, "design": null, "docs": 0, "api": null, "unit": 1, "ts_ratchet": 0, "perf": 1 },
+  "files_changed": 15,
+  "lines_changed": 784,
+  "deviations_from_card": "1) Critic revision applied: flag KP_BILLING_SUBSCRIPTION_RECONCILE=1 guards the REGISTRATION itself in instrumentation-node.ts (not 'registered disabled'): ensureSchedule is create-once and never re-reads defaults, so a row registered disabled could never be enabled by setting the flag later; with the flag unset no scheduler row is written and nothing runs (byte-identical), and runSubscriptionReconcile re-checks the flag (acceptance 5: flag unset -> {skipped:true}, zero fetches). A source-guard case pins the guard precedes ensureSchedule. README sandbox checklist gains step 7 (the pass owed before the flag is set in production); alerts.test.ts added. 2) The runner lives in subscription-reconcile.ts, not sync.ts: sync.ts is re-exported by the billing barrel, which most API routes import, and putting it there cost +1 module / ~8 KB on ~40 route graphs; sync.ts is untouched. 3) fetchProduct and fetchSubscription now share one private read() helper in polar.ts (identical wire behaviour; fetchProduct additionally refuses under KP_OFFLINE, which was already unreachable because polarGatewayFromEnv returns null offline). 4) The decision reuses reduceBillingEvent (what the webhook would have stored) instead of a second status vocabulary; drift kinds are missed_activation/missed_revocation/plan_mismatch/status_mismatch/missed_renewal. 5) Messages committed first (alone, under lock) so the typed t(`code.${kind}`) in BillingAlertsPanel stays green when the kind joins the union. 6) cases_total counts test cases across the 4 files (13); the card's 8 acceptance cases are all covered (Acceptance: 8 of 8).",
+  "notes": "Zero writes to billing_state/billing_credits/billing_usage: the GUARD case replays the charge-parity history, reports every stored subscription as revoked, and the snapshot stays byte-identical to charge-parity.json; only billing_alerts grows. All fetches are stubs; no live Polar call. unit: full npm run test:unit 10654/10655 - the one failure is app/_lib/python-runner-concurrency.test.ts 'an aborted spawn kills the whole process tree' (BROKEN, also fails run alone; untouched Python/process-tree test, unrelated to billing). perf: the working-tree measurement is inflated by CRLF on other files (autocrlf), so shares were measured in git-archive trees: this card's own share was +1 KB on eight route overrides (raised in 201d080b5 with a why) and 0 on app/page.tsx. app/page.tsx is ALREADY over on the base (1427 modules / 9067 KB vs ceiling 1426 / 9047 at d963ba9e5, i.e. before this card's feat commit) - a sibling's committed growth, left for integration. tsc: clean except untracked foreign kpi-sim/runs/** (not in the repo's tracked tree). Known gap (documented): a brand-new subscription whose every delivery was lost is invisible to a stored-id pull; needs a list-by-customer read."
+}

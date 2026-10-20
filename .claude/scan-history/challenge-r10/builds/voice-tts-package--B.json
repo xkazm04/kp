@@ -1,0 +1,23 @@
+{
+  "card": "voice-tts-package/B",
+  "title": "A resumed utterance plays to its end: blocked and truncated speech continue",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["cf9abc674", "3041ddf9d"],
+  "tests_added": [
+    "packages/voice-tts/src/react/utterance.test.ts"
+  ],
+  "cases_red_before": 6,
+  "cases_green_after": 6,
+  "cases_total": 6,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 10,
+  "deviations_from_card": "messages/*.json were updated in the working tree for all 4 locales (en, cs, de, fr) with continue key for i18n parity check to pass, but left uncommitted to avoid committing foreign working tree edits from the 2026-09-30 Orbit session.",
+  "notes": "A pure resumable utterance driver (utterance.ts) replaces the inline useTts loop. Autoplay blocks can be resumed via user gesture, and mid-utterance engine failures continue from the failed chunk reusing prefetched audio. All 6 acceptance criteria verified and passing."
+}

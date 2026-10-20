@@ -1,0 +1,253 @@
+{
+  "schema": "conform-run/1",
+  "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+  "subject": "translation-quality-measurement",
+  "evaluatedAt": "2026-10-15T03:01:23.199688+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "ci-doc-gates",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "deviation",
+      "evidence": "scripts/i18n/catalog-check.mjs:127 When the optional parsers are unavailable, the ASCII-only fallback misses unexpected non-Latin placeholders, allowing a decidable skeleton defect through the gate.",
+      "techniques": [
+        {
+          "technique": "cost-and-licence-of-measurement",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:88 This instrument validates ICU syntax; it does not select a translation-quality model."
+        },
+        {
+          "technique": "deterministic-checks-before-estimates",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:127 An in-memory execution with both optional parsers unavailable accepted an unexpected Cyrillic placeholder with problems: []."
+        },
+        {
+          "technique": "engine-quality-from-reviewer-corrections",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:143 The gate reads committed catalogs; it contains no machine-pretranslation approval or correction step."
+        },
+        {
+          "technique": "human-review-sampling-under-a-budget",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:521 Reported coverage counts automated string checks, without claiming a human review sample."
+        },
+        {
+          "technique": "language-scoped-check-exemptions",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:177 The shared dash restriction implements a documented product-copy rule, which the technique excludes from language orthography exemptions."
+        },
+        {
+          "technique": "per-pair-engine-selection",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:197 This pass receives existing locale catalogs and makes no translation-engine selection."
+        },
+        {
+          "technique": "reference-free-quality-estimation",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:244 This pass produces mechanical constraint findings without an estimator score or reviewer-priority queue."
+        },
+        {
+          "technique": "regression-detection-under-a-moving-engine",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:148 The gate checks catalog files already on disk; it does not regenerate them under changing engine configurations."
+        }
+      ]
+    },
+    {
+      "context": "models-keys-and-routing",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "deviation",
+      "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The routing panel assigns one posting_translate pin by use case, and its traced consumer resolves that pin without a language pair, preventing per-pair engine selection.",
+      "techniques": [
+        {
+          "technique": "per-pair-engine-selection",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 modelsRoutingSections.ts:31 includes posting_translate; posting_translate_cli.py:104 resolves its provider without source or target language, and llm-quality.ts:142 explicitly declares translation unmeasured."
+        }
+      ]
+    },
+    {
+      "context": "lint-quality-gates",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
+      "techniques": [
+        {
+          "technique": "context-sufficiency-signals",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:191 Inputs are source files scanned for suppression directives."
+        },
+        {
+          "technique": "cost-and-licence-of-measurement",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/ci-budget.mjs:145 The budget governs CI job duration; no translation-quality model is chosen."
+        },
+        {
+          "technique": "deterministic-checks-before-estimates",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:141 These deterministic rules recognize code suppressions, without translated text to validate."
+        },
+        {
+          "technique": "engine-quality-from-reviewer-corrections",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:148 The counted changes concern TypeScript directives, without machine-pretranslation review records."
+        },
+        {
+          "technique": "error-typology-over-a-single-score",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ratchet.mjs:102 Findings classify suppression-budget changes; translation-error categories have no input here."
+        },
+        {
+          "technique": "human-review-sampling-under-a-budget",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/ci-budget.mjs:107 Measurements use CI timestamps, without a human translation-review sample."
+        },
+        {
+          "technique": "language-scoped-check-exemptions",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:112 The rule recognizes programming-language directive syntax; natural-language orthography exemptions do not apply."
+        },
+        {
+          "technique": "per-pair-engine-selection",
+          "verdict": "not-applicable",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:130 The measurement population is Ruff diagnostics, without translation engines or language pairs."
+        },
+        {
+          "technique": "reference-free-quality-estimation",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/check-budget.mjs:205 The reported quantities measure import-graph size."
+        },
+        {
+          "technique": "regression-detection-under-a-moving-engine",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/devbench.mjs:55 Regression detection compares server timings; translation configuration drift is outside this instrument."
+        }
+      ],
+      "absenceTerms": [
+        "pretranslation",
+        "termbase"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "translation-quality-measurement",
+      "context": "devcase-core",
+      "reason": "withdrawn after review: reviewer (sonnet): devcase/evaluate.py holds deterministic cs/de/fr translation tables (_DET, _t) and a language_directive for localized narrative, and the anchor lifecycle_audits.py:38 is just a QA prompt line that does not show the absence, so 'no translated store' is contradicted."
+    },
+    {
+      "subject": "translation-quality-measurement",
+      "context": "tests-scoring-fairness",
+      "reason": "withdrawn after review: reviewer (sonnet): Anchor test_tech_bilingual_parity.py:56 is an incidental requirements-list line, and the context includes test_i18n.py, which exercises language_directive/normalize_lang and the cs/de/fr translation behavior, so the not-applicable claim is not supported."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T03:01:23.199688+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "translation-quality-measurement"
+      ],
+      "techniques": [
+        "cost-and-licence-of-measurement",
+        "deterministic-checks-before-estimates",
+        "engine-quality-from-reviewer-corrections",
+        "human-review-sampling-under-a-budget",
+        "language-scoped-check-exemptions",
+        "per-pair-engine-selection",
+        "reference-free-quality-estimation",
+        "regression-detection-under-a-moving-engine"
+      ],
+      "deviations": 1,
+      "context": "ci-doc-gates",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T03:01:23.199688+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "translation-quality-measurement"
+      ],
+      "techniques": [
+        "per-pair-engine-selection"
+      ],
+      "deviations": 1,
+      "context": "models-keys-and-routing",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T03:01:23.199688+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "translation-quality-measurement"
+      ],
+      "techniques": [
+        "context-sufficiency-signals",
+        "cost-and-licence-of-measurement",
+        "deterministic-checks-before-estimates",
+        "engine-quality-from-reviewer-corrections",
+        "error-typology-over-a-single-score",
+        "human-review-sampling-under-a-budget",
+        "language-scoped-check-exemptions",
+        "per-pair-engine-selection",
+        "reference-free-quality-estimation",
+        "regression-detection-under-a-moving-engine"
+      ],
+      "deviations": 0,
+      "context": "devcase-core",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T03:01:23.199688+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "translation-quality-measurement"
+      ],
+      "techniques": [
+        "context-sufficiency-signals",
+        "cost-and-licence-of-measurement",
+        "deterministic-checks-before-estimates",
+        "engine-quality-from-reviewer-corrections",
+        "error-typology-over-a-single-score",
+        "human-review-sampling-under-a-budget",
+        "language-scoped-check-exemptions",
+        "per-pair-engine-selection",
+        "reference-free-quality-estimation",
+        "regression-detection-under-a-moving-engine"
+      ],
+      "deviations": 0,
+      "context": "lint-quality-gates",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T03:01:23.199688+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "translation-quality-measurement"
+      ],
+      "techniques": [
+        "context-sufficiency-signals",
+        "cost-and-licence-of-measurement",
+        "deterministic-checks-before-estimates",
+        "engine-quality-from-reviewer-corrections",
+        "error-typology-over-a-single-score",
+        "language-scoped-check-exemptions",
+        "per-pair-engine-selection",
+        "reference-free-quality-estimation",
+        "regression-detection-under-a-moving-engine"
+      ],
+      "deviations": 0,
+      "context": "tests-scoring-fairness",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

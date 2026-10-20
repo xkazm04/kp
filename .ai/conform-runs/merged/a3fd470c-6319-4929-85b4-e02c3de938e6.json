@@ -1,0 +1,174 @@
+{
+  "schema": "conform-run/1",
+  "worker": "a3fd470c-6319-4929-85b4-e02c3de938e6",
+  "subject": "authorization",
+  "evaluatedAt": "2026-10-18T00:22:46.016890+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "pipeline-api",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/pipeline/batch/route.ts:112 When capability checks fail on pipeline operations, the endpoint returns an unrecorded JSON refusal without logging an audit trail of the unauthorized attempt.",
+      "techniques": [
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:113 Refusals for missing pipeline:write capabilities return an unlogged JSON response without recording an audit event carrying caller identity or demanded capability."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/[id]/entry-actions.ts:46 The single-entry door defines a static spec table declaring required capabilities for each action adjacent to the dispatcher."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/authz-parity.test.ts:49 Capability enforcement is not executed at the dispatch chokepoint, leaving GET /api/pipeline with no in-handler capability check."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/[id]/route.ts:104 Actions not recognized by the entry actions table fail closed immediately before executing any mutation logic."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/route.ts:62 The natural language command route separates operator session channel trust from the pipeline:write capability, with preview actions inheriting the same tier as execution."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/batch/route.ts:66 Batch mutations apply the same workspace tenancy lookup as single reads and return the identical PIPELINE_ENTRY_NOT_FOUND refusal."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/route.ts:69 Pipeline commands verify the exact capability string pipeline:write defined in the system role model."
+        }
+      ]
+    },
+    {
+      "context": "jobseeker-api",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/jobseeker/profile/route.ts:63 Capability authorization on jobseeker profile updates is written as an imperative function call inside the route handler rather than declared as metadata at the dispatch chokepoint.",
+      "techniques": [
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/profile/route.ts:64 Capability refusals on jobseeker mutations return a jsonRefusal response that logs nothing, discarding denial audit context."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/postings/[id]/route.ts:71 Requirements are coded as imperative checks inside handler bodies rather than declared metadata extracted into a gate registry."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/postings/[id]/deepdive/route.ts:48 Capability gating happens inside the route handler after parameter resolution instead of at the dispatch chokepoint before dispatch."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/dialogs/route.ts:57 Requests specifying an unknown dialog kind outside the closed vocabulary fail closed immediately with a 404 refusal."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/sources/route.ts:43 Acquisition source creation enforces closed tiers and refuses Tier C sources lacking enable controls with a 403 status."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/postings/[id]/route.ts:98 Posting updates borrow the read path's exact 404 POSTING_NOT_FOUND response so write attempts on missing or foreign-workspace postings avoid an existence oracle."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/profile/route.ts:115 Profile erasure requires the exact capability string pipeline:write from the system's role capability vocabulary."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "authorization",
+      "context": "login-flow",
+      "reason": "The login-flow context implements the client-side sign-in UI and HTTP response status classification at /login, which belongs to authentication (establishing identity) rather than authorization (mapping identity to permissions and enforcing capability gates)."
+    },
+    {
+      "subject": "authorization",
+      "context": "platform-auth-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The evidence anchor, route-capability-coverage.test.ts:57 (the GATE regex and ratchet), scans every app/api route in the repo, so the verdict is about the repo as a whole. The members/[userId] route it also leans on is not among the listed context files. The 'silent 403, no audit event' claim rests "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T00:22:46.016890+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "authorization"
+      ],
+      "techniques": [
+        "authorization-audit",
+        "ceiling-before-consent",
+        "declarative-requirements",
+        "dispatch-chokepoint-gating",
+        "failure-direction",
+        "privilege-tiers",
+        "read-write-predicate-symmetry",
+        "scope-design",
+        "unregistered-is-stronger-than-refused"
+      ],
+      "deviations": 1,
+      "context": "platform-auth-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-18T00:22:46.016890+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "authorization"
+      ],
+      "techniques": [
+        "authorization-audit",
+        "declarative-requirements",
+        "dispatch-chokepoint-gating",
+        "failure-direction",
+        "privilege-tiers",
+        "read-write-predicate-symmetry",
+        "scope-design"
+      ],
+      "deviations": 1,
+      "context": "pipeline-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-18T00:22:46.016890+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "authorization"
+      ],
+      "techniques": [
+        "authorization-audit",
+        "declarative-requirements",
+        "dispatch-chokepoint-gating",
+        "failure-direction",
+        "privilege-tiers",
+        "read-write-predicate-symmetry",
+        "scope-design"
+      ],
+      "deviations": 1,
+      "context": "jobseeker-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

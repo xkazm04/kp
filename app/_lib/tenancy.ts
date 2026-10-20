@@ -49,6 +49,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // job_ingests dedup PK is (content_hash, workspace_id) — dedup never crosses teams.
   "jobs",
   "job_ingests",
+  // Durable go-live receipts per (job, workspace) (golive-receipt-store.ts).
+  // Tracks candidate sourcing and rediscovery alert raising across go-live attempts.
+  // Pinned by golive-receipt-tenancy.test.ts.
+  "job_golive_receipts",
   // D5 — the dev-studio outcome/calibration corpus (dev-outcomes.ts). Reclassified from
   // EXEMPT: it holds per-team hiring ground truth (who a team hired/rejected and how they
   // performed), and the promote-floor recommendation a recruiter acts on is computed from
@@ -73,6 +77,15 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // logConsentEvent auto-derive the tenant from the linked entry so the write side
   // needs no per-call-site threading (pipeline-events-tenancy.test.ts).
   "pipeline_events",
+  // The authored note thread on an entry (db/entry-notes.ts). Every statement binds
+  // workspace_id, and the insert DERIVES it from the entry (never from the caller), the
+  // way recordEvent does, so a note cannot be filed on another team's entry
+  // (entry-notes.test.ts). Erased with the entry in anonymizeEntry.
+  "pipeline_entry_notes",
+  // The Match results the server holds for a short while (db/match-runs.ts): POST /api/match
+  // writes them, POST /api/pipeline reads them to verify a Match add. Every statement binds
+  // workspace_id (match-runs-tenancy.test.ts); deleted per candidate in anonymizeEntry.
+  "match_run_results",
   "consent_events",
   // W0.6b — candidate NPS captured on the public status page. Scoped because it feeds a
   // team's metric pack: pooling it would let one team's candidate-experience number be
@@ -186,6 +199,46 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
   // by-id/token/entry_id ops are exempt (interviews-tenancy.test.ts).
   "interview_sessions",
+  // The interview director's append-only record (db/interview-events.ts, ADR 0010):
+  // turns, tool calls, stage directions and browser observations of a live call. EVERY
+  // statement binds workspace_id — the append is an INSERT…SELECT against the session
+  // row filtered by the same workspace, so an event cannot be filed under another team's
+  // session — with NO by-id exemption; the only other writer is the erasure DELETE,
+  // keyed by the entry's sessions (interview-events-tenancy.test.ts).
+  "interview_events",
+  // The job-level interview kit (db/interview-kits.ts): the versioned, append-only
+  // competencies + questions + FAQ every interview for one role is run from. Scoped with
+  // NO by-id carve-out even though the ROLE may be a shared corpus row (jobs.workspace_id
+  // NULL) — the same reasoning as job_translations: the kit is authored by one team,
+  // against one team's LLM spend, and a leaked kit id is what a minted interview link
+  // resolves, so an unscoped by-id read would hand another team the questions they wrote.
+  // The version key is (workspace_id, job_id, version), so one team publishing a new
+  // version can never renumber or overwrite another's (interview-kits-tenancy.test.ts,
+  // whose exemption list is empty). The rows hold NO candidate data by construction —
+  // the erasure scrub is entry-keyed and could not reach them — which is pinned
+  // separately by interview-kits-shape.test.ts.
+  "interview_kits",
+  // The interview FEEDBACK LETTER (db/interview-letters.ts): one row per application —
+  // the candidate's request, the machine's draft, the recruiter's final text, who decided
+  // and what delivery reported. Scoped with NO by-id carve-out: every read and write,
+  // point reads included, binds workspace_id, because a letter id travels through the
+  // recruiter's review queue and the task runner (whose params POST /api/tasks accepts from
+  // a client), so an unscoped by-id read would hand one team another team's letter about a
+  // named person. The PUBLIC request door never takes a letter id at all — it resolves the
+  // status token to the entry and derives the tenant from it (getEntryWorkspace), the rule
+  // every /api/status/[token] sibling follows. The unique key is (workspace_id, entry_id).
+  // Holds candidate personal data, so the erasure scrub blanks it
+  // (interview-letters-tenancy.test.ts, exemption list empty).
+  "interview_letters",
+  // First-contact outreach held for a human (db/outreach-letters.ts, comms scope C2): the
+  // draft, the approved revision and who approved it. NO by-id carve-out — the letter id
+  // travels through the approve/release routes, and an unscoped read would hand one team
+  // another team's letter to a named person. Unique key (workspace_id, entry_id). Holds
+  // candidate personal data, so the erasure scrub blanks it (outreach-letters-tenancy.test.ts).
+  "outreach_letters",
+  // Cohort Studio (db/analysis-cohorts.ts): NO by-id carve-out — every statement binds
+  // workspace_id (analysis-cohorts-tenancy.test.ts); erasure masks member labels.
+  "analysis_cohorts",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).
@@ -203,6 +256,31 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // filters/stamps workspace_id; a leaked intake id never resolves across
   // tenants (intakes-tenancy.test.ts).
   "role_intakes",
+  // The role-intake conversation's append-only HISTORY (db/intake-events.ts, Journey
+  // Analytics) — one row per round, derived from the same dialog `role_intakes` holds,
+  // so it inherits that table's strict posture: NO by-id exemption. Every statement in
+  // the store, and the boot backfill's INSERT in db/core.ts, binds workspace_id, and
+  // intake-events-tenancy.test.ts scans BOTH files so the backfill copy cannot drift out
+  // of scope. There is no public token and no candidate-facing read; the `id` is an
+  // AUTOINCREMENT integer, which is precisely the kind of guessable key a by-id carve-out
+  // must never be granted to.
+  "intake_events",
+  // A role's frozen, versioned rubric (db/role-rubrics.ts, ADR-0012 §2): operator-
+  // internal, no public token, so every statement — point reads included — binds
+  // workspace_id. The version UNIQUE is (workspace_id, job_id, version) because
+  // shared-corpus jobs carry a NULL workspace and two teams may each freeze their
+  // own rubric for the same job (role-rubrics-tenancy.test.ts).
+  "role_rubrics",
+  // The role-run ledger (db/role-runs.ts, ADR-0011, docs/features/hiring-pipeline/
+  // role-run-ledger.md): `role_runs` is one row per (job, cycle) and `role_run_stages`
+  // is its append-only log of stage artifacts. Operator-internal with no public token,
+  // so the strict rule applies — EVERY query, point reads included, filters or stamps
+  // workspace_id, with no by-id exemptions (role-runs-tenancy.test.ts). Stricter than
+  // convenience: a stage artifact is the evidence behind a person-affecting decision,
+  // which makes a cross-tenant read of one worse than a leak of a draft. Both take the
+  // "workspace" org-export default — a role run IS the org's hiring record.
+  "role_runs",
+  "role_run_stages",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on
@@ -280,6 +358,40 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "jobseeker_postings",
   // Dialogs: the seeker's CV-polish / fit conversations (jobseeker-dialogs-tenancy.test.ts).
   "jobseeker_dialogs",
+  // CVs already read: text + the draft it produced, one row per (workspace, seeker,
+  // content hash); reads also bind the seeker's user_id (jobseeker-cvs-tenancy.test.ts).
+  "jobseeker_cvs",
+  // The seeker's cross-device UI state: designed-CV choices and per-posting cover-note
+  // drafts, keyed by the profile row (jobseeker-ui-state-tenancy.test.ts).
+  "jobseeker_ui_state",
+  // One team's lifecycle of a SHARED corpus role, keyed (workspace_id, job_id); no
+  // by-id carve-out (job-workspace-state-tenancy.test.ts).
+  "job_workspace_state",
+  // The Gigs module (db/gigs-*.ts, vocabulary in gigs/types.ts): paid work a specialist
+  // agent drafts and the operator sends. Every read and write binds `workspace_id = ?`,
+  // point reads included, and there is NO carve-out and no tenant default - every store
+  // export takes workspaceId as its first, required argument.
+  // Sources: the operator's confirmed API list, incl. terms acknowledgements and the
+  // invalid-outcome streak that pauses a source (gigs-sources-tenancy.test.ts).
+  "gig_sources",
+  // Gigs: the listings, keyed (workspace_id, COALESCE(source_id,'manual'), external_key)
+  // so one workspace's scan or forward never touches another's row (gigs-tenancy.test.ts).
+  "gigs",
+  // Specialists: the hired agent + spec (recipes, exemplars, budget) a team built
+  // (gigs-specialists-tenancy.test.ts).
+  "gig_specialists",
+  // Attempts: one specialist run, its deliverable, the operator's review and its metered
+  // cost - a team's spend and draft work (gigs-attempts-tenancy.test.ts).
+  "gig_attempts",
+  // Outcomes: the append-only external verdicts, incl. money awarded
+  // (gigs-outcomes-tenancy.test.ts).
+  "gig_outcomes",
+  // Lessons: what an outcome taught a recipe, queued for the registry lander
+  // (gigs-lessons-tenancy.test.ts).
+  "gig_lessons",
+  // Plans: the three models' proposals for a gig and the one the operator accepted, with
+  // their cost and the mirrored milestone progress (gigs-plans-tenancy.test.ts).
+  "gig_plans",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -318,19 +430,34 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "billing_credits",
   "billing_usage",
   "billing_alerts",
+  // One row per meter debit, beside the billing_usage counter it explains (same
+  // transaction, same org_id). Org data under the same doctrine as its siblings, and
+  // billing-tenancy.test.ts pins that every statement on it binds org_id.
+  "billing_usage_journal",
   // Org/deployment-level CONFIG + METERING — set once per org/deployment and shared
   // across the org's teams, so isolated by org (like billing), NOT per-team-workspace.
   // None holds per-team-private candidate data. Per-team overrides (if ever wanted) are
   // a KP_MULTI_ORG / multi-tenant enhancement, not a KP_MULTI_WORKSPACE prerequisite.
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
-  "ats_config", // the org's outbound ATS webhook integration (one endpoint)
+  // The org's outbound ATS webhook integration (one endpoint). Still org-level — one row,
+  // no workspace column — but it now RECORDS the org that saved it (`owner_org_id`), and
+  // ats-egress refuses to mirror another organization's entries to it (F-1, security scan
+  // 2026-10-06 §A1). A NULL owner reads as the default org, so a pre-upgrade row and a
+  // single-org install are unchanged.
+  "ats_config",
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
   // W1.1 — the INBOUND sibling of ats_config: per-provider base URL, encrypted API token
   // and field map. Org-level for the same reason as its egress twin — an ATS account is
   // connected once for the company, not per hiring team. It holds no candidate data; the
   // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
   "ats_connections",
-  "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
+  // The org's outbound comms delivery relay (one endpoint; sibling of ats_config). Still
+  // org-level — one row, no workspace column — but it now RECORDS the org that saved it
+  // (`owner_org_id`), and the delivery boundary refuses to POST another organization's
+  // candidate messages to it (F-2, security scan 2026-10-06; comms.ts crossOrgRefusal). A
+  // NULL owner reads as the default org, so a pre-upgrade row and a single-org install are
+  // unchanged. The env relay (COMMS_WEBHOOK_URL) is host-level and is not org-checked.
+  "comms_relay_config",
   // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
   // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
   // drain cursor. Its own header says it is "modeled on comms-relay-store.ts down to the
@@ -339,6 +466,13 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // install and holding no candidate data. The per-tenant rows the drain produces land in
   // the tables scoped above. Lazy-store table (own openStore connection), hence also in
   // TENANCY_LAZY_TABLES; and a singleton with no org_id, hence ORG_CONFIG_NOT_PORTABLE.
+  // Still install-level and still exempt, but it now RECORDS ITS OWNER (`owner_org_id`,
+  // F-3): only the organization that saved the pairing may re-point, unpair or re-key it,
+  // and a drained delivery RECEIPT — a ref-addressed effect on an org-scoped ledger — is
+  // refused across that boundary; per-event lead/mail delivery deliberately is not, because
+  // the receiver token already carries the tenancy and the edge is every org's one inbound
+  // transport. A NULL owner reads as the default org, and the env pairing (KP_EDGE_URL) is
+  // host-level and not org-checked, exactly as for the relay above.
   "edge_config",
   // Agent-candidate bridge config (agent-hire/bridge-store.ts): the Personas desktop
   // app's base URL + encrypted pk_ API key + paired flag — deployment-level
@@ -347,6 +481,15 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // hired_agents/agent_activity, which ARE workspace-scoped).
   "personas_bridge",
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
+  // Targeted session revocation (auth/session-revocation.ts). The sibling of
+  // login_attempts and exempt for the same reason: it is deployment-global AUTH state,
+  // keyed by the PRINCIPAL a signed session names (`user:<sub>` / `op:<workspace>` /
+  // `ws:<workspace>`), not by tenant. A per-user revocation is deliberately NOT
+  // workspace-scoped — "sign out all devices" must follow the human across every team
+  // they belong to, so scoping it by workspace_id would leave their other teams' cookies
+  // alive, i.e. the invariant here is the OPPOSITE of the one this manifest enforces.
+  // It holds no candidate data: a principal key, an issue time, and a reason string.
+  "session_revocations",
   // Deployment-level LLM metering ledger (sibling of billing_usage; written off-request
   // from Python). ERASURE: exempt there too, and for a different reason than tenancy —
   // the ledger records that a machine call happened (model, tokens, latency, cost), never
@@ -381,6 +524,17 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
+  // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
+  // the inbound receiver, pull pass, edge drain and agent-report route. EXEMPT because a
+  // row is a GLOBALLY-UNIQUE DELIVERY DIGEST — sha256 of a key that already namespaces
+  // itself by the receiver's own capability token (or the edge pairing), the same shape
+  // of reason billing_events carries for the provider's global event id. The digest is
+  // one-way: no token, no header, no payload and no candidate data is stored (the store
+  // never persists the composed key, which embeds the raw token), so there is nothing a
+  // team could read of another's, nothing to export (orgExportClass -> exclude) and
+  // nothing an Art. 17 request could reach. Rows expire (lease / done-horizon) and are
+  // swept, so the table is bounded bookkeeping, not tenant data.
+  "webhook_claims",
 ]);
 
 /** Tables created LAZILY on a store's OWN better-sqlite3 connection (openStore), not by
@@ -408,6 +562,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "edge_config",
   "group_evals",
   "interview_preps",
+  "job_golive_receipts",
   "jd_templates",
   "login_attempts",
   "offers",
@@ -417,6 +572,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "schedule_invites",
   "scheduler",
   "scheduler_runs",
+  "session_revocations",
 ]);
 
 /** RETIRED tables: rows a PREVIOUS version of kp wrote and no current code path
@@ -541,6 +697,7 @@ export const ORG_EXPORT_OVERRIDES: ReadonlyMap<string, OrgExportClass> = new Map
   ["billing_credits", "org"],
   ["billing_usage", "org"],
   ["billing_alerts", "org"],
+  ["billing_usage_journal", "org"],
   // …except the webhook dedup ledger: its PK is the PROVIDER's globally-unique
   // event id (org_id is attribution only), so it is not org data and its keys
   // collide by construction.

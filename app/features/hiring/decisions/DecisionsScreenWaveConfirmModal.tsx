@@ -39,7 +39,7 @@ export function DecisionsScreenWaveConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={committing}
-            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
           >
             <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejectCount })}
           </button>
@@ -47,7 +47,7 @@ export function DecisionsScreenWaveConfirmModal({
       }
     >
       <p className="flex items-start gap-2 text-sm text-ink">
-        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-coral" />
+        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-coral-ink" />
         <span>{t("confirmBody", { count: rejectCount })}</span>
       </p>
     </Modal>

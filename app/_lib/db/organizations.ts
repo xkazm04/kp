@@ -57,10 +57,23 @@ export function updateOrganization(id: string, patch: { name?: string; domain?: 
   return Number(info.changes) > 0;
 }
 
-/** The org's default candidate-comms locale, validated at write so the column can
- *  only hold a supported locale (mirrors workspaces.default_locale). */
-export function setOrganizationLocale(locale: Locale, id: string = DEFAULT_ORG_ID): void {
+/** Set the org's language — the authority every team without an override follows.
+ *  One IMMEDIATE transaction also mirrors the legacy workspaces.default_locale of the
+ *  following teams; `clearOverrides` (the Organization tab's org-wide write) drops
+ *  every team override in the org first. */
+export function setOrganizationLocale(
+  locale: Locale,
+  id: string = DEFAULT_ORG_ID,
+  opts: { clearOverrides?: boolean } = {},
+): void {
   if (!isLocale(locale)) return;
   const db = ensureDb();
-  db.prepare(`UPDATE organizations SET default_locale = ? WHERE id = ?`).run(locale, id);
+  db.transaction(() => {
+    db.prepare(`UPDATE organizations SET default_locale = ? WHERE id = ?`).run(locale, id);
+    if (opts.clearOverrides) {
+      db.prepare(`UPDATE workspaces SET locale_override = NULL, default_locale = ? WHERE org_id = ?`).run(locale, id);
+    } else {
+      db.prepare(`UPDATE workspaces SET default_locale = ? WHERE org_id = ? AND locale_override IS NULL`).run(locale, id);
+    }
+  }).immediate();
 }

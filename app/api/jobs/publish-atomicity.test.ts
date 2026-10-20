@@ -72,13 +72,13 @@ const WS = DEFAULT_WORKSPACE_ID;
 test("publish's gate → flip → debit transaction commits as one unit", () => {
   upsertBillingState({ plan: "growth", status: "active", provider: "polar" });
   const { id } = insertJob({ id: "jd-atomicity-probe", title: "Atomicity probe" } as never, undefined, "draft", WS);
-  assert.equal(getJobStatus(id), "draft");
+  assert.equal(getJobStatus(id, WS), "draft");
   assert.equal(getJobOwnerWorkspace(id), WS);
   const before = billingUsageFor("job_posts", currentPeriod(new Date()));
 
   // The route's transaction body, verbatim in shape.
   const gate = ensureDb().transaction(() => {
-    const prevStatus = getJobStatus(id);
+    const prevStatus = getJobStatus(id, WS);
     if (prevStatus === "published") return { already: true, quota: null };
     const quota = jobPostGate(new Date(), WS);
     if (!quota) {
@@ -92,7 +92,7 @@ test("publish's gate → flip → debit transaction commits as one unit", () => 
   // must AGREE: both landed, or neither did.
   const out = gate();
   assert.equal(out.quota, null, "a growth plan's first role publishes");
-  assert.equal(getJobStatus(id), "published", "the status flip committed");
+  assert.equal(getJobStatus(id, WS), "published", "the status flip committed");
   assert.equal(
     billingUsageFor("job_posts", currentPeriod(new Date())) - before,
     1,

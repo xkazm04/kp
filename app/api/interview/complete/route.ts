@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import { attachInterviewScorecard, completeInterviewSession, getInterviewSessionByToken, type InterviewSession, type VoiceTurn } from "@/app/_lib/db/interviews";
+import { completeInterviewSession, getInterviewSessionByToken, type InterviewSession, type VoiceTurn } from "@/app/_lib/db/interviews";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
-import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
+import { resumedCallElapsedMs } from "@/app/_lib/voice/resume";
 import { isSelfHostedProvider } from "@/app/_lib/voice";
-import { runInterviewScorecard } from "@/app/_lib/interview-run";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
+import { finalizeCandidateInterviewScoring } from "@/app/_lib/interview-scorecard-commit";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
+import { listInterviewEvents } from "@/app/_lib/db/interview-events";
+import { ledgerTurnsFromEvents, transcriptOfRecord, type LedgerTurn } from "@/app/_lib/voice/transcript-of-record";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { isCandidateInterview } from "@/app/_lib/interview-rehearsal";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
@@ -71,9 +72,10 @@ function publicSessionView(session: InterviewSession | null): PublicSessionView 
 const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
-// the session is linked to a pipeline entry, also synthesize the scorecard
-// (Task 5) from the transcript and set the scorecard_review approval, so it
-// lands in the Decisions queue for the human Interview→Offer gate.
+// the session is a CANDIDATE interview (candidate mode AND a pipeline entry — never a
+// test-mode rehearsal or lab call), also synthesize the scorecard (Task 5) from the
+// transcript and set the scorecard_review approval, so it lands in the Decisions
+// queue for the human Interview→Offer gate.
 /** Hard cap on this public door's request body: a whole interview transcript. The turn count and per-turn text are clamped below; this is the bound BEFORE the heap holds it.
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
 const MAX_COMPLETE_BODY_BYTES = 1024 * 1024;
@@ -119,12 +121,45 @@ export async function POST(request: NextRequest) {
     // guards below because those guards now have to answer a question they never
     // asked: is this the same call reporting twice, or a DIFFERENT one whose turns
     // are about to be dropped? (voice/discarded-turns.ts)
-    const submitted: { role?: string; text?: string }[] = Array.isArray(body.transcript)
+    const submitted: { role?: string; text: string }[] = Array.isArray(body.transcript)
       ? (body.transcript as unknown[]).filter(
           (t): t is { role?: string; text: string } =>
             typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string"
         )
       : [];
+
+    // The transcript of RECORD (voice/transcript-of-record.ts): on a directed call the
+    // director's ledger already holds every turn it received, idempotent per (attempt,
+    // seq); the body only adds the unacknowledged tail after the ledger's last turn (a
+    // ledger capped at MAX_INTERVIEW_EVENTS_PER_SESSION anchors on its last STORED
+    // turn). Read here, before BOTH duplicate checks, so the terminal guard and the
+    // lost-race guard compare what would actually be stored. No ledger (lab, demos,
+    // undirected ElevenLabs, the eval harness) -> the body passes through unchanged.
+    // A ledger read failure degrades to that same passthrough, never to a refusal.
+    let ledgerTurns: LedgerTurn[] = [];
+    try {
+      ledgerTurns = ledgerTurnsFromEvents(listInterviewEvents(sessionId, session.workspaceId, { kinds: ["turn"], limit: 20_000 }));
+    } catch (ledgerErr) {
+      console.error(`[interview:complete] director ledger unreadable for session ${sessionId}; storing the submitted transcript.`, ledgerErr);
+    }
+    const record = transcriptOfRecord({ ledgerTurns, submitted });
+
+    // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
+    // see app/_lib/interview-transcript.ts). Track turns whose tail was actually
+    // discarded so an abnormally long turn is visible rather than silent. Logged
+    // below, after the refusals — a duplicate POST must not re-log its clamp.
+    let clippedTurns = 0;
+    let clippedChars = 0;
+    const clamped: VoiceTurn[] = record.turns.map((t) => {
+      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
+      if (clip > 0) {
+        clippedTurns += 1;
+        clippedChars += clip;
+      }
+      return turn;
+    });
+    // Turn-count cap (head+tail keep, in-band marker — see interview-transcript.ts).
+    const { turns: transcript, droppedTurns } = capTranscriptTurns(clamped);
 
     // Idempotency / terminal-state guard (idea-beb71894): a completed session is
     // done — a duplicate POST (network retry, second tab, provider disconnect
@@ -139,7 +174,7 @@ export async function POST(request: NextRequest) {
       // honest duplicate (the End fetch racing its own unload beacon, a network
       // retry, a replayed stash) still settles green, because its turns ARE the
       // stored ones. See discardedTurnCount for where that line is drawn.
-      const discardedTurns = discardedTurnCount(session.transcript, submitted);
+      const discardedTurns = discardedTurnCount(session.transcript, transcript);
       if (discardedTurns > 0) {
         console.warn(
           `[interview:complete] refused a second completion for session ${sessionId}: ` +
@@ -151,7 +186,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(session),
-        scorecard: session.scorecard ?? null,
       });
     }
 
@@ -171,27 +205,20 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
-    // see app/_lib/interview-transcript.ts). Track turns whose tail was actually
-    // discarded so an abnormally long turn is visible rather than silent.
-    let clippedTurns = 0;
-    let clippedChars = 0;
-    const clamped: VoiceTurn[] = submitted.map((t) => {
-      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
-      if (clip > 0) {
-        clippedTurns += 1;
-        clippedChars += clip;
-      }
-      return turn;
-    });
+    // Body turns the ledger contradicts: rewritten or inserted after the server had
+    // received the call. The COUNT only — the text is a candidate's words.
+    if (record.unanchored > 0) {
+      console.warn(
+        `[interview:complete] dropped ${record.unanchored} unanchored turn(s) for session ${sessionId}: ` +
+          `the submitted transcript disagreed with the director's ledger, which stands.`
+      );
+    }
     if (clippedTurns > 0) {
       console.warn(
         `[interview:complete] clamped ${clippedTurns} oversized turn(s) for session ${sessionId} ` +
           `(${clippedChars} chars discarded; per-turn cap).`
       );
     }
-    // Turn-count cap (head+tail keep, in-band marker — see interview-transcript.ts).
-    const { turns: transcript, droppedTurns } = capTranscriptTurns(clamped);
     if (droppedTurns > 0) {
       console.warn(
         `[interview:complete] capped transcript for session ${sessionId}: ` +
@@ -236,7 +263,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(session),
-        scorecard: session.scorecard ?? null,
       });
     }
 
@@ -247,7 +273,7 @@ export async function POST(request: NextRequest) {
     // offer-ready entry whose transcript modal showed nothing: a phantom gate
     // approval with no evidence behind it. Now the durable artifact lands
     // before any scoring side effect can exist.
-    const { session: persisted, applied } = completeInterviewSession(sessionId, { transcript, status });
+    const { session: persisted, applied, status: storedStatus } = completeInterviewSession(sessionId, { transcript, status });
     if (!applied) {
       // A concurrent completion won the row-level guard — its transcript stands.
       // Same question as the terminal guard above: if OUR turns are not in the
@@ -265,9 +291,14 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(persisted),
-        scorecard: persisted?.scorecard ?? null,
       });
     }
+
+    // What the row HOLDS now, not what this request decided from its pre-read. The
+    // write keeps a revoke that landed after the read (another process, between the
+    // read above and the UPDATE), so `status` may say "completed" while the row says
+    // "revoked" — and every "this interview counts" effect below keys on the row.
+    const finalStatus = storedStatus ?? status;
 
     // Billing debit (docs/features/billing/README.md): interview minutes are metered on the
     // completion whose write APPLIED (the row-level guard above also makes the
@@ -276,7 +307,16 @@ export async function POST(request: NextRequest) {
     // consent-gated start, clamped to [1, 2× the booked length] so a clock
     // anomaly can't drain the meter; no start timestamp falls back to the
     // booked duration.
-    if (status === "completed") {
+    //
+    // MODE-BLIND ON PURPOSE (spark interview-kit-template, WP-D). A `mode: "test"`
+    // session — a recruiter's kit rehearsal, a lab call — spent real provider minutes
+    // exactly like a candidate screen, so it is debited and priced exactly like one:
+    // the rehearse door reserved this worst case at mint (meterGate, the same shape as
+    // /simulate) and this is the matching debit. What a test session must NOT get is
+    // the CANDIDATE half below (scorecard, approval, decision) — and neither of these two
+    // writes names a candidate: the meter row is a per-org quantity, and the ledger row's
+    // only link back is the session id (interview-rehearsal.ts states the decision).
+    if (finalStatus === "completed") {
       const bookedMin = session.durationMin ?? 8;
       // Bill THIS attempt, not the whole life of the link. markInterviewStarted
       // COALESCEs started_at, so it keeps the FIRST connect — deliberate, that is
@@ -289,7 +329,8 @@ export async function POST(request: NextRequest) {
       // markInterviewStarted (and by nothing else while a call is live), so the
       // later of the two timestamps is when the current attempt actually started.
       // On a single-attempt session both are the same write, so the number is
-      // unchanged. The earlier, failed attempt stays unbilled — the existing rule.
+      // unchanged. The earlier, failed attempt stays unbilled — the existing rule —
+      // EXCEPT on a resumed directed call (below).
       // Read only while the row is still `in_progress`: that is precisely when the
       // last write WAS a connect. On a 'failed'/'created' row updated_at is an END
       // (or absent) timestamp, and trusting it there would under-bill to the
@@ -299,7 +340,20 @@ export async function POST(request: NextRequest) {
         session.status === "in_progress" && session.updatedAt ? Date.parse(session.updatedAt) : NaN;
       const attemptMs =
         Number.isFinite(touchedMs) && (!Number.isFinite(startedMs) || touchedMs > startedMs) ? touchedMs : startedMs;
-      const elapsedMin = Number.isFinite(attemptMs) ? Math.ceil((Date.now() - attemptMs) / 60_000) : bookedMin;
+      let elapsedMin = Number.isFinite(attemptMs) ? Math.ceil((Date.now() - attemptMs) / 60_000) : bookedMin;
+      // A RESUMED directed call bills every attempt of the conversation, measured on the
+      // director's clock (voice/resume.ts resumedCallElapsedMs): its earlier attempt
+      // finalized `failed` on purpose so the candidate could continue, and those minutes
+      // were spoken. Anything else keeps the current-attempt rule above. The 2× clamp
+      // below still bounds it.
+      try {
+        const resumedMs = resumedCallElapsedMs(session, Number.isFinite(attemptMs) ? attemptMs : null, Date.now());
+        if (resumedMs !== null) elapsedMin = Math.ceil(resumedMs / 60_000);
+      } catch (resumeErr) {
+        // The current-attempt reading stands: under-billing a resumed call is the safe
+        // direction, and the completion must not fail over a meter read.
+        console.error(`[interview:complete] resumed-call minutes unreadable for session ${sessionId}:`, resumeErr);
+      }
       // The 2× ceiling is single-sourced (maxBillableInterviewMin) so /create can
       // RESERVE exactly this amount — gate and debit read one function, never two
       // different numbers (the reserve-vs-debit bug this seam closes).
@@ -322,7 +376,7 @@ export async function POST(request: NextRequest) {
       // The llm_usage row below stays UNCONDITIONAL — voiceMinuteCostUsd already prices
       // these at 0, and a $0 ledger row is the truthful record that a call happened.
       if (!isSelfHostedProvider(session.provider)) {
-        recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId);
+        recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId, { kind: "interview_session", ref: session.id });
       }
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
@@ -354,46 +408,47 @@ export async function POST(request: NextRequest) {
     // truncated transcript is NEVER scored and never sets the scorecard_review
     // approval that feeds the Interview→Offer gate. Running this only on the
     // call whose write applied also means a duplicate POST can't double-score.
-    let scorecard: Record<string, unknown> | null = null;
+    //
+    // THE CANDIDATE GUARD (spark interview-kit-template, WP-D). Every side effect in
+    // this block writes against a CANDIDATE, so the block runs for a CANDIDATE
+    // INTERVIEW only — candidate mode AND an entry (interview-rehearsal.ts
+    // isCandidateInterview). A `mode: "test"` session never enters it, even one that
+    // somehow carries an entryId: a kit rehearsal or a lab call is the RECRUITER's own
+    // voice, and scoring it would put an AI verdict about a named person on the board,
+    // set the approval that opens their Interview→Offer gate, and seal it in their
+    // decision record. It used to gate on `session.entryId` alone, with no mode check.
+    // A test session keeps its transcript (persisted above) and is billed like any call
+    // (the debit above is mode-blind on purpose — see the billing block); it gets none
+    // of what follows.
     let updated = persisted;
-    if (session.entryId && status === "completed" && transcript.length > 0) {
-      // Token-driven flow (no session workspace): derive the entry's team so the scorecard
-      // + its Interview→Offer approval scope to the right tenant.
-      const ws = getEntryWorkspace(session.entryId);
+    if (isCandidateInterview(session) && finalStatus === "completed" && transcript.length > 0) {
       try {
-        scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
+        const finalized = await finalizeCandidateInterviewScoring(session, transcript);
+        if (finalized.attached && finalized.session) {
+          updated = finalized.session;
+        } else if (finalized.refusal) {
+          console.error(
+            `[interview:complete] scorecard refused (${finalized.refusal}) for session ${sessionId}; ` +
+              `the transcript is saved, the session stays unscored.`
+          );
+        }
       } catch (scoringErr) {
-        // Best-effort by design: the transcript is already persisted, and a failed
-        // synthesis must never lose it. The ABSENCE of a scorecard is already the
-        // durable state a reader sees (the drawer offers the transcript with no
-        // verdict, and the Interview->Offer gate stays unapproved), so no status
-        // column is added here - what was missing is the REASON, which only this log
-        // can carry. An operator sees a scored-nothing interview and needs to know
-        // whether the model was unreachable or the entry no longer resolves.
         console.error(
           `[interview:complete] scorecard synthesis failed for session ${sessionId} ` +
             `(entry ${session.entryId}); the transcript is saved, the verdict is not.`,
           scoringErr
         );
       }
-      if (scorecard) {
-        updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
-        // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
-        // its model/prompt version as the actor. Best-effort — never blocks complete.
-        const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
-        sealDecisionSafe({
-          kind: "ai_scorecard",
-          actor: `auto:${AUTOMATION_VERSION.scorecard}`,
-          policyVersion: AUTOMATION_VERSION.scorecard,
-          candidateRef: session.entryId,
-          rationale: `AI interview scorecard — recommendation: ${rec}.`,
-          reasonCode: "scorecard",
-          inputs: { recommendation: rec },
-        });
-      }
     }
 
-    return NextResponse.json({ ok: true, session: publicSessionView(updated), scorecard });
+    // The scorecard is NOT on this reply. The caller is the candidate's own browser
+    // (the session token is the only credential), and the scorecard carries the AI
+    // recommendation about them — a verdict the interviewer itself is forbidden to
+    // give (noJudgementClose) and a store row this public door must project, never
+    // forward. It used to ride all four replies here, a Network-tab away from every
+    // candidate. Recruiters read it through their own authenticated doors
+    // (/api/interview/by-entry, the transcript modal).
+    return NextResponse.json({ ok: true, session: publicSessionView(updated) });
   } catch (error) {
     return safeJsonError(error, "api:interview:complete", "INTERVIEW_COMPLETE_FAILED");
   }

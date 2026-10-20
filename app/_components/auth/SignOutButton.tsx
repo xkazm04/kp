@@ -1,7 +1,9 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { ConfirmDialog } from "@/app/_components/ConfirmDialog";
 import { leaveWorkspace } from "@/app/_lib/auth/session-nav";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 
@@ -17,13 +19,27 @@ import { railIconBtn } from "@/app/_components/ui/recipes";
  * full-width row in the level-2 panel. The name lives in aria-label + sr-only
  * text (and the tooltip), never in visible chrome.
  */
-export function SignOutButton() {
+export function SignOutButton({ hasSession = false }: { hasSession?: boolean }) {
   const t = useTranslations("nav");
   const label = t("signOut");
+  const [confirming, setConfirming] = useState(false);
   return (
-    <button type="button" onClick={() => void leaveWorkspace()} aria-label={label} title={label} className={railIconBtn(false)}>
-      <LogOut className="h-[18px] w-[18px] shrink-0" aria-hidden />
-      <span className="sr-only">{label}</span>
-    </button>
+    <>
+      <button type="button" onClick={() => hasSession ? setConfirming(true) : void leaveWorkspace()} aria-label={label} title={label} className={railIconBtn(false)}>
+        <LogOut className="h-[18px] w-[18px] shrink-0" aria-hidden />
+        <span className="sr-only">{label}</span>
+      </button>
+      {confirming ? (
+        <ConfirmDialog
+          title={t("signOutConfirmTitle")}
+          cancelLabel={t("signOutConfirmCancel")}
+          confirmLabel={label}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => { setConfirming(false); void leaveWorkspace(); }}
+        >
+          {t("signOutConfirmBody")}
+        </ConfirmDialog>
+      ) : null}
+    </>
   );
 }

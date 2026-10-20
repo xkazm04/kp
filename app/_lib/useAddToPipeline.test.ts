@@ -60,7 +60,7 @@ test("pipelineAddBody fixes stage to Screened and always carries roleFamily", ()
 });
 
 test("postPipelineAdd POSTs the built body as JSON to /api/pipeline", async () => {
-  const calls = stubFetch({ ok: true, json: () => ({ id: "e1" }) });
+  const calls = stubFetch({ ok: true, json: () => ({ entry: { id: "e1" }, created: true }) });
   const result = await postPipelineAdd("job1", "Staff Eng", {
     candidateId: "c1",
     candidateLabel: "Ada",
@@ -68,7 +68,7 @@ test("postPipelineAdd POSTs the built body as JSON to /api/pipeline", async () =
     matchScore: 82,
     roleFamily: "software_engineering",
   });
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, entryId: "e1" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "/api/pipeline");
   assert.equal(calls[0].init.method, "POST");

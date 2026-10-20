@@ -15,7 +15,7 @@
 // `0%` there would re-introduce the fabricated zero one layer down, in the artifact
 // that outlives the screen and gets pasted into a board deck.
 import type { ConversionGoals, FunnelRow } from "./analyticsFunnelEmptyState";
-import { withExportProvenance } from "./analyticsDecisionLogTypes";
+import { withExportProvenance } from "@/app/_lib/analytics-decision-types";
 
 /** Column headers, resolved by the caller so this module stays free of next-intl
  *  and can be driven directly by a test. */
@@ -106,7 +106,9 @@ export function funnelCsvRows(
 
 export type RoleCsvRow = {
   jobTitle: string;
-  koDeclined: number;
+  /** null = not attributable to this row (a title several reqs share, or a role-scoped
+   *  read) — exported as the em dash, never as a zero. */
+  koDeclined: number | null;
   total: number;
   reachedInterview: number;
   hired: number;
@@ -131,7 +133,7 @@ export function rolesCsvRows(
   const header = [labels.job, labels.koDeclined, labels.inPipeline, labels.reachedInterview, labels.hired, labels.hireRate];
   const body = rows.map((j) => [
     j.jobTitle,
-    j.koDeclined,
+    j.koDeclined ?? ABSENT,
     j.total,
     j.reachedInterview,
     j.hired,

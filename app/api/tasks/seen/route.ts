@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markTasksSeen } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded } from "@/app/_lib/api-response";
 
 // POST { ids: string[] } — acknowledge finished tasks (read/unread). Stamps
 // seen_at on the given TERMINAL rows; active rows are ignored so a finish that
@@ -9,7 +11,13 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // TasksIndicator badge clears only for outcomes the recruiter has really seen.
 const MAX_IDS = 200;
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
+  // Judged (route-capability-coverage): an ack is the reader's own bookkeeping — it
+  // stamps seen_at on this team's TERMINAL rows and changes no outcome — so it asks
+  // `read`, the seat every member holds, viewer included. What it refuses is a session
+  // that holds no seat on this team at all.
+  const denied = await requireCapabilityCoded("read", requireCapability);
+  if (denied) return denied;
   try {
     const body = (await request.json().catch(() => ({}))) as { ids?: unknown };
     const ids = Array.isArray(body.ids)
@@ -18,11 +26,11 @@ export async function POST(request: NextRequest) {
     if (ids.length === 0) return NextResponse.json({ seen: 0 });
     // Scoped so an ack can only clear THIS team's unread flags — the store already
     // filters on it, the route just never supplied one.
-    return NextResponse.json({ seen: markTasksSeen(ids, await currentWorkspace()) });
+    return NextResponse.json({ seen: markTasksSeen(ids, ws) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to mark tasks seen." },
       { status: 500 }
     );
   }
-}
+});

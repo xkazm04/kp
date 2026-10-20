@@ -10,6 +10,7 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { CommsVerdict } from "@/app/_lib/comms-view";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 // Cross-feature, deliberately: the receipt labels are ONE wording, and the Comms
 // Center's copy is the one that already exists in four locales (precedent:
 // DevVoiceScreenPanel reaching into features/hiring/pipeline).
@@ -26,13 +27,14 @@ import { isDeadLetter, type OutboxFacets, type OutboxFilters, type OutboxRowView
 const KIND_STYLE: Record<string, string> = {
   acknowledgement: "bg-moss/15 text-moss",
   schedule_invite: "bg-moss/15 text-moss",
+  schedule_nudge: "bg-moss/15 text-moss",
   interview_invite: "bg-moss/15 text-moss",
   case_invite: "bg-moss/15 text-moss",
   interview_confirmation: "bg-moss/15 text-moss",
   interview_reminder: "bg-moss/15 text-moss",
   offer: "bg-moss/15 text-moss",
   offer_reminder: "bg-moss/15 text-moss",
-  outreach: "bg-coral/15 text-coral",
+  outreach: "bg-coral/15 text-coral-ink",
   rejection: "bg-red-50 text-red-700",
   ko_decline: "bg-red-50 text-red-700",
 };
@@ -170,15 +172,17 @@ export function OutboxRows({
                       (Channels' BouncedResend), not a one-click retry. And a
                       `recovered` one already has a later delivery: offering the button
                       there produced a 409 "already re-sent" that reads like a fresh
-                      failure. Both still sort and highlight by their own verdict. */}
-                  {m.verdict === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
+                      failure. Both still sort and highlight by their own verdict. The
+                      door comes from the shared resendDoorOf. */}
+                  {resendDoorOf(m) === "retry" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                 </span>
-                {m.verdict === "bounced" ? (
+                {resendDoorOf(m) === "correctAddress" ? (
                   <div className="mt-1.5 font-normal normal-case">
                     <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
                   </div>
                 ) : null}
-                {isDeadLetter(m) && m.failureDetail ? (
+                {/* Every `failed` row states why, a refused one (no inbox, no door) included. */}
+                {(m.verdict === "failed" || isDeadLetter(m)) && m.failureDetail ? (
                   <p className="mt-1 max-w-[16rem] truncate font-normal normal-case text-steel" title={m.failureDetail}>
                     {m.failureDetail}
                   </p>

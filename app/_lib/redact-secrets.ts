@@ -35,6 +35,7 @@ const SCAN_SHAPES: Shape[] = [
   // Must precede the generic `sk-` rule so the marker names the vendor.
   { id: "openai-legacy", re: /sk-[A-Za-z0-9]{48}/g, repl: "sk-***" },
   { id: "elevenlabs", re: /\bsk_[a-f0-9]{20,}/g, repl: "sk_***" },
+  { id: "polar-webhook", re: /\bpolar_whs_[A-Za-z0-9]{24,}/g, repl: "polar_whs_***" },
   { id: "google", re: /AIza[A-Za-z0-9_-]{10,}/g, repl: "AIza***" },
   // The envelope line of a service-account JSON. Redacting the marker line is what
   // stops the blob being recognisable as one; the `private_key` inside it is caught

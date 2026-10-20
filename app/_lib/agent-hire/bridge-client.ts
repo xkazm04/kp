@@ -1,4 +1,5 @@
 import { readTextWithLimit } from "../request-body";
+import { BRIDGE_CIRCUIT_OPEN_MESSAGE, bridgeCircuitOpen, recordBridgeFailure, recordBridgeSuccess } from "./bridge-breaker";
 import { markBridgeOk, resolveBridge, type ResolvedBridge } from "./bridge-store";
 
 // Personas bridge client (WP1) — server-side fetch helpers, NEVER from the
@@ -233,11 +234,22 @@ export async function fetchConnectorCatalog(): Promise<ConnectorCatalogResult> {
 export type DispatchSpec = {
   name: string;
   mission: string;
-  systemPromptDraft: string;
+  /** The persona's system prompt, as the recruiting and App-master hires compose it.
+   *  ABSENT for a requirement-driven hire (a gig specialist): kp writes no prompt there,
+   *  and an absent key is left off the wire entirely - never sent as "". */
+  systemPromptDraft?: string;
   connectors: string[];
   maxBudgetUsd: number | null;
   maxTurns?: number | null;
   successMetrics: unknown[];
+  /** A requirement-driven hire's `kp.agent-requirements.v1` object (gigs/requirements.ts):
+   *  what the agent is for and must honour, from which Personas designs it. Carried as
+   *  `spec.requirements`; absent on every other hire, so their wire is unchanged. */
+  requirements?: unknown;
+  /** The model the persona runs on (a gig persona: gigs/plan-seats.ts GIG_PERSONA_MODEL).
+   *  `effort: null` = the runtime's default. Absent on every other hire, and then left off
+   *  the wire; a Personas build that predates it ignores the key. */
+  modelProfile?: { model: string; effort: string | null };
 };
 
 export type KpLink = {
@@ -252,7 +264,10 @@ export type KpLink = {
   intakeId?: string;
 };
 
-export type DispatchResult = { ok: true; requestId: string } | BridgeFailure;
+/** `autoApproved`: Personas approved the request on arrival (its operator's gig-persona
+ *  policy). Informational - the hire still reaches `active` through the push report or the
+ *  poll, exactly like a manually approved one. Absent when Personas did not say so. */
+export type DispatchResult = { ok: true; requestId: string; autoApproved?: boolean } | BridgeFailure;
 
 /** POST the persona request to Personas. `reportToken` is the capability the
  *  hired persona will report back with (the /api/agents/report/[token] route).
@@ -278,6 +293,18 @@ export type DispatchPassthrough = {
   simulation?: boolean;
   /** The Personas persona that asked for this role, when a persona did. */
   originPersonaId?: string;
+  /** File the hired persona into this Personas workspace (`POST /api/dev/workspaces`
+   *  minted it). A gig specialist is placed in its arena's workspace
+   *  (gigs/project.ts). Sent only when set; a Personas build that predates placement
+   *  ignores the key and files the persona where it always has. `projectId` (a gig
+   *  persona: the gig's own project, gigs/pairing.ts) binds the persona to that project;
+   *  sent only when set. */
+  placement?: { workspaceId: string; projectId?: string };
+  /** The hire's fit record ON THE WIRE, top-level. Only a gig persona sends it
+   *  (`{kind: "kp.gig-persona.v1", gigId, ...}`, gigs/specialist.ts): Personas reads
+   *  `fit.kind` to apply its operator's gig-persona approval policy. Every other hire keeps
+   *  its fit on kp's own row only, and the key stays off its wire. */
+  fit?: { kind: string } & Record<string, unknown>;
 };
 
 export async function dispatchPersonaRequest(
@@ -293,12 +320,18 @@ export async function dispatchPersonaRequest(
   if (!bridge.apiKey) {
     return { ok: false, error: "Personas is not paired — no API key configured (pair first, or set PERSONAS_BRIDGE_KEY)." };
   }
+  // Fail fast while Personas has been timing out / erroring, instead of paying the full
+  // BRIDGE_TIMEOUT_MS on every dispatch (bridge-breaker.ts).
+  if (bridgeCircuitOpen()) return { ok: false, error: BRIDGE_CIRCUIT_OPEN_MESSAGE };
   try {
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests`, {
       method: "POST",
       headers: headers(bridge.apiKey),
       body: JSON.stringify({
         kp,
+        // As the caller built it: JSON.stringify drops an undefined key, so a spec without
+        // `systemPromptDraft` / `requirements` sends neither, and a spec that has them sends
+        // them exactly as before - byte-identical for every hire that predates requirements.
         spec,
         reportToken,
         ...(appMaster ? { appMaster } : {}),
@@ -308,6 +341,15 @@ export async function dispatchPersonaRequest(
         // absent one as false since it shipped.
         ...(passthrough?.simulation ? { simulation: true } : {}),
         ...(passthrough?.originPersonaId ? { originPersonaId: passthrough.originPersonaId } : {}),
+        ...(passthrough?.placement?.workspaceId
+          ? {
+              placement: {
+                workspaceId: passthrough.placement.workspaceId,
+                ...(passthrough.placement.projectId ? { projectId: passthrough.placement.projectId } : {}),
+              },
+            }
+          : {}),
+        ...(passthrough?.fit?.kind ? { fit: passthrough.fit } : {}),
       }),
       redirect: "manual",
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
@@ -315,15 +357,22 @@ export async function dispatchPersonaRequest(
     // Checked BEFORE `!r.ok`: a redirect is not an HTTP status to report back
     // (status 0), and it must never read as an acceptance of the hire.
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
-    if (!r.ok) return upstreamFailure(r.status);
+    if (!r.ok) {
+      // A 5xx is Personas failing; a 4xx (401 dead key, refusal) is Personas answering.
+      if (r.status >= 500) recordBridgeFailure();
+      else recordBridgeSuccess();
+      return upstreamFailure(r.status);
+    }
     const read = await readBridgeJson<unknown>(r);
     if (!read.ok) return tooLargeFailure();
-    const body = unwrapEnvelope(read.value) as { requestId?: unknown } | null;
+    const body = unwrapEnvelope(read.value) as { requestId?: unknown; autoApproved?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
     markBridgeOk();
-    return { ok: true, requestId };
+    recordBridgeSuccess();
+    return { ok: true, requestId, ...(body?.autoApproved === true ? { autoApproved: true } : {}) };
   } catch (e) {
+    recordBridgeFailure();
     return failure(e);
   }
 }

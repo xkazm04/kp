@@ -15,8 +15,11 @@
 //   POST /heartbeat {at,cursor}  signed   → "I am awake", so the nudge stays quiet
 //
 // ACK AFTER APPLY, NEVER BEFORE. A crash between the two replays the tail on the
-// next tick, which is harmless (the intake core dedupes by idempotency key and again
-// by email); a crash between an ack and an apply would lose a candidate silently.
+// next tick, which is harmless because the intake core dedupes on the event's
+// idempotency key in a DURABLE claim (db/webhook-claims.ts — it outlives the crash
+// that causes the replay; the process-local Map it replaced did not, and a replayed
+// knockout lead was declined and emailed twice) and again by email for accepted
+// leads; a crash between an ack and an apply would lose a candidate silently.
 // The cursor is what the edge trusts, so `recordDrain` only ever moves it forward
 // over events that were actually applied.
 //
@@ -26,6 +29,7 @@
 // skipping past it. Deterministic refusals — an unknown token, a closed role, a lead
 // with no email — are HANDLED: they will never succeed on a retry, so they advance.
 
+import { createHash } from "node:crypto";
 import {
   getEdgeConfig,
   recordDrain,
@@ -37,9 +41,11 @@ import {
 } from "./edge-config";
 import { isSealedBody, signEdgePayload, unsealBody } from "./edge-crypto";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
-import { recordDeliveryReceipt } from "./comms-receipt";
+import { recordDeliveryReceipt, receiptOrgId } from "./comms-receipt";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { publicBaseUrl } from "./public-base-url";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
+import { egressSealed, SEALED } from "./egress-seal";
 
 /** Events applied per PAGE. The edge caps its own answer at 200; 50 keeps one HTTP
  *  round-trip small and the unseal/apply work per response bounded. */
@@ -95,6 +101,9 @@ export type DrainSummary = {
   error: string | null;
   /** The CLASS of the failure, which is what the card can say in four languages. */
   errorKind: EdgeErrorKind | null;
+  /** True when KP_NO_COMMS_EGRESS sealed this pass: nothing was fetched or acked and
+   *  the ledger was not written. Absent on every unsealed pass. */
+  sealed?: true;
 };
 
 // SSRF at the EDGE boundary. The edge URL is operator-supplied and stored;
@@ -176,8 +185,16 @@ export function mailToLead(body: unknown): Record<string, unknown> {
 
 type ApplyOutcome = "applied" | "skipped" | "hold";
 
-async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: string): Promise<ApplyOutcome> {
-  const body = await bodyOf(event, privateJwk);
+/** The idempotency key of one drained event: `edge:<pairing>:<seq>`, where the pairing
+ *  is a sha256 prefix of the edge URL. The URL itself stays out of the key (it is
+ *  deployment topology, and the claim store hashes keys anyway); the prefix is enough
+ *  to tell two pairings apart. */
+export function edgeIdempotencyKey(edgeUrl: string, seq: number): string {
+  return `edge:${createHash("sha256").update(edgeUrl).digest("hex").slice(0, 16)}:${seq}`;
+}
+
+async function applyEvent(event: EdgeEvent, edge: ResolvedEdge, origin: string): Promise<ApplyOutcome> {
+  const body = await bodyOf(event, edge.privateJwk);
   if (event.kind === "receipt") {
     const r = (body ?? {}) as { ref?: unknown; kind?: unknown; outcome?: unknown; detail?: unknown; recipient?: unknown };
     const ref = typeof r.ref === "string" ? r.ref.trim() : "";
@@ -186,6 +203,26 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
     // A malformed receipt is not retryable — the edge would hand back the same
     // bytes forever. Skip it (it is recorded in the drain summary either way).
     if (!ref || !kind || !outcome) return "skipped";
+    // F-3 — A RECEIPT IS A REF-ADDRESSED EFFECT ON AN ORG-SCOPED LEDGER. The ref alone
+    // decides which team's outbox gets a `bounced` row (comms-receipt.ts
+    // receiptWorkspace), and the drain's envelope proves an INSTALL, not a tenant — so a
+    // receipt naming another organization's entry wrote red rows into that organization's
+    // Comms Center from this organization's edge. Checked ONLY for a stored (UI-saved)
+    // pairing: the env pairing is host-level configuration serving the whole deployment,
+    // exactly like the env relay in F-2, and is told apart by `source` — never by a null
+    // owner, which a legacy stored row also has and which IS checked.
+    //
+    // SKIPPED, never HELD: a hold wedges the queue behind bytes the edge will hand back
+    // forever. The line names the two org ids and nothing else — operator vocabulary, no
+    // candidate data — and no outbox row is filed anywhere.
+    if (edge.source === "config") {
+      const owner = edge.ownerOrgId ?? DEFAULT_ORG_ID;
+      const receiptOrg = receiptOrgId(ref);
+      if (receiptOrg !== null && receiptOrg !== owner) {
+        console.warn(`[edge:drain] receipt refused: edge owner "${owner}", receipt organization "${receiptOrg}"`);
+        return "skipped";
+      }
+    }
     const applied = recordDeliveryReceipt({
       ref,
       kind,
@@ -197,15 +234,24 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
   }
 
   if (event.kind === "lead" || event.kind === "mail") {
+    // DELIBERATELY NOT ORG-CHECKED (F-3), and this is not an oversight to "fix" into the
+    // receipt branch's shape above. The edge is the install's SINGLE inbound transport for
+    // every organization on it — one pairing, one sealing keypair, one cursor — and a lead
+    // is routed by its own RECEIVER TOKEN, a workspace capability, so the tenancy is already
+    // carried per event by the thing that authenticates it. Refusing leads whose token
+    // belongs to another org than the pairing's owner would cut inbound candidates for every
+    // org but one. The boundary belongs on the DOORS that rewrite the pairing (api/edge,
+    // api/edge/pair) and on ref-addressed effects (the receipt branch), not here.
     if (!event.token) return "skipped"; // nothing to authenticate against
     const payload = event.kind === "mail" ? mailToLead(body) : body;
     const result = await ingestInboundLeadByToken({
       token: event.token,
       rawBody: JSON.stringify(payload ?? null),
       origin,
-      // The edge's sequence number IS the delivery's identity, so a replayed page
-      // collides on it and files nothing twice.
-      idempotencyKey: `edge:${event.seq}`,
+      // The edge's sequence number, NAMESPACED BY PAIRING, is the delivery's identity:
+      // a replayed page collides on it and files nothing twice, while a re-provisioned
+      // edge whose sequence restarts at 1 is a different edge, not a replay.
+      idempotencyKey: edgeIdempotencyKey(edge.url, event.seq),
     });
     if (!inboundHandled(result)) return "hold";
     return result.status === 200 && result.body.result === "accepted" ? "applied" : "skipped";
@@ -222,6 +268,27 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
  */
 export async function drainEdge(): Promise<DrainSummary> {
   const resolution = resolveEdgeDetailed();
+  // THE EGRESS SEAL. A process on a COPY of a real database holds the operator's real
+  // pairing; draining would GET /drain and POST /ack against their real edge, and the
+  // acked events would land in the scratch DB and never reach the real one. Read per
+  // call, before any lookup or fetch, and answer the "no information" shape: no ack, no
+  // recordDrain (so no error class either), cursor as it stands. Checked ahead of the
+  // unreadable-secret branch because that one writes the ledger.
+  if (egressSealed()) {
+    const sealedEdge = resolution.ok ? resolution.edge : null;
+    return {
+      configured: !!sealedEdge,
+      fetched: 0,
+      applied: 0,
+      skipped: 0,
+      cursor: sealedEdge ? sealedEdge.cursor : 0,
+      pending: null,
+      pages: 0,
+      error: null,
+      errorKind: null,
+      sealed: true,
+    };
+  }
   const edge = resolution.ok ? resolution.edge : null;
   const summary: DrainSummary = {
     configured: !!edge,
@@ -284,7 +351,7 @@ export async function drainEdge(): Promise<DrainSummary> {
       if (typeof event.seq !== "number" || event.seq <= cursor) continue; // already applied
       let outcome: ApplyOutcome;
       try {
-        outcome = await applyEvent(event, edge.privateJwk, origin);
+        outcome = await applyEvent(event, edge, origin);
       } catch (e) {
         // Unsealing or a store write blew up: HOLD. The event stays at the edge and
         // the operator gets a reason instead of a silently missing candidate.
@@ -341,6 +408,8 @@ export async function drainEdge(): Promise<DrainSummary> {
  * have already been at rest unsealed.
  */
 export async function pairEdge(): Promise<{ ok: boolean; error: string | null }> {
+  // Sealed: no keypair is minted or published, nothing is looked up.
+  if (egressSealed()) return { ok: false, error: SEALED };
   const resolution = resolveEdgeDetailed();
   // Same refusal, said plainly: publishing a key over a link we cannot sign is not a
   // thing that can succeed, and the route answers EDGE_PAIR_REFUSED for it.
@@ -369,6 +438,7 @@ export async function pairEdge(): Promise<{ ok: boolean; error: string | null }>
  * is switched off, which was the entire flaw in doing this locally.
  */
 export async function sendEdgeHeartbeat(): Promise<boolean> {
+  if (egressSealed()) return false; // sealed: no beat, and recordHeartbeat stays untouched
   const edge = resolveEdge();
   if (!edge) return false;
   try {

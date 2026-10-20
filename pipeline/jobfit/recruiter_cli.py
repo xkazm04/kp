@@ -16,10 +16,9 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import configure_stdio, emit_error, not_found
+from ._cli import configure_stdio, emit_error, resolve_job_arg
 from .llm import resolve_provider
-from .jobs import Job
-from .matching import MatchCandidate, load_corpus
+from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .recruiter import fairness_check, rank_candidates_for_job
 from .transform import build_match_candidate
@@ -45,15 +44,7 @@ def main(argv: list[str] | None = None) -> int:
             args.input_json.read_text(encoding="utf-8") if args.input_json else (sys.stdin.read() or "{}")
         )
         job_id = raw.get("jobId")
-        if args.job_json:
-            job = Job.model_validate(json.loads(args.job_json.read_text(encoding="utf-8")))
-        else:
-            jobs = load_corpus(args.jobs)
-            job = next((j for j in jobs if j.id == job_id), None)
-        if job is None:
-            # 404/`not_found` — the recruiter opened a job the corpus no longer
-            # carries; that is not an engine fault and must not read as one.
-            raise not_found(f"job not found: {job_id}")
+        job = resolve_job_arg(job_id, args.job_json, jobs_path=args.jobs)
 
         candidates: list[tuple[str, MatchCandidate]] = []
         skipped: list[dict[str, str]] = []

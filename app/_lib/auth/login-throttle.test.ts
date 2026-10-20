@@ -141,7 +141,11 @@ test("login and invite 429s set Retry-After from throttleRetryAfterMs", () => {
     ["invite", invite],
   ] as const) {
     assert.match(src, /throttleRetryAfterMs/, `${name} must read remaining window`);
-    assert.match(src, /["']Retry-After["']/, `${name} must send Retry-After on 429`);
+    // Through the ONE shared clamp (app/_lib/throttle-response.ts), never a hand-set
+    // header: the clamp both routes used to copy verbatim is gone (challenge
+    // 2026-09-22 shared-api-utilities/B; the tree rule lives in rate-limit-contract.test.ts).
+    assert.match(src, /withRetryAfter\(/, `${name} must send Retry-After on 429 via withRetryAfter`);
+    assert.doesNotMatch(src, /headers\.set\(\s*["'`]retry-after["'`]/i, `${name} must not hand-set Retry-After`);
   }
 });
 

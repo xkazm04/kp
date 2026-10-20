@@ -124,17 +124,23 @@ def excerpt(s: str) -> str:
 
 
 def workspace_of(session_id: str) -> str:
-    """The kp workspace a ``kp-<ws>`` session tag belongs to. Sessions minted
+    """The kp workspace in ``kp-<ws>[:<thread>]``. Sessions minted
     elsewhere (Athena's own ``cli``) fall back to the default workspace, so a
     shared tree never mis-attributes a foreign episode to a real tenant."""
     if not session_id.startswith("kp-"):
         return DEFAULT_WORKSPACE_ID
-    return session_id[3:] or DEFAULT_WORKSPACE_ID
+    return session_id[3:].split(":", 1)[0] or DEFAULT_WORKSPACE_ID
 
 
-def session_tag(workspace_id: str) -> str:
-    """The session identity kp writes into every episode: ``kp-<workspace>``."""
-    return f"kp-{(workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID}"
+def session_tag(workspace_id: str, thread_id: str = "") -> str:
+    """Keep tenant scope and, when supplied, the kp conversation identity."""
+    workspace = (workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID
+    # A CLI input is not necessarily from the kp route. Keep untrusted text out
+    # of the quoted Markdown frontmatter and the ``session:`` index tag.
+    thread = thread_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,120}", thread):
+        thread = ""
+    return f"kp-{workspace}:{thread}" if thread else f"kp-{workspace}"
 
 
 # ---------------------------------------------------------------------------
@@ -336,9 +342,14 @@ def _fts_quote(term: str) -> str:
     return '"' + term.replace('"', '""') + '"'
 
 
-def recall(query: str, limit: int = 6) -> list[dict]:
-    """BM25 over the brain-local index. Returns excerpts + relative paths; the
-    caller reads full bodies with ``read_episode`` when it wants them.
+def recall(query: str, limit: int = 6, *, workspace_id: str) -> list[dict]:
+    """BM25 over the brain-local index, scoped to ONE workspace. Returns excerpts
+    + relative paths; the caller reads full bodies with ``read_episode`` when it
+    wants them.
+
+    ``workspace_id`` is required and keyword-only: every episode is indexed with
+    the workspace its session belongs to (``workspace_of``), and an unscoped
+    recall would hand one team's conversations to another team's companion.
 
     An empty or unmatchable query returns [] rather than raising — a companion
     turn must never fail because recall found nothing."""
@@ -353,9 +364,10 @@ def recall(query: str, limit: int = 6) -> list[dict]:
                  FROM companion_brain_fts f
                  JOIN companion_brain_index i ON i.node_id = f.node_id
                 WHERE companion_brain_fts MATCH ?
+                  AND i.workspace_id = ?
              ORDER BY bm25(companion_brain_fts) ASC
                 LIMIT ?""",
-            (match, max(1, int(limit))),
+            (match, (workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID, max(1, int(limit))),
         ).fetchall()
     except sqlite3.OperationalError:
         # A malformed MATCH expression (an operator character survived quoting)
@@ -632,7 +644,7 @@ def append_episode(role: str, content: str, session_id: str) -> dict:
     """Write one episode. Disk is truth; every index is best-effort after it.
 
     ``session_id`` is the Personas-side session identity and should be
-    ``kp-<workspace>`` (see ``session_tag``) — it becomes the ``session``
+    ``kp-<workspace>[:<thread>]`` (see ``session_tag``) — it becomes the ``session``
     frontmatter key and the ``session:`` FTS tag on all three lanes.
 
     Returns ``{id, path, absPath, indexed, skipped}`` where ``skipped`` names

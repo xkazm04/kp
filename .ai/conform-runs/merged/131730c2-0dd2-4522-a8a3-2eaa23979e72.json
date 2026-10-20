@@ -1,0 +1,422 @@
+{
+ "schema": "conform-run/1",
+ "worker": "131730c2-0dd2-4522-a8a3-2eaa23979e72",
+ "subject": "markdown-vault",
+ "evaluatedAt": "2026-10-17T04:12:48.887067+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "pipeline-candidate-drawer",
+   "subject": "markdown-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/pipeline/candidate/state/useCandidateNote.ts:59 Searches found no vault terminology in the pipeline directory, and candidate notes are database-backed JSON updates rather than shared Markdown files.",
+   "techniques": [
+    {
+     "technique": "editor-interop",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/candidate/state/useCandidateNote.ts:56 The note editor writes through an HTTP API; no peer-edited note file was found."
+    },
+    {
+     "technique": "knowledge-integrity-lint",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts:44 The note supplies task input; no linked Markdown corpus requires integrity lint."
+    },
+    {
+     "technique": "link-graph-extraction",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/PipelineDrawerFooterLinks.tsx:25 Navigation addresses application records, without a note-link graph."
+    },
+    {
+     "technique": "mirror-indexes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/candidate/state/useCandidateNote.ts:80 Hydration consumes the server note, without a filesystem vault mirror."
+    },
+    {
+     "technique": "projection-covers-the-record",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/PipelineCandidateResultView.tsx:79 This renders task output rather than partitioning a note into indexed fields."
+    },
+    {
+     "technique": "read-triggered-reconciliation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/pipelineDrawerNote.ts:61 This guards form hydration, not reconciliation of an externally edited file index."
+    },
+    {
+     "technique": "replicated-substrate",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/candidate/state/useCandidateNote.ts:92 The close-time flush persists JSON, without a replicated Markdown tree."
+    },
+    {
+     "technique": "vault-as-database",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/pipeline.ts:2212 Candidate notes are SQL columns, not frontmatter-bearing file records."
+    },
+    {
+     "technique": "vault-walking",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/pipeline/PipelineDrawerHistoryList.tsx:38 History enumerates supplied rows rather than walking note files."
+    }
+   ],
+   "absenceTerms": [
+    "vault",
+    "frontmatter",
+    "wikilink",
+    "obsidian",
+    "backlinks"
+   ]
+  },
+  {
+   "context": "profile-editor",
+   "subject": "markdown-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:88 Searches found no vault terminology in the profile directory, whose editor submits structured profile records through JSON APIs.",
+   "techniques": [
+    {
+     "technique": "editor-interop",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/profileDraftMerge.ts:112 Conflict detection compares form values in memory, without shared note files."
+    },
+    {
+     "technique": "knowledge-integrity-lint",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/ProfileResultPanel.tsx:55 The surface reports profile completeness, without a knowledge-vault corpus."
+    },
+    {
+     "technique": "link-graph-extraction",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/profileEditorPayload.ts:45 Evidence links remain structured fields; no note-reference graph was found."
+    },
+    {
+     "technique": "mirror-indexes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorFields.ts:199 The backup serializes form state, without mirroring a Markdown vault."
+    },
+    {
+     "technique": "projection-covers-the-record",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/profileEditorPayload.ts:52 This builds the saved profile payload, not a search projection of note files."
+    },
+    {
+     "technique": "read-triggered-reconciliation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:96 Staleness concerns an API record version, without an external-file index."
+    },
+    {
+     "technique": "replicated-substrate",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorFields.ts:150 Draft recovery uses browser session storage, not a replicated note directory."
+    },
+    {
+     "technique": "vault-as-database",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 Persistence targets the profile API, whose implementation uses database records."
+    },
+    {
+     "technique": "vault-walking",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/ProfileForm.ts:121 Hydration enumerates payload entries rather than filesystem notes."
+    }
+   ],
+   "absenceTerms": [
+    "vault",
+    "frontmatter",
+    "wikilink",
+    "obsidian",
+    "backlinks"
+   ]
+  },
+  {
+   "context": "jd-library-core",
+   "subject": "markdown-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/jdsHooks.ts:43 Searches found no vault terminology in the JD directory, and the library loads database-backed JD records through HTTP APIs.",
+   "techniques": [
+    {
+     "technique": "editor-interop",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:22 Edits carry an API concurrency base, without a peer-edited Markdown file."
+    },
+    {
+     "technique": "knowledge-integrity-lint",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsLibrary.ts:56 This lints recruiting copy, without checking vault links, orphans, or review dates."
+    },
+    {
+     "technique": "link-graph-extraction",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/JdsCandidateList.tsx:43 Candidate associations come from an API, not extracted note references."
+    },
+    {
+     "technique": "mirror-indexes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsHooks.ts:116 The detail view holds an API response, without a vault-derived secondary store."
+    },
+    {
+     "technique": "projection-covers-the-record",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:73 The client serializes an edit request rather than constructing indexed note fields."
+    },
+    {
+     "technique": "read-triggered-reconciliation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsHooks.ts:81 Refresh reloads the API; no externally edited file index is reconciled."
+    },
+    {
+     "technique": "replicated-substrate",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:51 Conflicts are API write outcomes, without a replicated note-file substrate."
+    },
+    {
+     "technique": "vault-as-database",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsHooks.ts:110 JD identity addresses a database-backed endpoint rather than a frontmatter record."
+    },
+    {
+     "technique": "vault-walking",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsHooks.ts:52 Enumeration consumes the returned JD array rather than walking a vault."
+    }
+   ],
+   "absenceTerms": [
+    "vault",
+    "frontmatter",
+    "wikilink",
+    "obsidian",
+    "backlinks"
+   ]
+  },
+  {
+   "context": "jd-ledger",
+   "subject": "markdown-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:8 Searches found no vault terminology in the JD directory, and ledger Markdown is the database record's body rather than an independently editable file corpus.",
+   "techniques": [
+    {
+     "technique": "knowledge-integrity-lint",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:243 The report concerns JD wording and requirements, without a vault-integrity scan."
+    },
+    {
+     "technique": "link-graph-extraction",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsLedgerNav.ts:69 Sharing produces a public web URL, without a note-link graph."
+    },
+    {
+     "technique": "mirror-indexes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:47 Artifacts are stored JSON read for display, without a filesystem-vault mirror."
+    },
+    {
+     "technique": "projection-covers-the-record",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:227 The body is rendered directly rather than partitioned into search-index fields."
+    },
+    {
+     "technique": "read-triggered-reconciliation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:88 Polling follows background build status, without reconciling a file-derived index."
+    },
+    {
+     "technique": "replicated-substrate",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:61 The surface combines API-record snapshots, without a replicated Markdown tree."
+    },
+    {
+     "technique": "vault-as-database",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsLedgerLogic.ts:41 The ledger consumes API-backed JD rows rather than frontmatter-bearing files."
+    },
+    {
+     "technique": "vault-walking",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsLedgerLogic.ts:139 Filtering operates on loaded rows, without directory traversal."
+    }
+   ],
+   "absenceTerms": [
+    "vault",
+    "frontmatter",
+    "wikilink",
+    "obsidian",
+    "backlinks"
+   ]
+  },
+  {
+   "context": "jobseeker-core",
+   "subject": "markdown-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/jobseeker-profiles.ts:260 Searches found no vault terminology in the jobseeker directory, and polished Markdown is persisted in SQL while filesystem writes serve temporary CLI inputs.",
+   "techniques": [
+    {
+     "technique": "editor-interop",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/jobseeker-profiles.ts:261 Polished Markdown updates a database row, without an external editor sharing its file."
+    },
+    {
+     "technique": "knowledge-integrity-lint",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/profile.ts:118 Validation shapes preferences, without a linked-note corpus requiring integrity lint."
+    },
+    {
+     "technique": "link-graph-extraction",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/sources-catalog.ts:73 Source lookup resolves hostnames, without extracting references between Markdown notes."
+    },
+    {
+     "technique": "mirror-indexes",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/deepdive.ts:145 Derived scores update posting records, without a Markdown-vault mirror."
+    },
+    {
+     "technique": "projection-covers-the-record",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/match.ts:107 The projection is a matcher input batch, not a searchable mirror of note content."
+    },
+    {
+     "technique": "read-triggered-reconciliation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/reconcile.ts:92 Reconciliation discovers external job postings, without sweeping an editable note vault before reads."
+    },
+    {
+     "technique": "replicated-substrate",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/python-cli.ts:49 CLI files are disposable workdir inputs, without a replicated knowledge corpus."
+    },
+    {
+     "technique": "vault-as-database",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/jobseeker-profiles.ts:135 The INSERT stores profile content in SQL columns rather than frontmatter-bearing files."
+    },
+    {
+     "technique": "vault-walking",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/scan.ts:220 Acquisition enumerates configured job sources, without walking note directories."
+    }
+   ],
+   "absenceTerms": [
+    "vault",
+    "frontmatter",
+    "wikilink",
+    "obsidian",
+    "backlinks"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T04:12:48.887067+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "markdown-vault"
+   ],
+   "techniques": [
+    "editor-interop",
+    "knowledge-integrity-lint",
+    "link-graph-extraction",
+    "mirror-indexes",
+    "projection-covers-the-record",
+    "read-triggered-reconciliation",
+    "replicated-substrate",
+    "vault-as-database",
+    "vault-walking"
+   ],
+   "deviations": 0,
+   "context": "pipeline-candidate-drawer",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T04:12:48.887067+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "markdown-vault"
+   ],
+   "techniques": [
+    "editor-interop",
+    "knowledge-integrity-lint",
+    "link-graph-extraction",
+    "mirror-indexes",
+    "projection-covers-the-record",
+    "read-triggered-reconciliation",
+    "replicated-substrate",
+    "vault-as-database",
+    "vault-walking"
+   ],
+   "deviations": 0,
+   "context": "profile-editor",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T04:12:48.887067+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "markdown-vault"
+   ],
+   "techniques": [
+    "editor-interop",
+    "knowledge-integrity-lint",
+    "link-graph-extraction",
+    "mirror-indexes",
+    "projection-covers-the-record",
+    "read-triggered-reconciliation",
+    "replicated-substrate",
+    "vault-as-database",
+    "vault-walking"
+   ],
+   "deviations": 0,
+   "context": "jd-library-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T04:12:48.887067+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "markdown-vault"
+   ],
+   "techniques": [
+    "knowledge-integrity-lint",
+    "link-graph-extraction",
+    "mirror-indexes",
+    "projection-covers-the-record",
+    "read-triggered-reconciliation",
+    "replicated-substrate",
+    "vault-as-database",
+    "vault-walking"
+   ],
+   "deviations": 0,
+   "context": "jd-ledger",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T04:12:48.887067+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "markdown-vault"
+   ],
+   "techniques": [
+    "editor-interop",
+    "knowledge-integrity-lint",
+    "link-graph-extraction",
+    "mirror-indexes",
+    "projection-covers-the-record",
+    "read-triggered-reconciliation",
+    "replicated-substrate",
+    "vault-as-database",
+    "vault-walking"
+   ],
+   "deviations": 0,
+   "context": "jobseeker-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -1,4 +1,5 @@
-import { test, before } from "node:test";
+import { test, before, after } from "node:test";
+import { removeTempDirs } from "./testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
@@ -13,7 +14,9 @@ import { mkdtempSync } from "node:fs";
 // Isolate onto a throwaway DB BEFORE dev-control (and db-path) loads: DB_PATH is
 // resolved at module-load from KP_DB_PATH and static imports evaluate before any
 // top-level statement, so the module is pulled in via dynamic import in `before()`.
-process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devctl-")), "kp.sqlite");
+const DB_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-devctl-"));
+process.env.KP_DB_PATH = path.join(DB_DIR, "kp.sqlite");
+after(() => removeTempDirs(DB_DIR));
 delete process.env.DATABASE_URL;
 
 type Ctl = typeof import("./dev-control.ts");

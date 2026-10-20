@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  CAPABILITY_CHANNEL,
+  UNKNOWN_CAPABILITY,
+  createCapabilityCache,
+  type Capability,
+  type CapabilityCache,
+} from "./deliveryCapabilityCache";
 
-// REC-10 — client read of the comms capability bits, fetched ONCE per page load
-// from /api/comms/capability and cached module-wide: many surfaces key their
-// vocabulary off the same facts, and they only change with a server restart.
+// REC-10 — client read of the comms capability bits from /api/comms/capability,
+// shared module-wide: many surfaces key their vocabulary off the same facts. The
+// facts are LIVE, not boot-time — the outbound relay is saved from the Channels tab
+// at runtime — so the read sits in an invalidatable store (deliveryCapabilityCache):
+// one read per page while nothing changes, and invalidateCommsCapability() (called
+// by the relay editor after a save) makes every mounted consumer, in every window,
+// re-read within one round-trip.
 //
 //   relayConfigured    — is a real OUTBOUND relay configured, or is every "send" a
 //                        terminal local-outbox row? (drawer notes, event labels,
@@ -26,12 +37,23 @@ import { useEffect, useState } from "react";
 // domain there is no address to show, so an unresolved read reads as unconfigured
 // and the wizard shows the honest not-wired state rather than a guess.
 
-type Capability = { relayConfigured: boolean | null; emailInboundDomain: string | null };
+let store: CapabilityCache | null = null;
+function commsCapabilityStore(): CapabilityCache {
+  store ??= createCapabilityCache({
+    fetcher: fetchCapability,
+    channel:
+      typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
+        ? new BroadcastChannel(CAPABILITY_CHANNEL)
+        : null,
+  });
+  return store;
+}
 
-const UNKNOWN: Capability = { relayConfigured: null, emailInboundDomain: null };
-
-let cached: Capability | null = null;
-let inflight: Promise<Capability> | null = null;
+/** The relay (or any other capability source) changed server-side: drop the cached
+ *  record here and in the app's other windows, and re-read for every consumer. */
+export function invalidateCommsCapability(): void {
+  commsCapabilityStore().invalidate();
+}
 
 async function fetchCapability(): Promise<Capability> {
   try {
@@ -47,7 +69,7 @@ async function fetchCapability(): Promise<Capability> {
           : null,
     };
   } catch {
-    return UNKNOWN;
+    return UNKNOWN_CAPABILITY;
   }
 }
 
@@ -55,25 +77,24 @@ async function fetchCapability(): Promise<Capability> {
  *  "fetched, and nothing is configured" — needed by surfaces that would rather
  *  render nothing than flash a wrong state. */
 export function useCommsCapability(): Capability & { resolved: boolean } {
-  const [state, setState] = useState<Capability | null>(cached);
+  const [state, setState] = useState<Capability | null>(() =>
+    typeof window === "undefined" ? null : commsCapabilityStore().peek()
+  );
   useEffect(() => {
-    if (cached !== null) return;
     let alive = true;
-    inflight ??= fetchCapability().then((v) => {
-      // Only a read that told us SOMETHING is worth caching; a failed fetch stays
-      // retryable on the next mount (matches the previous null-not-cached rule).
-      if (v.relayConfigured !== null || v.emailInboundDomain !== null) cached = v;
-      inflight = null;
-      return v;
+    const cache = commsCapabilityStore();
+    const unsubscribe = cache.subscribe((v) => {
+      if (alive) setState(v);
     });
-    void inflight.then((v) => {
+    void cache.get().then((v) => {
       if (alive) setState(v);
     });
     return () => {
       alive = false;
+      unsubscribe();
     };
   }, []);
-  return { ...(state ?? UNKNOWN), resolved: state !== null };
+  return { ...(state ?? UNKNOWN_CAPABILITY), resolved: state !== null };
 }
 
 /** Is a real OUTBOUND delivery relay wired? null until known (see above). */

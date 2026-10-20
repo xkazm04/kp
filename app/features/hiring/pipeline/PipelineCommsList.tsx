@@ -9,6 +9,10 @@ import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { labelize } from "@/app/_lib/format";
 import { isUnaddressable } from "@/app/_lib/comms-view";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
+// The Comms Center's own doors (cross-feature, as OutboxRows does).
+import { BouncedResend } from "@/app/features/hiring/channels/ChannelsCommsBouncedResend";
+import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useRelativeTime } from "./PipelineShared";
 import type { CandidateComm } from "@/app/_lib/candidate-timeline";
@@ -24,7 +28,18 @@ import type { CandidateComm } from "@/app/_lib/candidate-timeline";
 // predicate (isUnaddressable) and the wording (channels.comms.noAddressHint) are
 // BORROWED from the Comms Center rather than re-invented; a genuinely queued message
 // with a real address is untouched and still reads neutral.
-export function PipelineCommsList({ comms }: { comms: CandidateComm[] }) {
+//
+// An adverse letter carries the Comms Center's own door (resendDoorOf), opens
+// expanded, and shares `consentStatus` with the tab's count (lettersNeedingYou).
+export function PipelineCommsList({
+  comms,
+  consentStatus,
+  onResent,
+}: {
+  comms: CandidateComm[];
+  consentStatus?: string | null;
+  onResent?: () => void;
+}) {
   const t = useTranslations("pipeline.drawer");
   // The Comms Center's own string for this warning — one vocabulary, two surfaces.
   const tChannels = useTranslations("channels.comms");
@@ -42,9 +57,10 @@ export function PipelineCommsList({ comms }: { comms: CandidateComm[] }) {
         {comms.map((m) => {
           const adverse = m.verdict === "failed" || m.verdict === "bounced";
           const unaddressable = isUnaddressable(m, relayConfigured);
+          const door = resendDoorOf(m, consentStatus);
           return (
             <li key={m.id} className={`rounded-md border px-2.5 py-1 ${adverse ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
-              <details>
+              <details open={door ? true : undefined}>
                 <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
                   <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase text-steel">
                     {enumLabel("commKind", m.kind)}
@@ -96,6 +112,15 @@ export function PipelineCommsList({ comms }: { comms: CandidateComm[] }) {
                   ) : null}
                   {m.subject ? <p className="font-semibold text-ink">{m.subject}</p> : null}
                   {m.body ? <pre className="mt-0.5 whitespace-pre-wrap font-sans text-sm leading-5 text-steel">{m.body}</pre> : null}
+                  {door === "retry" ? (
+                    <div className="mt-1.5">
+                      <ResendButton id={m.id} onResent={onResent} />
+                    </div>
+                  ) : door === "correctAddress" ? (
+                    <div className="mt-1.5">
+                      <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
+                    </div>
+                  ) : null}
                 </div>
               </details>
             </li>

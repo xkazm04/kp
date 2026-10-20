@@ -15,6 +15,7 @@ import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { listOutboxFiltered, recordOutbox } from "./db/devcase.ts";
 import { createWorkspace, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { getForeignReceiptCount } from "./logger.ts";
 
 after(() => cleanupUnitDb());
 
@@ -71,6 +72,29 @@ test("a receipt whose ref names nothing is refused, and filed into NO tenant", (
   for (const ws of [DEFAULT_WORKSPACE_ID, other.id]) {
     assert.equal(listOutboxFiltered({ ref: "not-a-thing-here" }, ws).length, 0, `nothing written to ${ws}`);
   }
+});
+
+// Filed into no tenant is not the same as leaving no trace. Both doors authenticate the
+// caller, so an unknown ref is the CONFIGURED relay speaking references kp never
+// issued — and a relay that switches ref scheme wholesale sends every real bounce down
+// this path. The per-call `unknown_ref` answer reaches only the relay; the install-wide
+// count is what lets kp's own operator see it.
+test("a receipt whose ref names nothing is counted install-wide, though filed nowhere", () => {
+  const before = getForeignReceiptCount();
+  recordDeliveryReceipt({ ref: "ext-scheme-0001", kind: "offer", outcome: "bounce" });
+  recordDeliveryReceipt({ ref: "ext-scheme-0002", kind: "rejection", outcome: "bounce" });
+  assert.equal(getForeignReceiptCount(), before + 2);
+  // Neither a non-bounce nor a known ref with no send is foreign.
+  recordDeliveryReceipt({ ref: "ext-scheme-0003", kind: "offer", outcome: "delivered" });
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-known",
+    candidateLabel: "Ota",
+    jobId: "job-known",
+    jobTitle: "Designer",
+    workspaceId: other.id,
+  });
+  recordDeliveryReceipt({ ref: entry.id, kind: "offer", outcome: "bounce" });
+  assert.equal(getForeignReceiptCount(), before + 2);
 });
 
 test("a known ref with no matching SEND is still stored — in its own team — and reported", () => {

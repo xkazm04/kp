@@ -13,12 +13,9 @@ import {
   pipelineSlaKey,
   pipelineViewsKey,
   readStoredSla,
-  readStoredViews,
-  writeStoredSla,
-  writeStoredViews,
+  clearStoredSla,
   type KeyValueStore,
 } from "./pipelineBoardStorage.ts";
-import type { SavedView } from "./pipelineBoardFilters.ts";
 
 function fakeStore(seed: Record<string, string> = {}): KeyValueStore & { map: Map<string, string> } {
   const map = new Map(Object.entries(seed));
@@ -30,70 +27,56 @@ function fakeStore(seed: Record<string, string> = {}): KeyValueStore & { map: Ma
   };
 }
 
-const viewA: SavedView = {
-  id: "v-a",
-  name: "Berlin seniors — waiting on Ada",
-  query: "ada",
-  quicks: ["aging"],
-  quick: "aging",
-  score: [],
-  source: [],
-  sort: "score",
-  stage: "Interview",
-  isDefault: true,
-};
-
-test("a workspace switch never hydrates the other tenant's saved views — the leak", () => {
-  const store = fakeStore();
-  writeStoredViews(store, "ws-a", [viewA]);
-  // Same browser, same origin, team switched: tenant B reads its OWN key.
-  assert.deepEqual(readStoredViews(store, "ws-b"), [], "tenant B must see none of A's views");
-  // …and A still has them, so the scoping is not just a wipe.
-  assert.equal(readStoredViews(store, "ws-a").length, 1);
-  // The default marking rides the view, so B also has no default to auto-apply —
-  // which is what stopped A's filter combination opening on B's bare visit.
-  assert.equal(readStoredViews(store, "ws-b").some((v) => v.isDefault), false);
-});
-
 test("a workspace switch never hydrates the other tenant's SLA overrides", () => {
-  const store = fakeStore();
-  writeStoredSla(store, "ws-a", { Interview: 3 });
+  const store = fakeStore({ [pipelineSlaKey("ws-a")]: JSON.stringify({ Interview: 3 }) });
   assert.deepEqual(readStoredSla(store, "ws-b"), {});
   assert.deepEqual(readStoredSla(store, "ws-a"), { Interview: 3 });
 });
 
-test("nothing is read or written until the workspace resolves", () => {
-  const store = fakeStore({ [pipelineViewsKey("ws-a")]: JSON.stringify([viewA]) });
-  assert.deepEqual(readStoredViews(store, null), [], "an unresolved tenant hydrates nothing");
+// Cadences are team data now (challenge-r03 pipeline-board-ui/A): the per-browser map
+// is only read (to OFFER it to the team) and cleared, per tenant, once adopted or
+// discarded. Clearing one team's leftovers must not touch another's.
+test("clearing a tenant's leftover SLA overrides touches only that tenant", () => {
+  const store = fakeStore({
+    [pipelineSlaKey("ws-a")]: JSON.stringify({ Interview: 3 }),
+    [pipelineSlaKey("ws-b")]: JSON.stringify({ Screened: 4 }),
+  });
+  clearStoredSla(store, "ws-a");
+  assert.deepEqual(readStoredSla(store, "ws-a"), {});
+  assert.deepEqual(readStoredSla(store, "ws-b"), { Screened: 4 });
+  clearStoredSla(store, null);
+  assert.deepEqual(readStoredSla(store, "ws-b"), { Screened: 4 }, "an unresolved tenant clears nothing");
+});
+
+test("nothing is read until the workspace resolves", () => {
+  const store = fakeStore({ [pipelineSlaKey("ws-a")]: JSON.stringify({ Interview: 3 }) });
   assert.deepEqual(readStoredSla(store, null), {});
-  writeStoredViews(store, null, [viewA]);
-  writeStoredSla(store, null, { Interview: 3 });
-  assert.equal(store.map.size, 1, "an unresolved tenant writes nothing anywhere");
 });
 
 test("the legacy global keys migrate ONCE into the current tenant, then are removed", () => {
+  const views = JSON.stringify([{ id: "v-a", name: "mine" }]);
   const store = fakeStore({
-    [LEGACY_VIEWS_KEY]: JSON.stringify([{ ...viewA, isDefault: undefined }]),
+    [LEGACY_VIEWS_KEY]: views,
     [LEGACY_SLA_KEY]: JSON.stringify({ Interview: 4 }),
   });
   assert.equal(migrateLegacyKey(store, LEGACY_VIEWS_KEY, pipelineViewsKey("ws-a")), true);
   assert.equal(migrateLegacyKey(store, LEGACY_SLA_KEY, pipelineSlaKey("ws-a")), true);
-  assert.equal(readStoredViews(store, "ws-a").length, 1, "the operator's own list survives the move");
+  assert.equal(store.getItem(pipelineViewsKey("ws-a")), views, "the operator's own list survives the move");
   assert.deepEqual(readStoredSla(store, "ws-a"), { Interview: 4 });
   assert.equal(store.getItem(LEGACY_VIEWS_KEY), null, "the global key is gone");
   assert.equal(store.getItem(LEGACY_SLA_KEY), null);
   // …so a SECOND workspace resolving later can never adopt it.
   assert.equal(migrateLegacyKey(store, LEGACY_VIEWS_KEY, pipelineViewsKey("ws-b")), false);
-  assert.deepEqual(readStoredViews(store, "ws-b"), []);
+  assert.equal(store.getItem(pipelineViewsKey("ws-b")), null);
 });
 
 test("migration never clobbers a tenant list that already exists", () => {
   const store = fakeStore({
-    [LEGACY_VIEWS_KEY]: JSON.stringify([viewA]),
-    [pipelineViewsKey("ws-a")]: JSON.stringify([{ ...viewA, id: "v-own", name: "mine" }]),
+    [LEGACY_VIEWS_KEY]: JSON.stringify([{ id: "v-a", name: "legacy" }]),
+    [pipelineViewsKey("ws-a")]: JSON.stringify([{ id: "v-own", name: "mine" }]),
   });
   assert.equal(migrateLegacyKey(store, LEGACY_VIEWS_KEY, pipelineViewsKey("ws-a")), false);
-  assert.equal(readStoredViews(store, "ws-a")[0]!.name, "mine");
+  assert.equal(JSON.parse(store.getItem(pipelineViewsKey("ws-a"))!)[0].name, "mine");
   assert.equal(store.getItem(LEGACY_VIEWS_KEY), null, "still cleaned up");
 });
 
@@ -107,10 +90,8 @@ test("a corrupt or absent store degrades to empty, never throws", () => {
     },
     removeItem: () => {},
   };
-  assert.deepEqual(readStoredViews(broken, "ws-a"), []);
   assert.deepEqual(readStoredSla(broken, "ws-a"), {});
-  assert.doesNotThrow(() => writeStoredViews(broken, "ws-a", [viewA]));
-  assert.doesNotThrow(() => writeStoredSla(broken, "ws-a", { Interview: 3 }));
+  assert.doesNotThrow(() => clearStoredSla({ ...broken, removeItem: () => { throw new Error("SecurityError"); } }, "ws-a"));
   assert.equal(migrateLegacyKey(broken, LEGACY_VIEWS_KEY, pipelineViewsKey("ws-a")), false);
-  assert.deepEqual(readStoredViews(fakeStore({ [pipelineViewsKey("ws-a")]: "{not json" }), "ws-a"), []);
+  assert.deepEqual(readStoredSla(fakeStore({ [pipelineSlaKey("ws-a")]: "{not json" }), "ws-a"), {});
 });

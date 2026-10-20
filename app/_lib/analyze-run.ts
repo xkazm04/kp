@@ -4,16 +4,18 @@ import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import { getJob } from "@/app/_lib/db/jobs";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
+import { archetypeRegistryFileDigest } from "@/app/_lib/archetype-registry-file";
 import { buildComparison } from "@/app/_lib/comparison";
-import { reconcileScoreTotal } from "@/app/_lib/format";
-import { countSanityWarns } from "@/app/_lib/sanity-checks";
+import { trustWarnCount, trustedScoreTotal } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
-import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
+import { assertConfinedToWorkdir, cleanupWorkdir, flagArg, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { buildLlmConfigEnv, llmRouteFingerprint } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import { externalRunner } from "@/app/_lib/task-external-runners";
+import type { GithubStageInput, GithubStageResult } from "@/app/_lib/analyze-github-stage";
+import type { Locale } from "@/i18n/locales";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -35,7 +37,7 @@ export type AnalyzeParams = {
   // request time (the background task runs outside request scope, so it can't
   // read the cookie itself) and forwarded to the Python CLI via --lang. Part of
   // the cache key so localized results don't collide. Defaults to "en".
-  lang?: string;
+  lang?: Locale;
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   // Forwarded to the CLI as --blind; part of the cache key so a blind and a
   // non-blind run of the same CV don't collide.
@@ -44,7 +46,15 @@ export type AnalyzeParams = {
   // (the task runs outside request scope, so it can't read the cookie) and stamped
   // on the saved analysis. Absent ⇒ saveAnalysis defaults to the single workspace.
   workspace?: string;
+  // The GitHub deep-dive rides this task as a stage (analyze-github-stage.ts). Set by
+  // /api/analyze only for a non-blind run whose caller holds pipeline:write and whose
+  // github-analysis budget admitted it; otherwise `githubDropped` names why it did not.
+  githubProfile?: string | null;
+  githubDropped?: string | null;
 };
+
+/** The registry key /api/analyze registers the GitHub stage under. */
+export const ANALYZE_GITHUB_RUNNER = "analyze_github";
 
 export class AnalyzeError extends Error {
   status: number;
@@ -98,15 +108,18 @@ type ProgressFn = (done: number, total: number, msg?: string) => void;
 // variant can't reject the whole batch (Direction 2 — "one bad CV never kills the
 // batch"): with settled semantics, N−1 good variants still produce a result.
 export type VariantOk = { label: string; ok: true; analysis: Analysis; cached: boolean };
-// `error` is engine/server text (Python stderr etc.) kept for logs + verbatim
-// display. `code` is set ONLY when the reason is our own generic fallback (no
-// engine text) — it tells the client to localize instead of showing an English
-// literal. Engine failures carry `error` and NO code.
+// `error` is engine/server text (Python stderr etc.) kept for the SERVER LOG only: it
+// can hold absolute paths, whole tracebacks and KP_* names, so it never reaches the
+// client (settleVariants strips it). `code` is set when the reason is our own generic
+// fallback (no engine text) — it tells the client to localize. An engine failure
+// carries `engineCode` (the engine's own: invalid_input / not_found / engine_error /
+// timeout) and settleVariants answers it with an `errors.<CODE>` key instead.
 export type VariantFail = {
   label: string;
   ok: false;
   error: string;
   code?: string;
+  engineCode?: string;
   status: number;
   // A REFUSAL_ERRORS code when this variant failed for a reason we DECIDED (the
   // deadline), as opposed to an engine fault. Distinct from `code` above, which is a
@@ -123,6 +136,21 @@ export const ANALYZE_GENERIC_FAIL_CODE = "analyzeVariantFailed";
 // on the return payload so the UI can say WHICH variant failed and why, not just
 // the logs. Declared on the analyze schema (nullish) so it survives the client parse.
 export type VariantFailureNote = { label: string; error: string; code?: string };
+
+/** The `errors.<CODE>` key (api-response.ts REFUSAL_ERRORS, all four catalogs) an engine
+ *  failure is answered with. Only the deadline has a code of its own; every other engine
+ *  code (a rejected input, a missing job, a fault) is "the engine stopped", because the
+ *  engine's sentence, which says why, is the thing that must not reach the recruiter. */
+export function engineClientCode(engineCode: string | undefined): "ENGINE_FAILED" | "ENGINE_TIMEOUT" {
+  return engineCode === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED";
+}
+
+/** The engine code a thrown error carries (a PipelineError/SpawnFailure has one), read
+ *  structurally so this module needs nothing more from the runner. */
+function thrownEngineCode(caught: unknown): string {
+  const code = (caught as { code?: unknown } | null)?.code;
+  return typeof code === "string" && code.trim() ? code.trim() : "engine_error";
+}
 
 // The settled delivery decision over a batch of variant outcomes (Direction 2).
 // Pure + exported so the winner-picking + failure-naming is unit-tested without
@@ -146,7 +174,8 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   // the client localizes; engine text passes through verbatim.
   if (successes.length === 0) {
     const first = failures[0];
-    const engineText = first && !first.code ? first.error : "";
+    // Engine text never goes to the client: an engine failure answers with its code.
+    const engineText = first && !first.code ? engineClientCode(first.engineCode) : "";
     return {
       kind: "throw",
       // A NAMED refusal answers with its own canonical sentence rather than the engine's
@@ -161,7 +190,13 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   return {
     kind: "deliver",
     successes,
-    partialFailures: failures.map((f) => ({ label: f.label, error: f.error, ...(f.code ? { code: f.code } : {}) })),
+    partialFailures: failures.map((f): VariantFailureNote =>
+      // A coded generic keeps its own (non-engine) literal; anything else is an engine
+      // failure and carries only its `errors.<CODE>` key, with empty text.
+      f.code
+        ? { label: f.label, error: f.error, code: f.code }
+        : { label: f.label, error: "", code: engineClientCode(f.refusal === ANALYZE_TIMEOUT_CODE ? "timeout" : f.engineCode) }
+    ),
     // Cache-hit accounting over the DELIVERED successes only: bill one unit unless
     // every success was cached (no new work). A failed variant adds no second debit.
     allCached: successes.every((r) => r.cached),
@@ -195,10 +230,11 @@ function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | n
   if (p.blind) args.push("--blind");
   args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
-  else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
+  // Pasted text: = form, so a JD that opens with a "- bullet" is text, not an option.
+  else if (p.jobDescriptionText?.trim()) args.push(flagArg("--job-description-text", p.jobDescriptionText.trim()));
   if (jobStructurePath) args.push("--job-json", jobStructurePath);
   if (p.companyPath) args.push("--company-path", p.companyPath);
-  else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
+  else if (p.companyText?.trim()) args.push(flagArg("--company-text", p.companyText.trim()));
   return args;
 }
 
@@ -208,10 +244,10 @@ function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | n
 // the pipeline beside the JD prose, so scoring stops re-deriving a flattened
 // requirement list by regex. Best-effort: no ingested job (market-only JD,
 // failed ingest) or no requirements ⇒ prose-only, exactly as before.
-function resolveJobStructure(jdSlug: string | null | undefined): string | null {
+function resolveJobStructure(jdSlug: string | null | undefined, workspaceId?: string): string | null {
   if (!jdSlug?.trim()) return null;
   try {
-    const job = getJob(jdJobId(jdSlug.trim()));
+    const job = getJob(jdJobId(jdSlug.trim()), workspaceId);
     if (!job || !Array.isArray(job.requirements) || job.requirements.length === 0) return null;
     return JSON.stringify(job);
   } catch {
@@ -223,8 +259,8 @@ function resolveJobStructure(jdSlug: string | null | undefined): string | null {
 // identical across the failure, single-analysis, and comparison branches. Each
 // call site spreads this and adds only its status-specific keys (status, error,
 // candidate_label, variant_count, cache_hit, saved_slug) so the common fields
-// can never drift between success and failure runs.
-function baseAnalyzeLog(
+// can never drift between success and failure runs. Exported for its unit test.
+export function baseAnalyzeLog(
   p: AnalyzeParams,
   startedAt: number
 ): Pick<
@@ -237,19 +273,81 @@ function baseAnalyzeLog(
     jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
     jd_slug: p.jdSlug ?? null,
     company_present: Boolean(p.companyPath || p.companyText?.trim()),
-    github_present: false,
+    github_present: Boolean(p.githubProfile?.trim()),
     duration_ms: Date.now() - startedAt,
   };
 }
 
+// Start the GitHub stage beside the variants (null = no handle rode along). LOOKED UP in
+// the late-bound registry, not imported: this module is on tasks.ts's graph and the GitHub
+// harvest must stay off it (perf-budget.json). Never rejects — a missing registration
+// (a replay after a restart) is ANALYSIS_FAILED, a coded outcome, never a failed run.
+function startGithubStage(
+  p: AnalyzeParams,
+  savedSlug: Promise<string | null>,
+  signal?: AbortSignal
+): Promise<GithubStageResult> | null {
+  if (p.githubDropped) return Promise.resolve({ status: "error", code: p.githubDropped });
+  const profile = p.githubProfile?.trim();
+  if (!profile) return null;
+  // Blind is refused here too: params that carry a handle anyway must not reach GitHub.
+  if (p.blind) return Promise.resolve({ status: "skipped", reason: "blind" });
+  const input: GithubStageInput = {
+    profile,
+    blind: false,
+    jdText: p.jobDescriptionText ?? null,
+    jdPath: p.jobDescriptionPath ?? null,
+    requestId: p.requestId,
+    savedSlug,
+  };
+  const failed = (error: unknown): GithubStageResult => {
+    console.error("[analyze-run] the GitHub deep-dive stage did not run", error);
+    return { status: "error", code: "ANALYSIS_FAILED" };
+  };
+  try {
+    return externalRunner(ANALYZE_GITHUB_RUNNER)({
+      workspaceId: p.workspace ?? "",
+      signal: signal ?? new AbortController().signal,
+      progress: () => {},
+      params: input as unknown as Record<string, unknown>,
+    }).then((r) => r as GithubStageResult, failed);
+  } catch (error) {
+    return Promise.resolve(failed(error));
+  }
+}
+
+/** The goal-4 reasons guarantee at the seam: an analysis with no prose behind its score
+ *  is not delivered. (The pipeline's template fallback is non-blank by design; it is
+ *  marked by an `explanation_fallback` finding and refused by the meter instead.) */
+function hasExplanation(analysis: { explanation?: string | null }): boolean {
+  return typeof analysis.explanation === "string" && analysis.explanation.trim().length > 0;
+}
+
 export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, signal?: AbortSignal): Promise<unknown> {
+  // Every input path must lie inside the workdir /api/analyze made for this run, and
+  // baseDir must BE such a workdir — checked before anything is read, and before the try
+  // whose finally rm -rf's baseDir. A task row's params are data a caller may have
+  // written (POST /api/tasks accepted this kind from a client body until 2026-09-23).
+  assertConfinedToWorkdir(p.baseDir, [...(p.variants ?? []).map((v) => v.cvPath), p.jobDescriptionPath, p.companyPath]);
   const startedAt = Date.now();
+  // The saved slug reaches the GitHub stage as a PROMISE (it attaches itself once the CV
+  // half has a row); settled null in the finally on every path that saves none.
+  let settleSlug: (slug: string | null) => void = () => {};
+  const savedSlug = new Promise<string | null>((resolve) => {
+    settleSlug = resolve;
+  });
+  const githubStage = startGithubStage(p, savedSlug, signal);
+  // Awaited only AFTER the CV half persisted and debited, so it changes neither.
+  const githubDeepDive = async (slug: string | null): Promise<{ githubDeepDive?: GithubStageResult }> => {
+    settleSlug(slug);
+    return githubStage ? { githubDeepDive: await githubStage } : {};
+  };
   try {
     const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;
     const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
     // Structured job context resolved ONCE per run and written beside the other
     // inputs in baseDir (cleaned up in the finally below); all variants share it.
-    const jobStructureJson = resolveJobStructure(p.jdSlug);
+    const jobStructureJson = resolveJobStructure(p.jdSlug, p.workspace);
     let jobStructurePath: string | null = null;
     if (jobStructureJson) {
       jobStructurePath = path.join(p.baseDir, "job-structure.json");
@@ -262,6 +360,11 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // client's fixed cosmetic timeline. The per-variant `done`/`total` counter
     // rides along (real completion signal for a multi-CV comparison).
     onProgress?.(0, total, ANALYZE_PHASE.reading);
+    // ONE registry snapshot for the run: Python re-reads archetypes.json per spawn, so
+    // the digest is a cache-key axis (cache-key.ts archetypeRegistryDigest).
+    const registryDigest = archetypeRegistryFileDigest();
+    // The model route is an instrument axis too, read once per run like the registry.
+    const llmRoute = llmRouteFingerprint("cv_analysis");
 
     const results: VariantResult[] = await Promise.all(
       p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
@@ -277,12 +380,16 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             lang: p.lang || "en",
             blind: p.blind,
             jobStructureJson: jobStructureJson ?? undefined,
+            archetypeRegistryDigest: registryDigest,
+            llmRoute,
           });
 
           const cached = lookupCachedAnalysis(cacheKey);
           if (cached) {
             const parsed = analysisSchema.safeParse(cached);
-            if (parsed.success) {
+            // A cached payload with no explanation was stored before the write-path
+            // guard below: it is a miss, so the engine runs again.
+            if (parsed.success && hasExplanation(parsed.data)) {
               onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
               return { label, ok: true, analysis: parsed.data, cached: true };
             }
@@ -311,7 +418,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           if (exitCode !== 0) {
             const err = parseStderrError(stderr, exitCode);
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
-            return { label, ok: false, error: err.message, status: err.status };
+            return { label, ok: false, error: err.message, engineCode: err.code ?? "engine_error", status: err.status };
           }
           let payload: unknown;
           try {
@@ -330,33 +437,37 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
               label,
               ok: false,
               error: engineMsg ?? `Pipeline returned non-JSON output for "${label}".`,
-              ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
+              ...(engineMsg ? { engineCode: "engine_error" } : { code: ANALYZE_GENERIC_FAIL_CODE }),
               status: 502,
             };
           }
           const parsed = analysisSchema.safeParse(payload);
-          if (!parsed.success) {
+          // analysisSchema takes `explanation` as a bare string (readers of stored rows
+          // parse with it, so it cannot tighten); a blank one is refused HERE as the same
+          // contract failure - not cached, not persisted, not debited.
+          if (!parsed.success || !hasExplanation(parsed.data)) {
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
             // Our own literal (no engine text) → coded so the client localizes it.
             return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, code: ANALYZE_GENERIC_FAIL_CODE, status: 502 };
           }
-          storeCachedAnalysis(cacheKey, parsed.data);
+          // A registry edit landed while the engine ran: the result may be scored under
+          // either file, so do not file it under the pre-edit key (same guard as matrix).
+          if (archetypeRegistryFileDigest() === registryDigest) storeCachedAnalysis(cacheKey, parsed.data);
           onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
           return { label, ok: true, analysis: parsed.data, cached: false };
         } catch (caught) {
           // A thrown variant (readFile IO error, spawn failure, an aborted child's
-          // "Python process aborted" reject) is CAPTURED here rather than rejecting
+          // SpawnFailure "aborted" reject) is CAPTURED here rather than rejecting
           // the whole Promise.all — otherwise one bad variant discards its good
           // siblings. A real cancellation is still honored below (signal.aborted).
           onProgress?.(Math.min(done + 1, total), total, ANALYZE_PHASE.analyzing);
           const engineMsg = caught instanceof Error ? caught.message : null;
-          // The deadline arrives here as a plain spawn rejection (python-runner reports it
-          // as a MESSAGE, not a typed error), read through the one shared predicate rather
-          // than a regex re-typed at this call site. It is a DECISION — we stopped waiting —
-          // so it is NAMED, not folded into the generic engine-fault branch, whose verbatim
-          // text ("Python process timed out after 300s: -m pipeline.jobfit.cli …") is an
-          // internal command line no recruiter should ever be shown.
-          if (engineMsg && isSpawnTimeoutMessage(engineMsg)) {
+          // The deadline arrives here as a typed SpawnFailure (kind "timeout"), read by
+          // its kind rather than a regex over its sentence. It is a DECISION — we stopped
+          // waiting — so it is NAMED, not folded into the generic engine-fault branch,
+          // which returns the message verbatim (a runner message carries no argv, but the
+          // recruiter is owed the code, not the engine's English).
+          if (isSpawnTimeout(caught)) {
             return {
               label,
               ok: false,
@@ -371,7 +482,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             label,
             ok: false,
             error: engineMsg ?? `Analysis failed for "${label}".`,
-            ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
+            ...(engineMsg ? { engineCode: thrownEngineCode(caught) } : { code: ANALYZE_GENERIC_FAIL_CODE }),
             status: 500,
           };
         }
@@ -402,6 +513,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     }
 
     const { successes, partialFailures, allCached } = settled;
+    // The detail the client no longer gets stays here, with the variant it belongs to.
+    for (const r of results) {
+      if (!r.ok) console.error(`[analyze-run] variant "${r.label}" failed (${r.engineCode ?? r.code ?? "uncoded"}): ${r.error}`);
+    }
     const analyses = successes.map((r) => ({ label: r.label, analysis: r.analysis }));
 
     // Every variant is done — the remaining work is persisting the report. Emit the
@@ -425,6 +540,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         cvHashForLabel(p.variants, single.label)
       );
       debitDeliveredAnalysis(persisted, allCached, p.workspace);
+      const github = await githubDeepDive(persisted?.slug ?? null);
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -440,6 +556,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         // live result surfaces a "served from cache, no new cost" note from it.
         servedFromCache: allCached,
         ...(partialFailures.length ? { partialFailures } : {}),
+        ...github,
       };
     }
 
@@ -452,6 +569,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const winnerHash = cvHashForLabel(p.variants, winner.label);
     const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace, winnerHash);
     debitDeliveredAnalysis(persisted, allCached, p.workspace);
+    const github = await githubDeepDive(persisted?.slug ?? null);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
@@ -465,8 +583,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       persistence: persisted,
       servedFromCache: allCached,
       ...(partialFailures.length ? { partialFailures } : {}),
+      ...github,
     };
   } finally {
+    settleSlug(null);
     await cleanupWorkdir(p.baseDir);
   }
 }
@@ -489,7 +609,8 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
  *  — the same tenant the gate (meterGate({ workspace })) read. */
 function debitDeliveredAnalysis(persisted: unknown, allCached: boolean, workspace?: string): void {
   if (persisted == null || allCached) return;
-  recordMeterUsage("ai_candidates", 1, new Date(), workspace);
+  const slug = (persisted as { slug?: unknown }).slug;
+  recordMeterUsage("ai_candidates", 1, new Date(), workspace, { kind: "analysis", ref: typeof slug === "string" ? slug : null });
 }
 
 function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string, cvHash?: string) {
@@ -509,12 +630,16 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
       // "Overall" render via reconcileScoreTotal — so the History list + detail header (which
       // read this denormalized column) can't disagree with the dial when the pipeline's raw
       // total drifts from the sum of its parts. The raw total stays in `payload` for anyone
-      // who needs it.
-      score: analysis.score ? reconcileScoreTotal(analysis.score) : null,
+      // who needs it. Null — not 0 — when the engine flagged the score as not computed
+      // (a `score`-scope blocker: the section was missing and the components defaulted),
+      // so History never lists a number nobody measured (trustedScoreTotal).
+      score: trustedScoreTotal(analysis),
       roleFamily: analysis.candidate?.roleFamily ?? null,
       seniority: analysis.candidate?.currentSeniority ?? null,
       payload: analysis,
-      reviewFlags: countSanityWarns(analysis.sanityChecks ?? []),
+      // Counted from the engine's coded severities (the legacy regex only for a
+      // payload that predates them) — the same split QualityStrip renders.
+      reviewFlags: trustWarnCount(analysis),
     }, workspaceId);
     return { ...receipt, candidateLabel, jdSlug };
   } catch (error) {

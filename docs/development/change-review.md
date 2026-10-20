@@ -39,6 +39,12 @@ this page in `scripts/docs/feature-doc-map.json`: `check-doc-sync.mjs`,
 `evaluate()` change has to reach this file (or carry a `Doc-sync:` trailer).
 Fixtures under `__tests__/` stay unmapped on purpose.
 
+`guidance:check` also reads the hook messages that tell a blocked contributor
+how to repair a failure. A literal script path in an emitted instruction must
+resolve from the repository root, where the hook runs. Shell comment lines,
+including managed-block markers, are not emitted instructions; paths assembled
+from a configured registry location are checked when the hook prints them.
+
 ## Lens 1 — the constitution check (deterministic)
 
 ```bash
@@ -65,8 +71,8 @@ App-master programme calls forbidden change classes:
 | Rule | Severity | Fires when |
 | --- | --- | --- |
 | `test-only` | blocking | `.only(` lands in a test file — it silently disables every *other* test there |
-| `test-skip` | blocking | a new **bare** `describe.skip` / `xit` / `@unittest.skip` / `@pytest.mark.skip` / `self.skipTest` |
-| `test-skip` | note | a **conditional** skip that states its reason — `test.skip(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")`, `@unittest.skipIf(cond, "why")`. The note quotes the reason |
+| `test-skip` | blocking | a new **bare** `describe.skip` / `test.skipIf` / `xit` / `@unittest.skip` / `@pytest.mark.skip` / `self.skipTest` |
+| `test-skip` | note | a **conditional** skip that states its reason — `test.skip(cond, "why")`, `test.skipIf(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")`, `@unittest.skipIf(cond, "why")`. The note quotes the reason |
 | `test-deletion` | blocking | a test file is deleted |
 | `secret` | blocking, **un-waivable** | a structurally-valid API key or token is committed outside `.env.example` |
 | `tenancy-manifest` | blocking | `CREATE TABLE` in `app/**` without touching `app/_lib/tenancy.ts` |
@@ -298,7 +304,7 @@ each is a mechanism rather than a promise:
 | | What holds it | Where it is pinned |
 | --- | --- | --- |
 | **Who may dispatch** | the workflow asks the API for the *actor's* repository permission and fails below `write` — the person who labelled or commented, never the issue author, so a maintainer can dispatch on a stranger's bug report and the stranger cannot | `assertTrusted()` re-checks it in the script |
-| **What may be written** | `PROTECTED_PREFIXES` refuses `.github/workflows`, `.github/rulesets`, `.githooks`, `.claude/` and `scripts/{review,security,hooks,docs,agent}` — an agent dispatched from an issue may not edit the machinery that judges it. No override flag exists | a fixture asserts every lens, hook and workflow in the tree is still inside a protected prefix |
+| **What may be written** | `PROTECTED_PREFIXES` refuses `.github/workflows`, `.github/rulesets`, `.github/actions-pin-allowlist.json`, `.githooks`, `.claude/`, `data/` and `scripts/{review,security,hooks,docs,agent}` — an agent dispatched from an issue may not edit the machinery that judges it or the operator SQLite and seed data. No override flag exists | a fixture asserts every lens, hook and workflow in the tree is still inside a protected prefix |
 | **Issue text stays data** | title, body and comment reach the script through `env:`, never interpolated into a `run:` line and never expanded unquoted, and the prompt labels them untrusted before quoting them — in both rounds | `taskFromEnv` + the prompt-order fixture, the hostile-issue corpus below, and `unquoted-untrusted-env` over the workflow itself |
 | **How it lands** | draft PR, both lenses, all of CI, CodeQL, the audits. Nothing is merged and nothing is closed | `.github/rulesets/main.json` |
 
@@ -707,12 +713,9 @@ which this workflow has nothing to do — the intended ending, not a fault.
   credential in this repository now", not "was one ever committed" — a key added
   and removed before this gate existed is still in the object database and still
   needs rotating, and finding those is a `git log -S` job nothing here automates.
-- Polar's `polar_whs_…` webhook secret has exactly the right shape for the
-  credential table and is **not in it**:
-  `app/_lib/billing/webhook-verify.test.ts` commits a literal of that shape as a
-  fixture, and a rule whose first act is to fail the build on an existing test is
-  a rule that gets deleted rather than obeyed. Replace that fixture with an
-  obviously-inert string and the row can be added in the same change.
+- Polar's `polar_whs_…` webhook secret is covered by the credential table.
+  The verifier fixture constructs a visibly inert key at runtime, and the scanner
+  fixture pins detection of the committed-key shape.
 - `npm run review:gate -- --verify` is only as good as the token it is given.
   Until `GATE_ADMIN_TOKEN` exists in repository secrets, nothing mechanically
   confirms the ruleset is still applied — the offline half only proves the file

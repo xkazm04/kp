@@ -1,0 +1,8 @@
+{"card":"candidate-channels-ui/B","title":"Receiver health verdict plus an in-place pull-source editor on every receiver","status":"landed",
+ "base":"2625a556e","shas":["7dbf7d5b2","8ebcad713","15941b126"],
+ "tests_added":["app/features/hiring/channels/receiverHealth.test.ts","app/features/hiring/channels/receiverPullForm.test.ts"],
+ "cases_red_before":8,"cases_green_after":8,"cases_total":8,
+ "gates":{"tsc":2,"eslint":0,"i18n":0,"design":0,"docs":0,"api":null,"unit":0,"ts_ratchet":0},
+ "files_changed":16,"lines_changed":672,
+ "deviations_from_card":"Commit series is catalogs+doc (under lock) -> test (tests + the two pure modules) -> feat (card, table, tab, both panes, i18n render pins); the card-source assertion of case 8 landed with the feat commit so every commit is green. Also touched two existing tests in the directory: channels-i18n.test.ts (renders every new key x4 locales) and nothing else. Section roll-up treats reachedNoLeads as 'Needs attention' as well as pullFailing (the card's flow names both as caution). The pull failure is headlined as ONE localized class (no stored error kind exists); documented as the remaining Known gap in place of the closed 'no editor UI' gap.",
+ "notes":"tsc exit 2 is entirely the untracked foreign kpi-sim/runs/** tree (pre-existing, not in git); zero errors on any tracked path. Did not touch useDeliveryCapability.ts / ChannelsRelayConfigCard.tsx / ChannelsCommsTable.tsx (slot A). Row badge dot stays isReceiverLive so ChannelsReceiverTable.test.ts holds. PATCH route, store and list payload untouched; no ts-expect-error added (lint:ts-ratchet 0). Not visually verified in a browser (no dev server per brief)."}

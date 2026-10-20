@@ -1,8 +1,12 @@
+import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { listRecentTasks } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { ensureRecovered, isKnownKind, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
+import { listRecentTasks, listTaskParams } from "@/app/_lib/db/tasks";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { callerCapabilities, requireCapability } from "@/app/_lib/auth/current-user";
+import { dockMayStart, taskKindCapability } from "@/app/_lib/task-admission";
+import { attachReplayVerdicts } from "@/app/_lib/task-replay";
+import { ensureRecovered, isKnownKind, knownTaskKinds, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -27,19 +31,28 @@ const TASKS_START_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 // then looked its entry up in the wrong team and failed "entry not found" — or,
 // worse, succeeded against the wrong cohort and billed a real LLM run for it.
 // /api/analyze already did this correctly and is the shape both verbs now copy.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     ensureRecovered(); // self-heal orphaned 'running'/'queued' rows on the first read after a restart/crash
-    const ws = await currentWorkspace();
-    return NextResponse.json({ tasks: listRecentTasks(recentTaskCutoffIso(), undefined, ws) });
+    const tasks = listRecentTasks(recentTaskCutoffIso(), undefined, ws);
+    // Each dead row carries its REPLAY VERDICT (app/_lib/task-replay.ts) — the same
+    // decision POST /api/tasks/[id]/retry refuses by — so the table offers Retry only
+    // where it would run. One bounded params read for the page, never per row.
+    const caps = new Set(await callerCapabilities());
+    const withReplay = attachReplayVerdicts(tasks, {
+      loadParams: (ids) => listTaskParams(ids, ws),
+      exists: existsSync,
+      hasCapability: (cap) => caps.has(cap),
+    });
+    return NextResponse.json({ tasks: withReplay, kinds: knownTaskKinds() });
   } catch (error) {
     // better-sqlite3 behind this read: the thrown message carries the absolute db
     // path and SQLite detail, and the dock renders what it is handed.
     return safeJsonError(error, "api:tasks", "TASK_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // THROTTLE (rate-limit-contract.test.ts). This route reaches the SAME queue
     // that /api/jds/generate gates behind requireOperator and /api/analyze throttles
@@ -47,8 +60,9 @@ export async function POST(request: NextRequest) {
     // mints an anonymous demo-workspace one (which requireOperator rejects and this
     // route never asked for), so on a password-gated deploy with the demo enabled an
     // anonymous visitor could spend unbounded LLM credit by varying params to defeat
-    // the dedupe key. requireOperator is NOT the fix here: it would 401 the guided
-    // demo, which legitimately starts batch_screen through this door.
+    // the dedupe key. (The seat check below closes the demo half: /api/demo mints no
+    // session on any KP_SECRET deploy, and open mode folds every caller to owner, so
+    // asking pipeline:write costs the guided walk nothing.)
     const ip = clientIpFrom(request.headers);
     if (!rateLimit(`tasks-start:${ip}`, TASKS_START_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -57,9 +71,23 @@ export async function POST(request: NextRequest) {
     if (!body.kind || !isKnownKind(body.kind)) {
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: body.kind ?? null });
     }
+    // THE DOOR (app/_lib/task-admission.ts): a kind a server route builds and gates
+    // itself never comes through this generic door with client params. analyze was the
+    // case that forced it — its baseDir/cvPath are a workdir /api/analyze made from the
+    // upload, and a client body naming them let the runner read any file and rm -rf any
+    // directory (fixed 2026-09-23; runAnalyze and cleanupWorkdir still refuse anything
+    // that is not a jobfit workdir, independently of this door). The same table closes
+    // lifecycle, jd_build, repo_scan, agent_fit, interview_kit, interview_letter,
+    // companion_digest and jobseeker_scan, whose own doors ask gates this one skipped.
+    if (!dockMayStart(body.kind)) {
+      return jsonRefusal("TASK_KIND_SERVER_ONLY", 403, { kind: body.kind });
+    }
+    // THE SEAT: the capability the kind declares, before any per-class budget is spent.
+    // A viewer may watch the dock, not spend a screen sweep.
+    const denied = await requireCapabilityCoded(taskKindCapability(body.kind), requireCapability);
+    if (denied) return denied;
     // The tenant comes from the SESSION, never the body — a client-supplied
     // workspace would let any caller run work against another team's data.
-    const ws = await currentWorkspace();
     // …and the SECOND budget, per kind class (app/_lib/task-budget.ts). The 120
     // above was calibrated for the cheapest thing that comes through this door and
     // admitted 120 repo clones, 120 board-wide screen sweeps and 120 cohort
@@ -82,4 +110,4 @@ export async function POST(request: NextRequest) {
     // the thrown message is store detail, never client copy.
     return safeJsonError(error, "api:tasks", "TASK_START_FAILED");
   }
-}
+});

@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import type { MatchResultView } from "@/app/features/shared/matchTypes";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
+import type { SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 
 type SkillClaim = { skill?: string; level?: string; provenance?: string };
 export type AnalysisPayload = {
@@ -93,6 +94,24 @@ export function useAnalysisSummaryData(entry: Entry) {
     };
   }, [entry.candidateId, entry.jobId]);
 
+  // The SEALED Match verdict for this entry (ADR 0018): the facts the recruiter was shown
+  // when they filed it from Match, read off the decision chain by GET /api/pipeline/[id].
+  // A Match add no longer leaves prose in approvalDetail, so this is where AiNarrative
+  // finds why the candidate was shortlisted — rendered in the reader's language.
+  // Best-effort like the two reads above: a failure just leaves the section to the slot.
+  const [matchVerdict, setMatchVerdict] = useState<SealedMatchVerdict | null>(null);
+  useEffect(() => {
+    if (!entry.id) return;
+    let alive = true;
+    fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
+      .then((p: { matchVerdict?: SealedMatchVerdict | null }) => alive && setMatchVerdict(p.matchVerdict ?? null))
+      .catch(() => alive && setMatchVerdict(null));
+    return () => {
+      alive = false;
+    };
+  }, [entry.id]);
+
   const skills = (payload?.skillClaims ?? []).map((c) => c.skill).filter(Boolean).slice(0, 12) as string[];
   const matchProv = match?.matchedSkillProvenance ?? {};
   // The claimed-but-unproven bucket (round 7) — named required skills scored above 0
@@ -108,5 +127,5 @@ export function useAnalysisSummaryData(entry: Entry) {
   const unprovenLabelKey = (reason: string | undefined): "unprovenAdjacency" | "unprovenProvenance" | "unprovenBoth" | "unprovenClaimed" =>
     reason === "adjacency" ? "unprovenAdjacency" : reason === "provenance" ? "unprovenProvenance" : reason === "both" ? "unprovenBoth" : "unprovenClaimed";
 
-  return { payload, loading, match, peers, matchLoading, skills, matchProv, unproven, unprovenReason, unprovenStrength, unprovenLabelKey };
+  return { payload, loading, match, peers, matchLoading, matchVerdict, skills, matchProv, unproven, unprovenReason, unprovenStrength, unprovenLabelKey };
 }

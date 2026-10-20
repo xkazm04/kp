@@ -41,7 +41,7 @@ _KEYS = ("files", "note")
 def solve_baseline(case: CaseScenario, role: RoleSpec, seed: dict | None, *, provider: Any | None = None) -> tuple[dict, str]:
     """One one-shot solution over the case + materialized seed. Returns
     ({solutions: [{files, note}], promptVersion}, source)."""
-    from .provenance import generate_with_fallback
+    from .provenance import FALLBACK_CODE_KEY, FALLBACK_REASON_KEY, generate_with_fallback
 
     ctx = {
         "role": {"title": role.title, "seniority": role.seniority},
@@ -85,8 +85,12 @@ def solve_baseline(case: CaseScenario, role: RoleSpec, seed: dict | None, *, pro
     result, source = generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=_KEYS)
     solutions = [result] if result.get("files") else []
     out: dict[str, Any] = {"solutions": solutions, "promptVersion": BASELINE_PROMPT_VERSION}
-    # Lift the runner's fallback reason (if any) onto the envelope artifact so the
-    # caller's audit trail can tell "LLM down" from "clean empty".
-    if "fallbackReason" in result:
-        out["fallbackReason"] = result.pop("fallbackReason")
+    # Lift the runner's stamps (if any) onto the envelope artifact so the caller's
+    # audit trail can tell "LLM down" from "clean empty". BOTH of them: the prose
+    # reason for the envelope and the CODE for the usage ledger. Lifting only the
+    # reason left the code on the discarded ``result``, so every mid-call descent of
+    # this door reached the ledger as reason None (challenge-r08 tests-devcase/B).
+    for key in (FALLBACK_REASON_KEY, FALLBACK_CODE_KEY):
+        if key in result:
+            out[key] = result.pop(key)
     return out, source

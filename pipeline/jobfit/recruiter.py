@@ -45,7 +45,8 @@ def fairness_check(
     under EVERY candidate's scheme (enforcing the per-archetype bounds) and ranks
     by the mean. Returns the matrix plus the aligned candidateIds, the per-candidate
     weight rationale, whether the weights were LLM- or rule-derived, index-aligned
-    ``tracks``, and ``koFailed`` (KO labels are dropped from ``ranking``). A
+    ``tracks``, ``koFailed``, and ``rankingIds`` — the robust order as candidate ids,
+    KO-failed ids excluded (``ranking`` is its label twin). A
     best-effort companion to rank_candidates_for_job — never required to decide."""
     proposals, source = weight_proposal.generate(candidates, job, provider=provider)
     pairs = [(cand, proposals[cid]["weights"]) for cid, cand in candidates]
@@ -57,15 +58,22 @@ def fairness_check(
     # re-merge incomparable cohorts or crown a knockout. Cells stay the full
     # pool (lockstep with the candidate list the CLI already returns).
     matrix["tracks"] = [fairness_track(cand.archetype) for _cid, cand in candidates]
+    # KO exclusion is by pool INDEX, never by label: excluding by label dropped every
+    # namesake of a knocked-out candidate (two 'Jan Novák's, or a blinded pool where
+    # everyone is 'Candidate') from the robust order along with them.
     ko_failed: list[str] = []
-    ko_failed_labels: set[str] = set()
-    for cid, cand in candidates:
+    ko_index: set[int] = set()
+    for i, (cid, cand) in enumerate(candidates):
         passed, _reasons = ko_filter(cand, job)
         if not passed:
             ko_failed.append(cid)
-            ko_failed_labels.add(cand.label)
+            ko_index.add(i)
+    kept = [i for i in matrix["order"] if i not in ko_index]
     matrix["koFailed"] = ko_failed
-    matrix["ranking"] = [label for label in matrix["ranking"] if label not in ko_failed_labels]
+    # rankingIds is the identity-keyed robust order; ranking stays its label twin
+    # (index-aligned) for every reader that predates the ids.
+    matrix["rankingIds"] = [candidates[i][0] for i in kept]
+    matrix["ranking"] = [matrix["labels"][i] for i in kept]
     return matrix
 
 

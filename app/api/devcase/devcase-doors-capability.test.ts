@@ -1,15 +1,17 @@
-// The last four dev-case doors ask the SEAT, not just the session.
+// Nine dev-case doors ask the SEAT, not just the session.
 //
 // The sibling of app/api/write-capability-gate.test.ts, narrowed to the four dev-case
 // doors that were still on route-capability-coverage.test.ts's ALLOWED list when
-// /perfect wave 31 opened. Three of them (`POST /api/devcase`, `/source`, `/submit`)
+// /perfect wave 31 opened, extended (R4-api-devcase-1-8) by the five doors that
+// list still held: lifecycle start, close, redesign, promote and feedback. Close
+// mails a rejection to every applicant who was not promoted; a viewer must not. Three of them (`POST /api/devcase`, `/source`, `/submit`)
 // asked NOTHING about the caller at all — not even identity presence — so a viewer
 // seat could approve a case into the library, spend the sourcing spawn against the
 // candidate DB and file a submission on another recruiter's posting. The fourth
 // (`/skill-profile`) had `requireOperator`, which answers "is a trusted, non-demo
 // session present?" and says yes to a viewer exactly as loudly as to an owner.
 //
-// All four are recruiter operations, so all four ask `pipeline:write`:
+// All nine are recruiter operations, so all nine ask `pipeline:write`:
 //   • viewer            → 403 FORBIDDEN_CAPABILITY, carrying the capability as data
 //   • recruiter / owner → NOT refused by the gate (each door's own 400 is its business)
 //   • no session at all  → 401 (requireOperator's answer)
@@ -67,6 +69,12 @@ const { POST: sourceCase } = await import("./source/route.ts");
 const { POST: submitCase } = await import("./submit/route.ts");
 const { POST: mintProfile } = await import("./skill-profile/route.ts");
 
+const { POST: startLifecycle } = await import("./lifecycle/route.ts");
+const { POST: closeLifecycle } = await import("./lifecycle/[id]/close/route.ts");
+const { POST: redesignLifecycle } = await import("./lifecycle/[id]/redesign/route.ts");
+const { POST: promoteSubmission } = await import("./promote/route.ts");
+const { POST: feedbackSubmission } = await import("./feedback/route.ts");
+
 const { createWorkspace } = await import("../../_lib/db/workspaces.ts");
 const { createUser } = await import("../../_lib/db/users.ts");
 const { upsertMembership } = await import("../../_lib/db/memberships.ts");
@@ -108,6 +116,11 @@ const DOORS: Door[] = [
   { name: "POST /api/devcase/source", call: () => sourceCase(req()) },
   { name: "POST /api/devcase/submit", call: () => submitCase(req()) },
   { name: "POST /api/devcase/skill-profile", call: () => mintProfile(req()) },
+  { name: "POST /api/devcase/lifecycle", call: () => startLifecycle(req()) },
+  { name: "POST /api/devcase/lifecycle/[id]/close", call: () => closeLifecycle(req(), { params: Promise.resolve({ id: "no-such-lifecycle" }) }) },
+  { name: "POST /api/devcase/lifecycle/[id]/redesign", call: () => redesignLifecycle(req(), { params: Promise.resolve({ id: "no-such-lifecycle" }) }) },
+  { name: "POST /api/devcase/promote", call: () => promoteSubmission(req()) },
+  { name: "POST /api/devcase/feedback", call: () => feedbackSubmission(req()) },
 ];
 
 for (const door of DOORS) {

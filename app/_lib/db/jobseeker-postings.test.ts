@@ -7,15 +7,20 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { RawPosting } from "../jobseeker/types.ts";
+import { ensureDb } from "./core.ts";
 import {
   getJobseekerPosting,
+  getPostingSummary,
+  listDeepDiveCandidates,
   listJobseekerPostings,
   listPostingsForMatching,
   markAbsent,
   setPostingMatch,
   setPostingStructure,
   setJobseekerPostingStatus,
+  setPostingBlocked,
   upsertPosting,
+  directionTotalOf,
 } from "./jobseeker-postings.ts";
 
 after(() => cleanupUnitDb());
@@ -112,6 +117,46 @@ test("markAbsent leaves the seeker's own statuses alone except the terminal move
   assert.equal(getJobseekerPosting(p.id)!.status, "shortlisted", "first miss does not touch status");
   markAbsent(source, T2);
   assert.equal(getJobseekerPosting(p.id)!.status, "gone", "second miss does — a withdrawn opening cannot stay shortlisted");
+});
+
+test("markAbsent never overwrites a DECISION: applied and dismissed keep their status, the absence shows as gone_at", () => {
+  const source = "src-absent-decided";
+  const applied = upsertPosting(source, raw(), T0);
+  const dismissed = upsertPosting(source, raw(), T0);
+  setJobseekerPostingStatus(applied.id, "applied", null);
+  setJobseekerPostingStatus(dismissed.id, "dismissed", { reason: "salary", note: null });
+  markAbsent(source, T1);
+  assert.equal(markAbsent(source, T2), 0, "a decided row is not moved to gone");
+  const a = getJobseekerPosting(applied.id)!;
+  assert.equal(a.status, "applied", "the seeker applied — the ad being withdrawn does not un-apply them");
+  assert.ok(a.appliedAt, "and the date they applied survives");
+  assert.ok(a.goneAt, "the absence is still visible");
+  const d = getJobseekerPosting(dismissed.id)!;
+  assert.equal(d.status, "dismissed");
+  assert.equal(d.dismissReason, "salary", "the reason the feed learns from survives");
+  assert.ok(d.goneAt);
+});
+
+test("a re-seen decided posting keeps its decision; a legacy gone row that was decided revives to the decision", () => {
+  const source = "src-revive-decided";
+  const first = raw();
+  const dismissed = upsertPosting(source, first, T0);
+  setJobseekerPostingStatus(dismissed.id, "dismissed", { reason: "location", note: null });
+  markAbsent(source, T1);
+  markAbsent(source, T2);
+  upsertPosting(source, first, T3);
+  let row = getJobseekerPosting(dismissed.id)!;
+  assert.equal(row.status, "dismissed", "a dismissed posting the board shows again is still dismissed");
+  assert.equal(row.goneAt, null);
+
+  // A row the OLD markAbsent had already stamped 'gone' over an application.
+  const legacy = raw();
+  const l = upsertPosting(source, legacy, T0);
+  setJobseekerPostingStatus(l.id, "applied", null);
+  ensureDb().prepare(`UPDATE jobseeker_postings SET status = 'gone', gone_at = ? WHERE id = ?`).run(T1, l.id);
+  upsertPosting(source, legacy, T3);
+  row = getJobseekerPosting(l.id)!;
+  assert.equal(row.status, "applied", "applied_at is still on the row, so the revival restores the decision, not 'new'");
 });
 
 test("listJobseekerPostings: keyset paging by total walks every row once, nulls last; minTotal filters", () => {
@@ -221,4 +266,78 @@ test("listPostingsForMatching: scoped, it returns only the rows that still owe a
   assert.equal(listPostingsForMatching(ws, scope).skippedUpToDate, 0);
   // …and another workspace sees none of it.
   assert.equal(listPostingsForMatching("ws-other", scope).rows.length, 0);
+});
+
+test("setPostingBlocked: stamps the verdict with no total, is skipped by the next scan, and projects blockedBy", () => {
+  const source = "src-blocked";
+  const ws = "ws-blocked";
+  const blocked = upsertPosting(source, raw(), T0, ws);
+  const scored = upsertPosting(source, raw(), T0, ws);
+  for (const id of [blocked.id, scored.id]) setPostingStructure(id, { title: "x" }, "deterministic", ws);
+  const asIf = { jobId: blocked.id, total: 88, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] };
+  const verdict = { blocked: { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] }, asIf };
+  assert.equal(setPostingBlocked(blocked.id, verdict, { version: "jobseeker-match-v2", matchedAt: T2 }, ws), true);
+  setPostingMatch(scored.id, { jobId: scored.id, eligibility: [] }, { total: 70, fitTier: "strong", version: "jobseeker-match-v2", matchedAt: T2 }, ws);
+
+  const row = getJobseekerPosting(blocked.id, ws)!;
+  assert.equal(row.matchTotal, null, "the as-if score never becomes the sort column");
+  assert.equal(row.fitTier, null);
+  assert.equal(row.matchVersion, "jobseeker-match-v2");
+  assert.equal(row.matchedAt, T2);
+  assert.deepEqual(row.match, verdict);
+
+  const scope = { upToDateVersion: "jobseeker-match-v2", profileUpdatedAt: T1 };
+  const pending = listPostingsForMatching(ws, scope);
+  assert.equal(pending.rows.length, 0, "a stamped verdict is current: the next unchanged scan does not re-send it");
+  assert.equal(pending.skippedUpToDate, 2);
+
+  const byId = new Map(listJobseekerPostings({}, ws).rows.map((r) => [r.id, r]));
+  assert.deepEqual(byId.get(blocked.id)!.blockedBy, ["work_mode"]);
+  assert.deepEqual(byId.get(blocked.id)!.eligibility, [], "the as-if flags are not the row's own eligibility");
+  assert.deepEqual(byId.get(scored.id)!.blockedBy, []);
+  assert.deepEqual(getPostingSummary(blocked.id, ws)!.blockedBy, ["work_mode"]);
+
+  // An as-if 88 never reaches the deep-dive shortlist: it reads match_total, which is NULL.
+  assert.deepEqual(listDeepDiveCandidates({ threshold: 0, limit: 10 }, ws).map((p) => p.id), [scored.id]);
+});
+
+test("setPostingBlocked re-checks instead of locking: a posting whose content changed after the list is not stamped", () => {
+  const source = "src-blocked-race";
+  const ws = "ws-blocked-race";
+  const first = raw();
+  const p = upsertPosting(source, first, T0, ws);
+  setPostingStructure(p.id, { title: "x" }, "deterministic", ws);
+  // The scan listed it; then a concurrent reconcile saw new content, which NULLs job_json.
+  assert.equal(upsertPosting(source, { ...first, bodyText: `${first.bodyText} Now onsite only.` }, T1, ws).outcome, "changed");
+  const stamped = setPostingBlocked(p.id, { blocked: { koKeys: ["work_mode"], koDetails: ["x"] }, asIf: { total: 50 } }, { version: "jobseeker-match-v2", matchedAt: T2 }, ws);
+  assert.equal(stamped, false, "changes === 0: the verdict was computed from content that no longer exists");
+  const row = getJobseekerPosting(p.id, ws)!;
+  assert.equal(row.match, null);
+  assert.equal(row.matchVersion, null, "so the next scan structures and matches it afresh");
+  // …and a foreign workspace cannot stamp it either.
+  setPostingStructure(p.id, { title: "x" }, "deterministic", ws);
+  assert.equal(setPostingBlocked(p.id, { blocked: { koKeys: [], koDetails: [] }, asIf: {} }, { version: "v", matchedAt: T2 }, "ws-other"), false);
+});
+
+test("an ad that states no skill: the summary says so and carries the score on what WAS measured", () => {
+  const source = "src-unmeasured";
+  const bare = upsertPosting(source, raw(), T0);
+  const listed = upsertPosting(source, raw(), T0);
+  const unread = upsertPosting(source, raw(), T0);
+  setPostingStructure(bare.id, { title: "x", requirements: [] }, "deterministic");
+  setPostingStructure(listed.id, { title: "y", requirements: [{ skill: "TypeScript", kind: "must_have" }] }, "deterministic");
+  // Skills weigh 0.5 and scored 0; career 0.3 at 0.9, personal 0.2 at 0.6 -> 27 + 12 of 50 points.
+  const breakdown = [
+    { key: "skills", weight: 50, contribution: 0, percent: 0 },
+    { key: "career", weight: 30, contribution: 27, percent: 90 },
+    { key: "personal", weight: 20, contribution: 12, percent: 60 },
+  ];
+  setPostingMatch(bare.id, { total: 39, scoreBreakdown: breakdown }, { total: 39, fitTier: "partial", version: "v1", matchedAt: T1 });
+  setPostingMatch(listed.id, { total: 39, scoreBreakdown: breakdown }, { total: 39, fitTier: "partial", version: "v1", matchedAt: T1 });
+  assert.deepEqual([getPostingSummary(bare.id)!.skillsStated, getPostingSummary(bare.id)!.directionTotal], [false, 78]);
+  assert.deepEqual([getPostingSummary(listed.id)!.skillsStated, getPostingSummary(listed.id)!.directionTotal], [true, null]);
+  // Not structured yet: unknown, never "states no skill".
+  assert.deepEqual([getPostingSummary(unread.id)!.skillsStated, getPostingSummary(unread.id)!.directionTotal], [null, null]);
+  assert.equal(directionTotalOf({ scoreBreakdown: [{ key: "career", weight: "x" }] }), null);
+  assert.equal(directionTotalOf(null), null);
 });

@@ -246,6 +246,12 @@ export function useHiringComposer() {
     reloadPlan,
     discard,
     save,
+    // Read-only views the kit view (./kit) draws beside the drafts: what is stored, so a row can
+    // show it changed and a figure its delta, and when each phase was stored (null = never saved
+    // at any tier, so the product default applies). The current tab reads none of them.
+    savedPlan,
+    savedStages: state.savedStages,
+    versions,
   };
 }
 

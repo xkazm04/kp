@@ -10,11 +10,12 @@
 // action, which used to be built in SimControlDock.tsx and now lives beside the
 // only face that renders it.
 import { useState } from "react";
-import { BookOpen, Check, ChevronRight, Footprints, Pause, Play, RotateCcw, Sparkles, Square } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Copy, Footprints, Pause, Play, RotateCcw, Sparkles, Square } from "lucide-react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { SIM_PHASES } from "./constants";
 import { phaseStepState, type PhaseStepState } from "./simPhaseStep";
 import { PHASE_ICON } from "./simControlCenterKit";
@@ -30,15 +31,16 @@ const PHASE_STATE_KEY: Record<PhaseStepState, "phaseCompleted" | "phaseCurrent" 
   upcoming: "phaseUpcoming",
 };
 
-// The one control whose label depends on where the run is: start / run again /
-// next / resume / pause — and, on the public `?sim=auto` demo that has finished,
-// the peak-intent conversion into the app instead of a replay.
+// The one control whose label depends on where the run is: start / resume at a
+// chapter / run again / next / resume / pause — and, on the public `?sim=auto` demo
+// that has finished, the peak-intent conversion into the app instead of a replay.
 function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimulation>; isPublicDemo: boolean }) {
   const t = useTranslations("pipeline.controlCenter");
+  const tSim = useTranslations("simulation");
   if (sim.running) {
     if (sim.awaitingNext) {
       return (
-        <button type="button" onClick={sim.next} className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
+        <button type="button" onClick={sim.next} className={`${ctrlBase} bg-coral-solid text-white shadow-sticker-xs hover:bg-coral-solid/90`}>
           {t("next")} <ChevronRight size={14} />
         </button>
       );
@@ -56,6 +58,22 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
       </button>
     );
   }
+  // A walk the board still shows is RESUMED, not restarted: Start purges it, and the
+  // Reset beside this button stays the way to begin clean on purpose.
+  if (!sim.done && sim.resumable) {
+    const phase = tSim(`phase.${sim.resumable.phase}`);
+    const candidate = sim.resumable.targetLabel;
+    return (
+      <button
+        type="button"
+        onClick={sim.resumeAt}
+        title={candidate ? t("resumeAtTitleCandidate", { phase, candidate }) : t("resumeAtTitle", { phase })}
+        className={`${ctrlBase} bg-ink text-white shadow-sticker-xs hover:opacity-90`}
+      >
+        <Play size={14} /> {t("resumeAt", { phase })}
+      </button>
+    );
+  }
   if (!sim.done) {
     return (
       <button type="button" onClick={sim.start} className={`${ctrlBase} bg-ink text-white shadow-sticker-xs hover:opacity-90`}>
@@ -64,9 +82,9 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
     );
   }
   return isPublicDemo ? (
-    <a href="/login" className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
+    <button type="button" onClick={() => void enterWorkspace()} className={`${ctrlBase} bg-coral-solid text-white shadow-sticker-xs hover:bg-coral-solid/90`}>
       <Sparkles size={14} /> {t("getStarted")}
-    </a>
+    </button>
   ) : (
     <button type="button" onClick={sim.start} className={`${ctrlBase} bg-ink text-white hover:opacity-90`}>
       <Play size={14} /> {t("runAgain")}
@@ -92,6 +110,8 @@ export function SimControlDockSimFace({
   const t = useTranslations("pipeline.controlCenter");
   const tSim = useTranslations("simulation");
   const [resetting, setResetting] = useState(false);
+  const [copyState, setCopyState] = useState<"copied" | "failed" | null>(null);
+  const transcript = sim.log.map((line) => line.text).join("\n");
   return (
     <div className="space-y-2.5">
       {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #4): name the list
@@ -114,7 +134,7 @@ export function SimControlDockSimFace({
                 title={t("goToPhase", { label })}
                 className={`focus-ring inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm transition-colors ${
                   active
-                    ? "bg-coral font-semibold text-white shadow-sticker-xs"
+                    ? "bg-coral-solid font-semibold text-white shadow-sticker-xs"
                     : done
                       ? "bg-moss/15 font-medium text-moss"
                       : "bg-stone-100 font-medium text-steel hover:bg-stone-200"
@@ -141,7 +161,7 @@ export function SimControlDockSimFace({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <PrimaryAction sim={sim} isPublicDemo={isPublicDemo} />
           {sim.running ? (
-            <button type="button" onClick={sim.stop} className={`${ctrlBase} border border-stone-200 px-2.5 text-coral hover:bg-coral/5`}>
+            <button type="button" onClick={sim.stop} className={`${ctrlBase} border border-stone-200 px-2.5 text-coral-ink hover:bg-coral/5`}>
               <Square size={13} /> {t("stop")}
             </button>
           ) : null}
@@ -180,8 +200,26 @@ export function SimControlDockSimFace({
           >
             <BookOpen size={13} /> {t("explain")}
           </button>
+          {transcript ? (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(transcript);
+                  setCopyState("copied");
+                } catch {
+                  setCopyState("failed");
+                }
+              }}
+              className={ctrlToggle(false)}
+            >
+              <Copy size={13} aria-hidden /> {t("copyRunLog")}
+            </button>
+          ) : null}
         </div>
       </div>
+      {copyState ? <p role="status" className="text-sm text-steel">{t(copyState === "copied" ? "runLogCopied" : "runLogCopyFailed")}</p> : null}
+      {copyState === "failed" ? <textarea readOnly value={transcript} aria-label={t("runLogTranscript")} onFocus={(event) => event.currentTarget.select()} className="w-full rounded-md border border-stone-300 bg-paper p-2 text-sm text-ink" rows={5} /> : null}
     </div>
   );
 }

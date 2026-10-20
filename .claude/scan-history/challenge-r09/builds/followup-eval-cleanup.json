@@ -1,0 +1,24 @@
+{
+  "id": "followup-eval-cleanup",
+  "origin": "r09 eval-harness/A loop_open",
+  "status": "done",
+  "base": "f43d8320c",
+  "commits": ["908e42439"],
+  "changes": [
+    "deleted scripts/interview-brief-grounded.ts (superseded by scripts/interview-brief.ts --brief grounded -> renderGrounded in scripts/interview-briefs-snapshot.ts; no package.json script, CI step, hook or test ran it)",
+    "repointed docs/features/interviews/README.md:87, app/_lib/interview-run.ts:343 and scripts/interview-briefs-snapshot.ts:50 at renderGrounded",
+    "fixed stale NON_NEGOTIABLES pointer in pipeline/jobfit/tests/test_automation.py:665 (comment only) -> app/_lib/student-interview.ts; same stale pointer also fixed in pipeline/jobfit/automation.py:2420 comment and docs/features/interviews/README.md:2861"
+  ],
+  "grep_before": "interview-brief-grounded: 4 live refs (doc, interview-run.ts, snapshot.ts comment, the script itself); interview_eval NON_NEGOTIABLES: 3 stale refs",
+  "grep_after": "only pipeline/jobfit/tests/test_interview_eval.py:515 assertNotIn (intended) plus generated maps/archives (context-map.json, .ai/registry-map.json, docs/harness, kpi-sim) left for their regenerators",
+  "lock": "docs edit made under .git/scan-sweep-challenge.lock, taken and released by this builder",
+  "gates": {
+    "guidance:check": "green",
+    "hooks:check": "green",
+    "docs:check": "green",
+    "tsc": "no errors in touched files; tree-level errors come from other sessions' in-flight edits (human-scorecard-set, stage-hooks, interview/create route) and the untracked kpi-sim/ copy",
+    "test:python:gate": "green (3103 tests, skipped 4, tolerated 4/4); an earlier run went red while other builders were editing pipeline/jobfit/eval, and a rerun was green",
+    "review:constitution": "no finding"
+  },
+  "red_before_green_after": "none (cleanup of comments, docs and dead code; no behaviour changed)"
+}

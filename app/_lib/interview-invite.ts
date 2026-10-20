@@ -24,6 +24,9 @@ import {
   type InterviewSession,
 } from "@/app/_lib/db/interviews";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { entryContactability } from "@/app/_lib/comms-contactability";
+import { latestPublishedKit } from "@/app/_lib/interview-kit";
+import type { StoredInterviewKit } from "@/app/_lib/interview-kit-types";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
@@ -44,6 +47,9 @@ export type MeterRefusal = NonNullable<ReturnType<typeof meterGate>>;
 export type VoiceScreenMintResult =
   | { ok: false; refusal: "BILLING_QUOTA_EXCEEDED"; quota: MeterRefusal }
   | { ok: false; refusal: "INTERVIEW_CALL_IN_PROGRESS" }
+  /** The SEND GATE refuses this candidate (consent lapsed but not yet swept, or
+   *  erased): nothing was built, reserved, revoked, minted or mailed. */
+  | { ok: false; refusal: "COMMS_SUPPRESSED" }
   | {
       ok: true;
       session: InterviewSession;
@@ -77,10 +83,14 @@ export type VoiceScreenMintInput = {
 /**
  * Mint a candidate-mode voice screen for a pipeline entry and invite the candidate.
  *
- * Order is load-bearing and is the route's original order, unchanged:
+ * Order is load-bearing — the route's original order, with the kit pin moved ahead of
+ * the build because the kit now sets the booked length:
  *   1. live-call guard — a reissue must not torpedo a call in progress;
- *   2. grounded build FIRST, so the booked duration is known and so a build
- *      failure can never kill the candidate's existing live link;
+ *   1b. the send gate (`entryContactability`) — a candidate we may no longer write to
+ *      gets no model-backed build, no reservation and no link;
+ *   2. the job-kit pin, then the grounded build, so the booked duration is known
+ *      (a pinned kit sets it) and so a build failure can never kill the candidate's
+ *      existing live link;
  *   3. AUTHORITATIVE billing reservation against the worst case /complete can
  *      debit (bookedMin*2), before anything is revoked;
  *   4. revoke-then-create, so exactly one link is live per entry;
@@ -104,7 +114,46 @@ export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Pro
     if (live && isInterviewSessionLive(live)) return { ok: false, refusal: "INTERVIEW_CALL_IN_PROGRESS" };
   }
 
-  const grounded = await buildGroundedInterview(entryId, workspaceId);
+  // PIN THE KIT AT MINT (spark interview-kit-template). The link carries the job kit
+  // VERSION that was published when it was created, so an edit landing mid-round
+  // cannot change what a candidate already holding a link is asked and the round's
+  // ratings stay comparable. Resolved here rather than at connect for exactly that
+  // reason: connect runs when the candidate clicks, which may be days later. Resolved
+  // BEFORE the grounded build because the pinned kit sets the booked length (the build
+  // books it through interview-kit-booking.ts kitBookedMin, the one rule every surface
+  // reads, and states it in the saved fallback brief).
+  // Best-effort — a job with no kit, or a kit that cannot be read, mints the link the
+  // way it always did rather than failing the invite.
+  const entry = getPipelineEntry(entryId, workspaceId);
+
+  // ASK THE SEND GATE FIRST (challenge-r09 follow-up to comms-locale-optout/A). Every
+  // other candidate-link door asks `entryContactability` before it mints; this one used
+  // to meet the gate only inside the best-effort dispatch below, AFTER a model-backed
+  // build and a live session — so "Start interview" minted a working /interview/<token>
+  // for an opted-out / consent-lapsed / erased candidate while "Send link" on the same
+  // card was refused 409. Only a CODED refusal stops the mint: an unaddressable person
+  // (the recruiter hands the link over by hand) and an agent slate keep their existing
+  // paths. No entry → fall through, so the build's not-found stays the one answer.
+  // Verdict-then-mint holds no lock by design; sendComm re-checks at the send.
+  if (entry) {
+    const contactable = entryContactability(entry, "interview_invite");
+    if (!contactable.ok && contactable.code) return { ok: false, refusal: contactable.code };
+  }
+
+  const jobId = entry?.jobId ?? null;
+  let pinned: StoredInterviewKit | null = null;
+  if (jobId) {
+    try {
+      pinned = latestPublishedKit(jobId, workspaceId);
+    } catch (kitErr) {
+      // Not silent: the round loses its shared spine and the recruiter would want to
+      // know, but a candidate must still get their link.
+      console.error(`[interview:mint] interview kit unreadable for job ${jobId}:`, kitErr);
+    }
+  }
+  const kitId = pinned?.id ?? null;
+
+  const grounded = await buildGroundedInterview(entryId, workspaceId, { pinnedKit: pinned?.kit ?? null });
 
   // AUTHORITATIVE billing reservation: refuse unless the meter can cover the WORST
   // CASE /complete can debit for THIS session — maxBillableInterviewMin(bookedMin) =
@@ -131,6 +180,7 @@ export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Pro
     // inside the store; stating the caller's team too keeps the gate above and the
     // row below reading the same tenant on any path that loses the entry.
     workspaceId,
+    kitId,
   });
 
   // Deliver the link TO the candidate (the screen is candidate-mode — they take the

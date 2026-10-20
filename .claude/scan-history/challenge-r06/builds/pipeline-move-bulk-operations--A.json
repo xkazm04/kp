@@ -1,0 +1,23 @@
+{
+  "card": "pipeline-move-bulk-operations/A",
+  "title": "Bulk selection as one reducer: confirms sign the cohort, ghosts prune",
+  "status": "landed",
+  "base": "159cdbae3",
+  "shas": ["428cac2d3", "1eaf3d29f", "059a83624", "74c9f8d25", "0c91b9852"],
+  "tests_added": [
+    "app/features/hiring/pipeline/pipelineBulkSelection.test.ts",
+    "app/features/hiring/pipeline/usePipelineBulk.test.ts (source guard case + re-anchored refusal pins)",
+    "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts (cohort-drift case)",
+    "app/features/hiring/pipeline/pipelineSelectionScope.test.ts (filtered-out is not departed)"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {"tsc": 1, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": null, "unit": 1, "perf": 1, "ts_ratchet": 0, "_gates_note": "tsc, unit and perf exit 1 on FOREIGN paths only - see notes"},
+  "files_changed": 15,
+  "lines_changed": 1214,
+  "deviations_from_card": "(1) Two files outside the write set, both source-guard tests updated under the brief's rule for a guard that pinned the old expression: app/api/pipeline/pipeline-refusals-coded.test.ts now reads usePipelineBulk.ts + pipelineBulkSelection.ts (the per-id code fold moved into the reducer module), and it still forbids keeping the server's prose. perf-budget.json (shared surface, under the lock): app/page.tsx maxModules 1415 -> 1416 for the one new module. (2) The ghost disclosure rides on bulkResult (a `departed` count, and verb 'departed' when no action line is showing) instead of a new bar prop, so usePipelineTabState.ts / PipelinePopulatedBoard.tsx did not have to join the write set; new catalog key pipeline.tab.selectionDeparted in all four locales. (3) cohortSignature takes (selectedIds, entries, which) and filters to the actionable rows itself; armedBulkConfirm(state, scope, entries) is the fire-site reader. armedConfirm in pipelineBulkConfirm.ts now requires the cohort argument (not optional), so no caller can check scope only.",
+  "notes": "tsc exit 1 on the whole tree is foreign only: all 75 errors are under the untracked kpi-sim/ directory (none in tracked files at the time of the run). Full npm run test:unit: 10349 pass, 1 fail = app/_lib/python-runner-concurrency.test.ts 'an aborted spawn kills the whole process tree' (BROKEN twice) - a Windows process-tree test unrelated to this card, run while five builders were spawning processes; the pipeline dir + app/api/pipeline tests are 306/306 on the committed tree. test:perf: the full working tree was red on app/page.tsx KB (8938 vs 8933) and ~12 app/api route ceilings from siblings' uncommitted files; measured HEAD + this card's four source files alone via git archive in scratch: the only finding was page.tsx 1416 modules vs 1415 (mine: pipelineBulkSelection.ts), KB within ceiling (usePipelineBulk.ts shrank 25.4 KB -> 17.0 KB), so only maxModules was raised. Behaviour notes for integration / slot B: the reducer (pipelineBulkSelection.ts) is the place to add a 'move' confirm - BulkWhich and actionableRows are the extension points, and a move confirm should sign its cohort the same way. The settle for a failed outreach task keeps the current selection (not current + cohort) and reports failed = cohort started. The reconcile event prunes against the WHOLE board (entries), never filteredEntries, so the 'selection survives a filter change' rule is intact (new case pins it). Children's BulkConfirmIntent is unchanged; a child 'selectionChanged'/'fired' intent now maps to a plain disarm.",
+  "lens": "architecture-challenger",
+  "gate": "policy-tighten"
+}

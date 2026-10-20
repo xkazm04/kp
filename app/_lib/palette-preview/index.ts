@@ -25,12 +25,18 @@ import {
   resolveJobs,
   resolveLibrary,
 } from "./resolve-library-tools";
-import { OPERATOR_ONLY_TABS, type EntityKind, type PalettePreview, type PreviewableTab } from "./types";
+import { DEPLOYMENT_WIDE_TABS, OPERATOR_ONLY_TABS, type EntityKind, type PalettePreview, type PreviewableTab } from "./types";
 
 export * from "./types";
 
-export async function resolveTabPreview(tab: PreviewableTab, ws: string, operator: boolean): Promise<PalettePreview> {
+export async function resolveTabPreview(
+  tab: PreviewableTab,
+  ws: string,
+  operator: boolean,
+  homeOrgReader: boolean,
+): Promise<PalettePreview> {
   if (OPERATOR_ONLY_TABS.has(tab) && !operator) return { view: "restricted" };
+  if (DEPLOYMENT_WIDE_TABS.has(tab) && !homeOrgReader) return { view: "restricted" };
   // Lazily computed: only the hiring/library tabs need the badge counts.
   let attention: ReturnType<typeof attentionCounts> | null = null;
   const att = () => (attention ??= attentionCounts(ws));

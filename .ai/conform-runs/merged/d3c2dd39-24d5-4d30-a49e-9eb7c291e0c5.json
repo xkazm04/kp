@@ -1,0 +1,106 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d3c2dd39-24d5-4d30-a49e-9eb7c291e0c5",
+  "subject": "pipeline-aging-and-attention-triage",
+  "evaluatedAt": "2026-10-18T02:07:01.943042+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "pipeline-board-ui",
+      "subject": "pipeline-aging-and-attention-triage",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:128 The board independently reduces aging to a boolean and coerces unavailable dwell to zero, losing the standard's unavailable state and severity distinction.",
+      "techniques": [
+        {
+          "technique": "aging-versus-stalled-two-tier-alerts",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:161 The rendered Orbit model carries a single aging boolean, without a separate stalled tier for presentation or ranking."
+        },
+        {
+          "technique": "attention-queue-ordering-and-rationale",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:211 groupsFor sorts by this blended score, allowing sufficiently many aging entries to outweigh a group containing a human approval gate."
+        },
+        {
+          "technique": "badges-degrade-rather-than-error",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/PipelineOrbitView.tsx:102 Missing or invalid timestamps become zero days instead of remaining explicitly unavailable."
+        },
+        {
+          "technique": "overridable-defaults-with-a-server-side-approximation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:74 Overrides are saved as team configuration and reloaded on the shared axis, so the standard's exception for server-visible policy applies."
+        },
+        {
+          "technique": "per-stage-aging-thresholds-not-one-global-cut",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:128 The board supplies its axis but uses dwell alone, with no offer-window ownership handling and no guard against the resolver's unknown-role fallback."
+        },
+        {
+          "technique": "terminal-stages-never-age",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 The header predicate consults only live board stages; a retired noncanonical terminal stage becomes unrecognized and can subsequently enter staleCount through the fallback threshold."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "analytics-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "workspace-shell-core",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "pipeline-actions-commands",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation is about aging-policy.ts and attention.ts, which are not among the command/axis files listed for this context. The cited aging-policy.ts:161 line is only the thin agingTierAt wrapper, and it does not show the claimed 'cannot distinguish unsent offers, live response windows, or lapsed d"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T02:07:01.943042+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "pipeline-aging-and-attention-triage"
+      ],
+      "techniques": [
+        "aging-versus-stalled-two-tier-alerts",
+        "attention-queue-ordering-and-rationale",
+        "badges-degrade-rather-than-error",
+        "overridable-defaults-with-a-server-side-approximation",
+        "per-stage-aging-thresholds-not-one-global-cut",
+        "terminal-stages-never-age"
+      ],
+      "deviations": 1,
+      "context": "pipeline-actions-commands",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-18T02:07:01.943042+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "pipeline-aging-and-attention-triage"
+      ],
+      "techniques": [
+        "aging-versus-stalled-two-tier-alerts",
+        "attention-queue-ordering-and-rationale",
+        "badges-degrade-rather-than-error",
+        "overridable-defaults-with-a-server-side-approximation",
+        "per-stage-aging-thresholds-not-one-global-cut",
+        "terminal-stages-never-age"
+      ],
+      "deviations": 1,
+      "context": "pipeline-board-ui",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

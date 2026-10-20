@@ -1,11 +1,15 @@
 import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { taskKindCapability } from "@/app/_lib/task-admission";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
+import { retryDecision } from "@/app/_lib/task-fanout";
+import { replayBlock } from "@/app/_lib/task-replay";
 
 // Every accepted retry re-spends — a real LLM call and/or a Python spawn — so this
 // door carries the SAME per-class budget as POST /api/tasks (app/_lib/task-budget.ts)
@@ -20,45 +24,44 @@ const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // self-contained (inline text/objects) or DB-keyed (entryId / submissionId /
 // lifecycleId / repoRef), so they replay unchanged. `buildDedupeKey` makes a
 // double-click merge into the in-flight run instead of duplicating it.
-const RETRYABLE = new Set(["failed", "interrupted", "canceled"]);
-
-// The ONE kind whose params are not self-contained. /api/analyze persists the
-// uploaded CVs (and any JD/company file) into a temp workdir BEFORE enqueuing, and
-// passes their paths — `baseDir` + `variants[].cvPath` — in the params; runAnalyze
-// then `rm -rf`s that workdir in a `finally`, i.e. on EVERY exit, failure and cancel
-// included. So a dead analyze row's params reference files that are already gone,
-// and replaying it queued a run that could only fail again: a second red row, a
-// wasted Python spawn, and an engine ENOENT shown to the recruiter instead of "the
-// upload is gone, add it again". (An earlier revision of this comment asserted the
-// opposite — that analyze spills to its workdir at RUN time — which is what let the
-// dead button ship.)
 //
-// This is an existence CHECK, not a ban on the kind: when the process died before
-// the cleanup ran (a crash leaves the row 'interrupted'), the workdir IS still on
-// disk and the replay is genuinely valid, so it still goes through.
-function replayInputsMissing(kind: string, params: Record<string, unknown>): boolean {
-  if (kind !== "analyze") return false;
-  const paths: string[] = [];
-  if (typeof params.baseDir === "string" && params.baseDir) paths.push(params.baseDir);
-  const variants = Array.isArray(params.variants) ? params.variants : [];
-  for (const variant of variants) {
-    const cvPath = (variant as { cvPath?: unknown } | null)?.cvPath;
-    if (typeof cvPath === "string" && cvPath) paths.push(cvPath);
-  }
-  // Unrecognizable params (an old or hand-written row) carry no claim either way —
-  // let the replay proceed rather than refusing on a guess.
-  return paths.length > 0 && paths.some((p) => !existsSync(p));
-}
+// SCOPED retry (optional body `{ scope: "failed" | "unreached" }`): a fan-out run
+// (batch_screen / batch_outreach) records a per-candidate ledger, so it can replay
+// ONLY its failed items — even when the run itself SUCCEEDED — or, after a cancel,
+// only the cohort it never reached. The subset is derived here from the stored row,
+// never sent by the client. Which statuses and scopes are accepted is decided by the
+// pure `retryDecision` (app/_lib/task-fanout.ts, where it is tested); this handler
+// is its thin caller, and every refusal it makes precedes the limiter below.
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+// The ONE kind whose params are not self-contained is analyze: its params name the
+// upload workdir /api/analyze made, and runAnalyze `rm -rf`s it on EVERY exit, so a
+// dead analyze row usually points at files that are already gone. Whether a replay
+// can run is decided by `replayBlock` (app/_lib/task-replay.ts) — the SAME function
+// the list routes use to stamp each row's `replay` verdict, so the Retry the table
+// offers and the answer this door gives can never disagree. It is an existence check,
+// not a ban: a crash-interrupted row whose workdir survived is still replayable.
+
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
     // Scoped read: a retry both reveals the original row and spends money, so
     // another team's task must be unreachable here, not merely unstartable.
-    const ws = await currentWorkspace();
+    // An absent or unreadable body is the whole-run replay (the original contract).
+    const body = (await request.json().catch(() => null)) as { scope?: unknown } | null;
     const task = getTask(id, ws);
-    if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
-    if (!RETRYABLE.has(task.status)) {
+    // The SEAT the stored row's kind declares (app/_lib/task-admission.ts), right after
+    // the tenant read — another team's id stays a 404 below, never a capability answer.
+    // Unlike POST /api/tasks there is no DOOR check here: a retry replays params a
+    // server route authored and stored, never the client's, so a server kind replays.
+    if (task) {
+      const denied = await requireCapabilityCoded(taskKindCapability(task.kind), requireCapability);
+      if (denied) return denied;
+    }
+    const decision = retryDecision(task, body?.scope);
+    if (!task || "refuse" in decision) {
+      // retryDecision weighs the (tenant-scoped) read FIRST, so a null row is its
+      // TASK_NOT_FOUND and a present row can only be refused as not retryable.
+      if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
       // The status rides along so the dock can say WHICH state refused, in the
       // reader's language, instead of painting this handler's English.
       return jsonRefusal("TASK_NOT_RETRYABLE", 409, { status: task.status });
@@ -67,10 +70,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!isKnownKind(task.kind)) {
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: task.kind });
     }
-    const params = (task.params as Record<string, unknown>) ?? {};
-    // Refuse a replay whose inputs no longer exist (see replayInputsMissing) —
-    // BEFORE startTask, so it costs no queue slot and no subprocess.
-    if (replayInputsMissing(task.kind, params)) {
+    const params = decision.ok;
+    // Refuse a replay whose inputs no longer exist — BEFORE startTask, so it costs no
+    // queue slot and no subprocess. The kind is known here, so the only block left is
+    // inputs-gone.
+    if (replayBlock(task.kind, params, existsSync)) {
       return jsonRefusal("TASK_REPLAY_INPUTS_GONE", 409);
     }
     // THROTTLE (rate-limit-contract.test.ts): every accepted retry re-spends — a real
@@ -104,4 +108,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // message carries the db path and SQLite detail, never client copy.
     return safeJsonError(error, "api:tasks/retry", "TASK_RETRY_FAILED");
   }
-}
+});

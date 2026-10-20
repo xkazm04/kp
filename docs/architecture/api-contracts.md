@@ -25,7 +25,7 @@ handler tells you how the other ~150 behave.
 
 ### 1.1 Response envelopes
 
-Every handler answers through one of four helpers in
+Every handler answers through one of these helpers in
 [`app/_lib/api-response.ts`](../../app/_lib/api-response.ts). Which one it picks
 is a claim about what happened, and they are not interchangeable:
 
@@ -35,6 +35,7 @@ is a claim about what happened, and they are not interchangeable:
 | `jsonError(err, fallback, status = 500)` | `{ error }` | the message is already client-safe — validation, a business rule |
 | `safeJsonError(err, route, code, status = 500)` | `{ error, code }` | the catch can surface a **store** error. Logs the real one server-side under `[route] CODE`, sends a generic message |
 | `jsonRefusal(code, status)` | `{ error, code }` | an expected **decision** — an expired offer, a closed posting. Logs nothing |
+| `answerFailure(err, route, storeCode)` | `{ error, code }` | a catch block: a thrown `Refusal` is answered as `jsonRefusal`, anything else as `safeJsonError` (below) |
 
 Two registries back the coded forms, and the split between them is the load-
 bearing part:
@@ -54,6 +55,31 @@ locale catalogs, so **adding a code means adding four catalog entries in the
 same change** — `npm run i18n:check` pins both registries to `messages/*.json`
 and fails otherwise. `error` stays canonical English, for the server log and for
 API consumers.
+
+**A lib module that decides a failure throws a `Refusal`; the route answers
+`answerFailure`.** Which registry a failure belongs to is known where it is born,
+not at the route. [`app/_lib/refusal.ts`](../../app/_lib/refusal.ts) is the
+throwable form of a refusal: `new Refusal(code, status, { detail?, extra? })`, an
+`Error` whose `.message` is the operator `detail` or, without one, the code itself.
+It imports nothing at runtime, so a store or engine module can throw it without
+pulling `NextResponse`. A catch block then ends in one line:
+
+```ts
+} catch (error) {
+  return answerFailure(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
+}
+```
+
+`answerFailure(err, route, storeCode, status = 500)` answers a `Refusal` as
+`jsonRefusal(code, status, extra)`, logging its `detail` at info level and never
+sending it, and answers anything else as `safeJsonError(err, route, storeCode)`.
+`PostingClosedError` (POSTING_CLOSED, 410), `PortabilityError`,
+`AtsConnectionError` (400; `AtsConnectionStaleError` 409) and `AtsFieldMapError`
+(ATS_FIELD_MAP_INVALID, 400) are Refusals. A route keeps its own `instanceof`
+branch only when the answer needs something read at catch time — the ATS stale
+write attaches the live connection. `app/_lib/refusal.test.ts` walks `app/_lib`
+and fails on a new error class that carries a refusal code while extending bare
+`Error`. `CommsSuppressedError` is the one known fork still on its ratchet.
 
 > **When you add an endpoint**, you add a code to the right registry rather than
 > re-deriving the safe pattern in the handler. That is the whole reason the
@@ -191,7 +217,21 @@ Authorisation is **fail-closed and stated in two places on purpose**:
   if (denied) return denied;          // a 401 NextResponse, already shaped
   ```
 
-Four facts about that gate that are easy to get wrong:
+Five facts about that gate that are easy to get wrong:
+
+- **A valid signature is no longer the last word.** Since 2026-09-21 the gate also asks
+  whether the session has been REVOKED
+  ([`app/_lib/auth/session-revocation.ts`](../../app/_lib/auth/session-revocation.ts)),
+  and it asks *here* rather than only at the handlers because it is the gate — not
+  `requireCapability` — that stands in front of the routes carrying no second check. A
+  revoked cookie meets the same refusal shape as a missing or forged one, so it learns
+  nothing about why it stopped working. The store is reached through a `import()`
+  instead of a static import: Next 16 runs Proxy on the **Node.js** runtime (so a
+  better-sqlite3 read is legitimate) but a proxy module that fails to evaluate takes the
+  whole app down, and an `import()` bounds that risk to this one check. The lookup
+  degrades open if the store is unreachable — signature, expiry, `KP_SESSION_EPOCH` and
+  the handler-side checks all still apply; that module states why open is the right side
+  here. `docs/features/organization/README.md` has the full contract.
 
 - `KP_OPERATOR_PASSWORD` unset = **open mode**, and `isOperator()` returns
   `true`. That is deliberate (local single-operator use); production fails
@@ -264,6 +304,101 @@ COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to 
 `LIMIT 1` existence probe, and since 2026-09-08 that probe runs only when a failed
 jobs seed makes the question meaningful, so the ordinary untrusted hit costs no
 catalog read at all. Pinned by `app/api/health/health-exposure.test.ts`.
+
+**Deployment-wide reads need the HOME ORG, not a session** (challenge r03,
+2026-09-23). `isOperator()` says yes to a signed-in member of *any* org, and with
+`KP_SIGNUP_ENABLED` every registrant becomes the owner of a fresh org
+(`app/_lib/signup-service.ts`). A read whose result is every tenant's by
+construction (the unscoped `COUNT(*)`s, the queue, the shared log tails, the
+process-wide limiter stats, the `llm_usage` ledger, which has no org column) now
+asks `requireHomeOrgReader()` / `isHomeOrgReader()` from `require-operator.ts`,
+built on the pure `homeOrgReader(session, env)`: open mode, the password operator
+(`op`), a session with no `org` claim, or one whose `org` is the home org
+(`org-default`) passes; another org's member does not. The refusal is a 401 exactly
+where `requireOperator()` answers one (no session, demo) and otherwise the coded 403
+`FORBIDDEN_CAPABILITY` with `capability: "deployment:read"`, so no new catalog key.
+Where it applies:
+
+- `GET /api/ops`, `GET /api/llm/usage`, `GET /api/llm/activity`: the whole route.
+- `GET /api/health`: two tiers now. The public verdict is unchanged, `engines`
+  stays on `isOperator()` (the signed-in shell's own hint), and `tables`, `queue`,
+  `catalog`, `degradedReasons`, `configIssues` and the raw DB error need the home org.
+- `GET /api/llm/config`: the pins stay on the session gate; the ledger-derived
+  `health` block is **omitted** for another org (the routing panel already treats an
+  absent row as "no health to show").
+- `/diagrams`: another org's seat gets the same `notFound()` a demo cookie does.
+
+**A revoked session is no reader either** (2026-10-05 scan). `isHomeOrgReader()`
+verified the signature and re-read the account but did not consult
+`isSessionRevoked`, which `isOperator()` has asked since the store shipped. That
+mattered on exactly this tier because it is the only one reachable **without**
+`requireOperator()` above it — `/diagrams` and `app/api/palette/preview` ask
+`isHomeOrgReader()` alone — so `proxy.ts` was the single check in the path, and
+proxy.ts fails open on the revocation question when its dynamic import does
+(deliberate; see `session-revocation.ts`). Open mode's early return and the
+fail-closed `catch` are unchanged. Cases:
+`app/_lib/auth/require-operator.test.ts`.
+
+**And a revoked session cannot re-mint itself** (2026-10-06). The other half of that
+scan was a *renewal* door — `POST /api/auth/switch-workspace`, which hands back a
+fresh 7-day token on a new `iat` while a revocation names `(principal, iat)`. The
+check lives in `app/_lib/auth/session-issuer.ts`, the one place a session can be
+born, rather than in the route: a renewal passes the verified prior session as
+`issueSession(res, principal, { renewing })`, and the issuer refuses a revoked one
+with `{ ok: false, reason: "revoked" }` **before signing**, so no cookie is set. A
+door that omits `renewing` is asserting it mints from a fresh credential — a
+password or an invite token — which is what login, register and invite accept do. A
+source ratchet in `app/_lib/auth/session-issuer.test.ts` fails the build if a file
+under `app/` both verifies a session and issues one without naming its prior
+session, so the next renewal door cannot repeat the omission.
+
+**…and it learns nothing on the way out** (2026-10-06, scan `f727beae`). The issuer
+check above is the right chokepoint for *minting*, but it is the **last** thing
+`POST /api/auth/switch-workspace` reaches, and the route is under the `/api/auth/`
+public prefix (`app/_lib/auth/public-routes.ts`), so `proxy.ts` never asks the
+revocation question for it either. Every decision on the way to the issuer therefore
+answered a revoked cookie first: `413` for an oversized body, the lock's `403`, `404`
+for a workspace that does not exist, `404` for one owned by another org, `403` for
+one the holder has no seat in. That is an enumeration oracle for the tenant map,
+handed to exactly the stolen cookie the revocation store exists to kill, and it
+breaks the one-refusal-shape doctrine `proxy.ts` states — a missing, forged, expired
+or revoked session is refused *identically*. The route now asks
+`isSessionRevoked(session)` immediately after `verifySession`, before the demo check
+and before the body is read, and answers the absent-cookie `401` body with the
+session cookie cleared. The issuer's `renewing` check stays as defence in depth.
+Cases, one per refusal the oracle used to leak:
+`app/api/auth/switch-workspace/route.test.ts`.
+
+**The session's validity window is half-open, `[iat, exp)`** (2026-10-06 boundary
+scan): both verifiers reject on `exp <= now`, so the instant `exp` is already dead.
+That is the same convention the revocation store's rows live on
+(`expires_at_ms > now`), and `expires_at_ms` for an exact row **is** the named
+cookie's `exp` — under the previous `exp < now` the two met one millisecond apart and
+a revoked cookie verified at `now === exp` with no row left to refuse it. Do not mix
+the conventions: record and cases in
+`.ai/tasks/2026-10-06-session-expiry-boundary.md`,
+`app/_lib/auth/session-revocation-sources.test.ts` is the ratchet that no `/api/auth/`
+route verifies a cookie without asking whether it is revoked.
+
+**Single-org installs are unchanged.** `org` is minted only at login, invite
+accept, switch-workspace and register, and register is the only door that creates a
+non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every
+session carries `org` absent or `org-default`, so the gate answers exactly what
+`isOperator()` did. **Visible consequence on a multi-org box:** a non-home-org
+owner's Models → Usage & cost (Spend) strip goes to its **failed** state, because
+`/api/ops` and `/api/llm/usage` now refuse them. That is correct (the ledger is every
+tenant's) and it is what `useSpendData` renders for a dead telemetry read.
+
+`app/api/deployment-read-gate.test.ts` is the ratchet: any `app/api/**/route.ts`
+that calls `coreTableCounts`, `countActiveTasks`, `aggregateLlmUsage`,
+`listLlmActivity`, `tailJsonl`, `rateLimitRefusalStats` or `routingHealth` must call
+the home-org gate, with no allowlist. The scan sees direct calls only, so the one
+indirect reader is gated where the aggregate is read: `GET /api/palette/preview`
+reaches `aggregateLlmUsage` and `countActiveTasks` through `app/_lib/palette-preview`
+(the Activity preview's 30-day calls, cost and queue; the Models preview's 30-day
+cost). Those two tabs are `DEPLOYMENT_WIDE_TABS` and `resolveTabPreview` takes a
+required `homeOrgReader` flag (the route passes `isHomeOrgReader()`), so outside the
+home org they resolve to `restricted`, as the pages' own data routes answer 403.
 
 **A verdict answers "is something broken", not "is anything here yet."** The same
 probe used to answer **503** whenever the jobs table had no rows, so a brand-new
@@ -366,6 +501,35 @@ the reconcile sweep budgets *each* lifecycle it resumes (one POST could otherwis
 enqueue 50 runs on a single slot), reporting `budgetExhausted` when it stops early.
 A new line on that ratchet is a hole waiting to be closed, never an exemption.
 
+**A refusal says when, if it honestly can.** The window that refused a caller knows
+the instant it would admit them again, and `rateLimitRetryAfterMs(key)` reads it
+without disturbing anything (no hit counted, no window created). It answers `null`
+for an unknown key, a reset window, or one that still has room. The one clamp is
+[`app/_lib/throttle-response.ts`](../../app/_lib/throttle-response.ts):
+`withRetryAfter(res, remainingMs, windowMs?)` sets `Retry-After` in delta-seconds,
+rounded up, never 0, capped at the window when one is given. It sets **no** header
+when the figure is null, zero, negative or not finite, because a client that trusts a
+made-up wait either hammers the door or sleeps through an open window.
+`jsonThrottled(retryAfterMs, windowMs)` is `jsonRefusal("TOO_MANY_REQUESTS", 429)`
+plus that header and `retryAfterSeconds` in the body. The code and message are
+unchanged, so a client that ignores the field sees the old answer.
+
+The doors whose callers are machines that act on the header answer through it:
+`/api/billing/webhook` (Polar re-delivers), `/api/channels/inbound/[token]` (boards and
+relays), `/api/agents/report/[token]`, `/api/devcase/inbound` (burst and daily buckets,
+each naming its own window) and the receiver revoke. Their contract rows carry
+`retryAfter: true` with a hoisted `keyConst`, so the retry read uses the same key the
+limiter counted, and the silent `jsonRefusal` is forbidden at that call. Any other
+door can adopt it one row at a time. The persisted login/invite throttle
+(`throttleRetryAfterMs`) and the voice engines' own waits (`/api/tts`, `/api/stt`)
+go through `withRetryAfter` as well. The contract test fails on any route under
+`app/api` that sets `Retry-After` by hand or re-types the clamp.
+
+The operator can see which door is refusing. `/api/ops` carries `rateLimitRefusals`,
+the in-process refusal count since start per key *family* (the prefix before the
+first `:`, e.g. `inbound`, `billing-webhook`). It never includes the whole key,
+because a key holds a token or a client address.
+
 ### 1.5 Uploads, timeouts and tenancy
 
 - **Upload size** is a route-boundary contract in
@@ -415,6 +579,11 @@ at all on anyone else — and the buffering happens *before* the handler's rate
 limiter, token check or tenancy gate can run. The helper keeps the header as a
 cheap early-out and enforces the real limit on bytes taken off the wire, aborting
 the stream the moment it is exceeded.
+
+The reader also has one 15-second deadline for the entire body. A stalled
+connection or a sender trickling bytes forever is cancelled and raises
+`BodyReadTimeoutError`; each route's existing error boundary handles that
+failure without holding its worker indefinitely.
 
 **The refusal is coded.** Over-budget answers `413` with
 `jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes })` — the cap rides as data so
@@ -498,7 +667,7 @@ protocol is small enough to state in full.
 
 | Direction | Shape |
 | --- | --- |
-| in | `argv`. Large inputs are written to a temp workdir and passed as `--input-json <path>` (`createWorkdir` / `persistFile`), never on the command line |
+| in | `argv`. Large inputs are written to a temp workdir and passed as `--input-json <path>` (`createWorkdir` / `persistFile`), never on the command line. Spawned with `shell: false`, so no element is ever re-split. A short value that came from a request, a candidate or a stored row travels as ONE `--flag=value` element built by `flagArg`, so argparse cannot read a leading `-` as an option; `assertSpawnArgs` rejects a non-string or NUL-bearing element before a slot is taken (`app/_lib/python-runner-option-injection.test.ts`) |
 | in | env: `KP_LLM_CONFIG` (the routing from [`app/_lib/llm-config.ts`](../../app/_lib/llm-config.ts)), plus a per-call LLM-usage sidecar path |
 | out, success | **one** `json.dumps` line on **stdout**, an object or array |
 | out, failure | a JSON object on the **last non-empty stderr line**: `{ error, status, code }` |
@@ -555,19 +724,54 @@ can enumerate them.
 `KP_PYTHON_MAX_CONCURRENT`, default 4 — because an unbounded fork-per-request is a
 denial of service against the Node server the other 200 routes share. A caller
 waits up to `KP_PYTHON_QUEUE_WAIT_MS` (default 20 s) for a slot and is then refused
-with a `PipelineError` carrying **503 / `ENGINE_BUSY`**, which the routes forward
-like any other engine refusal. It is a decision, not a fault: the engine is
-healthy, it is saturated, and `errors.ENGINE_BUSY` says so in the reader's
-language. Sizing guidance: [self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+with a `PipelineError` carrying **503 / `ENGINE_BUSY`**. It is a decision, not a
+fault: the engine is healthy, it is saturated, and `errors.ENGINE_BUSY` says so in
+the reader's language. A route reads it with `engineRefusal(err)` (python-runner)
+BEFORE its catch-all and answers `jsonRefusal(busy.code, busy.status)` —
+`/api/match`, `/api/match/reasoning`, `/api/matrix` and `/api/profile/draft` used
+to fold it into their generic `*_FAILED` 500. Sizing guidance:
+[self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+
+**The door has two lanes.** The 20 s bound is written for a caller with a person
+waiting. Work the task runner or the automation clock started is *background*
+(`withSpawnLane("background", …)` in `app/_lib/llm-request-context.ts`, opened at
+exactly those two places, `tasks.ts` and `scheduler.ts`, and nowhere else): it is
+admitted only while no interactive caller is waiting, holds at most ceiling-1
+slots, and waits `KP_PYTHON_BACKGROUND_WAIT_MS` (10 min) before the same
+`ENGINE_BUSY`. A route never names a lane, so a route's contract is the
+interactive one above, unchanged. Pinned by `app/_lib/python-runner-lanes.test.ts`.
+
+**A stored failure is a code.** A failed task row is read later, in the reader's
+language, so the task runner stores the runtime's own failures as catalogued codes,
+never as English engine text: `spawnFailureCode(err)` (python-runner) maps
+`ENGINE_BUSY`, a `SpawnFailure` of kind `timeout` to `ENGINE_TIMEOUT` and the other
+kinds to `ENGINE_FAILED`; the runner's own outcomes are `TASK_TIME_LIMIT` (the
+wall-clock watchdog and the reaper) and `TASK_KIND_UNKNOWN`. A handler's own error
+keeps its text. Every surface that shows the row resolves the stored value through
+`errors.<CODE>` first and falls back to the text (`resolveError({ code: task.error },
+task.error)`); `app/_lib/task-failure-code.test.ts` pins the writer and the five
+readers.
+
+**The runner's own failures are typed.** A deadline, an abort, the output ceiling
+and an interpreter that would not start reject a `SpawnFailure` (extends
+`PipelineError`) with `kind` = `timeout` (504, code `timeout`) | `aborted` |
+`output_overflow` | `spawn_failed` (500, `engine_error`). Its message carries no
+argv — the command line, its `jobfit-*` temp paths and a raw `ENOENT` go to
+`ops-warn.log` as `engine:spawn:failed` (aborts are not logged). Branch on the
+kind, never the sentence: `app/_lib/python-runner-spawn-failure.test.ts` fails
+when any other file spells a spawn-failure sentence in code or calls the
+`@deprecated` `isSpawnTimeoutMessage`. A route that forwards a CLI
+`PipelineError`'s message (`/api/jobs/[id]/candidates`) excludes `SpawnFailure`
+from that branch, so a runner failure stays on its logged catch-all.
 
 **A route that spawns states its own budget.** Ten minutes is the right bound for
 a repo scan and the wrong one for a Save button: a wedged sub-second CLI
 inheriting the default holds the operator on a spinner for nine minutes past the
 point the answer was useful. Name the value (`const PROFILE_ROUTE_TIMEOUT_MS =
 60_000`), pass it as `timeoutMs`, and answer the overrun **by name** — the runner
-delivers a deadline as a rejected `result` whose message
-[`isSpawnTimeoutMessage`](../../app/_lib/intake-run.ts) is the one place that
-reads, and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
+delivers a deadline as a rejected `result` carrying a `SpawnFailure` of kind
+`timeout`, which [`isSpawnTimeout(err)`](../../app/_lib/python-runner.ts) reads,
+and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
 A deadline WE set is a DECISION the reader can act on (retry), not a store fault
 to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
 `PROFILE_BUILD_TIMEOUT`, `JOB_WINNABILITY_TIMEOUT`.
@@ -577,11 +781,27 @@ to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
 `npm run schemas:gen` (`python -m pipeline.jobfit.codegen`, also run by
 `npm run typecheck` and `npm run build`) renders
 `app/_lib/schemas.generated.ts` and `app/_lib/taxonomy.generated.ts` from the
-Python models. `npm run schemas:check` fails when they are out of date.
+Python models, and `app/_lib/contract-constants.generated.ts` from the
+`CONTRACT_CONSTANTS` table in `codegen.py`. `npm run schemas:check` fails when
+any of them is out of date — but CI does not run it, so the contract file's
+freshness is pinned inside `test:python:gate` by
+`pipeline/jobfit/tests/test_codegen_contract_constants.py`.
 
 So the payload types on both sides of this boundary already have one source.
 **Do not hand-write a TypeScript mirror of a pipeline model** — add it to the
 Python model and regenerate.
+
+The same holds for the contract NUMBERS both languages enforce (scorecard-notes
+budget, screening-volume tiers, calibration floor and bin count, interview-kit
+caps, feedback-letter cap, probe threshold). Each is one `CONTRACT_CONSTANTS` row
+naming the Python value; its TS home module (`interview-transcript.ts`,
+`automation-cache-key.ts`, `calibration.ts`, `interview-kit-types.ts`,
+`interview-letter-types.ts`, `devcase-probe-audit.ts`) re-exports the generated
+name from `./contract-constants.generated.ts` (explicit `.ts`: hand-rolled test
+resolve hooks read `.generated` as an extension) and types no literal of its
+own. A new shared number is a new row, not a second literal and a sync regex.
+The one exception is `app/_lib/fit-thresholds.ts`: it stays import-free on the
+client page graph, and `test_fit_threshold_sync.py` pins its two floors.
 
 ### 2.4 The CLIs
 
@@ -617,12 +837,9 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
-- The in-process `rateLimit()` still returns a boolean and keeps its window's
-  `resetAt` private, so those ~90 call sites send no `Retry-After`; the client
-  reads a `Retry-After` when a fronting proxy sends one
-  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. The
-  persisted login-throttle store is the exception: `throttleRetryAfterMs` reports
-  remaining window, and `/api/auth/login` plus `/api/invite/[token]` 429s set
-  `Retry-After` (delta-seconds, capped at the window) from it. Surfacing reset
-  from `rateLimit()` itself would still change that limiter's return shape at
-  every in-process call site.
+- Most in-process throttled doors (about 140) still answer the plain
+  `jsonRefusal("TOO_MANY_REQUESTS", 429)` with no `Retry-After`. Only the
+  machine-called doors listed in §1.4 use `jsonThrottled`. The rest can adopt it one
+  contract row at a time (`retryAfter: true`), since `rateLimit()` keeps its boolean
+  shape. The client reads a `Retry-After` when there is one
+  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it.

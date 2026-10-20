@@ -34,7 +34,7 @@ after(() => cleanupUnitDb());
 const HOUR = 60 * 60 * 1000;
 let seq = 0;
 
-/** A confirmed booking six hours out: inside the 24h look-ahead window and well
+/** A confirmed booking 8-14 hours out: inside the 24h look-ahead window and well
  *  above the 2h short-notice floor, so the sweep owes it exactly one reminder. */
 function bookedInvite(): { token: string; entryId: string } {
   seq += 1;
@@ -46,7 +46,9 @@ function bookedInvite(): { token: string; entryId: string } {
     stage: "Interview",
   });
   const invite = createScheduleInvite({ entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
-  const slotAt = new Date(Date.now() + 6 * HOUR).toISOString();
+  // Two hours apart per fixture: the store refuses a booking that overlaps another's
+  // real interval or shares its interview-zone hour, so fixtures may not stack.
+  const slotAt = new Date(Date.now() + 6 * HOUR + seq * 2 * HOUR).toISOString();
   const res = confirmScheduleInvite(invite.token, `Slot ${seq}`, slotAt);
   assert.equal(res.ok, true, "the fixture booking confirms");
   return { token: invite.token, entryId: entry.id };

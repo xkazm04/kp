@@ -39,7 +39,7 @@ export function UpstreamLinks({ links, className = "" }: { links: AnalyticsEmpty
           key={link.tab}
           type="button"
           onClick={() => go(link.tab)}
-          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
         >
           {link.label} <ArrowRight size={13} aria-hidden />
         </button>

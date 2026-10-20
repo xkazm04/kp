@@ -1,0 +1,108 @@
+[
+  {
+    "context": "agents-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One hired-agent transition door: legal moves, a status CAS, one board move",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/agent-hire/lifecycle.ts",
+      "app/_lib/agent-hire/lifecycle.test.ts",
+      "app/_lib/db/agents.ts",
+      "app/api/agents/report/[token]/route.ts",
+      "app/api/agents/[id]/refresh/route.ts",
+      "app/api/agents/dispatch/mint.ts",
+      "app/api/agents/agents-bridge.test.ts",
+      "app/api/agents/agent-hire-board-move.test.ts",
+      "docs/features/agents/README.md"
+    ],
+    "new_files": [
+      "app/_lib/agent-hire/lifecycle.ts",
+      "app/_lib/agent-hire/lifecycle.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Pure table: canTransition('retired','active'), canTransition('rejected','active'), canTransition('failed','onboarding') are all false; canTransition('pending_approval','onboarding'), canTransition('onboarding','active'), canTransition('dispatched','failed') are true. Every AgentStatus appears as a key (exhaustive Record over AGENT_STATUSES, so a new status is a tsc error until it declares its exits).",
+      "Both vocabularies map through ONE function: lifecycleTarget({kind:'push', event:'activated'}) and lifecycleTarget({kind:'poll', status:'activated'}) both answer 'active'; poll 'expired' answers 'failed'; an unknown poll status answers null (no write).",
+      "Store CAS: transitionHiredAgent(id, {from:'pending_approval', to:'onboarding'}, ws) on a row whose status is already 'active' returns {applied:false, current:'active'} and leaves status, persona_id and updated_at untouched (UPDATE ... WHERE status = ? plus changes === 0).",
+      "Push report on a dead hire: agent row status 'rejected', POST /api/agents/report/[token] {kind:'lifecycle', event:'activated'} -> 200 {result:'transition_refused'}, status stays 'rejected', NO pipeline entry exists for candidate 'agent-<id>', and the lifecycle ledger has one row whose status starts 'refused:activated'.",
+      "Stale re-dispatch stays single: job J has agent A 'rejected' and agent B 'pending_approval'; A's token reports 'activated' -> getActiveHiredAgentForJob(J) still returns B (today it can return A, which the unguarded update just revived).",
+      "Dispatch on a renamed board: a workspace whose offer-role stage is named 'Final round' -> the shared placeAgentOnBoard(agent,'offer',ws) files the agent card at 'Final round', not at the literal 'Offer' mint.ts writes today.",
+      "Pull/push parity: an activation applied through the poll path records the same 'agent_activated' automation event on the board entry that the push path records (today refresh/route.ts records none).",
+      "Probation 'extended' on an onboarding agent is a legal self-transition (onboarding -> onboarding) and still writes its lifecycle row, so the probation_review suite in agents-bridge.test.ts stays green unchanged."
+    ],
+    "premise": [
+      "app/_lib/db/agents.ts:367-385 - updateHiredAgentStatus is an unconditional UPDATE ... SET status = ? WHERE id = ? AND workspace_id = ?: no from-status, no changes check; it is the only status writer used by report, refresh and mint (grep: mint.ts:115, report/[token]/route.ts:120, [id]/refresh/route.ts:116).",
+      "app/_lib/db/agents.ts:340 - getHiredAgentByReportToken only kills tokens of 'retired' agents (status != 'retired'), so a 'rejected' or 'failed' agent's token still resolves and its lifecycle reports are applied.",
+      "app/api/agents/report/[token]/route.ts:38-44 (LIFECYCLE_STATUS) and app/api/agents/[id]/refresh/route.ts:46-62 (STATUS_MAP) are two separate vocabularies mapping onto AgentStatus; app/features/library/jobs/jobsAgentFitModel.ts:151-162 (timeline) is a third reading of the same ladder.",
+      "app/api/agents/[id]/refresh/route.ts:79 reads the row, :99 awaits fetchRequestStatus (a network call), :116 writes the mapped status with no precondition - a read->compute->write across an await with neither .immediate() nor a WHERE re-assert, the shape .claude/CLAUDE.md calls a lost update.",
+      "app/api/agents/dispatch/mint.ts:145-150 files the dispatch board card with the literal stage 'Offer', while report/[token]/route.ts:131 and refresh/route.ts resolve the same card's stage BY ROLE (stageForRole('offer', ws)) because a renamed board does not render the literal.",
+      "app/api/agents/report/[token]/route.ts:152-159 records an 'agent_activated' automation event on activation; the equivalent branch in app/api/agents/[id]/refresh/route.ts (the mapped === 'active' block after :116) records none - the two copies of one move have already drifted.",
+      "app/_lib/db/agents.ts:231 - ACTIVE_AGENT_STATUSES includes 'active', and getActiveHiredAgentForJob (agents.ts:303-313) returns the newest live row, so a revived stale agent re-enters the one-live-agent-per-job idempotency read."
+    ],
+    "rollback": "Additive module plus call-site swaps: lifecycle.ts and transitionHiredAgent are new, updateHiredAgentStatus stays exported for one release, and each route change is its own commit. Reverting the series restores the unconditional writes; no schema change, no migration, no data rewrite.",
+    "gate": "contract",
+    "runner_up": "hire-from-need as an idempotent, resumable run: an Idempotency-Key (or need+root hash) names ONE intake and ONE hire, so Personas' retry after its 240s client timeout joins the in-flight hire instead of composing and dispatching a second App master (route.ts:73 tells the caller to retry; intake creation at :258 is unkeyed).",
+    "technique": "session-registry",
+    "body": "## Summary\nEvery hired agent's status is written by three call sites through one unconditional UPDATE, reading two private vocabularies, and filing its board card two different ways. Replace that with one transition door: a closed from->to table, a CAS write that re-asserts the status it read, and one shared board move - so a late or stale Personas signal can no longer revive a dead hire or overwrite a newer state.\n\n## Description\nThe agent bridge has two inbound channels (the push report and the pull refresh) and one outbound (dispatch). Each maps Personas' words onto AgentStatus itself (LIFECYCLE_STATUS, STATUS_MAP, plus the Agent-fit timeline), and all three end in updateHiredAgentStatus, which writes whatever it is given. Consequences visible in the tree: a rejected agent's token is still live (only retired tokens 404), so a late 'activated' flips it to active, files it on the board, and puts a second live agent on a job that was re-dispatched; the refresh route awaits a network call between its read and its write with no precondition; and the dispatch card is filed at the literal 'Offer' while both activation paths learned to resolve stages by role. This is the registry's session-registry technique verbatim: one closed vocabulary, one door for every transition, and consumers never keep their own copy of the status enum.\n\nThe move: app/_lib/agent-hire/lifecycle.ts owns (1) the transition table as an exhaustive Record over AGENT_STATUSES, (2) lifecycleTarget() that maps BOTH Personas vocabularies (push event incl. probation decision, poll status) to a target or null, (3) placeAgentOnBoard(agent, 'offer'|'hired', ws) - the one role-resolved board move with its expectedStage CAS and its automation event. app/_lib/db/agents.ts gains transitionHiredAgent(id, {from, to, persona}, ws) whose UPDATE carries AND status = ? and answers {applied, current}. Report, refresh and mint call only these. An illegal or lost transition is recorded in the lifecycle ledger as refused:<event> and answered 200 transition_refused on the push path (so Personas does not retry forever), refreshed:false on the poll path.\n\n## Flow\n1. Write lifecycle.test.ts with the table, mapping and store-CAS cases (acceptance 1-3) - red.\n2. Add lifecycle.ts and transitionHiredAgent; green.\n3. Route the push report through lifecycleTarget + transitionHiredAgent + placeAgentOnBoard; add acceptance 4-5 to agents-bridge.test.ts.\n4. Route the pull refresh the same way (CAS on the status read before the await; parity event).\n5. mint.ts files its card via placeAgentOnBoard(...,'offer'); add acceptance 6 to agent-hire-board-move.test.ts.\n6. Update docs/features/agents/README.md: the transition table and the refused:<event> ledger row.\n\n## Expected impact\nA whole defect class closes: stale or out-of-order Personas signals (late activation of a rejected hire, a poll racing a push, an expired approval arriving after activation) can no longer move a hire backwards or revive it, and the one-live-agent-per-job rule stops being defeatable by a dead token. The board move exists once, so the next board rule (role, CAS, event) lands in one place instead of three. Adding a Personas status becomes a table row and a tsc error, not a third mapping.\n\n## Evaluation\nClaim: every hired-agent status write passes one transition table and one CAS, and the board card is placed by one role-resolved function.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: node:test - lifecycle.test.ts (pure + store), agents-bridge.test.ts and agent-hire-board-move.test.ts route cases; then npm run test:unit, tsc, lint.\nResult: pending build.\nGate: contract",
+    "evidence": "app/_lib/db/agents.ts:376-383\n  UPDATE hired_agents SET status = ?, persona_id = COALESCE(?, persona_id), persona_name = COALESCE(?, persona_name), updated_at = ? WHERE id = ? AND workspace_id = ?\napp/_lib/db/agents.ts:340\n  SELECT * FROM hired_agents WHERE report_token = ? AND status != 'retired'\ngrep -n updateHiredAgentStatus (non-test):\n  app/api/agents/dispatch/mint.ts:115\n  app/api/agents/report/[token]/route.ts:120\n  app/api/agents/[id]/refresh/route.ts:116\napp/api/agents/[id]/refresh/route.ts:79   const agent = getHiredAgent(id, ws);\napp/api/agents/[id]/refresh/route.ts:99   const polled = await fetchRequestStatus(agent.requestId);\napp/api/agents/[id]/refresh/route.ts:116  const updated = updateHiredAgentStatus(id, mapped, {...}, ws);\napp/api/agents/dispatch/mint.ts:150       stage: \"Offer\",\napp/api/agents/report/[token]/route.ts:131  const offerStage = stageForRole(\"offer\", ws) ?? stageForRole(\"entry\", ws);\napp/api/agents/report/[token]/route.ts:152  recordAutomationEvent(entry.id, \"agent_activated\", ...)  -- no counterpart in refresh/route.ts\nVocabularies: report LIFECYCLE_STATUS (route.ts:38), refresh STATUS_MAP (route.ts:46), jobsAgentFitModel.ts:151 timeline()."
+  },
+  {
+    "context": "agents-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Roster names each agent's next move and puts its one action on the row",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/api/agents/route.ts",
+      "app/_lib/db/agents.ts",
+      "app/features/agents-workforce/agentsWorkforceLogic.ts",
+      "app/features/agents-workforce/agentsWorkforceLogic.test.ts",
+      "app/features/agents-workforce/AgentsWorkforceRow.tsx",
+      "app/features/agents-workforce/AgentsWorkforceRoster.tsx",
+      "app/features/agents-workforce/AgentsWorkforceTab.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/agents/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "nextAction({status:'pending_approval', updatedAt: now-20h, ...}, {paired:true}, now) -> {kind:'approve_in_personas', hoursLeft:4}; at now-25h -> {kind:'approval_lapsed'} (the 24h Personas consent window refresh/route.ts maps 'expired' from), whose action is Refresh.",
+      "A 'failed' or 'rejected' job agent -> {kind:'redispatch', target:{jobId}}; the same for an App-master hire -> {kind:'redispatch', target:{intakeId}}; a 'retired' agent -> {kind:'none'} (retirement is a decision, not a fault).",
+      "Any non-terminal agent while the bridge reports paired:false -> {kind:'repair_bridge'}, and it outranks every other kind for that row.",
+      "App master in 'onboarding' with probation due (probationCountdown.due) and NO lastDecision -> {kind:'review_probation'}; the same row whose lastDecision is 'probation_review:extended' dated after the due day -> not review_probation (closes the gap agentsWorkforceLogic.ts:222-229 documents).",
+      "'active' agent with lastReportAt null or older than 7 days -> {kind:'check_reporter', reason:'silent'}; lastReportAt within 7 days but aggregates.lastActivityAt null -> {kind:'check_reporter', reason:'reports_rejected'} (Personas is calling and every payload is refused).",
+      "needsYou(agents, bridge, now) returns per-kind counts excluding 'none', ordered by a declared priority (repair_bridge, approval_lapsed, approve_in_personas, review_probation, check_reporter, redispatch); an empty roster or an all-none roster returns [].",
+      "GET /api/agents rows carry lastDecision {event, at} taken from the newest lifecycle row in agent_activity (event text only, never raw_json), null for an agent with none; the report token is still absent from every row."
+    ],
+    "premise": [
+      "app/features/agents-workforce/agentsWorkforceLogic.ts:222-229 - the probation countdown's own comment: telling a due review from one a human already extended needs the last decision on the roster row, which GET /api/agents does not project.",
+      "app/api/agents/route.ts:52-108 - the roster projection carries status, aggregates, appMaster, backbone and freshness, but no last lifecycle decision and no derived next step.",
+      "app/_lib/db/agents.ts:607-619 - listAgentActivity (the lifecycle/execution ledger read) exists and has no non-test caller (grep listAgentActivity app: only its definition).",
+      "app/features/agents-workforce/AgentsWorkforceRow.tsx:352 - the row's only action (Refresh) renders inside the expanded detail, so every roster row has to be opened to act on it, and it is the same generic Refresh whatever the row's state.",
+      "app/api/agents/[id]/refresh/route.ts:56-61 - Personas' 'expired' state is an approval that sat past the 24h consent window; the roster shows 'pending approval' with no clock until a poll turns it into 'failed'.",
+      "app/api/agents/report/[token]/route.ts:179-186 - the liveness receipt (last_report_at) exists precisely to tell 'Personas never called' from 'Personas is calling and every payload is rejected'; AgentsWorkforceRow.tsx:216 renders only 'heard from X ago', never the second diagnosis, although aggregates.lastActivityAt (agents.ts, AgentAggregates) moves only on accepted reports.",
+      "app/features/agents-workforce/AgentsWorkforceTab.tsx:22-23 - the tab already fetches the bridge status (paired) and uses it only for the empty state."
+    ],
+    "rollback": "Additive: one optional projection field on GET /api/agents, one pure function set in the logic module, one strip and one row button in the view, a new catalog key block. Reverting the commits removes them; nothing is persisted and no route contract narrows.",
+    "gate": "none",
+    "runner_up": "An agent timeline drawer (adopting the open 2026-09-17 leftover 'Serve per-agent activity from the unused listAgentActivity store' as a UI): the lifecycle and execution ledger rendered per row. Traded away because it shows history without saying what to do; this card uses the same ledger for the one decision the roster is missing.",
+    "technique": "lifecycle-signals",
+    "body": "## Summary\nThe Agents workforce roster reports state an operator cannot act on from where they stand: a pending approval with no clock, a failed hire with no way back, a probation that reads 'due' after a human already extended it, and a silent agent that could be either unreached or rejecting every report. Derive one next move per agent from data the server already holds, count them in a 'needs you' strip above the table, and put that move's single action on the row itself.\n\n## Description\nA closed vocabulary (literal array + derived union + guard, the house pattern) of next moves - repair_bridge, approval_lapsed, approve_in_personas, review_probation, check_reporter, redispatch, none - is computed by a pure nextAction(agent, bridge, now) in agentsWorkforceLogic.ts from status, updatedAt, requestId, lastReportAt, aggregates.lastActivityAt, the probation countdown and a new lastDecision projection (the newest lifecycle row, read through a small store read beside listAgentActivity). GET /api/agents adds lastDecision; the client derives the rest, so the rule is unit-testable under node:test. The Roster renders a strip ('2 approvals waiting in Personas - 1 expires in 4h - 1 hire failed') whose chips filter the table, and each row shows its move as a labelled button without expanding: Refresh for an approval, Re-dispatch (POST /api/agents/dispatch with the row's jobId or intakeId, reusing the route's own idempotency and refusals), a link to Settings -> Integrations for a dead bridge, and a plain explanation for check_reporter distinguishing 'never called' from 'calling but rejected'. The registry's lifecycle-signals technique governs the silent-vs-idle split: self-report (receipts) and accepted evidence (activity) are read separately and disagreement is itself the diagnosis.\n\n## Flow\n1. Write the nextAction and needsYou cases in agentsWorkforceLogic.test.ts (acceptance 1-6) - red.\n2. Implement the vocabulary and both functions in agentsWorkforceLogic.ts.\n3. Add the lastDecision store read in app/_lib/db/agents.ts and project it in app/api/agents/route.ts (acceptance 7, a route test beside the existing roster tests).\n4. Row: action button in the summary row; Roster: the needs-you strip with chip filters; Tab: pass the bridge status down.\n5. Catalog keys in all four locales under agentsWorkforce.nextAction.*; docs/features/agents/README.md roster section.\n6. Verify both themes on the roster (tokens and recipes only).\n\n## Expected impact\nThe operator's question on this tab is 'which of my agents needs me and for what'; today it takes opening every row, clicking Refresh and interpreting a code. After: the answer is the first line of the tab, and each answer is one click from being acted on - including the two cases that are currently invisible (an approval about to lapse, a reporter whose payloads are all being refused). Re-dispatch of a failed hire moves from 'go back to the job's Agent fit tab and find the button' to the row.\n\n## Evaluation\nClaim: every roster row carries a derived next move and its action, and the tab summarises them.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: node:test on agentsWorkforceLogic.test.ts (pure cases) and a GET /api/agents projection case; then npm run i18n:check, tsc, lint, design:check.\nResult: pending build.\nGate: none\n\nNote for the deck: this card and slot A both touch app/_lib/db/agents.ts (A: transitionHiredAgent; B: one appended read). Build them in different waves or append-only.",
+    "evidence": "app/features/agents-workforce/agentsWorkforceLogic.ts:222-229\n  due: ... Telling those two apart needs the last decision on the roster row, which GET /api/agents does not project.\ngrep -rn listAgentActivity app (non-test): app/_lib/db/agents.ts:607 export function listAgentActivity(  -- no caller\napp/features/agents-workforce/AgentsWorkforceRow.tsx:352  {refreshing ? t(\"detail.refreshing\") : t(\"detail.refresh\")}  -- inside the expanded detail <tr>\napp/features/agents-workforce/AgentsWorkforceRow.tsx:216  {agent.lastReportAt ? t(\"heardFrom\", ...) : t(\"neverHeardFrom\")}\napp/api/agents/[id]/refresh/route.ts:56-60  // expired = the approval sat past the 24h consent window ... expired: \"failed\",\napp/features/agents-workforce/AgentsWorkforceTab.tsx:22-23  bridgeData ... const paired = bridgeData?.bridge.paired === true;  -- used only by the empty state (:53-68)"
+  }
+]

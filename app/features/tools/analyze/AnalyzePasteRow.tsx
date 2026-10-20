@@ -63,7 +63,7 @@ export function AnalyzePasteRow({
                 onClick={onClear}
                 aria-label={t("clearPastedAria")}
                 title={t("clear")}
-                className="focus-ring inline-flex h-6 w-6 items-center justify-center rounded-md text-coral hover:bg-coral/10"
+                className="focus-ring inline-flex h-6 w-6 items-center justify-center rounded-md text-coral-ink hover:bg-coral/10"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>

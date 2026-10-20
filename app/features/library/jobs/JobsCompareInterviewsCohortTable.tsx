@@ -2,12 +2,23 @@
 
 import { ClipboardCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { rubricLabel, rubricDescription } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import { isNotAssessedRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { mergeRubricRows, isUnrecognizedCohort, type RubricComp } from "./jobsCompareCohorts";
+import {
+  cellFlag,
+  coverageFor,
+  mergeRubricRows,
+  mustAsksOwed,
+  isUnrecognizedCohort,
+  type CoverageCellFlag,
+  type RubricComp,
+} from "./jobsCompareCohorts";
+import type { AxisCoverageState } from "@/app/_lib/interview-axis-coverage";
 import { CONF_STYLE, REC_STYLE, ratingColor, type Candidate } from "./jobsCompareInterviewsTypes";
 
 // One candidate's call telemetry as a compact, neutral signal line under the
@@ -43,6 +54,50 @@ function TelemetrySignals({
     <span className="mt-1 block text-meta text-steel nums" title={t("telemetryTitle")}>
       {parts.join(" · ")}
     </span>
+  );
+}
+
+// The director's record for one AI cell (challenge-r07 voice-interview-api/B): a
+// small state glyph — covered on a verified quote, only asked, never reached — and,
+// where the AI rating and that record DISAGREE, a flag naming the disagreement. The
+// glyph shapes differ (filled / half / hollow) so the state never rests on colour.
+const COVERAGE_GLYPH: Record<Exclude<AxisCoverageState, "not_planned">, { glyph: string; cls: string; key: "covered" | "asked" | "notReached" }> = {
+  covered: { glyph: "●", cls: "text-moss", key: "covered" },
+  asked: { glyph: "◐", cls: "text-steel", key: "asked" },
+  not_reached: { glyph: "○", cls: "text-coral-ink", key: "notReached" },
+};
+const FLAG_STYLE: Record<CoverageCellFlag, { cls: string; key: "ratedNotReached" | "sentinelCovered" }> = {
+  rated_not_reached: { cls: "bg-coral/10 text-coral-ink", key: "ratedNotReached" },
+  sentinel_but_covered: { cls: "bg-dial-amber/15 text-ink", key: "sentinelCovered" },
+};
+
+function CoverageMark({
+  state,
+  flag,
+  t,
+}: {
+  state: AxisCoverageState | undefined;
+  flag: CoverageCellFlag | null;
+  t: ReturnType<typeof useTranslations<"jobs.compare">>;
+}) {
+  const g = state && state !== "not_planned" ? COVERAGE_GLYPH[state] : null;
+  if (!g && !flag) return null;
+  return (
+    <>
+      {g ? (
+        <span className={`ml-1.5 text-meta ${g.cls}`} title={t(`coverage.${g.key}Title`)} aria-label={t(`coverage.${g.key}`)}>
+          {g.glyph}
+        </span>
+      ) : null}
+      {flag ? (
+        <span
+          className={`mt-1 block w-fit rounded-full px-2 py-0.5 text-meta font-semibold ${FLAG_STYLE[flag].cls}`}
+          title={t(`coverage.${FLAG_STYLE[flag].key}Title`)}
+        >
+          {t(`coverage.${FLAG_STYLE[flag].key}`)}
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -104,16 +159,30 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
                       {t("observedLabel", { skills: c.observedSkills.join(", ") })}
                     </span>
                   ) : null}
-                  {c.humanScorecard?.recommendation ? (
-                    // The verdict from a recruiter's human round, distinct from the
-                    // AI badge above (icon + "human" so the two never read as one).
+                  {(c.humanScorecards ?? []).map((h, j) =>
+                    h.recommendation ? (
+                      // One verdict per interviewer + round from the human panel,
+                      // distinct from the AI badge above (icon + "human" so the two
+                      // never read as one). The title names whose verdict it is.
+                      <span
+                        key={`h-${j}`}
+                        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
+                          REC_STYLE[h.recommendation] ?? "bg-stone-100 text-steel"
+                        }`}
+                        title={[t("humanVerdictTitle"), h.authorLabel, h.stage].filter(Boolean).join(" · ")}
+                      >
+                        <ClipboardCheck size={11} /> {t("humanVerdict", { rec: enumLabel("recommendation", h.recommendation) })}
+                      </span>
+                    ) : null
+                  )}
+                  {mustAsksOwed(c.coverage) !== null ? (
+                    // A count only: the question texts are the recruiter's kit, not
+                    // this door's to repeat. Null (no end_interview) renders nothing.
                     <span
-                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
-                        REC_STYLE[c.humanScorecard.recommendation] ?? "bg-stone-100 text-steel"
-                      }`}
-                      title={t("humanVerdictTitle")}
+                      className="inline-block rounded-full bg-coral/10 px-2 py-0.5 text-meta font-semibold text-coral-ink"
+                      title={t("coverage.mustAsksOwedTitle")}
                     >
-                      <ClipboardCheck size={11} /> {t("humanVerdict", { rec: enumLabel("recommendation", c.humanScorecard.recommendation) })}
+                      {t("coverage.mustAsksOwed", { count: mustAsksOwed(c.coverage) ?? 0 })}
                     </span>
                   ) : null}
                   {c.humanOnly ? (
@@ -148,9 +217,19 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
               </td>
               {candidates.map((c, i) => {
                 const r = ratingOf(c, comp.competency);
+                // NOT-ASSESSED IS ON THE SCALE. The synthesis writes an axis the
+                // interview never reached as a real 3 with "Not assessed…" evidence —
+                // which this grid coloured as a mid-band score and ranked candidates
+                // against. It is the comparison surface, so the confusion is worst
+                // here: a candidate asked about an axis and one never asked about it
+                // rendered identically. The shared read-side guard says which is which.
+                const notAssessed = r ? isNotAssessedRating(r.rating, r.evidence) : false;
+                // The director's record for this axis, and whether the rating disagrees.
+                const state = coverageFor(c.coverage, comp.competency);
+                const flag = cellFlag(r?.rating, r?.evidence, state);
                 return (
                   <td key={i} className="p-2">
-                    {r ? (
+                    {r && !notAssessed ? (
                       <span
                         className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${ratingColor(
                           r.rating
@@ -159,9 +238,14 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
                       >
                         {r.rating}
                       </span>
+                    ) : notAssessed ? (
+                      <span className={META_LABEL} title={t("notAssessedTitle")}>
+                        {t("notAssessed")}
+                      </span>
                     ) : (
                       <span className="text-steel">—</span>
                     )}
+                    <CoverageMark state={state} flag={flag} t={t} />
                   </td>
                 );
               })}
@@ -169,6 +253,16 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
           ))}
         </tbody>
       </table>
+      {candidates.some((c) => c.coverage) ? (
+        <p className="mt-2 text-meta text-steel">
+          {t("coverage.legend")}{" "}
+          {(["covered", "asked", "not_reached"] as const).map((s) => (
+            <span key={s} className="mr-2 whitespace-nowrap">
+              <span className={COVERAGE_GLYPH[s].cls}>{COVERAGE_GLYPH[s].glyph}</span> {t(`coverage.${COVERAGE_GLYPH[s].key}`)}
+            </span>
+          ))}
+        </p>
+      ) : null}
     </div>
   );
 }

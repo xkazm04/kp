@@ -81,3 +81,22 @@ export function checkAutomationToken(
   }
   return tokensMatch(presented, configured) ? { outcome: "accepted" } : { outcome: "rejected" };
 }
+
+/** Which tenant a hire lands in.
+ *
+ *  The HUMAN path is authorised against the session's own workspace (isOperator +
+ *  `pipeline:write` resolve there), so a body naming a DIFFERENT workspace is a request
+ *  to act in a team the caller was never checked against — refused, never silently
+ *  followed (until 2026-09-23 `body.workspace || session` let a writer in one team
+ *  compose and dispatch a hire into another). The MACHINE caller (the token door) has
+ *  no session; it may name the workspace, and falls back to the session / default. */
+export function resolveHireWorkspace(input: {
+  machine: boolean;
+  bodyWorkspace: string;
+  sessionWorkspace: string;
+}): { ok: true; workspace: string } | { ok: false } {
+  const named = input.bodyWorkspace.trim();
+  if (input.machine) return { ok: true, workspace: named || input.sessionWorkspace };
+  if (named && named !== input.sessionWorkspace) return { ok: false };
+  return { ok: true, workspace: input.sessionWorkspace };
+}

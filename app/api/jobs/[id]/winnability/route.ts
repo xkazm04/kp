@@ -3,13 +3,13 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
   createWorkdir,
+  isSpawnTimeout,
   parsePythonJson,
   parseStderrError,
   spawnPython,
@@ -28,7 +28,7 @@ const WINNABILITY_TIMEOUT_MS = 60_000;
 // SAME shared pool the recruiter ranking scores, reusing the production ko_filter
 // + score_job so the "+N if you loosen this" promises match what publishing would
 // actually surface. Read-only: it never mutates the job.
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   let workdir: string | null = null;
   try {
@@ -37,8 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // derived from the role's own requirements ("loosen min_years to reach +12"), i.e. it
     // hands another team's private must-haves back as coaching. 404, not 403, so the
     // endpoint can't confirm an id exists; seeded corpus rows stay visible to everyone.
-    const ws = await currentWorkspace();
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }
@@ -91,16 +90,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // would make for a reason that isn't true.
     return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
-    // python-runner delivers its deadline as a REJECTION carrying a message, not a typed
-    // error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place that reading
-    // lives. A deadline WE set is a decision, not a store fault — so it is named, and the
+    // python-runner delivers its deadline as a typed SpawnFailure rejection; isSpawnTimeout
+    // (python-runner.ts) reads its kind, never its sentence. A deadline WE set is a decision, not a store fault — so it is named, and the
     // panel's existing retry affordance is the honest next step. Everything else is still
     // a logged fault behind the generic code.
-    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+    if (isSpawnTimeout(error)) {
       return jsonRefusal("JOB_WINNABILITY_TIMEOUT", 504);
     }
     return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
-}
+});

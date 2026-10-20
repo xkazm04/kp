@@ -63,7 +63,8 @@ elsewhere later stays a refactor, not a rewrite.
 ## What the studio page unlocks
 
 - **Design system**: tokens, `recipes.ts` surfaces, both themes — Studio
-  Light default, Spark Dark as the playful option, live-switchable mid-run.
+  Light default, Spark Dark as the playful option, live-switchable mid-run. The
+  appearance toggle's group and theme names use the active locale.
   Framer-motion (the segmented-control motion standard, spring easing in
   dark). Bricolage display face. 4-locale copy via next-intl — the installer
   finally speaks Czech.

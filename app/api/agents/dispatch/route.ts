@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveHiredAgentForIntake, getActiveHiredAgentForJob, getLatestAgentFitSpec } from "@/app/_lib/db/agents";
 import { getIntake } from "@/app/_lib/db/intakes";
 import { getJob } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -70,7 +70,7 @@ function mergedSpec(stored: unknown, overrides: SpecShape, budgetUsd: number | n
   };
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -97,7 +97,6 @@ export async function POST(request: NextRequest) {
     if (!jobId && !intakeId) {
       return NextResponse.json({ error: "jobId or intakeId is required." }, { status: 400 });
     }
-    const ws = await currentWorkspace();
 
     // ---- App master: dispatch from a composed intake -----------------------
     if (intakeId) {
@@ -175,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- The shipped job path ----------------------------------------------
-    const job = getJob(jobId);
+    const job = getJob(jobId, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     // Dispatch idempotency: one live agent per job — a double-click or a retried
@@ -235,4 +234,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:agents/dispatch", "AGENT_DISPATCH_FAILED");
   }
-}
+});

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
-import { callerCapabilities } from "@/app/_lib/auth/current-user";
+import { callerCapabilities, currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { CommandPalette } from "./WorkspaceCommandPalette";
+import { controlRoomDoor } from "./nav/controlDoor";
+import { NavControlLink } from "./nav/NavControlLink";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
 import { RailBrandMark } from "./nav/NavRailBrandMark";
 import { RailPreferences } from "./nav/NavRailPreferences";
@@ -42,6 +44,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
   // changes nothing on a keyless/dev install — only a password-protected deploy,
   // which is exactly where the anonymous visitor is a real, distinct principal.
   const operator = await isOperator();
+  const controlDoor = controlRoomDoor(operator);
 
   // SHELL2 — same badge counts as the interactive shell, computed server-side at
   // render (a detail page is a snapshot; the SPA shell owns the live poll). Best-effort:
@@ -116,12 +119,14 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
                 <Suspense fallback={null}>
                   <CommandPalette />
                 </Suspense>
-                <NavFeedbackButton />
+                <NavFeedbackButton active={active} />
+                {/* The Art. 22 gates' room: drawn only for the caller /control itself admits. */}
+                {controlDoor ? <NavControlLink href={controlDoor.href} /> : null}
               </>
             ) : null}
             <RailPreferences />
             {/* Drop the dev session and return to the landing. */}
-            {operator ? <SignOutButton /> : null}
+            {operator ? <SignOutButton hasSession={Boolean(await currentSession())} /> : null}
           </>
         }
       />

@@ -4,9 +4,10 @@ import { meterGate } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { coerceLanguage, defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import {
   caseGroundedInterviewerInstructions,
   DEMO_CASE_SCENARIO,
@@ -24,6 +25,7 @@ import {
 // mint. 20/10min: a recruiter trying the agent takes the call before starting
 // another, so twenty in ten minutes is far above honest pace.
 const SIMULATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+const MAX_SIMULATE_BODY_BYTES = 16 * 1024;
 
 
 type SimMode = "student" | "student-case" | "regular";
@@ -36,13 +38,14 @@ type SimMode = "student" | "student-case" | "regular";
 // session is mode "candidate" so both providers receive the scripted brief, but
 // entryId/jobId stay null: completion stores the transcript and deliberately
 // never synthesizes a scorecard or touches the pipeline.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspace: string, request: NextRequest) => {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       mode?: string;
       provider?: string;
       language?: string;
-    };
+    }>(request, MAX_SIMULATE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SIMULATE_BODY_BYTES });
     const mode: SimMode = body.mode === "student" || body.mode === "student-case" ? body.mode : "regular";
 
     const avail = voiceAvailability();
@@ -84,7 +87,6 @@ export async function POST(request: NextRequest) {
     // simulation has no pipeline entry, so without this the gate checked the caller's
     // allowance while /complete debited the DEFAULT team's meter — two tenants for one
     // call, and a self-serve org could burn a demo on somebody else's budget.
-    const workspace = await currentWorkspace();
     if (!isSelfHostedProvider(provider)) {
       const quota = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(durationMin), workspace });
       if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
@@ -134,4 +136,4 @@ export async function POST(request: NextRequest) {
     // that route's stable code rather than inventing a parallel one.
     return safeJsonError(error, "api:interview:simulate", "INTERVIEW_CREATE_FAILED");
   }
-}
+});

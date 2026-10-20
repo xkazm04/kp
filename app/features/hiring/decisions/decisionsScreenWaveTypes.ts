@@ -2,42 +2,16 @@
 // the state hook and the render pieces (DecisionsScreenWaveModal,
 // DecisionsScreenWaveLists) can import them without a cycle.
 
-// One decision in the wave (mirrors ScreenDecision in screen-wave.ts). DEC4 —
-// `reasonCode`/`reasonParams` are the locale-renderable mirror of the English
-// `rationale`; older shapes without them fall back to the raw string.
-export type WaveDecision = {
-  entryId: string;
-  label: string;
-  archetype: string | null;
-  // null = unscored (never measured). Such rows are always keeps with reasonCode
-  // "unscored" — rendered as an explicit dash, never a fabricated 0 (SD-L1-002).
-  matchScore: number | null;
-  action: "reject" | "keep";
-  rationale: string;
-  reasonCode?: string;
-  reasonParams?: Record<string, string | number>;
-  commsFailed?: boolean;
-  // Direction 2 (queue-staleness) — server-derived: this score predates the JD's
-  // last content edit (`staleSince`). Informs the reviewer that the ranking uses a
-  // score against stale text; it never blocks the wave. Absent → no stale chip.
-  stale?: boolean;
-  staleSince?: string;
-};
-export type WaveResult = {
-  decisions: WaveDecision[];
-  rejected: number;
-  kept: number;
-  cohort: number;
-  commsFailures: number;
-  // Art. 22 records the wave could not seal. Required: a result that omits it
-  // used to paint a clean commit while the hash chain missed rows.
-  sealFailures: number;
-  // Calibration clean-arm keeps (reasonCode holdout | holdoutSealFailed).
-  // Counted on the client via holdoutCount(); older fixtures default to 0.
-  holdout: number;
-  dryRun: boolean;
-  approvalToken?: string;
-};
+import type { ScreenDecisionRead, ScreenWaveRead } from "@/app/_lib/screen-wave-contract";
+
+// One decision / one wave, exactly as the client may trust them after
+// readWaveResult (screen-wave-contract.ts). These used to be a hand mirror of the
+// server types that had drifted: a bare-string reasonCode, and a REQUIRED `holdout`
+// count the server never sent. Holdout keeps are counted from their reason codes
+// (holdoutCount in decisionsFloorDisclosure.ts); an unknown reason code arrives as
+// null and renders from the English `rationale`.
+export type WaveDecision = ScreenDecisionRead;
+export type WaveResult = ScreenWaveRead;
 
 /** What the tab keeps after the wave modal closes. */
 export type WaveCommitSummary = {

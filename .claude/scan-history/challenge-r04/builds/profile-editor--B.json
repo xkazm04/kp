@@ -1,0 +1,20 @@
+{
+  "card": "profile-editor/B",
+  "title": "Live readiness in the editor: routing and Add-next update as you type",
+  "status": "landed",
+  "base": "3993c0adc",
+  "shas": ["4f428fa13", "64f8fb428", "d022404a6", "e85d13513", "0b37e8696", "f43f6ebfc"],
+  "tests_added": [
+    "app/features/tools/profile/profileReadiness.test.ts",
+    "pipeline/jobfit/tests/test_profile_readiness_parity.py",
+    "pipeline/jobfit/tests/profile_readiness_cases.json"
+  ],
+  "cases_red_before": 9,
+  "cases_green_after": 9,
+  "cases_total": 9,
+  "gates": {"tsc": 2, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": null, "unit": 0, "ts_ratchet": 0, "perf": 1, "python_profile_registry": 0},
+  "files_changed": 12,
+  "lines_changed": 1937,
+  "deviations_from_card": "Critic revision applied: readiness(form, archetypes) reads archetype ids + per-archetype checklists from the LIVE prop (falls back to the static list only when the prop is empty, i.e. before /api/archetypes lands) and only detection + commonChecklist from the static import; acceptance case 9 (custom archetype on the prop, absent from the JSON) added in both the TS test and the shared case file (plus a custom archetype whose unknown check id fails closed). The shared case file holds WIRE inputs ({profile, signals} exactly as the editor sends them) so profile_cli can consume them; the form layer is covered by readiness(form) cases in the TS test (blank, declared student, enrolled+grad, hidden years). Custom-archetype cases are run in Python by patching registry._ARCHETYPES/_BY_ID and profile_cli.ARCHETYPES per case (the state the spawn sees after createArchetype rewrites the file). Grown beyond write_set: e2e/profile-builder.spec.ts (a keyless-subset spec that clicked 'Check (preview)' and asserted 'preview (not saved)'; removing the button would have broken it) and perf-budget.json (under the lock, own share only). Catalog: no new key - profile.result.preview's copy becomes 'live preview · confirmed on save' (x4), profile.editor.checkPreview removed (x4). The signals builder in useProfileEditorSubmit.ts was NOT moved (outside write set); readinessSignals mirrors it and a source-read test pins the two object literals line for line. ProfileResultPanel takes a ReadinessView (BuildResult subset); the editor shows the server result only while the memoized form object is the one that was saved, else the live view. Save button now shows 'Working...' while loading (the key was only used by the removed preview button).",
+  "notes": "tsc exit 2 ONLY on foreign paths (kpi-sim/ untracked tree; sibling in-flight GithubAnalysisPanel.tsx, analytics-cache.test.ts, analytics-job-cohort.test.ts) - no error under app/features/tools/profile or e2e/profile-builder.spec.ts. test:unit: 10066/10066 pass. Python: test_profile_readiness_parity + test_registry + test_profile + test_profile_cli + test_profile_draft + test_profile_taxonomy_contract = 66 OK, no skips added (KP_SKIP_BASELINE untouched). test:perf exit 1 on the working tree: every overage line (api routes, llm-config.ts, job-ingest.ts, app/page.tsx 1400/8815) comes from siblings' UNCOMMITTED files; committed HEAD measures app/page.tsx 1397 / 8755.9 KB. My share, measured on committed main c215afc21 with only my three source files swapped: 1396 / 8742.3 KB -> 1397 / 8755.9 KB (+1 module profileReadiness.ts, +13.6 KB); ceiling raised by exactly that on top of github-repo-intelligence/B's concurrent raise: 1397/8760 -> 1398/8774 (f43f6ebfc). e2e/profile-builder.spec.ts was edited but NOT run (no dev server may be started here) - the integrator should run the keyless e2e subset: the panel is now rendered from the start of the editor (live), so the 'Experienced'/'Student' pill, 'self-declared: ...', completeness progressbar and 'live preview · confirmed on save' assertions should hold before Save. The d022404a6 catalog commit carries an unnecessary Doc-sync trailer (the doc is updated in e85d13513)."
+}

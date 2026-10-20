@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
-import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { rateLimit } from "@/app/_lib/rate-limit";
+import { intakeSubmission } from "@/app/_lib/distribution";
+import { answerFailure, jsonRefusal } from "@/app/_lib/api-response";
+import { rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { submissionReference } from "@/app/_lib/devcase-reference";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -32,6 +33,7 @@ const DAILY_LIMIT = 300; // per 24h — the aggregate for the link (cf. 50 live 
 /** Hard cap on this public door's request body: a work-sample submission: a token, a candidate name, a repo ref and free-text notes.
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
 const MAX_DEVCASE_INBOUND_BODY_BYTES = 64 * 1024;
+const SENDABLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,6 +74,14 @@ export async function POST(request: NextRequest) {
     if (!body.candidate || !body.repoRef) {
       return jsonRefusal("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400);
     }
+    // An application promises an acknowledgement. A display-name candidateRef
+    // is not an address; accept it only with a real contact email. Older channel
+    // payloads that use an email as candidateRef may still omit contact.
+    const contact = [body.contact, body.candidate]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .find((value) => SENDABLE_EMAIL_RE.test(value));
+    if (!contact) return jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400);
 
     // Throttle AFTER the credential (401), lifecycle (410) and validation (400) refusals —
     // those must keep answering honestly without consuming a real applicant's slot — and
@@ -79,18 +89,22 @@ export async function POST(request: NextRequest) {
     // Through the refusal CHOKEPOINT, not a hand-rolled envelope: the shared message
     // still reaches the client (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR)
     // and the code rides beside it, so a throttled apply form says so in Czech.
-    if (!rateLimit(`devcase-inbound:${token}`, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    // Each refusal says WHEN, read off the bucket that refused (the burst window or the
+    // daily one), so a channel relay backs off once instead of probing blind.
+    const burstKey = `devcase-inbound:${token}`;
+    if (!rateLimit(burstKey, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
+      return jsonThrottled(rateLimitRetryAfterMs(burstKey), 10 * 60_000);
     }
-    if (!rateLimit(`devcase-inbound-day:${token}`, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    const dayKey = `devcase-inbound-day:${token}`;
+    if (!rateLimit(dayKey, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
+      return jsonThrottled(rateLimitRetryAfterMs(dayKey), 24 * 60 * 60_000);
     }
 
     const { submission, isNew } = await intakeSubmission({
       postingId,
       candidateRef: body.candidate,
       repoRef: body.repoRef,
-      contact: body.contact,
+      contact,
       notes: body.notes,
       locale: typeof body.locale === "string" ? body.locale : null,
     });
@@ -109,13 +123,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
-    // core also guards (e.g. if the posting closes mid-request) — map it to 410 too.
-    if (error instanceof PostingClosedError) {
-      return jsonRefusal("POSTING_CLOSED", 410);
-    }
-    // A PUBLIC candidate door: the thrown message is a store/spawn detail (SQLITE_*
+    // core also guards (e.g. if the posting closes mid-request) — it throws
+    // PostingClosedError, a Refusal, which answerFailure answers as POSTING_CLOSED/410.
+    // Anything else on this PUBLIC candidate door is a store/spawn detail (SQLITE_*
     // codes, the absolute db path, relay stderr) and must never reach an applicant.
     // The code is what the apply surface localizes.
-    return safeJsonError(error, "api:devcase/inbound", "DEVCASE_INTAKE_FAILED");
+    return answerFailure(error, "api:devcase/inbound", "DEVCASE_INTAKE_FAILED");
   }
 }

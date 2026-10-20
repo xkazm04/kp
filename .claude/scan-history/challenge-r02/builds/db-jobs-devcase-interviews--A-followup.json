@@ -1,0 +1,71 @@
+{
+  "card": "db-jobs-devcase-interviews/A-followup",
+  "title": "Thread the caller's team into every recruiter read of a corpus role's lifecycle",
+  "status": "landed",
+  "base": "23258c4d2",
+  "shas": ["5ada11275", "d7f8e1e88", "e1bd0f2cd", "f9b340c82"],
+  "tests_added": [
+    "app/api/jobs/job-lifecycle-caller-team.test.ts",
+    "app/api/job-lifecycle-team.test.ts"
+  ],
+  "cases_red_before": 6,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {"tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": 0, "ratchet": 0, "perf": 1, "unit": 1},
+  "files_changed": 51,
+  "lines_changed": 420,
+  "deviations_from_card": "Fail-closed where it fits: getJobStatus(jobId, workspaceId: string) and getRoleOpenConfig(id, workspaceId: string) now REQUIRE the team, and tsc pins that. Public doors pass the filing team by name as getJobWorkspace(id). getJob stays optional (about 50 callers, most read the payload only, so making it required would touch 40+ files). Instead, app/api/job-lifecycle-team.test.ts is a source guard with an EMPTY exemption list. It covers every route the proxy gates, derived from isPublicPath in app/_lib/auth/public-routes.ts, plus 13 named recruiter-only lib modules, and fails any team-less getJob/getJobStatus/getRoleOpenConfig call. route-tenancy-coverage was not used: getJob is by-id exempt there, so it cannot express this. Write set beyond the call sites: app/api/sim/inbound/sim-inbound-scope.test.ts (its source pin now accepts the hoisted `ws` and forbids the one-argument form), app/api/rate-limit-contract.test.ts (shared surface, under the lock: the ingest-job served-work marker text now reads `if (getJob(jobId, ws)) {`), and three test files where getJobStatus(id) took one argument (job-workspace-state.test.ts cases 1/7, jobs-publish-billing.test.ts, publish-atomicity.test.ts). Those now pass DEFAULT_WORKSPACE_ID or WS, with the same assertions. The billing parity case is byte-unchanged and passes. One semantic choice: the channel inbound door (route + inbound-lead.ts) reads the WEBHOOK's team, not the default team, because its leads file into webhook.workspaceId. The team that minted a channel can therefore shut it by closing the role.",
+  "call_sites": {
+    "recruiter_to_caller_team": [
+      "app/api/agents/dispatch/route.ts:178 getJob(jobId, ws)",
+      "app/api/channels/webhooks/route.ts:77 getJob(jobId, ws)",
+      "app/api/jds/[slug]/ingest-job/route.ts:39 getJob(jobId, ws)",
+      "app/api/jds/[slug]/revisions/route.ts:61 getJob(jobId, ws)",
+      "app/api/jds/[slug]/route.ts:135,199 getJob(.., ws)",
+      "app/api/jobs/[id]/agent-fit/route.ts:32,53",
+      "app/api/jobs/[id]/campaign/route.ts:27",
+      "app/api/jobs/[id]/candidates/outreach/route.ts:42",
+      "app/api/jobs/[id]/candidates/route.ts:28 (workspaceId)",
+      "app/api/jobs/[id]/interview-kit/publish/route.ts:52",
+      "app/api/jobs/[id]/interview-kit/rehearse/route.ts:93",
+      "app/api/jobs/[id]/interview-kit/route.ts:55,98,126",
+      "app/api/jobs/[id]/priorities/route.ts:26",
+      "app/api/jobs/[id]/rediscover/route.ts:23",
+      "app/api/jobs/[id]/route.ts:20",
+      "app/api/jobs/[id]/translations/route.ts:41,71 getRoleOpenConfig(id, ws)",
+      "app/api/jobs/[id]/winnability/route.ts:41",
+      "app/api/jobs/[id]/close/route.ts + publish/route.ts (already threaded by card A)",
+      "app/api/sim/apply-cv/route.ts:42,44 (ws hoisted; the sim files into the caller's team)",
+      "app/api/sim/inbound/route.ts:31 (ws hoisted)",
+      "app/api/sim/offer-draft/route.ts:34 (workspaceId)",
+      "app/_lib/agent-hire/transform-run.ts:85 (task workspaceId)",
+      "app/_lib/analyze-run.ts:225 (p.workspace; undefined -> filing team, as before)",
+      "app/_lib/ats-egress.ts:63 (entry.workspaceId)",
+      "app/_lib/campaign-run.ts:48",
+      "app/_lib/group-eval-run.ts:520",
+      "app/_lib/interview-kit-run.ts:131",
+      "app/_lib/interview-letter-run.ts:148",
+      "app/_lib/interview-run.ts:246 entryBriefContext (entry.workspaceId)",
+      "app/_lib/job-translate-run.ts:75",
+      "app/_lib/palette-preview/resolve-entities.ts:91 (ws)",
+      "app/_lib/reasoning-run.ts:135 (workspaceId; the cache key now carries the team's view)",
+      "app/_lib/rediscover.ts:242 (opts.workspaceId)",
+      "app/_lib/stage-hooks-homework.ts:219",
+      "app/_lib/stage-hooks-role-fill.ts:108 (already threaded by card A)"
+    ],
+    "public_to_filing_team": [
+      "app/api/apply/[id]/route.ts:172 getJobStatus(id, workspaceId=getJobWorkspace(id))",
+      "app/api/apply/[id]/quick/route.ts:68 getJobStatus(id, getJobWorkspace(id))",
+      "app/api/apply/[id]/session/route.ts:51 getJobStatus(id, getJobWorkspace(id))",
+      "app/apply/[id]/page.tsx:41, app/apply/[id]/quick/page.tsx:45 getJobStatus(id, getJobWorkspace(id))",
+      "app/jds/[slug]/page.tsx:149 getJobStatus(jobId, getJobWorkspace(jobId))",
+      "app/api/channels/inbound/[token]/route.ts:94,96 + app/_lib/inbound-lead.ts:208,210 -> webhook.workspaceId (the team this door files into)",
+      "payload-only getJob, unchanged: apply followup/quick/route/session getJob(id), app/api/data|status|stop/[token] (company), app/_lib/offer-finalize.ts:210 offerView (public offer token), app/_lib/interview-run.ts:688 buildRehearsalBriefs + :752 jobAsrKeywords (called from the public /api/interview/connect runtime)"
+    ],
+    "left_for_other_wave3_owners": [
+      "app/_lib/automation-pass.ts:280 getJob(jobId) (pipeline-actions-events/B write set)",
+      "app/_lib/devcase-run.ts:861,1100 getJob(identity.jobId)?.roleFamily (devcase-eval/B write set; payload-only)"
+    ]
+  },
+  "notes": "Acceptance cases were 5 route-handler cases driven under real team-A/team-B session cookies (a virtual next/headers module) plus 3 guard cases. Before the build, 4 route cases were red: job page, palette preview, sim CV intake 410, translations langs. The public-apply case was green before and after, as a regression pin. Both guard scans (27 team-less reads in gated routes, plus the lib list) were red, and the parser self-test was green. Commit 5ada11275's body says 'Acceptance: 0 of 7'. The correct figure is 2 of 8 green before the build, which d7f8e1e88 states. Gates: tsc is clean outside kpi-sim/, an untracked foreign copy tree. My now-required getJobStatus adds a few more errors to its stale route copies. eslint shows 0 errors (2 pre-existing unused-var warnings). api:check, docs:check and lint:ts-ratchet are 0. test:unit exit 1 comes only from the known python-runner-concurrency FLAKE (the card A notes name it too). An earlier run also flaked recipes-literals and puml parse, both foreign. test:perf exit 1: job-ingest.ts is 402/400, the known line, and app/_lib/db.ts has 28 value importers against a ceiling of 27. That second line is foreign: this build added no db barrel import, and a sibling's new test is the likely cause. app/page.tsx was 8863/8860 while I had longer doc comments in db/jobs.ts. I trimmed them and it is under again. The integration gate should re-check it after all wave-3 builders land. No push."
+}

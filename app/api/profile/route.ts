@@ -3,17 +3,17 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analysisLineageSource } from "@/app/_lib/db/analyses";
-import { cachedProfileRecords, deleteProfile, getProfileRecord, profileDivergence, profileStaleness, saveProfile, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
+import { cachedProfileRecords, deleteProfile, findProfileIdBySourceCvHash, getProfileRecord, profileDivergence, profileSourceAnalysisSlug, profileStaleness, saveProfileForCv, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
 import {
   cleanupWorkdir,
   createWorkdir,
+  isSpawnTimeout,
   parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
 import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { PROFILE_BUILD_TIMEOUT_MS } from "@/app/_lib/applicant-profile";
@@ -92,11 +92,10 @@ async function routeAndScore(
     try {
       spawned = await result;
     } catch (err) {
-      // python-runner delivers its deadline as a REJECTION carrying a message, not a
-      // typed error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place
-      // that reading lives. Anything else — an ENOENT on PYTHON_CMD, a killed child —
+      // python-runner delivers its deadline as a typed SpawnFailure rejection;
+      // isSpawnTimeout (python-runner.ts) reads its kind, never its sentence. Anything else — an ENOENT on PYTHON_CMD, a killed child —
       // is a real fault and still escapes to the caller's catch.
-      if (err instanceof Error && isSpawnTimeoutMessage(err.message)) return { timeout: true };
+      if (isSpawnTimeout(err)) return { timeout: true };
       throw err;
     }
     const { stdout, stderr, exitCode } = spawned;
@@ -140,12 +139,11 @@ function resolveLineage(sourceAnalysisSlug: unknown, workspaceId: string): Profi
   return { sourceAnalysisSlug: src.slug, sourceCvHash: src.cvHash, sourceAnalyzedAt: src.analyzedAt };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
     // used by the Decisions analysis-summary modal and the Profile editor (edit /
     // duplicate hydration). No id → the full list.
-    const ws = await currentWorkspace();
     const id = request.nextUrl.searchParams.get("id");
     if (id) {
       const rec = getProfileRecord(id, ws);
@@ -158,10 +156,15 @@ export async function GET(request: NextRequest) {
       // of overwriting someone else's. It is the same column `divergence.editedAt`
       // reports, read once here rather than twice.
       const divergence = profileDivergence(id, ws);
+      // `lineage` names the analysis this profile was built FROM — the baseline the
+      // rebuild merge (profileRebuildMerge.ts) compares against to tell the recruiter's
+      // edits from what the CV said. null for a hand-built profile.
+      const sourceAnalysisSlug = profileSourceAnalysisSlug(id, ws);
       return NextResponse.json({
         profile: { ...rec.row, payload: rec.payload },
         divergence,
         updatedAt: divergence?.editedAt ?? null,
+        lineage: sourceAnalysisSlug ? { sourceAnalysisSlug } : null,
       });
     }
     // The list carries a `stale` map (profile id → newer analysis) alongside the
@@ -178,9 +181,9 @@ export async function GET(request: NextRequest) {
     // the server log and the caller gets the code (api-contracts.md §1.1).
     return safeJsonError(error, "api:profile:list", "PROFILE_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Before the body read and before the spawn, so a throttled caller costs neither.
   if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -201,27 +204,39 @@ export async function POST(request: NextRequest) {
     const invalid = validateProfileBody(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
+    // ONE PROFILE PER CV. A build FROM an analysis resolves the CV's content hash
+    // (resolveLineage, server-side); if this workspace already holds a profile built
+    // from the same CV, a second one is refused by name — with the existing id as data,
+    // so the client can open that profile instead. Checked here, BEFORE the spawn, so a
+    // refused build costs no child process; saveProfileForCv re-checks inside its
+    // IMMEDIATE transaction, which is what holds if two builds race across the spawn.
+    // A dry-run preview (persist:false) writes nothing and is never refused.
+    const persist = body.persist !== false;
+    const lineage = persist ? resolveLineage(body.sourceAnalysisSlug, ws) : undefined;
+    const existingId = lineage ? findProfileIdBySourceCvHash(lineage.sourceCvHash, ws) : null;
+    if (existingId) return jsonRefusal("PROFILE_EXISTS", 409, { id: existingId });
+
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
-      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
+      return safeJsonError(new Error(outcome.error.message), "api:profile:create", "PROFILE_BUILD_FAILED", outcome.error.status);
     }
     const { data } = outcome;
 
     // Persist by default; the form can request a dry-run preview with persist:false.
-    if (body.persist === false) {
+    if (!persist) {
       return NextResponse.json({ ...data, saved: null });
     }
-    const ws = await currentWorkspace();
-    const saved = saveProfile(persistFieldsFrom(data), ws, resolveLineage(body.sourceAnalysisSlug, ws));
-    return NextResponse.json({ ...data, saved });
+    const result = saveProfileForCv(persistFieldsFrom(data), ws, lineage);
+    if ("existingId" in result) return jsonRefusal("PROFILE_EXISTS", 409, { id: result.existingId });
+    return NextResponse.json({ ...data, saved: result.saved });
   } catch (error) {
     // A spawn/store fault carries the temp workdir path, PYTHON_CMD and SQLITE_* text.
     return safeJsonError(error, "api:profile:create", "PROFILE_BUILD_FAILED");
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withWorkspace(async (ws: string, request: NextRequest) => {
   if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
@@ -245,7 +260,6 @@ export async function PUT(request: NextRequest) {
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    const ws = await currentWorkspace();
     if (!getProfileRecord(body.id, ws)) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
@@ -256,7 +270,7 @@ export async function PUT(request: NextRequest) {
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
-      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
+      return safeJsonError(new Error(outcome.error.message), "api:profile:update", "PROFILE_UPDATE_FAILED", outcome.error.status);
     }
     const { data } = outcome;
 
@@ -283,15 +297,15 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:profile:update", "PROFILE_UPDATE_FAILED");
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    const ok = deleteProfile(id, await currentWorkspace());
+    const ok = deleteProfile(id, ws);
     if (!ok) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
@@ -299,4 +313,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:profile:delete", "PROFILE_DELETE_FAILED");
   }
-}
+});

@@ -1,13 +1,18 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJob } from "./db/jobs";
-import { actOnPipelineEntry, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
+import { actOnPipelineEntry, hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, pythonSpawnLoad, spawnPython } from "./python-runner";
 import { positiveNumericEnv } from "./env";
 import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
+import { isAgingAlertKind } from "./aging-policy";
+import { planCommit, type CommitSelection, type CommitVerdict } from "./automation-commit-plan";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { roleOf, stageHasRole, type StageDef, type StageRole } from "./pipeline-stages";
+import { nextStageOnAxis } from "./db/pipeline-core";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -16,6 +21,10 @@ import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-a
 // AUTOMATION_ALERT_KINDS set (decision-attribution.ts) so the writer and the
 // attribution map can never key it differently.
 export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
+
+/** Actor stamped on the blocked-reject event: the policy pass is what proposed the
+ *  adverse action the gate refused (never a person, never a null that renders as one). */
+export const FAIRNESS_PROPOSER = "auto:policy-pass";
 
 // THE single encoding of the fairness-backstop downgrade, shared by the dry-run
 // preview loop and the commit loop so the preview provably shows the SAME verdict
@@ -34,7 +43,11 @@ export type PassReasonCode =
   | "wouldBeQueuedForApproval"
   | "fairnessRefused"
   | "fairnessWouldRefuse"
-  | "applyFailed";
+  | "applyFailed"
+  /** The recruiter left this row unticked in the preview (or it was not in it). */
+  | "notApproved"
+  /** The recruiter ticked this row, but the pass now decides something else. */
+  | "changedSincePreview";
 
 // Optimistic-CAS stale handling, shared by the advance and reject apply branches:
 // when actOnPipelineEntry refuses because the snapshot stage no longer holds (a
@@ -47,6 +60,27 @@ function markStaleSkip(d: AutomationDecision): void {
   d.reasonCode = "staleSkip";
   d.reasonParams = { original: d.reason };
   d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+}
+
+// A commit that carries the recruiter's reviewed selection (automation-commit-plan.ts)
+// holds back the rows the recruiter did not keep, and the rows that changed since the
+// preview. Both become a logged no-op with a CODE, the markStaleSkip shape: the entry is
+// not touched, the run log says why, and `commitVerdict` + `planned*` keep what the pass
+// had decided so the route can name a drifted row back to the recruiter.
+function markHeldBack(d: AutomationDecision, verdict: "declined" | "drifted"): void {
+  d.commitVerdict = verdict;
+  d.plannedAction = d.action;
+  d.plannedToStage = d.toStage;
+  const code: PassReasonCode = verdict === "declined" ? "notApproved" : "changedSincePreview";
+  d.action = "none";
+  d.toStage = null;
+  d.outcome = "skipped";
+  d.reasonCode = code;
+  d.reasonParams = { original: d.reason };
+  d.reason =
+    verdict === "declined"
+      ? `Skipped: not approved in the preview. Original policy decision: ${d.reason}`
+      : `Skipped: changed since the preview. Original policy decision: ${d.reason}`;
 }
 
 // THE single encoding of "a fairness-cleared reject is ROUTED TO THE HUMAN gate,
@@ -76,7 +110,9 @@ function applyFairnessVerdict(
   d.action = "hold";
   d.outcome = "fairness_blocked";
   d.reasonCode = preview ? "fairnessWouldRefuse" : "fairnessRefused";
-  d.reasonParams = { verdict: verdict.reason, original: d.reason };
+  // Structured facts beside the sentence: the refusing rule by stable id and the
+  // proposed outcome, so the refusal is countable by rule and re-renderable.
+  d.reasonParams = { verdict: verdict.reason, original: d.reason, rule: verdict.rule, proposed: "reject" };
   d.reason = `Auto-reject ${preview ? "would be refused" : "refused"} by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
   d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
     ? d.alerts
@@ -116,6 +152,15 @@ export type AutomationDecision = {
    *  labels and rejection reasons. Absent only on rows persisted before the stamp
    *  existed — those are attributed to the default workspace on read. */
   workspaceId?: string;
+  /** Set only on a commit that carried a selection: the plan's verdict for this row
+   *  and, when it was held back, what the pass had decided (automation-commit-plan). */
+  commitVerdict?: CommitVerdict;
+  plannedAction?: AutomationDecision["action"];
+  plannedToStage?: string | null;
+  /** The entry's match score as the policy step saw it (after the in-memory scoring of
+   *  a dry run). Stamped ONLY on a scoped dry run (`entryIds`), the role-run screen
+   *  stage's read; absent on every board-wide pass and every persisted run row. */
+  matchScore?: number | null;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -168,13 +213,27 @@ export function isPassInFlight(): boolean {
   return inFlightPass !== null;
 }
 
-export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<AutomationPassResult> {
+/** `selection` = the reviewed rows of ONE team's preview (automation-commit-plan.ts). A
+ *  pass that carries one is scoped to that team: it evaluates only that team's entries,
+ *  applies only the rows the team kept, and neither applies nor holds back any other
+ *  team's row - those wait for their own team's commit or the clock. A caller with no
+ *  selection (the clock, the command bar, an external cron) runs today's global sweep.
+ *
+ *  A selection that finds a pass already in flight JOINS it like any other caller; the
+ *  route reports that as `selectionHonored: false`, because the joined pass was planned
+ *  without it. */
+export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection; entryIds?: readonly string[] }): Promise<AutomationPassResult> {
+  // A SCOPED pass (one role-run branch) is read-only by construction: it exists to PROPOSE
+  // a route for named entries, never to move them. Applying a pass to a subset of the board
+  // would skip the board-wide single-flight and the selection plan that make a commit safe.
+  if (opts?.entryIds && !opts.dryRun) throw new AutomationPassError("entryIds scopes a dry run only", 400);
+  if (opts?.entryIds) return executeAutomationPass(true, undefined, opts.entryIds);
   // AUTO3 — a dry run is read-only (no applies, no dispatches, no score writes),
   // so it neither joins nor blocks the single-flight: previewing must never
   // return an already-APPLIED pass's result as if it were a preview.
   if (opts?.dryRun) return executeAutomationPass(true);
   if (inFlightPass) return inFlightPass;
-  inFlightPass = executeAutomationPass(false).finally(() => {
+  inFlightPass = executeAutomationPass(false, opts?.selection).finally(() => {
     inFlightPass = null;
   });
   return inFlightPass;
@@ -327,8 +386,245 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   return deferred;
 }
 
-async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassResult> {
-  const entries = listActiveEntriesForAutomation();
+/** Write (or, on a dry run, count) one decision's alerts — the SINGLE encoding the
+ *  preview loop and the commit loop share, so the forecast and the feed agree.
+ *
+ *  Two dedupe windows, by kind:
+ *  - the aging alerts (`stale_alert` = past the stage SLA, `aging_alert` = stalled at
+ *    STALLED_MULTIPLE x the SLA; aging-policy.ts) are written ONCE per stage stint per
+ *    tier, keyed on the snapshot's `stageChangedAt`. A per-business-day key re-wrote the
+ *    same "still waiting" line into the feed every day until someone moved the card.
+ *  - every other alert (the fairness backstop's `fairness_gate_blocked_reject`) keeps
+ *    its per-business-day dedupe: each refusal is a fresh event worth surfacing daily.
+ *
+ *  An aging alert on an ADVANCE decision (or on a staleSkip, where the entry moved
+ *  mid-pass) is dropped: the move ends the stint the alert describes, and a row
+ *  written after the move would sit inside the NEW stint and suppress that stint's
+ *  own first alert. */
+export function recordDecisionAlerts(
+  d: AutomationDecision,
+  entrySnap: AutomationEntry | undefined,
+  summary: AutomationSummary,
+  dryRun: boolean
+): void {
+  if (!d.entryId) return;
+  const ws = entrySnap?.workspaceId;
+  for (const alert of d.alerts ?? []) {
+    const aging = isAgingAlertKind(alert);
+    // The stint is over (or already moved under us, a staleSkip): not this stint's alert.
+    if (aging && (d.action === "advance" || d.reasonCode === "staleSkip")) continue;
+    const already = aging
+      ? hasEventSinceStageChange(d.entryId, alert, entrySnap?.stageChangedAt ?? null, ws)
+      : hasEventToday(d.entryId, alert, ws);
+    if (already) continue;
+    // The blocked-reject event names its proposer: the policy pass proposed the
+    // reject the gate refused. Other alert kinds keep their historic null actor.
+    if (!dryRun) recordAutomationEvent(d.entryId, alert, d.reason, ws, alert === FAIRNESS_BLOCKED_REJECT_ALERT ? FAIRNESS_PROPOSER : null);
+    summary.alerts += 1;
+  }
+}
+
+/** The commit loop: apply one pass's decisions to the board. Exported so the
+ *  selection contract can be pinned without spawning the policy engine; the pass calls
+ *  it with the SAME entry snapshot Python decided against. Returns the decisions the
+ *  commit answers for - with a selection, only the reviewing team's. */
+export function applyPassDecisions(
+  decisions: AutomationDecision[],
+  entries: AutomationEntry[],
+  summary: AutomationSummary,
+  selection?: CommitSelection
+): AutomationDecision[] {
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  for (const d of decisions) {
+    const ws = byId.get(d.entryId)?.workspaceId;
+    if (ws) d.workspaceId = ws;
+  }
+  // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
+  // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
+  // every fairness-cleared reject is queued for a human on the Decisions gate.
+  // Advances, holds and alerts stay autonomous. This is what makes the candidate
+  // disclosure's ONE absolute — "a rejection is always a person's: no setting can
+  // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
+  // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
+  // used to claim more than this, and the surrounding "nothing adverse is decided
+  // automatically" wording was retired with G16 precisely because advance and offer
+  // ARE delegable; do not restore an absolute here that only the reject path earns.
+  //
+  // A selection is one team's review: plan it against the decisions of THAT team's
+  // entries only. A decision whose entry is not in this pass's snapshot, or belongs to
+  // another team, is dropped from the commit outright - neither applied nor recorded as
+  // held back (the pass is already scoped before it runs; this is the second wall).
+  if (selection) {
+    decisions = decisions.filter((d) => {
+      const ws = byId.get(d.entryId)?.workspaceId;
+      return ws !== undefined && ws === selection.workspace;
+    });
+  }
+  const plan = selection ? planCommit(decisions, selection.approved, selection.workspace) : null;
+  for (const d of decisions) {
+    if (!d.entryId) continue;
+    // One decision's apply failing (a comm throw from dispatchRejection, a
+    // transient SQLITE_BUSY past busy_timeout) must NOT abort the whole pass —
+    // that discards the summary of everything already applied AND skips every
+    // later decision, leaving a half-applied board. Isolate each decision.
+    try {
+    // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
+    // stage, but the Python hop takes seconds — a recruiter (or a concurrent
+    // pass) may have moved the entry meanwhile. Passing expectedStage makes a
+    // stale verdict a logged no-op instead of an action applied to whatever
+    // stage the entry happens to be in NOW.
+    // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
+    const entrySnap = byId.get(d.entryId);
+    const snapshotStage = entrySnap?.stage;
+    const entryWs = entrySnap?.workspaceId;
+    const verdict = plan?.get(d.entryId);
+    if (verdict) d.commitVerdict = verdict;
+    // Held back by the selection: a drifted row of any action, or a declined advance.
+    // A declined REJECT is decided below, after the fairness backstop - a reject the
+    // backstop refuses is an autonomous hold (and its alert), not a row anyone ticked.
+    if (verdict === "drifted" || (verdict === "declined" && d.action === "advance")) {
+      markHeldBack(d, verdict);
+    } else if (d.action === "advance") {
+      const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
+      if (applied) {
+        summary.advanced += 1;
+        d.outcome = "applied";
+      } else {
+        markStaleSkip(d);
+      }
+    } else if (d.action === "reject") {
+      // Defense in depth: re-assert the fairness invariant before applying a
+      // reject (BAU<40 only — enforced in evaluate_entry). If Python regressed and
+      // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
+      // it — downgrade to a hold + alert rather than silently auto-rejecting.
+      const fairness = assertAutoRejectFair(byId.get(d.entryId));
+      // Refused → the shared helper downgrades to a hold + dedup alert (sets
+      // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
+      // by the loop below), routed to the human Decisions gate rather than
+      // actioned. CLEARED → also not applied: the reject is QUEUED for a human
+      // click, unconditionally. There is no mode that applies or emails a reject
+      // unattended (the opt-in "auto" mode was retired — see the note above the
+      // loop); both branches therefore land on the human Decisions gate and
+      // `summary.rejected` is 0 in every committed run.
+      if (applyFairnessVerdict(d, fairness, summary, false)) {
+        // refused — the helper already downgraded this decision to a hold.
+        if (d.commitVerdict) d.commitVerdict = "autonomous";
+      } else if (verdict === "declined") {
+        // Fairness-cleared, but the recruiter did not keep it: no rejection_review is
+        // queued from this commit. The next pass (or preview) proposes it again.
+        markHeldBack(d, "declined");
+      } else {
+        // Mandatory human-in-the-loop: QUEUE the fairness-cleared reject for a
+        // human click instead of applying it. The payload uses the screening-
+        // review shape AiReviewCard already renders; evaluate_entry freezes
+        // entries with a pending approval, so the queued candidate can't be
+        // re-decided on the next tick. The recruiter's Reject resolves it through
+        // the human route — which sends the rejection email AND seals the
+        // tamper-evident record, so nothing is lost by not applying it here.
+        //
+        // `rationale` is the POLICY'S OWN REASON, and it is what that seal carries
+        // when the recruiter ratifies the reject without a note (pipeline-entry-
+        // action.ts `aiVerdict` lifts it into the record's rationale and its
+        // `aiRationale` input). So it is read HERE, before markQueuedForApproval
+        // below rewrites `d.reason` into the "Queued for approval: …" wrapper and
+        // `reasonCode` into the wrapper's code. evaluate_entry returns prose only —
+        // no structured reason code of its own — so the rationale is the whole of
+        // the machine's reason; a `reasonCode` + `reasonParams` pair would ride
+        // beside it here if the policy ever emitted one.
+        setApproval(
+          d.entryId,
+          "rejection_review",
+          JSON.stringify({
+            recommendation: "reject",
+            confidence: entrySnap?.matchScore ?? null,
+            rationale: d.reason,
+          }),
+          entryWs
+        );
+        // Routed to the human Decisions gate, not actioned — the SAME encoding
+        // the preview loop uses, so the forecast and the record can't diverge.
+        markQueuedForApproval(d, summary, false);
+      }
+    } else if (d.action === "hold") {
+      summary.held += 1;
+      d.outcome = "applied";
+    }
+    recordDecisionAlerts(d, entrySnap, summary, false);
+    } catch (applyError) {
+      // A decision's DB transition may already be committed (the advance landed,
+      // or the rejection_review was queued) when a later step throws; the failure
+      // is recorded here and the pass continues rather than aborting. The errors
+      // count surfaces the partial in the run summary.
+      summary.errors += 1;
+      const reason = applyError instanceof Error ? applyError.message : String(applyError);
+      d.outcome = "failed";
+      d.reasonCode = "applyFailed";
+      d.reasonParams = { detail: reason, original: d.reason };
+      d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
+      console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
+    }
+  }
+
+  return decisions;
+}
+
+/** Narrow a pass's entries to the named ids (a scoped dry run). Pure. An id that is not an
+ *  active entry is simply absent from the result - the caller sees no decision for it. */
+export function scopeToEntryIds(entries: AutomationEntry[], entryIds?: readonly string[]): AutomationEntry[] {
+  if (!entryIds) return entries;
+  const wanted = new Set(entryIds);
+  return entries.filter((e) => wanted.has(e.id));
+}
+
+/** The entries one pass evaluates: every team's (the global sweep) or, for a commit
+ *  that carries one team's selection, that team's only. */
+export function entriesForPass(entries: AutomationEntry[], workspace?: string): AutomationEntry[] {
+  return workspace ? entries.filter((e) => e.workspaceId === workspace) : entries;
+}
+
+/** The stage facts the policy pass decides on (challenge-r10 pipeline-core/B). */
+export type PolicyStageFacts = {
+  /** The entry's stage role on its OWN workspace axis; null = off-axis (a retired
+   *  column, a legacy row) — Python answers `none` for it, never a reject. */
+  stageRole: StageRole | null;
+  /** The column an advance lands on: nextStageOnAxis, i.e. exactly where the commit's
+   *  actOnPipelineEntry("accept") moves the row. Null when there is no next column
+   *  (terminal, last column, off-axis). */
+  advanceTo: string | null;
+};
+
+/** Stamp every snapshot entry with {@link PolicyStageFacts} before it crosses to
+ *  Python. `evaluate_entry` used to branch on the five shipped stage NAMES and name a
+ *  literal landing ("Screened", "Interview"); on a board a team composed in Settings →
+ *  Hiring the entry column never advanced, a renamed screening column had no rule, and
+ *  the preview's planned stage was not the stage the commit landed on. Now Python
+ *  decides by role and returns `advanceTo` as `toStage`, so the preview/commit drift
+ *  check (automation-commit-plan.ts) compares the real landing.
+ *
+ *  Pure and additive: every other field crosses unchanged. The sweep is cross-tenant,
+ *  so `axisFor` is read once per workspace (the listActiveEntriesForAutomation shape). */
+export function withPolicyStageFacts<E extends { stage: string; workspaceId: string }>(
+  entries: readonly E[],
+  axisFor: (workspaceId: string) => readonly StageDef[]
+): Array<E & PolicyStageFacts> {
+  const axes = new Map<string, readonly StageDef[]>();
+  return entries.map((e) => {
+    let axis = axes.get(e.workspaceId);
+    if (!axis) {
+      axis = axisFor(e.workspaceId);
+      axes.set(e.workspaceId, axis);
+    }
+    const stageRole = roleOf(e.stage, axis);
+    const next = stageRole ? nextStageOnAxis(e.stage, axis) : e.stage;
+    // The terminal column is outcome-bearing: only an accepted offer lands there (the
+    // store refuses an accept onto it), so the policy never proposes that move.
+    const proposes = next !== e.stage && !stageHasRole(next, "terminal", axis);
+    return { ...e, stageRole, advanceTo: proposes ? next : null };
+  });
+}
+
+async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection, entryIds?: readonly string[]): Promise<AutomationPassResult> {
+  const entries = scopeToEntryIds(entriesForPass(listActiveEntriesForAutomation(), selection?.workspace), entryIds);
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
@@ -341,7 +637,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
   try {
     workdir = await createWorkdir();
     const inputPath = path.join(workdir, "entries.json");
-    await writeFile(inputPath, JSON.stringify(entries), "utf-8");
+    // Python decides by stage ROLE on each entry's own board and names the axis's own
+    // next column — the stamped facts, not the raw stage id.
+    const snapshot = withPolicyStageFacts(entries, (ws) => getPipelineAxis(ws).stages);
+    await writeFile(inputPath, JSON.stringify(snapshot), "utf-8");
 
     const { result } = spawnPython(["-m", "pipeline.jobfit.automation_cli", "policy-pass", "--entries-json", inputPath]);
     const { stdout, stderr, exitCode } = await result;
@@ -392,115 +691,17 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         } else if (d.action === "hold") {
           summary.held += 1;
         }
-        // Alerts are deduped per entry+kind+day on commit (hasEventToday below), so
-        // an undeduped preview count over-forecast the alerts a commit would write.
-        // Apply the SAME gate — hasEventToday is a pure read, so the dry run stays
-        // read-only: it writes no event, it only declines to count one it wouldn't write.
-        for (const alert of d.alerts ?? []) {
-          if (!hasEventToday(d.entryId, alert, entrySnap?.workspaceId)) summary.alerts += 1;
-        }
+        // Alerts are deduped on commit, so an undeduped preview count over-forecast
+        // the alerts a commit would write. Apply the SAME gate through the SAME helper
+        // — its dedupe reads are pure, so the dry run stays read-only: it writes no
+        // event, it only declines to count one it wouldn't write.
+        recordDecisionAlerts(d, entrySnap, summary, true);
+        if (entryIds) d.matchScore = entrySnap?.matchScore ?? null;
       }
       return { summary, decisions };
     }
 
-    // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
-    // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
-    // every fairness-cleared reject is queued for a human on the Decisions gate.
-    // Advances, holds and alerts stay autonomous. This is what makes the candidate
-    // disclosure's ONE absolute — "a rejection is always a person's: no setting can
-    // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
-    // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
-    // used to claim more than this, and the surrounding "nothing adverse is decided
-    // automatically" wording was retired with G16 precisely because advance and offer
-    // ARE delegable; do not restore an absolute here that only the reject path earns.
-    for (const d of decisions) {
-      if (!d.entryId) continue;
-      // One decision's apply failing (a comm throw from dispatchRejection, a
-      // transient SQLITE_BUSY past busy_timeout) must NOT abort the whole pass —
-      // that discards the summary of everything already applied AND skips every
-      // later decision, leaving a half-applied board. Isolate each decision.
-      try {
-      // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
-      // stage, but the Python hop takes seconds — a recruiter (or a concurrent
-      // pass) may have moved the entry meanwhile. Passing expectedStage makes a
-      // stale verdict a logged no-op instead of an action applied to whatever
-      // stage the entry happens to be in NOW.
-      // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
-      const entrySnap = byId.get(d.entryId);
-      const snapshotStage = entrySnap?.stage;
-      const entryWs = entrySnap?.workspaceId;
-      if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
-        if (applied) {
-          summary.advanced += 1;
-          d.outcome = "applied";
-        } else {
-          markStaleSkip(d);
-        }
-      } else if (d.action === "reject") {
-        // Defense in depth: re-assert the fairness invariant before applying a
-        // reject (BAU<40 only — enforced in evaluate_entry). If Python regressed and
-        // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
-        // it — downgrade to a hold + alert rather than silently auto-rejecting.
-        const verdict = assertAutoRejectFair(byId.get(d.entryId));
-        // Refused → the shared helper downgrades to a hold + dedup alert (sets
-        // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
-        // by the loop below), routed to the human Decisions gate rather than
-        // actioned. CLEARED → also not applied: the reject is QUEUED for a human
-        // click, unconditionally. There is no mode that applies or emails a reject
-        // unattended (the opt-in "auto" mode was retired — see the note above the
-        // loop); both branches therefore land on the human Decisions gate and
-        // `summary.rejected` is 0 in every committed run.
-        if (applyFairnessVerdict(d, verdict, summary, false)) {
-          // refused — the helper already downgraded this decision to a hold.
-        } else {
-          // Mandatory human-in-the-loop: QUEUE the fairness-cleared reject for a
-          // human click instead of applying it. The payload uses the screening-
-          // review shape AiReviewCard already renders; evaluate_entry freezes
-          // entries with a pending approval, so the queued candidate can't be
-          // re-decided on the next tick. The recruiter's Reject resolves it through
-          // the human route — which sends the rejection email AND seals the
-          // tamper-evident record, so nothing is lost by not applying it here.
-          setApproval(
-            d.entryId,
-            "rejection_review",
-            JSON.stringify({
-              recommendation: "reject",
-              confidence: entrySnap?.matchScore ?? null,
-              rationale: d.reason,
-            }),
-            entryWs
-          );
-          // Routed to the human Decisions gate, not actioned — the SAME encoding
-          // the preview loop uses, so the forecast and the record can't diverge.
-          markQueuedForApproval(d, summary, false);
-        }
-      } else if (d.action === "hold") {
-        summary.held += 1;
-        d.outcome = "applied";
-      }
-      for (const alert of d.alerts ?? []) {
-        if (!hasEventToday(d.entryId, alert, entryWs)) {
-          recordAutomationEvent(d.entryId, alert, d.reason, entryWs);
-          summary.alerts += 1;
-        }
-      }
-      } catch (applyError) {
-        // A decision's DB transition may already be committed (the advance landed,
-        // or the rejection_review was queued) when a later step throws; the failure
-        // is recorded here and the pass continues rather than aborting. The errors
-        // count surfaces the partial in the run summary.
-        summary.errors += 1;
-        const reason = applyError instanceof Error ? applyError.message : String(applyError);
-        d.outcome = "failed";
-        d.reasonCode = "applyFailed";
-        d.reasonParams = { detail: reason, original: d.reason };
-        d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
-        console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
-      }
-    }
-
-    return { summary, decisions };
+    return { summary, decisions: applyPassDecisions(decisions, entries, summary, selection) };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

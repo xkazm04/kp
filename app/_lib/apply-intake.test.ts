@@ -13,7 +13,6 @@ import {
   buildIntakeProfile,
   DEFAULT_APPLY_LANGUAGES,
   normalizeApplicantName,
-  applyDedupeKey,
   failedKoStepIds,
   isRetryableApplyStatus,
   nextVisibleStepIndex,
@@ -75,6 +74,16 @@ test("captures Czech `roky`", () => {
 
 test("captures Czech `rok` (singular)", () => {
   assert.equal(parseYearsExperience("1 rok jako junior"), 1);
+});
+
+test("captures German and French whole-year units", () => {
+  assert.equal(parseYearsExperience("4 Jahre Erfahrung"), 4);
+  assert.equal(parseYearsExperience("seit 7 Jahren"), 7);
+  assert.equal(parseYearsExperience("1 Jahr Berufserfahrung"), 1);
+  assert.equal(parseYearsExperience("3 ans d'expérience"), 3);
+  assert.equal(parseYearsExperience("1 an d'expérience"), 1);
+  assert.equal(parseYearsExperience("5 années d'expérience"), 5);
+  assert.equal(parseYearsExperience("2 annees d'experience"), 2);
 });
 
 test("captures inflected Czech forms via prefix match (`lety`)", () => {
@@ -142,6 +151,14 @@ test("DEFAULT_APPLY_LANGUAGES is the documented Czech/English bilingual default"
 test("falls back to DEFAULT_APPLY_LANGUAGES when the job declares none", () => {
   const profile = buildIntakeProfile(baseJob, baseAnswers);
   assert.deepEqual(profile.languages, [...DEFAULT_APPLY_LANGUAGES]);
+});
+
+test("a conversational applicant without job languages gets the request locale", () => {
+  for (const [locale, language] of [["cs", "Czech"], ["en", "English"], ["de", "German"], ["fr", "French"]] as const) {
+    const profile = buildIntakeProfile(baseJob, baseAnswers, locale);
+    assert.deepEqual(profile.languages, [language], locale);
+  }
+  assert.deepEqual(buildIntakeProfile({ ...baseJob, languages: ["Spanish"] }, baseAnswers, "de").languages, ["Spanish"]);
 });
 
 test("prefers the job's declared languages over the default", () => {
@@ -351,9 +368,8 @@ test("an empty script reports 0 of 0", () => {
 });
 
 // ---------------------------------------------------------------------------
-// normalizeApplicantName / applyDedupeKey — the duplicate-application identity.
-// These pin the key the apply flow dedups repeat applications on (jobId + name),
-// since the flow captures no contact field. See route.ts + db.ts.
+// normalizeApplicantName — the name half of the duplicate-application identity.
+// The hashed filing key built on it (applicantKey) is pinned in applicant-key.test.ts.
 // ---------------------------------------------------------------------------
 
 test("normalizeApplicantName lowercases, trims, and collapses inner whitespace", () => {
@@ -367,47 +383,6 @@ test("normalizeApplicantName treats casing/spacing variants of one name as equal
 test("normalizeApplicantName returns empty string for a blank/whitespace name", () => {
   assert.equal(normalizeApplicantName("   "), "");
   assert.equal(normalizeApplicantName(""), "");
-});
-
-test("applyDedupeKey builds a slug-safe appl- key from the normalized name", () => {
-  assert.equal(applyDedupeKey("Jane Doe"), "appl-jane-doe");
-  assert.equal(applyDedupeKey("  Jane   DOE "), "appl-jane-doe");
-});
-
-test("applyDedupeKey is stable across casing/spacing variants of one applicant", () => {
-  assert.equal(applyDedupeKey("Ada Lovelace"), applyDedupeKey("  ada   lovelace "));
-});
-
-test("applyDedupeKey returns empty string for a nameless applicant (no dedup)", () => {
-  // A blank key is the signal to the caller NOT to dedup — two anonymous
-  // applicants must not collapse onto one pipeline entry.
-  assert.equal(applyDedupeKey(""), "");
-  assert.equal(applyDedupeKey("   "), "");
-});
-
-test("applyDedupeKey distinguishes genuinely different names", () => {
-  assert.notEqual(applyDedupeKey("Jane Doe"), applyDedupeKey("John Doe"));
-});
-
-test("applyDedupeKey keys on the email when given (the stronger identity)", () => {
-  // Same name, DIFFERENT emails → DISTINCT keys (two real people, not a merge —
-  // the bug the name-only key had).
-  assert.notEqual(applyDedupeKey("Jane Doe", "jane1@x.com"), applyDedupeKey("Jane Doe", "jane2@x.com"));
-  // Same email, different name casing/spelling → SAME key (one person).
-  assert.equal(applyDedupeKey("Jane Doe", "jane@x.com"), applyDedupeKey("Jane D.", " JANE@X.com "));
-});
-
-test("applyDedupeKey email keys survive the slug strip without colliding", () => {
-  // `@` and `.` become hyphens, so a.b@x.com and ab@x.com stay distinct (a plain
-  // strip of non-alphanumerics would collapse both to 'abxcom').
-  assert.notEqual(applyDedupeKey("X", "a.b@x.com"), applyDedupeKey("X", "ab@x.com"));
-  assert.equal(applyDedupeKey("X", "a.b@x.com"), "appl-a-b-x-com");
-});
-
-test("applyDedupeKey falls back to the name when no email is captured", () => {
-  assert.equal(applyDedupeKey("Jane Doe"), "appl-jane-doe");
-  assert.equal(applyDedupeKey("Jane Doe", ""), "appl-jane-doe");
-  assert.equal(applyDedupeKey("Jane Doe", "   "), "appl-jane-doe");
 });
 
 // ---------------------------------------------------------------------------

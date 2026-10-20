@@ -38,6 +38,8 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
     const ids = fairness.candidateIds ?? fairness.labels.map((_, i) => String(i));
     return ids
       .map((cid, i) => ({
+        // Row identity is the candidate id: two candidates can share a display name.
+        id: cid,
         label: fairness.labels[i] ?? cid,
         ...(fairById.get(cid) ?? {
           own: fairness.own[i] ?? 0,
@@ -50,7 +52,7 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
   return (
     <details className="mt-3 rounded-md border border-stone-200 bg-paper/40 px-3 py-2">
       <summary className="focus-ring flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-steel hover:text-ink">
-        <Scale size={13} className="text-coral" /> {t("fairnessAudit")}
+        <Scale size={13} className="text-coral-ink" /> {t("fairnessAudit")}
       </summary>
       <p className="mt-2 text-sm text-steel">{t("fairnessAuditHelp")}</p>
       {poolTruncated ? (
@@ -68,7 +70,7 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.label} className="border-t border-stone-100">
+              <tr key={r.id} className="border-t border-stone-100">
                 <td className="py-1 pr-3 text-ink">{r.label}</td>
                 <td className="nums py-1 pr-3 text-steel">{r.own}</td>
                 <td className="nums py-1 pr-3 font-semibold text-ink">{r.mean}</td>

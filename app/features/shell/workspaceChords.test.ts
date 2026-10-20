@@ -92,6 +92,16 @@ test("agents takes its two-key chord when enabled, and no chord at all when gate
   }
 });
 
+// Gigs rides the Agents gate and the same overflow rule: `g f g` when the flag is on
+// (the first free letter of its id in the two-key pass), nothing at all when it is off.
+test("gigs takes its two-key chord when enabled, and no chord at all when gated off", () => {
+  if (AGENTS_TAB_IN_NAV) {
+    assert.deepEqual(byId.get("gigs"), ["f", "g"]);
+  } else {
+    assert.equal(byId.get("gigs"), undefined);
+  }
+});
+
 // Collision-free BY CONSTRUCTION: no two chords share a full sequence, and no
 // single-letter chord equals the FIRST key of any two-key chord (which would make
 // `g <that letter>` ambiguous — the single would fire before the second key).

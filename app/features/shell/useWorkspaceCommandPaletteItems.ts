@@ -34,9 +34,15 @@ export function useWorkspaceCommandPaletteItems({
   hits,
   search,
   recents,
+  recentTabs,
   simRunning,
   simStart,
+  simPaused,
+  simPause,
+  simResume,
+  simStop,
   askCandi,
+  finishSetup,
   capabilities,
   nav,
   t,
@@ -45,11 +51,20 @@ export function useWorkspaceCommandPaletteItems({
   hits: SearchHit[];
   search: string;
   recents: RecentItem[];
+  recentTabs: WorkspaceTabId[];
   simRunning: boolean;
   simStart: () => void;
+  simPaused: boolean;
+  simPause: (() => void) | null;
+  simResume: (() => void) | null;
+  simStop: (() => void) | null;
   /** Opens the companion dock seeded with the query. Null on the deep-link pages,
    *  which render the palette without the workspace shell (and so without a dock). */
   askCandi: ((query: string) => void) | null;
+  /** Reopens the first-run wizard (live mode). Null unless setup is unfinished AND
+   *  the shell that listens for the request is mounted - the deep-link pages have
+   *  no listener, so offering it there would open nothing. */
+  finishSetup: (() => void) | null;
   /** What this caller may do here (navCapabilities.ts), or null while unknown —
    *  which offers everything, the same fail-open the nav takes. */
   capabilities: readonly Capability[] | null;
@@ -87,6 +102,18 @@ export function useWorkspaceCommandPaletteItems({
           recent: { type: r.type, id: r.id },
         });
       }
+      for (const id of recentTabs) {
+        if (locked.has(id)) continue;
+        const def = NAV_GROUPS.flatMap((group) => group.items).find((item) => item.id === id);
+        out.push({
+          key: `recent-tab-${id}`,
+          group: "recent",
+          label: id === "tasks" ? tasks("label") : tabLabel(id, def?.label ?? id),
+          sub: null,
+          href: buildTabSwitchUrl(id, search),
+          tabId: id,
+        });
+      }
     }
     // Jump-to-tab actions: all of them on an empty query (the palette's resting
     // state is a navigator), narrowed by label/id match while typing. Walked
@@ -109,23 +136,22 @@ export function useWorkspaceCommandPaletteItems({
     for (const { section, items } of sections) {
       for (const { def, label } of items) {
         if (locked.has(def.id)) continue;
-        if (!q || label.toLowerCase().includes(q) || def.id.includes(q)) {
-          navOut.push({
-            key: `tab-${def.id}`,
-            group: "tabs",
-            section,
-            label,
-            sub: null,
-            href: buildTabSwitchUrl(def.id, search),
-            tabId: def.id,
-          });
-        }
+        if ((!q && recentTabs.includes(def.id)) || (q && !label.toLowerCase().includes(q) && !def.id.includes(q))) continue;
+        navOut.push({
+          key: `tab-${def.id}`,
+          group: "tabs",
+          section,
+          label,
+          sub: null,
+          href: buildTabSwitchUrl(def.id, search),
+          tabId: def.id,
+        });
       }
     }
-    // The tour command: offered at rest and under "tour"/"demo"-flavored
-    // queries; hidden while a run is live (SimBar owns pause/stop then).
+    // Keep the live run's controls available from the same keyboard door that
+    // starts it. A focused palette may be the quickest way to pause or stop.
     const tourLabel = t("tourAction");
-    if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
+    if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q))) {
       navOut.push({
         key: "action-tour",
         group: "actions",
@@ -133,6 +159,17 @@ export function useWorkspaceCommandPaletteItems({
         sub: t("tourSub"),
         action: simStart,
       });
+    }
+    if (simRunning && simStop && tourAllowed) {
+      const controlLabel = simPaused ? t("resumeTourAction") : t("pauseTourAction");
+      const controlAction = simPaused ? simResume : simPause;
+      if (controlAction && (!q || controlLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q))) {
+        navOut.push({ key: simPaused ? "action-tour-resume" : "action-tour-pause", group: "actions", label: controlLabel, sub: null, action: controlAction });
+      }
+      const stopLabel = t("stopTourAction");
+      if (!q || stopLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q)) {
+        navOut.push({ key: "action-tour-stop", group: "actions", label: stopLabel, sub: null, action: simStop });
+      }
     }
     // "New intake" — the one command here that CREATES something, so it is a door
     // and not a jump: the plain "Go to → Job intake" row above lands on the ledger,
@@ -142,7 +179,7 @@ export function useWorkspaceCommandPaletteItems({
     // re-run it. Hidden when the tab is locked — the palette does not offer doors
     // it knows are shut.
     const newIntakeLabel = intake("new");
-    if (!locked.has("intake") && (!q || newIntakeLabel.toLowerCase().includes(q) || "intake role new conversation nábor role".includes(q))) {
+    if (!locked.has("intake") && (!q || newIntakeLabel.toLowerCase().includes(q) || t("newIntakeAliases").toLowerCase().includes(q))) {
       navOut.push({
         key: "action-new-intake",
         group: "actions",
@@ -151,8 +188,14 @@ export function useWorkspaceCommandPaletteItems({
         href: buildUrl({ ...clearedTabScopedParams(), tab: "intake", [NEW_INTAKE_PARAM]: "new" }, search),
       });
     }
+    // "Finish setup" - the palette's twin of the Settings button. Offered only while
+    // the stored setup flag says unfinished (a door, not a to-do list).
+    const finishLabel = t("finishSetupAction");
+    if (finishSetup && (!q || finishLabel.toLowerCase().includes(q) || "setup onboarding".includes(q))) {
+      navOut.push({ key: "action-finish-setup", group: "actions", label: finishLabel, sub: t("finishSetupSub"), action: finishSetup });
+    }
     const tasksItem = tasksPaletteItem(q, tasks("label"), search);
-    if (tasksItem) navOut.push(tasksItem);
+    if (tasksItem && (q || !recentTabs.includes("tasks"))) navOut.push(tasksItem);
     // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
     // that matches nothing. It is appended to the navigator (so entity hits and
     // tab matches always outrank it) and offered from two characters, which is
@@ -184,5 +227,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, simRunning, simStart, askCandi, locale, capabilities]);
+  }, [query, hits, search, recents, recentTabs, simRunning, simStart, simPaused, simPause, simResume, simStop, askCandi, finishSetup, locale, capabilities]);
 }

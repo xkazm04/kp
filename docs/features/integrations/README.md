@@ -183,6 +183,44 @@ base URL, an API token and a field map.
   longer exists (`deleteAtsLinksForProviderEverywhere`).
 - **Enabled** parks a connection without deleting its credentials or its links.
 
+### Importing applications — `POST /api/ats/import`
+
+The inbound writer. `ingestAtsApplications` (`app/_lib/ats/ingest.ts`) is the one place a
+vendor application becomes a pipeline entry; the operator door (or the operator's iPaaS)
+posts `{ provider, jobId, records: [<vendor application JSON>, …] }` and gets back
+`{ results: [{ externalId, outcome, entryId? }], counts }`.
+
+- **Gates.** `requireOperator`, then `pipeline:write` in the caller's team
+  (`FORBIDDEN_CAPABILITY`, 403). Bodies are capped at 2 MB on the bytes read (413
+  `PAYLOAD_TOO_LARGE`) and at 100 records per call (`ATS_IMPORT_RECORDS_INVALID`, 400,
+  with `maxRecords`). No rate-limit bucket: nothing spends money or spawns a process.
+- **The connection decides the provider.** It must exist and be enabled, else the whole
+  call refuses with `ATS_CONNECTION_NOT_FOUND` (404); its stored field map reads every
+  record. The job is the operator's choice and must be visible to their team, else
+  `ATS_IMPORT_JOB_NOT_FOUND` (404) — the vendor's own job id is not used.
+- **The vendor id is the sync identity, per team.** A record whose `(provider, external
+  id, workspace)` already has a link never reaches the filing path again: a live entry
+  answers `unchanged` and only the link's `last_seen_stage` / `last_synced_at` move. A
+  vendor stage change is recorded on the link and **never applied to the board** — kp owns
+  its funnel. The same vendor id imported by another team is another entry.
+- **First imports go through the application-filing core** (`app/_lib/application-filing.ts`),
+  proof `channel`, as a profile-less stub (intake reason `atsImported`, rendered through
+  `pipeline.intakeReasons`) and with **no acknowledgement email** (the vendor already sent
+  one). Name hygiene, consent and the entry id are the core's. A record the core
+  recognises as an applicant already on that opening (same email) is bound to that entry
+  and answers `linked` instead of creating a second one.
+- **Stage.** The vendor stage is mapped against the importing team's own axis
+  (`mapStage(..., allowed)`); a stage that maps to the **terminal** column, or to nothing,
+  lands on the entry column. The vendor's own stage word is kept on the link.
+- **Erasure is never undone by a re-sync.** A link whose entry is anonymized (or gone)
+  answers `erased` and writes nothing — `ats_links` outlives the scrub for exactly this.
+  If the link was dropped and the filing core's dedupe key lands on the scrubbed row, the
+  filing is stopped before it writes (the `onEntry` seam) and the answer is `erased`, with
+  no link.
+- **Per-record isolation.** A record the map cannot give an external id is `invalid` and
+  nothing is written for it; the rest of the batch still lands. Records of one call run
+  in order, and overlapping imports of the same vendor id are serialized in-process.
+
 The field map (`app/_lib/ats/field-map.ts`) is *not* editable from this tab yet — see
 Known gaps.
 
@@ -204,7 +242,11 @@ ping (`POST /api/ats/test`).
   they are different facts), `offer.declined` on a decline that actually transitioned the
   entry (a decline on a stale link that demotes nobody mirrors nothing, exactly as it
   stamps no timeline event), and `candidate.rejected` beside the rejection comm in
-  `pipeline-entry-action.ts`. Pinned by `app/_lib/ats-lifecycle-events.test.ts`.
+  `pipeline-entry-action.ts` (the recruiter's click) **and** in `screen-wave.ts` (the
+  unattended screening wave's auto-rejects, after the seal and the committed flip — a
+  holdout, spared, sealFailed or stale-skipped entry mirrors nothing; `floor-move-preview.ts`
+  only dry-runs the wave, so it never emits). Pinned by `app/_lib/ats-lifecycle-events.test.ts`,
+  which drives a wave through preview → approve → commit and counts the ledger rows.
 - **The consent gate is in the record builder, not behind one door.** `buildAtsRecord`
   REFUSES an anonymized entry (`AtsRecordRefusedError` → the delivery is dead-lettered on
   the spot: an erased candidate does not become mirrorable by waiting) and, when
@@ -212,12 +254,70 @@ ping (`POST /api/ats/test`).
   contact and sets `candidate.piiWithheld: true` so a receiver can tell a redacted record
   from a sparse one. Both read the shared predicates in `consent.ts`, so the push door
   cannot drift from the pull door and every future egress path inherits the gate.
+- **The record says why, not just that.** `decision` carries `rationale` (the sealed
+  decision's own reason text) and `rationaleWithheld`, additive to `kp.ats.v1` (the version
+  does not move). The text is released only for the reason codes whose rationale the server
+  builds from the candidate's own facts or from aggregates — `reject` / `holdout` (rank,
+  cohort size, score, threshold, approver), `autoRatifiedScreening`, `match_fit`, `scorecard`,
+  `offer` (`RELEASABLE_RATIONALE_CODES` in `ats-record.ts`). Anything else — group-eval
+  `lead`/`advisory` prose names the runner-up, `accept` carries a recruiter's free text — is
+  `rationale: null, rationaleWithheld: true`, as is every decision on a `piiWithheld` record
+  (withheld whole, not masked). A decision sealed with no rationale is `null` / `false`.
+  Pinned by `app/_lib/ats-egress-reasons.test.ts`.
+- **The destination is re-asserted at the POST.** The owner-org check runs before the slot
+  wait and the DNS resolve; `deliveryStillJustified` repeats it, plus "the URL is still the
+  one that was vetted", in the last synchronous statement before the fetch. A different
+  owner org dead-letters with the cross-org reason (org ids + entry id); a changed URL under
+  the same owner is a retryable refusal (the next attempt re-vets). The operator test ping
+  has no record and keeps its behaviour. Pinned in `app/_lib/ats-egress-org-scope.test.ts`.
 - **A retry is the same request, not a new one.** Every attempt carries the ledger row id as
   `Idempotency-Key` and re-sends a byte-identical body (see the receiver contract below),
   and the retry sweep CLAIMS each due row with a compare-and-swap on `(status, attempts)`
   before delivering — an operator pressing Retry while a cron POSTs the same route used to
   send the hire twice. `finalizeAtsDelivery` re-asserts the attempt count it read in the
   UPDATE's `WHERE` for the same reason.
+- **…and an attempt re-asserts the TRANSITION its event names** (ADR
+  [0013](../../architecture/decisions/0013-ats-mirror-retry-reasserts-its-transition.md)).
+  The body is rebuilt from current entry state each attempt, so byte-identity holds while
+  the transition holds, not unconditionally. `EVENT_REQUIRES_STATUS` (`ats-egress.ts`) maps
+  `candidate.rejected` → status `rejected` and `offer.declined` → status `declined`; when
+  the freshness re-read finds the entry no longer in that status — a reinstatement
+  (`reinstatePipelineEntry`) or a re-add that reopened the terminal — the row is
+  **dead-lettered terminally** and nothing is sent. Telling a receiver to reject a candidate
+  kp has put back in the funnel is the same lie as mirroring a decline that never
+  transitioned, and is refused for the same reason. An erasure still wins the race for the
+  reason the operator reads. `candidate.hired` (marked by terminal STAGE, status stays
+  `active`) and `offer.accepted` (an offer response is immutable) are deliberately not in
+  the table — the ADR says why for each.
+- **A claim is a lease, so a crash mid-POST cannot strand a hire.** Every attempt passes
+  through `pending`, and before the lease only the process that entered `pending` could
+  leave it: a deploy or crash during the awaited delivery left the row pending forever —
+  never due, never dead-lettered, never pruned, refused by Replay. Opening a row
+  (`openAtsDelivery`) and claiming a due one (`leaseAtsDelivery`) now write a random
+  `lease_token` and a `lease_until` (`ATS_DELIVERY_LEASE_MS`, 5 minutes, far above the 5s
+  fetch bound) with the status flip. The retry sweep first runs `reclaimExpiredAtsLeases`:
+  one conditional UPDATE per expired row (re-asserting the token and deadline it read, so
+  `changes === 0` means someone else got it) turns it into a `failed` attempt that is due
+  now — or dead-lettered at `MAX_ATTEMPTS` — with `last_error` naming the abandoned attempt.
+  The lost attempt may have landed, so it is counted, and the redelivery goes out under the
+  SAME `Idempotency-Key` with a byte-identical body: the receiver dedupes. A finalize that
+  carries a token only writes while `status='pending' AND lease_token=?`, so a slow worker
+  whose lease was reclaimed loses instead of overwriting the redelivery. A lease-less pending
+  row written before the upgrade counts as expired once it is older than one lease.
+  `GET /api/ats/deliveries` reports those rows as `stranded`, and Replay on one reclaims it
+  (`ok`) while a live lease is still refused. Nothing on the external wire changed.
+- **Outbound POSTs are capped, and a queued delivery is still a visible row.** A committed
+  screening wave fires one fire-and-forget `dispatchAtsEvent` per applied reject, so a
+  200-candidate cohort used to put up to 200 concurrent PII-carrying POSTs on one customer
+  endpoint — keyless, where the comms relay is a local write, with no spacing at all. The
+  network phase now runs under one process-wide semaphore (`KP_ATS_MAX_CONCURRENT`, default
+  **4**; a missing, non-numeric or non-positive value falls back to the default, and the
+  floor is 1 = strictly serial). The ledger row is opened *before* the slot is waited for,
+  so a queued delivery shows as `pending` in `GET /api/ats/deliveries` rather than being
+  invisible; the freshness re-read still runs after the wait, so a candidate reinstated or
+  erased while queued is not mirrored. At the default a 200-entry cohort drains in at most
+  50 × 5s = 250s, inside the 5-minute lease above. Pinned by
+  `app/_lib/ats-egress-concurrency.test.ts`.
 - **The ledger is pruned.** Terminal rows — delivered, or dead-lettered with no retry
   scheduled — are dropped after `DELIVERY_RETENTION_DAYS` (90) by a sweep on the
   instrumentation clock. A still-scheduled failure is live work and is never swept, however
@@ -230,11 +330,11 @@ ping (`POST /api/ats/test`).
   drain the queue). POST remains the on-demand flush.
 - **A dead-letter can be force-replayed.** After `MAX_ATTEMPTS` (6) a failed row parks
   with `next_attempt_at NULL`. `GET /api/ats/deliveries` reports that parked count as
-  `dead` beside `due`. `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
+  `dead` beside `due` (and `stranded`, above). `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
   row (restoring one shot of retry budget when attempts are exhausted) then runs the due
   sweep under the same ledger id / `Idempotency-Key`. An omitted body still flushes every
   currently-due retry. An unknown id answers `ATS_DELIVERY_NOT_FOUND`; a delivered,
-  pending, or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
+  live-pending (inside its lease), or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
 - **The secret is write-only**, same contract as the inbound token: `GET` returns
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
@@ -269,18 +369,68 @@ ping (`POST /api/ats/test`).
   this deployment's address. Each limiter sits *after* the operator gate (a rejected caller
   spends no budget) and *before* the expensive work. Pinned in
   `app/api/rate-limit-contract.test.ts`.
-- **Every team's outcomes mirror through this one endpoint.** `ats_config` and the
-  `ats_delivery` ledger are org-level by design (`app/_lib/tenancy.ts`): one deployment-wide
-  mirror of every tenant, not one webhook per hiring team. The *record* behind an event is
+- **Every team's outcomes mirror through this one endpoint — but only its OWN
+  organization's.** `ats_config` and the `ats_delivery` ledger are org-level by design
+  (`app/_lib/tenancy.ts`): one mirror of every hiring *team*, not one webhook per team. The
+  endpoint belongs to the **organization that saved it**: `POST /api/ats/config` stamps the
+  saver's org (`owner_org_id`) from the session, never from the body, so a re-save hands the
+  integration over deliberately. A dispatch whose pipeline entry belongs to a *different*
+  organization is refused before the record is built and before anything is dialled, and its
+  ledger row is closed **terminally** with a reason naming both org ids — *"the configured
+  ATS webhook belongs to organization "A", but pipeline entry … belongs to organization "B"
+  — a candidate is never mirrored to another organization's endpoint"*. The retry sweep runs
+  the same check per row, so an endpoint re-pointed between attempt 1 and a retry stops
+  rather than delivering the previous org's candidate. A **NULL owner reads as the default
+  org**, and so does a workspace with no `org_id`: a config written before the column existed
+  and every single-org self-host behave exactly as before (F-1, security scan 2026-10-06
+  §A1; proofs in `app/_lib/ats-egress-org-scope.test.ts`). The *record* behind an event is
   still built tenant-scoped, so `dispatchAtsEvent` takes the caller's workspace and falls back
   to the entry's owning workspace (`getEntryWorkspace`) when the caller holds none; the retry
   sweep re-derives it the same way, because a ledger row carries no tenant column. Both reads
   used to be unscoped — they resolved against the default workspace, so `candidate.hired` never
   fired for any other team and left no trace that it hadn't.
+- **The outbound COMMS relay carries the same owner rule — and it is the hotter path.**
+  `comms_relay_config` (`app/_lib/comms-relay-store.ts`) is the identically-shaped singleton
+  behind the Channels tab's relay card, and every candidate-facing message is POSTed to it:
+  recipient, subject, the whole letter body, and the enriched `kp.comm.v1` envelope naming
+  the candidate, the role and the stage. The ATS mirror carries an outcome *record*; this
+  carries the *letter*. So it too records the **organization that saved it**: `POST
+  /api/comms/relay` stamps the saver's org (`owner_org_id`) from the session, never from the
+  body — an `ownerOrgId` in the request body is ignored. Before the envelope is built and
+  long before any fetch, `WebhookChannel.send` (`app/_lib/comms.ts`) resolves the message's
+  own org — from `ref`'s pipeline entry when there is one, else the dispatch's `workspaceId`,
+  exactly the way `recordOutbox` files the row — and a mismatch is **refused**: no POST, a
+  `failed` outbox row whose `failureDetail` names both org ids and no candidate data, and the
+  dead-letter alert, so the refusal is operator-visible rather than a silent drop. A **NULL
+  owner reads as the default org**, and so does a workspace with no `org_id`: a row written
+  before the column existed and every single-org self-host behave exactly as before. The
+  **env relay (`COMMS_WEBHOOK_URL`) is NOT org-checked** — it is host-level configuration an
+  operator put in the process environment to serve the whole deployment, not an integration
+  one organization saved through the UI, and the two are told apart by the resolver's
+  `source`, never by the owner being null. `GET /api/comms/relay` returns `ownerOrgId` (an id,
+  not a secret) and still never the signing secret; the test probe `POST
+  /api/comms/relay/test` is unchanged. (F-2, security scan 2026-10-06; proofs in
+  `app/_lib/comms-relay-org-scope.test.ts`.)
+- **The edge pairing is the third owner-stamped singleton — with a different boundary, on
+  purpose.** `edge_config` (`app/_lib/edge-config.ts`) is install-level by design: one
+  sealing keypair that is never rotated, one drain cursor, one edge URL. So it records its
+  owner the same way — `POST /api/edge` and `POST /api/edge/pair` stamp the caller's org
+  from the session, never from the body, and refuse a non-owner with **403
+  `EDGE_OWNED_BY_OTHER_ORG`** before anything is minted or fetched; unpairing clears the
+  owner so the install is claimable again — but the DELIVERY side is checked only where an
+  effect is addressed by `ref`. A drained delivery **receipt** whose ref belongs to another
+  organization is skipped and files no outbox row; a drained **lead or mail** is not
+  checked, because its receiver token is a workspace capability that already carries the
+  tenancy and the edge is every organization's single inbound transport. A NULL owner reads
+  as the default org, and the env pairing (`KP_EDGE_URL`) is host-level and exempt, told
+  apart by `source`. (F-3, security scan 2026-10-06; proofs in
+  `app/_lib/edge-org-scope.test.ts`; the shared rule and this variant are
+  [ADR 0014](../../architecture/decisions/0014-org-owned-singleton-integration-config.md).)
 - **Nothing exits without a ledger row.** A dispatch opens its `ats_delivery` row *before* the
   record is built, so an entry that cannot be resolved — or a build that throws — becomes a
   `failed`, retryable, operator-visible row that says why, never a silent return. A hire that
-  cannot be mirrored must not also be invisible.
+  cannot be mirrored must not also be invisible. The row a process death leaves `pending`
+  is the lease's job (above), not this path's.
 - **Redirects are not followed** (`redirect: "manual"`). The SSRF guard resolves and vets only
   the host kp dials; with the default follow behaviour a vetted public endpoint answering
   `302 Location: http://169.254.169.254/…` (or a 307 to a loopback port, which replays the
@@ -337,9 +487,12 @@ ping (`POST /api/ats/test`).
   unrelated edit — and the loosened version reports the *previous* endpoint's 200 under
   the address on screen.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
-  Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
-  `candidate.hired` fires live today (on offer-accept); the other three are reserved for
-  their lifecycle hooks, and the UI says so.
+  Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it.
+  All four subscribable events fire live, and the note under the checkboxes says so (it used to
+  claim only `candidate.hired` did, in four locales, after the other three were wired).
+  `SUBSCRIBABLE_EVENT_ROWS` in `integrationsWebhookIdentifiers.ts` carries a `status:
+  'live' | 'reserved'` per event, and `integrationsCatalog.test.ts` pins it to the real
+  `dispatchAtsEvent("<id>")` sites in both directions.
 - **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand —
   operator-gated, scoped to the caller's workspace, and every successful export is audited
   onto that candidate's own pipeline-event timeline (`ats_export`).
@@ -471,6 +624,8 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 | `app/_lib/ats/connections-store.ts` | Per-provider credentials + `ATS_PROVIDERS` |
 | `app/api/calendar/google/{start,callback}/route.ts`, `app/api/calendar/google/route.ts` | OAuth start, callback, status + revoke-first DELETE |
 | `app/api/ats/connections/route.ts` | GET / POST / DELETE inbound connections |
+| `app/api/ats/import/route.ts` | POST mapped vendor applications onto the board (operator + `pipeline:write`) |
+| `app/_lib/ats/ingest.ts` | `ingestAtsApplications` — the inbound writer (link-first, filing core, never terminal, never refills an erased entry) |
 | `app/api/ats/candidate/[id]/route.ts` | The per-candidate pull door: operator gate → workspace scope → consent gate → audit |
 | `app/api/ats/candidate/ats-candidate-audit.ts` | Its pure helpers: the `ats_export` audit descriptor + the consent redaction |
 
@@ -487,14 +642,20 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 - `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
   (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
   `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
-  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`. A corrupt
+  `0` on stores created before it existed), `owner_org_id` (the org that saved the endpoint
+  — re-stamped on *every* accepted write, NULL on a pre-upgrade row and read as the default
+  org; it is an id, not a secret, so `getAtsConfig()` exposes it), `updated_at`. Both
+  additive columns go through `addColumns` (`app/_lib/db/add-columns.ts`), which probes
+  rather than swallowing every ALTER failure. A corrupt
   `events_json` still resolves to "nothing subscribed" (fail closed) but is now LOGGED with
   the row id — `[]` was otherwise indistinguishable from an operator who unsubscribed.
 - `ats_delivery` — the outbound delivery ledger, one row per (event, entry) attempt-set,
   org-level like the config. `event`, `entry_id`, `status` (`pending` / `delivered` /
   `failed`, read through a runtime guard), `attempts`, `last_status`, `last_error`,
-  `next_attempt_at`, `created_at` (the envelope's stable `sentAt`), `updated_at`. Terminal
-  rows are pruned after 90 days.
+  `next_attempt_at`, `created_at` (the envelope's stable `sentAt`), `updated_at`,
+  `lease_token` / `lease_until` (the current attempt's holder and deadline; additive
+  `ALTER TABLE` columns in the store's own `db()`, NULL on rows written before them, never
+  returned by the API). Terminal rows are pruned after 90 days.
 
 ## Known gaps
 
@@ -524,9 +685,12 @@ it omits the live count while the tab is hidden and resumes when it is visible.
   no personal data (provider, external id, stage) and the scrub in `app/_lib/db/pipeline.ts`
   lists it as a table that must OUTLIVE erasure: without it the next sync would re-import the
   same person as a NEW candidate, which is the worse outcome. The export side cannot
-  re-identify through it (the record builder refuses an anonymized entry), and no inbound
-  write path updates an existing entry from a vendor record today (`ats/inbound.ts` is a
-  pure mapper). `deleteAtsLinksForEntry` (`app/_lib/ats/links-store.ts`, tested) exists for
-  the day an inbound writer appears and needs to drop the join deliberately.
+  re-identify through it (the record builder refuses an anonymized entry), and the inbound
+  writer (`ats/ingest.ts`) answers `erased` for a linked, scrubbed entry instead of
+  refilling it. `deleteAtsLinksForEntry` (`app/_lib/ats/links-store.ts`, tested) drops the
+  join deliberately; nothing calls it on erasure.
+- **No connector pulls yet.** `POST /api/ats/import` files what it is sent; nothing fetches
+  from a vendor on a schedule with the stored token, and there is no import UI. Imported
+  entries are profile-less stubs: a record's `cvText` is not built into a profile.
 - `account_email` is never populated by the callback (no userinfo call), so a connected
   calendar shows *Unknown account* until it is set another way.

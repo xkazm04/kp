@@ -1,0 +1,9 @@
+{
+  "featuresRoot": "app",
+  "extensions": [".tsx"],
+  "exclude": "__tests__|\\.test\\.|\\.spec\\.|\\.stories\\.|^app/(api|landing|about|market)/",
+  "grouping": "depth:3",
+  "systemPrefix": "_components",
+  "sharedImport": "@/app/_components/kit",
+  "entry": ["app/apply/[id]/error.tsx","app/apply/[id]/loading.tsx","app/apply/[id]/page.tsx","app/apply/[id]/quick/page.tsx","app/control/page.tsx","app/data/[token]/loading.tsx","app/data/[token]/page.tsx","app/devcase/apply/[token]/error.tsx","app/devcase/apply/[token]/loading.tsx","app/devcase/apply/[token]/page.tsx","app/diagrams/page.tsx","app/error.tsx","app/global-error.tsx","app/history/[slug]/error.tsx","app/history/[slug]/loading.tsx","app/history/[slug]/page.tsx","app/interview-lab/page.tsx","app/interview/[token]/error.tsx","app/interview/[token]/loading.tsx","app/interview/[token]/page.tsx","app/invite/[token]/error.tsx","app/invite/[token]/loading.tsx","app/invite/[token]/page.tsx","app/jds/[slug]/error.tsx","app/jds/[slug]/loading.tsx","app/jds/[slug]/page.tsx","app/layout.tsx","app/login/loading.tsx","app/login/page.tsx","app/me/atlas/page.tsx","app/me/cv/print/page.tsx","app/me/jobs/[id]/page.tsx","app/me/jobs/page.tsx","app/me/layout.tsx","app/me/page.tsx","app/me/scans/page.tsx","app/me/sources/page.tsx","app/not-found.tsx","app/offer/[token]/error.tsx","app/offer/[token]/loading.tsx","app/offer/[token]/page.tsx","app/page.tsx","app/privacy/page.tsx","app/schedule/[token]/error.tsx","app/schedule/[token]/loading.tsx","app/schedule/[token]/page.tsx","app/setup/studio/page.tsx","app/signup/loading.tsx","app/signup/page.tsx","app/skill/[token]/error.tsx","app/skill/[token]/loading.tsx","app/skill/[token]/page.tsx","app/status/[token]/loading.tsx","app/status/[token]/page.tsx","app/stop/[token]/loading.tsx","app/stop/[token]/page.tsx","app/terms/page.tsx","app/trust/page.tsx"]
+}

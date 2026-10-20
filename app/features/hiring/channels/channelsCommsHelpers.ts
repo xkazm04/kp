@@ -10,6 +10,7 @@ import type { OutboxStatus } from "@/app/_lib/comms-status";
 import type { BadgeTone } from "@/app/_components/Badge";
 import { commsVerdict, isReceiptRecipient, isReceiptSubject } from "@/app/_lib/comms-view";
 import { labelize } from "@/app/_lib/format";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 
 export type Message = {
   id: string;
@@ -35,11 +36,15 @@ export type Message = {
 };
 export type RefInfo = { label: string; jobTitle: string | null };
 
-// A dead letter (failed, not yet recovered by a later resend), a sent row the relay
-// later bounced, or an unmatched relay receipt — all three need the recruiter (or the
-// integrator) to chase.
-export const isActionable = (m: Message) =>
-  (m.status === "failed" && !m.recovered) || Boolean(m.bounced) || Boolean(m.orphaned);
+// Needs the recruiter (or the integrator) to chase: an unmatched relay receipt, or a
+// letter that offers a recovery door — resendDoorOf, the ONE rule every resend surface
+// reads. So a dead letter (failed, not recovered) or a bounce counts, and a `failed` row
+// on the refused channel (no inbox by design) does NOT: its door offers nothing, so the
+// red tint and the count must not say "act" either.
+export const isActionable = (m: Message) => {
+  const verdict = commsVerdict(m);
+  return verdict === "orphaned" || resendDoorOf({ verdict, channel: m.channel }) !== null;
+};
 
 /** The catalog labels the ledger renders for one verdict. They are also the Status
  *  filter's option set, so the filter and the column it filters always read alike in

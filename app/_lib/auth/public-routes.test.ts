@@ -172,6 +172,7 @@ test("the machine-authed and candidate API entries stay reachable, their sibling
     "/api/agents/report/agt_1", // a hired agent POSTs cost/activity with a report token
     "/api/devcase/session", // candidate work-sample runtime
     "/api/interview/complete", // candidate voice runtime end-of-call callback
+    "/api/interview/director", // candidate voice runtime mid-call producer channel (ADR 0010)
   ]) {
     assert.equal(isPublicPath(p), true, `${p} must be public`);
   }

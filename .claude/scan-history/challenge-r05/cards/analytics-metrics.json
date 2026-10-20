@@ -1,0 +1,128 @@
+[
+  {
+    "context": "analytics-metrics",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One analytics-goal key registry derived from the workspace's own stage axis",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/analytics-target-keys.ts",
+      "app/_lib/analytics-target-keys.test.ts",
+      "app/api/analytics/targets/route.ts",
+      "app/api/analytics/targets/targets-axis.test.ts",
+      "app/_lib/db/analytics.ts",
+      "app/_lib/api-response.ts",
+      "app/features/insights/analytics/AnalyticsTypes.ts",
+      "app/features/insights/analytics/AnalyticsGoalsEditor.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/analytics/README.md"
+    ],
+    "new_files": [
+      "app/_lib/analytics-target-keys.ts",
+      "app/_lib/analytics-target-keys.test.ts",
+      "app/api/analytics/targets/targets-axis.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/_lib/db/analytics.ts (r04 analytics-dashboard/B edits pipelineAnalytics in the same file; this card touches only analyticsTargets/the key constants at the bottom - re-read before editing)"
+    ],
+    "acceptance": [
+      "Workspace axis with an ADDED live column minted as id 'Tech round' (between Interview and Offer): POST /api/analytics/targets {metric:'Tech round', value:40} -> 200, and the next pipelineAnalytics payload carries targets.conversion['Tech round'] === 40. (Today: 400 'Invalid metric.' because VALID_METRICS is the shipped five.)",
+      "Same workspace, the axis's RETIRED column 'Interview': POST {metric:'Interview', value:40} -> 400 with code ANALYTICS_TARGET_UNKNOWN_METRIC (a goal for a column nobody draws is refused), and an unknown 'bogus' metric -> 400 with the same code (today: raw English 'Invalid metric.' and no code).",
+      "The axis's ENTRY-role first column (no inbound conversion, conversionPct is always null at index 0) is not a goal key: targetKeySpec('Accepted', axis) -> null and POST -> 400 ANALYTICS_TARGET_UNKNOWN_METRIC.",
+      "Ceilings come from the registry, not from a route-local ternary: conversion 140 -> 400 ANALYTICS_TARGET_OUT_OF_RANGE; time_to_hire 4000 -> same code; manual_hours_per_hire 1000 -> 200; recruiter_hourly_czk 1000001 -> ANALYTICS_TARGET_OUT_OF_RANGE.",
+      "Read side: a stored goal row for a stage that is no longer on the live axis stays in analytics_targets but is NOT in the payload's targets.conversion (withheld, not leaked as a phantom stage); un-retiring the column brings it back unchanged.",
+      "One vocabulary: the registry's reserved-key specs and db/analytics.ts RESERVED_TARGET_KEYS are the same set (a test asserts equality), and AnalyticsTypes.ts no longer hand-mirrors TIME_TO_HIRE_KEY/RECRUITER_HOURLY_KEY/MANUAL_HOURS_KEY - it re-exports them from the pure registry module.",
+      "Both new codes are in REFUSAL_ERRORS and resolve in all four catalogs (npm run i18n:check green), so the goals editor's localizedSaveFailure shows 'this column has no goal slot' / 'out of range' instead of the generic saveFailed line."
+    ],
+    "premise": [
+      "app/api/analytics/targets/route.ts:37 - `const VALID_METRICS = new Set<string>([...FUNNEL_STAGES, ...RESERVED_TARGET_KEYS]);` and app/_lib/pipeline-stages.ts:12,17 - FUNNEL_STAGES = PIPELINE_STAGES = the shipped five ['Accepted','Screened','Interview','Offer','Hired'].",
+      "app/_lib/db/analytics.ts:390-395 - the funnel is built from THIS workspace's axis: `const axis = getPipelineAxis(workspaceId).stages; const stageIds = axis.map((s) => s.id);` (comment: a team that renamed or added a column must get a funnel of ITS columns).",
+      "app/features/insights/analytics/sections/PerformanceBriefing.tsx:357-358 - `<GoalsEditor stages={data.funnel.map((f) => f.stage)} ...` so the editor renders a TargetInput for every axis column; app/features/insights/analytics/AnalyticsGoalsEditor.tsx:62-70 renders `stages.slice(1).map(... <TargetInput metric={stage} ... suffix=\"%\" />)`.",
+      "app/features/shared/pipelineAxisDraft.ts:100-103 - `mintStageId(label, taken)` derives an added column's id from its label (e.g. 'Tech round'), so any added column's id is outside FUNNEL_STAGES and its goal write hits route.ts:53-54 `return NextResponse.json({ error: \"Invalid metric.\" }, { status: 400 })` - a raw English refusal with no code.",
+      "app/api/analytics/targets/route.ts:64-71 - the per-key ceiling is a route-local ternary chain (MAX_DAYS / MAX_HOURLY_CZK / MAX_MANUAL_HOURS / 100), while the read side's split lives in app/_lib/db/analytics.ts:1149-1158 (`analyticsTargets`, every non-reserved row becomes a conversion goal with no axis check) and the client keeps a third hand-copy at app/features/insights/analytics/AnalyticsTypes.ts:106-111.",
+      "app/features/insights/analytics/AnalyticsTargetInput.tsx:54 - the editor throws `localizedSaveFailure(r, errMsg, t(\"saveFailed\"))`, so a coded refusal would resolve in the reader's language today; the route simply never sends one on its 400 paths."
+    ],
+    "rollback": "Three commits (registry+tests, route+store read filter, client re-export+catalogs+doc) revert cleanly: no schema change, no table, no migration - analytics_targets rows are untouched by the read filter, so reverting restores the old VALID_METRICS behaviour with every stored goal intact.",
+    "gate": "contract",
+    "runner_up": "Goal-change ledger (settings-audit-and-history): record old/new/who/when for every analytics_targets write so a funnel verdict can say which goal it judged against and a moved goal cannot silently re-colour a past window - needs a new tenancy-scoped table, so it is heavier and waits on this registry.",
+    "technique": "key-registry",
+    "body": "## Summary\nMake the analytics goal key space ONE registry, derived from the workspace's live stage axis plus the reserved keys, and pass every goal write through it. Today the read side (funnel, goals editor) speaks the workspace's own columns while the write door speaks the shipped five, so a team that added a column is shown a goal field it can never save.\n\n## Description\nThe settings standard's key-registry technique names this failure shape exactly: a key that reads fine everywhere but whose write is rejected. kp has three hand-kept vocabularies for one table: the route's `VALID_METRICS` (canonical FUNNEL_STAGES + reserved keys) with a ternary of ceilings, the store's `analyticsTargets` split (anything non-reserved is a conversion goal, no axis check), and the client's mirrored constants in AnalyticsTypes.ts. The funnel was moved onto the workspace axis (db/analytics.ts:390-395) and the composer mints new ids from labels (pipelineAxisDraft.ts:100-103), but the write door never followed. Result: on any customised board the grey 'set a goal' note in the brief leads to an input that fails with the generic saved-failed line, forever, and the funnel can never judge that stage (the no-verdict-without-a-goal rule then leaves it grey permanently). A pure `app/_lib/analytics-target-keys.ts` owns `targetKeySpec(metric, axis)` -> {kind: conversion|days|czk|hours, max} | null and `validateTargetWrite`; the route reads the axis and answers coded refusals; the store's read filters conversion goals to live, non-entry columns; the client re-exports the reserved constants from the same pure module.\n\n## Flow\n1. New pure module: reserved-key specs (time_to_hire days<=3650, recruiter_hourly_czk<=1e6, manual_hours_per_hire<=1000) + conversion spec for every live axis stage except the entry-position one (<=100).\n2. Route: `getPipelineAxis(ws).stages` -> `validateTargetWrite` -> jsonRefusal(ANALYTICS_TARGET_UNKNOWN_METRIC | ANALYTICS_TARGET_OUT_OF_RANGE, 400).\n3. db/analytics.ts: RESERVED_TARGET_KEYS derived from the registry; `analyticsTargets(all, axis)` keeps only live goal keys (retired rows kept in the table, withheld from the payload).\n4. AnalyticsTypes.ts re-exports the three key constants; GoalsEditor takes its suffix from the spec kind.\n5. REFUSAL_ERRORS + 4 catalogs; analytics README goals section.\n\n## Expected impact\nEvery column a team adds to its board becomes goal-able the moment it exists, so the brief's weakest-link claim and the funnel colours work on customised boards instead of only on the shipped five. A class of drift closes: adding a reserved key or a stage can no longer leave it readable-but-unsettable, and a goal refusal tells the operator why in their language.\n\n## Evaluation\nClaim: the goal write door and the goal read side share one axis-derived vocabulary.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test over analytics-target-keys (pure), the targets route driven as a real handler on a throwaway DB with a custom axis (targets-axis.test.ts), then tsc, lint, i18n:check, test:unit.\nResult: pending build\nGate: contract",
+    "evidence": "route.ts:37 `const VALID_METRICS = new Set<string>([...FUNNEL_STAGES, ...RESERVED_TARGET_KEYS]);` | route.ts:53-54 `if (!VALID_METRICS.has(metric)) { return NextResponse.json({ error: \"Invalid metric.\" }, { status: 400 }); }` | pipeline-stages.ts:12 `export const PIPELINE_STAGES = [\"Accepted\", \"Screened\", \"Interview\", \"Offer\", \"Hired\"] as const;` :17 `export const FUNNEL_STAGES = PIPELINE_STAGES;` | db/analytics.ts:394-395 `const axis = getPipelineAxis(workspaceId).stages; const stageIds = axis.map((s) => s.id);` | PerformanceBriefing.tsx:357-358 `<GoalsEditor stages={data.funnel.map((f) => f.stage)}` | pipelineAxisDraft.ts:101-103 'Ids are minted ONCE, at add time ... export function mintStageId(label: string, taken: Iterable<string>)' | grep FUNNEL_STAGES in non-test app code: the targets route is the ONLY consumer that validates against it. | grep 'api/analytics/targets' tests: analytics-write-invalidates-read.test.ts, analytics-writes-authority.test.ts - neither drives a custom axis."
+  },
+  {
+    "context": "analytics-metrics",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Dwell band: everyone waiting now, judged by team cadence, linked to the board",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/analytics-stage-dwell.ts",
+      "app/_lib/db/analytics-stage-dwell.test.ts",
+      "app/_lib/db/analytics.ts",
+      "app/features/insights/analytics/AnalyticsTypes.ts",
+      "app/features/insights/analytics/stageDwellGate.ts",
+      "app/features/insights/analytics/stageDwellGate.test.ts",
+      "app/features/insights/analytics/AnalyticsStageDwellPanel.tsx",
+      "app/features/insights/analytics/AnalyticsStageCadenceInput.tsx",
+      "app/features/insights/analytics/sections/performanceTypes.ts",
+      "app/features/insights/analytics/AnalyticsTab.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/analytics/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/analytics-stage-dwell.ts",
+      "app/_lib/db/analytics-stage-dwell.test.ts",
+      "app/features/insights/analytics/AnalyticsStageCadenceInput.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/_lib/db/analytics.ts (r04 analytics-dashboard/B adds a jobId axis to pipelineAnalytics - this card only swaps the perStageDays source for a call into the new module, which must honour the same job predicate; sequence after r04/B lands and re-read)",
+      "app/features/insights/analytics/AnalyticsTab.tsx (r04/B file - one-line widening of boardHref's filter type to carry `quick`)"
+    ],
+    "acceptance": [
+      "As-of-now, not cohort: a fixture DB with an active entry created 60 days ago, standing in Screened since 20 days ago, plus a 5-day-old entry: pipelineAnalytics(30).stageDwell has Screened count 1 with oldestDays 20 (today it is ABSENT, because rows are the created_at >= cutoff cohort) and pipelineAnalytics(null) returns the same Screened row - the 'waiting right now' figure no longer depends on the window.",
+      "One aging clock: on the default axis an active Interview entry 6 whole days in stage -> stageDwell Interview {count:1, pastCadence:1, stalled:0, cadenceDays:5, cadenceSource:'default'}, and the same entry gives agingTierAt(...) === 'aging' (the board's own predicate agrees).",
+      "Team cadence: the same axis with Interview slaDays 10 (set via PATCH /api/pipeline/stage-sla) -> {pastCadence:0, cadenceDays:10, cadenceSource:'team'}; an Offer entry 7 days in stage on the default axis (sla 3, STALLED_MULTIPLE 2) -> stalled:1.",
+      "Pair, not a mean: a stage with occupants at 2, 3 and 31 days -> medianDays 3 and oldestDays 31 (the queue-discipline shape the mean 12 hid); a stage with 2 occupants (< BOTTLENECK_MIN_SAMPLE 3) -> dwellRowModel(...).sample === 'thin' and no median is claimed, only the count and oldest.",
+      "Verdict only with a goal someone set: dwellRowModel for cadenceSource 'default' with pastCadence > 0 -> tone 'neutral' (a surfacing count, labelled as the default cadence); for cadenceSource 'team' -> tone 'over' when pastCadence > 0 and 'within' when 0.",
+      "Actionable count: the row's past-cadence count links to the board filtered to exactly those cards - dwellBoardFilter('Interview', 2) -> {stage:'Interview', quick:'aging'}, which parseQuicksParam accepts; 0 past cadence -> no link.",
+      "Set the cadence in place: cadenceEditable(stage, axis) is false for the terminal-role column and true for every other live column; the row input issues PATCH /api/pipeline/stage-sla {stage, days} and on a coded refusal (e.g. PIPELINE_AXIS_STALE) shows the localized message, never the server string.",
+      "The bottleneck that drives the funnel band's 'stalled' claim is picked from the SAME as-of-now occupants (pickBottleneck over the new per-stage days), so the band and the dwell rows under it can no longer disagree about who is waiting."
+    ],
+    "premise": [
+      "app/_lib/db/analytics.ts:342-350 - the rows every figure is computed over are the CREATION COHORT: `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} ...` in a windowed view.",
+      "app/_lib/db/analytics.ts:447-463 - perStageDays, the bottleneck (`pickBottleneck(perStageDays)` :456) and stageDwell (:459, a rounded MEAN `avgDays`) are all folded from those cohort rows, so in a 30-day view an active candidate created 31+ days ago who is still waiting is invisible to the dwell band - precisely the longest waiters.",
+      "messages/en.json:8318 - the band's claim `briefDwellClaim` reads '# candidates are waiting in a stage right now.', an as-of-now statement the windowed cohort cannot support; en.json:7693 `stageDwellRow` 'avg {days}d · {count} waiting' prints the mean.",
+      "app/features/insights/analytics/AnalyticsStageDwellPanel.tsx:81-91 and stageDwellGate.ts:12-14 - the bars are scaled against the longest wait on screen 'because no org goal exists for per-stage dwell'; that premise is now false: commit 3ac779545 (2026-09-23) made per-column `slaDays` team data on the axis, written by PATCH /api/pipeline/stage-sla (app/api/pipeline/stage-sla/route.ts) and read by app/_lib/aging-policy.ts:76-93 `slaForStage` (team slaDays -> role default -> STALE_DAYS).",
+      "app/features/hiring/pipeline/pipelineBoardFilters.ts:33 QUICK_FILTERS includes 'aging' and :79-80 its predicate is `agingBucket(...)` = agingTierAt from aging-policy (pipelineRenderDiet.ts:38-47); app/features/hiring/pipeline/usePipelineFilters.ts:107 hydrates it from `?quick=` - so a board link to exactly 'past cadence in this stage' already exists on the receiving side.",
+      "app/features/insights/analytics/sections/performanceTypes.ts:16 and AnalyticsTab.tsx:101-102 - boardHref accepts only `{ q?, stage? }`, so the dwell rows today can only open the whole stage, not the overdue subset.",
+      "app/_lib/analytics-bottleneck.ts:14 BOTTLENECK_MIN_SAMPLE = 3 is the repo's named minimum for a per-stage dwell claim; the per-row dwell list applies no minimum at all (stageDwellGate.ts has no sample rule).",
+      "Open leftover adopted: 'Add a per-stage dwell goal the dwell bars can judge against' (analytics-metrics, M, impact 8, .claude/scan-history/leftover-develop-2026-09-17.jsonl; absent from both low-risk-drain-2026-09-22 results files). The goal it asked for now exists as the team cadence, so this card wires it and grows it by the as-of-now correctness fix its premise hid."
+    ],
+    "rollback": "Commit series: (1) new db module + tests, (2) db/analytics.ts source swap + payload type widening (new fields optional, avgDays kept), (3) pure row model + panel + cadence input, (4) catalogs + doc. Reverting (2) alone restores the cohort-based band with every added field ignored by the client; no schema, table or stored value changes - cadence writes go through the existing r03 route.",
+    "gate": "contract",
+    "runner_up": "Sample-gate the time-to-hire goal pill (statGoalChip.ts:35 judges met/missed on ANY average, n=1 included) and the offer leg's per-row rates under one named-minimum-per-claim table the header chips share.",
+    "technique": "stage-pass-through-and-dwell-time",
+    "body": "## Summary\nTurn the dwell band from a cohort average with neutral bars into the per-stage aging view the standard describes: who is waiting RIGHT NOW (count, median, oldest), how many are past the stage's cadence, a verdict colour only where the team set that cadence, the overdue count as a link to exactly those cards on the board, and the cadence editable in place. Adopts the open leftover 'Add a per-stage dwell goal the dwell bars can judge against' and grows it.\n\n## Description\nThe band claims '# candidates are waiting in a stage right now' but is folded from the window's creation cohort, so switching to 30 days drops every long-waiting candidate created before the window - the reader sees a healthier board the narrower they look. It reports a rounded mean, which the funnel-metrics standard rejects for dwell (median of the current occupants plus the oldest and a count over a threshold, because the pathology is the one who never exits). It renders no verdict because 'no org goal exists for per-stage dwell' - but as of commit 3ac779545 every column carries a team cadence (`slaDays`) that the board, the sidebar badge and the automation pass already age against via one clock (aging-policy.ts). So today Analytics and the board disagree about who is overdue, and the recruiter reading 'Interview avg 6d' has no way to get to the three people past cadence. After: a separate as-of-now read of active occupants (honouring the job/sim predicates), per-stage {count, medianDays, oldestDays, pastCadence, stalled, cadenceDays, cadenceSource} computed with agingTier; the pure row model decides sample (thin below BOTTLENECK_MIN_SAMPLE) and tone (neutral for a shipped default, over/within only for a team-set cadence, per no-verdict-colour-without-a-goal-someone-set); the overdue count links to `?tab=pipeline&stage=X&quick=aging`; a small cadence input (terminal excluded) writes through the existing PATCH route. The bottleneck feeding the funnel band's 'stalled' claim is picked from the same occupants.\n\n## Flow\n1. app/_lib/db/analytics-stage-dwell.ts: `stageDwellNow(workspaceId, axis, now, {jobId})` - SELECT stage, stage_changed_at, created_at FROM pipeline_entries WHERE status='active' AND notSim AND workspace_id=? [AND job_id=?]; per stage median/oldest via stats.median, pastCadence/stalled via agingTier; returns rows + perStageDays.\n2. db/analytics.ts: stageDwell and pickBottleneck read from it instead of cohort rows (avgDays kept for cached payloads).\n3. AnalyticsTypes.ts: stageDwell row gains optional fields.\n4. stageDwellGate.ts: dwellRowModel, dwellBoardFilter, cadenceEditable (pure).\n5. AnalyticsStageDwellPanel.tsx renders the pair, tone, link and AnalyticsStageCadenceInput (InlineNumberSave over PATCH /api/pipeline/stage-sla); performanceTypes.ts + AnalyticsTab.tsx widen boardHref to carry `quick`.\n6. Four catalogs (claim copy keeps 'right now', now true), analytics README dwell section.\n\n## Expected impact\nThe single most asked question of a pipeline dashboard - 'why is my role still open, and who is stuck' - gets answered with the real waiting population in every window, in agreement with the board's own aging, and becomes one click to the overdue cards and one field to set what 'too long' means for the team. Removes a window-dependent undercount on a headline claim.\n\n## Evaluation\nClaim: the dwell band describes everyone waiting now, agrees with the board's aging clock, judges only against a team-set cadence, and makes the overdue set reachable and the cadence settable.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test over analytics-stage-dwell on a throwaway DB (windowed vs all-time, default vs team axis), stageDwellGate pure row model, then tsc, lint, i18n:check, design:check, test:unit; optional Playwright check that analytics-sections still renders.\nResult: pending build\nGate: contract",
+    "evidence": "db/analytics.ts:348 `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?` | :447 `const perStageDays: Record<string, number[]> = {};` :449 `if (r.status !== \"active\" || isTerminal(r.stage)) continue;` :456 `const bottleneck = pickBottleneck(perStageDays);` :459-462 stageDwell = `avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)` | en.json:8318 briefDwellClaim '... waiting in a stage right now.' | AnalyticsStageDwellPanel.tsx:82 'on screen, not against a target, because no org goal exists for' | stageDwellGate.ts:13 '(no org sets a per-stage dwell goal)' | git log -1 3ac779545 = 'feat(pipeline-board-ui): stage aging SLAs become team data on the axis, not per-browser storage' dated Wed Sep 23 2026 | aging-policy.ts:76-93 slaForStage: override -> def.slaDays (team) -> ROLE_SLA_DEFAULTS -> STAGE_SLA_DEFAULTS -> STALE_DAYS | pipelineBoardFilters.ts:33 `QUICK_FILTERS = [\"active\", \"interview\", \"aging\", \"awaiting\", \"intake\"]` | performanceTypes.ts:16 `boardHref: (filter: { q?: string; stage?: string }) => string;` | leftover-develop-2026-09-17.jsonl: {\"title\":\"Add a per-stage dwell goal the dwell bars can judge against\",\"context\":\"analytics-metrics\",\"size\":\"M\",\"risk\":3,\"impact\":8} - not in low-risk-drain-2026-09-22*-results.jsonl (only 'Warn on Apply when auto-reject is off' was built there, 4519b5e0)."
+  }
+]

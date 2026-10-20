@@ -1,0 +1,61 @@
+{
+  "status": "success",
+  "result": {
+    "projects": [
+      {
+        "id": 40726690,
+        "owner_id": 81234567,
+        "title": "Python scraper for public tender notices",
+        "status": "active",
+        "seo_url": "python/Python-scraper-for-public-tender",
+        "currency": { "id": 1, "code": "USD", "sign": "$", "name": "US Dollar", "exchange_rate": 1, "country": "US" },
+        "description": "We need a Python 3.12 scraper for the public tender portal's JSON API. Output: a CSV with title, buyer, deadline, value. Tests required.",
+        "preview_description": "We need a Python 3.12 scraper for the public tender portal's JSON API.",
+        "submitdate": 1790070413,
+        "time_submitted": 1790070413,
+        "time_updated": 1790258186,
+        "type": "fixed",
+        "bidperiod": 7,
+        "budget": { "minimum": 250, "maximum": 750 },
+        "jobs": [
+          { "id": 13, "name": "Python", "category": { "id": 1, "name": "Websites, IT & Software" }, "seo_url": "python", "local": false },
+          { "id": 95, "name": "Web Scraping", "category": { "id": 1, "name": "Websites, IT & Software" }, "seo_url": "web_scraping", "local": false }
+        ],
+        "bid_stats": { "bid_count": 12, "bid_avg": 430.5 },
+        "language": "en",
+        "frontend_project_status": "open"
+      },
+      {
+        "id": 40726711,
+        "owner_id": 81299999,
+        "title": "Ongoing React Native support",
+        "status": "active",
+        "seo_url": "react-native/Ongoing-React-Native-support",
+        "currency": { "id": 3, "code": "EUR", "sign": "€", "name": "Euro", "exchange_rate": 1.08, "country": "EU" },
+        "description": "Hourly support for our React Native app. Contact me on Telegram @rnfixer_eu for a faster reply.",
+        "submitdate": 1790075000,
+        "time_submitted": 1790075000,
+        "type": "hourly",
+        "bidperiod": 5,
+        "budget": { "minimum": 15, "maximum": 25 },
+        "jobs": [{ "id": 1049, "name": "React Native" }],
+        "bid_stats": { "bid_count": 30, "bid_avg": 18 }
+      },
+      {
+        "id": 40726799,
+        "title": "Logo refresh",
+        "status": "active",
+        "seo_url": "logo-design/Logo-refresh",
+        "currency": { "code": "GBP", "sign": "£" },
+        "description": "Refresh our logo.",
+        "time_submitted": 1790080000,
+        "type": "fixed",
+        "bidperiod": 3,
+        "budget": null,
+        "jobs": []
+      }
+    ],
+    "total_count": 3
+  },
+  "request_id": "4c1f0d2e0a6b4b1a9d7a"
+}

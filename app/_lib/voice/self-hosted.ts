@@ -19,6 +19,9 @@
 // switches that must agree is a bug waiting to happen. A run either talks to a
 // service on this machine or it does not, and the base URL already says which.
 
+import { VOICE_PROVIDER_TRAITS } from "./provider-traits.ts";
+import { coerceProviderId } from "./types.ts";
+
 const HOSTED_BASE_URL = "https://api.elevenlabs.io";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"]);
@@ -34,6 +37,9 @@ export function elevenLabsBaseUrl(env: NodeJS.ProcessEnv = process.env): string 
 function isPrivateHost(host: string): boolean {
   if (LOOPBACK_HOSTS.has(host)) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  // URL.hostname brackets IPv6 literals. fc00::/7 is unique-local; require the
+  // full first hextet so [fc::1] (00fc::1) is never mistaken for that range.
+  if (/^\[f[cd][0-9a-f]{2}:/.test(host)) return true;
   // The ranges below describe IP ADDRESSES, so they may only be read off an IPv4
   // literal. Matched against a NAME they also fired on anything whose first label
   // happens to be one of those numbers — "https://10.voice-vendor.example.com" is
@@ -75,8 +81,9 @@ export function isSelfHostedVoice(env: NodeJS.ProcessEnv = process.env): boolean
 }
 
 /** SESSION-LEVEL: is THIS session being served by the free provider — and
- *  therefore spending no per-minute credits? OpenAI Realtime has no self-hosted
- *  path in this app, so only the ElevenLabs adapter can be local.
+ *  therefore spending no per-minute credits? Only a provider whose trait row
+ *  declares `selfHostable` can be local (VOICE_PROVIDER_TRAITS), and only when
+ *  this install points it at a private host.
  *
  *  This is the export every money decision belongs on (billing gate, meter
  *  debit, credential-mint throttle, cost estimate). Pass the provider that will
@@ -86,5 +93,6 @@ export function isSelfHostedProvider(
   provider: string,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return provider === "elevenlabs" && isSelfHostedVoice(env);
+  const id = coerceProviderId(provider);
+  return id !== null && VOICE_PROVIDER_TRAITS[id].selfHostable && isSelfHostedVoice(env);
 }

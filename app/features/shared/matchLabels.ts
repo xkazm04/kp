@@ -51,6 +51,14 @@ export function useFitTierLabels(): FitTierLabels {
 // keys exist across locales; this only relaxes the compile-time key literal.
 type LooseTranslator = { (key: string, values?: Record<string, string | number>): string; has: (key: string) => boolean };
 
+/** Parallel driver labels are trustworthy only when every code has its English
+ * counterpart. A partial code list must not silently drop the remaining drivers. */
+export function localizeConfidenceDrivers(c: Confidence, t: LooseTranslator): string[] {
+  const fallback = c.drivers ?? [];
+  if (!c.driverCodes || c.driverCodes.length !== fallback.length) return fallback;
+  return c.driverCodes.map((code, i) => (t.has(code.code) ? t(code.code, code.params) : fallback[i]));
+}
+
 export function useMatchLabels() {
   const tDrivers = useTranslations("match.drivers") as unknown as LooseTranslator;
   const tAssume = useTranslations("match.assumptions") as unknown as LooseTranslator;
@@ -66,7 +74,7 @@ export function useMatchLabels() {
 
   return {
     /** Localized confidence-band drivers (match.drivers.*), English drivers as fallback. */
-    drivers: (c: Confidence): string[] => zip(tDrivers, c.driverCodes, c.drivers ?? []),
+    drivers: (c: Confidence): string[] => localizeConfidenceDrivers(c, tDrivers),
     /** Localized candidate assumptions (match.assumptions.*), English strings as fallback. */
     assumptions: (codes: LabelCode[] | undefined, fallback: string[]): string[] =>
       zip(tAssume, codes, fallback),

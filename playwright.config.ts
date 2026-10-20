@@ -79,7 +79,14 @@ export const KEYLESS_SPECS = [
   // a spec defect, and enrolling a spec whose only route to green is a holdout
   // entry would convert a real accessibility bug into a permanent exception.
   // It joins this list when the token is darkened.
-  "locale-smoke"
+  "locale-smoke",
+  // The Journeys board. Keyless by construction: /api/journeys reads the SQLite
+  // tables and spawns nothing. It earns its place here because the board shipped
+  // typecheck-, lint- and unit-green and then failed to render at all — a missing
+  // ICU argument on every unmapped event kind, and a `fixed inset-0` overlay whose
+  // containing block was the tab panel's animation transform rather than the
+  // viewport, so it measured 1264x0. Neither is reachable without a browser.
+  "journey-board"
 ] as const;
 
 export default defineConfig({
@@ -135,6 +142,13 @@ export default defineConfig({
             // suite must NOT inherit the operator's database. An outer KP_DB_PATH
             // still wins if it is exported deliberately.
             KP_DB_PATH: process.env.KP_DB_PATH ?? E2E_DB_PATH,
+            // The job-seeker module (/me, /api/jobseeker) is OFF unless the install
+            // turns it on (app/_lib/jobseeker/enabled.ts), and jobseeker-keyless.spec.ts
+            // drives it — so the suite's own server turns it on. Unconditional for the
+            // same reason as KP_DB_PATH. A server started elsewhere (KP_E2E_BASE_URL,
+            // ci.yml's release job) keeps its own setting; the release subset does not
+            // touch /me, and journey-role-to-schedule walks the wizard either way.
+            KP_JOBSEEKER: "1",
             ...(process.env.KP_OFFLINE ? { KP_OFFLINE: process.env.KP_OFFLINE } : {}),
             ...(process.env.KP_APP_MASTER_REPO_ROOTS
               ? { KP_APP_MASTER_REPO_ROOTS: process.env.KP_APP_MASTER_REPO_ROOTS }

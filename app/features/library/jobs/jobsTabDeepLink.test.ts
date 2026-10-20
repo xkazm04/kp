@@ -66,10 +66,20 @@ test("the ingest latch is bounded to a single refresh", () => {
   assert.equal(hit.kind, "open");
   assert.equal(hit.kind === "open" ? hit.job.id : null, "fresh");
 
-  // A refresh that does NOT contain the job (hidden by the "open only" filter, say)
-  // CLEARS the latch instead of staying armed for the next one.
-  assert.equal(resolveIngestLatch([{ id: "old" }, { id: "other" }] as Parameters<typeof resolveIngestLatch>[0], latch).kind, "clear");
+  // A refresh that does NOT contain the job (the 20-row page sorted it elsewhere)
+  // resolves to a point-fetch of that id — never to staying armed for the next one.
+  assert.deepEqual(resolveIngestLatch([{ id: "old" }, { id: "other" }] as Parameters<typeof resolveIngestLatch>[0], latch), {
+    kind: "fetch",
+    id: "fresh",
+  });
   assert.equal(resolveIngestLatch(null, latch).kind, "wait", "an unloaded corpus is not a refresh either");
+});
+
+test("an ingest latch that misses the page consumes itself and hands the id to the point-fetch", () => {
+  // The auto-open survives the 20-row window: the miss drops the latch (bounded) and
+  // schedules the same by-id lookup the ?job= deep link uses.
+  assert.match(code, /resolved\.kind === "fetch"\) \{\s*setPendingOpen\(null\);\s*setLookupId\(resolved\.id\);/);
+  assert.ok(!/resolved\.kind === "clear"/.test(code), "no resolution silently drops a just-ingested role any more");
 });
 
 test("the tab arms the latch with the jobs array it was armed against", () => {

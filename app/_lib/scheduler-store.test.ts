@@ -6,6 +6,8 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   advanceAfterForcedRun,
   claimDueRun,
@@ -132,4 +134,43 @@ test("a FORCED tick on a disabled job is refused — 'off' means off (bug-ui-sca
   const result = await tickScheduler({ force: true, trigger: "manual" });
   assert.deepEqual(result, { ran: false, reason: "disabled" });
   assert.equal(listRuns(10, POLICY_JOB).length, before, "a refused forced tick logs no scheduler_runs row");
+});
+
+// lens-sweep round 2 (bug-hunter, context lib-scheduling). Two writers in this file
+// read `enabled`, compute the clock from it, and then UPDATE on `WHERE name = ?` alone:
+// `setIntervalMinutes` and `advanceAfterForcedRun`. That is the shape .claude/CLAUDE.md
+// names a lost update — "a plain tx() whose UPDATE does not re-assert the status its
+// SELECT filtered on" — and `claimDueRun`, sitting between the two, already does it
+// right with `AND enabled = 1` plus a `res.changes` check. A `setEnabled(name, false)`
+// landing between the read and the write is silently overwritten, leaving `enabled = 0`
+// beside an ARMED `next_due_at` — the exact state the comment above setIntervalMinutes
+// declares impossible ("a disabled schedule keeps next_due_at = null"), and the state
+// the ops health surface reads to tell an operator when a job will next run.
+//
+// The race itself is not drivable from a single-threaded test — this store is
+// documented as shared with other connections and processes, which is where the
+// interleaving lives — so the precondition is pinned at the SOURCE, in the idiom
+// app/api/rate-limit-contract.test.ts established here for exactly this class of
+// invariant. The behavioural tests above keep the happy path honest.
+test("every clock write re-asserts the `enabled` it was computed from (no lost update)", () => {
+  const src = readFileSync(fileURLToPath(new URL("./scheduler-store.ts", import.meta.url)), "utf8");
+
+  for (const fn of ["setIntervalMinutes", "advanceAfterForcedRun"]) {
+    const at = src.indexOf(`export function ${fn}(`);
+    assert.ok(at >= 0, `expected ${fn} to still exist`);
+    // The function body ends at the next top-level `export function` / doc block.
+    const nextExport = src.indexOf("\nexport function ", at + 1);
+    const body = src.slice(at, nextExport === -1 ? src.length : nextExport);
+
+    assert.match(
+      body,
+      /UPDATE scheduler SET[\s\S]*?WHERE name = \? AND enabled = \?/,
+      `${fn} computes the clock from the enabled flag it read, so its UPDATE must re-assert that flag`,
+    );
+    assert.match(
+      body,
+      /\.changes === 0/,
+      `${fn} must skip (not overwrite) when the row moved under it — zero rows changed is the signal`,
+    );
+  }
 });

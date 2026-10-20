@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import re
 
+from .seed_materializer import MAX_FILE_CHARS as _MAX_FILE_CHARS
+
 # A canary's `flaw` quotes the flawed fragment; we accept '…', "…" or `…` quoting.
 _QUOTE_RE = re.compile(r"[\"'`]([^\"'`]{4,200})[\"'`]")
 
@@ -151,6 +153,19 @@ def _added_lines(seed_body: str, body: str) -> set[str]:
     return {ln for ln in body.splitlines() if ln.strip() and ln not in seed_lines}
 
 
+def _added_lines_in_order(seed_body: str, body: str) -> list[str]:
+    """:func:`_added_lines` in the order the author WROTE them (first occurrence wins) —
+    a decision log is a sequence, and a sorted set reads it alphabetised."""
+    seed_lines = set(seed_body.splitlines())
+    seen: set[str] = set()
+    out: list[str] = []
+    for ln in body.splitlines():
+        if ln.strip() and ln not in seed_lines and ln not in seen:
+            seen.add(ln)
+            out.append(ln)
+    return out
+
+
 def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[dict] | None) -> dict:
     """Similarity (0..1) of the submission's delta to each frozen one-shot baseline's
     delta. {available: False} when either side is missing.
@@ -160,6 +175,13 @@ def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[di
     per-file clipping meant the two sides held different-sized copies of the same
     file — line-level contribution survives that). Files absent from the seed
     (created by both sides) compare over all their non-blank lines.
+
+    A path is NOT comparable when the baseline's copy sits at the generation budget
+    (``MAX_FILE_CHARS``, where ``baseline.coerce`` clips) and the submitted copy is
+    longer: the baseline's added lines stop at the clip while the submission's do not,
+    so every candidate, a pure delegator included, reads as original. Such paths are
+    dropped and named in ``budgetExceededPaths``; with nothing left the result is
+    ``available: False`` (no signal), never a number from a broken ruler.
     """
     solutions = [s for s in ((baseline or {}).get("solutions") or []) if isinstance(s, dict)]
     submitted = _by_path(files)
@@ -169,12 +191,20 @@ def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[di
     sub_delta = _delta_paths(submitted, seeded)
 
     per: list[dict] = []
+    over_all: set[str] = set()
     for i, sol in enumerate(solutions):
         base_delta = _delta_paths(_by_path(sol.get("files")), seeded)
         paths = sorted(set(sub_delta) | set(base_delta))
         # Decision log is the candidate's own voice — exclude it from the mechanical
         # similarity so a shared log template can't inflate the score.
         paths = [p for p in paths if not re.search(r"decision", p, re.IGNORECASE)]
+        base_files = _by_path(sol.get("files"))
+        over = [
+            p for p in paths
+            if len(base_files.get(p, "")) >= _MAX_FILE_CHARS and len(submitted.get(p, "")) > _MAX_FILE_CHARS
+        ]
+        over_all.update(over)
+        paths = [p for p in paths if p not in over]
         if not paths:
             per.append({"baseline": i, "similarity": 0.0, "comparedPaths": 0})
             continue
@@ -191,8 +221,13 @@ def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[di
             weighted += (len(a & b) / len(union)) * w
             total += w
         per.append({"baseline": i, "similarity": round(weighted / total, 3) if total else 0.0, "comparedPaths": len(paths)})
+    if over_all and all(p["comparedPaths"] == 0 for p in per):
+        return {"available": False, "bestSimilarity": 0.0, "perBaseline": per, "budgetExceededPaths": sorted(over_all)}
     best = max((p["similarity"] for p in per), default=0.0)
-    return {"available": True, "bestSimilarity": best, "perBaseline": per}
+    out: dict = {"available": True, "bestSimilarity": best, "perBaseline": per}
+    if over_all:
+        out["budgetExceededPaths"] = sorted(over_all)
+    return out
 
 
 # --- submission excerpts (W0.2) ---------------------------------------------
@@ -242,7 +277,7 @@ def submission_excerpts(
     changed = _delta_paths(submitted, seeded)
 
     ranked = sorted(
-        ((p, sorted(_added_lines(seeded.get(p, ""), body))) for p, body in changed.items()),
+        ((p, _added_lines_in_order(seeded.get(p, ""), body)) for p, body in changed.items()),
         key=lambda item: (-len(item[1]), item[0]),
     )
 

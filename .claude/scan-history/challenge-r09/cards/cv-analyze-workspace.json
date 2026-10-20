@@ -1,0 +1,130 @@
+[
+  {
+    "context": "cv-analyze-workspace",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "History asks the server: filtered, keyset-paged analyses on one shared kp_fold",
+    "base_sha": "dbcdecf66d7c9ad25de4c4e3f2e426e5c75d8a4d",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "adopts": [
+      "Page listAnalyses with offset/cursor and a real total (cv-analysis-api, M, leftover-develop-2026-09-17, absent from both low-risk-drain result files)",
+      "Filter listAnalyses by q, family, seniority, and disposition on the server (cv-analysis-api, M, same backlog, same status)"
+    ],
+    "write_set": [
+      "app/_lib/text-fold.ts",
+      "app/_lib/text-fold.test.ts",
+      "app/_lib/db/jobs.ts",
+      "app/_lib/db/devcase-ledger.ts",
+      "app/_lib/db/analyses.ts",
+      "app/_lib/db/analyses-query.test.ts",
+      "app/api/analyses/route.ts",
+      "app/api/analyses/analyses-routes.test.ts",
+      "app/features/tools/analyze/history/historyQuery.ts",
+      "app/features/tools/analyze/history/historyQuery.test.ts",
+      "app/features/tools/analyze/history/HistoryTab.tsx",
+      "app/features/tools/analyze/history/HistoryFilterBar.tsx",
+      "app/features/tools/analyze/history/HistoryTypes.ts",
+      "docs/features/candidates/README.md",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/text-fold.ts",
+      "app/_lib/text-fold.test.ts",
+      "app/_lib/db/analyses-query.test.ts",
+      "app/features/tools/analyze/history/historyQuery.ts",
+      "app/features/tools/analyze/history/historyQuery.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json"
+    ],
+    "acceptance": [
+      "One fold per connection: on one in-memory db, run the dev-case ledger read and then a jobs browse (and, in a second test, the reverse order). In BOTH orders kp_fold('Šablona') = 'sablona' and kp_fold(NULL) IS NULL; listCaseLedger({ q: 'šablona' }) finds a case titled 'Šablona testu'; listJobsPage({ sort: 'location' }) puts NULL-location rows last in both directions. Today whichever store registers second silently replaces the other's kp_fold for the life of the process.",
+      "Search sees the whole set: a workspace with 250 distinct analyses where the only 'Čapek' row is the OLDEST. listAnalysesPage({ q: 'capek', limit: 200 }, ws) returns that row. Today History fetches the newest 200 and filters on the client, so the search answers 'no match'.",
+      "Grouping comes before the filter: the same CV (same cv_hash) run twice against JD A, the older run disposition 'pass', the newest undecided. { disposition: 'pass' } returns nothing for that group; { disposition: 'undecided' } returns the newest row with prior_runs = 1.",
+      "Keyset paging is stable on ties: 3 rows share one created_at and limit = 2. Page 1 returns 2 rows and a nextCursor; page 2 with that cursor returns the third; the union is all 3 with no duplicate (tie broken by slug, a unique column).",
+      "Route truncation is exact: GET /api/analyses?family=data_ai&limit=2 with exactly 2 matching groups answers truncated:false and nextCursor:null; with 3 it answers truncated:true, 2 rows and a cursor. Today route.ts reports truncated for rows.length >= limit, so an exact fit is called cut.",
+      "Facets describe the workspace, not the page: listAnalysisFacets(ws) includes a role_family that appears only on the 250th (oldest) row, and never a family that exists only in another workspace.",
+      "Client query door: historyQuery.toSearchParams({ q: '  ', family: '', seniority: '', disposition: 'undecided' }) yields exactly 'disposition=undecided'. mergeHistoryPages(prev, next) dedupes by slug and keeps server order, so a row saved between two page loads is never shown twice.",
+      "Tenancy: a q that matches only a row in workspace B returns nothing for workspace A, from both listAnalysesPage and the facet read."
+    ],
+    "premise": [
+      "app/features/tools/analyze/history/HistoryTab.tsx:45 fetches bare '/api/analyses' with no query, so the route's DEFAULT_LIMIT of 200 applies (app/api/analyses/route.ts:12). HistoryTab.tsx:79-85 then filters q, family, seniority and disposition over that loaded slice. The code's own comment at HistoryTab.tsx:24-26 says server-side query params are 'a follow-up for when history outgrows that cap'.",
+      "HistoryTab.tsx:77 derives the family dropdown from the loaded rows only. So a family that appears only on older rows cannot be picked at all.",
+      "app/api/analyses/route.ts:39 calls listAnalyses (the bare-array wrapper at app/_lib/db/analyses.ts:205) and re-derives truncated as rows.length >= limit at route.ts:47. It ignores listAnalysesPage (analyses.ts:152), which already knows exact truncation through its LIMIT cap+1 read at analyses.ts:195-196.",
+      "listAnalysesPage orders by a.created_at DESC only (analyses.ts:192), with no tie-break. An offset or cursor page over it is not stable when two rows share a timestamp.",
+      "Two different kp_fold definitions share ONE connection. ensureDb returns the process singleton (app/_lib/db/core.ts:301). jobs.ts:627-628 registers kp_fold as NFD + strip marks + lowercase, returning NULL unchanged. devcase-ledger.ts:72 registers kp_fold as String(v ?? '').toLocaleLowerCase(), which keeps diacritics and turns NULL into ''. Each store guards only its own re-registration (jobs.ts:624 WeakSet; devcase-ledger.ts:65-73 marker), so the second store to register wins for the rest of the process.",
+      "What each order breaks. If jobs registers first, the jobs sort keys (TEXT_KEY, jobs.ts:602) no longer fold diacritics, and the '(key) IS NULL' ordering at jobs.ts:855-858 ('Missing values last in BOTH directions') sees '' instead of NULL. If devcase registers first, the ledger's needle is only toLocaleLowerCase'd (devcase-ledger.ts:125) while its haystack goes through jobs' stripping fold (devcase-ledger.ts:157), so 'šablona' never matches. Probe on better-sqlite3: the jobs fold gives {a:'sablona', n:1}; after the devcase registration it gives {a:'šablona', n:0}.",
+      "The client has a THIRD fold. HistoryTypes.ts:67 foldForSearch strips U+0300-U+036F, and HistoryTypes.ts:65 says it was copied rather than imported. Moving History search into SQL without one shared definition would add a fourth.",
+      "/api/analyses is session-gated, not public (route.ts:30-36 and requireCapabilityCoded 'read'). No change to app/_lib/auth/public-routes.ts is needed."
+    ],
+    "rollback": "Three commits revert cleanly in reverse order. (1) text-fold.ts plus the jobs/devcase switch to it: only the registration moves, and jobs' SQL text is unchanged. (2) The listAnalysesPage query plus the route params: additive, and a bare GET /api/analyses still answers { analyses, truncated, limit } with the same default of 200 newest groups, plus a nextCursor field. (3) The History client. No schema change and no new table. The tenancy source guards still see workspace_id inline in every SQL template.",
+    "gate": "contract",
+    "runner_up": "One JD picker source: the Analyze saved-JD <select> renders every JD as an option up to a 200 cap (AnalyzeSavedJdPicker.tsx:129-150, analyzeJdLibraryState.ts:31). It should become a server-searched typeahead over /api/jds, so a library past 200 stays pickable.",
+    "technique": "client-server-split",
+    "body": "## Summary\nHistory windows on the server (newest 200) and filters on the client, which is the arrangement the table standard forbids: a filter placed below a window that truncates. Move filter, window and facets to the server behind one query door. Before that, fix the one prerequisite the tree hides: the connection already holds two conflicting `kp_fold` SQL functions, and History would otherwise become a third definer.\n\n## Description\nThe search box, the three dropdowns and the Showing-of line in `HistoryTab`/`HistoryFilterBar` are all computed over `rows`, which is whatever `/api/analyses` returned. A workspace past 200 groups gets wrong answers from every one of them. A search misses older candidates. The family and seniority dropdowns cannot offer a value that exists only on older rows. The 'undecided' filter under-counts the decisions the recruiter still owes. `listAnalysesPage` gains a query `{ q, family, seniority, disposition, cursor, limit }`. The filter is applied AFTER the newest-per-(cv_hash, jd_slug) grouping, so a superseded run cannot resurface under a filter. Paging is keyset on `(created_at DESC, slug DESC)`. A sibling `listAnalysisFacets(ws)` answers the dropdown vocabulary for the whole workspace, which is the lesson `listCaseLedgerFacets` already documents. Free text is matched as `instr(kp_fold(candidate_label || ' ' || slug), ?)`, with the needle folded in JS by the same function.\n\nThat function is the structural half of the card. `app/_lib/text-fold.ts` holds `foldText()` (NFD, strip \\p{M}, lowercase) and `registerKpFold(db)`, which registers exactly that function once per connection. `jobs.ts` `withFold`, `devcase-ledger.ts` `ledgerStore` and `analyses.ts` all call it. The devcase needle and History's client `foldForSearch` both become `foldText`, so a Czech search means the same thing on every surface and in both registration orders. Read-only card: there is no read->write, so no lock or re-check strategy applies. No new error code: a malformed param falls back the way `clampLimit` already does, and store faults keep `ANALYSES_LIST_FAILED`.\n\n## Flow\n1. `text-fold.ts` plus its tests. Switch jobs.ts and devcase-ledger.ts to `registerKpFold`, and cover both registration orders with the ledger and jobs reads.\n2. `listAnalysesPage(query, ws)` with the post-grouping filter, keyset cursor and slug tie-break, plus `listAnalysisFacets`. Tests for grouping-before-filter, ties and tenancy.\n3. `/api/analyses` parses q/family/seniority/disposition/cursor, answers from `listAnalysesPage` (exact truncated plus nextCursor) and adds `facets`. The route tests pin the exact-fit case.\n4. `historyQuery.ts` (params plus page merge). HistoryTab refetches on a debounced query change (generation ref kept), shows 'Load more' on nextCursor, and fills the dropdowns from facets. The Showing-of line uses the server's answer. The client predicate `historyRowMatchesQuery` is retired.\n5. Catalog keys (loadMore, showingMatched) in all 4 locales. Update the History section of docs/features/candidates/README.md and the search note in docs/features/dev-case/README.md. jobs.ts sort behaviour is restored, not changed, so it gets a Doc-sync trailer.\n\nPerf exposure: History is reached from app/page.tsx through next/dynamic, and check-budget.mjs counts dynamic imports (scripts/perf/check-budget.mjs:113,186). `historyQuery.ts` (~2 KB) joins a graph at its ceiling, partly offset by the removed client predicate. text-fold.ts is server-only. It adds one tiny module to the jobs, devcase and analyses route graphs; no graph gains a new dependency.\n\n## Expected impact\nHistory stops giving confident wrong answers once a workspace passes 200 analysed groups: search, filters and counts cover the whole workspace. The Jobs browse keeps its 'missing values last' and diacritic-folded ordering, and the dev-case ledger keeps its Czech search, whichever route the process served first. One fold definition replaces three.\n\n## Evaluation\nClaim: History's filter, window and facets run where every row is visible, and every SQL fold in the process is the same function.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract. node:test over text-fold.test.ts, analyses-query.test.ts, analyses-routes.test.ts and historyQuery.test.ts, plus the integration gate (tsc, lint, i18n:check, test:perf, test:unit).\nResult: pending build\nGate: contract",
+    "evidence": "git rev-parse HEAD = dbcdecf66d7c9ad25de4c4e3f2e426e5c75d8a4d.\n\nHistoryTab.tsx:24-26: 'Filtering the loaded set (<=200 rows) needs no schema/server change; server-side query params + tagging are a follow-up for when history outgrows that cap.'\nHistoryTab.tsx:45: fetch(\"/api/analyses\")\nHistoryTab.tsx:79-85: const filtered = useMemo(... historyRowMatchesQuery(r, q) && (!roleFamily || ...) && ... disposition === \"undecided\" ...)\nroute.ts:12: const DEFAULT_LIMIT = 200; route.ts:39: listAnalyses(limit, ...); route.ts:47: truncated: rows.length >= limit,\nanalyses.ts:192: ORDER BY a.created_at DESC; analyses.ts:195-196: .all(workspaceId, cap + 1) ... const truncated = rows.length > cap;\n\nkp_fold definers:\njobs.ts:627-628: db.function(\"kp_fold\", ...(v) => typeof v === \"string\" ? v.normalize(\"NFD\").replace(/\\p{M}/gu, \"\").toLowerCase() : v\ndevcase-ledger.ts:72: db.function(\"kp_fold\", ..., (value) => String(value ?? \"\").toLocaleLowerCase());\ndevcase-ledger.ts:125: const q = (filters.q ?? \"\").trim().toLocaleLowerCase();\ncore.ts:301: if (_dbHolder.__kpDb) return _dbHolder.__kpDb;\n\nProbe (node + better-sqlite3, :memory:, scratch only):\n  jobs fold: { a: 'sablona', n: 1 }\n  after devcase registers: { a: 'šablona', n: 0 }\n\nNo prior card or open backlog title restates this. Grep of challenge-*/cards for kp_fold: 0 hits. None of the r08 write sets touches db/core, db/jobs, devcase-ledger, db/analyses, api/analyses or analyze/history."
+  },
+  {
+    "context": "cv-analyze-workspace",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Decide from History: a triage drawer walks the undecided, brief in view",
+    "base_sha": "dbcdecf66d7c9ad25de4c4e3f2e426e5c75d8a4d",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/analyze/history/historyTriage.ts",
+      "app/features/tools/analyze/history/historyTriage.test.ts",
+      "app/features/tools/analyze/history/HistoryTriageDrawer.tsx",
+      "app/features/tools/analyze/history/HistoryTab.tsx",
+      "app/features/tools/analyze/history/HistoryTable.tsx",
+      "app/_components/results/DispositionEditor.tsx",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/analyze/history/historyTriage.ts",
+      "app/features/tools/analyze/history/historyTriage.test.ts",
+      "app/features/tools/analyze/history/HistoryTriageDrawer.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json"
+    ],
+    "acceptance": [
+      "Queue: rows [A undecided, B pass, C undecided, D hold]. triageQueue(rows, 'undecided') = ['A','C']; triageQueue(rows, 'all') = ['A','B','C','D'] (display order kept).",
+      "Advance after a decision: in 'undecided' mode, deciding A gives afterDecision(...) = 'C'. Deciding C then gives null, which is the 'all decided' state, not a wrap to the top. In 'all' mode, deciding A moves to 'B'.",
+      "applyDecision(rows, 'A', { disposition: 'advance', note: 'strong k8s' }) returns NEW rows where only A changed: disposition 'advance', decision_note 'strong k8s'. The input array and every other row are identical by reference.",
+      "Clearing mirrors the store: applyDecision(rows, 'B', { disposition: '', note: 'x' }) and applyDecision(rows, 'B', { disposition: 'maybe', note: 'x' }) both leave B with disposition null and decision_note null, the same normalisation writeDisposition applies (analyses.ts:318).",
+      "stepTriage(['A','C'], 'C', +1) = null and stepTriage(['A','C'], 'A', -1) = null (no wrap). stepTriage(['A','C'], 'A', +1) = 'C'.",
+      "Keys: triageKey('j', false) = 'next', triageKey('k', false) = 'prev', and triageKey('j', true) = null when focus is in the note field (typing a reason never skips a candidate). triageKey('x', false) = null.",
+      "Progress is honest about the window: triageProgress(rows, false) = { undecided: 2, decided: 2, ofLoaded: false }. With truncated = true it answers ofLoaded: true, and the header renders 'of loaded' wording, never a workspace total.",
+      "A refused save changes nothing: after a DISPOSITION_ACK_REQUIRED 409 the row is NOT passed to applyDecision, and the cursor does not advance. This is pinned through the pure shouldApplySave({ ok: false, code: 'DISPOSITION_ACK_REQUIRED' }) = false and shouldApplySave({ ok: true }) = true, which DispositionEditor's onSaved path calls."
+    ],
+    "premise": [
+      "Deciding on a saved analysis is only possible inside ResultPanel: DispositionEditor is mounted at app/_components/results/ResultPanel.tsx:261 and nowhere else (grep). That puts it on the live Analyze result and on the /history/[slug] page.",
+      "Every History row sends the recruiter away to decide: the slug cell is a Link to /history/${row.slug} (HistoryTable.tsx:40). The detail page body links to /jds, the pipeline and sibling analyses (app/history/[slug]/page.tsx:180,199,208,222), but never back to the History list.",
+      "The list's filter state is component-local useState (HistoryTab.tsx:27-33). It is lost as soon as the recruiter leaves the list to decide, so clearing an 'undecided' backlog costs a page load plus re-filtering per candidate.",
+      "The app already knows exactly which runs are owed a decision: the 'undecided' filter exists (HistoryTab.tsx:85, HistoryFilterBar.tsx:91-93). The row already carries disposition and decision_note (HistoryTypes.ts AnalysisRow), and the pill renders the decision (HistoryTable.tsx:88). The surface reports the backlog; it cannot work through it.",
+      "Everything a decision needs is already behind existing doors. GET /api/analyses/[slug] returns the payload with the consent scrub applied (app/api/analyses/[slug]/route.ts:34,51) plus disposition and decisionNote (:49-50). PATCH enforces the acknowledgement gate server-side (:126-129) with a bounded compare-and-swap (:112-145, setAnalysisDispositionGuarded) and echoes the decision to the pipeline (:150-157). A drawer that reuses both adds no refusal, no stored status and no new write path.",
+      "DispositionEditor has no way to tell its host that a save landed. Success only updates internal refs (DispositionEditor.tsx:84-87), so a host list cannot repaint the row's pill without a refetch."
+    ],
+    "rollback": "Revert the two commits. The drawer and historyTriage.ts are new files. HistoryTable gains one 'Decide' button beside the unchanged slug link. DispositionEditor gains one OPTIONAL onSaved prop that ResultPanel does not pass, so the report page is byte-identical in behaviour. No route, schema or catalog key is removed.",
+    "gate": "none",
+    "runner_up": "Compare from History: select 2-4 rows that share a jd_slug and open them side by side in the existing results/compare view, refusing a mixed-JD selection with the reason.",
+    "technique": "attention-queue-ordering-and-rationale",
+    "body": "## Summary\nHistory is a list of decisions the recruiter still owes, and the only way to pay one is to leave the list. A triage drawer opens on any row: the analysis's decision brief and DispositionEditor on the left of the fold, j/k to walk the queue. When the 'undecided' filter is on, each decision drops the row and moves to the next one. That is five steps per candidate (open report, read, decide, go back, re-filter) collapsed into one keystroke loop.\n\n## Description\nA 'Decide' button on each History row (the slug stays a link to the full report) opens `HistoryTriageDrawer`. This is a `Modal` (size 3xl), not a new primitive, so it joins the shared focus-trap and Escape stack. The drawer loads `GET /api/analyses/[slug]` and renders the existing `DispositionEditor` keyed by slug. The editor is remounted per candidate, so its keepalive unmount flush (DispositionEditor.tsx:130-158) still saves a half-typed reason when the recruiter moves on. It also shows a compact head: candidate, score, family, review flags. The editor gains one optional `onSaved(disposition, note)` prop, called only after a 2xx. The host then calls the pure `applyDecision`, so the pill, the decision note and the filter counts repaint in place, and `afterDecision` picks the next candidate. The queue is the CURRENT filtered display order, and the header says 'N undecided of loaded' when the list was truncated.\n\nNothing about the decision itself changes. The server's ack gate, compare-and-swap and pipeline echo are reused verbatim, so every surface that shows a disposition stays correct. /history/[slug] and the palette preview (PreviewEntities.tsx:131 via resolve-entities.ts:129) read the server. The pipeline timeline receives the same echo event the report page produces. The palette preview cache (app/features/shell/palette/previewCache.ts) has the same staleness after a report-page decision today. It is out of scope and untouched because r08 workspace-shell-core rewrites that file. Viewer seats see the drawer read-only exactly as they see the report today: PATCH answers 403 for a seat without pipeline:write, rendered through useErrorMessage. The drawer does not import useCapabilities, which is also in an r08 write set.\n\n## Flow\n1. `historyTriage.ts` (triageQueue, stepTriage, afterDecision, applyDecision, triageKey, triageProgress, shouldApplySave) and its tests, written first.\n2. DispositionEditor: optional onSaved, called at the success branch after stored/lastSavedNote are updated.\n3. HistoryTriageDrawer: fetch by slug with a generation guard, loading and failed states with retry, DispositionEditor, and prev/next controls plus the j/k handler via triageKey.\n4. HistoryTab holds the triage cursor and applies decisions to `rows`. HistoryTable gets the Decide button.\n5. Catalog keys (decide, triageTitle, triageProgress, triageDone, triageLoadFailed, prev/next) in all 4 locales. Add a History triage paragraph to docs/features/candidates/README.md.\n\nPerf exposure: the drawer and historyTriage.ts (~6 KB) join the app/page.tsx graph through History's next/dynamic chain, and check-budget.mjs counts dynamic imports. That graph is at its ceiling, so the drawer is itself loaded via next/dynamic on first open; the builder measures and records the delta. If slot A lands first, this card rebases onto its HistoryTab.tsx; the two touch different state in that file.\n\n## Expected impact\nClearing an undecided backlog of 20 runs goes from 20 page round-trips with re-filtering to one drawer walk. Each decision is still taken with the engine's open flags in view and acknowledged, so speed does not buy a blind advance. This is a missing mode (bulk triage) on data the app already holds.\n\n## Evaluation\nClaim: every History row can be decided in place, the queue advances past decided rows, and a refused save changes nothing on screen.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate. node:test over historyTriage.test.ts, plus tsc, lint, i18n:check, design:check, test:perf and test:unit.\nResult: pending build\nGate: none",
+    "evidence": "git rev-parse HEAD = dbcdecf66d7c9ad25de4c4e3f2e426e5c75d8a4d.\n\ngrep -rn DispositionEditor app --include=*.tsx (excluding the component itself) gives exactly one mount:\n  app/_components/results/ResultPanel.tsx:261: <DispositionEditor\nHistoryTable.tsx:40: href={`/history/${row.slug}`}\nHistoryTable.tsx:88: {dispLabel(row.disposition)}\nHistoryTab.tsx:27-33: const [q, setQ] = useState(\"\"); ... const [disposition, setDisposition] = useState(\"\");\nHistoryTab.tsx:85: (disposition === \"undecided\" ? r.disposition == null : r.disposition === disposition)\napp/history/[slug]/page.tsx hrefs: 180 (/history/slug), 199 (/jds/..), 208 (/?tab=pipeline&q=..), 222 (/history/sibling). None of them points to ?tab=history.\n[slug]/route.ts:76 requireCapabilityCoded(\"pipeline:write\"); :126-129 DISPOSITION_ACK_REQUIRED 409; :134-141 setAnalysisDispositionGuarded(..., { disposition: found.row.disposition, payloadJson: found.row.payload_json }); :150-157 recordAnalysisDispositionEvents echo.\nDispositionEditor.tsx:84-87: stored.current = nextDisposition; lastSavedNote.current = nextNote; setSaved(true); (no host callback)\nModal.tsx:46: placement?: \"center\" | \"top\" (no side placement, so the drawer uses a centered 3xl Modal)\n\nNo prior card or open backlog title covers History triage. Titles checked: leftover-develop-2026-09-17 (analyze-workspace: truncated flag, ?tab=history), challenge-*/cards, and backlog-digest. The r08 write sets do not touch DispositionEditor, ResultPanel, analyze/history or api/analyses."
+  }
+]

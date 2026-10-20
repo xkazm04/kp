@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { findEntryByOptOutToken, recordAutomationEvent } from "@/app/_lib/db/pipeline";
+import { entryLocaleChosen } from "@/app/_lib/db/pipeline-locale";
 import { candidateOptOutHalt, recordCandidateOptOut } from "@/app/_lib/outreach-state-store";
+import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -21,8 +23,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //     session; it is matched against `optout_token` ALONE, so an erasure token
 //     presented here resolves to nothing and this token opens neither the held-data
 //     projection nor the erasure write;
-//   • the GET answers an explicit field ALLOWLIST — the role title, the company, and
-//     whether the stop is already recorded. Never the entry id, the candidate's name,
+//   • the GET answers an explicit field ALLOWLIST — the role title, the company,
+//     whether the stop is already recorded, and the letters' language (+ whether the
+//     candidate chose it, ./language/route.ts). Never the entry id, the candidate's name,
 //     their score, stage, archetype or reasoning;
 //   • ONE refusal (STOP_LINK_INVALID, 404) covers "no such token" and "no such entry"
 //     identically, so the door is not an existence oracle;
@@ -46,7 +49,8 @@ const STOP_WRITE_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 /** The candidate-safe projection. An explicit allowlist, built field by field from the
  *  entry — never a serialized store row (the house rule for every public token route,
  *  see publicInviteView in app/api/schedule/[token]/route.ts). */
-function stopView(entry: { id: string; jobTitle: string | null; jobId: string | null }) {
+function stopView(entry: { id: string; jobTitle: string | null; jobId: string | null; locale: string | null; workspaceId?: string | null }) {
+  const ws = entry.workspaceId ?? undefined;
   return {
     jobTitle: entry.jobTitle ?? null,
     company: entry.jobId ? getJob(entry.jobId)?.company ?? null : null,
@@ -56,6 +60,12 @@ function stopView(entry: { id: string; jobTitle: string | null; jobId: string | 
     // mail. A candidate who opted out from one role's letter and opens the link in an
     // older letter about another role sees the truth: it is already stopped.
     stopped: candidateOptOutHalt(entry.id) != null,
+    // The language our letters to this person go out in — resolved exactly as every
+    // dispatch resolves it (the entry's locale, else ITS team's default) — and whether
+    // the person already chose it (POST ./language). The page offers a correction when
+    // it differs from the language the reader is reading the page in.
+    letterLocale: resolveCommsLocale(entry.locale, ws),
+    localeChosen: entryLocaleChosen(entry.id, ws),
   };
 }
 

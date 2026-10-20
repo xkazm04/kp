@@ -9,7 +9,34 @@
 // "Absolvent", so the row match has to be made on the LABEL, not on the wire id.
 
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
+import type { PopulationRow } from "@/app/_lib/candidate-population";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes";
+
+/**
+ * The roster's rows, projected from the tab's ONE candidate population
+ * (useCandidatePopulation → GET /api/profile/candidates) instead of a read of its own.
+ *
+ * Only saved profiles are roster rows; an analysis-only candidate lives on the matrix.
+ * The Family column takes the population's resolved family (column, else payload),
+ * so the roster and the matrix give one answer for one person — the roster used to
+ * print the raw column and show an em-dash where the matrix said "engineering".
+ */
+export function rosterFromPopulation(rows: readonly PopulationRow[]): { profiles: RosterProfile[]; stale: StaleMap } {
+  const profiles: RosterProfile[] = [];
+  const stale: StaleMap = {};
+  for (const row of rows) {
+    if (row.source !== "profile" || !row.id) continue;
+    profiles.push({
+      id: row.id,
+      label: row.name,
+      archetype: row.archetype,
+      role_family: row.role,
+      completeness: row.completeness,
+    });
+    if (row.stale) stale[row.id] = row.stale;
+  }
+  return { profiles, stale };
+}
 
 /**
  * Drop a deleted profile's entry from the staleness map.
@@ -58,7 +85,7 @@ type StatusLabel = (status: RosterStatus) => string;
  * with "No profile matches these filters" and the count reads "0 of N", so the
  * candidate is simply invisible and the recruiter concludes they were never saved.
  * Same fold, and the same reasoning, as the analytics audit log's foldForSearch
- * (analyticsDecisionLogTypes.ts, UAT LUC-ANA-5) — kept local so this pure view model
+ * (app/_lib/analytics-decision-types.ts, UAT LUC-ANA-5) — kept local so this pure view model
  * doesn't reach into another feature module for three lines.
  */
 export function foldForSearch(value: string): string {

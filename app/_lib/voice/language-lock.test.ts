@@ -28,6 +28,7 @@ test("clearLang: unambiguous cs/en, null on bilingual or empty", () => {
   assert.equal(clearLang("Děkuji, můžeme prosím začít."), "cs");
   assert.equal(clearLang("Dobrý den, hello and welcome."), null); // both markers
   assert.equal(clearLang("Mmm."), null); // neither
+  assert.equal(clearLang("Project, role, experience."), null); // Czech tech loanwords
 });
 
 test("system turns are ignored and do not shift the drift index", () => {

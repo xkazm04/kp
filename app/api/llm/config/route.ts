@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db/llm";
+import { routingHealth } from "@/app/_lib/db/llm-routing-health";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { isHomeOrgReader, requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // Models admin API, headless-first (docs/architecture/llm-provider-layer.md): pin a
@@ -32,17 +34,24 @@ async function requireModelAdmin(): Promise<NextResponse | null> {
   return jsonRefusal("MODEL_ADMIN_FORBIDDEN", 403);
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({
     rows: listLlmConfig(),
     providers: LLM_PROVIDERS,
     useCases: LLM_USE_CASES,
+    // What SERVED each use case since its pin was set (db/llm-routing-health.ts):
+    // the routing table's health chip. It aggregates the deployment-wide,
+    // tenancy-exempt ledger the Activity and usage routes list row by row, so it
+    // rides THEIR gate, the home org (app/api/deployment-read-gate.test.ts). A member
+    // of another org keeps the pins and loses only the chip: `health` is OMITTED, and
+    // ModelsRoutingPanel already treats an absent row as "no health to show".
+    ...((await isHomeOrgReader()) ? { health: routingHealth(LLM_USE_CASES) } : {}),
   });
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
@@ -83,17 +92,24 @@ export async function PUT(request: NextRequest) {
     return jsonRefusal("MODEL_ROUTING_STALE", 409, { rows: listLlmConfig() });
   }
   return NextResponse.json({ ok: true, rows: listLlmConfig() });
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
   if (underPrivileged) return underPrivileged;
-  const body = (await request.json().catch(() => null)) as { useCase?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { useCase?: unknown; expectedUpdatedAt?: unknown } | null;
   if (!body || !isLlmUseCase(body.useCase)) {
     return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });
   }
-  const removed = deleteLlmConfig(body.useCase);
-  return NextResponse.json({ ok: true, removed, rows: listLlmConfig() });
-}
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string"
+      ? body.expectedUpdatedAt
+      : body.expectedUpdatedAt === null
+        ? null
+        : undefined;
+  const result = deleteLlmConfig(body.useCase, expectedUpdatedAt);
+  if (result.stale) return jsonRefusal("MODEL_ROUTING_STALE", 409, { rows: listLlmConfig() });
+  return NextResponse.json({ ok: true, removed: result.removed, rows: listLlmConfig() });
+});

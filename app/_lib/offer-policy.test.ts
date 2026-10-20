@@ -5,6 +5,7 @@ import {
   isOfferReminderDue,
   offerExpiresAtMs,
   offerHoursRemaining,
+  offerMinutesRemaining,
   resolveOfferTtlDays,
   resolveOfferTtlMs,
   OFFER_REMINDER_LEAD_MS,
@@ -69,6 +70,15 @@ test("offerHoursRemaining rounds up, floors at 0, null on no deadline", () => {
   assert.equal(offerHoursRemaining(new Date(NOW + 90 * 60_000).toISOString(), NOW), 2); // 1.5h -> 2
   assert.equal(offerHoursRemaining(new Date(NOW + 24 * 3600_000).toISOString(), NOW), 24);
   assert.equal(offerHoursRemaining(new Date(NOW - 5 * 3600_000).toISOString(), NOW), 0);
+});
+
+test("offerMinutesRemaining preserves the final hour without trusting the browser clock", () => {
+  assert.equal(offerMinutesRemaining(null, NOW), null);
+  assert.equal(offerMinutesRemaining("bad", NOW), null);
+  assert.equal(offerMinutesRemaining(new Date(NOW + 59 * 60_000 + 1).toISOString(), NOW), 60);
+  assert.equal(offerMinutesRemaining(new Date(NOW + 60_001).toISOString(), NOW), 2);
+  assert.equal(offerMinutesRemaining(new Date(NOW + 1).toISOString(), NOW), 1);
+  assert.equal(offerMinutesRemaining(new Date(NOW - 1).toISOString(), NOW), 0);
 });
 
 test("isOfferReminderDue: inside T-48h true, beyond false, inclusive at the lead, exclusive at now", () => {

@@ -66,6 +66,10 @@ The client seam is `app/_lib/use-error-message.ts`:
 | `ErrorMessageResolver` | The bound resolver's type — thread it into a plain helper as a parameter rather than turning that helper into a hook. |
 | `capabilityAwareReason(resolve, payload, fallback)` | The one refusal that carries **data**: a capability-gated 403 answers `FORBIDDEN_CAPABILITY` plus the `capability` it wanted. `errors.FORBIDDEN_CAPABILITY` stays placeholder-free (a dozen consumers resolve it with no values), so a client that HOLDS the capability renders `errors.forbiddenCapabilityNeeds` instead, which names the permission. Takes a bound resolver, so a helper module folds it identically to a component. |
 
+The org-wide and workspace capability gates emit this coded 403 directly, with
+the requested capability as data; unauthenticated 401s and cross-org 404s keep
+their existing envelopes.
+
 ```ts
 const errMsg = useErrorMessage();
 // …
@@ -290,7 +294,7 @@ SSR and the *browser's* after hydration: the same "bare `undefined`" bug the
 rule above names, with the extra sting that the two renders can disagree.
 `Intl.Collator` instances are cached per locale rather than built per
 comparison. Modules that sort outside this hook
-(`analyticsDecisionLogTypes.ts`, `profileRosterView.ts`) hold their own
+(`app/_lib/analytics-decision-types.ts`, `profileRosterView.ts`) hold their own
 collator and take the locale as a parameter for the same reason.
 
 Some places format for a reader who is **not** the UI user, and take the
@@ -309,7 +313,7 @@ surfaces let a user pick one; they do not all write the same authorities:
 | --- | --- | --- |
 | Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` | UI cookie (`setLocale`) |
 | Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` | UI cookie (`setLocale`) |
-| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); workspace default on `finish()` |
+| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); org language on `finish()` |
 | Organization settings | `app/features/settings/organization/OrganizationGeneralPanel.tsx` | both, through `setOrgLanguage` |
 
 The public switcher, the studio rail and the wizard strip write only the UI
@@ -322,8 +326,14 @@ org's language has to reach code that runs with no request cookie:
 
 1. the **`NEXT_LOCALE` cookie** — the UI and request-scoped generation (CV
    analysis, JD build, match reasoning);
-2. the **workspace default locale** (`setWorkspaceDefaultLocale`) — background
-   automation passes and candidate-comms fallback.
+2. the **org's language** (`organizations.default_locale`, written by
+   `setOrganizationLocale`) — background automation passes and candidate-comms
+   fallback. A team resolves it through `getWorkspaceDefaultLocale`: its explicit
+   override (`workspaces.locale_override`), else its org's row, so a team created
+   later follows the org instead of the column default. The Organization tab's
+   write clears every team override in the org; the legacy
+   `workspaces.default_locale` column is mirrored for older images. Details:
+   [`docs/features/organization/README.md`](../features/organization/README.md).
 
 Either way the caller follows with `router.refresh()` so the server re-renders
 under the new locale.
@@ -382,7 +392,7 @@ actually ships** — a picker that silently could not reach half the product.
 
 **In the first-run wizard, language lives in the left rail**
 (`SetupLanguageSwitch.tsx`), visible on every step, and it switches the UI
-immediately (`setLocale` + `router.refresh()`). The workspace default waits for
+immediately (`setLocale` + `router.refresh()`). The org language waits for
 `finish()` (`persistOnboardingSetup` → `setOrgLanguage`). Two earlier positions
 were both wrong: step 2 as a draft value that only reached the server at
 `finish()` (a reader who could not read English picked their language and then
@@ -535,9 +545,22 @@ that own them — the health readout into Models → Usage & cost
 (`workspaceAdmin.org.backup`), the ATS write-back webhook into Settings →
 Integrations (`integrations.webhook`) — and each moved WITH its catalog subtree,
 so the namespace still names the surface. What stays English is machine payload:
-`/api/ops`'s `degradedReasons` (canonical server diagnostics, no `code` to
-resolve), engine and table names, stage keys, task-kind slugs, and the env-var /
-PATH preflight tooltips.
+engine and table names, stage keys, task-kind slugs, and the env-var / PATH
+preflight tooltips.
+
+`/api/ops`'s `degradedReasons` used to be on that list ("canonical server
+diagnostics, no `code` to resolve"), and it was the one entry that was not machine
+payload: it was the sentence an operator read when the deployment was degraded,
+printed raw in every locale. Since challenge r03 (platform-auth-api/B) readiness
+is computed once in `app/_lib/readiness.ts` and each reason travels as a coded
+finding beside it (`findings`: code from the closed `READINESS_CODES`, severity,
+params, remedy). The strip resolves `models.system.findings.<CODE>.{title,fix}`
+in the reader's language through `readinessFindings.ts`. The English
+`degradedReasons` strings stay on the wire, byte-identical, as the fallback for a
+code the bundle's catalog does not carry and for monitors that already parse
+them. Readiness codes are not error codes: they never reach `errors.<CODE>`, and
+`readinessFindings.test.ts` pins the code set to the catalog key set in all four
+locales.
 
 ### A third case: a string written with no reader at all
 

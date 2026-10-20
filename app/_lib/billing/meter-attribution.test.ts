@@ -88,7 +88,7 @@ test("a simulation gates and debits the SAME tenant, for the SAME amount", () =>
   const simulate = src("../../api/interview/simulate/route.ts");
   const complete = src("../../api/interview/complete/route.ts");
   // Resolved once, used for both the gate and the session's tenant stamp.
-  assert.match(simulate, /const workspace = await currentWorkspace\(\)/);
+  assert.match(simulate, /withWorkspace\(async \(workspace: string/);
   // The RESERVATION must be the worst case /complete can debit for this session
   // (maxBillableInterviewMin = bookedMin*2), not the booked length — the same
   // under-reservation /create already closed. Reserving `durationMin` let a demo
@@ -101,7 +101,11 @@ test("a simulation gates and debits the SAME tenant, for the SAME amount", () =>
   assert.match(simulate, /createInterviewSession\(\{\s*\n\s*workspaceId: workspace,/);
   // The debit follows the session row, not a re-derivation that defaults when the
   // session has no entry (which every simulation is).
-  assert.match(complete, /recordMeterUsage\("interview_minutes", billedMin, new Date\(\), session\.workspaceId\)/);
+  // …and names its cause for the usage journal: the session it billed.
+  assert.match(
+    complete,
+    /recordMeterUsage\("interview_minutes", billedMin, new Date\(\), session\.workspaceId, \{ kind: "interview_session", ref: session\.id \}\)/
+  );
   assert.doesNotMatch(complete, /recordMeterUsage\("interview_minutes"[^)]*getEntryWorkspace/);
 });
 

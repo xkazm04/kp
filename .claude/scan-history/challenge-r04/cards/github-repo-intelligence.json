@@ -1,0 +1,117 @@
+[
+  {
+    "context": "github-repo-intelligence",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One GitHub transport: devcase repo reads say unreadable, never no-history",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/github/client.ts",
+      "app/_lib/repo-snapshot.ts",
+      "app/_lib/devcase-run.ts",
+      "app/_lib/devcase-authenticity.ts",
+      "app/_lib/repo-snapshot.test.ts",
+      "app/_lib/devcase-authenticity.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/github/client.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "githubRead(url) with a stubbed fetch answering 403 + `retry-after: 120` -> { ok:false, kind:'throttled', status:403, retryAfterSec:120 }; 404 -> { ok:false, kind:'not_found' }; a TimeoutError abort -> { ok:false, kind:'unreachable' }; 200 body '[]' -> { ok:true, data:[] }; KP_OFFLINE=1 -> { ok:false, kind:'offline' } and fetch is never called",
+      "githubRead on a 200 body larger than the 4 MB cap -> { ok:false, kind:'too_large' } (the same readTextWithLimit cap githubFetch applies), where repo-snapshot's old gh() buffered it through r.json()",
+      "fetchRepoSignals(ref) when the commits LIST answers 403 -> resolves to { ok:false, unreadable:'throttled', retryAfterSec } instead of null; when it answers 404 -> the existing null (a link that does not resolve is a fact about the link)",
+      "fetchRepoSignals(ref) when the list is read but the /contents call answers 5xx -> signals.topLevelReadable === false (topLevel stays []), and when 3 of 12 commit-detail calls fail -> signals.statsReadable === 'partial' with changedPaths built from the 9 that answered",
+      "runEvaluateSubmission for a repo-ref submission whose commits list is throttled -> rejects with a coded retryable error BEFORE runDevcaseCli is spawned, and saveSubmissionEvaluation is never called (today: commitCount 0 is saved and scored)",
+      "scoreAuthenticity({ commitCount:5, bursty:false, spanHours:40, decisionsLogPresent:null }) -> no noDecisionsLog penalty (score not reduced by 25) and reasons include { kind:'decisionsLogUnread' }; decisionsLogPresent:false keeps today's -25 noDecisionsLog",
+      "buildRepoSnapshot(ref) when languages+readme are throttled but commits+contents are read -> snapshot carries unreadable:['languages','readme'] rather than a silently empty languages map / readmeExcerpt",
+      "i18n:check passes with devcase.evalPanel.authenticityReason 'decisionsLogUnread' present in en/cs/de/fr"
+    ],
+    "premise": [
+      "app/_lib/repo-snapshot.ts:53-61 - gh() is a second GitHub transport: `if (!r.ok) return null` (line 56), `return (await r.json())` (line 57, no byte cap) and a bare catch -> null; no AbortSignal timeout and no isOffline() check",
+      "app/_lib/github/client.ts:158,167,176,191,218 - the analyzer's githubFetch already has a 20s AbortSignal.timeout, a 4 MB readTextWithLimit cap, a KP_OFFLINE coded refusal, and GithubHttpError with status; client.ts:144 isCoverageLossError separates 404 from throttle/5xx/network",
+      "app/_lib/repo-snapshot.ts:2 and :5 - the file says it 'Mirrors the fetch layer used by /api/github-analysis' and is 'Deliberately self-contained (no sibling imports) so its colocated node --test keeps resolving'; that rationale is stale: app/_lib/github/heuristics.ts:1 imports '@/app/_lib/repo-activity' and heuristics.test.ts imports ./heuristics.ts under the same test:unit runner",
+      "app/_lib/repo-snapshot.ts:181 - fetchRepoSignals returns null when the commits list fails, for ANY reason (403/5xx/timeout/404 alike)",
+      "app/_lib/devcase-run.ts:635,645-646 - signals = await fetchRepoSignals(sub.repoRef); commits = signals?.commits ?? []; repo = signals ? ... : null - a throttle becomes zero commits",
+      "app/_lib/devcase-run.ts:716-721 - processTrace.commitCount = commits.length and decisionsLogPresent reads (signals?.topLevel ?? []) - an unread tree becomes 'no DECISIONS log'",
+      "app/_lib/devcase-authenticity.ts:114-116 and :139-140 - commitCount 0 costs -15 (noCommitHistory) and !decisionsLogPresent costs -25: a GitHub 403 on the candidate's repo lands them at 60 = 'mixed' on penalties nobody observed",
+      "app/_lib/repo-snapshot.ts:84 - buildRepoSnapshot returns null only when all four reads fail; any partial throttle is silently an empty languages map / empty readme fed to analyze-need",
+      "app/_lib/repo-snapshot.ts:32 vs app/_lib/github/client.ts:184 - the two transports disagree on credentials (GITHUB_TOKEN || GH_TOKEN vs GITHUB_TOKEN only), so a deployment with only GH_TOKEN set runs the recruiter deep-dive anonymously at 60/h while devcase reads authenticate"
+    ],
+    "rollback": "The series is additive then switching: commit 1 adds githubRead to client.ts (githubFetch re-expressed over it, behaviour-identical, pinned by client.test.ts); commit 2 moves repo-snapshot.ts onto it and adds the unreadable/readable fields; commit 3 teaches devcase-run + devcase-authenticity the new states + catalog key. Reverting 3 then 2 restores the silent-null path; no schema, table or persisted shape changes (the new authenticity reason kind is guarded by isAuthenticityReasonKind for already-persisted bundles).",
+    "gate": "architecture",
+    "runner_up": "Adopt leftover 'Persist the GitHub analysis cache beyond the in-process map' (cache.ts:12 is a 20-entry per-process Map, lost on every restart, so each restart re-spends ~31 REST calls + a Gemini call per candidate).",
+    "technique": "absent-signal-versus-unavailable-source",
+    "body": "## Summary\nkp talks to api.github.com through two transports. The recruiter deep-dive's `githubFetch` (app/_lib/github/client.ts) is hardened: timeout, byte cap, offline refusal, and a status-carrying error that separates 'not there' from 'could not read'. The dev-case path's `gh()` (app/_lib/repo-snapshot.ts:53) is a second, older copy that turns every failure into `null`. Downstream, a GitHub 403 on a candidate's submission repo becomes 'no commit history, no DECISIONS log' and costs the candidate 40 authenticity points. This card collapses the two into one typed transport. Each read reports read / not_found / throttled / unreachable / too_large / offline, and the dev-case evaluation stops scoring a person on data it never received.\n\n## Description\n`client.ts` gains `githubRead<T>(url)`, which returns a discriminated outcome instead of throwing. `githubFetch` becomes a thin throw-on-failure wrapper over it, so the analyzer keeps its behaviour. `repo-snapshot.ts` drops its private `gh()`/`ghHeaders()` and reads through `githubRead`. That gives it the analyzer's timeout, cap, offline guard and credential rule for free. The outcome type then carries through:\n- `fetchRepoSignals` distinguishes a list that is not found (null, as today) from one that could not be read (`{ ok:false, unreadable }`). It also reports `topLevelReadable` and `statsReadable` for the tree and commit-detail fan-out.\n- `buildRepoSnapshot` names the parts it could not read.\n- `runEvaluateSubmission` refuses to spend the Python/LLM evaluation on an unreadable commit list. It fails with a retryable coded error instead of saving a zero-commit evaluation. An unread tree becomes `decisionsLogPresent: null`.\n- `scoreAuthenticity` treats `null` as 'not observed': no -25, and a `decisionsLogUnread` reason worded in all four catalogs.\n\n## Flow\n1. submission repoRef -> fetchRepoSignals -> githubRead(commits list)\n2. read -> as today. not_found -> null, as today. throttled/unreachable/offline/too_large -> the evaluation task fails with a coded retryable reason and nothing is saved.\n3. contents read fails -> topLevelReadable false -> processTrace.decisionsLogPresent = null -> authenticity skips the penalty and adds decisionsLogUnread.\n4. Commit-detail fan-out partially fails -> statsReadable 'partial' -> changedPaths come from the answered subset, and the partial state is recorded on the signals.\n5. The need-analysis snapshots carry `unreadable[]`, so the reflect step is not handed an empty languages map as if it were the repo's truth.\n\n## Expected impact\nThis closes the one path where kp's own infrastructure condition (GitHub's anonymous 60/h limit) is written onto a candidate as an adverse authenticity finding. The finding reaches the auto-promote gate (SUSPECT_THRESHOLD) and the interviewer's badge. It also removes a duplicated transport that has already drifted three ways from the hardened one: no timeout, no byte cap, and a different token env. Every later GitHub consumer then inherits one set of guarantees instead of choosing between two.\n\n## Evaluation\nClaim: a GitHub read failure on the dev-case path is reported as 'could not read' at every layer and never scored as candidate behaviour.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: architecture gate: node:test cases over client.ts (stubbed fetch), repo-snapshot.ts, devcase-authenticity.ts and runEvaluateSubmission with the spawn seam stubbed, plus i18n:check.\nResult: pending build.\nGate: architecture",
+    "evidence": "repo-snapshot.ts:53-61\n  async function gh<T>(url: string): Promise<T | null> {\n    try {\n      const r = await fetch(url, { headers: ghHeaders(), next: { revalidate: 0 } });\n      if (!r.ok) return null;\n      return (await r.json()) as T;\n    } catch { return null; }\n  }\nrepo-snapshot.ts:181  if (!list) return null;\nrepo-snapshot.ts:32   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;\nclient.ts:184         if (process.env.GITHUB_TOKEN) {\nclient.ts:158 GITHUB_FETCH_TIMEOUT_MS = 20_000; :167 GITHUB_RESPONSE_MAX_BYTES = 4 MB; :176 if (isOffline()); :144 isCoverageLossError\ndevcase-run.ts:635   signals = await fetchRepoSignals(sub.repoRef);\ndevcase-run.ts:645   const commits = signals?.commits ?? [];\ndevcase-run.ts:719-721 decisionsLogPresent: observed ? ... : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name))\ndevcase-authenticity.ts:114-116 commitCount === 0 && !observed -> score -= 15, noCommitHistory\ndevcase-authenticity.ts:139-140 !decisionsLogPresent -> score -= 25\n=> throttled repo: 100 - 15 - 25 = 60 -> band 'mixed' (MIXED_THRESHOLD 70), with no observed evidence.\nConsumers of the second transport: devcase-run.ts:102 and devcase-run-design.ts:74 (buildRepoSnapshot), devcase-run.ts:635 (fetchRepoSignals).\nscripts/docs/feature-doc-map.json maps app/_lib/devcase-*.ts -> docs/features/dev-case/README.md; repo-snapshot.ts itself is mapped by no glob (worth adding under the dev-case entry in the same change)."
+  },
+  {
+    "context": "github-repo-intelligence",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "One skill ledger: each JD skill corroborated by a named repo, or not reached",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/github/skills.ts",
+      "app/_lib/github/skills.test.ts",
+      "app/_lib/schemas.ts",
+      "app/_components/GithubAnalysisPanel.tsx",
+      "e2e/fixtures/github-analysis.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/_lib/github/skill-ledger.ts",
+      "app/_lib/github/skill-ledger.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "buildJobFitSignals(JD 'React and Go required', repos [{name:'ui-kit', topics:['react']}, {name:'svc', language:'Go'}], ...) -> skillEvidence { react:['ui-kit'], go:['svc'] }: each matched skill names the repo(s) whose labels produced it",
+      "canonicalSkill('TypeScript') -> 'typescript', canonicalSkill('Next.js') -> 'react', canonicalSkill('Kubernetes (Helm)') -> 'kubernetes', canonicalSkill('event sourcing') -> null (free text outside the taxonomy stays free text, never forced into a bucket)",
+      "buildSkillLedger(jobFit with potentialGaps ['docker'], codeReview.confirmedSkills ['Docker']) -> one row { skill:'docker', verdict:'corroborated', sources:['review'] }, NOT a gap row plus an evidenced row for the same skill (today both lists render)",
+      "buildSkillLedger(jobFit with matchingSkills ['react'] + skillEvidence, codeReview.unverifiedClaims ['React']) -> one row { skill:'react', verdict:'corroborated', sources:['labels'], repos:['ui-kit'], reviewDisagrees:true }",
+      "buildSkillLedger when the limitations carry EVIDENCE_INCOMPLETE and a JD skill has no evidence -> verdict 'couldNotDetermine', never 'notReached'",
+      "buildSkillLedger with no JD (jobDescriptionProvided false) -> no JD-skill rows at all; codeReview.hiddenStrengths still surface as 'unclaimed' rows",
+      "buildSkillLedger(jobFit with no skillEvidence field, i.e. a payload cached/stored before this change) -> rows still build from matchingSkills/potentialGaps with repos [] (githubAnalysisSchema accepts the absent field as nullish)",
+      "i18n:check passes with the ledger verdict keys (corroborated / notReached / couldNotDetermine / unclaimed / reviewDisagrees) in en/cs/de/fr"
+    ],
+    "premise": [
+      "app/_components/GithubAnalysisPanel.tsx:237-238 and :370-372 - the recruiter reads FIVE independent skill lists: jobSkillMatches, potentialGaps (heuristic) and evidencedSkills, unverifiedClaims (bg-coral/10), hiddenStrengths (Gemini review). Nothing reconciles them, so one skill can sit in 'Potential gaps' and 'Evidenced' at once",
+      "app/_lib/github/skills.ts:100-104 - the haystack is ONE flattened token set across every repo, and :114 pushes only the skill name: the analysis knows which repo carried the evidence and throws that away, so a 'match' is an unattributed claim",
+      "app/_lib/github/code-review.ts:238 and :242 - the review is asked for free-text confirmed_skills / unverified_claims / hidden_strengths, with no vocabulary shared with the 28-bucket SKILL_ALIASES taxonomy (skills.ts:19-57), so 'Docker' vs 'docker' vs 'containers' cannot be joined today",
+      "app/_lib/github/skills.ts:126 - on a partial run gaps are dropped to []: the panel then shows 'no gaps' plus a caveat line instead of saying which JD skills could not be determined",
+      "app/_lib/schemas.ts:291-303 - jobFitSignals carries matchingSkills / potentialGaps / trackedSkillCount only; trackedSkillCount is already `.nullish()` 'for backward-compat with any response cached before this field existed', which is the precedent for a nullish skillEvidence",
+      "registry recruiting/public-work-evidence-bounding, technique corroborate-a-claim-never-replace-it: 'A public-work read outputs three buckets and never one' (corroborated / not reached, which is neutral / unclaimed strength), and a column headed 'unverified' gets read as 'suspicious'. The panel's coral 'Unverified claims' list is that exact failure"
+    ],
+    "rollback": "Additive: skillEvidence is a new nullish schema field, skill-ledger.ts is a new pure module, and the panel swaps two grid rows plus three review lists for one ledger block. Reverting the panel commit restores the five lists, and the extra payload field is inert (stored analyses with or without it both parse). No table, route or persisted contract changes shape.",
+    "gate": "contract",
+    "runner_up": "Retry only the degraded half: when isTransientlyDegraded (analysis.ts:36) is true, re-fetch just the throttled language maps/bundles and keep the already-paid Gemini review, instead of the panel's all-or-nothing Retry re-spending ~31 calls + one model call.",
+    "technique": "corroborate-a-claim-never-replace-it",
+    "body": "## Summary\nThe GitHub deep-dive tells a recruiter about the candidate's skills in five separate lists from two independent engines: label matching and the Gemini review. The recruiter has to reconcile them in their head. None of the lists says which repository a match came from, and one of them ('Unverified claims', in coral) reads as an accusation. This card folds all five into one ledger with one row per skill. A row is corroborated (naming the repo that shows it and which engine found it), not reached (neutral), could not determine (the run was throttled), or an unclaimed strength. The two engines are reconciled in code rather than by the reader.\n\n## Description\n- `skills.ts` keeps the per-repo attribution it currently flattens away. It emits `skillEvidence: Record<skill, repoName[]>` and exports `canonicalSkill(text)`, which maps free text onto the existing disjoint SKILL_ALIASES buckets and returns null outside the taxonomy.\n- A new pure `skill-ledger.ts` takes `buildSkillLedger(jobFitSignals, codeReview, limitations)` and returns ordered rows `{ skill, verdict, sources: ('labels'|'review')[], repos[], reviewDisagrees }`. It canonicalizes the review's free-text lists, merges them with the label verdicts, and uses the EVIDENCE_INCOMPLETE limitation to separate could-not-determine from not-reached.\n- `GithubAnalysisPanel.tsx` renders the ledger in place of the match/gap grid and the three review lists. The review summary, scope and badge stay.\n- The schema field is nullish, so every stored or cached analysis still renders.\n\n## Flow\nJD + repos -> buildJobFitSignals (matches + per-repo evidence) -> runCodeReview (free-text buckets) -> buildSkillLedger joins the two on canonicalSkill -> panel shows one table. Each JD skill appears once, with a verdict chip, the repo names that corroborate it (linked through topRepositories when present), and a quiet 'the review disagrees' marker when the engines differ. Hidden strengths close the table as 'unclaimed strengths'. On a throttled run, the rows that would have been gaps read 'could not determine'.\n\n## Expected impact\nThe recruiter's actual question ('does this person have what the JD asks, and where is it?') gets answered in one read instead of a five-list cross-reference. Every positive claim now points at a repository the recruiter can open, and a label match that the review contradicts is visible instead of silently co-existing. The neutral 'not reached' wording stops the panel implying a deficit from a source that was never asked to prove it. The registry's three-bucket rule then holds by construction.\n\n## Evaluation\nClaim: every JD skill appears exactly once with a reconciled verdict and its evidencing repos, and a throttled run never renders a skill as absent.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: contract gate: node:test over skills.ts and the new skill-ledger.ts (pure), a schema parse of a legacy payload without skillEvidence, and i18n:check. The panel is a thin render of the ledger rows.\nResult: pending build.\nGate: contract",
+    "evidence": "GithubAnalysisPanel.tsx:237  <TitledList title={t(\"jobSkillMatches\")} items={analysis.jobFitSignals.matchingSkills} ... />\nGithubAnalysisPanel.tsx:238  <TitledList title={t(\"potentialGaps\")} items={analysis.jobFitSignals.potentialGaps} ... />\nGithubAnalysisPanel.tsx:370  <TitledList title={t(\"evidencedSkills\")} items={review.confirmedSkills} accent=\"bg-moss/15\" ... />\nGithubAnalysisPanel.tsx:371  <TitledList title={t(\"unverifiedClaims\")} items={review.unverifiedClaims} accent=\"bg-coral/10\" ... />\nGithubAnalysisPanel.tsx:372  hiddenStrengths list\nskills.ts:100-104  const haystackTokens = tokenizeForSkills([...repos.flatMap((repo) => [repo.name, repo.description ?? \"\", repo.language ?? \"\", ...(repo.topics ?? [])]), ...languages.map(...)].join(\" \"));\nskills.ts:114      matchingSkills.push(skill);   // name only, repo discarded\nskills.ts:126      const reliableGaps = languageCoverageComplete ? potentialGaps : [];\ncode-review.ts:242 {\"summary\": ..., \"confirmed_skills\": [...], \"unverified_claims\": [...], \"hidden_strengths\": [...]}  // free text, no taxonomy\nschemas.ts:291-303 jobFitSignals { jobDescriptionProvided, matchingSkills, potentialGaps, trackedSkillCount: nullish, complexityAssessment }\nmessages/en.json results.github keys include: jobSkillMatches potentialGaps evidencedSkills unverifiedClaims hiddenStrengths gapsEmptyIncomplete trackedIncomplete\nNot re-proposing: prior decks hold no github-repo-intelligence card; challenge-r02 analyze-engine/A moved the deep-dive's EXECUTION into the analyze task, while this card is about the panel's evidence model. Leftover-develop items for this context (forks, language mix beyond 20, GitLab targets, persistent cache) are different titles."
+  }
+]

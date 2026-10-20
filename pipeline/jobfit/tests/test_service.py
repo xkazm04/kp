@@ -30,6 +30,7 @@ from pathlib import Path
 from unittest import mock
 
 from pipeline.jobfit import service
+from pipeline.jobfit.i18n import LANG_NAMES
 
 
 class _FakeResult:
@@ -148,6 +149,14 @@ class ForwardingTest(_ServiceHarness):
         self.assertIs(self.call["use_grounding"], True)
         self.assertIs(self.call["blind"], True)
         self.assertEqual(self.call["lang"], "cs")
+
+    def test_every_shipped_locale_is_forwarded_and_documented(self) -> None:
+        for lang in LANG_NAMES:
+            with self.subTest(lang=lang):
+                self.calls.clear()
+                service.analyze(self.cv, lang=lang)
+                self.assertEqual(self.call["lang"], lang)
+                self.assertIn(lang, service.analyze.__doc__ or "")
 
     def test_the_progress_callback_is_forwarded_by_identity(self) -> None:
         seen: list[tuple[str, str]] = []

@@ -16,6 +16,8 @@ import io
 import unittest
 
 from pipeline.jobfit.devcase.submission_eval import (
+    AI_PENALTY_TOLERANCE,
+    AI_REWARD_TOLERANCE,
     MIN_DISCRIMINATION_MARGIN,
     MIN_GROUP_N,
     MIN_VERIFY_MARGIN,
@@ -91,6 +93,20 @@ class TestSubmissionEval(unittest.TestCase):
         self.assertGreaterEqual(d["margin"], MIN_DISCRIMINATION_MARGIN)
         self.assertGreaterEqual(d["gamer_margin"], MIN_DISCRIMINATION_MARGIN)
         self.assertTrue(d["gamer_below_strong"])
+
+    def test_discrimination_cannot_pass_without_verifier_and_delegator_personas(self):
+        # Aggregate strong/weak/gamer margins can look healthy even when the
+        # specific careful-verifier control was never run.
+        strong = [_row(f"s{i}", verifies=True, expected="strong", behavior="tdd", judgment=95)
+                  for i in range(MIN_GROUP_N)]
+        weak = [_row(f"w{i}", verifies=False, expected="weak", behavior="big_bang_no_verify", judgment=10)
+                for i in range(MIN_GROUP_N)]
+        delegators = [_row(f"g{i}", verifies=False, usesAI=True, expected="weak",
+                           behavior="ai_no_verify", judgment=10) for i in range(MIN_GROUP_N)]
+        d = discrimination(strong + weak + delegators)
+        self.assertTrue(d["strong_beats_weak"])
+        self.assertTrue(d["gamer_below_strong"])
+        self.assertNotEqual(d["status"], "pass")
 
     def test_small_sample_is_inconclusive_not_pass(self):
         # at --count 12 the ai-verifier and gamer groups fall below MIN_GROUP_N but are
@@ -245,6 +261,48 @@ class TestAiPenaltyControlGroup(unittest.TestCase):
         self.assertEqual(f["sample"]["non_ai_verifiers"], MIN_GROUP_N)
 
 
+class TestAiNotRewarded(unittest.TestCase):
+    """C1 — the AI check is TWO-sided. Non-inferiority alone passed an evaluator that paid
+    a bonus for verifying through the assistant (the observed landscape read +20)."""
+
+    def _rows(self, ai_judgment, peer_judgment=80):
+        rows = [_row(f"p{i}", verifies=True, usesAI=False, judgment=peer_judgment) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"a{i}", verifies=True, usesAI=True, judgment=ai_judgment) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        return rows
+
+    def test_an_ai_bonus_fails_the_gate(self):
+        f = fairness(self._rows(100))
+        self.assertTrue(f["ai_not_penalised"], f)  # the one-sided check alone would pass this
+        self.assertFalse(f["ai_not_rewarded"], f)
+        self.assertEqual(f["margins"]["ai_gap"], 20.0)
+        self.assertEqual(f["status"], "fail")
+
+    def test_a_gap_inside_the_band_passes_both_sides(self):
+        for ai in (80 - AI_PENALTY_TOLERANCE, 80, 80 + AI_REWARD_TOLERANCE):
+            f = fairness(self._rows(ai))
+            self.assertTrue(f["ai_not_penalised"], (ai, f))
+            self.assertTrue(f["ai_not_rewarded"], (ai, f))
+            self.assertEqual(f["status"], "pass", (ai, f))
+
+    def test_thin_and_empty_cohorts_withhold_the_verdict(self):
+        thin = [_row("p0", verifies=True, judgment=80), _row("a0", verifies=True, usesAI=True, judgment=100)]
+        thin += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        self.assertIsNone(fairness(thin)["ai_not_rewarded"])
+        self.assertEqual(fairness(thin)["status"], "inconclusive")
+        no_ai = [_row(f"p{i}", verifies=True, judgment=80) for i in range(MIN_GROUP_N)]
+        no_ai += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        f = fairness(no_ai)
+        self.assertIsNone(f["ai_not_rewarded"])
+        self.assertEqual(f["status"], "not_evaluable")
+
+    def test_the_report_names_the_check(self):
+        sig = signals(self._rows(100))
+        from pipeline.jobfit.devcase.submission_eval import _report_md
+
+        self.assertIn("AI use not rewarded", _report_md([], sig, None))
+
+
 class TestTinyCohortAiComparison(unittest.TestCase):
     def test_tiny_count_with_both_ai_cohorts_is_inconclusive(self):
         # --count 3 gives 1 ai-verifier vs 2 non-AI verifiers: data on BOTH sides but
@@ -328,5 +386,45 @@ class TestStrictExitCodes(unittest.TestCase):
         self.assertEqual(code, 1, out)
 
 
+class TestOverallIsTheCaseScore(unittest.TestCase):
+    """challenge-r05 devcase-core/B — the discrimination margin is measured on the SAME number
+    the reviewer sees: evaluation.overallScore (the rubric-weighted composite)."""
+
+    def test_row_overall_reads_the_stamped_case_score(self):
+        r = Row(id="r", label="r", planted={}, evaluation={
+            "dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40},
+            "overallScore": 65,
+        })
+        self.assertEqual(r.overall, 65.0)  # the unweighted mean would read 60
+
+    def test_every_gated_row_carries_the_case_score(self):
+        for path in ("commit", "observed"):
+            for r in run(generate_submissions(12, path=path), provider=None):
+                self.assertIsInstance(r.evaluation.get("overallScore"), int, (path, r.id))
+                self.assertEqual(r.overall, float(r.evaluation["overallScore"]))
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInstrumentStamp:
+    """synthetic-candidate-behaviour-landscape: the report is bound to what it judged and
+    labelled synthetic, so a stored run cannot certify a changed instrument or real cohorts."""
+
+    def test_stamp_binds_versions_and_labels_synthetic(self):
+        from pipeline.jobfit.devcase import submission_eval as se
+        from pipeline.jobfit.devcase.submission_scenarios import generate_submissions
+
+        rows = se.run(generate_submissions(6, "it"), None, workers=1)
+        stamp = se.instrument_stamp(rows, llm=False)
+        assert stamp["synthetic"] is True and stamp["mode"] == "deterministic"
+        assert set(stamp["promptVersions"]) == {"caseEval", "transfer", "followups", "commitReflection", "toolingSignal"}
+        assert all(stamp["promptVersions"].values())
+        # a different cast is a different fingerprint (cohort change != instrument change)
+        other = se.instrument_stamp(rows[:-1], llm=False)
+        assert other["castFingerprint"] != stamp["castFingerprint"]
+        md = se._report_md(rows, se.signals(rows), None, None, stamp)
+        assert "SYNTHETIC cast" in md and stamp["castFingerprint"] in md
+        # unstamped callers (existing API) still render
+        assert "SYNTHETIC cast" not in se._report_md(rows, se.signals(rows), None)

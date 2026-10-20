@@ -1,7 +1,7 @@
 // The "observation + real-click engine" half of SimulationProvider, split out so
 // the provider stays under the 200-line file cap. Verbatim logic — board
 // observation (getBoard/getEntries/entriesFor/topScreened), DOM polling (waitDom/waitEntry),
-// the real-click dispatcher (clickEl), pipeline advances (advance/advanceTo), and
+// the real-click dispatcher (clickEl) and the effect-verified move over it (move), pipeline advances (advance/advanceTo), and
 // the group-evaluation runner (runGroupEval). Takes the provider's shared
 // ctrl ref + patch/beat/log so this stays wired to the SAME run-control state.
 import { useCallback, type MutableRefObject } from "react";
@@ -13,6 +13,7 @@ import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
 import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { JSON_HEADERS, MAX_STAGE_ADVANCES, SimStop, sleep, type SimState } from "./simulationProviderTypes";
+import { SIM_MOVES, moveOutcome, moveSelector, simSubject, type SimMoveId, type SimMoveOutcome } from "./simMove";
 
 export function useSimulationEngine({
   ctrl,
@@ -160,6 +161,97 @@ export function useSimulationEngine({
     [beat, patch, waitDom]
   );
 
+  // Poll an async board predicate until it holds or the wait runs out. Unlike
+  // waitEntry it answers false instead of throwing: a move decides what a missing
+  // effect means (fall back, or halt), not the poll.
+  const pollEffect = useCallback(
+    async (effect: () => Promise<boolean>, timeout: number): Promise<boolean> => {
+      const deadline = Date.now() + timeout;
+      while (Date.now() < deadline) {
+        if (ctrl.current.stop) throw new SimStop();
+        if (await effect()) return true;
+        await sleep(400);
+      }
+      return false;
+    },
+    [ctrl]
+  );
+
+  // One scripted MOVE (simMove.ts): click every declared anchor in order, then prove
+  // the click by its EFFECT on the board. A control that never appeared, or a click
+  // that changed nothing, falls back to the checked API call that does the same work
+  // (only ever on a (SIM) subject), and the board is read again. The log names the
+  // route and the reason; a refused or effectless fallback halts the run with the
+  // server's code or the effect it waited for, never a narrated outcome.
+  const move = useCallback(
+    async (
+      id: SimMoveId,
+      o: {
+        /** The `data-sim-entry` id the entry-scoped anchors live under. */
+        subject: string;
+        /** Spotlight copy for the clicks. */
+        title: string;
+        caption: string;
+        /** The candidate page's document, for a frame-scoped anchor. */
+        doc?: Document | null;
+        /** The board change that proves the move did its work. */
+        effect: () => Promise<boolean>;
+        effectMs?: number;
+        /** The job title of the fallback's subject; the (SIM) gate reads it. */
+        subjectTitle: () => Promise<string | null | undefined>;
+        /** The API call the clicks would have made. */
+        api: () => Promise<Response>;
+        /** The localized "the control was not on screen" line for this move. */
+        notVisible: string;
+        /** Names the awaited effect in a halt. */
+        label: string;
+      }
+    ): Promise<SimMoveOutcome> => {
+      const effectMs = o.effectMs ?? 9000;
+      let clicked = true;
+      for (const c of SIM_MOVES[id].clicks) {
+        const doc = c.scope === "frame" ? o.doc : undefined;
+        if (c.scope === "frame" && !doc) {
+          clicked = false;
+          break;
+        }
+        if (!(await clickEl(moveSelector(c, o.subject), { title: o.title, caption: o.caption, doc: doc ?? undefined }))) {
+          clicked = false;
+          break;
+        }
+      }
+      const effectAfterClick = clicked ? await pollEffect(o.effect, effectMs) : false;
+      if (clicked && effectAfterClick) return moveOutcome({ clicked, effectAfterClick });
+
+      // Say which route ran the step, and why: a fallback narrated as a click is the
+      // green lie this whole primitive exists to end.
+      if (clicked) log(tSim("log.moveNoEffect"));
+      else {
+        log(o.notVisible);
+        log(tSim("log.clickedViaApi"));
+      }
+      const sim = simSubject(await o.subjectTitle());
+      let payload: ApiErrorPayload = {};
+      let apiOk = false;
+      let effectAfterApi = false;
+      if (sim) {
+        const r = await o.api();
+        payload = (await r.json().catch(() => ({}))) as ApiErrorPayload;
+        apiOk = r.ok;
+        if (apiOk) {
+          notifyDataChanged();
+          effectAfterApi = await pollEffect(o.effect, effectMs);
+        }
+      }
+      const out = moveOutcome({ clicked, effectAfterClick, simSubject: sim, apiOk, apiCode: payload.code ?? null, effectAfterApi });
+      if (out.halt === "moveNoEffect") throw new Error(tSim("error.moveNoEffect", { label: o.label }));
+      if (out.halt === "SIM_ENTRY_NOT_FOUND") throw new Error(errMsg({ code: out.halt }, t("errorRun")));
+      if (out.halt) throw new Error(errMsg(payload, t("errorRun")));
+      return out;
+    },
+    [clickEl, errMsg, log, pollEffect, t, tSim]
+  );
+
   const advance = useCallback(async (entryId: string): Promise<string> => {
     // actor:"sim" — truthful audit attribution (gsim-l2-103): these accepts are
     // engine-driven, so the pipeline event records auto_advanced and the sealed
@@ -284,5 +376,5 @@ export function useSimulationEngine({
     [ctrl, entriesFor, locale, log, okJson, patch, tSim]
   );
 
-  return { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };
+  return { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, move, advance, advanceTo, runGroupEval };
 }

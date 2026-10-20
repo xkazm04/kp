@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import { getJob } from "@/app/_lib/db/jobs";
-import { applyKoSteps } from "@/app/_lib/apply";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { findApplicationByApplicant } from "@/app/_lib/db/pipeline";
+import { recoverApplicationLinks, recoveryMessageKey } from "@/app/_lib/apply-link-recovery";
+import { applyKoSteps, koMustHaveNames } from "@/app/_lib/apply";
 import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
@@ -10,29 +12,17 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { capAttribution } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+import { safeStatusToken } from "@/app/_lib/application-filing";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
-// Mint (or reuse) the entry's status-link token, best-effort — the application
-// already succeeded, so a status-link failure must never turn it into an error
-// (same contract as the conversational route's safeStatusLink).
-function safeStatusToken(entryId: string): string | null {
-  try {
-    return getOrCreateStatusLink(entryId);
-  } catch (err) {
-    console.error(`[apply:quick] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
-    return null;
-  }
-}
-
-
 // E2 (Erika gap) — the quick-apply LEAD form: the ≤30-second, ~3-field intake for
 // ad/social traffic. Captures name + contact email + this job's own knockout
-// questions; the shared lead-intake core (lead-intake.ts) files a passing lead at
-// Accepted as an enrichable stub and fires the instant acknowledgement with the
+// questions; the shared lead-intake core (lead-intake.ts, which files through the
+// application-filing core with proof "channel") files a passing lead at the board's
+// entry column as an enrichable stub and fires the instant acknowledgement with the
 // full-apply link. This route keeps what is surface-specific: input validation,
 // the STRICT KO verdict (our own form asks every gate, so an ABSENT key is a
 // fail — a scripted POST can't skip eligibility by omitting keys), and the
@@ -75,7 +65,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // A closed/draft role refuses the submission too (same W8-1 gate as the
     // conversational POST — the page gate alone is the documented anti-pattern).
-    if (!isJobOpenForApplications(getJobStatus(id))) {
+    if (!isJobOpenForApplications(getJobStatus(id, getJobWorkspace(id)))) {
       // Coded, exactly like the conversational door's twin (see the note there):
       // the client renders errors.<CODE>, so a server-localized sentence with no
       // code was invisible to it.
@@ -133,13 +123,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const base = publicBaseUrl(new URL(request.url).origin);
     const enrichLink = `${base}/apply/${job.id}?lang=${applicantLocale}`;
 
+    // Link recovery needs to know whether this address was ALREADY on file before
+    // the lead core runs: a contactless entry matched by name is backfilled by
+    // intakeLead, which then sends its own newly-reachable acknowledgement (links
+    // included), and a second "your links" mail beside it would be noise. An
+    // email-only lookup (empty name) matches exactly the rows holding this address.
+    const addressOnFile = findApplicationByApplicant(job.id, "", email, getJobWorkspace(job.id));
+
     const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
+    const failedKoIds = failedKoStepIds(expectedKoIds, answers);
     const outcome = await intakeLead({
       job,
       name,
       email,
       locale: applicantLocale,
       sourceChannel: "quick-apply",
+      // The applicant filled this form themselves.
+      actor: "human:candidate",
       // The quick door bypasses extractLead, so it caps the attribution itself:
       // the same helper, the same marker, one group-by key length everywhere.
       sourceCampaign: campaign ? capAttribution(campaign) : null,
@@ -148,16 +148,29 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
       // watching an SMTP round-trip: the ack dispatch runs after this response.
       defer: (task) => afterResponse("quick-apply-ack", task),
+      // PROOF for a repeat: NONE, always. This form is public, so its typed email
+      // proves nothing — not even when the address is already on file, because an
+      // address is not a secret and anyone can POST someone else's. A repeat under
+      // "channel" would renew that person's consent and retention window and write a
+      // re_applied event on the strength of a stranger's request. The candidate still
+      // gets the "already applied" answer, and the address ON FILE (never the typed
+      // string) gets its links back through apply-link-recovery below — the same
+      // treatment the conversational door gives an unproven repeat
+      // (reapply-capability-gate.test.ts). A contactless entry matched by NAME
+      // likewise moves nothing: backfilling there made the caller the applicant's
+      // contact of record and mailed them its status link.
+      proof: "none",
       // STRICT verdict: every expected KO answer must be present AND true.
-      failedKoIds: failedKoStepIds(expectedKoIds, answers),
+      failedKoIds,
       // …so an ACCEPT means every gate was explicitly answered true: record them
       // all, and the enrichment chat skips exactly these (a gate the job gains
       // later isn't in the record and gets asked).
       passedKoIds: expectedKoIds,
       enrichLink,
       // capst-l1-002 — the ack email carries the same durable status link the
-      // conversational path has always sent (getOrCreateStatusLink is idempotent
-      // per entry, so email and success screen share ONE token).
+      // conversational path has always sent (the core's safeStatusToken reuses
+      // getOrCreateStatusLink, idempotent per entry, so email and success screen
+      // share ONE token).
       // …pinned to the applied-in language, exactly like enrichLink above: the
       // ack email is read outside the app, with no NEXT_LOCALE cookie, so a bare
       // link dropped a Czech lead onto an English status page (proxy.ts turns
@@ -169,7 +182,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
 
     if (outcome.result === "declined") {
-      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+      // The gate is automatic, so the screen NAMES the must-have(s) and says how to
+      // ask a person to review — and the decline email (lead-intake, deferred like the
+      // ack) carries the same route. The address is always in hand on this form;
+      // `reviewByEmail` is "we are sending it", never "it arrived": the server cannot
+      // vouch for delivery, only for a relay to hand it to.
+      return NextResponse.json({
+        result: "declined",
+        message: t("declinedMessage"),
+        failedKo: failedKoIds,
+        failedKoNames: koMustHaveNames(failedKoIds, t),
+        reviewByEmail: isRelayConfigured(),
+      });
     }
     // The lead was filed (new or duplicate) — link the attempt that produced it.
     linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);
@@ -186,16 +210,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // is that its token is the only public handle, "so a candidate can check their
     // own status without anyone being able to enumerate others'".
     //
-    // The real returning candidate loses nothing they own: their first submission's
-    // done screen carried both links and the acknowledgement email carries them
-    // durably, delivered to the address we can actually authenticate. `leadToken`
-    // in particular was already dead on this branch — QuickApplyForm renders the
-    // enrichment CTA only when `fresh` (accepted AND not duplicate).
+    // The real returning candidate loses nothing they own: their links are re-sent
+    // to the address ON FILE (apply-link-recovery.ts — once per entry per 24h, no
+    // event, no entry write), the one channel we can authenticate, and the copy is
+    // chosen from the relay state alone so it reveals nothing about what is on
+    // file. `leadToken` in particular was already dead on this branch —
+    // QuickApplyForm renders the enrichment CTA only when `fresh` (accepted AND not
+    // duplicate).
     if (outcome.duplicate) {
+      const relayConfigured = isRelayConfigured();
+      if (addressOnFile?.id === outcome.entryId) {
+        recoverApplicationLinks(addressOnFile, {
+          base,
+          relayConfigured,
+          defer: (task) => afterResponse("quick-apply-link-recovery", task),
+        });
+      }
       return NextResponse.json({
         result: "accepted",
         duplicate: true,
-        message: t("alreadyMessage"),
+        message: t(recoveryMessageKey(relayConfigured)),
       });
     }
     // `leadToken` lets the success screen's "complete your profile" CTA carry

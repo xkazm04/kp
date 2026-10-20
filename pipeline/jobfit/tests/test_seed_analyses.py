@@ -51,6 +51,13 @@ def _record(role: dict, *, ident: str = "cand-test") -> dict:
 
 
 class NonTechAnalysisFamilyTest(unittest.TestCase):
+    def test_seeded_analyses_identify_the_deterministic_engine(self) -> None:
+        for role in CSAS_NONTECH_ROLES:
+            with self.subTest(target=role["target"]):
+                metadata = build_analysis(_record(role))["payload"]["metadata"]
+                self.assertEqual(metadata["engineKind"], "deterministic")
+                self.assertEqual(metadata["analysisEngine"], "seed-deterministic")
+
     def test_every_nontech_role_is_analyzed_in_its_own_family(self) -> None:
         for role in CSAS_NONTECH_ROLES:
             with self.subTest(target=role["target"]):

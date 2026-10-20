@@ -6,7 +6,7 @@ import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { affected, describeCommand, isMutating, parseCommand, resolveRejectTargets } from "@/app/_lib/pipeline-command";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -24,6 +24,15 @@ const PREVIEW_CAP = 50;
 // for minutes, and the sibling POST /api/automation/run is unaffected.
 const RUN_POLICY_RATE_LIMIT = { limit: 6, windowMs: 10 * 60_000 };
 
+// A CONFIRMED `reject below N%` / `advance top N` (idea d6f86aa9). Neither spawns a
+// process, but one call fans out over every matching entry in the workspace and each
+// target can queue candidate email — a rejection letter, or the AI-interview invite or
+// work-sample assignment an advance sets off. The batch door that does the same
+// one-action-many-candidates work is throttled; this one was not, so in open mode a
+// loop could re-run waves without bound. 20/10min per IP is far above a recruiter
+// typing, previewing and confirming commands by hand. The preview stays free.
+const EXECUTE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 
 const toRow = (e: PipelineEntry): PreviewRow => ({
@@ -36,8 +45,8 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 
 // Recruiter-facing NL command surface (#7). POST {text} previews; POST
 // {text, confirm:true} executes. Every mutating intent maps to the SAME guarded
-// actions the board/automation already use (actOnPipelineEntry actor:"human",
-// runAutomationPass) — the command bar is a parse + preview convenience, not a new
+// actions the board/automation already use (runPipelineEntryAction, the core the
+// per-entry and batch routes share; runAutomationPass) — the command bar is a parse + preview convenience, not a new
 // privilege.
 //
 // AUTH (perfect-board): operator-gated like /api/decisions/* and screen-wave.
@@ -49,7 +58,7 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 // through. In open mode (no KP_OPERATOR_PASSWORD) this is a no-op, so local dev
 // and the guided sim (which drive the board through the per-card routes, never
 // this bar) are unaffected.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -61,7 +70,6 @@ export async function POST(request: NextRequest) {
   if (under) return under;
   try {
     // Tenant scope: preview AND execute operate ONLY on the caller's workspace.
-    const ws = await currentWorkspace();
     // THIS WORKSPACE's board, resolved once. The command bar used to ask its two
     // stage questions by NAME — affected() fell to the shipped axis and the
     // advance loop compared `e.stage === "Offer"` — so a team that composed its own
@@ -143,6 +151,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Separate bucket from run_policy's: a sweep and a typed wave are different budgets.
+    if (!rateLimit(`pipeline-command-exec:${clientIpFrom(request.headers)}`, EXECUTE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // The live still-matching set at execute time — same workspace scope as the preview.
     const matching = affected(cmd, listPipeline(ws), axis);
     // bug-ui pipeline #3 — a reject_below confirm binds to the PREVIEWED id set
@@ -162,11 +174,17 @@ export async function POST(request: NextRequest) {
       droppedOut = dropped.length;
     }
     // Per-target outcome counting lives in ./execute.ts: every target lands in
-    // exactly one of count / failed / heldAtOffer, so the bar can never claim a
-    // reject it lost to a CAS race or to a throw.
-    const { count, failed, commsFailed, heldAtOffer } = await executeCommandTargets(
-      { kind: cmd.kind, threshold: cmd.kind === "reject_below" ? cmd.threshold : undefined, targets, axis, workspaceId: ws }
-    );
+    // exactly one of count / failed / heldAtOffer / routedToHumanRound, so the bar can
+    // never claim a reject it lost to a CAS race or to a throw. Every write goes
+    // through runPipelineEntryAction (the per-entry and batch routes' core), so a
+    // command-bar decision is sealed, attributed and egressed like any other.
+    const { count, failed, commsFailed, heldAtOffer, routedToHumanRound } = await executeCommandTargets({
+      kind: cmd.kind,
+      threshold: cmd.kind === "reject_below" ? cmd.threshold : undefined,
+      targets,
+      workspaceId: ws,
+      origin: new URL(request.url).origin,
+    });
     return NextResponse.json({
       kind: cmd.kind,
       executed: true,
@@ -177,9 +195,10 @@ export async function POST(request: NextRequest) {
       failed,
       commsFailed,
       ...(heldAtOffer ? { heldAtOffer } : {}),
+      ...(routedToHumanRound ? { routedToHumanRound } : {}),
       ...(droppedOut ? { droppedOut } : {}),
     });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");
   }
-}
+});

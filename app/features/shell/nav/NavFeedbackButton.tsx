@@ -5,6 +5,7 @@ import { MessageSquarePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { railTile } from "@/app/_components/ui/recipes";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { navLabel, type WorkspaceTabId } from "../tabs";
 
 /*
  * The rail's "Send feedback" affordance, in the SAME icon-over-label shape as the
@@ -15,8 +16,9 @@ import { FeedbackDialog } from "./FeedbackDialog";
  * Opens the shared FeedbackDialog; the POST target is the workspace-gated
  * /api/feedback.
  */
-export function NavFeedbackButton() {
+export function NavFeedbackButton({ active }: { active: WorkspaceTabId }) {
   const t = useTranslations("feedback");
+  const nav = useTranslations("nav");
   const [open, setOpen] = useState(false);
   // Two names on purpose: the rail is 4.75rem wide, so the visible label is the
   // short one ("Feedback") and the full verb rides in the tooltip — exactly how
@@ -36,7 +38,7 @@ export function NavFeedbackButton() {
         <MessageSquarePlus size={20} aria-hidden />
         <span className="text-[13px] font-semibold leading-tight">{railLabel}</span>
       </button>
-      {open ? <FeedbackDialog onClose={() => setOpen(false)} /> : null}
+      {open ? <FeedbackDialog onClose={() => setOpen(false)} sourceLabel={navLabel(nav, `tabs.${active}`, active)} /> : null}
     </>
   );
 }

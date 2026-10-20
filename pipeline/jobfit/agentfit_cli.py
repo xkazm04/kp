@@ -67,19 +67,23 @@ def main(argv: list[str] | None = None) -> int:
                 provider = None
 
         result, source = agentfit.analyze_agent_fit(job, catalog, provider=provider, lang=args.lang)
+        # Lift the fallback cause (stashed on the artifact by generate_with_fallback)
+        # into the envelope, mirroring devcase_cli. Popped BEFORE the ledger line so
+        # its code is in hand: the prose rides the envelope, the code the ledger.
+        reasons = collect_fallback_reasons([("agentFit", result)], pop=True)
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
             # template traffic stays visible (no-op without KP_LLM_USAGE_LOG),
-            # with the descent reason naming WHY the floor served (R6).
-            emit_deterministic("agent_fit", reason=descent)
+            # with the descent reason naming WHY the floor served (R6): the
+            # availability gate's word when there was no provider, else the
+            # mid-call code the runner stamped (None from the gate, whenever the
+            # provider WAS available, used to be all the ledger heard).
+            emit_deterministic("agent_fit", reason=descent or reasons.codes.get("agentFit"))
         envelope: dict[str, object] = {
             "result": result,
             "source": source,
             "perStepSources": {"agentFit": source},
         }
-        # Lift the fallback cause (stashed on the artifact by generate_with_fallback)
-        # into the envelope, mirroring devcase_cli.
-        reasons = collect_fallback_reasons([("agentFit", result)], pop=True)
         if reasons:
             envelope["fallbackReason"] = reasons
         print(json.dumps(envelope, ensure_ascii=False))

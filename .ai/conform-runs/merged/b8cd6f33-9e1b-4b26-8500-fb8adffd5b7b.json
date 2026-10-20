@@ -1,0 +1,74 @@
+{
+  "schema": "conform-run/1",
+  "worker": "b8cd6f33-9e1b-4b26-8500-fb8adffd5b7b",
+  "subject": "motion",
+  "evaluatedAt": "2026-10-18T01:53:03.061168+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "motion",
+      "context": "shared-client-hooks",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "motion",
+      "context": "glyph-system",
+      "reason": "withdrawn after review: reviewer (sonnet): Line 68 is `durationS: 0.5`, but I found no duration tokens for the glyph system to reference: a repo-wide search for `--duration` or `--motion` custom properties and for exported duration constants found none for this system, so the presets look like the token layer themselves. The pause-signal tec"
+    },
+    {
+      "subject": "motion",
+      "context": "match-presentation-components",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation says the panel should select a complete shared preset, but I found no shared framer-motion preset or variants module in app/_lib or app/_components that it could use (only the unrelated STUDIO_SPRING), so that precondition could not be confirmed."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T01:53:03.061168+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "motion"
+      ],
+      "techniques": [
+        "content-bearing-degradation",
+        "engine-selection",
+        "gesture-decomposition",
+        "loop-pause-governance",
+        "one-shot-guarding",
+        "performance-discipline",
+        "preset-vocabulary",
+        "reduced-motion-mechanics",
+        "taste-budgets",
+        "unprompted-motion-lifecycle"
+      ],
+      "deviations": 1,
+      "context": "glyph-system",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-18T01:53:03.061168+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "motion"
+      ],
+      "techniques": [
+        "content-bearing-degradation",
+        "continuity-across-change",
+        "gesture-decomposition",
+        "loop-pause-governance",
+        "one-shot-guarding",
+        "performance-discipline",
+        "preset-vocabulary",
+        "reduced-motion-mechanics",
+        "taste-budgets",
+        "unprompted-motion-lifecycle"
+      ],
+      "deviations": 1,
+      "context": "match-presentation-components",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

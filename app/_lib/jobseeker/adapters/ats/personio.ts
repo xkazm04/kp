@@ -2,7 +2,7 @@
 // config: { company, language? }. Each <position> carries its description blocks.
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, rawPosting, safeSlug, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, rawPosting, safeSlug, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { xmlBlocks, xmlText } from "../xml";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
@@ -35,7 +35,7 @@ export const personioAdapter: SourceAdapter = {
   async *discover(ctx) {
     const company = safeSlug(cfg(ctx.source, "company"));
     if (!company) throw new FetchHalt({ kind: "outage", detail: "config_missing_company" });
-    const out = mustOk(await ctx.fetch(personioUrl(company, cfg(ctx.source, "language") ?? "en"), { sourceId: ctx.source.id, accept: "application/xml, text/xml;q=0.9" }));
+    const out = mustOk(await ctx.fetch(personioUrl(company, cfg(ctx.source, "language") ?? "en"), { sourceId: ctx.source.id, accept: "application/xml, text/xml;q=0.9", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     if (!/<workzag-jobs\b|<position\b/i.test(out.body)) throw new AdapterCollapsed("shape_changed", "Personio feed has no positions");
     let n = 0;
     for (const position of xmlBlocks(out.body, "position")) {

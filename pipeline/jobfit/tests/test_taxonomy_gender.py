@@ -25,6 +25,8 @@ control — the derivation must not widen an English or non-agent surface.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import unittest
 
 from pipeline.jobfit import taxonomy_check as tc
@@ -219,6 +221,37 @@ class GenderGapScanTest(unittest.TestCase):
         # role_physician's data authors wrote both forms by hand; no gap either way.
         authored = {"terms": [{"id": "ok", "match": ["lékař", "lékařka"]}]}
         self.assertEqual(tc.scan_gender_gaps(authored, derive=False), [])
+
+
+class TransferableSignalGenderScanTest(unittest.TestCase):
+    """The third consumer: ``transferable._TRANSFERABLE_MAP`` (map_transferable)."""
+
+    def test_the_authored_map_reports_pravnice_without_the_derivation(self) -> None:
+        pre = tc.scan_transferable_gender_gaps(derive=False)
+        self.assertEqual(
+            [(g.masculine, g.feminine) for g in pre], [("právník", "právnice")]
+        )
+        self.assertTrue(pre[0].where.startswith("transferable_signals["), pre[0].where)
+        self.assertEqual(tc.scan_transferable_gender_gaps(derive=True), [])
+
+    def test_a_planted_masculine_only_signal_is_reported(self) -> None:
+        planted = ((("zámečník",), ("x",)),)
+        gaps = tc.scan_transferable_gender_gaps(planted, derive=False)
+        self.assertEqual(
+            [(g.masculine, g.feminine) for g in gaps],
+            [("zámečník", "zámečnice"), ("zámečník", "zámečnička")],
+        )
+        self.assertEqual(tc.scan_transferable_gender_gaps(planted, derive=True), [])
+
+    def test_the_cli_gender_section_counts_transferable_signals(self) -> None:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = tc.main([])
+        out = buf.getvalue()
+        self.assertEqual(rc, 0, out)
+        section = next(ln for ln in out.splitlines() if ln.startswith("GENDER PARITY"))
+        for consumer in ("terms", "adjacent_domain_signals", "transferable signals"):
+            self.assertIn(consumer, section)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@
 //
 // FULLY DETERMINISTIC — no GEMINI / Claude / ElevenLabs key is needed anywhere:
 //   • POST /api/jds/save ingests the structured job with NO LLM at all
-//     (app/api/jds/save/ingest-job.ts — normalizeJob + insertJob, deterministic).
+//     (app/_lib/jd-ingest.ts — normalizeJob + insertJob, deterministic).
 //     Note the sibling POST /api/jds/[slug]/ingest-job does NOT degrade: keyless
 //     it answers 500 "No LLM provider available for ad ingestion", so the save
 //     route is the only keyless door from a JD to a matchable job.
@@ -271,10 +271,14 @@ test("the candidate applies through the assignment's own link — and never sees
       data: { token: applyToken, candidateRef: CANDIDATE },
     });
     expect(session.ok(), `POST /api/devcase/session responded ${session.status()}`).toBe(true);
-    const sessionId = ((await session.json()) as { sessionId: string }).sessionId;
+    const minted = (await session.json()) as { sessionId: string; sessionKey: string };
+    const sessionId = minted.sessionId;
+    // A keyed attempt accepts ONLY its own key (479f3fa3e), sent as a header, never in the URL.
+    const keyHeaders = { "x-devcase-session-key": minted.sessionKey };
 
     const now = new Date().toISOString();
     const flush = await candidatePage.request.post(`/api/devcase/session/${sessionId}`, {
+      headers: keyHeaders,
       data: {
         token: applyToken,
         events: [
@@ -293,6 +297,7 @@ test("the candidate applies through the assignment's own link — and never sees
     expect(flush.ok(), `POST /api/devcase/session/[id] responded ${flush.status()}`).toBe(true);
 
     const submitted = await candidatePage.request.post(`/api/devcase/session/${sessionId}/submit`, {
+      headers: keyHeaders,
       data: { token: applyToken, candidate: CANDIDATE, contact: CANDIDATE_EMAIL },
     });
     expect(submitted.ok(), `POST /api/devcase/session/[id]/submit responded ${submitted.status()}`).toBe(true);
@@ -385,13 +390,19 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   expect(onBoard[0].matchScore, "a work sample must not be written into the match score").toBeNull();
   expect(typeof onBoard[0].transferScore, "the transfer score reaches the board as itself").toBe("number");
 
-  // …and the board SAYS so. The bead's title carries the kind sentence only on a
-  // non-match score (beadTitle, map/PipelineBoardSubway.tsx): it tells a recruiter
-  // which of the four 0-100 numbers they are looking at.
+  // …and the board does not pass it off as a match. `?q=` lands on the Orbit's Matches table
+  // (orbit/OrbitMatches.tsx), whose Match column reads the canonical match score only
+  // (canonicalScoreOf), so a transfer-scored entry shows the absent mark there, never the
+  // transfer number.
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(CANDIDATE)}`);
-  const row = page.getByRole("button", { name: CANDIDATE }).first();
+  const row = page.getByRole("row").filter({ hasText: CANDIDATE }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTitle(/A work-sample transfer score, not a match score/).first()).toBeVisible();
+  // Cells: mark, candidate, stage, source, MATCH, age. The quiet source column folds away at a
+  // narrow viewport (DataTable foldClass), taking its cell out of the accessibility tree, so MATCH
+  // is addressed from the end (second to last) and not by an absolute index.
+  await expect
+    .poll(async () => (await row.getByRole("cell").allTextContents()).at(-2))
+    .toBe("—");
 });
 
 test("the voice screen is offered from the assignment, on the same entry", async ({ page }) => {
@@ -443,13 +454,16 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
 
   await page.goto("/?tab=decisions");
   await expect(page.getByText("Your decision queue")).toBeVisible({ timeout: 30_000 });
-  // Scoped to the ONE ledger row (ledger/DecisionsLedger.tsx renders a table row
-  // per recommendation), so the tag is asserted on this candidate's row and not
-  // merely somewhere on a queue that holds other people's. The verdict buttons live
+  // Scoped to the ONE docket entry (the Decisions tab is The Docket now: a list
+  // item per waiting candidate under its role, no longer a table row), so
+  // the tag is asserted on this candidate's row and not merely somewhere on a
+  // queue that holds other people's. The verdict buttons live
   // in the candidate modal the row's Decide opens.
-  const row = page.getByRole("row").filter({ hasText: CANDIDATE });
+  const row = page.getByRole("listitem").filter({ hasText: CANDIDATE });
   await expect(row).toHaveCount(1);
-  await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).click();
+  // The docket row names the candidate as a button AND ends in a Decide icon
+  // button; both open the same modal, so the name button is the one clicked.
+  await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).first().click();
   const modal = page.getByRole("dialog", { name: CANDIDATE, exact: true });
   // The KIND of recommendation is named on the modal's decision strip
   // (CandidateDecisionBar's tag), not on the ledger row — the row carries

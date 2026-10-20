@@ -1,0 +1,124 @@
+[
+  {
+    "context": "workspace-config-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Task kinds declare their door and seat: the dock stops running server kinds",
+    "size": "M",
+    "effort": 6,
+    "impact": 9,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/task-admission.ts",
+      "app/api/tasks/route.ts",
+      "app/api/tasks/[id]/route.ts",
+      "app/api/tasks/[id]/retry/route.ts",
+      "app/api/tasks/seen/route.ts",
+      "app/api/tasks/route.test.ts",
+      "app/api/route-capability-coverage.test.ts",
+      "app/api/write-capability-gate.test.ts",
+      "app/_lib/api-response.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/README.md"
+    ],
+    "new_files": [
+      "app/_lib/task-admission.ts",
+      "app/_lib/task-admission.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "POST /api/tasks {kind:'analyze', params:{baseDir:<tmp dir holding a sentinel file>, variants:[{label:'x', cvPath:<sentinel>}]}} as an owner -> 400 refusal code TASK_KIND_NOT_STARTABLE carrying {kind:'analyze'}; no task row is created and the sentinel directory still exists afterwards",
+      "POST /api/tasks with kind 'jobseeker_scan', 'lifecycle' ({lifecycleId:'x'}), 'jd_build', 'repo_scan', 'agent_fit', 'interview_kit', 'interview_letter' or 'companion_digest' -> the same TASK_KIND_NOT_STARTABLE refusal, decided BEFORE any rate-limit bucket is spent (a following legitimate batch_screen start by the same IP is not throttled by them)",
+      "viewer session POST /api/tasks {kind:'batch_screen', params:{entryIds:['e1']}} -> 403 FORBIDDEN_CAPABILITY {capability:'pipeline:write'}; an owner session with the same body is not refused by the gate; open mode (no KP_OPERATOR_PASSWORD) is not refused (resolveCaller folds to owner)",
+      "viewer POST /api/tasks/[id]/retry on its own team's failed batch_screen row -> 403 FORBIDDEN_CAPABILITY; viewer DELETE /api/tasks/[id] on its own team's running row -> 403 and the row is still running afterwards (cancelTask never called)",
+      "owner POST /api/tasks/[id]/retry on an INTERRUPTED analyze row whose workdir still exists -> still admitted (retry replays server-authored params; the dock rule applies to POST /api/tasks only)",
+      "task-admission.test.ts: TASK_KIND_ADMISSION is keyed Record<TaskKind, ...> (every TASK_KINDS entry has a door + capability); every kind literal the client passes to startTask(\"...\") under app/features/** is a dock kind, and every kind a server module enqueues via startTask(\"...\") under app/api/** + app/_lib/** that no client names is a server kind (a source scan with a synthetic non-vacuity case)",
+      "route-capability-coverage.test.ts: tasks/route.ts, tasks/[id]/route.ts and tasks/[id]/retry/route.ts are GATED and their three ALLOWED lines are deleted; tasks/seen/route.ts leaves the 'slice 2 candidate' debt either gated on 'read' or re-reasoned as self-service (it only stamps seen_at on the caller's own team's terminal rows)",
+      "existing budget contract holds unchanged: rate-limit-contract.test.ts's per-kind budget assertions for ./tasks/route.ts and ./tasks/[id]/retry/route.ts still pass (the new gate sits before the inline buckets, the buckets are not refactored)"
+    ],
+    "premise": [
+      "app/api/tasks/route.ts:57-58 admits any kind for which isKnownKind(body.kind) is true, and :78 enqueues startTask(body.kind, body.params ?? {}, ws) with the CLIENT's params verbatim",
+      "app/_lib/tasks.ts:247-257 the analyze handler runs runAnalyze over ctx.params; app/_lib/analyze-run.ts:309-310 and :330 readFile() p.jobDescriptionPath / p.companyPath / each variant's cvPath, and :536 `await cleanupWorkdir(p.baseDir)` in the finally; app/_lib/python-runner.ts:65-66 cleanupWorkdir is rm(workdir, {recursive:true, force:true}) - so a dock POST of kind 'analyze' reads arbitrary server paths into the pipeline and recursively deletes an arbitrary directory",
+      "the only legitimate enqueue of 'analyze' is server-side, app/api/analyze/route.ts:215, after it persisted the uploads into its own mkdtemp workdir (app/_lib/python-runner.ts:61-62); no client startTask literal under app/features names it",
+      "app/api/jobseeker/scan/route.ts:24-32 gates 'jobseeker_scan' on requireOperator + pipeline:write + a 6/10min limiter; app/api/devcase/lifecycle/[id]/approve/route.ts:65-71 gates the 'lifecycle' resume on pipeline:write; POST /api/tasks with those kinds reaches the same startTask with neither",
+      "app/api/tasks/[id]/route.ts:26-34 DELETE cancels any own-team task with no seat check at all; app/api/tasks/route.ts and app/api/tasks/[id]/retry/route.ts ask no capability either",
+      "app/api/route-capability-coverage.test.ts:207-210 lists tasks/[id]/retry, tasks/[id], tasks and tasks/seen as 'slice 2 candidate - ungated when this ratchet landed; not yet judged'",
+      "app/api/tasks/route.ts:44-51 says requireOperator 'is NOT the fix here: it would 401 the guided demo' - but app/api/demo/route.ts:47-49 refuses to mint a demo session on every KP_SECRET deploy, and app/_lib/auth/current-user.ts:47 folds open mode to OWNER_CAPS, so a pipeline:write gate costs the guided walk nothing",
+      "app/_lib/task-kinds.ts:4-8 is the house shape this extends: every per-kind table is Record<TaskKind, ...> so tsc names a table that has not decided about a new kind (task-budget.ts:61 TASK_BUDGET_CLASS is the precedent)"
+    ],
+    "rollback": "Additive: one new pure module (task-admission.ts) plus a gate call at the top of three route handlers and one refusal code. Reverting the commit series restores the admit-any-known-kind door and re-adds the three ALLOWED lines; no schema, no stored data and no client contract changes (the client never sent a server kind).",
+    "gate": "policy-tighten",
+    "runner_up": "Brand is a deployment singleton (app/_lib/brand-store.ts:14 ROW_ID 'workspace'; getting-started.ts:78-80): key brand_settings by org so one org's PUT /api/brand stops re-skinning every tenant's candidate pages - flagged an owner decision in getting-started.ts:92-93, so parked.",
+    "technique": "declarative-requirements",
+    "body": "## Summary\nPOST /api/tasks is the dock's single door and it admits every kind in TASK_KINDS with client-supplied params, although ten of those kinds are only ever enqueued by server routes that validate and gate them first. The worst case is `analyze`: its params are file paths, so a dock POST reads arbitrary server files into the pipeline and `rm -rf`s an arbitrary `baseDir`. Give every task kind a declared door (`dock` | `server`) and the capability it spends, keyed `Record<TaskKind, ...>` beside the budget class, and make the three task doors ask it.\n\n## Description\nThe task-kind vocabulary already carries one per-kind decision table (task-budget.ts TASK_BUDGET_CLASS) that tsc forces to be complete. Admission is the missing column. `app/_lib/task-admission.ts` declares, per kind, whether the dock may start it and which capability starting, retrying or cancelling it needs (pipeline:write for every current recruiter kind). POST /api/tasks refuses a server kind with TASK_KIND_NOT_STARTABLE before any budget is spent and then asks the kind's capability through requireCapabilityCoded; retry and cancel ask the capability of the ROW's kind (retry keeps replaying server kinds - their stored params were authored by the server route). tasks/seen is judged on the record (gated on `read` or re-reasoned as self-service). Three 'slice 2 candidate' lines leave the capability ratchet and the stale 'would 401 the guided demo' reasoning is replaced by the fact that the demo door refuses on every gated deploy.\n\n## Flow\n1. Test-first: task-admission.test.ts (table completeness, client-literal scan, server-literal scan) and route cases in tasks/route.test.ts + write-capability-gate.test.ts, all red.\n2. Add TASK_KIND_ADMISSION + `admitDockStart(kind)` / `kindCapability(kind)`.\n3. Gate POST /api/tasks: kind known -> dock kind -> capability -> the existing budget buckets -> startTask.\n4. Gate retry (after the tenant read, before the buckets) and DELETE (after the ownership read, before cancelTask) on the row kind's capability.\n5. Judge tasks/seen; delete the ALLOWED lines; add TASK_KIND_NOT_STARTABLE to REFUSAL_ERRORS and the four catalogs; update docs/architecture/README.md's task-door paragraph.\n\n## Expected impact\nCloses an arbitrary-path read + recursive-delete primitive reachable by any session (and by anyone on an open deploy), closes the gate bypass for jobseeker_scan / lifecycle / jd_build / repo_scan / agent_fit / interview_kit / interview_letter / companion_digest, and retires four of the capability ratchet's unjudged debt lines. A viewer seat can no longer spend LLM budget, replay runs or cancel a colleague's job. No legitimate caller changes: the client already starts only dock kinds.\n\n## Evaluation\nClaim: the dock door starts only dock kinds, and every task door asks the seat the kind declares.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (task-admission.test.ts, tasks/route.test.ts, write-capability-gate.test.ts, route-capability-coverage.test.ts, rate-limit-contract.test.ts) under npm run test:unit, plus tsc, lint, i18n:check.\nResult: pending build.\nGate: policy-tighten",
+    "evidence": "app/api/tasks/route.ts:57  if (!body.kind || !isKnownKind(body.kind)) {\napp/api/tasks/route.ts:78  const task = startTask(body.kind, body.params ?? {}, ws);\napp/_lib/analyze-run.ts:309  const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;\napp/_lib/analyze-run.ts:330  const cvBytes = await readFile(cvPath);\napp/_lib/analyze-run.ts:536  await cleanupWorkdir(p.baseDir);\napp/_lib/python-runner.ts:66  await rm(workdir, { recursive: true, force: true });\nServer-side startTask call sites (grep startTask( in app/api + app/_lib): analyze (api/analyze:215), interview_letter (decisions/feedback-letters redraft:62, status/[token]/letter:73), lifecycle (devcase/control:50, devcase/lifecycle:54, approve:135, tasks.ts:580), agent_fit (jobs/[id]/agent-fit:66), interview_kit (jobs/[id]/interview-kit:108), jobseeker_scan (jobseeker/scan:37), jd_build (jd-build-start.ts:51,70), repo_scan (repo-scan.ts:77), companion_digest + automation + batch_outreach (companion-actions.ts:157,173,238).\nClient startTask literals (grep app/features): automation, reasoning, batch_screen, batch_outreach, interview_prep, group_eval, evaluate_submission, need_analysis, design_artifacts, profile_draft - disjoint from the server-only set above. 'campaign' has no startTask literal anywhere; the builder keeps it a dock kind (pipeline:write) so nothing that might build the kind dynamically breaks.\nroute-capability-coverage.test.ts:207-210: tasks/[id]/retry, tasks/[id], tasks, tasks/seen = 'slice 2 candidate'.\ndemo/route.ts:47-49: if (process.env.KP_SECRET) { ... redirect DEMO_NOT_PROVISIONED | DEMO_DISABLED } - no demo session is minted on a gated deploy."
+  },
+  {
+    "context": "workspace-config-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Every finished run states its replay verdict: Retry only where it can run",
+    "size": "M",
+    "effort": 5,
+    "impact": 7,
+    "risk": 4,
+    "write_set": [
+      "app/_lib/task-replay.ts",
+      "app/_lib/db/tasks.ts",
+      "app/api/tasks/route.ts",
+      "app/api/tasks/history/route.ts",
+      "app/api/tasks/[id]/retry/route.ts",
+      "app/api/tasks/tasks-route-tenancy.test.ts",
+      "app/_lib/task-view.ts",
+      "app/features/shell/tasks/tasksProviderTypes.ts",
+      "app/features/shell/tasks/tasksTabHelpers.ts",
+      "app/features/shell/tasks/TasksRowActions.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/README.md"
+    ],
+    "new_files": [
+      "app/_lib/task-replay.ts",
+      "app/_lib/task-replay.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "replayVerdict('analyze', 'failed', {baseDir:'/gone', variants:[{cvPath:'/gone/a.pdf'}]}, exists=()=>false) -> {replayable:false, reason:'inputs-gone'}",
+      "replayVerdict('analyze', 'interrupted', same params, exists=()=>true) -> {replayable:true} (a crash left the workdir on disk; the replay is genuinely valid)",
+      "replayVerdict('batch_screen', 'failed', {entryIds:['e1']}, any) -> {replayable:true}; replayVerdict('retired_kind', 'failed', {}, any) -> {replayable:false, reason:'kind-retired'}; replayVerdict(k, 'succeeded' | 'running', ...) -> null (no whole-run retry is offered; scoped retry stays retryScopes' decision)",
+      "GET /api/tasks and GET /api/tasks/history carry `replay` on each terminal row, computed server-side from the stored params (the polled list itself still carries params:null); for a failed analyze row whose workdir was cleaned up, `replay` = {replayable:false, reason:'inputs-gone'}, and POST /api/tasks/[id]/retry on the SAME row still answers 409 TASK_REPLAY_INPUTS_GONE - both derived from replayVerdict (the retry route no longer defines its own replayInputsMissing)",
+      "tasksSignature() differs for two otherwise-identical rows whose replay verdicts differ, so a verdict change re-renders the row instead of being swallowed by the poll-churn guard",
+      "rowRetryAction(task) in tasksTabHelpers.ts: {status:'failed', kind:'analyze', replay:{replayable:false, reason:'inputs-gone'}} -> {kind:'blocked', reason:'inputs-gone', door:{tab:'analyze'}}; {status:'failed', replay:{replayable:true}} -> {kind:'retry'}; a row with no `replay` field (older server) -> {kind:'retry'} (degrades to today's behaviour, never hides a working retry)",
+      "the replay read is bounded: one store query for the page's terminal rows of path-bearing kinds (analyze), not one getTask per row per 2 s poll - pinned by a test that the helper is called once per GET with the page's ids"
+    ],
+    "premise": [
+      "app/features/shell/tasks/TasksRowActions.tsx:66 offers Retry on EVERY failed / interrupted / canceled row: `const retryable = task.status === \"failed\" || task.status === \"interrupted\" || task.status === \"canceled\"`",
+      "app/_lib/analyze-run.ts:534-536 cleans the workdir in a finally on every exit, so every failed or canceled analyze row's inputs are already gone when the row appears",
+      "app/api/tasks/[id]/retry/route.ts:47-59 replayInputsMissing() decides that only when the button is clicked, and :86-88 answers 409 TASK_REPLAY_INPUTS_GONE - the Retry on a failed CV analysis is a button that can only refuse",
+      "app/_lib/api-response.ts:1466 TASK_REPLAY_INPUTS_GONE says 'Upload them again to re-run it' - a remedy the row offers no door to",
+      "app/features/shell/tasks/tasksProviderTypes.ts:16-20 and app/_lib/task-view.ts:13-15: params/result are ALWAYS null on the polled list, so the client cannot derive the verdict itself; the server has to carry it",
+      "app/_lib/task-view.ts:16-40 tasksSignature() lists exactly the rendered fields; a new rendered field that is not added there is swallowed by the poll-churn guard"
+    ],
+    "rollback": "The `replay` field is additive on GET /api/tasks and /history; the client treats its absence as today's always-offer Retry, so reverting either half alone is safe, and reverting the series restores the inline replayInputsMissing and the unconditional button. No schema change.",
+    "gate": "none",
+    "runner_up": "Failed CV analyses replay without re-upload: keep the analyze workdir until success or a bounded prune (analyze-run.ts:536) - a bigger leap, but it is a CV-retention change (PII in tmp past the run), so it needs an owner's retention call first.",
+    "technique": "failure-states",
+    "body": "## Summary\nThe Background-tasks table offers Retry on every dead row, and the server decides only after the click whether the replay can run. For a failed CV analysis it never can: the run always deletes its uploads on exit, so the button's only possible answer is a 409 that tells the recruiter to upload again, with no way there. Move the replay decision into one pure verdict the server stamps on each terminal row and the retry door itself uses, and render the row from it: Retry where it runs, a stated reason and a door where it does not.\n\n## Description\n`app/_lib/task-replay.ts` owns `replayVerdict(kind, status, params, exists)`: whole-run replay for failed/interrupted/canceled rows, refused as `inputs-gone` when the path-bearing params (analyze's baseDir / variants[].cvPath) no longer exist, `kind-retired` for a kind this build no longer knows. The retry route calls it in place of its private replayInputsMissing, so the refusal and the row can never disagree. GET /api/tasks and /history attach `replay` to terminal rows from one bounded store read of those rows' params (the polled list keeps params out of the payload). The client row reads `rowRetryAction(task)`: Retry, or a one-line reason with a door (inputs-gone on analyze opens the Analyze tab, where the upload lives). The verdict joins tasksSignature so a change repaints.\n\n## Flow\n1. Tests first: task-replay.test.ts (verdict cases), tasksTabHelpers.test.ts (rowRetryAction), task-view signature case, the route/source assertions; all red.\n2. Extract replayVerdict; point the retry route at it (update the tenancy test's source anchor from replayInputsMissing to replayVerdict).\n3. Add the bounded params read to db/tasks.ts; attach `replay` in both GET routes.\n4. Extend the Task type and tasksSignature; render the blocked state in TasksRowActions with localized reason + door (4 catalogs).\n5. Update the task-door paragraph in docs/architecture/README.md.\n\n## Expected impact\nThe most common dead row in the table - a failed CV analysis - stops offering a button that can only fail and instead says why and opens the place the recruiter has to go. Every other kind keeps its working Retry. The client and the server read one verdict, so a future path-bearing kind is declared once.\n\n## Evaluation\nClaim: a terminal row offers Retry exactly when the retry door would accept it, and names the reason and the next step when it would not.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test (task-replay.test.ts, tasksTabHelpers.test.ts, task-view.test.ts, tasks-route-tenancy.test.ts) under npm run test:unit, plus tsc, lint, i18n:check, design:check.\nResult: pending build.\nGate: none",
+    "evidence": "TasksRowActions.tsx:66  const retryable = task.status === \"failed\" || task.status === \"interrupted\" || task.status === \"canceled\";\nanalyze-run.ts:534-536  } finally { settleSlug(null); await cleanupWorkdir(p.baseDir); }\nretry/route.ts:86-88  if (replayInputsMissing(task.kind, params)) { return jsonRefusal(\"TASK_REPLAY_INPUTS_GONE\", 409); }\napi-response.ts:1466  TASK_REPLAY_INPUTS_GONE: \"The uploaded files for this run have been cleaned up. Upload them again to re-run it.\"\ntasksProviderTypes.ts:16-20  'params and result are ALWAYS null on tasks read from the polled list'\ntasks-route-tenancy.test.ts:85  const guard = src.indexOf(\"replayInputsMissing(task.kind, params)\");  <- source anchor the builder moves to replayVerdict\nNot a restatement: the r2022 task-automation-engine card 'Fan-out tasks report per-candidate outcomes and retry only the failed' shipped SCOPED retry (task-fanout.ts retryScopes/retryDecision); this card is the whole-run verdict on non-fan-out rows, which retryDecision does not see (retry/route.ts:70 then :86 decide it separately). Digest idea 570ba508 'surface or paginate the history' is about paging, not replay."
+  }
+]

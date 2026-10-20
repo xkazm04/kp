@@ -41,7 +41,17 @@ test("the publish confirm is a real dialog: focus wiring mounts and unmounts WIT
     /disabled=\{published \|\| publishing \|\| confirmingPublish\}/,
     "the Publish trigger must stay enabled while the confirm is open, or focus cannot return to it"
   );
-  assert.match(header, /aria-expanded=\{confirmingPublish\}/, "the trigger states the panel's open-ness instead");
+  // challenge-r09 devcase-lifecycle/B: the one trigger now opens either the publish/reopen
+  // confirm or the stop confirm, so it states whichever of the two it opens - and its
+  // `disabled` names neither open flag, for the same focus-return reason as above.
+  assert.match(
+    header,
+    /aria-expanded=\{stopOffered \? confirmingStop : confirmingPublish\}/,
+    "the trigger states the panel's open-ness instead"
+  );
+  const disabled = header.match(/disabled=\{action === null \|\| busy\}/);
+  assert.ok(disabled, "the intake trigger is disabled only when nothing is on offer or a request is in flight");
+  assert.doesNotMatch(header, /disabled=\{[^}]*confirming(Publish|Stop)[^}]*\}/, "an open confirm must never disable its own trigger");
 });
 
 test("a blocked clipboard leaves the apply link reachable, not swallowed", () => {
@@ -121,13 +131,15 @@ test("the submission form distinguishes an absorbed duplicate from a new row", (
 });
 
 test("the dev-case submit and source doors answer with a code, not the thrown message", () => {
-  for (const [file, code] of [
-    ["../../../api/devcase/submit/route.ts", "DEVCASE_SUBMIT_FAILED"],
-    ["../../../api/devcase/source/route.ts", "DEVCASE_SOURCE_FAILED"],
+  // submit answers through answerFailure (a thrown Refusal keeps its own code, anything
+  // else falls to safeJsonError with the store code); source still calls safeJsonError.
+  for (const [file, code, responder] of [
+    ["../../../api/devcase/submit/route.ts", "DEVCASE_SUBMIT_FAILED", "answerFailure(error,"],
+    ["../../../api/devcase/source/route.ts", "DEVCASE_SOURCE_FAILED", "safeJsonError(error,"],
   ]) {
     const src = read(file);
-    assert.ok(src.includes(`, "${code}");`), `${file} must answer with ${code} through safeJsonError`);
-    assert.ok(src.includes("safeJsonError(error,"), `${file} must use safeJsonError`);
+    assert.ok(src.includes(`, "${code}");`), `${file} must answer with ${code} through ${responder}`);
+    assert.ok(src.includes(responder), `${file} must use ${responder}`);
     assert.ok(
       !src.includes("error instanceof Error ? error.message"),
       `${file} still forwards a thrown message — SQLITE_* detail, the db path or a spawn's stderr`

@@ -334,6 +334,34 @@ class SoftSignalPanel(_Base):
         return out
 
 
+# Trust ledger, coded at birth (challenge-r07 results-core/A). Each finding the
+# engine records about an analysis carries its severity and scope from the producer
+# that knows them (pipeline/jobfit/trust.py), so no consumer classifies by prose.
+TrustSeverity = Literal["ok", "warn", "blocker"]
+TrustScope = Literal[
+    "score",
+    "salary",
+    "identity",
+    "archetype",
+    "authenticity",
+    "credential",
+    "input",
+    "insight",
+    "skills",
+]
+
+
+class TrustFinding(_Base):
+    """One trust-ledger entry. ``text`` is the exact ``sanity_checks`` sentence;
+    ``value`` is the machine value a localized rendering interpolates (the skipped
+    add-on's label, the licence, the exception type), or None."""
+    code: str
+    severity: TrustSeverity
+    scope: TrustScope
+    text: str
+    value: str | None = None
+
+
 class AnalysisResult(_Base):
     candidate: CandidateProfile
     score: ScoreBreakdown
@@ -343,6 +371,10 @@ class AnalysisResult(_Base):
     recommendations: list[str]
     explanation: str
     sanity_checks: list[str]
+    # The same ledger, structured: one TrustFinding per sanity_checks sentence, in
+    # order. Nullable so analyses saved before it existed still validate (codegen ->
+    # .nullish()); the TS side falls back to its legacy regex split only then.
+    trust_findings: list[TrustFinding] | None = None
     job_fit: JobFitResult | None = None
     metadata: AnalysisMetadata | None = None
     market_evidence: MarketEvidence | None = None

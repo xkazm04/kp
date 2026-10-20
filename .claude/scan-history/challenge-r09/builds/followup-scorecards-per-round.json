@@ -1,0 +1,37 @@
+{
+  "id": "followup-scorecards-per-round",
+  "origin": "r09 schedule-interview-prep/A loop_open",
+  "status": "done",
+  "base": "f43d8320c",
+  "commits": ["2b414973c", "10dd3372a"],
+  "decision": "every record on both surfaces (no latest-per-round view): the drawer renders one card per record; the compare grid renders one human verdict chip and one evidence section per record. The only one-value-per-axis consumer is the grid's CSV, which keeps one human column per candidate: a single rating stays a number, several join in record order ('2 / 5'); recommendations join the same way. Never averaged, never reduced to the latest save.",
+  "changes": [
+    "app/_lib/human-scorecard-set.ts: + HumanScorecardView (record minus the signed-in user id `author`, + `legacy`), humanScorecardViews (newest first, legacy last, empty artifacts dropped), humanScorecardByline (legacy | by | unnamed)",
+    "app/_lib/candidate-timeline.ts: bundle field humanScorecard -> humanScorecards (views over readHumanScorecards); the consent withhold now returns [] for every record",
+    "app/api/interview/compare/route.ts: humanScorecard -> humanScorecards per candidate via workspace-scoped getHumanScorecards (was unscoped getHumanScorecard); the human-only union keys on a non-empty list. Operator-only route; no user id on the wire",
+    "client: candidateBundle parse + useCandidateBundle (humanScs list), CandidateActivityTab maps cards, PipelineHumanScorecardCard gets a byline; new HumanScorecardByline.tsx reuses the scheduleTab.transcript keys (no catalog change); compare types/cohort table/evidence card/CSV",
+    "docs/features/interviews/README.md: Known-gap line removed, section on the per-interviewer list updated (under the lock)"
+  ],
+  "untouched": "app/_lib/interview-prep.ts and the prep modal (schedule-interview-prep/B)",
+  "lock": "docs edit made under .git/scan-sweep-challenge.lock, taken after the previous holder released it, committed alone, released by this builder",
+  "red_before_green_after": [
+    "human-scorecard-set.test.ts: views ordering/legacy/no-author/empties, byline (file failed at import before)",
+    "candidate-timeline.test.ts: every interviewer's card in the drawer + consent withholds all (+2 existing cases moved to the list)",
+    "compare-human-panel.test.ts (new): both rounds newest first, attributed, no user id on the wire, no single humanScorecard key",
+    "jobsCompareCohorts.test.ts: a panel exports '2 / 5' and 'hold / advance' (+2 existing cases moved to the list)",
+    "candidateBundle.test.ts: list parse drops empty/junk entries"
+  ],
+  "red_before_count": 9,
+  "gates": {
+    "unit (touched + neighbours incl. panel-scorecards, compare-coverage, drawerCommsTruth)": "81/81 green",
+    "tsc": "no errors in touched files; tree-level errors come from other sessions' in-flight red tests (jobseeker, interviews-failover) and the untracked kpi-sim/ copy",
+    "lint (touched files)": "green",
+    "i18n:check": "green",
+    "design:check": "green",
+    "test:perf": "base+my files alone (git archive of HEAD + my files, evaluate() at that root): 0 findings, max +5 KB (app/page.tsx 9186/9216, +1 module 1442/1445). Working-tree red is other builders' combined in-flight growth; no budget raised",
+    "api:check": "no route/method/auth change; its one finding pre-exists from another session's route",
+    "docs:check:diff": "green",
+    "review:constitution": "no finding",
+    "generated files": "schemas:gen line-ending rewrites restored"
+  }
+}

@@ -15,6 +15,9 @@ export const WORKSPACE_TAB_IDS = [
   // Agent-candidate bridge: the hired-agents roster (dev/flag-gated in the nav
   // via AGENTS_TAB_IN_NAV below, same two-place pattern as the About tab).
   "agents",
+  // Gigs: real paid work drafted by specialist agents and sent by the operator
+  // (docs/features/gigs). Gated with Agents by the SAME flag, in the same two places.
+  "gigs",
   "interview",
   // Renamed from "profile": this surface's centre of gravity is the candidate
   // ARCHETYPE taxonomy (ArchetypeManager) plus the candidates routed to it — the
@@ -37,6 +40,12 @@ export const WORKSPACE_TAB_IDS = [
   "intake",
   "matrix",
   "analytics",
+  // Journey Analytics: every candidate's cross-phase story, many side by side.
+  // A nav item like any other so ?tab= deep-links and the chord system apply,
+  // but its surface is a FULL-VIEWPORT OVERLAY above the workspace rather than a
+  // panel in the content frame - the board needs the whole window to be readable
+  // (see JourneyOverlay, and OverlayShell for the shape it reuses).
+  "journeys",
   // The LLM activity log (Insights) — the row-level audit trail of every AI
   // action, now that they all run as background tasks.
   "activity",
@@ -199,6 +208,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // Appended last so the group's existing order (and every derived g-chord —
       // see chordOverflow) is untouched. Dev/flag-gated like About.
       ...(AGENTS_TAB_IN_NAV ? [{ id: "agents", label: "Agents", chordOverflow: true } as WorkspaceTabDef] : []),
+      // Gigs rides the Agents gate (a specialist is a hired agent) and the same chord
+      // rule: chordOverflow, so it takes a two-key chord and moves no pinned letter.
+      ...(AGENTS_TAB_IN_NAV ? [{ id: "gigs", label: "Gigs", chordOverflow: true } as WorkspaceTabDef] : []),
     ],
   },
   {
@@ -247,6 +259,10 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "insights",
     items: [
       { id: "analytics", label: "Analytics" },
+      // Appended into the Insights group AFTER its single-letter chords were
+      // pinned, so it must not claim one - chordOverflow sends it to the two-key
+      // pass, exactly as "activity" below.
+      { id: "journeys", label: "Journeys", chordOverflow: true },
       { id: "matrix", label: "Matrix", chordPin: "t" },
       // The LLM activity audit log. Appended into an early group AFTER the
       // single-letter chords were pinned, so it must not claim one (chordOverflow
@@ -370,7 +386,7 @@ export function navActionHref(action: NavGroupAction): string {
 }
 
 export function navItemClass(isActive: boolean): string {
-  return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
+  return isActive ? "bg-coral/10 text-coral-ink" : "text-steel hover:bg-stone-50 hover:text-ink";
 }
 
 // Build a "/?…" href by patching `search` (the current query string, e.g. from
@@ -457,6 +473,14 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "score",
   "source",
   "sort",
+  // The pipeline's level (the kit roles board): ?role=<job id or title> / ?role=all opens that
+  // scope's pipeline under the board. A selection like the filters above, so tab-scoped too.
+  "role",
+  // Analytics calibration's one-shot family deep link from the screening rules.
+  "calFamily",
+  // Models section is a shareable view choice, but a bare tab switch starts
+  // the next section from its default instead of carrying stale tab state.
+  "modelSec",
   // shortlist-to-group-eval — the Decisions pre-armed group-eval selection
   // (?arm=<entryId,entryId,…>, grammar in sub_decisions/group-eval-arm.ts).
   // One-shot by design: DecisionsTab consumes it at mount then strips it via
@@ -476,6 +500,13 @@ export const TAB_SCOPED_PARAM_KEYS = [
   // it at mount (opens the JD in edit mode with a suggestion banner) then strips it
   // via history.replaceState; tab-scoped so a bare tab switch can't re-stage it.
   "coachEdit",
+  // Assignments as an address (challenge-r03 devcase-workspace/B): ?case=<id> opens
+  // one case's reader, ?lifecycle=<id> focuses a lifecycle and opens its review when
+  // it awaits approval (the Control Room's Art. 22 gate Review link). ?job= above is
+  // shared with Decisions and narrows the ledger to one role. One-shot like ?arm=:
+  // DevTab consumes them on arrival and strips them via history.replaceState.
+  "case",
+  "lifecycle",
 ] as const;
 
 export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];

@@ -1,0 +1,17 @@
+[
+  {
+    "rider": "architecture-diagrams-explorer",
+    "files_read": 5,
+    "checked": "Read app/diagrams/page.tsx, PipelineExplorer.tsx, pipelineSteps.ts, readDiagramSource.ts and diagramCatalog.ts in full. Hypotheses traced: (1) who may open the explorer. page.tsx:58-66 says it is for 'the people who run this install' but gates on isOperator(), which is true for any non-demo session from any org (require-operator.ts:22-36); this went into card A, which moves the page onto the home-org predicate. (2) ?step= deep link: already built (parseDiagramStep + replaceStepQuery, PipelineExplorer.tsx:123-131). (3) Drawer a11y and remount-on-switch: already done (useDialogA11y non-modal, key={active.id}). (4) Prod read cost: module cache in readDiagramSource.ts. No separate card, since the remaining ideas (e.g. deriving the step status from code) are S or not derivable."
+  },
+  {
+    "rider": "architecture-diagrams-tests",
+    "files_read": 2,
+    "checked": "Read app/diagrams/pipelineSteps.test.ts and readDiagramSource.test.ts in full. The contract covers files[] existence, the no-db.ts-barrel rule, the alias<->STEP_DETAILS bijection, that puml bodies parse, the catalog<->step bijection in 4 locales, that every /api route drawn resolves to a route.ts, the committed-puml = DIAGRAMS + UNLISTED ratchet, and the standalone tracing include. One hypothesis was an unpinned claim: each step's status (live/gate/gap, pipelineSteps.ts) is hand-asserted prose that no test ties to code. It cannot be derived mechanically, and a status check would be S. So no card."
+  },
+  {
+    "rider": "dev-inspector",
+    "files_read": 6,
+    "checked": "Read DevInspector.tsx, DevInspectorImpl.tsx, devInspectorUi.tsx, devLocate.ts, devLocate.test.ts and dev-inspector-bundle.test.ts in full. Hypotheses: (1) production bundle leak. Closed and pinned by dev-inspector-bundle.test.ts, which checks the literal NODE_ENV gate, the dynamic import under the guard, a stub that imports only react, and no other importers. (2) Raw hex/rgba in devInspectorUi.tsx and ArmControl. This is deliberate dev-only chrome under a reasoned eslint-disable and never ships, so it is not a design-token finding. (3) The call-site vs library pick (pickDefaultIndex) is covered by devLocate.test.ts. (4) UX leaps (open-in-editor, sticky pin) are dev-only and fall below the impact floor of 7. No card."
+  }
+]

@@ -30,13 +30,17 @@ export function usePipelineNavigation({
   // state can resume it after the shell wipes the selection. `cohort` is what the
   // modal's pager walks (a map cell's candidates; null = the board's visible order)
   // and `tab` is the door's natural section (a ticket's "Actions" → Actions).
-  const openCandidate = (e: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => {
+  // The kit view opens an entry in its reading pane first; that is the same "I'm working on this"
+  // moment, so the pane's open records it too (recordEntry), and the full record adds nothing new.
+  const recordEntry = (e: Entry) =>
     recordRecent({
       type: "entry",
       id: e.id,
       label: e.candidateLabel,
       href: buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", q: e.candidateLabel }, search.toString()),
     });
+  const openCandidate = (e: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => {
+    recordEntry(e);
     showCandidate(e, { cohort: cohort ?? null, tab: tab ?? "overview" });
   };
   // rematch-story-navigable / drawer-flow-friction — open the modal for an entry by id.
@@ -80,5 +84,5 @@ export function usePipelineNavigation({
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
   const openPositionRanking = (jobId: string) => nav.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
-  return { openCandidate, openEntryById, openProfile, openJob, goToDecisions, openPositionRanking };
+  return { openCandidate, recordEntry, openEntryById, openProfile, openJob, goToDecisions, openPositionRanking };
 }

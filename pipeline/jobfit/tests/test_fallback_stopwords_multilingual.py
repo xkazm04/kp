@@ -28,9 +28,8 @@ from pipeline.jobfit.taxonomy import (
 # human reads these as two unrelated skills, so the engine must score them 0.0.
 GLUE_ONLY_PAIRS: dict[str, tuple[str, str]] = {
     "en": ("management of databases", "management of suppliers"),
-    # CS shares the glue only: the Czech GENERIC ROLE FILLER ("vedení", "správa",
-    # "podpora") is still absent from the list, the same asymmetry de/fr had for the
-    # glue itself — recorded, not silently widened here.
+    # Czech glue is covered; the generic role nouns have their own regression
+    # pairs below so they cannot create false skill overlap.
     "cs": ("školení v angličtině", "podpora v němčině"),
     "de": ("Entwicklung von Datenbanken", "Entwicklung von Netzwerken"),
     "fr": ("Gestion de projets", "Gestion de risques"),
@@ -47,6 +46,18 @@ SHARED_HEAD_PAIRS: dict[str, tuple[str, str]] = {
 
 
 class GlueOnlyEarnsNothingTest(unittest.TestCase):
+    def test_czech_generic_role_nouns_do_not_create_skill_overlap(self) -> None:
+        pairs = (
+            ("vedení databází", "vedení dodavatelů"),
+            ("správa systémů", "správa vozidel"),
+            ("podpora klientů", "podpora výroby"),
+        )
+        for left, right in pairs:
+            with self.subTest(left=left, right=right):
+                self.assertEqual(unresolved_pair_score(left, right), 0.0)
+                self.assertTrue(_fallback_tokens(left))
+                self.assertTrue(_fallback_tokens(right))
+
     def test_every_shipped_language_has_a_pair_under_test(self) -> None:
         # A locale added to LANG_NAMES without a stopword pass is exactly the gap de/fr
         # sat in; this is the line that reddens when the fifth language arrives.

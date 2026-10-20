@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedSubmission } from "../devcase-owned-lifecycle";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 
 // Bridge: an evaluated submission becomes a pipeline entry + a Decisions review card.
@@ -13,7 +16,11 @@ import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 // than the automated one, or the same submission reads "advance" through one door and
 // "hold" through the other. The response carries the verdict + its reasons so the
 // caller (and the audit trail) can explain the decision.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
     if (!body.submissionId) return NextResponse.json({ error: "submissionId is required." }, { status: 400 });
@@ -22,12 +29,12 @@ export async function POST(request: NextRequest) {
     // pipeline entry carrying the candidate's name and contact, and a known id from another
     // team must not be promotable. promoteSubmission itself derives every write's tenant
     // from this same row.
-    const sub = ownedSubmission(body.submissionId, await currentWorkspace());
+    const sub = ownedSubmission(body.submissionId, ws);
     if (!sub) {
       return NextResponse.json({ error: "submission not found" }, { status: 404 });
     }
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
-    const result = promoteSubmission(body.submissionId, activePromoteFloor());
+    const result = promoteSubmission(body.submissionId, activePromoteFloor(), await humanActor());
     // Take-home -> observed bridge (best-effort): a promoted submission cleared the
     // transfer floor, so a resolvable candidate profile gains observed-provenance
     // skills. Failures never block the promotion itself.
@@ -51,6 +58,9 @@ export async function POST(request: NextRequest) {
       entryId: result?.entryId ?? null,
       recommendation: result?.recommendation ?? null,
       reasons: result?.reasons ?? [],
+      // The same reasons as codes (devcase-promote-verdict.ts) - what the panel resolves
+      // in the reader's language; `reasons` stays the trail's locale-invariant English.
+      reasonCodes: result?.reasonCodes ?? [],
       observedSkills,
     });
   } catch (error) {
@@ -58,4 +68,4 @@ export async function POST(request: NextRequest) {
     // thrown message carries SQLITE_* detail, the db path or child stderr.
     return safeJsonError(error, "api:devcase/promote", "DEVCASE_PROMOTE_FAILED");
   }
-}
+});

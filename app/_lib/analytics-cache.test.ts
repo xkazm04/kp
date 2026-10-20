@@ -8,6 +8,7 @@ import {
   calibrationBandCacheKey,
   decisionRecordsCacheKey,
   invalidateAnalyticsWorkspace,
+  invalidateCalibrationWorkspace,
 } from "./analytics-cache.ts";
 
 test("analyticsCacheKey isolates workspaces and windows", () => {
@@ -212,4 +213,38 @@ test("invalidateAnalyticsWorkspace retires every window of ONE workspace", () =>
   assert.equal(cache.get("ws-a", 30, compute), "after", "the written workspace's windowed view must re-aggregate");
   assert.equal(cache.get("ws-a", null, compute), "after", "every window of that workspace, not just the one read last");
   assert.equal(cache.get("ws-b", 30, compute), "before", "a sibling tenant's fresh payload is not collateral");
+});
+
+test("threshold write retires only that workspace's calibration curves", () => {
+  const cache = createTtlCache<string>({ now: () => 0 });
+  const key = (workspace: string, source: string) => calibrationCacheKey(workspace, source, null);
+  let stored = "before";
+  const compute = () => stored;
+
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "before");
+  assert.equal(cache.get(key("cal-a", "holdout:advance"), compute), "before");
+  assert.equal(cache.get(key("cal-b", "pipeline:advance"), compute), "before");
+  stored = "after";
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "before");
+
+  invalidateCalibrationWorkspace("cal-a");
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "after");
+  assert.equal(cache.get(key("cal-a", "holdout:advance"), compute), "after");
+  assert.equal(cache.get(key("cal-b", "pipeline:advance"), compute), "before");
+});
+
+test("analyticsCacheKey gains the role axis: a job-scoped payload never serves another scope", () => {
+  // The workspace view keeps its historical key, so no deployed memo shape moves.
+  assert.equal(analyticsCacheKey("ws-a", 30, null), analyticsCacheKey("ws-a", 30));
+  assert.notEqual(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, null));
+  assert.notEqual(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, "B"));
+  assert.notEqual(analyticsCacheKey("ws-a", null, "A"), analyticsCacheKey("ws-a", 30, "A"));
+  assert.equal(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, "A"));
+
+  const cache = createAnalyticsCache<string>({ now: () => 0 });
+  assert.equal(cache.get("ws-a", 30, () => "wide"), "wide");
+  assert.equal(cache.get("ws-a", 30, () => "role A", "A"), "role A", "a job-scoped get must miss the workspace entry");
+  assert.equal(cache.get("ws-a", 30, () => "role B", "B"), "role B", "…and another role's entry");
+  assert.equal(cache.get("ws-a", 30, () => "recomputed"), "wide", "the workspace entry is still its own hit");
+  assert.equal(cache.get("ws-a", 30, () => "recomputed", "A"), "role A");
 });

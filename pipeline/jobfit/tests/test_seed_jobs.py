@@ -27,6 +27,7 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest import mock
 
 from pipeline.jobfit import seed_jobs
 from pipeline.jobfit.claude_cli import ClaudeCliError
@@ -208,6 +209,13 @@ class StampTest(unittest.TestCase):
 
 
 class GenerateTest(unittest.TestCase):
+    def test_explicit_provider_never_constructs_claude_cli(self) -> None:
+        provider = FakeProvider(default=_ad())
+        with mock.patch.object(seed_jobs, "ClaudeCliProvider", side_effect=AssertionError("CLI constructed")):
+            records, failures = seed_jobs.generate(1, workers=1, provider=provider)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(failures, {})
+
     def test_returns_stamped_records_in_id_order_with_no_failures(self) -> None:
         provider = FakeProvider(default=_ad())
         records, failures = seed_jobs.generate(5, workers=1, provider=provider)

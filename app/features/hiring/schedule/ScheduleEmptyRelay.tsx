@@ -17,7 +17,6 @@ import { useTranslations } from "next-intl";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { SCHEDULE_GLYPH } from "@/app/_components/glyph/glyphs/scheduleGlyph";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 
 type StopState = "waiting" | "here" | "ahead";
@@ -60,8 +59,7 @@ export function ScheduleEmptyRelay() {
       </div>
       <div className="grid items-center gap-4 sm:grid-cols-[auto_1fr]">
         <MotionizedGlyph
-          data={SCHEDULE_GLYPH.data}
-          viewBox={SCHEDULE_GLYPH.viewBox}
+          glyph="schedule"
           className={`mx-auto ${GLYPH_SIZE.md} sm:mx-0`}
         />
         <ChainEmptyState

@@ -1,63 +1,44 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listAnalysisRecords } from "@/app/_lib/db/analyses";
-import { cachedProfileRecords } from "@/app/_lib/db/profiles";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { cachedProfileRecords, profileStaleness } from "@/app/_lib/db/profiles";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { analysisFromRecord, collapsePopulation, profileFromRecord } from "@/app/_lib/candidate-population";
 
 
-// Candidate overview for the Profile tab matrix — a UNION of BOTH candidate stores,
-// each row tagged with its `source` so the matrix can group everything into archetype
-// columns and mark where a cell came from with a cheap chip (no per-source columns):
+// Candidate overview for the Profile tab matrix — BOTH candidate stores, folded into
+// ONE row per candidate IDENTITY (the CV content hash) by collapsePopulation
+// (app/_lib/candidate-population.ts). Before, this was a raw union: one row per store
+// row, so a CV analysed against four JDs and promoted to a profile was five chips.
 //
-//   - source "analysis": a saved CV analysis, archetype read off its v2Profile; the
-//     cell opens the full Analyze output at /history/<slug>. `score` is the analysis
-//     total (0-100).
-//   - source "profile": a saved v2 intake profile (previously listed nowhere in the
-//     matrix); the cell opens the editor via the ?edit=<id> deep link. A saved profile
-//     has no MATCH score — that's an honest null (never fabricated), so it renders a
-//     neutral em-dash badge; its readiness lives as `completeness` on the roster.
-export async function GET() {
+//   - source "profile": a saved profile exists for the person. Its reviewed archetype
+//     wins; every analysis of the same CV (analyses.cv_hash = profiles.source_cv_hash)
+//     is folded in, and the newest supplies the score. A hand-built profile, or one
+//     whose CV has no analysis in view, has no MATCH score — an honest null (never
+//     fabricated), rendered as a neutral em-dash badge.
+//   - source "analysis": only analyses exist — every analysis of one CV is one row,
+//     scored and opened by the newest. A legacy analysis with no cv_hash is its own row
+//     (a label is never an identity key).
+//
+// This is the Profile tab's ONE population read (useCandidatePopulation): the roster,
+// the matrix and the archetype retire dialog all derive from these rows, so a profile
+// row also carries its completeness and its staleness (profileStaleness) — what the
+// roster used to read from GET /api/profile on its own. GET /api/profile keeps its
+// shape for its other readers.
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const ws = await currentWorkspace();
 
-    const analysisRows = listAnalysisRecords(200, ws).map(({ row, payload }) => {
-      const v2 = (payload as { v2Profile?: { archetype?: string } } | null)?.v2Profile;
-      return {
-        key: `analysis:${row.slug}`,
-        source: "analysis" as const,
-        slug: row.slug,
-        id: null,
-        name: row.candidate_label,
-        role: row.role_family,
-        seniority: row.seniority,
-        score: row.score,
-        // Honest fail-closed sentinel (NOT "bau"): collapsing an unrouted candidate
-        // to "bau" mislabels a fairness-protected class. The matrix renders "unknown"
-        // as the "Unrouted" column via archetypeDisplayKey.
-        archetype: v2?.archetype ?? "unknown",
-      };
-    });
+    // Every store read takes the caller's workspace — pinned by
+    // app/features/tools/profile/candidateMatrixContracts.test.ts.
+    const analyses = listAnalysisRecords(200, ws).map(analysisFromRecord);
+    const profiles = cachedProfileRecords(ws).map(profileFromRecord);
+    // Staleness rides on the profile rows, so the matrix knows what the roster knows
+    // (a profile with a newer CV no longer reads "current" on one projection only).
+    const stale = profileStaleness(ws);
 
-    const profileRows = cachedProfileRecords(ws).map(({ row, payload }) => {
-      const p = (payload as ProfilePayload | null) ?? {};
-      return {
-        key: `profile:${row.id}`,
-        source: "profile" as const,
-        slug: null,
-        id: row.id,
-        name: row.label,
-        role: row.role_family ?? p.roleFamily ?? null,
-        seniority: p.seniority ?? null,
-        // No match score for a saved profile — null-honest, never fabricated.
-        score: null as number | null,
-        archetype: row.archetype ?? "unknown",
-      };
-    });
-
-    return NextResponse.json({ candidates: [...profileRows, ...analysisRows] });
+    return NextResponse.json({ candidates: collapsePopulation(profiles, analyses, stale) });
   } catch (error) {
-    // Two store reads; better-sqlite3's thrown text carries the absolute db path.
+    // Three store reads; better-sqlite3's thrown text carries the absolute db path.
     return safeJsonError(error, "api:profile:candidates", "PROFILE_CANDIDATES_FAILED");
   }
-}
+});

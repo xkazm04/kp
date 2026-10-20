@@ -1,0 +1,124 @@
+[
+  {
+    "context": "voice-tts-package",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Language coverage is probed from installed voices, not a hardcoded list",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "packages/voice-tts/src/types.ts",
+      "packages/voice-tts/src/registry.ts",
+      "packages/voice-tts/src/registry.test.ts",
+      "packages/voice-tts/src/providers/piper.ts",
+      "packages/voice-tts/src/providers/kokoro.ts",
+      "packages/voice-tts/src/providers/fake.ts",
+      "packages/voice-tts/src/voice-pick.ts",
+      "packages/voice-tts/src/providers/local-inventory.test.ts",
+      "app/_components/voice/TtsComparePanel.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/voice-tts-package.md"
+    ],
+    "new_files": [
+      "packages/voice-tts/src/voice-pick.ts",
+      "packages/voice-tts/src/providers/local-inventory.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "Piper, PIPER_BIN pointed at any readable file, PIPER_VOICE_DIR = a temp dir holding only en_US-lessac-medium.onnx (>1 MB, sparse) + .onnx.json with language.code 'en_US' -> probe() is { state: 'ready', languages: ['en'] }, and createTts({providers:[piper]}).resolve(undefined, 'cs') returns unsupportedLanguage 'cs' (today: null, because the static ['en','cs'] claims Czech)",
+      "Same Piper dir plus de_DE-thorsten-medium.onnx (language.code 'de_DE') -> probe languages ['de','en']; with a FakeTts kokoro (languages ['en']) preferred ahead of it, resolve(undefined, 'de') serves piper with unsupportedLanguage null (today Piper can never be picked for de)",
+      "Kokoro with only the three built-in voices (KOKORO_BIN + KOKORO_MODEL_DIR with model.onnx/voices.bin/tokens.txt present) -> probe languages ['en']; beside a FakeTts elevenlabs declaring 'any', resolve('kokoro', 'fr') serves elevenlabs with fallbackFrom 'kokoro' (today Kokoro claims fr on a catalog with no fr voice)",
+      "KOKORO_VOICES='ff_siwis:30:fr' -> probe languages include 'fr'; pickVoice(catalog, { voiceId: null, language: 'fr' }) returns the sid-30 voice; the old two-field form 'x:5' still parses, with language null, and adds no language to coverage",
+      "pickVoice(catalog, { voiceId: null, language: 'cs' }) on a catalog with no cs voice returns { voice: catalog[0], matched: false }; an explicit unknown voiceId still yields invalid_voice from the adapter",
+      "A provider whose probe carries no languages (ElevenLabs, FakeTts default) resolves exactly as before: every existing case in registry.test.ts passes unchanged",
+      "status() rows carry the probed languages for a ready provider and null for absent/broken ones"
+    ],
+    "premise": [
+      "packages/voice-tts/src/providers/piper.ts:23 declares languages ['en','cs'] as a class constant, whatever voices the machine actually holds",
+      "packages/voice-tts/src/providers/piper.ts:90 picks voiceId -> first voice of the language -> voices[0], so a cs request with only an English voice installed is spoken by the English voice",
+      "packages/voice-tts/src/providers/piper.ts:14 INSTALL_HINT installs en_US-lessac-medium and cs_CZ-jirka-medium as two separate downloads; an install that stopped after the first is exactly the 'claims cs, has no cs voice' state",
+      "packages/voice-tts/src/providers/kokoro.ts:37 declares en es fr hi it ja pt zh, while its catalog at kokoro.ts:24-26 lists three voices, all language 'en', and KOKORO_VOICES extras get language null (kokoro.ts:66)",
+      "packages/voice-tts/src/providers/kokoro.ts:95 picks req.voiceId or catalog[0] and never reads req.language; the sidecar args (kokoro.ts:106-110) carry the speaker id and the text, no language",
+      "packages/voice-tts/src/registry.ts:97-98 speaks() reads provider.capabilities.languages only; resolve() already probes each candidate once (registry.ts:117) and uses speaks() at registry.ts:122, so the probe result is in hand where the static claim is read",
+      "app/api/tts/route.ts:142 sends X-Tts-Unsupported-Language only from that resolution, and app/features/shell/companion/voice/VoicePlayback.tsx:77 shows companion.voice.wrongLanguage only from it (messages/en.json:11873), so a wrong claim silences the warning the product built for this case",
+      "docs/architecture/voice-tts-package.md:125 already describes Piper's languages as 'en, cs (whatever voices are installed)', which the code does not do",
+      "The registry's own standard (voice-io, engine-abstraction): 'Declared capability is a claim; probing verifies it at selection time'"
+    ],
+    "rollback": "Additive on the contract: TtsProbe's ready arm and TtsStatus gain an optional `languages`, and speaks() falls back to capabilities.languages when it is absent. Reverting the series restores the static reading. No stored state, no route shape change (GET /api/tts gains a field inside each status row).",
+    "gate": "contract",
+    "runner_up": "Piper walks its voice directories on every probe AND every synthesize, per segment (piper.ts:70, :88); a probed inventory snapshot with a directory-mtime key would remove the repeat walks. Folded into this card's direction but not its claim.",
+    "technique": "engine-abstraction",
+    "body": "## Summary\nThe registry fixed the silent-accent defect by making the requested language part of readiness (registry.ts:97-98, 117-122). But the two local adapters it relies on describe their languages as class constants, not from what is installed. Piper claims Czech whether or not a Czech voice exists (piper.ts:23) and then reads Czech text with voices[0] (piper.ts:90). Kokoro claims French, Spanish and five more on a catalog of three English voices (kokoro.ts:24-26, 37), and never passes the language to the sidecar (kokoro.ts:95, 106-110). In both cases the `unsupportedLanguage` flag, the X-Tts-Unsupported-Language header and the companion's wrongLanguage note, which were built for exactly this case, stay silent. This card makes language coverage a PROBED fact: each local adapter derives it from its voice catalog at probe time, and the registry reads the probe.\n\n## Description\nThis card follows engine-abstraction (voice-io): capability is declared, but probing verifies it at selection time. `languages` is the one capability that depends on the installation rather than the engine, so it moves from declaration to probe:\n- types.ts: the ready arm of `TtsProbe` gains `languages?: readonly string[] | 'any'`. `TtsStatus` gains `languages: readonly string[] | 'any' | null`, which is null when the provider is not ready. `capabilities.languages` stays, documented as what the engine CAN speak with the right voice installed.\n- New voice-pick.ts: `pickVoice(catalog, {voiceId, language})` is the one voice-selection rule, returning `{voice, matched}`. Both local adapters use it, which replaces piper.ts:90 and kokoro.ts:95.\n- piper.ts: probe() returns the distinct primary languages of the catalog it already walks.\n- kokoro.ts: the built-in voices keep 'en'. KOKORO_VOICES accepts an optional third field `name:sid:lang` (the two-field form keeps language null and adds no coverage). probe() returns the catalog's languages, and synthesize picks by language through pickVoice.\n- registry.ts: `speaks(provider, probe, lang)` prefers `probe.languages` and falls back to `capabilities.languages` (ElevenLabs keeps 'any' without change). status() copies the probed languages onto each row.\n- TtsComparePanel.tsx: the surface that displays this status. Each ready provider row shows the languages it will actually speak, using the endonyms already in the file. When the picked provider does not cover the picked language, one line says so before Speak is pressed, instead of the operator finding out by ear. This needs one new key, `interview.voice.ttsCompare.noVoiceFor`, in four catalogs.\n- docs/architecture/voice-tts-package.md: the provider table and the 'declared language is part of readiness' paragraph now describe the probed rule.\n\n## Flow\nGET /api/tts -> status() -> each adapter probes and returns languages from its catalog -> the compare panel paints coverage. POST /api/tts -> speak() -> resolve() probes each candidate once, as today -> speaks() reads the probe's languages -> a Piper without a cs voice is now 'ready but not cs', so a cs-declaring engine wins, or else the serve carries unsupportedLanguage and the route and companion say so.\n\n## Expected impact\nFor Czech, the product's most important non-English market, the local path stops lying. An operator who installed only the English Piper voice now gets the wrong-language note, or a real Czech engine, instead of an English-accented Czech interview prompt with no signal. A German Piper voice becomes usable for de requests, where today the static list excludes it. The compare panel stops being a place where the operator discovers coverage by listening. Perf: TtsComparePanel lives on /interview-lab, not in the app/page.tsx graph. voice-pick.ts is server-side package code. No change to the page or task-hub budgets.\n\n## Evaluation\nClaim: the language a local engine is credited with equals the languages of the voices it has installed.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: contract. node:test in packages/voice-tts/src/providers/local-inventory.test.ts (temp dirs, PIPER_BIN/KOKORO_BIN pointed at a readable file, no sidecar spawned) plus registry.test.ts, run by npm run test:unit (packages/**/*.test.ts is in its glob). Also i18n:check and tsc.\nResult: pending build.\nGate: contract",
+    "evidence": "base c7690bd4a.\npackages/voice-tts/src/providers/piper.ts:23  readonly capabilities = { streaming: false, languages: [\"en\", \"cs\"], speed: true, onDevice: true, maxClipChars: 300 } as const;\npackages/voice-tts/src/providers/piper.ts:90  const voice = (req.voiceId && voices.find((v) => v.id === req.voiceId)) || (lang && voices.find((v) => v.language === lang)) || voices[0];\npackages/voice-tts/src/providers/kokoro.ts:24-26  af_heart/am_michael/bf_emma, all language: \"en\"\npackages/voice-tts/src/providers/kokoro.ts:37  languages: [\"en\", \"es\", \"fr\", \"hi\", \"it\", \"ja\", \"pt\", \"zh\"]\npackages/voice-tts/src/providers/kokoro.ts:95  const voice = req.voiceId ? catalog.find((v) => v.id === req.voiceId) : catalog[0];\npackages/voice-tts/src/registry.ts:97-98  const speaks = (provider, lang) => !lang || provider.capabilities.languages === \"any\" || provider.capabilities.languages.includes(lang);\ndocs/architecture/voice-tts-package.md:125  | `piper` | local | ... | en, cs (whatever voices are installed) | ...\nNo overlap: grep of every r08/r09 card write_set for voice-tts|useTts|tts|studio|companion|interview-lab matched only the shared messages/*.json catalogs. r09 voice-provider-io rewrites app/_lib/voice/** (the realtime plane), which is disjoint from packages/voice-tts. No prior challenge card, leftover-develop row or backlog-digest title covers TTS language coverage (the digest has only 'Extract the shared voice sidecar contract (sidecarHome + wavInfo)', a different seam)."
+  },
+  {
+    "context": "voice-tts-package",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A resumed utterance plays to its end: blocked and truncated speech continue",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "packages/voice-tts/src/react/utterance.ts",
+      "packages/voice-tts/src/react/utterance.test.ts",
+      "packages/voice-tts/src/react/useTts.ts",
+      "app/features/shell/companion/useCompanionSpeech.ts",
+      "app/features/shell/companion/CompanionSpeakButton.tsx",
+      "app/features/shell/companion/voice/VoicePlayback.tsx",
+      "app/_components/studio/useStudioSpeech.ts",
+      "app/_components/studio/StudioVoiceBar.tsx",
+      "app/_components/voice/TtsComparePanel.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/voice-tts-package.md"
+    ],
+    "new_files": [
+      "packages/voice-tts/src/react/utterance.ts",
+      "packages/voice-tts/src/react/utterance.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "3 chunks, play() answers 'blocked' for chunk 0 -> run() settles { state: 'blocked', at: 0 }; after resume() with play() now answering 'done', chunks 0,1,2 are played in order, the utterance settles 'done', and fetchChunk was called exactly 3 times, with no refetch",
+      "1 chunk, blocked then resumed -> the utterance settles 'done' and the hook-facing state returns to 'idle' when the clip ends (today it stays 'playing' forever, so useStudioSpeech.speaking and useCompanionSpeech.speakingId stay lit)",
+      "4 chunks, fetchChunk for chunk 2 rejects with TtsRequestError code 'TTS_FAILED' -> settles { state: 'failed', spoken: 2, total: 4, resumable: true }; resume() fetches ONLY chunk 2 again, plays 2 and 3, and settles 'done'; chunks 0 and 1 were fetched once each",
+      "Failure codes TTS_UNAVAILABLE, TTS_VOICE_INVALID and TTS_TEXT_TOO_LONG -> resumable: false, and resume() is a no-op that leaves the failed outcome unchanged (retrying cannot help, per the code list at useTts.ts:189-200)",
+      "stop() during a resumed run -> no further play() or fetchChunk calls, and a superseded utterance's resume() is a no-op (the generation token holds across resume)",
+      "Every object URL the utterance created is revoked exactly once on done, on stop, and on a failed utterance that is then stopped or superseded (today the error path at useTts.ts:392-397 never calls release())"
+    ],
+    "premise": [
+      "packages/voice-tts/src/react/useTts.ts:380-382: when a clip is blocked, speak() sets 'blocked' and RETURNS, leaving the chunk loop for good. Chunks 1..N-1 are never played, even though ensure() already fetched them ahead (useTts.ts:356-361)",
+      "packages/voice-tts/src/react/useTts.ts:402-411: resume() calls audioRef.current.play() and sets 'playing'. The element's onended (useTts.ts:328) resolves a playUrl promise that already resolved 'blocked' (useTts.ts:334), so nothing sets 'idle' and playback stays 'playing' after the clip ends",
+      "app/_components/studio/useStudioSpeech.ts:140 derives speaking from playback === 'playing', and StudioVoiceBar.tsx:138-145 renders a Stop square while speaking. After a resume, the bar shows Stop over silence until it is clicked",
+      "app/features/shell/companion/useCompanionSpeech.ts:149 derives speakingId from playback !== 'idle', so after a resume the turn's control stays lit. VoicePlayback.tsx:20 says 'blocked is not an edge case here. Auto-speak fires with no gesture behind it', and useCompanionSpeech.ts:61 says an auto-speak 'almost always will' land in blocked",
+      "packages/voice-tts/src/react/useTts.ts:392-397: a failure on chunk i sets 'error' and keeps progress, but there is no way to continue from chunk i. The compare panel's only answer is text: messages/en.json:2519 'stopped after {spoken} of {total} chunks. The rest is in the text.' (TtsComparePanel.tsx:163)",
+      "Re-speaking from the start is today's only recovery, and it re-requests every chunk. app/api/tts/route.ts:105-116 answers cache hits uncharged, but a miss evicted from the 64-entry cache pays the limiter and the engine again"
+    ],
+    "rollback": "The driver is a new pure module that useTts delegates to. The public UseTts shape only gains `resumable: boolean`, and `resume()` keeps its name and gesture contract. Reverting the series restores the inline loop. No server, route or stored state is touched.",
+    "gate": "contract",
+    "runner_up": "Per-chunk served facts: served is set from chunk 0 only (useTts.ts:368-377), so a mid-utterance fallback to another provider or a wrong-language chunk later in the utterance is invisible. Show the WORST chunk's facts, not the first's.",
+    "technique": "tts-pipeline",
+    "body": "## Summary\nAuto-speak is how the companion's voice mode and the studio bar talk, and both of their own headers say it almost always lands in the browser's autoplay block. The operator then presses Play. What happens next is broken in two ways. First, only the one blocked clip plays: the loop that would have played chunks 2..N returned when the block happened (useTts.ts:380-382). Second, when that clip ends, nothing marks the utterance finished (useTts.ts:328, 334, 402-411), so the studio bar shows a Stop square over silence and the companion keeps the turn lit. A mid-utterance engine failure has the same shape without the gesture: progress knows 'stopped after 2 of 5', but the only way forward is to replay from the start. This card turns the utterance into a resumable object: Play after a block continues to the end, and a truncated utterance offers Continue from the chunk that failed.\n\n## Description\nThe tts-pipeline technique (voice-io) gives each utterance a lifecycle of queued -> synthesizing -> playing -> completed | interrupted | failed, and requires that resources are released on every exit. Today the lifecycle lives inside a hook closure that cannot be re-entered or tested. The pieces:\n- New react/utterance.ts, pure with no React and no DOM. `createUtterance({ chunks, fetchChunk, play, lookahead, revoke })` owns the pending array, the cursor, the generation check and URL ownership. `run()` and `resume()` both drive the same loop from the cursor and settle one outcome: done | blocked(at) | failed(at, code, resumable) | interrupted. Only chunk i is refetched after a failure; later chunks already fetched ahead are reused. resumable is false for TTS_UNAVAILABLE, TTS_VOICE_INVALID and TTS_TEXT_TOO_LONG.\n- useTts.ts: speak() creates an utterance and maps its outcome onto the existing playback vocabulary. There is NO new playback member, so no surface's state switch grows. resume() now means 'continue this utterance' for both blocked and resumable-failed, and the hook exposes `resumable`. The release discipline moves into the driver, which also closes the unreleased-URL error path.\n- Every surface that offers resume or displays the failed state is in the write set. useCompanionSpeech and useStudioSpeech forward `resumable`. CompanionSpeakButton, VoicePlayback (the pressVoicePlayback transport decision) and StudioVoiceBar treat failed+resumable as a resume press, using the existing companion.voice.resume label. TtsComparePanel replaces 'The rest is in the text' with a Continue button, which needs one new key, interview.voice.ttsCompare.continue, in four catalogs.\n- docs/architecture/voice-tts-package.md: the useTts section states the resume contract.\n\n## Flow\nAuto-speak -> chunk 0 blocked -> the control reads Play -> the operator presses it -> resume() plays chunk 0, then 1..N from the prefetched clips -> the utterance settles done -> playback idle -> the control reads Speak again. When the engine fails on chunk 3 of 5, the control reads Play or Continue, and pressing it refetches chunk 3 only and plays 3..5.\n\n## Expected impact\nThe most common voice path in the companion's voice mode and the studio now speaks the whole answer after one click, instead of the first 280 characters followed by a Stop button that controls nothing. A throttle or engine hiccup late in a long utterance costs one chunk, not a full replay. Perf: the dock and studio bar are in the app/page.tsx graph, which is at its ceiling. The loop MOVES out of useTts.ts into utterance.ts rather than being added, so the net bundle change should be near zero. npm run test:perf measures it, and a +1-2 KB budget line is the fallback, named here up front.\n\n## Evaluation\nClaim: a resumed utterance, whether blocked or truncated, plays every remaining chunk exactly once, then settles idle with every URL released.\nBefore: 0 of 6 acceptance cases pass.\nAfter: 6 of 6.\nMethod: contract. node:test in packages/voice-tts/src/react/utterance.test.ts with scripted fetchChunk/play/revoke fakes (no DOM, and kp has no component harness), run by npm run test:unit. Also tsc, i18n:check and test:perf. No e2e is owed: none of the keyless specs exercises audio.\nResult: pending build.\nGate: contract",
+    "evidence": "base c7690bd4a.\npackages/voice-tts/src/react/useTts.ts:380-382\n          if (result === \"blocked\") {\n            setPlayback(\"blocked\");\n            return;\npackages/voice-tts/src/react/useTts.ts:328  audio.onended = () => resolve(\"done\");   (promise already resolved \"blocked\" at :334)\npackages/voice-tts/src/react/useTts.ts:402-411  resume(): await a.play(); setPlayback(\"playing\");   (nothing ever sets idle afterwards)\napp/_components/studio/useStudioSpeech.ts:140  speaking: playback === \"synthesizing\" || playback === \"waiting\" || playback === \"playing\",\napp/features/shell/companion/useCompanionSpeech.ts:149  speakingId: playback === \"idle\" ? null : lastId,\napp/features/shell/companion/voice/VoicePlayback.tsx:54  if (active && speech.playback === \"blocked\") speech.resume();\nmessages/en.json:2519  \"truncated\": \"stopped after {spoken} of {total} chunks. The rest is in the text.\"\nNo overlap: no r08/r09 card write set touches packages/voice-tts, useTts, the studio or companion speech files, or TtsComparePanel. The only shared files are the messages catalogs, which are edited under the shared-surface lock. r08 voice-interview-components 'A dropped call resumes itself' is about the realtime call transport (app/_lib/voice + interview components), not TTS playback. No prior card, leftover row or digest title covers utterance resume."
+  }
+]

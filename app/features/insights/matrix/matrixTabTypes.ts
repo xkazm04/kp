@@ -17,6 +17,9 @@ export type Matrix = {
   // Candidates whose profile failed to validate/transform — flagged (with the error)
   // so the grid never quietly omits a row, the symmetric counterpart to `missing`.
   missingCandidates: { id: string; label: string; error: string }[];
+  // Present but invalid job records omitted by the scorer; exported separately
+  // so a downloaded grid retains the reason a requested role is absent.
+  missingJobs: { id: string | null; error: string }[];
   placements: Record<string, { stage: string; status: string }>;
   // Unclamped candidate-pool size vs the per-request cap. When poolTotal > poolCap
   // the grid scored only the first poolCap candidates; surfaced so the pool cap is

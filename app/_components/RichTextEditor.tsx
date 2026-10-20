@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Bold, Heading, Italic, List, ListOrdered, Underline as UnderlineIcon } from "lucide-react";
+import { Bold, Heading, Italic, Link2, List, ListOrdered, Underline as UnderlineIcon, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { htmlToMarkdown, markdownToHtml } from "./markdown-html";
+import { htmlToMarkdown, markdownToHtml, safeLinkHref } from "./markdown-html";
 
 // A dependency-free WYSIWYG editor: a Word-like toolbar over a contentEditable
 // surface that VISUALIZES formatting (bold, italic, underline, bullet/numbered
@@ -71,6 +71,10 @@ export function RichTextEditor({
   const reflected = useRef<string>(value);
   const [isEmpty, setIsEmpty] = useState(!value.trim());
   const [marks, setMarks] = useState<Marks>(NO_MARKS);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkHref, setLinkHref] = useState("");
+  const [linkError, setLinkError] = useState("");
+  const linkRange = useRef<Range | null>(null);
 
   // One-time document config: keep formatting as semantic tags and paragraphs.
   useEffect(() => {
@@ -166,6 +170,42 @@ export function RichTextEditor({
     run("formatBlock", /h[1-3]/.test(cur) ? "p" : "h2");
   };
 
+  const openLink = () => {
+    const selection = document.getSelection();
+    if (!selection || selection.isCollapsed || !selection.anchorNode || !ref.current?.contains(selection.anchorNode)) {
+      setLinkError(t("selectText"));
+      return;
+    }
+    linkRange.current = selection.getRangeAt(0).cloneRange();
+    setLinkError("");
+    setLinkOpen(true);
+  };
+
+  const addLink = () => {
+    const href = safeLinkHref(linkHref);
+    if (!href) {
+      setLinkError(t("invalidLink"));
+      return;
+    }
+    ref.current?.focus();
+    const selection = document.getSelection();
+    if (selection && linkRange.current && ref.current?.contains(linkRange.current.commonAncestorContainer)) {
+      selection.removeAllRanges();
+      selection.addRange(linkRange.current);
+      try {
+        document.execCommand("createLink", false, href);
+      } catch {
+        setLinkError(t("invalidLink"));
+        return;
+      }
+      emit();
+    }
+    linkRange.current = null;
+    setLinkOpen(false);
+    setLinkHref("");
+    setLinkError("");
+  };
+
   return (
     <div
       className={`overflow-hidden rounded-md border border-stone-200 bg-white transition-colors focus-within:border-coral/50 focus-within:ring-2 focus-within:ring-coral/20 ${className}`}
@@ -190,6 +230,26 @@ export function RichTextEditor({
         <TB label={t("numberedList")} active={marks.ol} disabled={locked} onClick={() => run("insertOrderedList")}>
           <ListOrdered size={15} aria-hidden />
         </TB>
+        <TB label={t("link")} disabled={locked} onClick={openLink}>
+          <Link2 size={15} aria-hidden />
+        </TB>
+        {linkOpen ? (
+          <form className="ml-1 flex items-center gap-1" onSubmit={(event) => { event.preventDefault(); addLink(); }}>
+            <input
+              autoFocus
+              type="text"
+              inputMode="url"
+              value={linkHref}
+              onChange={(event) => setLinkHref(event.target.value)}
+              aria-label={t("linkUrl")}
+              placeholder="https://"
+              className="focus-ring h-8 w-44 rounded border border-stone-200 bg-white px-2 text-sm text-ink"
+            />
+            <button type="submit" className="focus-ring h-8 rounded bg-ink px-2 text-sm text-white">{t("addLink")}</button>
+            <button type="button" onClick={() => { linkRange.current = null; setLinkOpen(false); setLinkError(""); }} aria-label={t("cancelLink")} className="focus-ring grid h-8 w-8 place-items-center rounded text-steel hover:text-ink"><X size={14} aria-hidden /></button>
+          </form>
+        ) : null}
+        {linkError ? <span role="alert" className="px-1 text-sm text-red-700">{linkError}</span> : null}
       </div>
 
       <div className="relative">

@@ -178,6 +178,12 @@ export function isPreviewableTab(v: string): v is PreviewableTab {
  *  connection state, org roster) — resolved as "restricted" for demo sessions. */
 export const OPERATOR_ONLY_TABS: ReadonlySet<PreviewableTab> = new Set(["billing", "models", "integrations", "organization", "workspace"]);
 
+/** Tabs whose preview reads DEPLOYMENT-WIDE aggregates (install-wide LLM spend, the task
+ *  queue) rather than the caller's team. They follow the home-org gate the matching data
+ *  routes use (/api/llm/usage, /api/llm/activity, /api/ops -> requireHomeOrgReader), not
+ *  just an operator seat, or a seat in a self-signup org reads this install's spend here. */
+export const DEPLOYMENT_WIDE_TABS: ReadonlySet<PreviewableTab> = new Set(["activity", "models"]);
+
 export const ENTITY_KINDS = ["profile", "entry", "job", "jd", "analysis"] as const;
 export type EntityKind = (typeof ENTITY_KINDS)[number];
 export function isEntityKind(v: string): v is EntityKind {

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useTts } from "@/packages/voice-tts/src/react/useTts";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import type { TtsProviderId, TtsStatus } from "@/packages/voice-tts/src/index";
-import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, NOTICE } from "@/app/_components/ui/recipes";
 
 // One sentence per SHIPPED locale, not per locale someone got round to. The
 // panel exists to answer "does this engine sound acceptable to our users", and
@@ -50,7 +50,15 @@ export function TtsComparePanel() {
   const providers = tts.providers ?? [];
   const offered = providers.filter((p) => p.allowed);
   const active = picked ?? offered.find((p) => p.preferred)?.id ?? offered.find((p) => p.probe.state === "ready")?.id ?? null;
+  const activeProvider = offered.find((p) => p.id === active);
   const busy = tts.playback === "synthesizing";
+
+  const coversLang = (p?: TtsStatus | null, targetLang?: string): boolean => {
+    if (!p || p.probe.state !== "ready") return true;
+    if (!p.languages) return true;
+    if (p.languages === "any") return true;
+    return targetLang ? p.languages.includes(targetLang) : true;
+  };
 
   return (
     <section aria-labelledby="tts-compare-title">
@@ -81,9 +89,18 @@ export function TtsComparePanel() {
             >
               <span className="block">
                 {p.label}
-                {p.preferred ? <span className="ml-2 text-meta uppercase text-coral">{t("default")}</span> : null}
+                {p.preferred ? <span className="ml-2 text-meta uppercase text-coral-ink">{t("default")}</span> : null}
               </span>
-              <span className={`block text-meta ${ready ? "text-moss" : "text-coral"}`}>{probeLabel(p)}</span>
+              <span className={`block text-meta ${ready ? "text-moss" : "text-coral-ink"}`}>{probeLabel(p)}</span>
+              {ready && p.languages ? (
+                <span className="block text-micro text-steel">
+                  {p.languages === "any"
+                    ? "any"
+                    : p.languages
+                        .map((l) => (l in LANGUAGE_ENDONYM ? LANGUAGE_ENDONYM[l as Locale] : l))
+                        .join(", ")}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -140,6 +157,15 @@ export function TtsComparePanel() {
         ) : null}
       </div>
 
+      {!coversLang(activeProvider, lang) ? (
+        <p className={`${NOTICE()} mt-2 px-3 py-1.5 text-meta`} role="status">
+          {t("noVoiceFor", {
+            provider: activeProvider?.label ?? active ?? "",
+            language: LANGUAGE_ENDONYM[lang] ?? lang,
+          })}
+        </p>
+      ) : null}
+
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -150,17 +176,31 @@ export function TtsComparePanel() {
       />
 
       <p className="mt-2 min-h-5 text-meta text-steel" aria-live="polite">
-        {tts.error ? <span className="text-coral">{tts.error}</span> : null}
+        {tts.error ? <span className="text-coral-ink">{tts.error}</span> : null}
         {!tts.error && tts.served ? (
           <>
             <span className="text-ink">
               {t("spokenBy", { provider: providers.find((p) => p.id === tts.served?.provider)?.label ?? tts.served.provider, ms: tts.served.firstAudioMs })}
             </span>
             {tts.progress && tts.progress.total > 1 ? <span> · {t("chunks", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
-            {tts.served.fallbackFrom ? <span className="text-coral"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
+            {tts.served.fallbackFrom ? <span className="text-coral-ink"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
           </>
         ) : null}
-        {tts.error && tts.progress && tts.progress.spoken > 0 ? <span> · {t("truncated", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
+        {tts.error && tts.progress && tts.progress.spoken > 0 ? (
+          <span>
+            {" · "}
+            {t("truncated", { spoken: tts.progress.spoken, total: tts.progress.total })}
+            {tts.resumable ? (
+              <button
+                type="button"
+                onClick={() => void tts.resume()}
+                className={`${BTN_GHOST} ml-2 h-7 px-2 text-meta underline`}
+              >
+                {t("continue")}
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </p>
     </section>
   );

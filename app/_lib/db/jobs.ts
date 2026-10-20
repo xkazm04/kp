@@ -1,6 +1,12 @@
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
-import { ensureDb, insertWithUniqueSlug, safeRowParse, type JobRecord } from "./core";
+import { jdJobId } from "../jd-limits";
+import { ensureDb, insertWithUniqueSlug, jobLifecycleInOverlay, safeRowParse, type JobRecord } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { getPipelineAxis } from "../pipeline-axis-server";
+import { stagesWithRole } from "../pipeline-stages";
+import { registerKpFold } from "../text-fold";
+import type { RoleStatus } from "../status-tone";
+import type { RoleBrief } from "../rolespec";
 
 // Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
 // analysis_status = a legacy or manually-saved draft, treated as ready.
@@ -42,6 +48,9 @@ export type JdBuildIntent = {
   lang?: string;
   templateId?: string;
   options?: unknown;
+  // The promoted intake brief (POST /api/intake/[id]/promote only). Absent on every
+  // other door and on JDs promoted before this field existed.
+  brief?: RoleBrief;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview
@@ -69,6 +78,22 @@ const JD_PREVIEW_CHARS = 280;
  *  a caller is a review flag (the next picker WILL forget it). Explicit
  *  show-archived surfaces (loadJd's public render) deliberately omit it. */
 export const JD_ACTIVE_SQL = "archived_at IS NULL";
+
+/** Public, currently open JD URLs for sitemap.xml. A saved JD is only a draft
+ * until its linked opening is live; the join also prevents a stale/mismatched
+ * job id from exposing another team's draft in the public index. */
+export function listLivePublicJds(): Array<{ slug: string; createdAt: string }> {
+  return ensureDb()
+    .prepare(
+      `SELECT jds.slug, jds.created_at AS createdAt
+       FROM jds JOIN jobs ON jobs.id = ? || jds.slug
+         AND jobs.workspace_id = jds.workspace_id
+       WHERE jds.${JD_ACTIVE_SQL}
+         AND (jobs.status IS NULL OR jobs.status = 'published')
+       ORDER BY jds.created_at DESC, jds.slug`
+    )
+    .all(jdJobId("")) as Array<{ slug: string; createdAt: string }>;
+}
 
 export type SaveJdInput = {
   title: string;
@@ -548,7 +573,64 @@ export type JobFilter = {
   openOnly?: boolean;
   q?: string;
   limit?: number;
+  // ---- the Roles desk's window (all optional; absent = today's contract) ----
+  // A column from JOB_BROWSE_SORTS, ordered over EVERY matching row before the
+  // page is cut. Absent = the entry-eligible ranking the JD library, analytics and
+  // benchmark callers depend on.
+  sort?: JobBrowseSort;
+  dir?: "asc" | "desc";
+  // Rows to skip before the page (the pager's pageIndex * 20).
+  offset?: number;
+  // The DERIVED role status (open/draft/filled/closed), same rule as roleStatusOf.
+  roleStatus?: RoleStatus;
+  // Decorate each row with `hired`, the pipeline's terminal-ROLE count.
+  withHired?: boolean;
 };
+
+/** The columns the browse read can ORDER BY. A closed list: the route validates
+ *  against it, and only these keys ever reach the ORDER BY map below. */
+export const JOB_BROWSE_SORTS = ["title", "location", "mode", "seniority", "family", "salary", "status"] as const;
+export type JobBrowseSort = (typeof JOB_BROWSE_SORTS)[number];
+export const isJobBrowseSort = (v: unknown): v is JobBrowseSort => (JOB_BROWSE_SORTS as readonly unknown[]).includes(v);
+// status-tone's ROLE_STATUSES restated (a value import would put it on ~40 route
+// graphs); jobs-browse.test.ts pins the two lists equal.
+export const JOB_ROLE_STATUSES: readonly RoleStatus[] = ["open", "draft", "filled", "closed"];
+export const isRoleStatus = (v: unknown): v is RoleStatus => (JOB_ROLE_STATUSES as readonly unknown[]).includes(v);
+
+/** A windowed read with no stated `limit` is one pager page. */
+export const JOBS_WINDOW_LIMIT = 20;
+
+// Text keys are compared through kp_fold: NFD, combining marks stripped, lower-cased.
+// SQLite has no ICU collation, so this is the deterministic stand-in for the client's
+// Intl.Collator (sensitivity "base"). Known deviation: Czech collates "ch" after "h"
+// and "č/ř/š/ž" as their own letters; kp_fold sorts them as c/r/s/z.
+const TEXT_KEY = (col: string) => `kp_fold(NULLIF(jobs.${col}, ''))`;
+// The derived status, the SQL twin of roleStatusOf (jobsRoleStatus.ts): a draft is
+// a draft; otherwise hired >= target (NULL/<1 target folds to 1) is filled; a
+// closed role short of it is closed; everything else (NULL, 'published') is open.
+const ROLE_STATUS_SQL = `CASE WHEN COALESCE(s.status, jobs.status) = 'draft' THEN 'draft'
+  WHEN COALESCE(h.n, 0) >= COALESCE(CASE WHEN COALESCE(s.target_hires, jobs.target_hires) >= 1
+    THEN CAST(COALESCE(s.target_hires, jobs.target_hires) AS INTEGER) END, 1) THEN 'filled'
+  WHEN COALESCE(s.status, jobs.status) = 'closed' THEN 'closed' ELSE 'open' END`;
+const SORT_KEYS: Record<JobBrowseSort, string> = {
+  title: TEXT_KEY("title"),
+  location: TEXT_KEY("location"),
+  mode: TEXT_KEY("work_mode"),
+  seniority: TEXT_KEY("seniority"),
+  family: TEXT_KEY("role_family"),
+  // The salary_min COLUMN (ingest writes salaryBand[0] there). The client sorted by
+  // the payload's band floor; on a corpus row whose column and payload disagree the
+  // column now wins - declared, not silent.
+  salary: "jobs.salary_min",
+  // The desk's reading order: open, draft, filled, closed.
+  status: `CASE ${ROLE_STATUS_SQL} WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'filled' THEN 2 ELSE 3 END`,
+};
+
+// kp_fold is the ONE shared definition (text-fold.ts): another store registers it on
+// this same connection, and a local variant would silently replace or be replaced.
+function withFold(db: ReturnType<typeof ensureDb>): ReturnType<typeof ensureDb> {
+  return registerKpFold(db);
+}
 
 // The browse read's page bounds. A caller that omits `limit` still gets a PAGE, not
 // the corpus — see listJobsPage's `truncated` flag and countJobs.
@@ -560,9 +642,21 @@ export const JOBS_PAGE_MAX_LIMIT = 500;
  *  TENANT predicate deliberately stays inlined in each SQL template (not factored in
  *  here): jobs-tenancy.test.ts is a source guard that greps the literal template for
  *  `workspace_id`, and hiding it behind an interpolation would blind that guard. */
-function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; params: Record<string, unknown> } {
+function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; params: Record<string, unknown>; join: string } {
   const where: string[] = [];
   const params: Record<string, unknown> = { workspaceId };
+  // The hired rollup joins only when an axis needs it, so a default read runs today's SQL.
+  let join = "";
+  if (filter.withHired || filter.roleStatus !== undefined || filter.sort === "status") {
+    // THIS workspace's terminal-ROLE stage ids, bound (listJobPipelineStats' rule).
+    const terminal = stagesWithRole("terminal", getPipelineAxis(workspaceId).stages);
+    terminal.forEach((id, i) => (params[`term${i}`] = id));
+    join = hiredJoinSql(terminal.length ? terminal.map((_, i) => `@term${i}`).join(", ") : "NULL");
+  }
+  if (filter.roleStatus !== undefined) {
+    where.push(`(${ROLE_STATUS_SQL}) = @roleStatus`);
+    params.roleStatus = filter.roleStatus;
+  }
   if (filter.roleFamily) {
     where.push("role_family = @roleFamily");
     params.roleFamily = filter.roleFamily;
@@ -580,14 +674,21 @@ function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; 
     params.entry = filter.entryEligible ? 1 : 0;
   }
   if (filter.openOnly) {
-    // Mirrors isJobOpenForApplications (job-ingest.ts): NULL = seeded/live.
-    where.push("(status IS NULL OR status = 'published')");
+    // Mirrors isJobOpenForApplications (job-ingest.ts): NULL = seeded/live. `s` is
+    // the team's lifecycle overlay, joined by both callers.
+    where.push("(COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')");
   }
   if (filter.q) {
     where.push("(title LIKE @q OR company LIKE @q)");
     params.q = `%${filter.q}%`;
   }
-  return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params };
+  return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params, join };
+}
+
+/** Per-job hired count in this workspace, as `h.n`. */
+function hiredJoinSql(inList: string): string {
+  return `LEFT JOIN (SELECT job_id, COUNT(*) AS n FROM pipeline_entries
+    WHERE workspace_id = @workspaceId AND job_id IS NOT NULL AND stage IN (${inList}) GROUP BY job_id) h ON h.job_id = jobs.id`;
 }
 
 // ---- the role's open/close review config ------------------------------------
@@ -618,11 +719,31 @@ export function parsePostingLangs(stored: string | null | undefined): string[] {
  *  what a previous publish set) and the auto-close hook (to know the target). */
 export type RoleOpenConfig = { targetHires: number; postingLangs: string[] };
 
-export function getRoleOpenConfig(id: string): RoleOpenConfig {
-  const row = ensureDb().prepare(`SELECT target_hires, posting_langs FROM jobs WHERE id = ?`).get(id) as
-    | { target_hires: number | null; posting_langs: string | null }
-    | undefined;
+/** No team named = the corpus role's FILING team (getJobWorkspace's fold). */
+function lifecycleTeam(workspaceId: string | undefined): string {
+  return workspaceId ?? DEFAULT_WORKSPACE_ID;
+}
+
+/** As the team sees the role: overlay over the shared row (jobLifecycleInOverlay).
+ *  The team is required, so no read inherits the filing team's by omission. */
+export function getRoleOpenConfig(id: string, workspaceId: string): RoleOpenConfig {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(lifecycleTeam(workspaceId), id) as { target_hires: number | null; posting_langs: string | null } | undefined;
   return { targetHires: roleTargetHires(row?.target_hires), postingLangs: parsePostingLangs(row?.posting_langs) };
+}
+
+/** Routing read for the lifecycle writers; an unknown id is false. */
+function lifecycleInOverlay(id: string): boolean {
+  const row = ensureDb().prepare(`SELECT workspace_id, status, published_at FROM jobs WHERE id = ?`).get(id) as
+    | { workspace_id: string | null; status: string | null; published_at: string | null }
+    | undefined;
+  return row ? jobLifecycleInOverlay(row) : false;
 }
 
 /** Record what opening this role means: how many hires fill it, and which languages
@@ -633,14 +754,32 @@ export function getRoleOpenConfig(id: string): RoleOpenConfig {
  *
  *  `COALESCE` on both columns is the re-publish rule: reopening a closed role without
  *  restating a target keeps the target it was opened with, rather than silently
- *  resetting a 3-hire req to 1. Pass a value to change it. */
-export function setRoleOpenConfig(id: string, config: { targetHires?: number | null; postingLangs?: string[] | null }): void {
+ *  resetting a 3-hire req to 1. Pass a value to change it. A corpus row's terms go
+ *  to the team's overlay. */
+export function setRoleOpenConfig(
+  id: string,
+  config: { targetHires?: number | null; postingLangs?: string[] | null },
+  workspaceId?: string
+): void {
   const langs = config.postingLangs && config.postingLangs.length > 0 ? JSON.stringify(config.postingLangs) : null;
   const target =
     typeof config.targetHires === "number" && Number.isFinite(config.targetHires) ? Math.trunc(config.targetHires) : null;
-  ensureDb()
-    .prepare(`UPDATE jobs SET target_hires = COALESCE(?, target_hires), posting_langs = COALESCE(?, posting_langs) WHERE id = ?`)
-    .run(target, langs, id);
+  const db = ensureDb();
+  if (lifecycleInOverlay(id)) {
+    db.prepare(
+      `INSERT INTO job_workspace_state (workspace_id, job_id, target_hires, posting_langs, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(workspace_id, job_id) DO UPDATE SET
+         target_hires = COALESCE(excluded.target_hires, job_workspace_state.target_hires),
+         posting_langs = COALESCE(excluded.posting_langs, job_workspace_state.posting_langs),
+         updated_at = excluded.updated_at`
+    ).run(lifecycleTeam(workspaceId), id, target, langs, new Date().toISOString());
+    return;
+  }
+  db.prepare(`UPDATE jobs SET target_hires = COALESCE(?, target_hires), posting_langs = COALESCE(?, posting_langs) WHERE id = ?`).run(
+    target,
+    langs,
+    id
+  );
 }
 
 /** Retire a role, but ONLY if it is still open — and say whether THIS call is the
@@ -663,12 +802,29 @@ export function setRoleOpenConfig(id: string, config: { targetHires?: number | n
  *  definition — a seeded corpus role a team adopted and filled is closable too —
  *  and it is what makes a manual close racing the hook safe in the other direction:
  *  whichever lands first, the second is a no-op. `published_at` is deliberately
- *  left alone; it records when the role FIRST went live and a reopen must keep it. */
-export function closeRoleIfOpen(id: string): boolean {
-  const res = ensureDb()
-    .prepare(`UPDATE jobs SET status = 'closed' WHERE id = ? AND (status IS NULL OR status = 'published')`)
-    .run(id);
-  return res.changes > 0;
+ *  left alone; it records when the role FIRST went live and a reopen must keep it.
+ *  On a corpus row the swap runs in the team's overlay against the folded status. */
+export function closeRoleIfOpen(id: string, workspaceId?: string): boolean {
+  const db = ensureDb();
+  const team = lifecycleTeam(workspaceId);
+  return db
+    .transaction((): boolean => {
+      if (lifecycleInOverlay(id)) {
+        const res = db
+          .prepare(
+            `INSERT INTO job_workspace_state (workspace_id, job_id, status, updated_at)
+             SELECT @workspaceId, jobs.id, 'closed', @now FROM jobs
+               LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
+              WHERE jobs.id = @id AND (COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')
+             ON CONFLICT(workspace_id, job_id) DO UPDATE SET status = 'closed', updated_at = excluded.updated_at`
+          )
+          .run({ workspaceId: team, id, now: new Date().toISOString() });
+        return res.changes > 0;
+      }
+      const res = db.prepare(`UPDATE jobs SET status = 'closed' WHERE id = ? AND (status IS NULL OR status = 'published')`).run(id);
+      return res.changes > 0;
+    })
+    .immediate();
 }
 
 /** Decorate a parsed payload with the lifecycle COLUMNS — the authority for all
@@ -690,11 +846,17 @@ function withLifecycle(
  *  buildCandidatePool's `{ entries, truncated }`. `truncated` is true when the corpus
  *  held at least one more matching row than `limit` returned, so a caller can say
  *  "first 300 of more" instead of presenting a cut slice as the whole set. */
-export type JobsPage = { jobs: JobRecord[]; truncated: boolean; limit: number };
+export type JobsPage = { jobs: (JobRecord & { hired?: number })[]; truncated: boolean; limit: number };
 
 export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobsPage {
-  const db = ensureDb();
-  const { extra, params } = jobFilterSql(filter, workspaceId);
+  const db = withFold(ensureDb());
+  const { extra, params, join } = jobFilterSql(filter, workspaceId);
+  const offset = Number.isInteger(filter.offset) && (filter.offset as number) > 0 ? (filter.offset as number) : 0;
+  // Missing values last in BOTH directions, then jobs.id so every page is stable.
+  const key = filter.sort && isJobBrowseSort(filter.sort) ? SORT_KEYS[filter.sort] : null;
+  const orderBy = key
+    ? `(${key}) IS NULL, (${key}) ${filter.dir === "desc" ? "DESC" : "ASC"}, jobs.id`
+    : "is_entry_eligible DESC, graduate_friendliness DESC, jobs.id";
   // Defensive clamp: never bind a NaN/negative/huge LIMIT even if a caller
   // skips validation. SQLite treats LIMIT -1 as unbounded, so guard the floor.
   const limit =
@@ -705,15 +867,19 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
   // to know whether the slice was cut.
   const rows = db
     .prepare(
-      `SELECT payload_json, status, target_hires, posting_langs FROM jobs
-       WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}
-       ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
+      `SELECT payload_json, COALESCE(s.status, jobs.status) AS status,
+              COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs${join ? ", COALESCE(h.n, 0) AS hired" : ""}
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
+       WHERE (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ${extra}
+       ORDER BY ${orderBy} LIMIT @limit OFFSET @offset`
     )
-    .all({ ...params, limit: limit + 1 }) as {
+    .all({ ...params, limit: limit + 1, offset }) as {
     payload_json: string;
     status: JobRecord["status"];
     target_hires: number | null;
     posting_langs: string | null;
+    hired?: number;
   }[];
   const truncated = rows.length > limit;
   // Decorate each parsed payload with the lifecycle COLUMNS — payload_json predates
@@ -723,7 +889,9 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
   const jobs = (truncated ? rows.slice(0, limit) : rows)
     .map((r): JobRecord | null => {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "listJobs");
-      return parsed ? withLifecycle(parsed, r) : null;
+      if (!parsed) return null;
+      const job = withLifecycle(parsed, r);
+      return filter.withHired ? { ...job, hired: r.hired ?? 0 } : job;
     })
     .filter((j): j is JobRecord => j !== null);
   return { jobs, truncated, limit };
@@ -744,11 +912,12 @@ export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_W
  *  listJobsPage, over the identical predicate (`limit` is ignored: a count is not a
  *  page). This is the primitive any "how many roles" caller should reach for. */
 export function countJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
-  const { extra, params } = jobFilterSql(filter, workspaceId);
+  const { extra, params, join } = jobFilterSql(filter, workspaceId);
   const row = ensureDb()
     .prepare(
       `SELECT COUNT(*) AS n FROM jobs
-       WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}`
+       LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
+       WHERE (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ${extra}`
     )
     .get(params) as { n: number };
   return row.n;
@@ -779,19 +948,30 @@ export type OpenRoleCounts = { own: number; corpus: number; visible: number };
 export function countOpenRoles(workspaceId: string = DEFAULT_WORKSPACE_ID): OpenRoleCounts {
   const row = ensureDb()
     .prepare(
-      `SELECT COALESCE(SUM(CASE WHEN workspace_id IS NULL THEN 1 ELSE 0 END), 0) AS corpus,
-              COALESCE(SUM(CASE WHEN workspace_id = @workspaceId THEN 1 ELSE 0 END), 0) AS own
+      `SELECT COALESCE(SUM(CASE WHEN jobs.workspace_id IS NULL THEN 1 ELSE 0 END), 0) AS corpus,
+              COALESCE(SUM(CASE WHEN jobs.workspace_id = @workspaceId THEN 1 ELSE 0 END), 0) AS own
        FROM jobs
-       WHERE (status IS NULL OR status = 'published')
-         AND (workspace_id IS NULL OR workspace_id = @workspaceId)`
+       LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
+       WHERE (COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')
+         AND (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId)`
     )
     .get({ workspaceId }) as { corpus: number; own: number };
   return { own: row.own, corpus: row.corpus, visible: row.own + row.corpus };
 }
 
-export function getJob(id: string): JobRecord | null {
+/** Omitted team = the FILING team's lifecycle: public doors only. Recruiter callers pass
+ *  theirs (app/api/job-lifecycle-team.test.ts). */
+export function getJob(id: string, workspaceId?: string): JobRecord | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT payload_json, status, target_hires, posting_langs FROM jobs WHERE id = ?`).get(id) as
+  const row = db
+    .prepare(
+      `SELECT payload_json, COALESCE(s.status, jobs.status) AS status,
+              COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(lifecycleTeam(workspaceId), id) as
     | { payload_json: string; status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
     | undefined;
   if (!row) return null;
@@ -833,9 +1013,7 @@ export function getJobOwnerWorkspace(id: string): string | null {
  *  is how a tenant adopts a corpus role into its own pipeline (publish sources candidates
  *  into `ws`); closing one is reachable from the same modal today. Gating them off would
  *  be a functional regression, so only an OTHER tenant's AUTHORED job is rejected.
- *  (Residual, deliberately out of scope: the `status` column on a seeded row is itself
- *  shared, so one tenant closing a corpus role affects all — that needs per-tenant
- *  lifecycle state on shared rows, not an ownership check.) */
+ *  That lifecycle is per tenant (job_workspace_state), so a close is the caller's. */
 export function canWriteJobLifecycle(id: string, workspaceId: string): boolean {
   // Same predicate as visibility: a team may retire/adopt exactly the roles it can see.
   return jobVisibleToWorkspace(id, workspaceId);
@@ -885,6 +1063,29 @@ export function getJobsByIds(ids: string[], workspaceId: string = DEFAULT_WORKSP
   return ids.map((id) => byId.get(id)).filter((j): j is JobRecord => j !== undefined);
 }
 
+/** One role as this workspace sees it, with its DERIVED status (ROLE_STATUS_SQL — the
+ *  same rule the Roles desk filters by) and no payload. Same tenant predicate as
+ *  getJobsByIds: the shared corpus plus this team's own; another team's id is null.
+ *  The Fit Matrix asks it whether a `?job=` role with no pipeline entries may be
+ *  ranked (open or draft) or is genuinely out of play (filled, closed, not here). */
+export function getRoleStatusForWorkspace(
+  id: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; title: string; roleFamily: string | null; status: RoleStatus } | null {
+  const terminal = stagesWithRole("terminal", getPipelineAxis(workspaceId).stages);
+  const params: Record<string, unknown> = { workspaceId, id };
+  terminal.forEach((stage, i) => (params[`term${i}`] = stage));
+  const join = hiredJoinSql(terminal.length ? terminal.map((_, i) => `@term${i}`).join(", ") : "NULL");
+  const row = ensureDb()
+    .prepare(
+      `SELECT jobs.id AS id, jobs.title AS title, jobs.role_family AS roleFamily, (${ROLE_STATUS_SQL}) AS status
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
+       WHERE jobs.id = @id AND (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId)`
+    )
+    .get(params) as { id: string; title: string; roleFamily: string | null; status: RoleStatus } | undefined;
+  return row ?? null;
+}
+
 // The full live job corpus — every current opening rematch scores against. Unlike
 // listJobs (paginated, filtered, ranked for the browse UI) this returns ALL live
 // jobs as full records, ordered by id, with drafts excluded (an unpublished JD is
@@ -905,9 +1106,11 @@ export function listCorpusJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): JobR
   const rows = db
     .prepare(
       `SELECT payload_json FROM jobs
-       WHERE (status IS NULL OR status = 'published') AND (workspace_id IS NULL OR workspace_id = ?) ORDER BY id`
+       LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
+       WHERE (COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')
+         AND (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ORDER BY jobs.id`
     )
-    .all(workspaceId) as { payload_json: string }[];
+    .all({ workspaceId }) as { payload_json: string }[];
   return rows
     .map((r) => safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs"))
     .filter((j): j is JobRecord => j !== null);

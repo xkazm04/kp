@@ -1,0 +1,17 @@
+{
+  "task": "profiles-lineage-deflake",
+  "status": "fixed",
+  "kind": "test-only",
+  "file": "app/_lib/db/profiles-lineage.test.ts",
+  "root_cause": "The subtest deepEqual'd the whole profileStaleness entry before/after a plain updateProfile. Since 8b596c818 the entry carries `edited` + `updatedAt`, which a plain edit legitimately moves (updated_at = now > lineage_stamped_at). It only passed when saveProfile and updateProfile landed in the same millisecond, which is the usual case solo but not under full-suite load. The rebuild half was also skipped by an if-guard whenever the two analyses shared a millisecond.",
+  "product_bug": false,
+  "fix": "Pin every compared timestamp to distinct past values via direct UPDATEs (same pattern as the file's count-before-run test); assert lineage fields (newerSlug/newerAnalyzedAt) unchanged, assert edited flips to true and updatedAt names the new updated_at, run the rebuild half unconditionally.",
+  "commits": ["21593fce5"],
+  "proof": {
+    "repro_before": "temporary test with the original deepEqual and pinned timestamps failed deterministically (edited false->true, updatedAt 2026-01-05 -> now); removed before commit",
+    "after": "file passes 6/6; 20/20 loop runs green (5 rounds x 4 concurrent)",
+    "eslint": "clean",
+    "tsc": "clean except another builder's untracked calibration-outcome / pipeline-calibration-furthest files",
+    "app_lib_db_tests": "662/665. The 3 failures are all in untracked foreign pipeline-calibration-furthest.test.ts"
+  }
+}

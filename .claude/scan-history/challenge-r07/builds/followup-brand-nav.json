@@ -1,0 +1,29 @@
+{
+  "id": "followup-brand-nav",
+  "follows": "9c226bc38 (challenge-r07 shell-setup-wizard/A)",
+  "status": "landed",
+  "commits": [
+    { "sha": "3ff1a8c44", "subject": "test(api-caps): PUT /api/brand joins the write-capability contract, admin seat included", "files": ["app/api/write-capability-gate.test.ts"], "lock": "scan-sweep-challenge.lock" },
+    { "sha": "36bb74cd3", "subject": "fix(shell-nav): offer the branding editor only to seats that can save it", "files": ["app/features/shell/navCapabilities.ts", "app/features/shell/navCapabilities.test.ts", "docs/architecture/app-structure.md"], "lock": "scan-sweep-challenge.lock (doc edit)" }
+  ],
+  "offers_found": [
+    "app/features/shell/navCapabilities.ts TAB_CAPABILITY (rail, drawer, palette all read it) - FIXED: branding -> org:manage",
+    "setup wizard brand fields - already gated by setupSteps.ts company step requires org:manage; no change"
+  ],
+  "read_only_view": "none exists; locked tab renders disabled with capability named (not hidden); no new UI built",
+  "cases": {
+    "red_first": ["viewer locked set now includes branding", "visibleNavFor: branding locked org:manage for viewer", "branding offered only to a seat that can save it (admin/recruiter locked, owner/OWNER_CAPS open, unknown caps open)"],
+    "red_run": "node scripts/run-unit-tests.mjs app/features/shell/navCapabilities.test.ts -> 9 pass / 3 fail before fix, 12/0 after",
+    "contract_rows": ["PUT /api/brand DOORS row: viewer 403 FORBIDDEN_CAPABILITY, recruiter 403, no session 401", "admin 403 org:manage + owner not refused"]
+  },
+  "gates": {
+    "unit_shell_nav_setup_brand": "205 pass / 0 fail",
+    "write_capability_gate": "99 pass / 0 fail",
+    "tsc": "0 errors in touched files; foreign errors only (in-flight app/_lib/devcase-orchestrator.test.ts, app/_lib/llm-quality.test.ts, untracked kpi-sim/)",
+    "eslint_touched": 0,
+    "test_perf": 0,
+    "docs_check": 0,
+    "i18n_check": "n/a (no strings)",
+    "design_check": "n/a (no classNames)"
+  }
+}

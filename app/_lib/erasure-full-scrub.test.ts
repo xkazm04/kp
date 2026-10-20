@@ -12,6 +12,7 @@
 // tenant is NOT over-scrubbed. Drives the REAL db.ts (+ the isolated sibling stores, which
 // open the same SQLite file) against a throwaway file. Run: npm run test:unit
 import { test, after } from "node:test";
+import { removeTempDirs } from "./testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -56,8 +57,9 @@ delete process.env.DATABASE_URL;
 // throwaway file. The stores each open their own connection on the SAME file (db-path.ts).
 const { createPipelineEntry, setEntryNotes, anonymizeEntry, getPipelineEntry, saveAnalysis, loadAnalysis, createInterviewSession, completeInterviewSession, latestInterviewByEntry, recordOutbox, getOutboxEntry } =
   await import("./db.ts");
+const { appendEntryNoteFromBody, listEntryNotes } = await import("./db/entry-notes.ts");
 const { createOffer, listOffersForEntry } = await import("./offers-store.ts");
-const { createScheduleInvite, getScheduleInviteByToken } = await import("./schedule-store.ts");
+const { createScheduleInvite, getScheduleInviteByToken, listScheduleInvitesForEntry } = await import("./schedule-store.ts");
 const { saveInterviewPrep, getInterviewPrep } = await import("./interview-prep.ts");
 const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./rediscovery-alert-store.ts");
 // HOISTED, and it has to stay here. node:test starts the root suite as soon as the
@@ -71,14 +73,9 @@ const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./redis
 // Every dynamic import this file makes is therefore taken BEFORE the first test.
 const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy.ts");
 const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
+const { recordMatchRun, loadMatchRunFacts } = await import("./db/match-runs.ts");
 
-after(() => {
-  try {
-    fs.rmSync(TMP_DIR, { recursive: true, force: true });
-  } catch {
-    /* file locked — the unique dir means a leftover can never poison a later run */
-  }
-});
+after(() => removeTempDirs(TMP_DIR));
 
 const NAME = "Zdenka Procházková";
 const EMAIL = "zdenka.prochazkova@example.com";
@@ -104,6 +101,9 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   });
   // Recruiter call-notes: free text about the candidate (name + phone).
   setEntryNotes(entry.id, `${NAME} — reachable on ${PHONE}, wants 80k, available August`);
+  // The authored note THREAD beside the scratchpad (pipeline_entry_notes): same free text.
+  appendEntryNoteFromBody(entry.id, "workspace", `Call with ${NAME}: ${EMAIL}, ${PHONE}`, null);
+  assert.match(JSON.stringify(listEntryNotes(entry.id, "workspace")), /Zdenka/, "thread holds PII pre-erasure");
 
   // analyses (exact-label link the earlier fix already covered).
   const { slug: exactSlug } = saveAnalysis({
@@ -162,6 +162,17 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   // Rediscovery alert (isolated store, keyed by candidate_id).
   recordRediscoveryAlerts(jobId, "Data Engineer", [{ candidateId: cid, label: NAME, archetype: "builder", score: 71, prior: { kind: "rejected", label: NAME, stage: "Interview", depth: 2 } }]);
 
+  // The Match results the server holds to check a Match add against (db/match-runs.ts):
+  // per-job verdict facts keyed by the candidate id. The same id in ANOTHER tenant is a
+  // different person's run and must survive.
+  const matchFacts = { fitTier: "strong" as const, best: { labelCode: "skills" as const, percent: 80 }, worst: null, matched: ["Spark"], unproven: [], missing: [], matchScore: 80, scorerVersion: "match-scorer.v1" };
+  const runIn = (workspaceId: string) =>
+    recordMatchRun({ workspaceId, candidateId: cid, weights: null, results: [{ jobId, facts: matchFacts }] });
+  const heldRun = runIn("workspace");
+  const namesakeRun = runIn("other-team");
+  const heldFacts = (workspaceId: string, runId: string) => loadMatchRunFacts({ workspaceId, runId, candidateId: cid, jobId });
+  assert.ok(heldFacts("workspace", heldRun), "the run is held pre-erasure");
+
   // --- Sanity: the PII is present BEFORE erasure (guards against a tautological test). ---
   assert.match(JSON.stringify(latestInterviewByEntry(entry.id)), /zdenka\.prochazkova@example\.com/i, "transcript holds PII pre-erasure");
   assert.match(JSON.stringify(getOutboxEntry(outbox.id)), /zdenka\.prochazkova@example\.com/i, "outbox holds PII pre-erasure");
@@ -176,6 +187,7 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assert.equal(scrubbedEntry.contact, null, "contact nulled");
   assert.equal(scrubbedEntry.notes, null, "recruiter notes nulled");
   assertScrubbed(JSON.stringify(scrubbedEntry), "pipeline_entry");
+  assert.deepEqual(listEntryNotes(entry.id, "workspace"), [], "the note thread is deleted in the same erasure");
 
   assertScrubbed(JSON.stringify(loadAnalysis(exactSlug)), "analyses(exact)");
   assertScrubbed(JSON.stringify(loadAnalysis(driftSlug)), "analyses(drift-label)");
@@ -190,9 +202,14 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assertScrubbed(JSON.stringify(ob), "dev_outbox");
 
   assertScrubbed(JSON.stringify(listOffersForEntry(entry.id)), "offers");
+  assert.ok(listOffersForEntry(entry.id).every((o) => o.token === null), "the offer capability token is revoked");
   assertScrubbed(JSON.stringify(getInterviewPrep(entry.id)), "interview_preps");
-  assertScrubbed(JSON.stringify(getScheduleInviteByToken(invite.token)), "schedule_invites");
+  assert.equal(getScheduleInviteByToken(invite.token), null, "the schedule capability token is revoked");
+  assertScrubbed(JSON.stringify(listScheduleInvitesForEntry(entry.id)), "schedule_invites");
+  assert.ok(listScheduleInvitesForEntry(entry.id).length > 0, "the invite row survives as the retained record");
   assertScrubbed(JSON.stringify(listRediscoveryAlerts()), "rediscovery_alerts");
+  assert.equal(heldFacts("workspace", heldRun), null, "the stored Match run (skill names, tier, score) is deleted with the candidate");
+  assert.ok(heldFacts("other-team", namesakeRun), "another tenant's run for the same candidate id is not over-scrubbed");
 
   // --- finding #2: a same-named NAMESAKE in another tenant is NOT over-scrubbed. ---
   const namesake = loadAnalysis(namesakeSlug, "other-team")!;
@@ -351,4 +368,105 @@ test("erasure reaches the candidate-keyed family: survey comment, dev-case chain
   assertScrubbed(JSON.stringify(outcome), "dev_outcomes");
   assert.equal(outcome.performance, 4, "the de-identified calibration measurement is RETAINED");
   raw.close();
+});
+
+// Spark interview-feedback-letter — the letter a candidate asked for is written ABOUT them:
+// the machine's draft and the recruiter's approved text both name and describe one person.
+// Erasure blanks both and KEEPS the row (state, outcome, language, dates) as the record that
+// a letter was asked for; the stamp it leaves closes the row, so a draft still being written
+// when the erasure lands cannot put the text back.
+test("erasure blanks the interview feedback letter's texts and keeps the row as the record", async () => {
+  const { interviewLetterApprove, interviewLetterById, interviewLetterRequest, interviewLetterSaveDraft } = await import(
+    "./db/interview-letters.ts"
+  );
+  const Database = (await import("better-sqlite3")).default;
+
+  const { entry } = createPipelineEntry({
+    candidateId: "c-letter-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-letter-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+    contact: EMAIL,
+  });
+  const { letter } = interviewLetterRequest({ entryId: entry.id, lang: "cs", outcome: "not_selected" }, "workspace");
+  interviewLetterSaveDraft(letter.id, { text: "Dear " + NAME + ", thank you for your interview.", source: "template" }, "workspace");
+  interviewLetterApprove(letter.id, { finalText: "Dear " + NAME + " (" + EMAIL + "), thank you.", decidedBy: "human:Petra" }, "workspace");
+  assert.match(JSON.stringify(interviewLetterById(letter.id, "workspace")), /Zdenka/, "the letter holds PII pre-erasure");
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "anonymizeEntry returns the entry");
+
+  const after = interviewLetterById(letter.id, "workspace")!;
+  assert.ok(after, "the row survives as the record that a letter existed");
+  assertScrubbed(JSON.stringify(after), "interview_letters");
+  assert.equal(after.finalText, null, "the approved text is blanked");
+  assert.equal(after.draft, null, "the draft is blanked");
+  assert.ok(after.erasedAt, "the erasure is stamped on the row");
+  assert.equal(after.state, "sent", "what became of the request is still on record");
+  assert.equal(after.lang, "cs");
+  const raw = new Database(TMP);
+  const row = raw.prepare("SELECT draft_text, final_text FROM interview_letters WHERE id = ?").get(letter.id) as {
+    draft_text: string | null;
+    final_text: string | null;
+  };
+  assert.deepEqual(row, { draft_text: null, final_text: null }, "both text columns are NULL on disk, not merely hidden");
+  raw.close();
+});
+
+test("a draft that lands after the erasure cannot write the text back", async () => {
+  const { interviewLetterById, interviewLetterRequest, interviewLetterSaveDraft } = await import("./db/interview-letters.ts");
+  const { entry } = createPipelineEntry({
+    candidateId: "c-letter-late-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-letter-late-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+  });
+  const { letter } = interviewLetterRequest({ entryId: entry.id, lang: "en", outcome: "hired" }, "workspace");
+  assert.ok(anonymizeEntry(entry.id, "erasure"));
+  assert.equal(
+    interviewLetterSaveDraft(letter.id, { text: "Dear " + NAME + ", welcome.", source: "model" }, "workspace"),
+    null,
+    "the erased row refuses the late draft"
+  );
+  assertScrubbed(JSON.stringify(interviewLetterById(letter.id, "workspace")), "interview_letters (late draft)");
+});
+
+// Council lite r1, robustness: the audit trail named the candidate (`<label>: rejected …`)
+// and no erasure path reached dev_audit, so a name survived an Art. 17 erasure in the one
+// table the control room prints. De-identified, not deleted: the decision trail stays.
+test("erasure de-identifies dev_audit: rows keyed by the outcome ref AND legacy rows led by the label", async () => {
+  const { recordAudit } = await import("./dev-control.ts");
+  const Database = (await import("better-sqlite3")).default;
+
+  const { entry } = createPipelineEntry({
+    candidateId: "c-audit-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-audit-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+  });
+  const NEIGHBOUR = "Karel Dvořák";
+  // Keyed row: the shape the writers produce now (ref carries the outcome key); the reason
+  // is seeded WITH the name to prove the ref path masks a reason that still holds one.
+  recordAudit({ actor: "human", action: "outcome_recorded", reason: `${NAME}: hired (perf 4)`, ref: "pe:" + entry.id });
+  // Legacy row: written before the fix — no ref, the label is the reason's first words.
+  recordAudit({ actor: "system", action: "outcome_auto_recorded", reason: `${NAME}: rejected (predicted 70)` });
+  // Someone else's row must be left exactly as it was.
+  recordAudit({ actor: "system", action: "outcome_auto_recorded", reason: `${NEIGHBOUR}: rejected (predicted 55)` });
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "anonymizeEntry returns the entry");
+
+  const raw = new Database(TMP);
+  const rows = raw.prepare("SELECT action, reason, ref FROM dev_audit").all() as { action: string; reason: string | null; ref: string | null }[];
+  raw.close();
+  assertScrubbed(JSON.stringify(rows.filter((r) => !(r.reason ?? "").includes("Karel"))), "dev_audit");
+  const keyed = rows.find((r) => r.ref === "pe:" + entry.id)!;
+  assert.match(keyed.reason ?? "", /hired \(perf 4\)/, "the decision trail (outcome, performance) is RETAINED on the keyed row");
+  const legacy = rows.find((r) => /rejected \(predicted 70\)/.test(r.reason ?? ""))!;
+  assert.ok(legacy, "the legacy row survives, de-identified, not deleted");
+  assert.ok(
+    rows.some((r) => r.reason === `${NEIGHBOUR}: rejected (predicted 55)`),
+    "another candidate's audit row is untouched"
+  );
 });

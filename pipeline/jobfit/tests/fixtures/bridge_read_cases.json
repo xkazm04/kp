@@ -1,0 +1,42 @@
+{
+  "_about": "ONE case table, TWO readers. Each row is process output as the Next bridge receives it; `expect` is what the bridge reads out of it. app/_lib/python-runner-bridge-cases.test.ts runs every row through the REAL parsePythonJson / parseStderrError, pipeline/jobfit/tests/test_bridge_reader.py runs it through the Python port in _helpers.py (read_stdout_payload / read_stderr_envelope) that every CLI test reads its output with. A reader changed on one side only turns one of the two suites red. stdout rows: expect {payload} or {error: true} (the bridge throws). stderr rows: expect {envelope: {message, status, code}}; exit null is a process killed by a signal.",
+  "stdout": [
+    { "name": "trailing interpreter chatter after the result", "stdout": "{\"a\":1}\nResourceWarning: unclosed file <_io.TextIOWrapper name='x'>", "expect": { "payload": { "a": 1 } } },
+    { "name": "a warning printed before the result", "stdout": "UserWarning: pkg_resources is deprecated\n{\"matches\":[]}\n", "expect": { "payload": { "matches": [] } } },
+    { "name": "CRLF line endings and trailing blank lines", "stdout": "{\"a\":1}\r\n\r\n", "expect": { "payload": { "a": 1 } } },
+    { "name": "a whitespace-padded result line", "stdout": "   {\"a\":1}\t  \n", "expect": { "payload": { "a": 1 } } },
+    { "name": "the LAST object wins over an earlier one", "stdout": "{\"a\":1}\n{\"b\":2}", "expect": { "payload": { "b": 2 } } },
+    { "name": "a bare scalar after the result is skipped", "stdout": "{\"a\":1}\n42", "expect": { "payload": { "a": 1 } } },
+    { "name": "a top-level array is a payload", "stdout": "noise\n[1,2]", "expect": { "payload": [1, 2] } },
+    { "name": "an empty object is still a payload", "stdout": "{}", "expect": { "payload": {} } },
+    { "name": "a bare number alone is not a payload", "stdout": "42\n", "expect": { "error": true } },
+    { "name": "a bare string alone is not a payload", "stdout": "\"done\"", "expect": { "error": true } },
+    { "name": "null alone is not a payload", "stdout": "null", "expect": { "error": true } },
+    { "name": "empty stdout is an error, never an empty object", "stdout": "", "expect": { "error": true } },
+    { "name": "whitespace-only stdout is an error", "stdout": " \n\t\n", "expect": { "error": true } },
+    { "name": "NaN is not JSON to the bridge", "stdout": "{\"a\": NaN}", "expect": { "error": true } },
+    { "name": "pretty-printed JSON spans lines and is not read", "stdout": "{\n  \"a\": 1\n}", "expect": { "error": true } }
+  ],
+  "stderr": [
+    { "name": "coded envelope after a warning line", "stderr": "DeprecationWarning: x\n{\"error\":\"job not found: j\",\"status\":404,\"code\":\"not_found\"}", "exit": 1, "expect": { "envelope": { "message": "job not found: j", "status": 404, "code": "not_found" } } },
+    { "name": "status 404 with no code derives not_found", "stderr": "{\"error\":\"gone\",\"status\":404}\n", "exit": 1, "expect": { "envelope": { "message": "gone", "status": 404, "code": "not_found" } } },
+    { "name": "status 504 with no code derives timeout", "stderr": "{\"error\":\"slow\",\"status\":504}", "exit": 1, "expect": { "envelope": { "message": "slow", "status": 504, "code": "timeout" } } },
+    { "name": "a blank emitted code falls back to the status", "stderr": "{\"error\":\"bad\",\"status\":400,\"code\":\"  \"}", "exit": 1, "expect": { "envelope": { "message": "bad", "status": 400, "code": "invalid_input" } } },
+    { "name": "a non-string code falls back to the status", "stderr": "{\"error\":\"bad\",\"status\":404,\"code\":42}", "exit": 1, "expect": { "envelope": { "message": "bad", "status": 404, "code": "not_found" } } },
+    { "name": "an emitted code wins over the status", "stderr": "{\"error\":\"provider timed out\",\"status\":500,\"code\":\"timeout\"}", "exit": 1, "expect": { "envelope": { "message": "provider timed out", "status": 500, "code": "timeout" } } },
+    { "name": "an emitted code is trimmed", "stderr": "{\"error\":\"e\",\"status\":404,\"code\":\" not_found \"}", "exit": 1, "expect": { "envelope": { "message": "e", "status": 404, "code": "not_found" } } },
+    { "name": "no status on exit 2 reads as 400", "stderr": "{\"error\":\"bad json\"}", "exit": 2, "expect": { "envelope": { "message": "bad json", "status": 400, "code": "invalid_input" } } },
+    { "name": "no status on exit 1 reads as 500", "stderr": "{\"error\":\"boom\"}", "exit": 1, "expect": { "envelope": { "message": "boom", "status": 500, "code": "engine_error" } } },
+    { "name": "a boolean status is not a status", "stderr": "{\"error\":\"e\",\"status\":true}", "exit": 1, "expect": { "envelope": { "message": "e", "status": 500, "code": "engine_error" } } },
+    { "name": "a non-string error is the generic message", "stderr": "{\"error\":{\"detail\":\"x\"},\"status\":400}", "exit": 1, "expect": { "envelope": { "message": "Pipeline failed.", "status": 400, "code": "invalid_input" } } },
+    { "name": "an empty object envelope is still an envelope", "stderr": "{}", "exit": 1, "expect": { "envelope": { "message": "Pipeline failed.", "status": 500, "code": "engine_error" } } },
+    { "name": "an array last line is an envelope with no fields", "stderr": "[1]", "exit": 2, "expect": { "envelope": { "message": "Pipeline failed.", "status": 400, "code": "invalid_input" } } },
+    { "name": "plain-text stderr on exit 2 is invalid_input", "stderr": "usage: x_cli [-h]\nx_cli: error: the following arguments are required: --input-json\n", "exit": 2, "expect": { "envelope": { "message": "usage: x_cli [-h]\nx_cli: error: the following arguments are required: --input-json", "status": 400, "code": "invalid_input" } } },
+    { "name": "plain-text stderr on exit 1 is engine_error with the whole text", "stderr": "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: boom\n", "exit": 1, "expect": { "envelope": { "message": "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: boom", "status": 500, "code": "engine_error" } } },
+    { "name": "a scalar last line is plain text", "stderr": "42", "exit": 1, "expect": { "envelope": { "message": "42", "status": 500, "code": "engine_error" } } },
+    { "name": "an envelope followed by plain text is plain text", "stderr": "{\"error\":\"e\",\"status\":404,\"code\":\"not_found\"}\nException ignored in atexit callback", "exit": 1, "expect": { "envelope": { "message": "{\"error\":\"e\",\"status\":404,\"code\":\"not_found\"}\nException ignored in atexit callback", "status": 500, "code": "engine_error" } } },
+    { "name": "CRLF stderr reads its last line", "stderr": "warn\r\n{\"error\":\"e\",\"status\":400,\"code\":\"invalid_input\"}\r\n", "exit": 1, "expect": { "envelope": { "message": "e", "status": 400, "code": "invalid_input" } } },
+    { "name": "empty stderr names the exit code", "stderr": "", "exit": 1, "expect": { "envelope": { "message": "Pipeline exited with code 1.", "status": 500, "code": "engine_error" } } },
+    { "name": "a signal kill has no exit code", "stderr": "  \n", "exit": null, "expect": { "envelope": { "message": "Pipeline exited with code ?.", "status": 500, "code": "engine_error" } } }
+  ]
+}

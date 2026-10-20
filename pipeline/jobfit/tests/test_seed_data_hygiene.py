@@ -121,6 +121,13 @@ class SeedAnalysisIdentityTest(unittest.TestCase):
         hashed = [r for r in self.rows if r.get("cv_hash")]
         self.assertGreaterEqual(len(hashed), 1, "no seeded analysis carries a cv_hash")
 
+    def test_every_shipped_analysis_identifies_its_deterministic_engine(self) -> None:
+        for row in self.rows:
+            with self.subTest(candidate=row.get("id")):
+                metadata = row.get("payload", {}).get("metadata", {})
+                self.assertEqual(metadata.get("engineKind"), "deterministic")
+                self.assertEqual(metadata.get("analysisEngine"), "seed-deterministic")
+
     def test_cv_hashes_are_sha256_shaped_and_distinct_per_candidate(self) -> None:
         hashes = [r["cv_hash"] for r in self.rows if r.get("cv_hash")]
         for value in hashes:

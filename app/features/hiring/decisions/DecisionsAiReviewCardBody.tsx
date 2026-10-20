@@ -1,7 +1,8 @@
 "use client";
 
 // The OFFER approval card's detail block: salary band meter + labeled pricing
-// basis + the per-offer deadline lever. Offer-only since the /prototype
+// basis + the per-offer deadline lever + the letter it will send
+// (DecisionsOfferLetterPreview). Offer-only since the /prototype
 // consolidation (2026-08-10) — screening/scorecard cards render the Ladder
 // peer comparison (DecisionsAiReviewCardLadder) instead, and the AI's prose
 // moved into the Full-analysis modal. Split out of DecisionsAiReviewCard so
@@ -10,8 +11,10 @@ import { useTranslations } from "next-intl";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX } from "@/app/_lib/offer-policy";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { ParsedApproval } from "./decisionsAiReviewCardLogic";
+import { OfferLetterPreview } from "./DecisionsOfferLetterPreview";
 
 export function AiReviewCardBody({
+  entryId,
   parsed,
   // honest-unpriced-offer — whether this draft actually carries BOTH salary
   // bounds. Derived in decisionsAiReviewCardLogic.ts; false on the fail-safe
@@ -22,6 +25,8 @@ export function AiReviewCardBody({
   setTtlDays,
   t,
 }: {
+  /** The entry this offer is for: the letter preview renders ITS letter. */
+  entryId: string;
   parsed: ParsedApproval;
   hasBand: boolean;
   pricingBasis: number | null;
@@ -98,6 +103,8 @@ export function AiReviewCardBody({
         />
         <span>{t("deadlineDays")}</span>
       </label>
+      {/* The letter this approval sends, re-rendered as the deadline above changes. */}
+      <OfferLetterPreview entryId={entryId} ttlDays={ttlDays} />
     </div>
   );
 }

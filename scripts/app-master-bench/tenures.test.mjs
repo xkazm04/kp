@@ -10,7 +10,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -37,7 +37,15 @@ const VALID = {
   probationDays: 30,
 };
 
-const dir = () => mkdtempSync(path.join(tmpdir(), "kp-tenures-"));
+const tempDirs = [];
+process.on("exit", () => {
+  for (const d of tempDirs) rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
+const dir = () => {
+  const d = mkdtempSync(path.join(tmpdir(), "kp-tenures-"));
+  tempDirs.push(d);
+  return d;
+};
 
 test("a well-formed tenure validates and normalises", () => {
   const { ok, tenure, errors } = validateTenure({ ...VALID }, { name: "kp-owner" });

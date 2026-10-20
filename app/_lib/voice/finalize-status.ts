@@ -43,6 +43,27 @@ export type InterviewEndSignals = {
 
 export type InterviewFinalStatus = "completed" | "failed";
 
+/** How a call stopped. Only `drop` is involuntary — nobody decided it. */
+export type InterviewEnding =
+  /** The candidate pressed End (or the tab closed with an End in flight). */
+  | "candidate_end"
+  /** The director said so: `end_interview`, the close reserve, the hard cap. */
+  | "director_end"
+  /** A transport drop, a provider error, a connect that never came back. */
+  | "drop";
+
+/** What the DIRECTOR knew about the call when it stopped. Absent (or `directed:
+ *  false`) for every undirected call — the lab, a session with nothing grounded to
+ *  talk about, a pre-director link — and those keep the rule above unchanged. */
+export type DirectedEndContext = {
+  /** The connect returned an agenda, so the call was being directed. */
+  directed: boolean;
+  ending: InterviewEnding;
+  /** A `role_qa` or `close` block has begun: the conversation reached its ending,
+   *  whatever happened to the socket afterwards. */
+  closingBegun: boolean;
+};
+
 // How many real turns make a live call "substantive" — enough of a conversation
 // that a late transport error no longer disqualifies it from being scored. A
 // short connect flap (0–few turns) stays below this and is still "failed", so a
@@ -54,8 +75,36 @@ export const SUBSTANTIVE_TURNS = 6;
  *  is "completed" when it went live and produced at least one turn AND either no
  *  error fired OR it had already captured a substantive conversation
  *  (>= SUBSTANTIVE_TURNS turns) before the error — so a late blip on a real
- *  interview is still scored. Everything else is "failed". */
-export function interviewFinalStatus(signals: InterviewEndSignals): InterviewFinalStatus {
+ *  interview is still scored. Everything else is "failed".
+ *
+ *  A DIRECTED call adds one rule on top, because it changed what "the connection
+ *  dropped" costs. Before the director, a drop was terminal: there was nothing to
+ *  resume into, so finalizing a substantive-but-unfinished call "completed" at least
+ *  got it scored. Now a `failed` session stays reconnectable AND the reconnect
+ *  resumes — same agenda, covered blocks intact, the interviewer briefed not to start
+ *  over. So a directed call that DROPS before its closing block has begun is an
+ *  interview the candidate can still finish, and calling it "completed" would lock
+ *  them out of their own link at (say) minute 12 of 30 and score the half of it that
+ *  happened. Once `role_qa`/`close` has begun the conversation reached its ending and
+ *  the old rule applies again — a drop at goodbye is still a completed interview.
+ *
+ *  `direction` is omitted by every undirected caller (the lab, a session with no
+ *  agenda), and those keep the rule above byte for byte. */
+export function interviewFinalStatus(
+  signals: InterviewEndSignals,
+  direction?: DirectedEndContext | null,
+): InterviewFinalStatus {
+  const base = baseFinalStatus(signals);
+  if (base === "failed") return "failed";
+  if (!direction || !direction.directed) return base;
+  // The candidate's own End and the director's end_interview are DECISIONS — the
+  // interview is over because somebody said so, wherever the agenda stood.
+  if (direction.ending !== "drop") return base;
+  if (direction.closingBegun) return base;
+  return "failed";
+}
+
+function baseFinalStatus(signals: InterviewEndSignals): InterviewFinalStatus {
   // A "real conversation" requires the CANDIDATE to have spoken at least once, not
   // merely a turn of any role (voice-interview #1). The interviewer always opens
   // ("Tell me about your recent work…"), so a silent-mic call — hardware fault, OS
@@ -79,6 +128,10 @@ export function interviewFinalStatus(signals: InterviewEndSignals): InterviewFin
  *  End is in flight we beacon the REAL verdict (a substantive live call becomes
  *  "completed"); a true abandonment (unmount while live, no End clicked) stays
  *  conservatively "failed" so a half-finished screen is never scored as passed. */
-export function unmountBeaconStatus(endInFlight: boolean, signals: InterviewEndSignals): InterviewFinalStatus {
-  return endInFlight ? interviewFinalStatus(signals) : "failed";
+export function unmountBeaconStatus(
+  endInFlight: boolean,
+  signals: InterviewEndSignals,
+  direction?: DirectedEndContext | null,
+): InterviewFinalStatus {
+  return endInFlight ? interviewFinalStatus(signals, direction) : "failed";
 }

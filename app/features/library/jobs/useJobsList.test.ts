@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { jobsListQuery, readJobsListPayload, type JobsListFilters } from "./useJobsList.ts";
+import { jobsListQuery, nextJobsSort, readJobsListPayload, type JobsListFilters } from "./useJobsList.ts";
 
 const NONE: JobsListFilters = { roleFamily: "", seniority: "", workMode: "", entryOnly: false, openOnly: false, q: "" };
 
@@ -77,4 +77,35 @@ test("the corpus effect aborts its in-flight request, as its header claims", () 
   // The boolean it replaced must be gone: two cancellation mechanisms in one
   // effect is how the header came to describe one the code did not have.
   assert.ok(!/let cancelled = false/.test(src), "the `cancelled` flag was replaced, not doubled up");
+});
+
+// ---- challenge-r07 jobs-table-core/A: the server owns sort, status and the window ----
+
+test("case 8: sort, page and status travel on the wire instead of running over a partial copy", () => {
+  assert.equal(
+    jobsListQuery({ ...NONE, sort: { col: "status", dir: "desc" }, pageIndex: 2, roleStatus: "filled" }),
+    "sort=status&dir=desc&offset=40&roleStatus=filled"
+  );
+  // Page 1 is offset 0, stated rather than implied; the filters still lead.
+  assert.equal(
+    jobsListQuery({ ...NONE, openOnly: true, sort: { col: "title", dir: "asc" }, pageIndex: 0 }),
+    "openOnly=true&sort=title&dir=asc&offset=0"
+  );
+  // A status the menu does not offer is not sent.
+  assert.equal(jobsListQuery({ ...NONE, roleStatus: "" }), "");
+});
+
+test("a header click flips the active column, and a new column opens in its natural direction", () => {
+  assert.deepEqual(nextJobsSort({ col: "title", dir: "asc" }, "title"), { col: "title", dir: "desc" });
+  assert.deepEqual(nextJobsSort({ col: "title", dir: "asc" }, "location"), { col: "location", dir: "asc" });
+  // Numeric columns open descending — "sort by salary" means the biggest first.
+  assert.deepEqual(nextJobsSort({ col: "title", dir: "asc" }, "salary"), { col: "salary", dir: "desc" });
+  assert.deepEqual(nextJobsSort({ col: "title", dir: "asc" }, "status"), { col: "status", dir: "desc" });
+});
+
+test("the status filter is no longer applied client-side over the fetched page", () => {
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assert.ok(!/roleStatusOf\(/.test(code), "the derived status is the server's predicate now");
+  assert.ok(!/jobs\.filter\(/.test(code), "no axis narrows a truncated copy");
+  assert.match(code, /pageIndex/, "the page index reaches the query");
 });

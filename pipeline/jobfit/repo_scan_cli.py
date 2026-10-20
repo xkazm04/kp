@@ -35,11 +35,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import repo_scan
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT
 from .devcase.provenance import collect_fallback_reasons
 from .llm import emit_deterministic, provider_availability, resolve_provider
-
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
-import { DEFAULT_STAGE_AXIS, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
-import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
 
 export type ChannelJob = { id: string; title: string };
 
@@ -14,7 +12,7 @@ export type ChannelJob = { id: string; title: string };
  *  Never an empty array conjured out of an error. An empty list is a CLAIM on this
  *  surface ("this channel has no receivers", "nothing is published"), and only a 2xx
  *  body that actually carries the array is allowed to make it: every one of these
- *  routes answers `{ webhooks }` / `{ jobs, stats }` / `{ entries, stages }` on success
+ *  routes answer `{ webhooks }` / `{ jobs, stats }` on success
  *  and `{ error }` on failure, so a missing/non-array key IS the failure — and
  *  `p.jobs ?? []` used to turn it into a confident zero the recruiter could not tell
  *  apart from a genuinely empty workspace. */
@@ -23,29 +21,17 @@ export function listFromPayload<T>(payload: unknown, key: string): T[] | "failed
   return Array.isArray(list) ? (list as T[]) : "failed";
 }
 
-/** How many candidates are WAITING at the board's entry column.
- *
- *  Resolved by stage ROLE, never by the name "Accepted": the axis is per-workspace
- *  data (pipeline-axis.ts) and a team that composes its own board in Settings → Hiring
- *  gets an entry column with its own minted id. Real intake already files arrivals
- *  through `stageWithRole("entry", …)` (cv-intake.ts, "not at a stage that happens to
- *  be named Accepted"), so matching the literal string here answered "0 waiting" on
- *  exactly the boards that renamed their first column — while the applications piled
- *  up in it. Falls back to the shipped axis when the payload carries no stages. */
-export function countWaitingAtEntry(
-  entries: readonly PipelineEntryView[],
-  stages: readonly StageDef[] | undefined
-): number {
-  const axis = stages && stages.length > 0 ? stages : DEFAULT_STAGE_AXIS;
-  const entryStage = stageWithRole("entry", axis) ?? "Accepted";
-  return entries.filter((e) => e.stage === entryStage && e.status === "active").length;
+/** A server-owned count is a number only when the attention response proves it. */
+export function waitingFromAttention(payload: unknown): number | "failed" {
+  const count = (payload as { channels?: unknown } | null)?.channels;
+  return typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : "failed";
 }
 
-type ChannelSource = "webhooks" | "jobs" | "pipeline";
+type ChannelSource = "webhooks" | "jobs" | "attention";
 
 // Shared inbound-integration data for the Channels variants: the active webhooks
 // (per-channel status), the OPEN jobs (careers links + webhook binding), and the
-// count of candidates waiting at the board's entry column. Follows the shared
+// server-owned count of candidates waiting at the board's entry column. Follows the shared
 // data-changed channel so sim/automation arrivals refresh without a remount.
 //
 // The three fields start `null` (not `[]`/`0`) so the tab can tell "haven't fetched
@@ -73,32 +59,43 @@ export function useChannelData() {
   const [failed, setFailed] = useState<Record<ChannelSource, boolean>>({
     webhooks: false,
     jobs: false,
-    pipeline: false,
+    attention: false,
   });
+
+  // An abort is the tab unmounting, not a failed source. Marking it failed would
+  // paint the retry banner onto a surface that is already leaving — and, worse,
+  // settle state on a component React has torn down.
+  const mark = useCallback((src: ChannelSource, isFailed: boolean, signal?: AbortSignal) => {
+    if (signal?.aborted) return;
+    setFailed((f) => (f[src] === isFailed ? f : { ...f, [src]: isFailed }));
+  }, []);
+
+  // The receivers read alone. `load` runs it with the other two, and the "waiting for
+  // the first lead" poll runs it by itself: re-downloading the 201 KB jobs list every
+  // few seconds to learn whether one receiver was reached would be absurd.
+  const loadWebhooks = useCallback(
+    (signal?: AbortSignal) => {
+      fetch("/api/channels/webhooks", { signal })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((p) => {
+          const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
+          mark("webhooks", list === "failed", signal);
+          if (list !== "failed" && !signal?.aborted) {
+            setWebhooks(list);
+            setWebhooksTruncated((p as { truncated?: boolean } | null)?.truncated === true);
+          }
+        })
+        .catch(() => mark("webhooks", true, signal));
+    },
+    [mark]
+  );
 
   // Sharing is OPT-IN (see usePipelineBoardData): `load` doubles as the post-mutation
   // reload (a new receiver, a revoke), which must always hit the network.
   const load = useCallback((opts?: { shared?: boolean; signal?: AbortSignal }) => {
     const shared = { refresh: !opts?.shared };
     const signal = opts?.signal;
-    // An abort is the tab unmounting, not a failed source. Marking it failed would
-    // paint the retry banner onto a surface that is already leaving — and, worse,
-    // settle state on a component React has torn down.
-    const mark = (src: ChannelSource, isFailed: boolean) => {
-      if (signal?.aborted) return;
-      setFailed((f) => (f[src] === isFailed ? f : { ...f, [src]: isFailed }));
-    };
-    fetch("/api/channels/webhooks", { signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((p) => {
-        const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
-        mark("webhooks", list === "failed");
-        if (list !== "failed" && !signal?.aborted) {
-          setWebhooks(list);
-          setWebhooksTruncated((p as { truncated?: boolean } | null)?.truncated === true);
-        }
-      })
-      .catch(() => mark("webhooks", true));
+    loadWebhooks(signal);
     // openOnly — the roles a candidate can actually apply to right now (NULL/'published';
     // job-ingest.ts isJobOpenForApplications). The unfiltered read also returned drafts
     // and CLOSED roles, and this list is rendered as "Published roles" + a copyable
@@ -109,22 +106,22 @@ export function useChannelData() {
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
         const list = listFromPayload<ChannelJob>(p, "jobs");
-        mark("jobs", list === "failed");
+        mark("jobs", list === "failed", signal);
         if (list !== "failed" && !signal?.aborted) setJobs(list.map((j) => ({ id: j.id, title: j.title })));
       })
-      .catch(() => mark("jobs", true));
+      .catch(() => mark("jobs", true, signal));
     // sharedGetJson already rejects a non-2xx, so only the body shape is checked here.
     // It deliberately takes NO signal: the request may be shared with another hook on
     // the page, and aborting it on OUR unmount would cancel theirs. Unmounting drops
     // the result instead.
-    sharedGetJson<{ entries?: PipelineEntryView[]; stages?: StageDef[] }>("/api/pipeline", shared)
+    sharedGetJson<{ channels?: number }>("/api/attention", shared)
       .then((p) => {
-        const entries = listFromPayload<PipelineEntryView>(p, "entries");
-        mark("pipeline", entries === "failed");
-        if (entries !== "failed" && !signal?.aborted) setAccepted(countWaitingAtEntry(entries, p.stages));
+        const waiting = waitingFromAttention(p);
+        mark("attention", waiting === "failed", signal);
+        if (waiting !== "failed" && !signal?.aborted) setAccepted(waiting);
       })
-      .catch(() => mark("pipeline", true));
-  }, []);
+      .catch(() => mark("attention", true, signal));
+  }, [loadWebhooks, mark]);
   // The two own fetches are aborted on unmount: switching tabs while /api/jobs (201 KB)
   // is in flight used to leave it running to completion and then settle state on a
   // component that no longer exists.
@@ -140,8 +137,9 @@ export function useChannelData() {
     webhooksTruncated,
     jobs,
     accepted,
-    loadFailed: failed.webhooks || failed.jobs || failed.pipeline,
+    loadFailed: failed.webhooks || failed.jobs || failed.attention,
     reload: load,
+    reloadWebhooks: loadWebhooks,
   };
 }
 

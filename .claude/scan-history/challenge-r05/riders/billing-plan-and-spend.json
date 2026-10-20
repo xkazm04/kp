@@ -1,0 +1,7 @@
+[
+  {
+    "rider": "billing-api",
+    "files_read": 8,
+    "checked": "Read in full: app/api/billing/route.ts, authority.ts, checkout/route.ts, portal/route.ts, webhook/route.ts; read test inventories/heads of billing-routes.test.ts, billing-authority.test.ts, billing-quota-shape.test.ts; followed one hop into app/_lib/billing/sync.ts, entitlements.ts, plans.ts, mode.ts and app/_lib/db/billing.ts. Hypotheses traced: (1) checkout double-subscription guard vs client planChangeVia - both read raw status, agree (checkout/route.ts:153-156 vs billingTypes.ts:98-101), no card; (2) webhook bounds - rate limit before body read, 256 KB cap, signature before tx, dedupe+apply in one tx (sync.ts:181-189), no card; (3) GET /api/billing surfaces nothing of billing_alerts although sync.ts writes unmapped_product/price_drift and no route reads listBillingAlerts/resolveBillingAlert (0 non-test callers) -> CARD A targets this rider ('billing_alerts gets its reader'), adopting the open items 'Return open billing alerts on GET /api/billing' and 'Surface the billing_alerts worklist on the Billing tab'. Rejected here: 'Stamp Polar checkout with the org's existing customer id' (open, risk 3 - below the floor, and it changes what the MoR binds a charge to, so irreversible-adjacent) and allowance re-keying to the subscription anchor (changes how much is granted per paid period = charge change, irreversible in this mode)."
+  }
+]

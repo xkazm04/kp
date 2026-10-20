@@ -46,7 +46,10 @@ function walkRoutes(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const MUTATING = /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b/;
+// Both handler shapes: `export async function POST` and the wrapped `export const POST =
+// withWorkspace(...)` (workspace-context.ts). Matching only the first would make every
+// migrated route look read-only and this ratchet pass vacuously.
+const MUTATING = /export\s+(?:(?:async\s+)?function|const)\s+(POST|PUT|PATCH|DELETE)\b/;
 // The three request-scope gates in app/_lib/auth/current-user.ts, plus the coded
 // wrapper in api-response.ts that re-shapes their 403 into FORBIDDEN_CAPABILITY.
 // A file that calls `can("…")` is NOT counted: that returns a boolean for rendering
@@ -55,7 +58,7 @@ const GATE = /\b(requireCapabilityCoded|requireCapability|requireWorkspaceCapabi
 
 /** The mutating verbs a route file exports, in source order. */
 export function mutatingVerbs(src: string): string[] {
-  const re = /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b/g;
+  const re = /export\s+(?:(?:async\s+)?function|const)\s+(POST|PUT|PATCH|DELETE)\b/g;
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) out.push(m[1]);
@@ -95,7 +98,9 @@ const ALLOWED = new Map<string, string>([
   ["billing/checkout/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["billing/portal/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["billing/webhook/route.ts", "webhook — Polar posts here with a signed body; there is no seat behind the call"],
-  ["brand/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // brand/route.ts was judged and CLOSED (challenge-r07 shell-setup-wizard/A): PUT asks
+  // org:manage (roles.ts: org profile/settings, owner-only); brand-route.test.ts drives
+  // the recruiter 403 and the owner 200.
   ["calendar/google/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["channels/inbound/[token]/route.ts", "webhook — inbound ad/email intake, authed by the channel token in the URL"],
   ["comms/callback/route.ts", "webhook — the relay's delivery receipt, authed by COMMS_CALLBACK_SECRET + timestamp + nonce"],
@@ -104,13 +109,15 @@ const ALLOWED = new Map<string, string>([
   ["companion/proposals/[id]/resolve/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["companion/threads/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["data/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["devcase/feedback/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["devcase/inbound/route.ts", "webhook — candidate apply intake, token-authed, no session"],
-  ["devcase/lifecycle/[id]/close/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/lifecycle/[id]/redesign/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/lifecycle/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/promote/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/publish/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // devcase/{feedback,lifecycle,lifecycle/[id]/close,lifecycle/[id]/redesign,promote}/route.ts
+  // were judged and CLOSED (R4-api-devcase-1-8): each POST asks pipeline:write after
+  // requireOperator (close mails a rejection to every non-promoted applicant);
+  // app/api/devcase/devcase-doors-capability.test.ts drives the viewer 403.
+  // devcase/publish/route.ts was judged and CLOSED (challenge-r09 devcase-lifecycle/B):
+  // minting a live apply token - and reopening a stopped case's intake - asks
+  // pipeline:write, like the stop door beside it; app/api/devcase/[id]/intake/route.test.ts
+  // drives the viewer 403 on both.
   ["devcase/session/[id]/chat/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/[id]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/[id]/submit/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
@@ -137,6 +144,11 @@ const ALLOWED = new Map<string, string>([
   ["interview/complete/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/connect/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/create/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  ["interview/director/route.ts", "public token door — authed by the interview link's capability token, never a seat (public-routes.ts); the candidate's live call posts here"],
+  [
+    "interview/recording/route.ts",
+    "public token door — the candidate's own microphone upload mid-call, authed by the interview link's capability token in x-kp-token, never a seat (public-routes.ts)",
+  ],
   ["interview/revoke/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/attach/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -155,9 +167,13 @@ const ALLOWED = new Map<string, string>([
   ["match/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["me/onboarding/route.ts", "self-service — the caller's own onboarding state, nobody else's"],
   ["offer/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["pipeline/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["pipeline/outcomes/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["pipeline/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // pipeline/[id]/route.ts and pipeline/outcomes/route.ts were judged and CLOSED
+  // (challenge-r07 pipeline-api/A): the per-card door asks the seat each action
+  // declares in app/api/pipeline/[id]/entry-actions.ts (pipeline:write for all eight),
+  // and the hire-rating write asks pipeline:write; write-capability-gate.test.ts drives
+  // both for the viewer 403.
+  // pipeline/route.ts POST was judged and CLOSED (pipeline-board rework): the add door asks
+  // pipeline:write before it spends the throttle or seals; add-door-gate.test.ts drives it.
   ["profile/draft/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["profile/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["rediscovery/alerts/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -171,20 +187,42 @@ const ALLOWED = new Map<string, string>([
   // real handlers for the viewer 403.
   ["sim/apply-cv/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/inbound/route.ts", "guided-sim sandbox — writes only the demo corpus"],
-  ["sim/offer-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
+  [
+    "sim/offer-draft/route.ts",
+    "guided-sim sandbox — writes only the demo corpus: every entry it reads or writes goes through " +
+      "resolveSimEntry (app/_lib/sim-entry.ts), which admits only a (SIM)-marked row in the caller's team, " +
+      "so a real candidate's id 404s (pinned by app/api/sim/sim-door-contract.test.ts)",
+  ],
   ["sim/reset/route.ts", "guided-sim sandbox — writes only the demo corpus"],
-  ["sim/screen-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
+  [
+    "sim/screen-draft/route.ts",
+    "guided-sim sandbox — writes only the demo corpus: every entry it reads or writes goes through " +
+      "resolveSimEntry (app/_lib/sim-entry.ts), which admits only a (SIM)-marked row in the caller's team, " +
+      "so a real candidate's id 404s (pinned by app/api/sim/sim-door-contract.test.ts)",
+  ],
   ["status/[token]/nps/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
+  [
+    "status/[token]/recording/route.ts",
+    "public token door — the candidate deleting their OWN interview audio, authed by the status link in the URL, never a seat (public-routes.ts)",
+  ],
+  [
+    "status/[token]/letter/route.ts",
+    "public token door — the candidate asking for feedback on their OWN interview, authed by the status link in the URL, never a seat (public-routes.ts)",
+  ],
+  [
+    "status/[token]/resend/route.ts",
+    "public token door — the candidate asking for their OWN pending link again, authed by the status link in the URL, never a seat (public-routes.ts); it sends only to the address on file",
+  ],
   [
     "stop/[token]/route.ts",
     "public token door — the candidate's ePrivacy Art. 13(4) opt-out, authed by the capability link in the URL, never a seat. " +
       "It is also the RFC 8058 one-click target a mail provider POSTs unattended, so a seat check would make the header inert",
   ],
+  [
+    "stop/[token]/language/route.ts",
+    "public token door — the candidate choosing the language of our letters, authed by the opt-out link in the URL, never a seat (public-routes.ts)",
+  ],
   ["stt/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["tasks/[id]/retry/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["tasks/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["tasks/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["tasks/seen/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["templates/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["templates/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["tts/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -242,4 +280,5 @@ test("the scanner is not blind: it tells a gated door from an ungated one", () =
   assert.ok(!MUTATING.test(readOnlySrc), "a read-only route is out of scope");
   assert.ok(!GATE.test(booleanOnlySrc), "`can()` computes a boolean; it does not refuse a request");
   assert.deepEqual(mutatingVerbs(`export async function POST(){}\nexport async function DELETE(){}`), ["POST", "DELETE"]);
+  assert.deepEqual(mutatingVerbs("export const POST = withWorkspace(async (ws: string) => null);\nexport const GET = withWorkspace(async () => null);"), ["POST"]);
 });

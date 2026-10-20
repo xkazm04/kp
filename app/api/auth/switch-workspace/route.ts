@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
   SESSION_COOKIE,
-  SESSION_TTL_MS,
   DEMO_WORKSPACE,
-  signSession,
   verifySession,
   currentUserId,
   currentOrgId,
   currentWorkspaceId,
   isOperatorSession,
-  type SessionClaims,
 } from "@/app/_lib/auth/session";
+import { clearSession, issueSession, type SessionPrincipal } from "@/app/_lib/auth/session-issuer";
+import { isSessionRevoked } from "@/app/_lib/auth/session-revocation";
 import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
@@ -33,6 +32,20 @@ export async function POST(request: Request) {
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
     if (!session) {
       return NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 });
+    }
+    // A REVOKED cookie gets the refusal an ABSENT one gets, and learns nothing on the way.
+    //
+    // proxy.ts (its "one refusal shape" note) states the doctrine: a missing, forged,
+    // expired or revoked session is refused identically, so a dead cookie is never an
+    // oracle. This route is under the /api/auth/ public prefix (auth/public-routes.ts),
+    // so the proxy never asks the revocation question here — and asking it only inside
+    // issueSession, at the very end, meant every decision on the way there answered
+    // first: the 413 body cap, the lock's 403, 404 for an unknown workspace, 404 for a
+    // foreign org's, 403 for one the holder has no seat in. A stolen-and-revoked cookie
+    // could read the tenant map on its way out (security scan f727beae). The issuer's
+    // own `renewing` check stays, as defence in depth for any other renewal door.
+    if (isSessionRevoked(session)) {
+      return clearSession(NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 }));
     }
     // A DEMO session never leaves the demo workspace. `/api/demo` is a PUBLIC route
     // that hands any anonymous visitor a validly-signed cookie carrying NO `sub` and
@@ -93,21 +106,31 @@ export async function POST(request: Request) {
     // return an owner. `role` is recomputed against the TARGET team (a user's role is
     // per-membership, not global); capabilities are still resolved live from the DB, so the
     // claim is for display and must never be the authority.
+    //
+    // This is a RENEWAL — it hands back a fresh 7-day token — so it goes through the
+    // same issuer as every sign-in door (auth/session-issuer.ts), which re-reads the
+    // account: setMemberStatus('disabled') leaves the membership rows in place, so the
+    // check above alone renewed an offboarded user's cookie forever, one POST a week.
+    // A refused account is answered 401 and its cookie is cleared; org and role on the
+    // new token are read from the database, never carried over from the old one.
+    //
+    // `renewing` names the cookie this mint comes FROM, which is what lets the issuer
+    // refuse a REVOKED one. That check used to sit inline at the top of this handler
+    // (the 2026-10-05 scan's S-02); it moved into the issuer so a second renewal door
+    // cannot be written without it. The 401-and-clear below is the same answer it gave.
+    const principal: SessionPrincipal = isOperatorSession(session)
+      ? { kind: "operator", workspaceId }
+      : userId
+        ? { kind: "user", userId, workspaceId }
+        : { kind: "open", workspaceId };
     const res = NextResponse.json({ ok: true, workspace: workspaceId });
-    const claims: SessionClaims = isOperatorSession(session)
-      ? { op: true }
-      : {
-          sub: userId ?? undefined,
-          org: currentOrgId(session) ?? undefined,
-          role: userId ? getMembership(userId, workspaceId)?.role : undefined,
-        };
-    res.cookies.set(SESSION_COOKIE, signSession(workspaceId, Date.now(), claims), {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: Math.floor(SESSION_TTL_MS / 1000),
-    });
+    const issued = issueSession(res, principal, { entered: false, renewing: session });
+    if (!issued.ok) {
+      if (issued.reason === "foreign_workspace") {
+        return NextResponse.json({ error: "Unknown workspace." }, { status: 404 });
+      }
+      return clearSession(NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 }));
+    }
     return res;
   } catch (error) {
     return jsonError(error, "Failed to switch workspace.");

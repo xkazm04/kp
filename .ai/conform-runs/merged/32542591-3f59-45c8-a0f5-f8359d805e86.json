@@ -1,0 +1,196 @@
+{
+  "schema": "conform-run/1",
+  "worker": "32542591-3f59-45c8-a0f5-f8359d805e86",
+  "subject": "companion-runtime",
+  "evaluatedAt": "2026-10-15T04:04:17.963085+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "companion-ai",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/companion-run.ts:193 The companion turn runner returns a monolithic Promise result rather than an event stream and lacks host capability injection and conversation locking.",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-actions.ts:141 COMPANION_ACTIONS declares the closed action catalog as a single array from which prompt addenda, validators, and executors derive."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:93 Directly imports and queries host store listPipeline instead of receiving store capabilities via a construction-time seam contract."
+        },
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:193 runCompanionTurn returns a Promise resolving to a final result rather than returning a stream of typed turn events ending in a verdict."
+        },
+        {
+          "technique": "autonomous-cycle-hosting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-digest-run.ts:52 Digest cycle runs against the latest conversation without verifying whether a turn is currently live on that thread or companion."
+        },
+        {
+          "technique": "signal-economy-contract",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-digest-run.ts:62 Autonomous digest cycle directly appends the turn to the conversation without a typed report-or-absorb decision at production time."
+        },
+        {
+          "technique": "metered-llm-seam",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:284 Model invocation delegates to an external process spawn rather than funneling through an in-runtime metered seam with required leg kinds."
+        },
+        {
+          "technique": "operative-working-set",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:90 Grounding information about present activity is gathered on-demand from database queries rather than from an in-memory operative working set."
+        }
+      ]
+    },
+    {
+      "context": "agents-api",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/companion/[id]/message/route.ts:158 The companion message route returns a complete JSON response rather than streaming typed turn events and lacks conversation identity concurrency locks.",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:116 The resolve route re-validates the proposed action and its payload against the catalog before execution, retiring outlived proposals."
+        },
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "app/api/companion/[id]/message/route.ts:158 The HTTP route awaits a complete turn and returns a monolithic JSON response instead of streaming typed turn events ending in a verdict."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "app/api/companion/[id]/message/route.ts:84 Directly invokes host database persistence routines from the route adapter rather than routing through a host seam sink."
+        }
+      ]
+    },
+    {
+      "context": "companion-appmaster",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "pipeline/jobfit/companion_cli.py:362 The companion CLI resolves model calls with an ambient use-case string without requiring a situational leg kind argument distinguishing interactive turns from background cycles.",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/companion_cli.py:246 Teaching prompt renders dynamically from the shipped wire catalog without hardcoding action identifiers in the Python process."
+        },
+        {
+          "technique": "metered-llm-seam",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:362 Model invocation resolves the provider using a feature label rather than requiring a situational leg kind argument distinguishing interactive turns from background passes."
+        },
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:497 run_turn returns a static dictionary payload instead of an event stream of typed events and lacks conversation concurrency locks."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_brain.py:84 Storage locations are resolved via process-global environment variables and ambient paths rather than through an injected store capability."
+        },
+        {
+          "technique": "autonomous-cycle-hosting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:548 Autonomous digest runs without checking whether a conversational turn is live on the companion and without declared spend ceilings."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "companion-runtime",
+      "context": "shell-companion-voice",
+      "reason": "Context shell-companion-voice contains only client-side presentation components for voice playback, ticker display, and transcript navigation (CompanionVoiceMode, CompanionVoiceTicker, VoicePlayback). It does not implement or host the companion runtime, turn stream, host seam, model seam, or action catalog."
+    },
+    {
+      "subject": "companion-runtime",
+      "context": "shell-companion",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchors on app/features/shell/companion/useCompanionThread.ts:119, which does not appear in the shell-companion context's path list in registry-map.json (it occurs only in the evidence text), so the verdict is about a file outside this context."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T04:04:17.963085+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-runtime"
+      ],
+      "techniques": [
+        "action-catalog-single-source",
+        "autonomous-cycle-hosting",
+        "headless-turn-stream",
+        "host-seam-contracts",
+        "metered-llm-seam",
+        "operative-working-set",
+        "signal-economy-contract"
+      ],
+      "deviations": 1,
+      "context": "companion-ai",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T04:04:17.963085+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-runtime"
+      ],
+      "techniques": [
+        "action-catalog-single-source",
+        "headless-turn-stream",
+        "host-seam-contracts"
+      ],
+      "deviations": 1,
+      "context": "agents-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T04:04:17.963085+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-runtime"
+      ],
+      "techniques": [
+        "action-catalog-single-source",
+        "headless-turn-stream",
+        "host-seam-contracts"
+      ],
+      "deviations": 1,
+      "context": "shell-companion",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T04:04:17.963085+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-runtime"
+      ],
+      "techniques": [
+        "action-catalog-single-source",
+        "autonomous-cycle-hosting",
+        "headless-turn-stream",
+        "host-seam-contracts",
+        "metered-llm-seam"
+      ],
+      "deviations": 1,
+      "context": "companion-appmaster",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

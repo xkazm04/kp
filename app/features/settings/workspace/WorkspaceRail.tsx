@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_PRIMARY, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { WorkspaceDto } from "./useWorkspaceAdmin";
+import type { MemberStatusCounts } from "./workspaceAdminHelpers";
 
 // The Workspaces console — left column: every team in the org, the one you are
 // signed into, and the create form. Selecting a row is NOT switching: reading and
@@ -16,6 +17,7 @@ export function WorkspaceRail({
   current,
   selectedId,
   counts,
+  statusCounts,
   loading,
   canCreate,
   busy,
@@ -26,6 +28,7 @@ export function WorkspaceRail({
   current: string | null;
   selectedId: string | null;
   counts: Map<string, number>;
+  statusCounts: Map<string, MemberStatusCounts>;
   loading: boolean;
   canCreate: boolean;
   busy: boolean;
@@ -57,6 +60,7 @@ export function WorkspaceRail({
             const isSelected = w.id === selectedId;
             const isCurrent = w.id === current;
             const count = counts.get(w.id) ?? w.memberCount;
+            const states = statusCounts.get(w.id);
             return (
               <li key={w.id}>
                 <button
@@ -73,6 +77,12 @@ export function WorkspaceRail({
                       <Users size={12} aria-hidden />
                       {t("memberCount", { count })}
                     </span>
+                    {states ? (
+                      <span className="mt-0.5 block text-micro text-steel">
+                        {t("members.status.active")}: {states.active} · {t("members.status.invited")}: {states.invited} · {t("members.status.disabled")}: {states.disabled}
+                        {states.unknown > 0 ? ` · ${t("members.status.unknown")}: ${states.unknown}` : null}
+                      </span>
+                    ) : null}
                   </span>
                   {isCurrent ? (
                     <span className="inline-flex items-center gap-1 text-micro font-medium text-moss">

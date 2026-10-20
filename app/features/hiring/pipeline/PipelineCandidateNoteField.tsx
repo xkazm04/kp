@@ -39,6 +39,7 @@ export function PipelineCandidateNoteField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
+        autoGrow
         maxLength={maxLength}
         placeholder={t("candidateNotesPlaceholder")}
         sizeVariant="sm"

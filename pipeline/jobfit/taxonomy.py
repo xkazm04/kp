@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .education import CLASSIFY_PRIORITY
 from .market_config import ACTIVE_MARKET, MarketConfig
 
 _LOG = logging.getLogger(__name__)
@@ -448,6 +449,10 @@ def _compact_fallback_hit(
     return False
 
 
+# Cached: the taxonomy holds thousands of surface forms, far past `re`'s own 512-entry
+# cache, so every call used to recompile its pattern - 5.1 s of a 15 s run over ten real
+# postings (posting_structure, profiled 2026-09-28 on AI companies' boards).
+@lru_cache(maxsize=32768)
 def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Pattern[str] | None":
     """Compile a whole-token matcher for an already-normalized surface form.
 
@@ -472,7 +477,16 @@ def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Patte
 
 def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
     """Whitespace-flexible whole-token presence of ``surface_norm`` in ``text_norm``
-    (both already :func:`normalize_text`-folded)."""
+    (both already :func:`normalize_text`-folded).
+
+    An exact pre-filter runs first: the pattern needs every word-part of the surface
+    LITERALLY present, so a part missing as a plain substring means no match - and a
+    substring test is C-fast where a lookaround regex over an 8-12 kB ad is not. Most
+    taxonomy terms are absent from any one ad; this skipped ~95% of the 9.2 s of regex
+    search the profile above measured, with no change to what matches."""
+    parts = surface_norm.split()
+    if not parts or any(part not in text_norm for part in parts):
+        return False
     pattern = _word_boundary_pattern(surface_norm, flexible_ws=True)
     return pattern is not None and pattern.search(text_norm) is not None
 
@@ -480,6 +494,8 @@ def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
 def count_whole_token(text_norm: str, surface_norm: str) -> int:
     """Whole-token occurrence count of ``surface_norm`` in ``text_norm`` (both
     already :func:`normalize_text`-folded), literal spacing."""
+    if not surface_norm or surface_norm not in text_norm:
+        return 0
     pattern = _word_boundary_pattern(surface_norm, flexible_ws=False)
     return len(pattern.findall(text_norm)) if pattern is not None else 0
 
@@ -974,7 +990,7 @@ def company_modifiers(text: str) -> list[str]:
     return scan_category(text, "company_modifier", "company_modifier")
 
 
-_EDUCATION_PRIORITY = ["phd", "master", "bachelor", "university"]
+_EDUCATION_PRIORITY = CLASSIFY_PRIORITY  # the ladder lives in education.py
 
 
 def classify_education(text: str) -> str:
@@ -1029,6 +1045,23 @@ def resolve_term(surface: str) -> str | None:
     if literal in _SURFACE_TO_TERM:
         return _SURFACE_TO_TERM[literal]
     return _SURFACE_TO_TERM.get(_compact(literal))
+
+
+def is_named_technology(surface: str) -> bool:
+    """True for a skill the taxonomy marks as a specific named technology.
+
+    A term qualifies when it carries a category beyond plain ``skill`` (language,
+    framework, cloud, devops, ...) or is a bilingual-exempt proper noun. Generic
+    nouns ("delivery", "backend") do not: prose uses them without claiming a skill,
+    so judging them would flag honest sentences.
+    """
+    term_id = resolve_term(surface)
+    if term_id is None:
+        return False
+    term = _TERM_BY_ID.get(term_id)
+    if term is None:
+        return False
+    return len(term.get("categories", [])) > 1 or bool(term.get("bilingual_exempt"))
 
 
 def ancestors(term_id: str) -> frozenset[str]:
@@ -1151,6 +1184,8 @@ _FALLBACK_STOPWORDS: frozenset[str] = frozenset({
     "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
     "senior", "junior", "medior", "lead", "principal", "general", "professional",
     "experience", "skills", "knowledge", "work", "working", "team", "support",
+    # generic role / skill filler, Czech
+    "vedení", "správa", "podpora",
     # generic role / skill filler, German
     "entwicklung", "entwickler", "ingenieur", "berater", "erfahrung", "kenntnisse",
     "kenntnis", "leitung", "mitarbeiter", "bereich", "aufgaben", "arbeit",
@@ -1318,5 +1353,4 @@ def skill_match_score(
     if base <= 0.0:
         return 0.0
     return round(base * provenance_weight(provenance), 4)
-
 

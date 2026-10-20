@@ -67,7 +67,7 @@ export type RunResult = { tone: "ok" | "neutral" | "error"; text: string };
 export const RESULT_TONE: Record<RunResult["tone"], string> = {
   ok: "bg-moss/15 text-moss",
   neutral: "bg-stone-100 text-steel",
-  error: "bg-coral/10 text-coral",
+  error: "bg-coral/10 text-coral-ink",
 };
 
 // Per-decision outcome chip — failed / CAS-skipped / fairness-refused / queued
@@ -75,7 +75,7 @@ export const RESULT_TONE: Record<RunResult["tone"], string> = {
 // exactly like an applied one, and skips were dropped from the list entirely).
 const OUTCOME_STYLE: Record<DecisionOutcome, string> = {
   applied: "",
-  failed: "bg-coral/10 text-coral",
+  failed: "bg-coral/10 text-coral-ink",
   skipped: "bg-stone-100 text-steel",
   fairness_blocked: "bg-amber-50 text-amber-700",
   queued: "bg-stone-100 text-steel",

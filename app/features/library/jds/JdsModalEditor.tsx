@@ -198,7 +198,7 @@ export function JdModalEditor({
               {editor.error}
             </p>
             {editor.conflict ? (
-              <button type="button" onClick={onDone} className={`${BTN_SECONDARY} px-3 py-1 text-sm font-semibold text-coral`}>
+              <button type="button" onClick={onDone} className={`${BTN_SECONDARY} px-3 py-1 text-sm font-semibold text-coral-ink`}>
                 {t("editReload")}
               </button>
             ) : null}

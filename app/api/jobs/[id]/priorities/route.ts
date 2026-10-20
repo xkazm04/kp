@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities-store";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // The role coach's PATTERN PRIORITIES — the three-level weight (critical / important /
 // minor) a recruiter hangs on each pattern their candidate pool shows against this role.
@@ -21,28 +21,27 @@ import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities
 // and a single upsert of a bounded map (sanitizePriorities caps both the key length and
 // the entry count), the same posture as the other pure-DB job reads.
 
-async function resolve(id: string): Promise<{ ws: string } | null> {
-  const ws = await currentWorkspace();
-  const job = getJob(id);
+async function resolve(id: string, ws: string): Promise<{ ws: string } | null> {
+  const job = getJob(id, ws);
   if (!job || !jobVisibleToWorkspace(id, ws)) return null;
   return { ws };
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (chainWs: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const scope = await resolve(id);
+    const scope = await resolve(id, chainWs);
     if (!scope) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     return NextResponse.json({ priorities: getRolePriorities(id, scope.ws) });
   } catch (error) {
     return safeJsonError(error, "api:jobs/priorities", "JOB_PRIORITIES_FAILED");
   }
-}
+});
 
-export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+export const PUT = withWorkspace(async (chainWs: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -53,7 +52,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
-    const scope = await resolve(id);
+    const scope = await resolve(id, chainWs);
     if (!scope) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     // A malformed body is not a failure: the panel sends the WHOLE map on every tag
     // change, so an unparseable payload is treated as "no tags" by the store's
@@ -68,4 +67,4 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   } catch (error) {
     return safeJsonError(error, "api:jobs/priorities", "JOB_PRIORITIES_FAILED");
   }
-}
+});

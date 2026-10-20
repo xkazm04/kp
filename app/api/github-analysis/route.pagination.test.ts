@@ -23,6 +23,7 @@ import { mkdtempSync } from "node:fs";
 // Side-effect import: sets KP_DB_PATH to a throwaway file BEFORE ./route.ts pulls in the
 // db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
+import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
 import type { GithubNote } from "../../_lib/github-evidence.ts";
 import { POST } from "./route.ts";
 
@@ -92,8 +93,11 @@ function githubResponse(url: URL): Response {
   }
 }
 
+let logDir = "";
+
 before(() => {
-  process.env.KP_LOG_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-gh-page-log-"));
+  logDir = mkdtempSync(path.join(os.tmpdir(), "kp-gh-page-log-"));
+  process.env.KP_LOG_DIR = logDir;
   delete process.env.GEMINI_API_KEY; // deep review short-circuits to "disabled" — no bundle fetches
   delete process.env.GOOGLE_API_KEY;
   globalThis.fetch = (async (u: RequestInfo | URL) => githubResponse(new URL(String(u)))) as typeof fetch;
@@ -101,6 +105,7 @@ before(() => {
 
 after(() => {
   globalThis.fetch = realFetch;
+  if (logDir) removeTempDirs(logDir);
 });
 
 function post(body: unknown): Request {

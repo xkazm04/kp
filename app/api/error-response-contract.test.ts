@@ -273,13 +273,11 @@ const LEAK_CEILING = new Map<string, number>([
   // but the client still cannot localize it. Initialization of the ratchet, not a raise:
   // these rows only ever go DOWN, and the fix at each site is a code.
   ["ats/config/route.ts", 1],
-  ["billing/webhook/route.ts", 1],
+  // billing/webhook's single leak was FIXED, not ceilinged: the 500 answers safeJsonError(..., "BILLING_WEBHOOK_FAILED"). The row is deleted so the win is locked.
   ["comms/relay/route.ts", 1],
   ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/outreach/route.ts", 1],
   ["jobs/[id]/candidates/route.ts", 1],
   ["repo-scan/route.ts", 1],
-  ["analytics/route.ts", 1],
   // archetypes/route.ts (2) and archetypes/[id]/route.ts (2) were FIXED, not
   // ceilinged (scan-sweep w4-cv-intel): the four 500s answer
   // safeJsonError(..., "ARCHETYPES_{READ,WRITE}_FAILED") and the input 400s
@@ -300,7 +298,7 @@ const LEAK_CEILING = new Map<string, number>([
   // pipeline-board-3): the 500 answers safeJsonError(..., "SCHEDULE_UPDATE_FAILED")
   // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control
   // dock resolves both in the reader's language. The row is deleted so the win is locked.
-  ["channels/inbound/[token]/route.ts", 1],
+  // channels/inbound's single leak was FIXED, not ceilinged: the 500 answers safeJsonError(..., "CHANNEL_INBOUND_FAILED"). The row is deleted so the win is locked.
   // channels/webhooks' three leaks were FIXED, not ceilinged (/perfect wave 27,
   // api-comms): the two 500s answer safeJsonError(..., "CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED")
   // and every 400/404 is a jsonRefusal code, so the Add-receiver modal and the receiver
@@ -428,9 +426,6 @@ const LEAK_CEILING = new Map<string, number>([
 // `return safeJsonError(error, "api:<route>", "<CODE>")` plus a STORE_ERRORS code and
 // its four catalogue entries. Do NOT add a row here to make a build green.
 const FORWARD_CEILING = new Map<string, number>([
-  ["analytics/calibration/band/route.ts", 1],
-  ["analytics/calibration/route.ts", 1],
-  ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
   // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
   // (scan-sweep w6-rest): the catch answers safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")

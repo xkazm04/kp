@@ -57,8 +57,9 @@ export type Offer = { recommended?: number | null; salaryMin?: number | null; sa
 // computed strictly BEFORE the JD's last content edit reflects the earlier text.
 // An optional third timestamp (`scorecardAt`) applies the same strictly-before
 // rule to later interview evidence: a CV score that predates a scorecard is
-// stale even when the JD has not moved. String compare is correct for ISO-8601
-// UTC. A never-edited JD, a missing scorecard, or an unscored/snapshot entry is
+// stale even when the JD has not moved. Compare parsed instants because stored
+// timestamps may use different UTC offsets or fractional-second precision.
+// A never-edited JD, a missing scorecard, or an unscored/snapshot entry is
 // never stale on that axis — informs, never fabricates. Pure so the client cards
 // and the server wave path can't drift.
 export function isScoreStale(
@@ -67,8 +68,16 @@ export function isScoreStale(
   scorecardAt?: string | null,
 ): boolean {
   if (!scoredAt) return false;
-  if (jdEditedAt && scoredAt < jdEditedAt) return true;
-  if (scorecardAt && scoredAt < scorecardAt) return true;
+  const scored = Date.parse(scoredAt);
+  if (!Number.isFinite(scored)) return false;
+  if (jdEditedAt) {
+    const edited = Date.parse(jdEditedAt);
+    if (Number.isFinite(edited) && scored < edited) return true;
+  }
+  if (scorecardAt) {
+    const scorecard = Date.parse(scorecardAt);
+    if (Number.isFinite(scorecard) && scored < scorecard) return true;
+  }
   return false;
 }
 

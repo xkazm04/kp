@@ -1,0 +1,125 @@
+[
+  {
+    "context": "cv-analyze-intake",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One intake router: every Analyze drop resolves by zone id, not by DOM position",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/analyze/analyzeDropRouting.ts",
+      "app/features/tools/analyze/analyzeDropRouting.test.ts",
+      "app/features/tools/analyze/analyzeFileIntakeGate.test.ts",
+      "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts",
+      "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts",
+      "app/features/tools/analyze/useAnalyzeFileAccept.ts",
+      "app/features/tools/analyze/AnalyzeProfileInput.tsx",
+      "app/features/tools/analyze/AnalyzeProfileInputFileList.tsx",
+      "app/features/tools/analyze/AnalyzeFileDropZone.tsx",
+      "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx",
+      "app/features/tools/analyze/AnalyzeForm.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "resolveDropZone(target) reads the zone id off the nearest [data-file-dropzone] ancestor: a target inside the zone marked 'jd' -> 'jd', inside 'company' -> 'company', inside the empty CV zone -> 'cv'; a target with no marked ancestor, a text node or the document -> 'page'",
+      "planDrop('page', [a.pdf, b.docx], {cvCount:1, maxCv:3, hasJdFile:false, hasCompanyFile:false}) -> {cv:[a,b], jd:null, company:null, refused:[]}",
+      "planDrop('page', [a.pdf, b.pdf, c.pdf], {cvCount:2, maxCv:3}) -> cv:[a], refused:[{file:b, reason:'cap'}, {file:c, reason:'cap'}]",
+      "planDrop('cv', [bad.png, good.pdf, huge.pdf (9 MB)], {cvCount:0, maxCv:3}) -> cv:[good], refused:[{bad.png, 'UPLOAD_UNSUPPORTED_TYPE'}, {huge.pdf, 'UPLOAD_TOO_LARGE'}] — the gate runs per file and a rejection no longer stops the batch (today good.pdf after bad.png is never tried)",
+      "planDrop('jd', [jd1.pdf, jd2.pdf], {hasJdFile:false}) -> jd: jd1, refused:[{file:jd2, reason:'single-slot'}] (today jd2 vanishes with no message)",
+      "planDrop('jd', [x.pdf], {hasJdFile:true}) -> jd: x with replaces:true, and planDrop('company', [y.md], {hasCompanyFile:true}) -> company: y with replaces:true (today a drop on the attached JD/company card is swallowed)",
+      "planDrop(zone, files, snapshot) with isFileDrag false or zero files -> null (a text-selection drag is never routed, wherever it lands)",
+      "source guard: exactly ONE window-level drop listener exists for the Analyze form (useGlobalFileDrag is called from AnalyzeForm.tsx only, not from AnalyzeProfileInput.tsx), and useAnalyzeGlobalFileDrag.ts derives its depth from nextDragDepth instead of an inline counter"
+    ],
+    "premise": [
+      "app/features/tools/analyze/AnalyzeFileDropZone.tsx:53 - the ATTACHED JD/company card spreads ownedDropZoneProps but no drag/drop handlers, so a file dropped on it is claimed by nobody",
+      "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:66 - the window catch preventDefaults every file drop (the browser will not open it)...",
+      "app/features/tools/analyze/analyzeDropRouting.ts:43 - ...and resolveWindowDropTarget returns null for any target inside an owned zone, so the drop on an attached JD/company card is silently discarded",
+      "app/features/tools/analyze/analyzeDropRouting.test.ts:118-119 - the test's own comment says the filled card is marked so 'a replacement' cannot leak to the CV catch, i.e. replacement-by-drop was the intent; nothing implements it",
+      "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:57-58 - a zone's drop commits dataTransfer.files[0] only; a multi-file drop on the JD or company zone drops the rest without a word",
+      "app/features/tools/analyze/AnalyzeProfileInput.tsx:61-65 - the CV batch loop returns on the first gate rejection, so every valid file after an invalid one is never tried",
+      "app/features/tools/analyze/AnalyzeProfileInput.tsx:77 - the page-wide drop catch is registered by the CV column component (useGlobalFileDrag(addFiles)), so 'page' can only ever mean 'CV'",
+      "app/features/tools/analyze/AnalyzeProfileInput.tsx:179-188 - the empty CV zone overrides the shared hook's onDrop by spread ORDER ('Deliberately AFTER {...dragProps}') to take a batch: two drop dispatchers per drop, coordinated only by a DOM attribute and prop order",
+      "app/features/tools/analyze/AnalyzeProfileInput.tsx:86-107 and AnalyzeProfileInputFileList.tsx:16-31,44-45 - the page overlay and its live region are built inside the CV column and threaded through the list as props, rendered from two branches",
+      "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:18,41,49 - the window hook keeps its own inline dragCounter while analyzeDragCounter.ts:11-12 claims the two share the arithmetic",
+      "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx:33-36 - replacing the JD file also detaches the saved-JD slug; the router's jd commit must keep that rule (AnalyzeForm has state.library.setSelectedJdSlug)"
+    ],
+    "rollback": "Revert the series: routing is client-only (no route, schema or stored data changes), useFileAccept is restored with the zone onDrop handlers by the revert, and the four catalogs lose only the added refusal keys.",
+    "gate": "architecture",
+    "runner_up": "Lift the Analyze file-intake kit (code-not-sentence gate, counted drop zone, focus ring for the sr-only input) into app/_components so the public apply CV step stops answering a 413 with 'could not read the file' (ConversationalApply.tsx:396-408) - rejected for this slot because the move is ~20 files.",
+    "technique": "cross-surface-handoff",
+    "body": "## Summary\nThe Analyze form decides where a dropped file goes by which DOM node caught the event. That decision is spread over one window listener inside the CV column, three per-zone onDrop handlers, a DOM-attribute carve-out and a prop-order override. Four silent losses fall out of it. Replace it with one pure router: zones declare an id (cv, jd, company), one window listener hosted by the form resolves the id and plans the whole drop, and every file that does not go in is named with a reason.\n\n## Description\nToday: (1) a file dropped on the attached JD or company card is swallowed, because the card is marked owned but has no handler and the window catch skips owned targets. (2) A multi-file drop on the JD or company zone keeps the first file and loses the rest. (3) A CV batch stops at the first invalid file, so valid files after it are never tried. (4) 'Page' can only mean 'CV', because the page catch belongs to the CV column. Behind those sit two drop dispatchers per event, coordinated by `data-file-dropzone` and by spread order in AnalyzeProfileInput.tsx:179-188, plus an overlay threaded through the list as props.\n\nThe move: `data-file-dropzone` carries a zone id from one closed vocabulary (`DROP_ZONES = ['cv','jd','company'] as const`, derived union, runtime guard: the house pattern). `analyzeDropRouting.ts` gains `resolveDropZone(target)` and `planDrop(zone, files, snapshot)`. The plan runs `acceptUpload` per file, applies the CV cap from the snapshot, treats JD and company as single slots (a drop on a filled slot replaces it), and returns `{cv, jd, company, refused[]}`. AnalyzeForm hosts the one `useGlobalFileDrag` and applies the plan through the setters it already holds: addCvFile, setJobDescriptionFile + setSelectedJdSlug(null), setCompanyFile. Refusals render once in a form-level status line. Zone components keep only the counted highlight. Their file pickers call the same `onIntake(zone, files)`, so a click and a drop can no longer diverge. `useFileAccept` retires because its gate now lives in the plan. The hook keeps the dedupe and the race-safe cap re-check, so that authority does not move.\n\nThis card deliberately does not touch useAnalyzeCvFiles.ts, useAnalyzeForm.ts, AnalyzeTab.tsx or AnalyzeApi.ts. Those files are in challenge-r02's analyze-engine write sets and are being built now.\n\n## Flow\n1. The recruiter drops 3 files anywhere on the form. The one window listener calls resolveDropZone(event.target), which returns 'page', then planDrop('page', files, snapshot).\n2. The plan runs: two CVs go in and the third is refused for 'cap'. AnalyzeForm commits the CVs through addCvFile, and the status line reads 'third.pdf was not added: you can attach up to 3 CV variants'.\n3. The recruiter drops a new JD onto the attached JD card. The zone resolves to 'jd' and the plan returns replaces:true. setJobDescriptionFile runs and the saved-JD slug detaches, the same rule the picker follows.\n4. A drop on the JD zone with two files: the first becomes the JD and the second is refused with 'single-slot'.\n\n## Expected impact\nFour silent file losses become either a correct commit or a named refusal. Intake goes from two dispatchers and one carve-out attribute to one listener and one pure decision that node:test can cover. A later mode (a mixed-drop sort tray, apply-page reuse) then has one seam to extend instead of five.\n\n## Evaluation\nClaim: every Analyze drop resolves through one pure zone-id router, and no dropped file is lost without a named reason.\nBefore: 0 of 8 acceptance cases pass (resolveDropZone and planDrop do not exist; the window listener lives in AnalyzeProfileInput and counts inline).\nAfter: 8 of 8.\nMethod: gate - node:test over analyzeDropRouting.test.ts (pure cases 1-7) plus the source guard (case 8) in analyzeFileIntakeGate.test.ts; tsc, lint, i18n:check.\nResult: pending build.\nGate: architecture",
+    "evidence": "AnalyzeFileDropZone.tsx:53  <div {...ownedDropZoneProps} className=\"flex h-20 items-center gap-2 ...\">   (no dragProps on the filled card)\nuseAnalyzeGlobalFileDrag.ts:66  if (fileDrag) event.preventDefault();\nuseAnalyzeGlobalFileDrag.ts:71-72  const files = resolveWindowDropTarget(fileDrag, event.target, ...); if (files) onDropRef.current([...files]);\nanalyzeDropRouting.ts:43  if (isOwnedDropZoneTarget(target)) return null;\nanalyzeDropRouting.test.ts:118-119  'marks both its empty and filled renders so neither a fresh drop nor a replacement can leak to the CV catch'\nuseAnalyzeDropZoneHighlight.ts:57-58  const file = event.dataTransfer.files?.[0]; if (file) commit(file);\nAnalyzeProfileInput.tsx:65  if (!committed) return; // the gate already said why; don't overwrite it\nAnalyzeProfileInput.tsx:77  const isWindowDragging = useGlobalFileDrag(addFiles);\nAnalyzeProfileInput.tsx:179  // Deliberately AFTER {...dragProps}: the shared highlight hook's onDrop commits only files[0].\nuseAnalyzeGlobalFileDrag.ts:18  let dragCounter = 0;   vs analyzeDragCounter.ts:11-12 'The window-level hook ... has always done this with a dragCounter'\ngrep -rln 'onDragEnter|dragenter' app -> only the four analyze files (no other drop surface to break)"
+  },
+  {
+    "context": "cv-analyze-intake",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Preflight what the engine can read: per-CV text check and a blind-mode guard",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/analyze/AnalyzeFormFooter.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/analyze/analyzeCvReadability.ts",
+      "app/features/tools/analyze/analyzeCvReadability.test.ts",
+      "app/features/tools/analyze/useAnalyzeReadability.ts",
+      "app/features/tools/analyze/AnalyzeReadabilityStrip.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "readabilityFromExtract({ok:true, charCount:0, pageCount:2}) -> {kind:'no-text', pages:2}; ({ok:true, charCount:4120, pageCount:2}) -> {kind:'readable', chars:4120, pages:2}",
+      "readabilityFromExtract({ok:true, charCount:80, pageCount:1}) -> {kind:'thin', chars:80} (THIN_CHARS = 120, the engine's own short-profile bar)",
+      "readabilityFromExtract({ok:false, status:429}), ({ok:false, status:504}) and a network throw -> {kind:'unchecked'}; ({ok:false, status:400, code:'EXTRACT_TEXT_UNREADABLE'}) -> {kind:'unreadable'}",
+      "preflightVerdict({blind:true, cvs:[readable, no-text], jd:null}) -> {blockRun:true, blindUnmaskable:[1], remedies:['disable-blind','remove-variant']}",
+      "preflightVerdict({blind:false, cvs:[no-text]}) -> {blockRun:false, notes:[{cv:0, kind:'model-read'}]}: without blind the model reads the file itself, so the run proceeds with an honest note",
+      "preflightVerdict({blind:true, cvs:[unchecked]}) -> {blockRun:false}: an unknown never blocks a run (degrade, never block)",
+      "preflightVerdict({jd:{kind:'no-text'}, jdTextTyped:true}) -> note 'jd-file-empty-overrides-text'; with jdTextTyped:false -> note 'jd-file-empty' (the run would score without the JD)",
+      "measureFile with an injected fetch spy: a .txt/.md file is measured locally with 0 fetch calls; two byte-identical PDFs cost exactly 1 extract call (cache keyed by cvVariantHash)"
+    ],
+    "premise": [
+      "app/api/extract-text/route.ts:114 - the extractor door already answers {text, charCount, pageCount} (built as eceb983e9 'so callers can warn on empty scans'), and no Analyze caller reads the counts",
+      "app/features/tools/analyze/AnalyzeApi.ts:377-388 - the only Analyze use of /api/extract-text is extractFileText, which keeps payload.text and drops charCount/pageCount; at time of reading its sole caller is the GitHub deep-dive (analyzeGithubRun.ts:59). AnalyzeApi.ts is mid-edit by the r02 build, so re-anchor this line at build time",
+      "pipeline/jobfit/extractors.py:264 - an image-only PDF page yields `page.extract_text() or \"\"`, so a scanned CV extracts to empty text without raising",
+      "pipeline/jobfit/pipeline.py:161 and :185-191 - in blind mode the redactor runs over that extracted text; empty text records 'Analysis halted to avoid sending the original file to the model'",
+      "pipeline/jobfit/gemini.py:718-726 - blind requested + blank text raises GeminiError subtype 'blind_unavailable' ('Disable blind screening for this CV to proceed'): the recruiter learns the remedy only from a failed task",
+      "app/_lib/analyze-run.ts:155-182 (settleVariants) - in a multi-CV run a failed variant is dropped and named in partialFailures after the run, so a blind 3-way compare with one scan quietly delivers a 2-way compare while the other two engine calls still spend",
+      "pipeline/jobfit/pipeline.py:1272-1277 - without blind, Gemini reads the raw file bytes itself, so an empty local extract is not fatal there: the verdict must warn, not block",
+      "app/_lib/analyze-run.ts:198-199 - a JD file path is passed in preference to typed JD text, and pipeline/jobfit/service.py:31-32 extracts it with no empty check, so a scanned JD file silently yields a JD-blind score even when the recruiter also pasted text",
+      "app/features/tools/analyze/AnalyzeFormFooter.tsx:65-71 and :95 - the blind checkbox and the Analyze button sit together in the footer, and the button's disabled condition knows nothing about readability",
+      "app/api/extract-text/route.ts:69 - the door is limited to 20 calls per IP per 10 min, so the preflight must cache by content hash, measure text files locally, and treat 429 as 'unchecked'",
+      "pipeline/jobfit/pipeline.py:225 - the engine flags profile text under 120 chars as 'short - assessment may be less reliable', the bar the 'thin' band reuses"
+    ],
+    "rollback": "Purely additive client code: the preflight module, hook and strip are new files, the footer gains one component and one extra disabled term, and no route, schema or engine code changes. Reverting the commits restores today's footer, and the catalogs lose only the new analyze.preflight* keys.",
+    "gate": "none",
+    "runner_up": "A mixed-drop sort tray: drop a JD and two CVs anywhere and confirm a per-file destination chip (CV / JD / company) pre-guessed from the filename before anything commits. Traded away because it rides on slot A's router and its guess is weaker evidence than a measured extract.",
+    "technique": "fail-closed-on-an-unmaskable-document",
+    "body": "## Summary\nA recruiter attaches a scanned CV, ticks Blind and presses Analyze. The run uploads, queues and extracts, then fails with engine English telling them to turn Blind off. In a 3-variant compare the scanned variant quietly falls out after the other two engine calls have spent. The same scan used as a JD file quietly yields a JD-blind score. The app can know all of this before the click: /api/extract-text already returns charCount and pageCount. Preflight every attached file, show what the engine will read in a strip above the Analyze button, and turn the doomed combination (blind plus a CV with no text layer) into a stated block with one-click remedies.\n\n## Description\n`analyzeCvReadability.ts` is pure and holds the bands and the verdict. `readabilityFromExtract` maps an extract answer to readable, thin, no-text, unreadable or unchecked. `preflightVerdict({blind, cvs, jd, jdTextTyped})` returns blockRun, per-file notes and remedies. The rules follow the blind-screening standard (fail-closed-on-an-unmaskable-document): refuse only when the document cannot be masked at all, never on an unknown, and never strand the run without a remedy. `useAnalyzeReadability(cvFiles, jdFile)` measures each file once: .txt and .md locally via file.text(), PDF and DOCX through /api/extract-text, cached by cvVariantHash, with 429, 504 and network errors mapped to 'unchecked'. `AnalyzeReadabilityStrip` renders one row per variant plus the JD file, for example 'Variant A · 2 pages · 4,120 chars', 'Variant B · no text layer: blind screening cannot redact it' or 'JD file · no readable text: the match will run without it'. It also renders the remedies as buttons: 'Run without blind' (setBlind(false)) and 'Remove variant B' (handlers.removeCvFile(1)). AnalyzeFormFooter mounts the strip and adds `verdict.blockRun` to the button's disabled condition. Both setters are already on `state`. The server-side fail-closed stays exactly as it is, so the preflight is an earlier, kinder copy of a refusal the engine still enforces. It is not a new gate.\n\nThe write set avoids useAnalyzeForm.ts, useAnalyzeCvFiles.ts, AnalyzeTab.tsx and AnalyzeApi.ts, which challenge-r02's analyze-engine cards are building now. The hook reads `state.inputs` and makes its own fetch, and does not extend extractFileText.\n\n## Flow\n1. The recruiter drops cv-scan.pdf and cv-2024.docx. The strip shows both as 'checking…' and then 'no text layer' and '3 pages · 5,210 chars'.\n2. They tick Blind. The strip turns the scan row into a coral block ('Blind screening cannot redact a document with no text'), the Analyze button disables with that reason, and two buttons appear: Run without blind, and Remove variant A.\n3. They click Remove variant A. The verdict clears, and a blind single-CV run proceeds on the readable file.\n4. Without Blind, the scan row stays an amber note ('the model will read the file directly') and nothing blocks.\n5. A scanned JD PDF plus pasted JD text gives the note 'the attached JD file has no readable text and will be used instead of your pasted text; remove the file to use the text'.\n\n## Expected impact\nThe one blind-mode failure the engine can only report after the fact becomes a decision the recruiter makes before spending. A best-of-N compare no longer shrinks silently. A JD-blind score from an empty JD file stops passing as a real match. The extract counts built in eceb983e9 finally reach a caller that warns.\n\n## Evaluation\nClaim: before submit, Analyze reports what the engine can read of every attached file and blocks only the blind plus no-text combination, with a remedy.\nBefore: 0 of 8 acceptance cases pass (no readability module exists; the counts are unread).\nAfter: 8 of 8.\nMethod: gate - node:test over analyzeCvReadability.test.ts (cases 1-8, the fetch injected); tsc, lint, i18n:check, design:check for the strip's amber/coral tokens.\nResult: pending build.\nGate: none",
+    "evidence": "app/api/extract-text/route.ts:114  return NextResponse.json({ text, charCount, pageCount });\napp/features/tools/analyze/AnalyzeApi.ts:385-388  if (!response.ok || !payload || typeof payload.text !== 'string') ...; return payload.text;   (counts dropped)\npipeline/jobfit/extractors.py:264  chunk = page.extract_text() or \"\"\npipeline/jobfit/pipeline.py:188-190  'Blind screening could not run: no extractable text to redact (encrypted/scanned/unsupported PDF). Analysis halted ...'\npipeline/jobfit/gemini.py:720-726  if blind_requested and not blind: raise GeminiError('... Disable blind screening for this CV to proceed.', subtype='blind_unavailable')\napp/_lib/analyze-run.ts:177-180  return { kind: 'deliver', successes, partialFailures: failures.map(...) }   (N-1 successes still deliver)\npipeline/jobfit/pipeline.py:1272-1274  'Gemini reads the raw file bytes itself, so it can often still analyze a document pypdf cannot'\napp/_lib/analyze-run.ts:198-199  if (p.jobDescriptionPath) args.push('--job-description-path', ...); else if (p.jobDescriptionText?.trim()) ...\npipeline/jobfit/service.py:31-32  if job_description_path is not None: job_text = extract_text(job_description_path)\napp/features/tools/analyze/AnalyzeFormFooter.tsx:95  disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || (inputs.cvFiles.length === 0 && !flags.hasGithub)}\napp/api/extract-text/route.ts:69  rateLimit(`extract-text:${ip}`, { limit: 20, windowMs: 10 * 60_000 })\nlow-risk-drain-2026-09-22-results.jsonl: 'Return extract-text page and char counts so callers can warn on empty scans' built eceb983e9; git grep charCount app/features -> no reader"
+  }
+]

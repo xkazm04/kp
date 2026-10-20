@@ -27,11 +27,13 @@ export type LanguageLockResult = {
   driftTurnIndex: number | null;
 };
 
-// Ported verbatim from interview_eval.py _CZECH_CHARS / _CZECH_WORDS / _ENGLISH_WORDS.
+// Keep these markers in sync with interview_eval.py. Role, project, and
+// experience are common loanwords in Czech tech interviews, so they cannot by
+// themselves establish that a turn was in English.
 const CZECH_CHARS = new Set("áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ");
 const CZECH_WORDS = /\b(děkuji|dobrý|dobře|můžeme|prosím|ano|jak|proč|byste|řekněte|projekt|zkušenost|otázk\w*)\b/i;
 const ENGLISH_WORDS =
-  /\b(the|and|you|your|what|how|why|that|this|with|for|was|were|would|could|have|about|tell|walk|thanks|thank|question|role|project|experience)\b/i;
+  /\b(the|and|you|your|what|how|why|that|this|with|for|was|were|would|could|have|about|tell|walk|thanks|thank|question)\b/i;
 
 /** Mirror of _is_czech: a Czech diacritic character OR a Czech marker word. */
 function isCzech(text: string): boolean {

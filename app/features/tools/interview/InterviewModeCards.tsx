@@ -55,7 +55,7 @@ export function InterviewModeCards({
             }`}
           >
             <p className="flex items-center gap-1.5 font-medium text-ink">
-              <Icon size={16} className={active ? "text-coral" : "text-steel"} /> {t(`modes.${m.id}.label` as Parameters<typeof t>[0])}
+              <Icon size={16} className={active ? "text-coral-ink" : "text-steel"} /> {t(`modes.${m.id}.label` as Parameters<typeof t>[0])}
             </p>
             <p className="mt-1 text-sm text-steel">{t(`modes.${m.id}.blurb` as Parameters<typeof t>[0])}</p>
           </button>

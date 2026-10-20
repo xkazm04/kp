@@ -19,7 +19,7 @@ export function JobsIngestAdPanelResults({
       {results.map((r, i) => (
         <li key={i} className="flex items-center gap-1.5 text-sm">
           {r.status === "failed" ? (
-            <X size={13} className="shrink-0 text-coral" aria-hidden />
+            <X size={13} className="shrink-0 text-coral-ink" aria-hidden />
           ) : (
             <Check size={13} className={`shrink-0 ${r.status === "added" ? "text-moss" : "text-steel"}`} aria-hidden />
           )}

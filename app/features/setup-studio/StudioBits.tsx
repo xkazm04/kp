@@ -11,6 +11,7 @@
 import { Fragment, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Moon, Sun, XCircle, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { useTheme } from "@/app/_components/ui/useTheme";
 import { setTheme, type Theme } from "@/app/_lib/theme";
@@ -68,9 +69,9 @@ export function ConnectionChip({ state }: { state: ConnectionState }) {
 
 /* ── appearance ─────────────────────────────────────────────────────────── */
 
-const THEMES: readonly { id: Theme; icon: LucideIcon; label: string }[] = [
-  { id: "light", icon: Sun, label: "Studio Light" },
-  { id: "dark", icon: Moon, label: "Spark Dark" },
+const THEMES: readonly { id: Theme; icon: LucideIcon }[] = [
+  { id: "light", icon: Sun },
+  { id: "dark", icon: Moon },
 ];
 
 /**
@@ -82,19 +83,21 @@ const THEMES: readonly { id: Theme; icon: LucideIcon; label: string }[] = [
  * deliberately outside it. The mechanism is shared; the control is local.
  */
 export function AppearanceToggle() {
+  const t = useTranslations("theme");
   const theme = useTheme();
   const reduced = useReducedMotion();
   return (
-    <div className={TOGGLE_GROUP} role="group" aria-label="Appearance">
+    <div className={TOGGLE_GROUP} role="group" aria-label={t("select")}>
       {THEMES.map((option) => {
         const Icon = option.icon;
         const active = theme === option.id;
+        const label = t(option.id === "light" ? "studioLight" : "sparkDark");
         return (
           <button
             key={option.id}
             type="button"
             aria-pressed={active}
-            title={option.label}
+            title={label}
             onClick={() => setTheme(option.id)}
             className={`focus-ring relative grid h-7 w-8 place-items-center rounded-md transition-colors ${
               active ? "text-white" : "text-steel hover:text-ink"
@@ -108,7 +111,7 @@ export function AppearanceToggle() {
               />
             ) : null}
             <Icon size={14} aria-hidden className="relative z-10" />
-            <span className="sr-only">{option.label}</span>
+            <span className="sr-only">{label}</span>
           </button>
         );
       })}

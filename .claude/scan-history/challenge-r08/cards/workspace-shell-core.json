@@ -1,0 +1,116 @@
+[
+  {
+    "context": "workspace-shell-core",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Seed the shell principal from '/': one tenant+caps fact replaces three GETs",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "2bc9fb574",
+    "write_set": [
+      "app/page.tsx",
+      "app/features/shell/Workspace.tsx",
+      "app/features/shell/useCapabilities.ts",
+      "app/features/shell/recents.ts",
+      "app/features/shell/palette/previewCache.ts",
+      "app/features/hiring/pipeline/usePipelineTenant.ts",
+      "app/features/shell/palette/previewCache.test.ts",
+      "docs/architecture/app-structure.md"
+    ],
+    "new_files": [
+      "app/features/shell/shellPrincipal.ts",
+      "app/features/shell/shellPrincipal.test.ts"
+    ],
+    "shared_surfaces": [
+      "perf-budget.json (only if app/page.tsx exceeds 1421 modules: +1 client module shellPrincipal.ts, while three copies of the resolver code leave the graph)"
+    ],
+    "acceptance": [
+      "Server safety: with no `window` (node, the SSR pass), primeShellPrincipal({workspaceId:'team-a', capabilities:['read']}) is a no-op and shellWorkspaceId() stays null afterwards - module scope on the server is shared across requests, so a primed value there would leak request A's tenant into request B",
+      "Primed: in a window-like env after primeShellPrincipal({workspaceId:'team-a', capabilities:['read']}), resolveShellWorkspace() resolves 'team-a' and the injected fetcher is called 0 times",
+      "Unprimed dedupe: three concurrent resolveShellWorkspace() calls (the recents, palette-preview and board-storage consumers) call the injected /api/workspaces fetcher exactly once and all three resolve the same id",
+      "Failure retries: a fetcher that rejects makes resolveShellWorkspace() resolve null, and the NEXT call invokes the fetcher again (one blip does not disable tenant-scoped storage for the document) - the contract all three current resolvers already keep",
+      "Capabilities first render: after priming ['read'], the useCapabilities snapshot function returns ['read'] synchronously, so lockedTabsFor(snapshot()) contains billing/models/integrations/organization/workspace on the FIRST render (today it is the empty set until GET /api/me/capabilities lands)",
+      "Fallback kept: unprimed (the deep-link pages /jds/[slug], /history/[slug] mount the palette without Workspace), the capabilities snapshot is null and one GET /api/me/capabilities is issued - fail-open behaviour unchanged",
+      "Consumers read one door: recents.ts, palette/previewCache.ts and hiring/pipeline/usePipelineTenant.ts contain no fetch('/api/workspaces') of their own (a source probe in shellPrincipal.test.ts, with a shape fixture that proves the probe fires on the current text)",
+      "Tenant change semantics kept: primePreviewScope's clear-on-different-tenant and recents' drop of the legacy `kp.recents` key both still run when the workspace arrives via the seed (existing previewCache.test.ts cases stay green)"
+    ],
+    "premise": [
+      "app/features/shell/recents.ts:79 - recents resolves the tenant with its own fetch('/api/workspaces') just to read `current`",
+      "app/features/shell/palette/previewCache.ts:91 - the palette preview cache does the same fetch('/api/workspaces') independently",
+      "app/features/hiring/pipeline/usePipelineTenant.ts:28 - the board storage hook does it a third time; its header (lines 12-14) says 'hoisting the two into one shared useTenantStorage is the follow-up'",
+      "app/features/shell/recents.ts:70 primeRecentsWorkspace and app/features/shell/palette/previewCache.ts:79 primePreviewScope exist for 'a shell that resolved currentWorkspace() server-side' - grep finds ZERO production callers of either (only previewCache.test.ts)",
+      "app/api/workspaces/route.ts:36-45 - each of those GETs lists workspaces and runs listMembershipsForWorkspace per row (N+1) to return a payload of which the three callers read one string, `current`",
+      "app/page.tsx:50-53 - the server render already resolves the session (currentSession, needsOnboarding) before mounting <Workspace>, and passes only firstRunOnboarding/hasSession",
+      "app/features/shell/useCapabilities.ts:24,55 - capabilities start null and the server snapshot is null; app/features/shell/navCapabilities.ts:55 locks nothing for null, so every viewer's first render offers the settings doors unlocked until the GET lands",
+      "app/features/shell/recents.ts:138 - readRecents returns [] until the tenant resolves, so the Recent group and the palette's resting state pop in a tick after mount"
+    ],
+    "rollback": "Pure additive seam plus consumer rewires in one commit series: reverting restores the three module-local resolvers and the unseeded Workspace props; no schema, route or persisted-key change (storage keys stay kp.recents:<ws> / pipeline keys unchanged).",
+    "gate": "architecture",
+    "runner_up": "Derive the tab panel from one TAB_REGISTRY (id -> chunk loader + export name + capability) so WorkspaceTabChunks.tsx's 26 dynamic() lines and 26 navActive branches stop being hand-lists - dropped: overlaps accepted backlog idea-47b71431 'make the tab-to-component map...'.",
+    "technique": "shell-hosted-services",
+    "body": "## Summary\nThe server render of '/' already knows who the caller is and which team they are in, yet the client shell re-discovers the tenant three separate times (recents, palette preview cache, pipeline board storage), each with its own GET /api/workspaces, and starts capabilities at null. Seed one ShellPrincipal {workspaceId, capabilities} from app/page.tsx through Workspace into a single client module, and make every tenant-scoped client store read it.\n\n## Description\nThree modules carry byte-similar resolvers (recents.ts:79, palette/previewCache.ts:91, hiring/pipeline/usePipelineTenant.ts:28) that fetch a route doing an N+1 membership scan to read one string. Two of them even ship a `prime*` function designed for exactly this seed, and nothing calls either. Meanwhile useCapabilities fails open on first render, so a viewer briefly sees unlocked Billing/Models/Integrations. The move: app/features/shell/shellPrincipal.ts owns (a) primeShellPrincipal (window-guarded - never primes on the server, where module scope is shared across requests), (b) resolveShellWorkspace() - primed value, else ONE deduped fetch with retry-on-failure, (c) the capabilities snapshot useCapabilities reads before falling back to its fetch. app/page.tsx resolves currentWorkspace() + callerCapabilities() (current-user is already on this graph) and passes them as a prop; Workspace primes synchronously in a useState initializer so the first client render is already truthful. recents/previewCache/usePipelineTenant keep their own storage semantics but delegate the tenant question. The deep-link pages that mount the palette without Workspace keep the fetch fallback.\n\n## Flow\n1. Write shellPrincipal.test.ts cases 1-7 red. 2. Add shellPrincipal.ts with injectable fetcher. 3. Rewire recents.ts, previewCache.ts, usePipelineTenant.ts to resolveShellWorkspace(); delete their fetches. 4. useCapabilities snapshot reads the seed first. 5. page.tsx + Workspace.tsx carry and prime the principal. 6. Update docs/architecture/app-structure.md (shell-hosted facts). 7. Run test:perf; raise perf-budget only by this card's measured share if needed.\n\n## Expected impact\nA fourth tenant-scoped client store (the next saved-view or draft cache) costs one import instead of a fourth resolver; the SPA stops issuing up to three N+1 GET /api/workspaces per document; a viewer's first render shows the locks the server already knows; Recents render on first paint.\n\n## Evaluation\nClaim: the shell's tenant and capability facts come from one seeded door, with a deduped fallback.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test app/features/shell/shellPrincipal.test.ts + existing previewCache.test.ts, plus npm run test:perf\nResult: pending build\nGate: architecture",
+    "evidence": "grep fetch('/api/workspaces') in client code: app/features/hiring/pipeline/usePipelineTenant.ts:28, app/features/shell/palette/previewCache.ts:91, app/features/shell/recents.ts:79 (plus the Workspaces console itself). grep primeRecentsWorkspace|primePreviewScope outside their defining modules: only app/features/shell/palette/previewCache.test.ts:10,66,69,74 - zero production callers. usePipelineTenant.ts:12-14: 'Same shape as the shell's recents resolver ... hoisting the two into one shared useTenantStorage is the follow-up.' app/api/workspaces/route.ts:38-39 `const rows = workspaces.map((w) => { const members = listMembershipsForWorkspace(w.id);`. app/page.tsx:53 `<Workspace firstRunOnboarding={firstRunOnboarding} hasSession={Boolean(await currentSession())} />`. useCapabilities.ts:55 `const serverSnapshot = (): Capability[] | null => null;`; navCapabilities.ts:55 `if (!needed || !caps) return null;`. No r07 card write set contains any of these files (checked all 9 r07 cards)."
+  },
+  {
+    "context": "workspace-shell-core",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A locked tab opens onto who can grant it - from every door, not a 403",
+    "size": "L",
+    "effort": 7,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "2bc9fb574",
+    "write_set": [
+      "app/features/shell/navCapabilities.ts",
+      "app/features/shell/navCapabilities.test.ts",
+      "app/features/shell/WorkspaceTabChunks.tsx",
+      "app/features/shell/Workspace.tsx",
+      "app/features/shell/nav/NavPanelItem.tsx",
+      "app/features/shell/nav/NavSectionRail.tsx",
+      "docs/architecture/app-structure.md"
+    ],
+    "new_files": [
+      "app/features/shell/lockedDoor.ts",
+      "app/features/shell/lockedDoor.test.ts",
+      "app/features/shell/LockedTabPanel.tsx",
+      "app/api/me/capability-holders/route.ts",
+      "app/api/me/capability-holders/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md (npm run api:docs - new GATED route, not added to app/_lib/auth/public-routes.ts)",
+      "perf-budget.json (app/page.tsx +2 client modules: lockedDoor.ts, LockedTabPanel.tsx)"
+    ],
+    "acceptance": [
+      "One authority: tabArrival('billing', ['read']) -> {kind:'locked', needs:'org:manage'}; tabArrival('billing', null) -> {kind:'open'} (fail-open kept); tabArrival('branding', ['read']) -> open (no TAB_CAPABILITY entry); tabArrival('hiring', ['read','pipeline:write']) -> open",
+      "Every door converges: panelFor(navActive, caps) - the function WorkspaceTabPanel renders through - returns 'locked' for models when caps=['read'], so a g-chord (KeyboardShortcuts -> selectTab), a ?tab=models inbox arrival and a rail click all land on the same locked panel; a source probe asserts WorkspaceTabChunks.tsx mounts no gated tab component outside panelFor's 'open' branch",
+      "Policy while inside: panelFor('billing', null) -> 'open' and, when caps resolve to ['read'], panelFor('billing', ['read']) -> 'locked' - the panel swaps to the explanation instead of leaving the 403 load state up",
+      "Holders route: GET /api/me/capability-holders?cap=org:manage for a viewer in workspace W (owner O, admin A, recruiter R) -> 200 {holders:[O]}; ?cap=members:manage -> [O, A] owner first; members of another org or another team never appear; a caller without `read` -> 403 via requireCapability; ?cap=bogus -> 400 with code CAPABILITY_UNKNOWN (four catalog entries under errors.*)",
+      "Holders are capped and minimal: at most 5 rows, each {name, email, role} only - no user id, no overrides, no team list (a strict subset of what GET /api/org/members already serves the same `read` caller)",
+      "askHref(holder, 'billing', origin, subject) -> 'mailto:<email>?subject=<encoded>&body=<encoded origin + /?tab=billing>'; a holder with no email -> null (no Ask button rendered)",
+      "Empty holders is a stated state: lockedDoorView({needs:'org:manage', holders:[]}) -> {kind:'noHolders'} (copy: ask your workspace owner), never an empty list; a holders fetch failure -> {kind:'holdersUnknown'} which still names the capability and the caller's lacking role",
+      "Rail row is a lock, not a disabled row: the locked NavPanelItem is a focusable button (no aria-disabled) whose activation calls onSelect(id) - asserted on the pure navItemMode(locked) -> 'lockedDoor' helper the row renders from; the palette keeps hiding locked tabs (unchanged)"
+    ],
+    "premise": [
+      "app/features/shell/nav/NavPanelItem.tsx:90-110 - a locked tab is 'a dead row: no link, no onSelect', rendered aria-disabled with cursor-not-allowed; the only explanation is a title tooltip (messages/en.json:2855 nav.lockedTab 'Your role cannot open this. It needs {capability}') - it names the lack but no way in",
+      "app/features/shell/WorkspaceKeyboardShortcuts.tsx:83 - a matched g-chord calls onSelectTab(chord.id) with no capability check, and deriveChords (workspaceChords.ts:35-36) derives chords for every NAV_GROUPS item including the locked Settings tabs",
+      "app/features/shell/Workspace.tsx:97-102 - the ?tab= inbox parser rejects only the agents flag gate; a ?tab=billing / ?tab=integrations arrival (app/api/billing/checkout/route.ts:110, app/api/calendar/google/callback/route.ts:22) is adopted regardless of capability",
+      "app/features/shell/Workspace.tsx:123-142 - selectTab has no lock check, and app/features/shell/WorkspaceTabChunks.tsx:96-102 renders BillingTab/ModelsTab/WorkspaceTab/OrganizationTab/IntegrationsTab/HiringTab on navActive alone",
+      "app/features/shell/navCapabilities.ts:7-9 - its own header records the failure this leaves open on those doors: 'a viewer's only feedback was a 403 rendered as a failed load'; the rail (NavSectionRail.tsx:154,265) and palette (useWorkspaceCommandPaletteItems.ts:77,101,133) are the only two consumers of the lock",
+      "app/api/org/members/route.ts:9-18 - the full roster (names, emails, roles, per-team capabilities) is already served to any `read` holder, so a holders subset exposes nothing new; app/_lib/org-service.ts:46-54 resolves each membership's effective capabilities (resolveCapabilities with overrides)",
+      "Registry app-shell/entitlement-gating: 'the same policy authority is consulted at every entrance, and arriving at a forbidden destination lands on a defined explanation surface'; 'Lock state is not disabled state ... Rendering locks as disabled entries teaches users the product is broken'"
+    ],
+    "rollback": "Revert the series: the route is new and additive (no table, no public-route entry), the panel is a new branch in WorkspaceTabPanel, and NavPanelItem returns to its dead-row branch; the four catalog key sets come out in the same revert.",
+    "gate": "contract",
+    "runner_up": "Stale-badge honesty: when useAttention is in backoff (failures>0) the badges keep last-known counts silently (useAttention.ts:36-48) - show them as 'as of hh:mm' with a retry; dropped as below the impact floor and adjacent to the accepted attention-badge ideas.",
+    "technique": "entitlement-gating",
+    "body": "## Summary\nToday a locked Settings tab is a greyed row with a tooltip, and three other doors (g-chords, ?tab= arrivals from checkout/calendar callbacks, programmatic selectTab) ignore the lock entirely and open the tab into a 403. Route every door through one tabArrival authority and land a locked arrival on a panel that says what the tab is, which permission opens it, your current role, and the named people in this workspace who hold it - each with an Ask link that carries the exact deep link.\n\n## Description\nnavCapabilities.ts is already the one table (TAB_CAPABILITY), but only the rail and the palette read it. The card adds tabArrival/panelFor there and makes WorkspaceTabPanel render through panelFor, so every entrance converges without touching each caller. The locked rail row becomes an activatable lock (the registry's 'lock state is not disabled state'), opening the same panel. LockedTabPanel reads GET /api/me/capability-holders?cap=<cap> - a new gated route (requireCapability('read'), NOT added to app/_lib/auth/public-routes.ts, so the middleware keeps it behind the session gate) returning at most 5 {name,email,role} rows for the caller's current workspace, a strict subset of what /api/org/members already serves. The pure lockedDoor.ts owns the view states (holders / noHolders / holdersUnknown) and the mailto builder, so node:test covers the logic under the .tsx. Open/dev mode folds to owner in callerCapabilities, so nothing is locked there and the route is never called.\n\n## Flow\n1. Write navCapabilities.test.ts + lockedDoor.test.ts + route.test.ts cases red. 2. tabArrival/panelFor in navCapabilities.ts. 3. lockedDoor.ts view model + askHref. 4. Route + api:docs regeneration + CAPABILITY_UNKNOWN in the REFUSAL registry with four catalog entries. 5. LockedTabPanel.tsx (recipes PANEL/BTN_*; both themes). 6. WorkspaceTabChunks.tsx renders through panelFor; Workspace passes capabilities. 7. NavPanelItem locked branch becomes a lock button; NavSectionRail passes onSelect. 8. nav.lockedDoor.* keys in en/cs/de/fr. 9. app-structure.md; test:perf and raise only this card's share.\n\n## Expected impact\nA viewer or hiring manager who follows a checkout return, a calendar callback, a g-chord or a shared link to a gated tab gets a truthful explanation and a one-click way to ask the right person, instead of a failed load; the lock is enforced at the destination, so a future door (a notification, a companion action) inherits it for free.\n\n## Evaluation\nClaim: every entrance to a capability-gated tab resolves through one authority and lands on an actionable explanation naming who can grant access.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test navCapabilities.test.ts, lockedDoor.test.ts, app/api/me/capability-holders/route.test.ts; npm run i18n:check, api:check, test:perf\nResult: pending build\nGate: contract",
+    "evidence": "NavPanelItem.tsx:90-92 '// A locked tab is a dead row: no link, no onSelect, no chunk prefetch ... if (locked) {' and :96 'aria-disabled=\"true\"'. WorkspaceKeyboardShortcuts.tsx:83 'onSelectTabRef.current(chord.id);' (no lock read anywhere in the file: grep -i 'lock|capab' -> 0 hits). Workspace.tsx:98-101 'const requested = resolveTabParam(raw); if (requested == null) return null; if (requested === \"agents\" && !AGENTS_TAB_IN_NAV) return null; return requested;'. WorkspaceTabChunks.tsx:96 '{navActive === \"billing\" ? <BillingTab /> : null}'. grep lockedTabsFor consumers: NavSectionRail.tsx:154, useWorkspaceCommandPaletteItems.ts:77 only. In-app links into gated tabs: billing/checkout/route.ts:110 '/?tab=billing&billing=', calendar/google/callback/route.ts:22 '/?tab=integrations&calendar=', settings/billing/BillingSelfHostPanel.tsx:44 '/?tab=models'. org/members/route.ts:10 'requireCapability(\"read\")' then returns listOrgMembers(orgId). roles.ts:31-36 viewer holds only 'read'. No r07 card write set touches any listed file (checked all 9 r07 cards; they share only the messages/*.json surfaces)."
+  }
+]

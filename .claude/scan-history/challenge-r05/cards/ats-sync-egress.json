@@ -1,0 +1,111 @@
+[
+  {
+    "context": "ats-sync-egress",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Lease ATS delivery claims so a crash mid-POST cannot strand a hire in pending",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/ats-delivery-store.ts",
+      "app/_lib/ats-egress.ts",
+      "app/api/ats/deliveries/route.ts",
+      "app/_lib/ats-delivery-lease.test.ts",
+      "app/_lib/ats-egress-delivery.test.ts",
+      "docs/features/integrations/README.md"
+    ],
+    "new_files": [
+      "app/_lib/ats-delivery-lease.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "A row opened by recordAtsDeliveryStart at T and never finalized (process died) -> reclaimExpiredAtsLeases(T + LEASE + 1ms) flips it to status 'failed', attempts 1, next_attempt_at = now, last_error names an abandoned attempt; listDueAtsDeliveries(now) now returns it.",
+      "A row claimed at T -> reclaimExpiredAtsLeases(T + LEASE - 1ms) leaves it 'pending' and untouched (returns 0); a live attempt inside its lease is never reaped.",
+      "Zombie finalizer: claim returns lease token A, the lease expires and is reclaimed, the sweep re-claims with token B; finalizeAtsDelivery(id, {delivered:true}, token A) returns false and the row keeps B's state; finalize with token B returns true.",
+      "A reclaimed row whose attempts reach MAX_ATTEMPTS becomes a dead-letter (next_attempt_at NULL): countDeadAtsDeliveries() counts it and requeueAtsDelivery(id) answers 'ok' - today requeue answers 'not-replayable' for a stranded pending row.",
+      "retryDueAtsDeliveries(now) run after a stranded row's lease expired reclaims and redelivers it in the SAME sweep, and the captured fetch carries Idempotency-Key = that row's id (same key as the lost attempt).",
+      "Two reclaim calls racing on one expired row -> exactly one reports changes === 1; attempts is incremented once, not twice.",
+      "pruneAtsDeliveries never deletes a 'pending' row (unchanged); GET /api/ats/deliveries additionally reports `stranded` (pending past lease) beside `due` and `dead` - an additive JSON field."
+    ],
+    "premise": [
+      "app/_lib/ats-delivery-store.ts:123-132 - recordAtsDeliveryStart inserts the row as status 'pending', attempts 0, before any delivery work.",
+      "app/_lib/ats-delivery-store.ts:150-158 - claimAtsDelivery flips a due row to status='pending', next_attempt_at=NULL, conditioned only on (status='failed', attempts); the claim records no holder and no lease deadline.",
+      "app/_lib/ats-delivery-store.ts:223-233 - listDueAtsDeliveries selects only status='failed' AND next_attempt_at IS NOT NULL, so a pending row is never due again.",
+      "app/_lib/ats-delivery-store.ts:169-183 - requeueAtsDelivery's CAS is status='failed' AND next_attempt_at IS NULL, so the operator's force-replay refuses a stranded pending row (route answers ATS_DELIVERY_NOT_REPLAYABLE, app/api/ats/deliveries/route.ts:43-45).",
+      "app/_lib/ats-delivery-store.ts:238-243 - countDeadAtsDeliveries counts only status='failed'; app/_lib/ats-delivery-store.ts:259-268 - pruneAtsDeliveries excludes pending. A stranded row is invisible to due, dead and prune alike.",
+      "app/_lib/ats-delivery-store.ts:196-219 - finalizeAtsDelivery re-asserts only `attempts=?` (no holder), so a reaper that does not bump a claim token cannot stop a slow worker from overwriting the reaper's verdict.",
+      "app/_lib/ats-egress.ts:278 and 294 - dispatchAtsEvent opens the pending row, then awaits deliver() (DNS re-vet + 5s fetch, app/_lib/ats-egress.ts:198); a restart, deploy or crash in that window ends the process with the row pending. Same for the sweep between claimAtsDelivery (ats-egress.ts:336) and the await at :362.",
+      "docs/features/integrations/README.md:280 claims 'Nothing exits without a ledger row' - true, but the row it leaves can be a pending row nothing will ever finish."
+    ],
+    "rollback": "Additive columns (lease_token, lease_until) via ALTER TABLE ADD COLUMN with NULL defaults, read by new code only; reverting the commit series restores the old CAS and the extra columns are ignored by the old readers (SELECT * mapped by name). No wire shape changes: the envelope, headers and Idempotency-Key are untouched.",
+    "gate": "none",
+    "runner_up": "Pin each ledger row's event facts (offer id, decision seal, stage) at open so a retry or a days-later replay cannot send a `candidate.rejected`/`offer.declined` body rebuilt from state that moved after the event (ats-egress.ts:319-320 + :348 rebuild from CURRENT state under the same key).",
+    "technique": "atomic-claiming",
+    "body": "## Summary\nThe ATS delivery ledger's claim is an anonymous status flip to `pending` with no holder and no deadline. A process that dies between opening/claiming a row and finalizing it leaves a `candidate.hired` delivery pending forever: never due, never dead-lettered, never pruned, and refused by the operator's force-replay. Make the claim a lease (token + deadline), reap expired leases inside the existing retry sweep, and make finalize conditional on the token.\n\n## Description\n`ats_delivery` promises at-least-once delivery of hiring outcomes to a customer's HRIS. Every attempt passes through `pending`: `recordAtsDeliveryStart` writes it, `claimAtsDelivery` flips a due `failed` row back to it. Every exit from `pending` is a call from the same process that entered it. Nothing in the tree reads a pending row's age. A deploy, OOM or crash during the awaited `deliver()` (DNS re-vet + up to 5s of fetch) therefore strands the row: `listDueAtsDeliveries`, `countDeadAtsDeliveries`, `pruneAtsDeliveries` and `requeueAtsDelivery` all filter it out. The operator sees 'pending' in GET /api/ats/deliveries indefinitely, and the Replay door answers NOT_REPLAYABLE. This is the delivery-guarantees law creation-names-reaper: the claim is a created resource with no recorded cleanup criteria.\n\nThe move: `claimAtsDelivery` and `recordAtsDeliveryStart` write `lease_token` (random) and `lease_until` (now + ATS_DELIVERY_LEASE_MS, well above the 5s fetch bound) atomically with the status flip, and return the token. `finalizeAtsDelivery` takes the token and conditions its UPDATE on `status='pending' AND lease_token=?`. A slow worker that was reaped loses politely instead of overwriting the reaper. A new `reclaimExpiredAtsLeases(now)` does a single conditional UPDATE: pending rows past `lease_until` become `failed`, with attempts+1 (the lost attempt may have landed, which is why the Idempotency-Key stays the row id), next_attempt_at=now or NULL at MAX_ATTEMPTS, and the lease cleared. `retryDueAtsDeliveries` calls it first, so the process clock heals stranded rows with no new tick wiring. GET /api/ats/deliveries gains an additive `stranded` count.\n\nStays entirely on kp's side of the wire: the receiver sees the same envelope, the same headers and the same Idempotency-Key it would have seen on a normal retry.\n\n## Flow\n1. dispatch: recordAtsDeliveryStart -> {id, token}; deliver(); finalizeAtsDelivery(id, outcome, token).\n2. sweep: reclaimExpiredAtsLeases(now) -> listDue -> claimAtsDelivery -> {token} | null -> deliver -> finalize(token).\n3. crash at any await -> the row sits pending until lease_until -> the next sweep reclaims it as a failed attempt -> it is due -> redelivered under the same key.\n4. At MAX_ATTEMPTS the reclaimed row dead-letters and the existing Replay door can revive it.\n\n## Expected impact\nA hire or rejection mirror can no longer vanish into a state nothing reads. The ledger's at-least-once claim becomes true across restarts, not only within one process lifetime. The Replay door covers every non-delivered row. The operator gets a `stranded` count to look at instead of a pending row that never moves. The technique's 'complete with the same conditionality' rule also closes the zombie-finalizer overwrite that the attempts-only CAS allows today.\n\n## Evaluation\nClaim: a delivery stranded by a process exit is reclaimed, redelivered under its original Idempotency-Key, and a zombie finalizer cannot overwrite the reclaim.\nBefore: 0 of 7 acceptance cases pass (no reclaim function, no lease token, requeue refuses pending, GET has no stranded count).\nAfter: 7 of 7.\nMethod: gate - node:test cases in app/_lib/ats-delivery-lease.test.ts on the throwaway unit DB with an injected clock and a capturing fetch, plus the existing ats-egress-delivery / ats-delivery-retention / deliveries-route suites staying green.\nResult: pending build.\nGate: npm run test:unit, npx tsc --noEmit, npm run lint, npm run api:check (GET body is additive, no route/method change).",
+    "evidence": "grep over app/_lib/ats-delivery-store.ts:\n  128:       VALUES (?, ?, 'pending', 0, ?, ?)`            <- recordAtsDeliveryStart\n  153:      `UPDATE ats_delivery SET status='pending', next_attempt_at=NULL, updated_at=?\n  154:       WHERE id=? AND status='failed' AND attempts=?`   <- claim: no holder, no deadline\n  178:       WHERE id=? AND status='failed' AND next_attempt_at IS NULL`   <- requeue refuses pending\n  228:         WHERE status='failed' AND next_attempt_at IS NOT NULL AND next_attempt_at <= ? AND attempts < ?   <- due excludes pending\n  240:    .prepare(`SELECT COUNT(*) AS n FROM ats_delivery WHERE status='failed' AND next_attempt_at IS NULL`)   <- dead excludes pending\n  264:       WHERE status IN ('delivered','failed') AND next_attempt_at IS NULL AND updated_at < ?`   <- prune excludes pending\nNo statement anywhere in app/ or instrumentation-node.ts reads a pending ats_delivery row by age (grep 'pending' over the ATS files: only the INSERT, the claim, and a test assertion at ats-egress-delivery.test.ts:116).\nats-egress.ts:278 recordAtsDeliveryStart -> :294 `await deliver(` (DNS lookup inside assertDeliverableWebhookUrl + fetch with AbortSignal.timeout(5000) at :198) -> :300 finalizeAtsDelivery. Sweep: :336 claimAtsDelivery -> :362 await deliver -> :368 finalize.\nfinalizeAtsDelivery (store :196-219): SELECT attempts ... UPDATE ... WHERE id=? AND attempts=? (no status, no holder predicate)."
+  },
+  {
+    "context": "ats-sync-egress",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Adopt: ingest mapped ATS applications onto the board, keyed on the vendor id",
+    "size": "M",
+    "effort": 7,
+    "impact": 9,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/ats/ingest.ts",
+      "app/_lib/ats/ingest.test.ts",
+      "app/api/ats/import/route.ts",
+      "app/api/ats/import/import-route.test.ts",
+      "app/_lib/api-response.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "docs/features/integrations/README.md"
+    ],
+    "new_files": [
+      "app/_lib/ats/ingest.ts",
+      "app/_lib/ats/ingest.test.ts",
+      "app/api/ats/import/route.ts",
+      "app/api/ats/import/import-route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "Enabled recruitee connection with the shipped default map, kp job J in workspace W, one vendor payload {id: 907, candidate:{name,emails:[x]}, stage:{name:'1st round'}} -> ingestAtsApplications returns [{externalId:'907', outcome:'created', entryId}], a pipeline entry exists in W on job J at stage 'Interview', and findAtsLink('recruitee','907',W) points at it with lastSeenStage '1st round'.",
+      "The same payload ingested again -> outcome 'unchanged', the entry count for J is unchanged, the link's entry_id is unchanged and last_synced_at is refreshed.",
+      "The same external id ingested into workspace W2 -> a separate entry in W2; W's entry and link are untouched (links are per tenant).",
+      "A link whose entry has been anonymized -> outcome 'erased': no entry is created or updated, no name/contact is written, and the link is left in place (it must outlive the scrub, db/pipeline.ts:2200).",
+      "A payload whose vendor stage maps to the board's TERMINAL stage (or has no mapping) -> the entry is created at the axis's intake stage, never the terminal one; the vendor stage string is kept verbatim on the link.",
+      "A payload with no value at the map's externalId path -> outcome 'invalid' for that record only; the other records in the batch are still processed, and nothing is written for the invalid one.",
+      "Missing or disabled connection, or a job id not in the caller's workspace -> the whole call is refused with a coded Refusal (ATS_CONNECTION_NOT_FOUND / ATS_IMPORT_JOB_NOT_FOUND) and nothing is written.",
+      "POST /api/ats/import is operator-gated (requireOperator), caps the body with readJsonWithLimit (413 PAYLOAD_TOO_LARGE) and the record count, and answers {results, counts}."
+    ],
+    "premise": [
+      "app/_lib/ats/inbound.ts:4-6 - the module's own header: 'The gap that loses deals is the other way: \"does it pull our candidates IN?\"'",
+      "app/_lib/ats/field-map.ts:99-118 (applyFieldMap), app/_lib/ats/links-store.ts:30-42 (findAtsLink) and :66-85 (upsertAtsLink) have NO non-test caller: grep over app/ scripts/ instrumentation*.ts finds only their definitions and tests. The mapper and link table exist, but no writer uses them.",
+      "app/_lib/ats/connections-store.ts:145-161 - connections store a per-provider token and field map, and field-map.ts:183-198 ships a Recruitee default map 'so a pasted token can actually import' (docs/features/integrations/README.md Known gaps), yet no code path imports anything.",
+      "docs/features/integrations/README.md Known gaps: 'no inbound write path updates an existing entry from a vendor record today (`ats/inbound.ts` is a pure mapper)'.",
+      "context-map.json lists api_surface 'POST /api/ats/webhook' for this context; app/api/ats/ has only candidate, config, connections, deliveries, test - the inbound door the map names does not exist.",
+      "app/_lib/db/pipeline.ts:1368-1376 - createPipelineEntry requires a kp jobId + jobTitle and accepts `stage` and `dedupeKey`, so an import must bind to a real kp job (the operator's choice) rather than the vendor's job id that toAtsEntryInput falls back to (inbound.ts:146).",
+      "app/_lib/db/pipeline.ts:2200 - ats_links is declared to OUTLIVE erasure precisely so a re-sync does not re-import an erased person as new; nothing yet enforces the other half (a re-sync must not re-fill the erased entry).",
+      "Open backlog item adopted: .claude/scan-history/leftover-develop-2026-09-17.jsonl 'Write ingestInboundCandidate to file mapped ATS applications' (ats-sync-egress, M, impact 10), not in either low-risk-drain-2026-09-22 results file. Re-rated risk 3 -> 5: it writes pipeline entries from untrusted external data across tenants and meets the erasure rule."
+    ],
+    "rollback": "All-new files plus one additive route and one or two new refusal codes. Reverting the series removes the door; no existing table, column or wire shape changes (ats_links and pipeline_entries are used as they are). Entries it created remain ordinary pipeline entries.",
+    "gate": "none",
+    "runner_up": "Key ats_connections by workspace (it is installation-wide while ats_links is per tenant, connections-store.ts:81-90 vs links-store.ts:35-40), so two teams can connect different accounts of the same ATS. Needs a migration of the provider PK, so it ranks behind giving the inbound seam its first writer.",
+    "technique": "external-identifier-as-the-sync-identity",
+    "body": "## Summary\nThe inbound half of the ATS seam has a validated mapper (`parseInboundCandidate`, `applyFieldMap`), per-provider credentials with a shipped Recruitee default map, and a per-tenant external-id link table. Nothing uses any of it: no non-test code calls `applyFieldMap`, `findAtsLink` or `upsertAtsLink`. Add the missing writer, `ingestAtsApplications`, plus an operator door `POST /api/ats/import`, so mapped vendor applications become pipeline entries exactly once per (provider, external id, workspace). This adopts the open backlog item 'Write ingestInboundCandidate to file mapped ATS applications'.\n\n## Description\n`app/_lib/ats/ingest.ts` resolves the connection (it must exist and be enabled), then applies its stored field map to each vendor record, one record at a time. Resolution goes through the external id only (the technique's rule 3: never fall back to name or email). With no link it creates an entry: `createPipelineEntry` gets the operator-chosen kp job, a `dedupeKey` of `ats:<provider>:<externalId>`, the stage mapped against the workspace's own axis (mapStage's `allowed` parameter), falling back to the intake stage and never the terminal one, since that stage is outcome-bearing and reachable only through the offer flow. The link row is written in the same IMMEDIATE transaction as the entry. When a link exists, only the sync bookkeeping moves (last_seen_stage, last_synced_at). kp owns its funnel, and a vendor stage change is recorded on the link, never applied to the board. A link whose entry is anonymized answers `erased` and writes nothing. Each record gets its own outcome (`created` / `unchanged` / `erased` / `invalid`), so one bad record never sinks a batch. The provider is taken from the connection, never from the payload (MAPPABLE_FIELDS already excludes it).\n\nThe route is operator-gated like every other ATS door. It caps both body size and record count and answers coded refusals through `jsonRefusal`. Its row goes into api-reference.md via `npm run api:docs`. Nothing on any external wire changes: kp reads the vendor shape through the configurable map, and the outbound `kp.ats.v1` record is untouched.\n\n## Flow\n1. Operator (or their iPaaS) POSTs {provider, jobId, records[]} to /api/ats/import.\n2. The route checks requireOperator and the body cap, then resolves the workspace and verifies the job is in it.\n3. ingestAtsApplications: connection enabled? -> per record: applyFieldMap -> findAtsLink(provider, externalId, W).\n4. No link: IMMEDIATE tx { createPipelineEntry(stage = mapped or intake, never terminal) ; upsertAtsLink } -> created.\n5. Link present: the entry is anonymized -> erased. Otherwise upsertAtsLink bookkeeping -> unchanged.\n6. The route answers {results, counts}.\n\n## Expected impact\nThis closes the 'does it pull our candidates IN?' gap the module names as the one that loses deals. A customer on Recruitee can land their applications on the board without re-keying. The re-sync is idempotent by construction, per tenant, and respects erasure. It also gives the pending L item 'Recruitee HTTP connector (W1.2)' a tested writer to call, so that connector becomes HTTP plumbing only.\n\n## Evaluation\nClaim: mapped vendor applications become pipeline entries once per (provider, external id, workspace), an erased person is never refilled, and the terminal stage is unreachable from a vendor payload.\nBefore: 0 of 8 acceptance cases pass (no ingest function, no route).\nAfter: 8 of 8.\nMethod: gate - node:test cases in app/_lib/ats/ingest.test.ts on the throwaway unit DB (two workspaces, a Recruitee fixture payload like inbound.test.ts's round-trip) plus a route test for the operator gate, the 413 and the coded refusals.\nResult: pending build.\nGate: npm run test:unit, npx tsc --noEmit, npm run lint, npm run i18n:check (new refusal code in 4 catalogs), npm run api:check (new row via api:docs), npm run docs:check.",
+    "evidence": "grep -rn 'findAtsLink|upsertAtsLink|applyFieldMap|linksForEntry|toAtsEntryInput' app scripts instrumentation*.ts (non-test):\n  app/_lib/ats/field-map.ts:99:export function applyFieldMap(...)\n  app/_lib/ats/inbound.ts:137:export function toAtsEntryInput(\n  app/_lib/ats/links-store.ts:30:export function findAtsLink(\n  app/_lib/ats/links-store.ts:46:export function linksForEntry(\n  app/_lib/ats/links-store.ts:66:export function upsertAtsLink(\n  -> definitions only; zero call sites.\nls app/api/ats: candidate/ config/ connections/ deliveries/ test/  (no webhook/, no import/)\ndocs/features/integrations/README.md Known gaps: '...no inbound write path updates an existing entry from a vendor record today (`ats/inbound.ts` is a pure mapper). `deleteAtsLinksForEntry` ... exists for the day an inbound writer appears'.\nleftover-develop-2026-09-17.jsonl: {\"title\":\"Write ingestInboundCandidate to file mapped ATS applications\",\"context\":\"ats-sync-egress\",...,\"size\":\"M\",\"risk\":3,\"impact\":10} - absent from low-risk-drain-2026-09-22-results.jsonl and -wave2-results.jsonl.\nRegistry: recruiting/portable-hiring-records technique external-identifier-as-the-sync-identity (use_when: 'importing candidates or jobs from an external system', 'writing an upsert against synchronised records'); rule 1a 'the source half is server-derived, never payload-asserted' matches field-map.ts:22-24."
+  }
+]

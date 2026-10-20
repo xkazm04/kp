@@ -17,6 +17,7 @@ test("draftStorageKey is namespaced and per-token", () => {
 test("round-trips a normal draft", () => {
   const draft: LiveWorkDraft = {
     sessionId: "dsess_1",
+    sessionKey: "dsk-round-trip-key-0123456789abcdef",
     files: [{ path: "src/index.ts", contents: "export const x = 1;\n" }],
     pending: [{ t: 1000, kind: "edit", path: "src/index.ts" }],
     chat: [
@@ -136,4 +137,41 @@ test("decodeDraft caps oversized file contents and file/event counts (mirrors th
   assert.equal(decoded!.files.length, 50, "capped at MAX_FILES");
   assert.ok(decoded!.files[0].contents.length <= 256 * 1024, "capped at MAX_FILE_BYTES");
   assert.equal(decoded!.pending.length, 2000, "capped at MAX_PENDING_EVENTS");
+});
+
+// challenge-r06 devcase-session-api/A — the per-attempt session key lives in the draft
+// beside the session id it belongs to, so a reload keeps proving the attempt.
+test("encodeDraft/decodeDraft round-trips sessionKey", () => {
+  const decoded = decodeDraft(
+    encodeDraft({
+      sessionId: "dsess_k",
+      sessionKey: "dsk-AbCdEfGhIjKlMnOpQrStUvWxYz012345",
+      files: [],
+      pending: [{ t: 1, kind: "edit", path: "a.ts" }],
+      chat: [],
+      name: "",
+      contact: "",
+      savedAt: 1,
+    })
+  );
+  assert.equal(decoded?.sessionKey, "dsk-AbCdEfGhIjKlMnOpQrStUvWxYz012345");
+  assert.equal(decoded?.sessionId, "dsess_k");
+});
+
+test("a draft whose sessionKey is not a string decodes with sessionKey null and keeps its sessionId", () => {
+  for (const bad of [42, true, { k: 1 }, ["x"], "", null]) {
+    const decoded = decodeDraft(JSON.stringify({ sessionId: "dsess_legacy", sessionKey: bad, pending: [{ t: 1, kind: "edit" }], savedAt: 1 }));
+    assert.ok(decoded, `sessionKey ${JSON.stringify(bad)}`);
+    assert.equal(decoded!.sessionKey, null);
+    // The id survives: the sync client flushes it KEYLESS (a legacy row accepts that)
+    // rather than re-minting and abandoning the server-side attempt.
+    assert.equal(decoded!.sessionId, "dsess_legacy");
+  }
+  // A pre-change blob has no sessionKey field at all.
+  assert.equal(decodeDraft(JSON.stringify({ sessionId: "dsess_old", files: [{ path: "a", contents: "b" }] }))!.sessionKey, null);
+});
+
+test("LiveWorkSurface persists sessionKey with the draft and hydrates it back", () => {
+  assert.match(surface, /sessionKey: sync\.sessionKey/);
+  assert.match(surface, /sessionKey: draft\.sessionKey/);
 });

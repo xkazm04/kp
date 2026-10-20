@@ -90,7 +90,7 @@ outcomes instead.
 - **Settings → Billing** (`app/features/settings/billing/BillingTab.tsx`) — plan
   card, usage meters, upgrade/checkout, portal link. On an unmetered install the
   same tab is a different page — see the table above.
-- Landing pricing band (`app/landing/spark/...`) links into checkout.
+- Landing pricing band (`app/landing/site/land/Pricing.tsx`) links into checkout: each hosted tier's CTA carries its plan (`/signup?plan=…`, or `/login?plan=…` on a deploy with sign-up closed).
 
 ## Pricing model
 
@@ -184,7 +184,7 @@ friction at zero users.
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
 | Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`BILLING_QUOTA_EXCEEDED`) at metered-work creation points. |
-| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
+| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_usage_journal`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
 | UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
@@ -201,6 +201,10 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+The redirect carries `billing=plan-success` or `billing=pack-success`. The tab
+confirms a plan only after the paid plan appears in the overview, and a pack only
+after minute credits rise above the balance recorded before checkout. Otherwise
+it keeps a pending banner and a recheck action.
 
 ### Who may open a billing door: `org:manage`, not "any session"
 
@@ -325,6 +329,10 @@ match, and the verdict deep-equals the `jsonRefusal` body.
 
 ### The webhook reads its raw body under a hard cap
 
+The public webhook returns stable error codes for configuration, body size,
+signature verification, and processing failures. Verification and provider
+error details stay in server logs; the provider still receives non-2xx for retry.
+
 `/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
 a MACHINE posts here, so the operator gate would 401 Polar), and the standard-webhooks
 MAC covers the body, so the body has to be in hand **before** anything can be
@@ -383,6 +391,49 @@ decided. `resolveBillingAlert({ id, orgId, expectedUnresolved: true })` stamps
 Polar signal can leave the open worklist; a second call (or a missing id) returns
 false and does not move the stamp. Pinned by `app/_lib/db/billing-store.test.ts`.
 
+### Billing alerts have a reader: org-scoped, coded, with a resolve door
+
+`billing_alerts` used to be write-only. It now has exactly one reader, and the
+audience is part of the projection (`app/_lib/billing/alerts.ts`, pure):
+
+- **Closed vocabulary.** `BILLING_ALERT_KINDS = ["unmapped_product", "price_drift", "subscription_drift"]`
+  with `isBillingAlertKind`. A kind written by a newer writer than the reader is shown
+  as `code: "unknown"`, never dropped.
+- **Audience.** `unmapped_product` is the paying org's (`customer`): its owner reads a
+  coded sentence (`billing.alerts.code.*`: the plan has not changed, do not pay again).
+  `price_drift` is deployment-level (`operator`, stored under the home org) and reaches
+  the **home-org operator only**: the same tier as `requireHomeOrgReader`
+  (`app/_lib/auth/require-operator.ts`). The raw provider `detail` (product ids,
+  `POLAR_PRODUCT_*`, prices) is on the wire **only** for that reader.
+- **The store.** `listBillingAlertsForOrg(orgId)` and `getBillingAlert(id, orgId)` are
+  org-BOUND, beside the unchanged deployment-wide `listBillingAlerts` (still the
+  operator's cross-customer list). The tenancy guard names both.
+- **GET /api/billing** gains `alerts`: the caller's org's open alerts (plus the home
+  org's deployment-level kinds when the caller is a home-org reader from another org),
+  projected for that reader. Every pre-existing key is unchanged.
+- **POST /api/billing/alerts/[id]** `{ resolution: "fixed" | "dismissed" }`, behind the
+  same `org:manage` door (`requireBillingAuthority`). Refusals are coded: 400
+  `BILLING_ALERT_RESOLUTION_INVALID`, 404 `BILLING_ALERT_NOT_FOUND` (another org's
+  alert answers what an unknown id answers), 409 `BILLING_ALERT_NOT_OPEN` (the store's
+  `resolved_at IS NULL` CAS: a second call never re-kinds a closed alert), 500
+  `BILLING_ALERT_RESOLVE_FAILED`.
+- **`billing_alerts.resolution`** (nullable, no default; additive migration) records HOW
+  an alert ended, so a real fix and dismissed noise stay distinguishable. Rows closed
+  before the column existed read NULL: "not recorded", never a guessed `fixed`.
+- **Billing tab.** `BillingAlertsPanel` renders above the plan card when there is at
+  least one open alert (nothing otherwise), with **Mark fixed** / **Dismiss**, and
+  re-reads the overview after either.
+- **No charge moves.** The reader writes only `billing_alerts`. Resolving a
+  paid-but-dark subscription's alert does not entitle it (the webhook does, once the
+  product is mapped). This is a declared GUARD case in
+  `app/api/billing/billing-alerts-route.test.ts`: a scripted three-org replay of the four
+  money tables + `billingOverview` + `meterAllowance` + a `meterGate` 402 probe must stay
+  byte-identical to `app/_lib/billing/__fixtures__/charge-parity.json` before and after
+  every alert is resolved. Regenerate that golden only for a deliberate charge change.
+- Known edge: `recordBillingAlert` dedupes on OPEN rows only, so a cause resolved as
+  `fixed` that is not actually fixed re-opens on the next webhook or daily reconcile
+  for the same ref. That is the alert list telling the truth, not a money effect.
+
 `billing_events` rows are kept **forever**: the row *is* the idempotency gate, and
 deleting one would let a very late redelivery re-apply a plan change or re-grant a pack.
 What ages out is `payload_json` — the verbatim provider body, carrying a customer id, an
@@ -427,6 +478,51 @@ provider egress on a timer):
 `claimDueRun` gates the pass to one run per cadence across restarts, and a non-skipped
 run is recorded in `scheduler_runs`. The job has no UI toggle yet — `/api/automation/
 schedule` surfaces only the policy and reminder jobs.
+
+### A lost webhook is flagged daily, never corrected (default OFF)
+
+The webhook is the only write path for money state, and it can lose a delivery with no
+signal: a deployment unreachable past the provider's retry window loses it outright,
+and a set or revoke dropped by the `billing_state` compare-and-swap answers 2xx, so the
+provider never re-sends it. Either way a customer can sit on Free after paying, keep a
+plan after a revoke, or carry a stale `currentPeriodEnd` that the past_due grace will
+later cut them from.
+
+`app/_lib/billing/subscription-reconcile.ts` is the standing check, in the same shape as
+the price reconcile:
+
+- **The read.** `PolarGateway.fetchSubscription(id)` is `GET /v1/subscriptions/{id}`,
+  sharing one private helper with `fetchProduct`: the same headers (`Polar-Version`
+  only when pinned), the same `POLAR_REQUEST_TIMEOUT_MS`, never retried, `null` on any
+  failure, and refused before any network call under `KP_OFFLINE`.
+- **The decision is the webhook's own.** `reconcileSubscriptionState` runs
+  `reduceBillingEvent` over the provider's current object: "what would the webhook
+  have stored, had this delivery arrived". A disagreement with the stored row is one of
+  `missed_activation` (provider active/trialing, stored free: error),
+  `missed_revocation` (provider ended, stored entitled: error), `plan_mismatch`
+  (error), `status_mismatch` or `missed_renewal` (the provider's period end is more
+  than an hour past the stored one). **No verdict** on an unreadable read, an
+  unmapped product (the `unmapped_product` alert owns that), a status the webhook
+  ignores, a stored-free row against a past_due/unpaid/canceled provider, or a row a
+  webhook moved while the fetch was in flight.
+- **The write is an alert, never a correction.** `runSubscriptionReconcile` records ONE
+  `subscription_drift` alert per subscription under the home org (`providerRef`
+  `sub-drift:<id>`, deduped while open), read by the home-org operator only. It never
+  writes `billing_state`, `billing_credits` or `billing_usage`: correcting state from a
+  pull would move an entitlement on a read nobody has validated yet. The charge-parity
+  golden is the GUARD case (`subscription-reconcile.test.ts`).
+- **Bounded.** `listProviderSubscriptionsForReconcile` (the one named, read-only,
+  deployment-wide enumeration of `billing_state`, pinned in `billing-tenancy.test.ts`)
+  returns at most `SUBSCRIPTION_RECONCILE_MAX_PER_RUN` (100) rows per run, stalest
+  `updated_at` first.
+- **Default OFF.** The clock registers the daily `subscription_reconcile` job only when
+  `KP_BILLING_SUBSCRIPTION_RECONCILE=1` (the flag guards the registration itself:
+  `ensureSchedule` is create-once, so a row registered disabled could never be enabled
+  later), and the runner re-checks the flag. With it unset nothing runs, no scheduler
+  row appears and no provider call is made. **Do not set it in production before the
+  sandbox pass in step 7 of the checklist below.**
+- It cannot see a brand-new subscription whose every delivery was lost: it reads back
+  only ids we stored. That needs a list-by-customer read, which is not built.
 
 ### Settled money we cannot map is an ALERT, never a silent ignore
 
@@ -537,7 +633,7 @@ different tabs:
 |---|---|
 | the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, overage, pack credits — **the caller's org** |
 | `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
-| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, all-provider token totals from `llm_usage`, comms/schedule failure counters, and the bounded `ops-warn.log` tail (`opsWarnings`) |
 
 `useSpendData.ts` owns both fetches, so the section has **one** loading state and
 **one** failure state. The ledger read is the failure that matters; a dead
@@ -568,6 +664,54 @@ allowance beside it, so the unmetered case reads `breakdownScopeSelfHost` — th
 deployment-wide claim without the contrast. Nothing about the chart, the per-use-case
 bars or the estimated-cost figure changes; a metered install renders exactly as before.
 
+### Meters state when they reset, and whether this pace runs out first
+
+A meter used to say "180 of 300 used" and nothing else, and the only date on the tab
+was the plan card's "Current period ends", which is the provider's **paid** period. The
+allowance used to reset on the UTC **calendar** month (`currentPeriod(now)`), which
+coincides with the paid period only for a subscription anchored on the 1st (9 of 10
+anchors diverged). Since ADR 0023 it is keyed on the subscription anchor
+(`allowancePeriod(state, now)`); an org with no `billing_state` row keeps the calendar month. An owner deciding
+whether to upgrade or buy a minutes pack was deciding without the date it hinges on.
+
+- **`allowanceWindow(now, state)`** (`app/_lib/billing/plans.ts`, pure) returns
+  `{ period, start, resetsAt, asOf }`: `period` IS `currentPeriod(now)` and the bounds
+  are that UTC month, half-open (the reset instant belongs to the next window).
+  `billingOverview` carries it as one additive key, `allowanceWindow`, so GET
+  /api/billing states the window every debit lands in. Display only: `meterAllowance`,
+  `recordMeterUsage` and `meterGate` do not read it, and `currentPeriod` is untouched.
+- **The allowance rail** heads its meters with "Resets {date}", shown in **UTC** because
+  the window is UTC (a viewer west of Greenwich would otherwise read "30 Sep").
+- **Each meter row** states a pace verdict from `meterForecast`
+  (`app/features/settings/billing/meterForecast.ts`, pure, node:test-pinned):
+  `unlimited` | `depleted` | `tooEarly` | `onPace` | `runsOutBeforeReset` (with an
+  approximate date and the days left before the reset) | `overageProjected`. Linear
+  pace over elapsed days, capacity = what is spent plus what is left (included remainder
+  and pack credits). **Small-sample floor:** under 3 days into the window, or under 2
+  units used, the row says "too early" and never projects a date. **Hires never block**
+  (`plans.ts`), so they read `overageProjected` ("billed as overage, never blocked"),
+  never "runs out". A pace that runs out before the reset carries the same pack / upgrade
+  link a depleted meter does; `depleted` itself adds no line (the existing badge + CTA
+  carry it). Unmetered installs have no rail, so no forecast chrome.
+- **The plan card names both dates when they differ** (`planDatesView`, same module):
+  "Paid period ends {date}" and "Included allowances reset {date}". When they coincide,
+  or either is missing, it keeps the single "Current period ends" line.
+- The orphaned `billing.usage.intro` said meters reset "with the billing period"; it now
+  states the UTC month and that pack credits carry over.
+
+**The re-key (ADR 0023).** The ledger key is the window's start date `YYYY-MM-DD`
+(anniversary day clamped to the month's length), so it cannot collide with a calendar
+`YYYY-MM` key. Usage already debited under a calendar key inside the first anchored window
+is carried in at read time from `billing_usage_journal.from_included` (credit-pack debits
+and pre-journal debits are not), so the switch grants no extra allowance. `allowanceWindow`
+takes the subscription state, so every date on the tab follows. The charge-parity GUARD in `app/_lib/billing/allowance-window.test.ts`
+replays the shared three-org money history
+(`app/_lib/billing/__fixtures__/charge-parity-replay.ts`, the same replay and golden the
+alert reader is guarded by) and asserts it still reproduces `charge-parity.json`
+byte-for-byte, with `allowanceWindow` the only key `billingOverview` gained; the golden's
+`billing_usage.period` is the one value re-keyed (orgs with a `billing_state` row move from
+`2026-08` to their window start date, quantities and credits unchanged).
+
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage
 panel on the Models tab that never referenced each other. Metered spend belongs
@@ -588,6 +732,15 @@ allowance and a cache-hit rate as the same instrument).
 `reconcileFailures`, `noSlotStalls`) **only when non-zero**. This footer is the
 only screen in the app carrying the latter two, so hiding them unconditionally
 would delete an alarm rather than quiet it.
+
+**The realtime voice plane sits under the engine line** (`SpendVoiceFacts.tsx`, its
+own `GET /api/voice/readiness`): one line per provider with an evidence-based state
+(`absent` / `unchecked` / `ready` / `broken`, never green without a successful mint),
+the per-minute price the ledger bills with and where it came from, the fix for a
+failure, and the screens that fell back from it this week. **Check now** runs a bounded
+probe (one credential mint per configured provider, no conversation; offered only to a
+seat that may run it and never under `KP_OFFLINE`). Details:
+[../interviews/README.md](../interviews/README.md) "Operator readiness".
 
 **A counter is a door, not a dead end.** Each one navigates to the surface that
 lists the same failures per item: dead letters to the **Channels** ledger
@@ -612,6 +765,26 @@ strip says it as a neutral line beside the queue. Pinned by
 genuinely unreadable seed in a throwaway cwd) plus the empty-but-healthy cases in
 `ops-route.test.ts` and `health-exposure.test.ts`.
 
+**A degraded reason is a finding with a fix, in the reader's language.** The
+amber list under the dots used to print `/api/ops`'s `degradedReasons` verbatim,
+English server sentences with no next step. Readiness is now computed once in
+`app/_lib/readiness.ts`, which both `/api/ops` and `/api/health` call (the two
+inline copies had drifted: only `/api/ops` checked the public origin), and each
+reason also travels as a coded finding: `code`, `severity` (`fault` / `warn`),
+`params` and a `remedy`. `readinessFindings.ts` turns them into rows, faults
+first (`role="alert"`, the `critical` notice) then warnings (`role="status"`,
+`amber`), each with its catalog title and fix and one action: a door into the
+tab that repairs it (an unreadable decision config opens **Decisions**), the env
+vars to set (`APP_BASE_URL` for the site-url fallback origin), or none when the
+fix is on the host (a broken seed file, a stalled clock) and the fix text says
+so. A code this bundle does not know, or a reason no finding covers, still
+renders its English sentence. Severity is presentation only: `ok` and
+`/api/health`'s status code gate on exactly the reasons they gated on before, so
+the fallback origin reaches `/api/health`'s home-org detail as a warn finding and
+never turns the probe 503 (onboarding pins `GET /api/health -> 200`, and a keyless
+dev box has no `APP_BASE_URL`). Findings name workspace ids and seed paths, so
+they ride the same home-org tier as `degradedReasons`.
+
 **Every dot's state is in its label, not only in its colour.** The dot is
 `aria-hidden` and always was, so a screen reader used to hear a list of nouns with
 the green-or-red meaning parked in a `title` — invisible to touch as well. Each
@@ -627,6 +800,50 @@ and the 7-day **cache-hit rate**, **average analysis duration** and **stage
 timings** that the old Models panel + System card showed are not on this layout.
 They are still in `GET /api/llm/usage` and `GET /api/ops`; folding the useful
 ones into the footer is a small additive change if they turn out to be missed.
+
+### Every meter debit names its cause: the usage journal
+
+`billing_usage` is a per-month **counter** — `qty = qty + ?` under
+`(org_id, meter, period)` — and it stays the only thing any gate, allowance or charge
+reads. Beside it, `billing_usage_journal` keeps **one row per debit**:
+`qty`, `from_included` (units drawn from the month's allowance; all of `qty` on an
+unlimited meter), `from_credits` (prepaid credits consumed — the magnitude of the
+`consumed` `billing_credits` delta the same debit wrote, clamped exactly as that delta
+is), `source_kind`, `source_ref` and `occurred_at`. Whatever was neither included nor
+credit-covered (an overrun past an empty balance) is `qty − from_included − from_credits`.
+
+- **Same transaction, same numbers.** `recordMeterUsage(meter, qty, now, workspace,
+  source?)` appends the row inside the transaction that increments the counter, from the
+  split it just computed, so the counter and its explanation commit or roll back
+  together. Invariant: for every `(org, meter, period)` the journal has existed in,
+  `SUM(journal.qty) = billing_usage.qty` — `journalIntegrity(orgId)` returns the pairs
+  where it does not hold (a counter from before the journal shipped shows up there with
+  its journaled share; the report is evidence, never a correction). One consequence to
+  know: a journal INSERT that throws now rolls the debit back with it — the amount is
+  never different, but five sites propagate that error and `offer-finalize.ts` logs it.
+- **The cause** (`USAGE_SOURCE_KINDS`, entitlements.ts): `analysis` (ref: the saved
+  analysis slug), `devcase_lifecycle` (ref null — the start route debits before the
+  lifecycle row exists, and moving the debit would change which failures are charged),
+  `devcase_redesign` (the lifecycle id), `interview_session` (the session id),
+  `job_post` (the job id), `hire` (the offer id), and `unattributed` for a caller that
+  passes no source, which journals rather than fails. The six production sites are
+  pinned to pass their kind by `app/_lib/billing/usage-journal.test.ts`.
+- **Duplicates are detected, never refused.** `duplicateUsageSources(orgId, period)`
+  lists a `(meter, kind, ref)` debited more than once (a retried completion, a
+  re-run publish); both debits still count. Refusing one would move money, which is a
+  separate, deliberate change — so is reserve-then-confirm (the gate→debit window in
+  entitlements.ts), for which this per-debit identity is the prerequisite.
+- **No reader yet, and no charge change.** Nothing in the UI or the API reads the
+  journal today (`listUsageJournalForOrg(orgId, period)` is the store read, capped at
+  1000 rows); `billingOverview` gains no key. The r05 charge-parity golden
+  (`__fixtures__/charge-parity.json`) reproduces byte-for-byte.
+- **Tenancy / export / erasure.** Org-keyed like its siblings: in the billing block of
+  the tenancy manifest's exempt list, exported with the org (`'org'`), and every
+  statement binds `org_id` (billing-tenancy.test.ts). **No personal data:** a row holds
+  a meter, quantities, a kind and an opaque record id (a random analysis slug, a session,
+  job, lifecycle or offer id) — never a name, email or free text. The record a ref
+  points at is erased by its own path; the journal row stays as the accounting record
+  of a charge, the same standing `billing_usage` has.
 
 ## Entitlement semantics (`entitlements.ts`)
 
@@ -715,6 +932,17 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
    (`product_id`/`product.id`, `customer_id`/`customer.id`, period fields).
    Confirm against the sandbox deliveries in `billing_events.payload_json` and
    tighten if Polar's shapes differ.
+7. Subscription reconcile (owed before `KP_BILLING_SUBSCRIPTION_RECONCILE=1` is set in
+   production; never exercised against a live provider yet). Against the sandbox, with
+   the flag set on a dev server: (a) with every sandbox subscription in step and
+   matching, a run records NO `subscription_drift` alert — any alert here is a parsing
+   defect, not drift; (b) confirm `GET /v1/subscriptions/{id}` returns `status`,
+   `product_id` (or `product.id`) and `current_period_end` where
+   `readProviderSubscription` reads them, under the `Polar-Version` you pin (if any);
+   (c) revoke one sandbox subscription in the dashboard with the webhook endpoint
+   disabled, run the pass, and see exactly one `missed_revocation` alert for it;
+   (d) re-enable the endpoint, let the revoke land, resolve the alert, and see the next
+   run stay silent. Only then set the flag in production.
 
 ## Tests
 
@@ -749,6 +977,30 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   not merely to mention it, which a cross-org `SELECT org_id, … WHERE plan = ?` would
   satisfy. `billingOrgForProviderRefs` is the one exemption and is named, because it
   is the resolver that looks ACROSS orgs to decide which org to scope to.
+  It also requires the alert reader's statements (`listBillingAlertsForOrg`,
+  `getBillingAlert`, `resolveBillingAlert`) to bind `org_id`, and names the only two
+  unscoped alert reads: the operator worklist and the dedupe probe.
+  It pins `billing_usage_journal` separately (its name slips past the `billing_usage`
+  word match): all four journal statements bind `org_id`, `journalIntegrity` on both
+  sides of its join.
+- `app/_lib/billing/usage-journal.test.ts` — the usage journal: one row per debit with
+  its split and cause, SUM(journal) = counter after the parity replay, `from_credits`
+  = the consumed credit delta, duplicates reported not refused, qty ≤ 0 writes nothing,
+  the six production sites' source kinds, cross-org isolation, and the charge-parity
+  GUARD.
+- `app/_lib/billing/alerts.test.ts` — the alert reader: org-filtered store, the
+  projection (detail withheld, price_drift and subscription_drift operator-only,
+  unknown kinds kept).
+- `app/_lib/billing/subscription-reconcile.test.ts` — the lost-webhook check: each
+  drift kind and each no-verdict case, skipped with zero fetches when the flag is unset,
+  under `KP_OFFLINE` or with no provider, the per-run bound, the flag-guarded clock
+  registration, one deduped operator alert per subscription, and the charge-parity
+  GUARD with every stored subscription reported drifted. `polar-gateway.test.ts` pins
+  the GET's wire shape with a stubbed fetch (no live Polar call anywhere).
+- `app/api/billing/billing-alerts-route.test.ts` — GET `alerts` + wire parity against
+  the golden, the resolve door's coded refusals, and the charge-parity GUARD replay.
+- `app/_lib/db/billing-alerts-migration.test.ts` — a pre-change DB gains the nullable
+  `resolution` column and keeps its legacy closed rows.
 
 ## Known gaps
 

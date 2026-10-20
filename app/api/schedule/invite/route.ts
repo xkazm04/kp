@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
@@ -11,6 +11,7 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
+import { entryContactability } from "@/app/_lib/comms-contactability";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -25,7 +26,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // The workspace is then threaded into getPipelineEntry: relying on its DEFAULT made
 // this route 404 for every non-default team and reachable across tenants for the
 // default one.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION, in lock-step with the bulk sibling (write-routes-check-a-capability).
@@ -36,7 +37,6 @@ export async function POST(request: NextRequest) {
   // refuse a read-only member with a code instead of sending the invitation.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const ws = await currentWorkspace();
   try {
     // Throttle per-IP so link-minting can't be used to flood the comms provider
     // (idea-3e49abaf); generous enough for any human recruiter, and a second line
@@ -65,6 +65,17 @@ export async function POST(request: NextRequest) {
     if (entry.status !== "active") {
       return jsonRefusal("SCHEDULE_INVITE_ENTRY_INACTIVE", 409);
     }
+    // THE SEND GATE, BEFORE THE MINT. A candidate whose consent has lapsed (but whom the
+    // sweep has not yet anonymized) still carries a contact, so this route used to mint a
+    // live link, hand the letter to sendComm, meet CommsSuppressedError in the swallowed
+    // catch below and answer 200 with the token — a working /schedule/<token> on the
+    // recruiter's copy panel for a person we may no longer write to. entryContactability
+    // asks commsSendSuppression the way sendComm will, so the refusal names the same
+    // reason the channel would. Only a CODED refusal stops the mint: an unaddressable
+    // person is not suppressed, and the copy panel is still their legitimate fallback.
+    // Verdict-then-mint holds no lock by design — sendComm re-checks at the send.
+    const contactable = entryContactability(entry, "schedule_invite");
+    if (!contactable.ok && contactable.code) return jsonRefusal(contactable.code, 409);
 
     const invite = createScheduleInvite({
       entryId: entry.id,
@@ -116,4 +127,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:schedule:invite", "SCHEDULE_INVITE_FAILED");
   }
-}
+});

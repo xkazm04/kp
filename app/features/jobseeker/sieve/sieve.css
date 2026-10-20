@@ -1,0 +1,4311 @@
+/*
+ * THE SIEVE — the /me flow's stylesheet (docs/features/jobseeker/README.md, "The flow").
+ *
+ * Ported from the contest winner `me-seeker-flow` A/2 "The Sieve" (2026-09-25) in the
+ * form the winner expressed it: gradients, dashed gaps, pseudo-element rails and
+ * colour-mix washes do not survive being approximated with utility classes, so this is
+ * a stylesheet, scoped under `.sv` so none of its short class names reach the rest of
+ * the app. Class names are the winner's own, which is what lets the style contract
+ * (contest skill, references/promotion.md) name the same role on both sides.
+ *
+ * FUSED WITH KP, never re-coloured by hand: every colour below resolves through the
+ * product's tokens (app/globals.css), so Spark Dark re-skins the flow with no second
+ * block — paper, ink, the stone ramp, coral as the accent, moss / dial-amber / steel as
+ * the three fit tiers, Fraunces (Bricolage after dark) as the display face, and the
+ * panel shadow that turns into a hard sticker offset in the dark register. The winner's
+ * one hue kp has no token for (the violet of "held at the door") is mixed from two brand
+ * tokens rather than introduced as a literal.
+ *
+ * The one kp law applied OVER the winner: nothing below 14px (docs/design/README.md,
+ * "Type & motion"). The winner's 12-13px labels are 14px here. Sizes are rem so the
+ * reader's root size carries through.
+ */
+
+.sv {
+  --sv-paper: var(--color-paper);
+  --sv-paper-2: var(--color-stone-100);
+  --sv-card: var(--color-white);
+  --sv-ink: var(--color-ink);
+  --sv-ink-2: color-mix(in srgb, var(--color-ink) 80%, var(--color-paper));
+  --sv-ink-3: color-mix(in srgb, var(--color-ink) 62%, var(--color-paper));
+  --sv-line: var(--color-stone-200);
+  --sv-line-2: var(--color-stone-300);
+  --sv-accent: var(--color-coral);
+  --sv-accent-ink: color-mix(in srgb, var(--color-coral) 76%, var(--color-ink));
+  --sv-accent-soft: var(--color-coralwash);
+  --sv-on-accent: var(--color-paper);
+  --sv-strong: var(--color-moss);
+  --sv-strong-soft: var(--color-limewash);
+  --sv-promising: var(--color-dial-amber);
+  --sv-promising-ink: color-mix(in srgb, var(--color-dial-amber) 58%, var(--color-ink));
+  --sv-promising-soft: color-mix(in srgb, var(--color-dial-amber) 24%, var(--color-white));
+  --sv-partial: var(--color-steel);
+  --sv-partial-soft: color-mix(in srgb, var(--color-steel) 16%, var(--color-white));
+  --sv-ok: var(--color-moss);
+  --sv-flag: var(--color-coral);
+  --sv-flag-ink: color-mix(in srgb, var(--color-coral) 80%, var(--color-ink));
+  --sv-unknown: var(--color-dial-stone);
+  --sv-held: color-mix(in srgb, var(--color-steel) 52%, var(--color-coral));
+  --sv-held-soft: color-mix(in srgb, var(--sv-held) 16%, var(--color-white));
+  --sv-caught: var(--color-dial-stone);
+  --sv-caught-soft: color-mix(in srgb, var(--color-dial-stone) 20%, var(--color-white));
+  --sv-caught-ink: color-mix(in srgb, var(--color-dial-stone) 55%, var(--color-ink));
+  --sv-serif: var(--font-serif);
+  --sv-sans: var(--font-sans);
+  --sv-mono: var(--font-me-mono), ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  /* The landing's hand-written voice (app/me/layout.tsx loads Shantell Sans): eyebrows,
+   * margin notes, the hero art's labels. Never for anything a reader must parse fast. */
+  --sv-hand: var(--font-me-hand), "Segoe Print", "Bradley Hand", cursive;
+  /* A chapter's breathing room: the landing's bands, not a workspace panel's padding. */
+  --sv-chapter-pad: clamp(56px, 7.5vh, 104px);
+  --sv-gutter: clamp(24px, 5vw, 88px);
+  /* The STICKER - the landing's ink outline and hard offset shadow. Kept for the flow's
+   * showpieces (the hero's drop, the top five, the art frames), in both registers: the
+   * ink token flips with the theme, so it is the landing's sticker on cream and Spark
+   * Dark's on ink. */
+  --sv-sticker-line: 2px solid var(--sv-ink);
+  --sv-sticker: 5px 5px 0 var(--sv-ink);
+  --sv-sticker-up: 8px 8px 0 var(--sv-ink);
+  --sv-rail-w: 248px;
+  --sv-top-h: 60px;
+  --sv-radius: 12px;
+  --sv-shadow: var(--panel-shadow);
+  --sv-scrim: var(--color-scrim);
+  /* The house focus ring (globals.css :where(...):focus-visible), named so a rule that
+   * paints its own box-shadow can COMPOSE with it instead of silently erasing it. */
+  --sv-ring: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-coral);
+  --sv-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+  font: 0.9375rem/1.5 var(--sv-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.sv *,
+.sv *::before,
+.sv *::after {
+  box-sizing: border-box;
+}
+.sv button,
+.sv input,
+.sv select,
+.sv textarea {
+  font: inherit;
+  color: inherit;
+}
+.sv button {
+  cursor: pointer;
+}
+.sv a {
+  color: var(--sv-accent-ink);
+}
+.sv .vh {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.sv .skip {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.sv .skip:focus {
+  left: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv *,
+  .sv *::before,
+  .sv *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- top bar ---------- */
+.sv .topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--sv-top-h);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--sv-paper) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--sv-line);
+}
+.sv .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sv-ink);
+  min-width: calc(var(--sv-rail-w) - 20px);
+  text-decoration: none;
+}
+.sv .brand-name {
+  font: 600 1.3125rem/1 var(--sv-serif);
+  letter-spacing: -0.01em;
+}
+.sv .who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .who .av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+}
+.sv .who b {
+  color: var(--sv-ink);
+  font-weight: 600;
+}
+.sv .top-tally {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.sv .top-tally b {
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-ink);
+}
+
+/* ---------- segmented pills (filters, ranges) ---------- */
+.sv .seg {
+  display: inline-flex;
+  background: var(--sv-paper-2);
+  border: 1px solid var(--sv-line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.sv .seg button {
+  border: 0;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.sv .seg button[aria-pressed="true"] {
+  background: var(--sv-card);
+  color: var(--sv-ink);
+  box-shadow: var(--sv-shadow);
+  font-weight: 600;
+}
+
+/* ---------- rail ---------- */
+.sv .rail {
+  position: fixed;
+  top: var(--sv-top-h);
+  left: 0;
+  bottom: 0;
+  width: var(--sv-rail-w);
+  padding: 22px 14px 12px 18px;
+  border-right: 1px solid var(--sv-line);
+  background: var(--sv-paper);
+  overflow-y: auto;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+.sv .rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.sv .rail ol::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--sv-line);
+}
+/* The thread: the accent runs down the connector to the step being read (SieveFrame
+   sets --sv-progress), under the number circles, which paint above it. */
+.sv .rail ol::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  width: 2px;
+  height: calc((100% - 28px) * var(--sv-progress, 0));
+  background: var(--sv-accent);
+  border-radius: 2px;
+  transition: height 0.6s var(--sv-ease);
+}
+.sv .rail li {
+  position: relative;
+}
+.sv .rail a.rs {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 2px 10px;
+  padding: 8px 8px 10px 0;
+  text-decoration: none;
+  color: var(--sv-ink-2);
+  border-radius: 10px;
+}
+.sv .rail a.rs:hover {
+  background: var(--sv-paper-2);
+}
+.sv .rail .num {
+  grid-row: span 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--sv-paper);
+  border: 2px solid var(--sv-line-2);
+  color: var(--sv-ink-3);
+  position: relative;
+  z-index: 1;
+  transition: background 0.25s, border-color 0.25s, color 0.25s;
+}
+.sv .rail .lbl {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--sv-ink);
+  line-height: 1.25;
+}
+.sv .rail .cnt {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+.sv .rail .bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--sv-paper-2);
+  margin-top: 4px;
+  position: relative;
+}
+.sv .rail .bar.gapbar {
+  background: transparent;
+  border: 1.5px dashed var(--sv-line-2);
+}
+.sv .rail .bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--sv-ink-2);
+  transition: width 0.6s var(--sv-ease);
+}
+.sv .rail li.reached .num {
+  border-color: var(--sv-ink);
+  color: var(--sv-ink);
+}
+.sv .rail li.done .num {
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-color: var(--sv-ink);
+}
+.sv .rail li.gap .lbl {
+  color: var(--sv-ink-3);
+  font-weight: 500;
+}
+.sv .rail li.gap .cnt {
+  font-style: italic;
+}
+.sv .rail li.gap .num {
+  border-style: dashed;
+}
+.sv .rail li.active a.rs {
+  background: var(--sv-card);
+  box-shadow: var(--sv-shadow);
+}
+.sv .rail li.active .num {
+  background: var(--sv-accent);
+  border-color: var(--sv-accent);
+  color: var(--sv-on-accent);
+}
+/* Two steps read in ONE section (SieveFrame railSection: "Your CV" + "You") light
+ * together and are drawn as one joined card: the seam loses its radius, and the second
+ * half's shadow is clipped at the seam so it cannot fall across the first. The first
+ * half's own shadow is left whole — the second half paints over it (a later positioned
+ * sibling), which keeps a hard offset shadow (Spark Dark) continuous down the seam.
+ * Only corners and shadow change — never padding — so the number circles and the
+ * connector line stay on their axis in every state. A focused item drops the clip so
+ * its ring is whole. */
+.sv .rail li.pair-start.active a.rs {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sv .rail li.pair-end.active a.rs {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  clip-path: inset(0 -40px -40px -40px);
+}
+.sv .rail li.active a.rs:focus-visible {
+  clip-path: none;
+}
+.sv .rail .bar.b-pass i {
+  background: var(--sv-partial);
+}
+.sv .rail .bar.b-worth i {
+  background: var(--sv-strong);
+}
+.sv .rail .bar.b-dec i {
+  background: var(--sv-accent);
+}
+.sv .rail-note {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid var(--sv-line);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  line-height: 1.4;
+}
+.sv .rail-note b {
+  color: var(--sv-ink);
+}
+.sv .rail-foot {
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sv .rail-links {
+  display: grid;
+  gap: 2px;
+  margin-top: 14px;
+  font-size: 0.875rem;
+}
+.sv .rail-links a {
+  color: var(--sv-ink-2);
+  text-decoration: none;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.sv .rail-links a:hover {
+  background: var(--sv-paper-2);
+  color: var(--sv-ink);
+}
+.sv .rail-links a[aria-current="page"] {
+  color: var(--sv-ink);
+  font-weight: 600;
+  background: var(--sv-card);
+  box-shadow: var(--sv-shadow);
+}
+/* ---------- main + steps ---------- */
+.sv .main {
+  margin-left: var(--sv-rail-w);
+  padding-top: var(--sv-top-h);
+}
+.sv .step {
+  /* The content column centres itself past 1280px, so a wide screen gets margins, not
+     1900px lines; the gutter is the floor under that. */
+  padding: var(--sv-chapter-pad) max(var(--sv-gutter), calc((100% - 1280px) / 2)) calc(var(--sv-chapter-pad) + 16px);
+  border-bottom: 1px solid var(--sv-line);
+  position: relative;
+  scroll-margin-top: var(--sv-top-h);
+}
+/* Surfaces: the chapters alternate like the landing's bands - paper, then a soft tint -
+   so the eye feels the chapter turn without a rule across the page. Both are the
+   theme's own tokens. */
+.sv .step[data-surface="tint"] {
+  background: var(--sv-paper-2);
+}
+.sv .step[data-surface="stage"] {
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-ink) 13%, transparent) 1px, transparent 1.6px) 0 0 / 22px 22px,
+    var(--sv-paper);
+}
+/* A full-screen chapter on a desktop tall enough to hold one: the flow turns page by page
+   (with the proximity snap below). The folded Arrive and anything on a phone stay the
+   height of their content. */
+@media (min-width: 1024px) and (min-height: 680px) {
+  .sv .step:not(.folded) {
+    min-height: calc(100svh - var(--sv-top-h));
+  }
+}
+.sv #s-you {
+  scroll-margin-top: calc(var(--sv-top-h) + 20px);
+}
+.sv .eyebrow {
+  font: 500 1.0625rem/1.3 var(--sv-hand);
+  color: var(--sv-accent-ink);
+  margin: 0 0 8px;
+}
+.sv h2 {
+  font: 600 clamp(34px, 1.1rem + 2.5vw, 56px) / 1.02 var(--sv-serif);
+  margin: 0;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.sv h3 {
+  font: 600 1.25rem/1.25 var(--sv-serif);
+  margin: 0 0 10px;
+}
+.sv h4 {
+  font: 600 0.9375rem/1.35 var(--sv-sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sv-ink-2);
+  margin: 0 0 12px;
+}
+.sv .lede {
+  color: var(--sv-ink-2);
+  font-size: 1.125rem;
+  line-height: 1.55;
+  margin: 14px 0 0;
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+/* A margin note in the landing's hand ("drop it here", "tap any card"): a voice beside
+   the work, never an instruction a reader needs. */
+.sv .hand-note {
+  font: 500 1.125rem/1.3 var(--sv-hand);
+  color: var(--sv-ink-2);
+  margin: 0;
+}
+
+/* ---------- chapters (ChapterHead.tsx) ----------
+ * The outlined numeral sits behind the head, the head overlapping its lower half - a
+ * magazine opening. Decoration only: aria-hidden, no pointer events. */
+.sv .chapter {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px clamp(18px, 2.4vw, 36px);
+  margin-bottom: clamp(28px, 4vh, 48px);
+}
+.sv .chapter-n {
+  align-self: start;
+  font: 700 clamp(72px, 2.4rem + 4.6vw, 140px) / 0.78 var(--sv-serif);
+  letter-spacing: -0.05em;
+  color: color-mix(in srgb, var(--sv-accent) 9%, transparent);
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--sv-accent) 62%, transparent);
+  margin-top: 0.04em;
+  user-select: none;
+  pointer-events: none;
+  font-variant-numeric: lining-nums;
+}
+.sv .chapter-copy {
+  position: relative;
+  min-width: 0;
+}
+.sv .chapter-sub {
+  margin-top: 14px;
+}
+.sv .chapter-aside {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ---------- snap + motion ----------
+ * PROXIMITY snap (never mandatory): a chapter that comes to rest near the top edge
+ * settles onto it, and a long chapter (the ranked list, the sources) scrolls freely
+ * through. Desktop only - a phone's momentum scroll and a snap point argue.
+ *
+ * Motion is CSS scroll-driven (animation-timeline: view()), so it needs no script and
+ * scrubs with the reader's own scroll. Two gates: a browser without scroll timelines and
+ * a reader who asked for reduced motion both get the finished page, because nothing is
+ * hidden outside the @supports + media block. Reveals are for LEAF elements - a head, a
+ * card - never a container holding a fixed or sticky overlay (a transform, even
+ * mid-animation, would become that overlay's containing block). */
+@media (min-width: 861px) {
+  html:has(.sv[data-snap="1"]) {
+    scroll-snap-type: y proximity;
+  }
+  .sv[data-snap="1"] .step {
+    scroll-snap-align: start;
+  }
+}
+@keyframes sv-rise {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+@keyframes sv-numeral {
+  from {
+    opacity: 0;
+    translate: -3% 26%;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+@keyframes sv-pop {
+  from {
+    opacity: 0;
+    scale: 0.94;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: none;
+  }
+}
+/* A card dealt onto the table: from below, turned, landing on its own tilt (the tilt is
+   the element's `rotate`, which the keyframes leave alone - they move `translate` and
+   `scale` only). */
+@keyframes sv-deal {
+  from {
+    opacity: 0;
+    translate: 0 60px;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+    scale: 1;
+  }
+}
+@keyframes sv-fill {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .sv .chapter-n {
+      animation: sv-numeral linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 42%;
+    }
+    .sv .chapter-copy {
+      animation: sv-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
+    }
+    .sv [data-rise] {
+      animation: sv-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 24%;
+    }
+    .sv [data-pop],
+    .sv .wants > .wcard.viewing {
+      animation: sv-pop linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 4%) cover calc(16% + var(--i, 0) * 3%);
+    }
+    .sv .dial-arc {
+      animation: sv-arc linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+    .sv .top5 > .tcard {
+      animation: sv-deal linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 5%) cover calc(18% + var(--i, 0) * 4%);
+    }
+    .sv .top5 > .tcard:nth-child(2) {
+      --i: 1;
+    }
+    .sv .top5 > .tcard:nth-child(3) {
+      --i: 2;
+    }
+    .sv .top5 > .tcard:nth-child(4) {
+      --i: 3;
+    }
+    .sv .top5 > .tcard:nth-child(5) {
+      --i: 4;
+    }
+    .sv .wants > .wcard:nth-child(2) {
+      --i: 1;
+    }
+    .sv .wants > .wcard:nth-child(3) {
+      --i: 2;
+    }
+    .sv .wants > .wcard:nth-child(4) {
+      --i: 1;
+    }
+    .sv .wants > .wcard:nth-child(5) {
+      --i: 2;
+    }
+    .sv .wants > .wcard:nth-child(6) {
+      --i: 3;
+    }
+    /* The reading progress under the top bar: the whole flow as one line. */
+    .sv[data-snap="1"] .topbar::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      background: var(--sv-accent);
+      transform-origin: 0 50%;
+      animation: sv-fill linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+.sv .muted {
+  color: var(--sv-ink-3);
+}
+.sv .small {
+  font-size: 0.875rem;
+}
+.sv .gapbox {
+  border: 2px dashed var(--sv-line-2);
+  border-radius: var(--sv-radius);
+  padding: 26px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--sv-ink-2);
+  background: color-mix(in srgb, var(--sv-paper-2) 50%, transparent);
+}
+.sv .gapbox strong {
+  color: var(--sv-ink);
+  font-size: 1.0625rem;
+}
+
+.sv .btn {
+  border: 1.5px solid var(--sv-ink);
+  background: var(--sv-card);
+  color: var(--sv-ink);
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: transform 0.15s, background 0.15s;
+}
+.sv .btn:hover {
+  transform: translateY(-1px);
+}
+.sv .btn.primary {
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+}
+.sv .btn.accent {
+  background: var(--sv-accent);
+  border-color: var(--sv-accent);
+  color: var(--sv-on-accent);
+}
+.sv .btn.ghost {
+  border-color: var(--sv-line-2);
+  font-weight: 500;
+}
+.sv .btn.sm {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+.sv .btn[disabled],
+.sv .btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+.sv .kbd {
+  font: 600 0.875rem/1 var(--sv-mono);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 2px 5px;
+  opacity: 0.8;
+}
+.sv .linkbtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--sv-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: inherit;
+}
+.sv .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-card);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  white-space: nowrap;
+}
+.sv button.chip:hover {
+  border-color: var(--sv-ink);
+}
+.sv .chip.t-strong {
+  background: var(--sv-strong-soft);
+  border-color: transparent;
+  color: var(--sv-strong);
+  font-weight: 700;
+}
+.sv .chip.t-promising {
+  background: var(--sv-promising-soft);
+  border-color: transparent;
+  color: var(--sv-promising-ink);
+  font-weight: 700;
+}
+.sv .chip.t-partial {
+  background: var(--sv-partial-soft);
+  border-color: transparent;
+  color: var(--sv-partial);
+  font-weight: 700;
+}
+.sv .chip.st-shortlisted {
+  background: var(--sv-accent-soft);
+  border-color: transparent;
+  color: var(--sv-accent-ink);
+  font-weight: 700;
+}
+.sv .chip.st-applied {
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-color: var(--sv-ink);
+  font-weight: 700;
+}
+.sv .chip.st-dismissed {
+  border-style: dashed;
+  color: var(--sv-ink-3);
+}
+.sv .chip.st-gone {
+  background: var(--sv-paper-2);
+  color: var(--sv-ink-3);
+  text-decoration: line-through;
+}
+.sv .chip.st-new {
+  border-color: var(--sv-accent);
+  color: var(--sv-accent-ink);
+  font-weight: 700;
+}
+.sv .chip.held {
+  border-color: var(--sv-held);
+  color: var(--sv-held);
+}
+/* Direction: where the posting sits against the seeker's STATED way (a preference, never
+ * a gate). Target = the accent and the bullseye; target field = a plain outline in ink;
+ * the past = dashed, because it is where they have been, not where they are going. */
+.sv .chip.dir-target {
+  background: var(--sv-accent-soft);
+  border-color: transparent;
+  color: var(--sv-accent-ink);
+  font-weight: 700;
+}
+.sv .chip.dir-family {
+  border-color: var(--sv-ink-2);
+  color: var(--sv-ink);
+  font-weight: 600;
+}
+.sv .chip.dir-past {
+  border-style: dashed;
+  color: var(--sv-ink-3);
+}
+.sv .tmark {
+  flex: none;
+  color: var(--sv-accent-ink);
+}
+.sv .fchip[aria-pressed="true"] .tmark {
+  color: inherit;
+}
+
+/* ---------- arrive: the hero ----------
+ * Composed like the landing's opening: the promise at display scale on the left, the
+ * Sieve drawn as a picture of itself on the right over a soft halo, the drop as a
+ * document slot (the landing's sticker), a margin note in the hand, the promise in
+ * numerals, and the three stops ahead on one drawn line. */
+.sv .step.hero {
+  display: grid;
+  align-content: center;
+  gap: clamp(36px, 6vh, 72px);
+  background:
+    radial-gradient(ellipse 52% 60% at 78% 42%, color-mix(in srgb, var(--sv-strong-soft) 80%, transparent), transparent 70%),
+    var(--sv-paper);
+}
+.sv .hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: clamp(24px, 4vw, 72px);
+  align-items: center;
+}
+.sv .hero .chapter {
+  display: block;
+  margin-bottom: 26px;
+}
+.sv .hero .chapter-n {
+  display: none;
+}
+.sv .hero h1 {
+  font: 600 clamp(40px, 0.6rem + 3.4vw, 72px) / 0.98 var(--sv-serif);
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-wrap: balance;
+}
+/* The payoff words: italic, in the accent, over a highlighter stroke - the landing's
+   underlined "autopilot", drawn with the theme's own amber so both registers carry it.
+   `clone` repeats the stroke on every line the phrase wraps onto. */
+.sv .hero h1 em {
+  font-style: italic;
+  color: var(--sv-accent-ink);
+  background: linear-gradient(
+    transparent 72%,
+    color-mix(in srgb, var(--sv-promising) 42%, transparent) 72%,
+    color-mix(in srgb, var(--sv-promising) 42%, transparent) 92%,
+    transparent 92%
+  );
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.06em;
+}
+.sv .hero .lede {
+  font-size: 1.1875rem;
+  max-width: 52ch;
+}
+.sv .drop-hint {
+  margin: 0 0 10px 6px;
+  rotate: -2deg;
+  width: max-content;
+}
+.sv .drop {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border: 2px dashed var(--sv-line-2);
+  border-radius: 18px;
+  padding: 22px 26px;
+  background: var(--sv-card);
+  position: relative;
+  transition:
+    translate 0.2s var(--sv-ease),
+    box-shadow 0.2s var(--sv-ease),
+    border-color 0.2s,
+    background 0.2s;
+}
+/* The hero's drop is the sticker: an ink-outlined slot on a hard shadow that lifts
+   toward the file as it comes near. */
+.sv .hero .drop {
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  padding: 24px 28px;
+}
+.sv .hero .drop:hover,
+.sv .hero .drop.over {
+  translate: -3px -3px;
+  box-shadow: var(--sv-sticker-up);
+}
+.sv .drop.over {
+  border-color: var(--sv-accent);
+  background: var(--sv-accent-soft);
+}
+.sv .drop-doc {
+  width: 46px;
+  flex: none;
+  transition:
+    rotate 0.35s var(--sv-ease),
+    translate 0.35s var(--sv-ease);
+}
+.sv .drop:hover .drop-doc,
+.sv .drop.over .drop-doc {
+  rotate: -9deg;
+  translate: 0 -5px;
+}
+.sv .drop-doc .doc-page {
+  fill: var(--sv-paper);
+  stroke: var(--sv-ink);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.sv .drop-doc .doc-fold {
+  fill: none;
+  stroke: var(--sv-ink);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.sv .drop-doc .doc-lines {
+  stroke: var(--sv-accent);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+}
+.sv .drop-words {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.sv .drop .big {
+  font: 600 1.5rem/1.15 var(--sv-serif);
+  letter-spacing: -0.01em;
+}
+.sv .drop input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.sv .drop .note {
+  font-size: 0.9375rem;
+  color: var(--sv-ink-3);
+}
+.sv .drop .note.warn {
+  color: var(--sv-accent-ink);
+  font-weight: 600;
+}
+.sv .drop.compact {
+  padding: 16px 22px;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.sv .drop.compact .big {
+  font-size: 1.1875rem;
+}
+.sv .stages {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+.sv .stages li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.9375rem;
+  color: var(--sv-ink-3);
+}
+.sv .stages li.on {
+  color: var(--sv-ink);
+  font-weight: 600;
+}
+.sv .stages li.ok {
+  color: var(--sv-ok);
+}
+.sv .stages .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.sv .stages li.on .dot {
+  border-style: dashed;
+  animation: sv-spin 1.4s linear infinite;
+}
+@keyframes sv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* The promise in numerals: display figures over their words, set apart by hairlines. */
+.sv .promise {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  justify-content: start;
+  gap: 0;
+  margin: 30px 0 0;
+}
+.sv .promise > div {
+  display: flex;
+  flex-direction: column-reverse;
+  /* column-reverse: flex-END is the top, so every figure sits on one line whatever its
+     words wrap to. */
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 26px;
+  border-left: 1px solid var(--sv-line-2);
+  max-width: 220px;
+}
+.sv .promise > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.sv .promise dt {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: var(--sv-ink-3);
+}
+.sv .promise dd {
+  margin: 0;
+  font: 600 2.75rem/0.9 var(--sv-serif);
+  letter-spacing: -0.03em;
+  color: var(--sv-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* the hero art (SieveArt.tsx) */
+.sv .hero-art {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+.sv .sieve-art {
+  width: min(100%, 620px);
+  height: auto;
+  overflow: visible;
+}
+.sv .sieve-art .art-halo {
+  fill: color-mix(in srgb, var(--sv-strong-soft) 90%, var(--sv-paper));
+}
+.sv .sieve-art .art-body {
+  fill: var(--sv-card);
+}
+.sv .sieve-art .art-mesh {
+  fill: none;
+  stroke: color-mix(in srgb, var(--sv-ink) 16%, transparent);
+  stroke-width: 1.2;
+}
+.sv .sieve-art .art-wall,
+.sv .sieve-art .art-rim,
+.sv .sieve-art .art-tray {
+  fill: none;
+  stroke: var(--sv-ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sv .sieve-art .art-rim {
+  fill: color-mix(in srgb, var(--sv-card) 70%, transparent);
+}
+.sv .sieve-art .art-tray {
+  fill: var(--sv-card);
+  stroke-width: 4;
+}
+.sv .sieve-art .art-dot.caught {
+  fill: var(--sv-caught);
+  stroke: var(--sv-card);
+  stroke-width: 2;
+}
+.sv .sieve-art .art-dot.strong {
+  fill: var(--sv-strong);
+}
+.sv .sieve-art .art-dot.promising {
+  fill: var(--sv-promising);
+}
+.sv .sieve-art .art-glow {
+  opacity: 0.28;
+}
+.sv .sieve-art .art-glow.strong {
+  fill: var(--sv-strong);
+}
+.sv .sieve-art .art-glow.promising {
+  fill: var(--sv-promising);
+}
+.sv .sieve-art .art-note text {
+  font: 500 20px var(--sv-hand);
+  fill: var(--sv-ink-2);
+}
+.sv .sieve-art .art-note .art-few {
+  fill: var(--sv-accent-ink);
+  font-weight: 600;
+}
+.sv .sieve-art .art-arrow {
+  fill: none;
+  stroke: var(--sv-ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 5 6;
+}
+/* The rain: every dot rests at its FINAL place in the markup and falls into it from
+   above, then fades so the next shower can come. Transition-gated only - the still
+   composition is the reduced-motion page. */
+@media (prefers-reduced-motion: no-preference) {
+  .sv .sieve-art .art-dot.caught {
+    animation: sv-rain 6.4s var(--sv-ease) infinite;
+    animation-delay: calc(var(--i) * 0.11s);
+  }
+  .sv .sieve-art .art-pass {
+    animation: sv-rain-through 6.4s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+    animation-delay: calc(1.5s + var(--i) * 0.22s);
+  }
+}
+@keyframes sv-rain {
+  0% {
+    translate: 0 var(--from);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  34% {
+    translate: 0 0;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 0;
+  }
+}
+@keyframes sv-rain-through {
+  0% {
+    translate: 0 var(--from);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  46% {
+    translate: 0 0;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 0;
+  }
+}
+
+/* The three stops ahead, on one drawn line. */
+.sv .ahead-title {
+  font: 500 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0 0 14px;
+}
+.sv .ahead ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  position: relative;
+}
+.sv .ahead ol::before {
+  content: "";
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  top: 50%;
+  border-top: 2px dashed var(--sv-line-2);
+}
+.sv .ahead-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 14px 18px 14px 14px;
+  border-radius: 16px;
+  border: 1.5px solid var(--sv-line);
+  background: var(--sv-card);
+  box-shadow: var(--sv-shadow);
+}
+.sv .ahead-n {
+  grid-row: span 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 700 1.125rem var(--sv-serif);
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+}
+.sv .ahead-t {
+  font: 600 1.1875rem/1.2 var(--sv-serif);
+}
+.sv .ahead-s {
+  font-size: 0.9375rem;
+  color: var(--sv-ink-3);
+}
+
+/* ---------- arrive: folded (a CV is in) ---------- */
+.sv .step.folded {
+  padding-top: clamp(28px, 4vh, 44px);
+  padding-bottom: clamp(28px, 4vh, 44px);
+  background: var(--sv-paper-2);
+}
+.sv .step.folded h2 {
+  font-size: clamp(26px, 1rem + 1.2vw, 34px);
+}
+.sv .arrived-row {
+  display: flex;
+  gap: 18px 28px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sv .drop-actions {
+  margin-top: 16px;
+}
+.sv .arrived-drop {
+  flex: 1;
+  min-width: 300px;
+}
+.sv .arrived-id {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.sv .arrived-id .av {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  display: grid;
+  place-items: center;
+  font: 600 1.3125rem var(--sv-serif);
+  box-shadow:
+    0 0 0 4px var(--sv-paper-2),
+    0 0 0 6px var(--sv-accent);
+}
+.sv .arrived-id .eyebrow {
+  margin-bottom: 2px;
+}
+
+/* ---------- cv + you ---------- */
+.sv .cvwrap {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+  gap: 36px;
+  align-items: start;
+}
+/* The sheet column runs the row's full height, so the sheet (with its actions - they
+   stick TOGETHER) stays in view down the whole "You" column. Sticky on the sheet alone,
+   in a cell only as tall as sheet + actions, could travel just far enough to land on
+   the "Polish my CV" button under it. */
+.sv .cvwrap > :first-child {
+  align-self: stretch;
+}
+.sv .sheet-stick {
+  position: sticky;
+  top: calc(var(--sv-top-h) + 20px);
+}
+.sv .ai-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--sv-paper-2);
+  color: var(--sv-ink-2);
+  font-size: 0.875rem;
+}
+.sv .ai-note svg {
+  flex: none;
+}
+.sv .sheet {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--sv-ink) 10%, transparent),
+    0 22px 48px -22px color-mix(in srgb, var(--sv-ink) 38%, transparent);
+  padding: 34px 34px 38px;
+  font-family: var(--sv-serif);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--sv-ink-2);
+  /* Room under it for the actions row (~52px) inside the viewport. */
+  max-height: calc(100vh - var(--sv-top-h) - 100px);
+  overflow: auto;
+}
+.sv .sheet .l-name {
+  font-size: 1.5rem;
+  color: var(--sv-ink);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.sv .sheet .l-line {
+  margin: 0 0 3px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.sv .sheet .l-sec {
+  font: 700 0.875rem/1 var(--sv-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sv-ink-3);
+  margin: 18px 0 8px;
+  border-bottom: 1px solid var(--sv-line);
+  padding-bottom: 6px;
+}
+.sv .sheet-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.sv .hl {
+  border-radius: 3px;
+  padding: 0 2px;
+  transition: background 0.35s, box-shadow 0.35s, color 0.35s;
+}
+.sv .hl.lit {
+  background: color-mix(in srgb, var(--color-dial-amber) 45%, var(--sv-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-dial-amber) 45%, var(--sv-card));
+  color: var(--sv-ink);
+}
+.sv .hl.done {
+  background: transparent;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--color-dial-amber) 70%, var(--sv-card));
+}
+.sv .flyer {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--color-dial-amber) 45%, var(--sv-card));
+  color: var(--sv-ink);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font: 600 0.875rem/1.4 var(--sv-sans);
+  white-space: nowrap;
+  box-shadow: var(--sv-shadow);
+}
+
+.sv .you {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.sv .you-id {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 22px;
+  align-items: center;
+}
+.sv .you-id .av {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  display: grid;
+  place-items: center;
+  font: 600 2.125rem var(--sv-serif);
+  box-shadow:
+    0 0 0 5px var(--sv-paper-2),
+    0 0 0 7px var(--sv-accent);
+}
+.sv .you-id .nm {
+  font: 600 clamp(34px, 1.2rem + 1.6vw, 46px) / 1.02 var(--sv-serif);
+  letter-spacing: -0.025em;
+}
+.sv .you-id .role {
+  font-size: 1.125rem;
+  color: var(--sv-ink-2);
+  margin-top: 8px;
+}
+/* The facts as a strip of figures between hairlines - read at a glance, not opened. */
+.sv .facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  border-top: 1px solid var(--sv-line-2);
+  border-bottom: 1px solid var(--sv-line-2);
+}
+.sv .fact {
+  padding: 14px 16px 16px;
+  border-left: 1px solid var(--sv-line);
+  min-width: 0;
+}
+.sv .fact:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.sv .fact .k {
+  font: 500 0.9375rem/1.3 var(--sv-hand);
+  color: var(--sv-ink-3);
+}
+.sv .fact .v {
+  font: 600 1.1875rem/1.25 var(--sv-serif);
+  color: var(--sv-ink);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.sv .fact .v .muted {
+  font-weight: 400;
+}
+.sv .fact .v2 {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .fact .v2 b {
+  color: var(--sv-ink-2);
+  font-weight: 600;
+}
+.sv .arch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sv-accent);
+  color: var(--sv-on-accent);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.sv .pending {
+  opacity: 0;
+  transform: scale(0.94);
+}
+.sv .arrived {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.45s var(--sv-ease), transform 0.45s var(--sv-ease);
+}
+
+.sv .mesh {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.sv .tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  background: var(--sv-card);
+  color: var(--sv-ink);
+  line-height: 1.1;
+  padding: 8px 12px;
+  border: 1.5px solid var(--sv-ink);
+  transition: transform 0.2s var(--sv-ease), box-shadow 0.2s;
+}
+.sv .tile:hover {
+  transform: translateY(-1px);
+}
+.sv .tile[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px var(--sv-accent-soft);
+  border-color: var(--sv-accent);
+}
+.sv .tile.lv1 {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.sv .tile.lv2 {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 10px 14px;
+}
+.sv .tile.lv3 {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  padding: 12px 16px;
+}
+.sv .tile.lv4 {
+  font-size: 1.375rem;
+  font-weight: 800;
+  padding: 14px 18px;
+}
+.sv .tile.m-solid {
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-color: var(--sv-ink);
+}
+.sv .tile.m-half {
+  background: linear-gradient(90deg, var(--sv-paper-2) 0 50%, var(--sv-card) 50%);
+  border-color: var(--sv-ink-2);
+}
+.sv .tile.m-ring {
+  background: transparent;
+  border: 1.5px solid var(--sv-ink-2);
+}
+.sv .tile.m-dashed {
+  background: transparent;
+  border: 2px dashed var(--sv-unknown);
+  color: var(--sv-ink-2);
+  font-style: italic;
+  font-weight: 500;
+}
+.sv .tile .tag {
+  font: 700 0.875rem/1 var(--sv-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-style: normal;
+  color: var(--sv-ink-3);
+  border: 1px dashed var(--sv-unknown);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.sv .tile.dim {
+  opacity: 0.28;
+}
+.sv .pmark {
+  flex: none;
+}
+.sv .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+.sv .legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--sv-line);
+  background: var(--sv-card);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .legend button[aria-pressed="true"] {
+  border-color: var(--sv-ink);
+  color: var(--sv-ink);
+  font-weight: 600;
+}
+.sv .skill-detail {
+  margin-top: 12px;
+  border-left: 3px solid var(--sv-accent);
+  padding: 8px 14px;
+  background: var(--sv-card);
+  border-radius: 0 10px 10px 0;
+  font-size: 0.875rem;
+}
+.sv .timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 4px;
+}
+.sv .timeline li {
+  position: relative;
+  padding: 0 0 12px 30px;
+}
+.sv .timeline li::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  background: var(--sv-line);
+}
+.sv .timeline li:last-child::before {
+  display: none;
+}
+.sv .timeline .dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+}
+.sv .timeline details summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: var(--sv-ink);
+}
+.sv .timeline details summary::-webkit-details-marker {
+  display: none;
+}
+.sv .timeline details summary .kind {
+  font: 500 0.9375rem var(--sv-hand);
+  color: var(--sv-ink-3);
+  margin-right: 8px;
+}
+.sv .timeline details p {
+  margin: 6px 0 4px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  max-width: 70ch;
+}
+.sv .timeline li.hit summary {
+  color: var(--sv-accent-ink);
+}
+.sv .timeline .ev-skills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.sv .honest {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.sv .honest .h {
+  border: 1px solid var(--sv-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--sv-card);
+  font-size: 0.875rem;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.sv .honest .h b {
+  display: block;
+  color: var(--sv-ink);
+}
+.sv .momentum {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-radius: 18px;
+  padding: 22px 26px;
+  flex-wrap: wrap;
+  box-shadow: 6px 6px 0 var(--sv-accent);
+}
+.sv .momentum .n {
+  font: 600 2.75rem/1 var(--sv-serif);
+  letter-spacing: -0.02em;
+}
+.sv .momentum .btn {
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+  border-color: var(--sv-paper);
+}
+
+/* ---------- wants ---------- */
+/* A bento: four columns, the long-valued cards (titles, languages) span two. */
+.sv .wants {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.sv .wcard.wide {
+  grid-column: span 2;
+}
+.sv .wcard {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  box-shadow: var(--sv-shadow);
+  transition:
+    box-shadow 0.3s,
+    border-color 0.3s,
+    translate 0.25s var(--sv-ease);
+}
+.sv .wcard.viewing:hover {
+  translate: 0 -3px;
+}
+.sv .wicon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--sv-accent-soft);
+  color: var(--sv-accent-ink);
+}
+/* Two layers (WantCard.tsx). VIEW: the value, large; the whole card is its button (the
+   button's ::after covers the card, so a click anywhere opens it). EDIT: the controls on
+   a draft, with Cancel / Done at the foot. */
+.sv .wcard.viewing {
+  position: relative;
+  cursor: pointer;
+}
+.sv .wcard.viewing:hover,
+.sv .wcard.viewing:has(.wview:focus-visible) {
+  border-color: var(--sv-accent);
+}
+.sv .wcard.viewing:has(.wview:focus-visible) {
+  box-shadow: 0 0 0 3px var(--sv-accent-soft);
+}
+.sv .wcard.editing {
+  border-color: var(--sv-ink);
+}
+.sv .wview {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 72px;
+}
+.sv .wview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+}
+.sv .wval {
+  font: 600 1.625rem/1.2 var(--sv-serif);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-ink);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sv .wval.none {
+  color: var(--sv-ink-3);
+}
+.sv .wsub {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .wgo {
+  align-self: flex-start;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sv-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sv .wedit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sv .wdone {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sv .langs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sv .langrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sv .langrow select,
+.sv .payrow input[type="number"] {
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.875rem;
+}
+.sv .payrow input[type="number"] {
+  width: 128px;
+  font-variant-numeric: tabular-nums;
+}
+.sv .wcard.filling {
+  border-color: var(--sv-accent);
+  box-shadow: 0 0 0 3px var(--sv-accent-soft);
+}
+.sv .wcard .wh {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 1px;
+  align-items: center;
+}
+.sv .wcard .wh .wicon {
+  grid-row: span 2;
+}
+.sv .wcard .wh h3 {
+  margin: 0;
+  font-size: 1.1875rem;
+  line-height: 1.2;
+}
+.sv .wcard .wh > .small {
+  grid-column: 2;
+  line-height: 1.3;
+}
+.sv .wcard .wh:not(:has(.wicon)) > .small {
+  grid-column: 1 / -1;
+}
+.sv .said {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  border-top: 1px dashed var(--sv-line);
+  padding-top: 8px;
+  margin-top: auto;
+}
+.sv .tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.sv .token {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sv-paper-2);
+  border: 1px solid var(--sv-line);
+  border-radius: 999px;
+  padding: 5px 6px 5px 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.sv .token.ro {
+  padding-right: 12px;
+}
+.sv .token button {
+  border: 0;
+  background: var(--sv-card);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.9375rem;
+  line-height: 1;
+  color: var(--sv-ink-2);
+}
+.sv .token.pin::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--sv-accent);
+  margin-right: 2px;
+}
+.sv .token.country {
+  text-transform: uppercase;
+}
+.sv .addin {
+  display: flex;
+  gap: 6px;
+}
+.sv .addin input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+.sv .pay-big {
+  font: 600 2rem/1 var(--sv-serif);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.sv .pay-big small {
+  font: 500 0.9375rem var(--sv-sans);
+  color: var(--sv-ink-3);
+}
+.sv .pay-big.nofloor {
+  color: var(--sv-flag-ink);
+}
+.sv input[type="range"] {
+  width: 100%;
+  accent-color: var(--sv-accent);
+  height: 28px;
+}
+.sv .payrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.sv .payrow select {
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.875rem;
+}
+.sv .rule {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.sv .rule.warn {
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+.sv .toggles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sv .toggles button,
+.sv .levels button {
+  border: 1.5px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--sv-ink-2);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.sv .toggles button[aria-pressed="true"],
+.sv .levels button[aria-checked="true"] {
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-color: var(--sv-ink);
+}
+/* The option's detail ("from anywhere", "a few years in") is its own line under the
+   label, quieter by weight - without this rule it ran into the label ("Remotefrom
+   anywhere"). */
+.sv .toggles button > span,
+.sv .levels button > span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+/* Two by two: four columns do not fit a want card (a ~330px card cut the fourth
+   level off). */
+.sv .levels {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+  border: 1.5px solid var(--sv-line-2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.sv .levels button {
+  border: 0;
+  border-radius: 0;
+}
+.sv .levels button:nth-child(odd) {
+  border-right: 1px solid var(--sv-line);
+}
+.sv .levels button:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--sv-line);
+}
+.sv .want-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.sv .edited {
+  border: 1.5px solid var(--sv-promising);
+  background: var(--sv-promising-soft);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sv .confirmed {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--sv-ok);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* ---------- sieve ---------- */
+.sv .sieve-stage {
+  position: relative;
+  background: var(--sv-card);
+  /* The stage is the flow's showpiece: the landing's sticker, as the hero's drop is. */
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  border-radius: 22px;
+  overflow: hidden;
+}
+.sv .sieve-stage svg {
+  display: block;
+  width: 100%;
+}
+.sv .layer-lbl {
+  position: absolute;
+  left: 20px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.sv .layer-lbl .ln {
+  font: 600 2.125rem/1 var(--sv-serif);
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2ch;
+}
+.sv .layer-lbl .lt {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--sv-ink);
+  line-height: 1.25;
+}
+.sv .layer-lbl .ls {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.sv .layer-lbl .lb {
+  margin-top: 6px;
+  margin-right: 4px;
+}
+.sv .layer-lbl.door .ln {
+  color: var(--sv-held);
+}
+.sv .layer-lbl.gate .ln {
+  color: var(--sv-caught-ink);
+}
+.sv .layer-lbl.wait .ln {
+  color: var(--sv-ink-3);
+}
+.sv .layer-lbl.field .ln {
+  color: var(--sv-strong);
+}
+.sv .layer-lbl.hop .ln {
+  color: var(--sv-ink);
+}
+.sv .sieve-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  align-items: center;
+}
+.sv .sieve-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.sv .sieve-legend .k-held {
+  background: var(--sv-held);
+}
+.sv .sieve-legend .k-caught {
+  background: var(--sv-caught);
+}
+.sv .sieve-legend .k-double {
+  background: var(--sv-caught);
+  box-shadow: 0 0 0 2px var(--sv-card), 0 0 0 3.5px var(--sv-ink-2);
+}
+.sv .sieve-legend .k-ghost {
+  background: transparent;
+  border: 1.5px dashed var(--sv-ink-3);
+}
+.sv .sieve-legend .k-wait {
+  background: transparent;
+  border: 1.5px solid var(--sv-ink-3);
+}
+.sv .sieve-legend .k-strong {
+  background: var(--sv-strong);
+}
+.sv .sieve-legend .k-promising {
+  background: var(--sv-promising);
+}
+.sv .sieve-legend .k-partial {
+  background: var(--sv-partial);
+}
+.sv .funnel-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.9375rem;
+  margin-top: 16px;
+}
+.sv .funnel-line b {
+  font: 600 1.375rem/1 var(--sv-serif);
+  font-variant-numeric: tabular-nums;
+}
+.sv .funnel-line .arr {
+  color: var(--sv-ink-3);
+}
+.sv .scanline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .catch-panel {
+  margin-top: 18px;
+  border: 1px solid var(--sv-line);
+  border-radius: 16px;
+  background: var(--sv-card);
+  padding: 18px 20px;
+}
+.sv .catch-panel .cp-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.sv .catch-list {
+  max-height: 420px;
+  overflow: auto;
+  border-top: 1px solid var(--sv-line);
+}
+.sv .crow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--sv-line);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.sv button.crow:hover {
+  background: var(--sv-paper);
+}
+.sv .crow .t {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  display: block;
+}
+.sv .crow .m {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  display: block;
+}
+.sv .crow .gates {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.sv .gchip {
+  font-size: 0.875rem;
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--sv-caught-soft);
+  color: var(--sv-caught-ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sv .gchip.held {
+  background: var(--sv-held-soft);
+  color: var(--sv-held);
+}
+.sv .asif {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  text-align: right;
+  white-space: nowrap;
+}
+.sv .asif b {
+  font: 600 1.25rem var(--sv-serif);
+  color: var(--sv-ink-2);
+  border: 1.5px dashed var(--sv-line-2);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+.sv #sieveSvg circle.d {
+  cursor: pointer;
+}
+.sv .d-held {
+  fill: var(--sv-held);
+}
+.sv .d-gated {
+  fill: var(--sv-caught);
+}
+.sv .d-wait {
+  fill: var(--sv-card);
+  stroke: var(--sv-ink-3);
+  stroke-width: 1.4;
+}
+.sv .d-double {
+  stroke: var(--sv-ink-2);
+  stroke-width: 1.4;
+}
+.sv .d-strong {
+  fill: var(--sv-strong);
+}
+.sv .d-promising {
+  fill: var(--sv-promising);
+}
+.sv .d-partial {
+  fill: var(--sv-partial);
+}
+.sv .d-top {
+  stroke: var(--sv-ink);
+  stroke-width: 1.6;
+}
+.sv .d-gone {
+  fill: var(--sv-card);
+  stroke: var(--sv-ink-3);
+  stroke-dasharray: 2 1.5;
+}
+
+/* ---------- evening ---------- */
+.sv .lift {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+.sv .lift .lk {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sv-ink);
+  margin-right: 4px;
+}
+.sv .notice.ev-note {
+  margin: 0 0 18px;
+}
+.sv .honest-top {
+  border-left: 4px solid var(--sv-partial);
+  background: var(--sv-card);
+  padding: 12px 16px;
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 18px;
+  font-size: 1rem;
+}
+.sv .honest-top b {
+  font-family: var(--sv-serif);
+  font-size: 1.1875rem;
+}
+.sv .skyline-wrap {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 18px;
+  padding: 16px 16px 10px;
+}
+.sv .sky-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.sv .sky-head h3 {
+  margin: 0;
+}
+.sv .prow .pt {
+  min-width: 0;
+}
+.sv .sky-head .seg button {
+  font-size: 0.875rem;
+  padding: 5px 12px;
+}
+.sv .skyline {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.sv .sky-sel {
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+/* The top five as a HAND OF CARDS, dealt: the landing's stickers, each tilted a little
+   off true and straightening as the pointer reaches it. The first card carries the
+   accent. On a wide screen the five sit in one row; they wrap to fit below that. */
+.sv .top5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+  margin: 30px 0 36px;
+  padding-top: 14px;
+}
+.sv .tcard {
+  background: var(--sv-card);
+  border: var(--sv-sticker-line);
+  border-radius: 18px;
+  padding: 22px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  text-align: left;
+  min-width: 0;
+  box-shadow: var(--sv-sticker);
+  rotate: -1.2deg;
+  transition:
+    rotate 0.3s var(--sv-ease),
+    translate 0.3s var(--sv-ease),
+    box-shadow 0.3s var(--sv-ease);
+}
+.sv .top5 > .tcard:nth-child(even) {
+  rotate: 1deg;
+}
+.sv .top5 > .tcard:nth-child(3n) {
+  rotate: -0.5deg;
+}
+.sv .top5 > .tcard:first-child {
+  background: color-mix(in srgb, var(--sv-accent-soft) 55%, var(--sv-card));
+  box-shadow: 5px 5px 0 var(--sv-accent);
+}
+.sv .tcard:hover,
+.sv .tcard:focus-visible {
+  rotate: 0deg;
+  translate: 0 -4px;
+  box-shadow: var(--sv-sticker-up);
+}
+.sv .top5 > .tcard:first-child:hover {
+  box-shadow: 8px 8px 0 var(--sv-accent);
+}
+.sv .tcard .rk {
+  position: absolute;
+  top: -16px;
+  left: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-radius: 999px;
+  font: 700 1rem var(--sv-serif);
+  box-shadow: 0 0 0 3px var(--sv-paper);
+}
+.sv .top5 > .tcard:first-child .rk {
+  background: var(--sv-accent);
+  color: var(--sv-on-accent);
+}
+.sv .tcard .flagged {
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  background: var(--sv-accent);
+  color: var(--sv-on-accent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font: 700 0.875rem var(--sv-sans);
+}
+.sv .tcard .tt {
+  font: 600 1.125rem/1.22 var(--sv-serif);
+  color: var(--sv-ink);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.sv .tcard .meta {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .tcard .dirmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sv-accent-ink);
+}
+/* Inline in the title: the preflight sets every svg to display:block, which had put the
+   mark on a line of its own above each target posting's title. */
+.sv .prow .t .tmark {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 2px;
+}
+.sv .scoreline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sv .scoreline .sc {
+  font: 600 1.875rem/1 var(--sv-serif);
+  font-variant-numeric: tabular-nums;
+}
+.sv .scoreline .band {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  line-height: 1.25;
+}
+.sv .skl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sv .sk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.875rem;
+  padding: 2px 8px 2px 5px;
+  border-radius: 999px;
+  background: var(--sv-paper-2);
+  color: var(--sv-ink);
+}
+.sv .sk.st {
+  font-style: italic;
+  background: transparent;
+  border: 1px dashed var(--sv-unknown);
+  color: var(--sv-ink-2);
+}
+.sv .sk.miss {
+  background: transparent;
+  border: 1px solid var(--sv-flag);
+  color: var(--sv-flag-ink);
+  padding-left: 8px;
+}
+.sv .sk.unp {
+  background: transparent;
+  border: 1px dashed var(--sv-promising);
+  color: var(--sv-promising-ink);
+  padding-left: 8px;
+}
+.sv .cardfoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+.sv .pay {
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .pips {
+  display: inline-flex;
+  gap: 4px;
+}
+.sv .pip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 700 0.875rem/1 var(--sv-sans);
+  flex: none;
+}
+.sv .pip.ok {
+  background: var(--sv-ok);
+  color: var(--sv-paper);
+}
+.sv .pip.flag {
+  background: var(--sv-flag);
+  color: var(--sv-paper);
+  border-radius: 5px;
+}
+.sv .pip.unknown {
+  background: transparent;
+  border: 1.5px dashed var(--sv-unknown);
+  color: var(--sv-ink-3);
+}
+.sv .pip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  align-items: center;
+}
+.sv .pip-legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.sv .pip-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+.sv .sw-strong {
+  background: var(--sv-strong);
+}
+.sv .sw-promising {
+  background: var(--sv-promising);
+}
+.sv .sw-partial {
+  background: var(--sv-partial);
+}
+
+.sv .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.sv .filters input[type="search"] {
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-card);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-width: 220px;
+  font-size: 0.9375rem;
+}
+.sv .filters select {
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-card);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.875rem;
+}
+.sv .fchips {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sv .fchip {
+  border: 1.5px solid var(--sv-line-2);
+  background: var(--sv-card);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.sv .fchip[aria-pressed="true"] {
+  border-color: var(--sv-ink);
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+}
+.sv .fchip .c {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.sv .list-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.sv .plist {
+  border: 1px solid var(--sv-line);
+  border-radius: 16px;
+  background: var(--sv-card);
+  max-height: 640px;
+  overflow: auto;
+  /* A containing block of its own: the rows' visually-hidden labels (.vh) are absolutely
+     positioned, and with a static list their containing block was the chapter - OUTSIDE
+     this scroll box, so they escaped its clip and sat at their unscrolled places, 27,000
+     px down: a 1,124-row list stretched the page to 32,000 px of blank. */
+  position: relative;
+}
+.sv .prow {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 150px 150px 128px 110px;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--sv-line);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.sv button.prow:hover {
+  background: var(--sv-paper);
+}
+.sv .prow.cur {
+  background: var(--sv-accent-soft);
+}
+.sv .prow .rk {
+  font: 600 1rem var(--sv-serif);
+  color: var(--sv-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.sv .prow .t {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--sv-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sv .prow .m {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sv .prow .bnd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sv .prow .bnd b {
+  font: 600 1.125rem var(--sv-serif);
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+}
+.sv .prow .when {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .plist-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sv-paper-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sv-ink-3);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.sv .empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--sv-ink-2);
+}
+
+/* ---------- weigh ---------- */
+.sv .weigh {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.9fr);
+  gap: 28px;
+  align-items: start;
+}
+/* Weigh's head: the chapter head, with the prev / next / back controls on its right. A
+   posting's title is long ("AI Engineer (m/w/d) (IT-Systemadministrator/in)"), so its
+   heading runs a step smaller than a chapter's. */
+.sv .w-head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  margin-bottom: clamp(24px, 3.5vh, 40px);
+}
+.sv .w-head .chapter {
+  margin-bottom: 0;
+}
+.sv .w-head .w-nav {
+  justify-content: flex-end;
+}
+.sv #s-weigh h2 {
+  font-size: clamp(30px, 1rem + 1.7vw, 46px);
+  line-height: 1.06;
+}
+.sv .w-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+.sv .w-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .panel {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: var(--sv-shadow);
+}
+/* The score as a dial (ScoreDial.tsx): the track, the band as a wide soft arc, the score
+   as the tier's colour, the number at display size in the middle. */
+.sv .dial-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.sv .dial {
+  width: 156px;
+  height: 156px;
+  flex: none;
+}
+.sv .dial-track {
+  fill: none;
+  stroke: var(--sv-paper-2);
+  stroke-width: 12;
+}
+.sv .dial-band {
+  fill: none;
+  stroke-width: 22;
+}
+.sv .dial-arc {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+.sv .dial.t-strong .dial-arc {
+  stroke: var(--sv-strong);
+}
+.sv .dial.t-strong .dial-band {
+  stroke: var(--sv-strong-soft);
+}
+.sv .dial.t-promising .dial-arc {
+  stroke: var(--sv-promising);
+}
+.sv .dial.t-promising .dial-band {
+  stroke: var(--sv-promising-soft);
+}
+.sv .dial.t-partial .dial-arc {
+  stroke: var(--sv-partial);
+}
+.sv .dial.t-partial .dial-band {
+  stroke: var(--sv-partial-soft);
+}
+.sv .dial-num {
+  font: 600 46px var(--sv-serif);
+  letter-spacing: -0.03em;
+  fill: var(--sv-ink);
+}
+.sv .dial-words {
+  display: grid;
+  gap: 8px;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: var(--sv-ink-2);
+  max-width: 30ch;
+}
+.sv .dial-words b {
+  color: var(--sv-ink);
+}
+@keyframes sv-arc {
+  from {
+    stroke-dasharray: 0 999;
+  }
+}
+/* Nothing open yet: an invitation, not an empty box - the suggestions are small tilted
+   stickers to pick from. */
+.sv #s-weigh .gapbox {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--sv-card) 72%, transparent);
+}
+.sv #s-weigh .gapbox strong {
+  font: 600 clamp(1.375rem, 1rem + 0.8vw, 1.75rem) / 1.2 var(--sv-serif);
+}
+.sv #s-weigh .gapbox .btn {
+  max-width: 100%;
+  padding: 12px 18px;
+  font-size: 1rem;
+  border: var(--sv-sticker-line);
+  box-shadow: 3px 3px 0 var(--sv-ink);
+  rotate: -0.8deg;
+  text-align: left;
+  white-space: normal;
+}
+.sv #s-weigh .gapbox .btn:nth-of-type(even) {
+  rotate: 0.8deg;
+}
+.sv #s-weigh .gapbox .btn:hover {
+  rotate: 0deg;
+  translate: -2px -2px;
+  box-shadow: 5px 5px 0 var(--sv-ink);
+}
+.sv .panel + .panel,
+.sv .weigh > div > * + * {
+  margin-top: 16px;
+}
+.sv .gauge-num {
+  font: 600 4rem/0.9 var(--sv-serif);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.sv .gauge-top {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.sv .gauge-top .gt {
+  font-size: 0.9375rem;
+  color: var(--sv-ink-2);
+  padding-bottom: 6px;
+}
+/* The score a deep-dive replaced: a fact beside the number, never struck through. */
+.sv .gauge-top .was {
+  font: 600 1rem/1 var(--sv-sans);
+  color: var(--sv-ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 8px;
+}
+.sv .gauge {
+  margin-top: 14px;
+}
+.sv .drivers {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .stack {
+  display: flex;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: repeating-linear-gradient(135deg, var(--sv-paper-2) 0 6px, var(--sv-paper) 6px 12px);
+  border: 1px solid var(--sv-line);
+  margin-top: 8px;
+}
+.sv .stack div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 0.875rem var(--sv-sans);
+  color: var(--sv-paper);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sv .b0 {
+  background: var(--sv-ink);
+}
+.sv .b1 {
+  background: var(--sv-accent);
+}
+.sv .b2 {
+  background: var(--sv-strong);
+}
+.sv .stack-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.sv .stack-keys div {
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .stack-keys b {
+  display: block;
+  font-size: 0.9375rem;
+  color: var(--sv-ink);
+}
+.sv .stack-keys i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.sv .elig {
+  display: grid;
+  gap: 8px;
+}
+.sv .erow {
+  display: grid;
+  grid-template-columns: 22px 92px 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.875rem;
+}
+.sv .erow .ek {
+  font-weight: 700;
+  color: var(--sv-ink);
+}
+.sv .erow .ed {
+  color: var(--sv-ink-2);
+}
+.sv .erow .es {
+  font-weight: 600;
+}
+.sv .erow .es.ok {
+  color: var(--sv-ok);
+}
+.sv .erow .es.flag {
+  color: var(--sv-flag-ink);
+}
+.sv .erow .es.unknown {
+  color: var(--sv-ink-3);
+}
+.sv .gaps {
+  display: grid;
+  gap: 12px;
+}
+.sv .gapc {
+  border: 1px solid var(--sv-line);
+  border-left: 5px solid var(--sv-partial);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--sv-card);
+}
+.sv .gapc.blocking {
+  border-left-color: var(--sv-flag);
+}
+.sv .gapc.notable {
+  border-left-color: var(--sv-promising);
+}
+.sv .gapc .gh {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sv .gapc .gs {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--sv-partial-soft);
+  color: var(--sv-partial);
+}
+.sv .gapc.blocking .gs {
+  background: var(--sv-accent-soft);
+  color: var(--sv-flag-ink);
+}
+.sv .gapc.notable .gs {
+  background: var(--sv-promising-soft);
+  color: var(--sv-promising-ink);
+}
+.sv .gapc .gn {
+  font: 600 1.125rem var(--sv-serif);
+}
+.sv .gapc p {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .gapc details {
+  margin-top: 8px;
+  font-size: 0.875rem;
+}
+.sv .gapc details summary {
+  cursor: pointer;
+  color: var(--sv-accent-ink);
+  font-weight: 600;
+}
+.sv .gapc details blockquote {
+  margin: 6px 0 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--sv-line-2);
+  color: var(--sv-ink-2);
+  font-family: var(--sv-serif);
+}
+.sv .cover textarea {
+  width: 100%;
+  min-height: 160px;
+  border: 1.5px solid var(--sv-line-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--sv-paper);
+  font: 0.9375rem/1.55 var(--sv-serif);
+  resize: vertical;
+}
+.sv .qs {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.9375rem;
+}
+.sv .qs li {
+  margin-bottom: 4px;
+}
+.sv .ad details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.sv .ad .body {
+  margin-top: 10px;
+  font: 0.9375rem/1.6 var(--sv-serif);
+  color: var(--sv-ink-2);
+  white-space: pre-wrap;
+}
+.sv .kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 12px;
+  font-size: 0.875rem;
+  margin: 0;
+}
+.sv .kv dt {
+  color: var(--sv-ink-3);
+  font-weight: 700;
+}
+.sv .kv dd {
+  margin: 0;
+  color: var(--sv-ink-2);
+}
+.sv .decide {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  margin-top: 22px;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  box-shadow: var(--sv-shadow);
+}
+.sv .decide .btn {
+  background: transparent;
+  color: var(--sv-paper);
+  border-color: color-mix(in srgb, var(--sv-paper) 45%, transparent);
+}
+.sv .decide .btn.on {
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+  border-color: var(--sv-paper);
+}
+.sv .decide .btn.accent {
+  background: var(--sv-accent);
+  border-color: var(--sv-accent);
+  color: var(--sv-on-accent);
+}
+.sv .decide .cur {
+  margin-left: auto;
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+.sv .decide .pop {
+  flex-basis: 100%;
+  background: color-mix(in srgb, var(--sv-paper) 10%, var(--sv-ink));
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.9375rem;
+}
+.sv .decide .pop .reason {
+  border: 1.5px solid color-mix(in srgb, var(--sv-paper) 45%, transparent);
+  background: transparent;
+  color: var(--sv-paper);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.875rem;
+}
+.sv .decide .pop .reason:hover {
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+}
+.sv .decide .err {
+  flex-basis: 100%;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.sv .guided-miss {
+  border: 2px dashed var(--sv-line-2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sv .skl.more,
+.sv .muted.more,
+.sv .scanline.more {
+  margin-top: 10px;
+}
+.sv .asif.left {
+  text-align: left;
+  margin: 10px 0;
+}
+.sv .leaned {
+  margin: 12px 0 10px;
+}
+.sv .note-line {
+  margin-top: 6px;
+}
+.sv .pay-line {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.sv .cover label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ---------- sources ---------- */
+/* Tier A carries the open feeds AND a card per company-board vendor, so it takes two
+   thirds of the width with its cards in two columns, and B stands above C beside it -
+   three equal lanes had left A three times as long as the other two. */
+.sv .lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "a b"
+    "a c";
+  gap: 18px;
+  align-items: start;
+}
+.sv .lane.A {
+  grid-area: a;
+}
+.sv .lane.B {
+  grid-area: b;
+}
+.sv .lane.C {
+  grid-area: c;
+}
+.sv .lane.A .srcs {
+  columns: 2;
+  column-gap: 12px;
+}
+.sv .lane.A .srcs > .src {
+  break-inside: avoid;
+}
+.sv .lane-group + .lane-group {
+  margin-top: 8px;
+}
+.sv .lane-sub {
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+  padding: 0 6px 8px;
+}
+/* A board: the vendor, then one row per company - each its own switch - then the field
+   that adds the next. */
+.sv .src.board .cos {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--sv-line-2);
+}
+.sv .src.board .co {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--sv-line-2);
+}
+.sv .src.board .co-main {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sv .src.board .co-name {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.sv .src.board .co-feed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .src.board .co .src-err {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+.sv .src.board .co.paused .co-name {
+  color: var(--sv-ink-2);
+}
+/* Three doors, each its own colour along its top edge: open (moss), knock first (the
+   held violet), refused (the flag). */
+.sv .lane {
+  background: var(--sv-paper-2);
+  border-radius: 20px;
+  padding: 16px;
+  border-top: 5px solid var(--sv-strong);
+  min-width: 0;
+}
+.sv .lane.B {
+  border-top-color: var(--sv-held);
+}
+.sv .lane.C {
+  border-top-color: var(--sv-flag);
+}
+.sv .lane > header {
+  padding: 4px 6px 14px;
+}
+.sv .lane > header h3 {
+  font-size: 1.375rem;
+}
+.sv .lane > header .tier {
+  font: 600 1.0625rem var(--sv-hand);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.sv .lane.A > header .tier {
+  color: var(--sv-strong);
+}
+.sv .lane.B > header .tier {
+  color: var(--sv-held);
+}
+.sv .lane.C > header .tier {
+  color: var(--sv-flag-ink);
+}
+.sv .lane > header p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .src {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition:
+    translate 0.2s var(--sv-ease),
+    box-shadow 0.2s var(--sv-ease);
+}
+.sv .src:not(.refused):hover {
+  translate: 0 -2px;
+  box-shadow: var(--sv-shadow);
+}
+.sv .src:has(.switch[aria-checked="true"]) {
+  border-left: 4px solid var(--sv-strong);
+}
+/* The head wraps: a tier-B "Read terms to enable" lock beside a long board name ran out
+   of its lane at 1440px. */
+.sv .src .sh {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.sv .src .sh > div:first-child {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.sv .src .sl {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+}
+.sv .src .host {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .src .sfeed {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .src details {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .src details summary {
+  cursor: pointer;
+  color: var(--sv-accent-ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.sv .src details p {
+  margin: 6px 0 0;
+}
+.sv .src.refused {
+  background: transparent;
+  border-style: dashed;
+}
+.sv .src.refused .sl {
+  text-decoration: line-through;
+  text-decoration-color: var(--sv-flag);
+  color: var(--sv-ink-2);
+}
+.sv .src .why {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--sv-flag-ink);
+}
+.sv .src.acked {
+  border-color: var(--sv-held);
+}
+.sv .src.paused {
+  border-color: var(--sv-promising);
+}
+.sv .switch {
+  flex: none;
+  width: 50px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--sv-line-2);
+  position: relative;
+  transition: background 0.2s;
+}
+.sv .switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--sv-card);
+  box-shadow: var(--sv-shadow);
+  transition: transform 0.25s var(--sv-ease);
+}
+.sv .switch[aria-checked="true"] {
+  background: var(--sv-strong);
+}
+.sv .switch[aria-checked="true"]::after {
+  transform: translateX(22px);
+}
+.sv .switch[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sv .lockbtn {
+  flex: none;
+  white-space: nowrap;
+  border: 1.5px solid var(--sv-held);
+  color: var(--sv-held);
+  background: var(--sv-card);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sv .cfg {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.sv .cfg input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sv-line-2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.875rem;
+  background: var(--sv-paper);
+}
+.sv .paused-note {
+  margin-top: 18px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--sv-line);
+  background: var(--sv-card);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+  flex-wrap: wrap;
+}
+.sv .small.run-bad {
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+.sv .src-err {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+
+/* ---------- your GitHub (the You column) ----------
+   A card of its own in the You column: the handle, the identity gate, what the
+   repositories show (half marks: project evidence), the CV's projects, and the read's
+   budget in words. */
+.sv .gh {
+  margin-top: 26px;
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.sv .gh h4 {
+  margin: 2px 0 6px;
+  font: 600 1.1875rem/1.3 var(--sv-serif);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sv .gh h4 a {
+  color: var(--sv-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sv .gh-lede {
+  margin: 0 0 12px;
+  color: var(--sv-ink-2);
+  font-size: 0.9375rem;
+}
+.sv .gh-read {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sv .gh-read input {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--sv-line-2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: 500 0.9375rem var(--sv-mono);
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+}
+.sv .gh-budget,
+.sv .gh-outcome {
+  margin: 12px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .gh-outcome {
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+.sv .gh-id {
+  border: 1.5px dashed var(--sv-line-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 8px 0 4px;
+}
+.sv .gh-id p {
+  margin: 0 0 10px;
+}
+.sv .gh-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.sv .gh-use {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 10px 0 4px;
+}
+.sv .gh-use > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .gh-use b {
+  color: var(--sv-ink);
+  font-size: 0.9375rem;
+}
+.sv .gh-sub {
+  margin: 16px 0 8px;
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+}
+.sv .gh-skills ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sv .gh-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sv-line-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.875rem;
+  background: var(--sv-paper);
+}
+.sv .gh-skill span {
+  color: var(--sv-ink-3);
+}
+.sv .gh-skill em {
+  font-style: normal;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .gh-skill.new {
+  border-color: var(--sv-strong);
+  background: var(--sv-strong-soft);
+}
+.sv .gh-skill.new em {
+  color: var(--sv-strong);
+  font-weight: 600;
+}
+.sv .gh-projects ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px dashed var(--sv-line-2);
+}
+.sv .gh-projects li {
+  border-bottom: 1px dashed var(--sv-line-2);
+}
+.sv .gh-projects label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 2px;
+  cursor: pointer;
+}
+.sv .gh-projects input {
+  margin-top: 4px;
+  accent-color: var(--sv-accent);
+}
+.sv .gh-projects li.picked .gh-repo b {
+  color: var(--sv-accent-ink);
+}
+.sv .gh-repo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .gh-repo b {
+  font: 600 0.9375rem var(--sv-mono);
+  color: var(--sv-ink);
+  overflow-wrap: anywhere;
+}
+.sv .gh-repo small {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+
+/* ---------- what the market asks (the Want chapter) ----------
+   The research as three tiers of the landing's chips, each marked from the seeker's own
+   record (solid: on the CV, half: their GitHub, dashed: not yet), opening to its reason
+   and its sources; the score of core skills shown stands beside the heading. */
+.sv .market {
+  margin-top: 28px;
+  background: var(--sv-card);
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  border-radius: 22px;
+  padding: 22px 24px 18px;
+}
+.sv .mk-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.sv .mk-head h3 {
+  margin: 2px 0 6px;
+  font: 600 clamp(1.375rem, 2.2vw, 1.75rem)/1.2 var(--sv-serif);
+}
+.sv .mk-lede {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--sv-ink-2);
+  font-size: 0.9375rem;
+}
+.sv .mk-head > div:first-child {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+.sv .mk-score {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 2px;
+}
+.sv .mk-score .n {
+  font: 600 3rem/1 var(--sv-serif);
+  color: var(--sv-strong);
+}
+.sv .mk-score .of {
+  font: 600 1.25rem var(--sv-serif);
+  color: var(--sv-ink-3);
+}
+.sv .mk-score .l {
+  grid-column: 1 / -1;
+  font: 500 0.9375rem var(--sv-hand);
+  color: var(--sv-ink-3);
+}
+.sv .mk-cta {
+  margin-top: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border: 1.5px dashed var(--sv-line-2);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.sv .mk-cta p {
+  margin: 0;
+  flex: 1 1 320px;
+  font-size: 0.9375rem;
+  color: var(--sv-ink-2);
+}
+.sv .mk-running {
+  margin-top: 16px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--sv-paper);
+}
+.sv .mk-running > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .mk-running b {
+  color: var(--sv-ink);
+  font-size: 0.9375rem;
+}
+.sv .mk-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+.sv .mk-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sv-accent);
+  opacity: 0.35;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sv .mk-dots i {
+    animation: sv-mk-dot 1.2s var(--sv-ease) infinite;
+  }
+  .sv .mk-dots i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .sv .mk-dots i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+@keyframes sv-mk-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+.sv .mk-tiers {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.sv .mk-tier-h {
+  margin: 0 0 8px;
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+}
+.sv .mk-tier-h span {
+  font: 500 0.875rem var(--sv-sans);
+  color: var(--sv-ink-3);
+}
+.sv .mk-tier.core .mk-tier-h {
+  color: var(--sv-accent-ink);
+}
+.sv .mk-tier > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sv .mk-skill > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.9375rem;
+  color: var(--sv-ink);
+}
+.sv .mk-skill > button:hover {
+  border-color: var(--sv-ink-3);
+}
+.sv .mk-skill b {
+  font-weight: 600;
+}
+.sv .mk-share {
+  font: 500 0.875rem var(--sv-mono);
+  color: var(--sv-ink-3);
+}
+.sv .mk-skill em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  white-space: nowrap;
+}
+.sv .mk-skill.cv > button {
+  background: var(--sv-strong-soft);
+  border-color: color-mix(in srgb, var(--sv-strong) 45%, transparent);
+}
+.sv .mk-skill.cv em {
+  color: var(--sv-strong);
+  font-weight: 600;
+}
+.sv .mk-skill.github > button {
+  background: var(--sv-partial-soft);
+}
+.sv .mk-skill.missing > button {
+  border-style: dashed;
+}
+.sv .mk-why {
+  margin: 6px 2px 4px 24px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .mk-why p {
+  margin: 0 0 6px;
+}
+.sv .mk-why ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.sv .mk-why a {
+  color: var(--sv-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.sv .mk-foot {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sv-line-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .mk-note {
+  margin: 12px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+@media (max-width: 860px) {
+  .sv .mk-tiers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .market {
+    padding: 18px 16px 14px;
+  }
+}
+
+/* ---------- acknowledgement (a real <dialog>) ---------- */
+.sv-ack {
+  /* Tailwind's preflight zeroes every margin; a modal <dialog> centres itself by auto margins. */
+  margin: auto;
+  border: 0;
+  border-radius: 20px;
+  padding: 0;
+  width: min(620px, calc(100vw - 32px));
+  background: var(--color-white);
+  color: var(--color-ink);
+  box-shadow: var(--overlay-shadow);
+}
+.sv-ack::backdrop {
+  background: var(--color-scrim);
+  backdrop-filter: blur(2px);
+}
+.sv-ack .ah {
+  padding: 22px 26px 8px;
+}
+.sv-ack .tier {
+  font: 700 0.875rem var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-steel) 52%, var(--color-coral));
+}
+.sv-ack h2 {
+  font: 600 1.75rem/1.1 var(--font-serif);
+  margin: 4px 0 0;
+}
+.sv-ack blockquote {
+  margin: 12px 26px;
+  padding: 14px 18px;
+  border-left: 4px solid color-mix(in srgb, var(--color-steel) 52%, var(--color-coral));
+  background: color-mix(in srgb, color-mix(in srgb, var(--color-steel) 52%, var(--color-coral)) 14%, var(--color-white));
+  border-radius: 0 12px 12px 0;
+  font: 1rem/1.55 var(--font-serif);
+}
+.sv-ack .changed {
+  margin: 0 26px 10px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.sv-ack .consequence {
+  margin: 0 26px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.sv-ack .consequence div {
+  border: 1px solid var(--color-stone-200);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--color-ink) 80%, var(--color-paper));
+}
+.sv-ack .consequence b {
+  display: block;
+  font: 600 1.5rem var(--font-serif);
+  color: var(--color-ink);
+}
+.sv-ack label.agree {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 26px 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.sv-ack label.agree input {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  accent-color: var(--color-coral);
+}
+.sv-ack .af {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 18px 26px 22px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.sv-ack .af .sm {
+  margin-right: auto;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--color-coral) 76%, var(--color-ink));
+}
+
+/* ---------- toast ---------- */
+.sv .toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 30px);
+  opacity: 0;
+  background: var(--sv-ink);
+  color: var(--sv-paper);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  z-index: 90;
+  transition: opacity 0.25s, transform 0.25s var(--sv-ease);
+  pointer-events: none;
+}
+.sv .toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.sv .foot {
+  padding: 30px clamp(24px, 4vw, 64px) 60px;
+  color: var(--sv-ink-3);
+  font-size: 0.875rem;
+}
+.sv .notice {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1.5px solid var(--sv-flag);
+  background: var(--sv-accent-soft);
+  color: var(--sv-ink);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  margin-top: 12px;
+}
+.sv .notice.info {
+  border-color: var(--sv-line-2);
+  background: var(--sv-paper-2);
+}
+
+/* ---------- band glyph, gauge ---------- */
+.sv .bg {
+  position: relative;
+  display: inline-block;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--sv-paper-2);
+  vertical-align: middle;
+  flex: none;
+}
+.sv .bg-band {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 5px;
+  opacity: 0.55;
+}
+.sv .bg-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--sv-ink);
+  border-radius: 2px;
+}
+.sv .tb-strong {
+  background: var(--sv-strong);
+}
+.sv .tb-promising {
+  background: var(--sv-promising);
+}
+.sv .tb-partial {
+  background: var(--sv-partial);
+}
+.sv .gtrack {
+  position: relative;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--sv-paper-2);
+  border: 1px solid var(--sv-line);
+}
+.sv .gband {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 7px;
+  opacity: 0.45;
+  transition: left 0.5s var(--sv-ease), width 0.5s var(--sv-ease);
+}
+.sv .gmark {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--sv-ink);
+  border-radius: 2px;
+  transition: left 0.5s var(--sv-ease);
+}
+.sv .gticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  margin-top: 4px;
+}
+
+/* ---------- phone foot (the rail's links + preferences below 860px) ---------- */
+.sv .mobile-foot {
+  display: none;
+}
+
+/* ---------- secondary pages inside the frame ---------- */
+.sv .frame-main {
+  padding: 40px clamp(24px, 4vw, 64px) 72px;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1360px) {
+  .sv .prow {
+    grid-template-columns: 38px minmax(0, 1fr) 140px 128px 110px;
+  }
+  .sv .prow .when {
+    display: none;
+  }
+  .sv .lanes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "a a"
+      "b c";
+  }
+}
+@media (max-width: 1280px) {
+  .sv .wants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sv .top5 {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    row-gap: 30px;
+  }
+}
+@media (max-width: 1100px) {
+  .sv .cvwrap,
+  .sv .weigh,
+  .sv .hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .sv .hero-art {
+    order: -1;
+  }
+  .sv .sieve-art {
+    width: min(100%, 420px);
+  }
+  .sv .sheet-stick {
+    position: static;
+  }
+  .sv .sheet {
+    max-height: 420px;
+  }
+  .sv .brand {
+    min-width: 0;
+  }
+}
+@media (max-width: 860px) {
+  .sv {
+    --sv-rail-w: 0px;
+    --sv-top-h: 60px;
+  }
+  .sv .top-tally,
+  .sv .who {
+    display: none;
+  }
+  .sv .rail {
+    position: sticky;
+    top: var(--sv-top-h);
+    width: auto;
+    height: auto;
+    bottom: auto;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--sv-line);
+    overflow-x: auto;
+    flex-direction: row;
+    /* Opaque: a section heading scrolled under the strip must not show through it. */
+    background: var(--sv-paper);
+  }
+  /* The strip's height wraps with its labels, so it is MEASURED (SieveFrame publishes
+   * --sv-strip-h from a ResizeObserver) and every section lands below the top bar AND
+   * the strip. The fallback only covers the first paint, before the measure lands. */
+  .sv .step {
+    scroll-margin-top: calc(var(--sv-top-h) + var(--sv-strip-h, 72px));
+  }
+  .sv #s-you {
+    scroll-margin-top: calc(var(--sv-top-h) + var(--sv-strip-h, 72px) + 20px);
+  }
+  /* The joined pair, horizontal: no gap between its halves, and the seam and clip move
+   * to the inline edges. */
+  .sv .rail li.pair-start {
+    margin-right: -4px;
+  }
+  .sv .rail li.pair-start.active a.rs {
+    border-radius: 10px 0 0 10px;
+  }
+  .sv .rail li.pair-end.active a.rs {
+    border-radius: 0 10px 10px 0;
+    clip-path: inset(-40px -40px -40px 0);
+  }
+  .sv .rail li.active a.rs:focus-visible {
+    clip-path: none;
+  }
+  .sv .rail ol {
+    display: flex;
+    gap: 4px;
+  }
+  .sv .rail ol::before,
+  .sv .rail ol::after,
+  .sv .rail-note,
+  .sv .rail-links,
+  .sv .rail-foot {
+    display: none;
+  }
+  .sv .rail li {
+    min-width: 132px;
+  }
+  .sv .mobile-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    align-items: center;
+    padding: 18px 16px 40px;
+    border-top: 1px solid var(--sv-line);
+    font-size: 0.9375rem;
+  }
+  .sv .mobile-foot a {
+    color: var(--sv-ink-2);
+  }
+  .sv .mobile-prefs {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .sv .rail .bar {
+    display: none;
+  }
+  .sv .main {
+    margin-left: 0;
+    padding-top: var(--sv-top-h);
+  }
+  .sv .prow {
+    grid-template-columns: 34px minmax(0, 1fr) 96px;
+  }
+  .sv .prow .payc,
+  .sv .prow .pips {
+    display: none;
+  }
+  .sv .lanes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "a"
+      "b"
+      "c";
+  }
+  .sv .lane.A .srcs {
+    columns: 1;
+  }
+  .sv .honest,
+  .sv-ack .consequence {
+    grid-template-columns: 1fr;
+  }
+  .sv .ahead ol {
+    grid-template-columns: 1fr;
+  }
+  .sv .wants {
+    grid-template-columns: 1fr;
+  }
+  .sv .wcard.wide {
+    grid-column: auto;
+  }
+  .sv .ahead ol::before {
+    left: 36px;
+    right: auto;
+    top: 22px;
+    bottom: 22px;
+    border-top: 0;
+    border-left: 2px dashed var(--sv-line-2);
+  }
+  .sv .promise > div {
+    padding: 0 16px;
+  }
+  .sv .chapter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .chapter-n {
+    font-size: 64px;
+  }
+  .sv .chapter-aside {
+    justify-content: flex-start;
+  }
+}
+@media print {
+  .sv .topbar,
+  .sv .rail {
+    display: none;
+  }
+  /* Paper has no scroll: a scroll-driven reveal would print every chapter below the fold
+     at its first keyframe (invisible). The printed page is the finished one. */
+  .sv *,
+  .sv *::before,
+  .sv *::after {
+    animation: none !important;
+  }
+  .sv .main {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* ---------- focus ----------
+ * The house ring lives at ZERO specificity (globals.css `:where(...):focus-visible`), so
+ * every rule here that paints its own box-shadow on a focusable element out-ranks it and
+ * erases the ring: the top-five cards, the active rail step, the current rail link, a
+ * pressed segment and the expanded skill tile. Each gets the ring back, COMPOSED with the
+ * shadow it already wears so neither register loses its elevation. */
+.sv .rail li.active a.rs:focus-visible,
+.sv .rail-links a[aria-current="page"]:focus-visible,
+.sv .seg button[aria-pressed="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring), var(--sv-shadow);
+}
+/* The dealt cards wear the sticker; the ring composes with it. */
+.sv .tcard:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring), var(--sv-sticker-up);
+}
+.sv .tile[aria-expanded="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring);
+}
+/* The CV drop: the real control is a transparent file input laid over the label, so the
+ * ring belongs on the zone the reader sees. */
+.sv .drop:focus-within {
+  box-shadow: var(--sv-ring);
+}
+.sv .hero .drop:focus-within {
+  box-shadow: var(--sv-ring), var(--sv-sticker);
+}

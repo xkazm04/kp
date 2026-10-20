@@ -28,13 +28,21 @@ test("the smallest qualifying stage is picked once it clears the bar", () => {
   });
 });
 
-test("among qualifying stages the highest average wins; tiny stages are ignored", () => {
+test("among qualifying stages the highest median wins; tiny stages are ignored", () => {
   const result = pickBottleneck({
     Sourced: [40, 40, 40], // qualifies, avg 40
     Screened: [100], // higher avg but n=1 — ignored
     Interview: [10, 20, 30, 40], // qualifies, avg 25
   });
   assert.deepEqual(result, { stage: "Sourced", avgDaysInStage: 40, entryCount: 3 });
+});
+
+test("a single long wait does not outrank a stage whose typical wait is longer", () => {
+  const result = pickBottleneck({
+    Screened: [5, 5, 100], // mean 36.7, median 5
+    Interview: [20, 20, 20], // mean and median 20
+  });
+  assert.deepEqual(result, { stage: "Interview", avgDaysInStage: 20, entryCount: 3 });
 });
 
 test("the average is rounded and the entry count is exact", () => {
@@ -65,10 +73,10 @@ test("a tie is broken by stage name, not by the order the stages arrived in", ()
   assert.deepEqual(zetaFirst, alphaFirst, "input order cannot change the verdict");
 });
 
-test("a tie in the ROUNDED average still follows the real average", () => {
-  // avgDaysInStage is rounded for display; the pick is made on the raw mean, so a
+test("rounded display values do not erase a real median difference", () => {
+  // avgDaysInStage is rounded for display; the pick is made on the raw median, so a
   // stage that is genuinely slower keeps the banner even when both round to 40.
   const a = pickBottleneck({ Alpha: [39.6, 39.6, 39.6], Beta: [40.4, 40.4, 40.4] });
-  assert.equal(a?.stage, "Beta", "the larger raw average wins before the name rule applies");
+  assert.equal(a?.stage, "Beta", "the larger raw median wins before the name rule applies");
   assert.equal(a?.avgDaysInStage, 40);
 });

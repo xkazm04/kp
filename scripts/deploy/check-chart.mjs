@@ -594,7 +594,13 @@ export function loadChart(root = REPO_ROOT) {
   chart.templates = {};
   for (const entry of fs.readdirSync(dir).sort()) {
     const p = path.join(dir, entry);
-    if (fs.statSync(p).isFile()) chart.templates[entry] = fs.readFileSync(p, 'utf8');
+    // One open descriptor for the type check and the read (js/file-system-race).
+    const fd = fs.openSync(p, 'r');
+    try {
+      if (fs.fstatSync(fd).isFile()) chart.templates[entry] = fs.readFileSync(fd, 'utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
   }
   return { chart };
 }

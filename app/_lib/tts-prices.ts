@@ -30,13 +30,26 @@ export const TTS_KCHAR_PRICES: Record<TtsProviderId, number> = {
   kokoro: 0,
 };
 
+/** Operator rate for the paid synthesis provider, or the built-in estimate. */
+export function ttsKcharPriceUsd(provider: string): number | null {
+  const estimate = (TTS_KCHAR_PRICES as Record<string, number | undefined>)[provider];
+  if (estimate === undefined) return null;
+  if (provider !== "elevenlabs") return estimate;
+  const raw = process.env.KP_TTS_KCHAR_USD_ELEVENLABS;
+  if (raw === undefined || raw.trim() === "") return estimate;
+  const price = Number(raw.trim());
+  if (Number.isFinite(price) && price >= 0) return price;
+  console.warn(`[tts] KP_TTS_KCHAR_USD_ELEVENLABS is not a non-negative number; using built-in estimate`);
+  return estimate;
+}
+
 /** Estimated USD cost of synthesizing `chars` characters on `provider`, rounded
  *  to 6 decimals like base.py's price_usd — or null when the provider has no
  *  price row (unknown, never zero) or the character count is not a usable
  *  non-negative number. */
 export function ttsCostUsd(provider: string, chars: number): number | null {
-  const price = (TTS_KCHAR_PRICES as Record<string, number | undefined>)[provider];
-  if (price === undefined) return null;
+  const price = ttsKcharPriceUsd(provider);
+  if (price === null) return null;
   if (!Number.isFinite(chars) || chars < 0) return null;
   return Math.round((price * chars) / 1000 * 1e6) / 1e6;
 }

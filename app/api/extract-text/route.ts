@@ -6,11 +6,11 @@ import {
   parseStderrError,
   persistFile,
   ENGINE_BUSY_CODE,
+  isSpawnTimeout,
   PipelineError,
   spawnPython,
 } from "@/app/_lib/python-runner";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { jsonRefusal, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
@@ -106,12 +106,16 @@ export async function POST(request: Request) {
       // place the traceback belongs.
       return safeJsonError(new Error(err.message), "api:extract-text", "EXTRACT_TEXT_FAILED");
     }
-    const { text } = parsePythonJson<{ text: string }>(stdout, stderr);
-    return NextResponse.json({ text });
+    const { text, charCount, pageCount } = parsePythonJson<{
+      text: string;
+      charCount: number;
+      pageCount: number | null;
+    }>(stdout, stderr);
+    return NextResponse.json({ text, charCount, pageCount });
   } catch (error) {
-    // The deadline is delivered as a REJECTION carrying a sentence, not a typed
-    // error, so it is matched through the one shared predicate.
-    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+    // The deadline is delivered as a typed SpawnFailure rejection — read by its kind,
+    // never by the sentence it happens to carry.
+    if (isSpawnTimeout(error)) {
       return jsonRefusal("EXTRACT_TEXT_TIMEOUT", 504);
     }
     if (error instanceof PipelineError) {

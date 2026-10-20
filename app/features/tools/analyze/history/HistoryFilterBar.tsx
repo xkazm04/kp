@@ -19,8 +19,8 @@ export function HistoryFilterBar({
   families,
   seniorities,
   filtering,
-  filteredCount,
-  totalCount,
+  answersFilter,
+  shownCount,
   truncated,
   onClear,
   dispLabel,
@@ -35,9 +35,13 @@ export function HistoryFilterBar({
   setDisposition: (v: string) => void;
   families: string[];
   seniorities: string[];
+  /** The recruiter is narrowing right now (the Clear control). */
   filtering: boolean;
-  filteredCount: number;
-  totalCount: number;
+  /** The rows on screen answer a narrowed query (the matched count). */
+  answersFilter: boolean;
+  /** Rows on screen: the server's answer, never a client-side subset of it. */
+  shownCount: number;
+  /** More groups match than are on screen (the route's exact cap+1 answer). */
   truncated?: boolean;
   onClear: () => void;
   dispLabel: (d: string) => string;
@@ -92,18 +96,18 @@ export function HistoryFilterBar({
           { value: "undecided", label: t("dispositionUndecided") },
         ]}
       />
-      {filtering ? (
+      {truncated || answersFilter ? (
+        // The server filtered the whole workspace, so a count here is an answer, not a
+        // subset of a loaded slice. A cut page names no total: it says more are older.
         <span className="text-sm text-steel" aria-live="polite">
-          {truncated
-            ? t("showingLoaded", { shown: filteredCount, loaded: totalCount })
-            : t("showing", { shown: filteredCount, total: totalCount })}
+          {truncated ? t("showingFirst", { count: shownCount }) : t("showingMatched", { count: shownCount })}
         </span>
       ) : null}
       {filtering ? (
         <button
           type="button"
           onClick={onClear}
-          className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
+          className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral-ink hover:bg-coral/10"
         >
           {t("clear")}
         </button>

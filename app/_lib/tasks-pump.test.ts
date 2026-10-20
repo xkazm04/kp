@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { nextTaskToRun, type PumpEntry } from "./task-pump.ts";
+import { TASK_KINDS } from "./task-kinds.ts";
 
 // ---- 1. fairness ----------------------------------------------------------
 
@@ -62,6 +63,18 @@ test("FIFO survives inside a workspace when that workspace is the fair pick", ()
   assert.equal(nextTaskToRun(queue, ["A"], 2), 0, "B's OLDEST queued task, not just any B task");
 });
 
+test("a priority run goes ahead of its own tenant's ordinary queue, never ahead of fairness", () => {
+  // The Gigs accept loop (gigs/loop.ts): the operator's pick does not wait behind a scan's batch.
+  const queue: PumpEntry[] = [{ id: "scan", workspaceId: "A" }, { id: "plans", workspaceId: "A" }, { id: "mine", workspaceId: "A", priority: true }];
+  assert.equal(nextTaskToRun(queue, [], 2), 2, "the priority run starts first");
+  assert.equal(nextTaskToRun(queue, ["A", "A"], 2), null, "…but never past the slot ceiling");
+  const two: PumpEntry[] = [{ id: "p1", workspaceId: "A", priority: true }, { id: "p2", workspaceId: "A", priority: true }];
+  assert.equal(nextTaskToRun(two, [], 2), 0, "FIFO inside the priority lane");
+  // B is idle, A already runs one: B's ordinary task beats A's priority one.
+  const fair: PumpEntry[] = [{ id: "a", workspaceId: "A", priority: true }, { id: "b", workspaceId: "B" }];
+  assert.equal(nextTaskToRun(fair, ["A"], 2), 1, "a less-loaded tenant still wins");
+});
+
 // ---- 2. every handler declares what it does with the tenant ----------------
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -71,16 +84,31 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const lf = (s: string) => s.replace(/\r\n/g, "\n");
 const tasksSrc = lf(readFileSync(path.join(HERE, "tasks.ts"), "utf8"));
 
-/** The HANDLERS object literal, split into one text block per kind. The table is a
- *  flat two-space-indented literal, so the block boundary is unambiguous. */
+/** The HANDLERS object literal's source text. Located by NAME, not by its exact
+ *  type annotation, so retyping the table (it is `Record<TaskKind, Spec>` now) does
+ *  not blind this guard. */
+function handlersBody(): string {
+  const head = tasksSrc.match(/^const HANDLERS\b[^=\n]*= \{$/m);
+  assert.ok(head && head.index !== undefined, "the HANDLERS table must still be a named object literal");
+  const end = tasksSrc.indexOf("\nlet booted = false;", head.index);
+  assert.ok(end > head.index, "expected the runner state to follow HANDLERS");
+  return tasksSrc.slice(head.index, end);
+}
+
+/** One text block per kind, found by walking TASK_KINDS (the vocabulary the table is
+ *  typed by) rather than by counting whatever the regex happens to match. A kind whose
+ *  block cannot be found fails here — never silently skipped. */
 function handlerBlocks(): Map<string, string> {
-  const start = tasksSrc.indexOf("const HANDLERS: Record<string, Spec> = {");
-  assert.ok(start > 0, "the HANDLERS table must still be a named object literal");
-  const end = tasksSrc.indexOf("\nlet booted = false;", start);
-  assert.ok(end > start, "expected the runner state to follow HANDLERS");
-  const body = tasksSrc.slice(start, end);
+  const body = handlersBody();
   const blocks = new Map<string, string>();
-  for (const m of body.matchAll(/^ {2}(\w+): \{\n([\s\S]*?)^ {2}\},$/gm)) blocks.set(m[1], m[2]);
+  for (const kind of TASK_KINDS) {
+    // The closing brace is matched at the SAME indentation as the key (the `\1`
+    // backreference), so a nested `run: async (ctx) => { … },` cannot end the block
+    // early — whatever width the table happens to be indented by.
+    const m = body.match(new RegExp(`^( *)${kind}: \\{\\n([\\s\\S]*?)^\\1\\},$`, "m"));
+    assert.ok(m, `${kind}: no spec block in HANDLERS`);
+    blocks.set(kind, m[2]);
+  }
   return blocks;
 }
 
@@ -103,9 +131,9 @@ function delegateSource(symbol: string): string | null {
 
 test("every task kind declares how it uses the enqueuing workspace", () => {
   const blocks = handlerBlocks();
-  assert.ok(blocks.size >= 17, `expected the full handler table, parsed ${blocks.size}`);
+  assert.equal(blocks.size, TASK_KINDS.length, "one spec block per kind in the vocabulary");
   for (const [kind, block] of blocks) {
-    const declared = block.match(/^ {4}tenancy: "(scoped|tenant-free)",/m);
+    const declared = block.match(/^\s*tenancy: "(scoped|tenant-free)",/m);
     assert.ok(declared, `${kind}: no \`tenancy\` declaration — say whether it needs ctx.workspaceId`);
   }
 });
@@ -116,7 +144,7 @@ test("a `scoped` handler actually reaches ctx.workspaceId", () => {
     if (block.includes("ctx.workspaceId")) continue;
     // The other legal shape: the whole ctx is handed to one function, which must
     // read the workspace itself. Resolve it and check — never assume.
-    const delegate = block.match(/^ {4}run: (?:(\w+),|\(ctx\) => (\w+)\(ctx\),)$/m);
+    const delegate = block.match(/^\s*run: (?:(\w+),|\(ctx\) => (\w+)\(ctx\),)$/m);
     assert.ok(delegate, `${kind}: declared scoped but never mentions ctx.workspaceId`);
     const src = delegateSource(delegate[1] ?? delegate[2]);
     assert.ok(src, `${kind}: could not resolve the handler ${delegate[1] ?? delegate[2]}`);
@@ -128,7 +156,7 @@ test("a `tenant-free` handler carries the reason on the row above it", () => {
   // A declaration nobody has to justify is a rubber stamp. Each opt-out must sit
   // under a comment, so the next reader learns WHY that kind touches no tenant store
   // rather than finding a bare enum value.
-  const body = tasksSrc.slice(tasksSrc.indexOf("const HANDLERS: Record<string, Spec> = {"));
+  const body = handlersBody();
   for (const m of body.matchAll(/tenancy: "tenant-free", \/\/ ?(.*)$/gm)) {
     assert.ok(m[1].trim().length > 20, `a tenant-free opt-out needs a real reason, got: ${m[1]}`);
   }

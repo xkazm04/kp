@@ -128,11 +128,14 @@ test("a session revoked mid-call keeps its transcript but is not billed and stay
 
   const res = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT }));
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { ok: boolean; session: { status: string; transcript: unknown[] | null }; scorecard: unknown };
+  const body = (await res.json()) as { ok: boolean; session: { status: string; transcript: unknown[] | null } };
   assert.equal(body.ok, true);
   assert.equal(body.session.status, "revoked", "the revoke is a lifecycle fact a hang-up must not undo");
   assert.equal(body.session.transcript?.length, TRANSCRIPT.length, "what was said is still persisted");
-  assert.equal(body.scorecard, null, "a revoked interview is never scored");
+  // Read from the STORE: the scorecard is no longer on this public reply at all
+  // (complete-response-projection.test.ts pins that), so "never scored" is a fact
+  // about the row, not the wire.
+  assert.equal(getInterviewSessionByToken(session.token)?.scorecard ?? null, null, "a revoked interview is never scored");
   assert.equal(
     voiceRows().reduce((n, r) => n + r.calls, 0),
     countBefore,

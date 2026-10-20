@@ -45,7 +45,7 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
   return (
     <div className="mt-4 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="flex items-center justify-between">
-        <p className="text-meta uppercase tracking-wide text-coral">{t("compareRoles", { count: matches.length })}</p>
+        <p className="text-meta uppercase tracking-wide text-coral-ink">{t("compareRoles", { count: matches.length })}</p>
         <button type="button" onClick={onClose} className="focus-ring inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
           <X size={13} /> {t("close")}
         </button>
@@ -123,6 +123,19 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
                       <span key={s} className="rounded bg-green-50 px-1.5 py-0.5 text-sm text-green-700">{s}</span>
                     ))}
                     {(m.matchedSkills?.length ?? 0) === 0 ? <span className="text-stone-300">—</span> : null}
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr className="border-t border-stone-100">
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">{t("unprovenSkills")}</th>
+              {matches.map((m) => (
+                <td key={m.jobId} className="p-2 align-top">
+                  <div className="flex flex-wrap gap-1">
+                    {(m.unprovenSkills ?? []).slice(0, 8).map((s) => (
+                      <span key={s} className="rounded bg-amber-100 px-1.5 py-0.5 text-sm text-amber-800">{s}</span>
+                    ))}
+                    {(m.unprovenSkills?.length ?? 0) === 0 ? <span className="text-stone-300">—</span> : null}
                   </div>
                 </td>
               ))}

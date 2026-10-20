@@ -16,10 +16,11 @@ import "../testing/unit-db.ts";
 import { PipelineError } from "../python-runner.ts";
 import { FetchHalt, type SourceAdapter } from "./adapters/types.ts";
 import { deepDivePosting } from "./deepdive.ts";
+import { MATCH_VERSION } from "./match.ts";
 import { runPythonCli, type CliCall, type CliRunner } from "./python-cli.ts";
-import { runJobseekerScan, SCAN_SKIP_REASON, type ScanDeps } from "./scan.ts";
+import { runJobseekerScan, scanFailureCode, SCAN_LIMITS, SCAN_SKIP_REASON, type ScanDeps } from "./scan.ts";
 import type { JobseekerPosting, JobseekerProfile, JobseekerSource, RawPosting, ScanSummary } from "./types.ts";
-import { EMPTY_PREFERENCES } from "./types.ts";
+import { EMPTY_PREFERENCES, scanWholePhaseFailure } from "./types.ts";
 
 // ── fixtures ────────────────────────────────────────────────────────────────────────
 
@@ -187,17 +188,37 @@ function makeStore() {
         r.matchedAt = projection.matchedAt;
         return true;
       },
+      // Mirrors setPostingBlocked's re-check: a row whose structure was cleared (content
+      // changed after the list) is not stamped.
+      setPostingBlocked: (id, verdict, projection) => {
+        const r = rows.get(id);
+        if (!r || r.job === null) return false;
+        r.match = verdict;
+        r.matchTotal = null;
+        r.fitTier = null;
+        r.matchVersion = projection.version;
+        r.matchedAt = projection.matchedAt;
+        return true;
+      },
       setPostingReasoning: (id, reasoning) => {
         const r = rows.get(id);
         if (!r) return false;
         r.reasoning = reasoning;
         return true;
       },
-      listDeepDiveCandidates: ({ threshold, limit }) =>
-        [...rows.values()]
-          .filter((r) => r.matchTotal !== null && r.matchTotal >= threshold && r.reasoning === null && r.status !== "dismissed" && r.status !== "gone")
-          .sort((a, b) => (b.matchTotal ?? 0) - (a.matchTotal ?? 0))
-          .slice(0, limit),
+      // Mirrors the store: never-reasoned rows, plus (given profileUpdatedAt) rows whose
+      // rationale was reasoned from older inputs; never-dived first, then best first.
+      listDeepDiveCandidates: ({ threshold, limit, profileUpdatedAt }) => {
+        const stale = (r: Row) => {
+          if (r.reasoning === null) return false;
+          const at = typeof r.reasoning.reasonedAt === "string" ? r.reasoning.reasonedAt : typeof r.reasoning.at === "string" ? r.reasoning.at : "";
+          return typeof profileUpdatedAt === "string" && at < profileUpdatedAt;
+        };
+        return [...rows.values()]
+          .filter((r) => r.matchTotal !== null && r.matchTotal >= threshold && (r.reasoning === null || stale(r)) && r.status !== "dismissed" && r.status !== "gone")
+          .sort((a, b) => Number(a.reasoning !== null) - Number(b.reasoning !== null) || (b.matchTotal ?? 0) - (a.matchTotal ?? 0))
+          .slice(0, limit);
+      },
     } satisfies Partial<ScanDeps> & { setPostingReasoning: (id: string, reasoning: Record<string, unknown>) => boolean },
   };
   return store;
@@ -212,6 +233,8 @@ type Script = {
   reasoningSource?: (call: number) => "llm" | "deterministic";
   /** jobs_cli: throw the keyless refusal. */
   keyless?: boolean;
+  /** match_cli: every call throws the engine's non-zero exit. */
+  failMatch?: boolean;
 };
 
 function scriptedRunner(script: Script, calls: CliCall[]): CliRunner {
@@ -225,12 +248,24 @@ function scriptedRunner(script: Script, calls: CliCall[]): CliRunner {
         return { jobs: items.map((it) => ({ id: it.id, job: { id: it.id, title: it.raw.title, company: "Example", location: "Praha" } })), notes: [] };
       }
       case "match_cli": {
+        if (script.failMatch) throw new PipelineError({ message: "Traceback: KeyError 'skills' (the raw engine text)", status: 500, code: "engine_error" });
         const jobs = f["jobs.json"] as { id: string }[];
         const matches = jobs
           .map((j) => ({ id: j.id, total: script.totals ? script.totals(j.id) : 70 }))
           .filter((m): m is { id: string; total: number } => m.total !== null)
           .map((m) => ({ jobId: m.id, total: m.total, fitTier: m.total >= 70 ? "strong" : "partial", confidence: { low: m.total - 5, high: m.total + 5, level: "tight" }, eligibility: [] }));
-        return { matches, meta: { evaluated: jobs.length, koFiltered: jobs.length - matches.length, koReasons: [] } };
+        // A null total is a KO: with --include-blocked the matcher names the gate and
+        // scores the posting as if it were lifted (matching.py BlockedMatch).
+        const asked = call.args({ "profile.json": "p", "preferences.json": "q", "corpus.json": "c", "jobs.json": "j" }).includes("--include-blocked");
+        const blocked = jobs
+          .filter((j) => (script.totals ? script.totals(j.id) : 70) === null)
+          .map((j) => ({
+            jobId: j.id,
+            koKeys: ["work_mode"],
+            koDetails: ["work mode onsite not preferred"],
+            result: { jobId: j.id, total: 78, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] },
+          }));
+        return { matches, meta: { evaluated: jobs.length, koFiltered: jobs.length - matches.length, koReasons: [] }, ...(asked ? { blocked } : {}) };
       }
       case "jobs_cli": {
         if (script.keyless) throw new PipelineError({ message: "No LLM provider available for ad ingestion (configure one in Models, or install the Claude CLI).", status: 500, code: "engine_error" });
@@ -310,7 +345,7 @@ test("(a) 30 fixture postings: every row is structured and carries a match_total
     assert.equal(row.jobSource, "deterministic");
     assert.equal(typeof row.matchTotal, "number", `${row.id} scored`);
     assert.ok(row.fitTier, `${row.id} banded`);
-    assert.equal(row.matchVersion, "jobseeker-match-v1");
+    assert.equal(row.matchVersion, MATCH_VERSION);
   }
   assert.equal(summary.matched, 30);
   // ONE structure spawn (30 < 200) and ONE match spawn (30 < 500).
@@ -320,7 +355,7 @@ test("(a) 30 fixture postings: every row is structured and carries a match_total
   );
   const matchCall = calls.find((c) => c.module === "match_cli")!;
   const argv = matchCall.args({ "profile.json": "P", "preferences.json": "R", "corpus.json": "C", "jobs.json": "J" });
-  assert.deepEqual(argv, ["--profile-json", "P", "--preferences-json", "R", "--jobs", "C", "--jobs-json", "J", "--limit", "30"]);
+  assert.deepEqual(argv, ["--profile-json", "P", "--preferences-json", "R", "--jobs", "C", "--jobs-json", "J", "--limit", "30", "--include-blocked"]);
   assert.deepEqual(matchCall.files["corpus.json"], [], "the seed corpus is replaced by an empty one: only the seeker's postings rank");
   assert.equal(matchCall.llm, undefined, "the matcher is deterministic and is not handed the LLM config");
 });
@@ -420,6 +455,8 @@ test("(e) the summary is the ScanSummary shape, and an aborted budget records un
     "sources",
     "matched",
     "skippedUpToDate",
+    "koFiltered",
+    "failures",
     "deepDived",
     "deepDiveSkipped",
   ];
@@ -491,4 +528,312 @@ test("(f) incremental matching: an unchanged second scan scores nothing, a moved
   assert.equal(four.skippedUpToDate, 3);
   const matchCall = fourth.find((c) => c.module === "match_cli")!;
   assert.deepEqual((matchCall.files["jobs.json"] as { id: string }[]).map((j) => j.id), [changed.id]);
+});
+
+test("(g) a KO'd posting is stored once with its gate and as-if score, and the next unchanged scan skips it", async () => {
+  const store = makeStore();
+  const postings = Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha"));
+  const sources = [source("alpha", { postings })];
+  const matchSpawns = (calls: CliCall[]) => calls.filter((c) => c.module === "match_cli").length;
+  // jpo-2 fails the hard filter; the other two score 60.
+  const totals = (id: string) => (id === "jpo-2" ? null : 60);
+
+  const first: CliCall[] = [];
+  const one = await runJobseekerScan(WS, { trigger: "manual", deps: depsFor(store, scriptedRunner({ totals }, first), sources) });
+  assert.equal(one.matched, 2, "only survivors count as scored");
+  const blocked = store.rows.get("jpo-2")!;
+  assert.equal(blocked.matchTotal, null, "a filtered posting is not a 0 % fit and never sorts as a score");
+  assert.equal(blocked.fitTier, null);
+  assert.equal(blocked.matchVersion, MATCH_VERSION);
+  assert.equal(blocked.matchedAt, NOW);
+  assert.deepEqual(blocked.match, {
+    blocked: { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] },
+    asIf: { jobId: "jpo-2", total: 78, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] },
+  });
+
+  // Unchanged second scan: the stamped verdict is current, so the matcher is not spawned
+  // for it (it used to be re-sent on every scan because nothing ever stamped it).
+  const second: CliCall[] = [];
+  const two = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals }, second), sources) });
+  assert.equal(two.skippedUpToDate, 3, "the blocked row counts as already current");
+  assert.equal(matchSpawns(second), 0, "and nothing is re-sent to the matcher");
+});
+
+test("(egress) the scan's fetch binding refuses private URLs before the transport, and hands every fetch a hopGuard", async () => {
+  const store = makeStore();
+  const requested: { url: string; hopGuard?: (next: URL) => Promise<string | null> }[] = [];
+  // An adapter that fetches whatever its config names - the shape of a sitemap <loc> or a
+  // rule-extracted detail link a board controls.
+  const fetchingAdapter: SourceAdapter = {
+    name: "board_sitemap_jsonld",
+    detailFetches: false,
+    async *discover(ctx) {
+      const out = await ctx.fetch(ctx.source.config.url as string, { sourceId: ctx.source.id });
+      if (out.kind !== "ok") throw new FetchHalt(out);
+    },
+    async detail() {
+      return null;
+    },
+  };
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...depsFor(store, scriptedRunner({}, []), [
+        source("loopback", { url: "http://127.0.0.1:8080/sitemap.xml" }),
+        source("metadata", { url: "http://169.254.169.254/latest/meta-data/" }),
+        source("rebind", { url: "https://rebind.example/sitemap.xml" }),
+        source("public", { url: "https://public.example/sitemap.xml" }),
+      ]),
+      adapterFor: () => fetchingAdapter,
+      lookup: async (host) => [{ address: host === "rebind.example" ? "10.0.0.5" : "93.184.216.34" }],
+      fetch: async (url, opts) => {
+        requested.push({ url, hopGuard: opts.hopGuard });
+        return { kind: "ok", status: 200, contentType: "application/xml", body: "", finalUrl: url, stream: null };
+      },
+    },
+  });
+  assert.deepEqual(
+    requested.map((r) => r.url),
+    ["https://public.example/sitemap.xml"],
+    "only the public URL reached the transport"
+  );
+  const outcome = (id: string) => summary.sources.find((s) => s.sourceId === id)?.outcome;
+  for (const id of ["loopback", "metadata", "rebind"]) {
+    assert.equal(outcome(id), "blocked", `${id}: a source pointing the server at a private address is paused for its owner`);
+  }
+  assert.equal(outcome("public"), "succeeded");
+  const hopGuard = requested[0].hopGuard;
+  assert.ok(hopGuard, "the public fetch carries a hopGuard for its redirects");
+  assert.ok(await hopGuard(new URL("http://169.254.169.254/latest/meta-data/")), "a redirect onto the metadata address is refused");
+  assert.equal(await hopGuard(new URL("https://public.example/next")), null);
+});
+
+test("(stale stamp) a profile edit that lands while the scan is scoring leaves those rows owed a re-match", async () => {
+  const store = makeStore();
+  // A clock that moves: every read is one second later. The seeker saves their
+  // preferences WHILE match_cli is running - after the scan read the profile.
+  let tick = 0;
+  const clock = () => new Date(Date.parse(NOW) + 1000 * tick++).toISOString();
+  const seeker: JobseekerProfile = { ...profile, updatedAt: NOW };
+  // A holder, not a `let`: TS does not see the closure's write and would narrow a let to null.
+  const edit: { at: string | null } = { at: null };
+  const scripted = scriptedRunner({ totals: () => 60 }, []);
+  const runCli: CliRunner = async (call) => {
+    if (call.module === "match_cli" && edit.at === null) {
+      edit.at = clock();
+      seeker.updatedAt = edit.at;
+    }
+    return scripted(call);
+  };
+  const postings = Array.from({ length: 3 }, (_, i) => raw(i + 1, "stale"));
+  await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, runCli, [source("stale", { postings })], true, seeker), now: clock, getProfile: () => ({ ...seeker }) },
+  });
+  const editedAt = edit.at;
+  assert.ok(editedAt, "the edit landed mid-scan");
+  const scored = [...store.rows.values()];
+  assert.equal(scored.length, 3);
+  for (const r of scored) assert.ok(r.matchedAt !== null && r.matchedAt < editedAt, `matchedAt ${r.matchedAt} must predate the edit at ${editedAt}`);
+  const next = store.deps.listPostingsForMatching(WS, { upToDateVersion: MATCH_VERSION, profileUpdatedAt: seeker.updatedAt });
+  assert.equal(next.rows.length, 3, "scored against the OLD preferences: the next scan re-matches them");
+  assert.equal(next.skippedUpToDate, 0);
+});
+
+test("(o) a deep-dive re-match is stamped with the scan's inputs time, not the moment the dive finished", async () => {
+  // The same stale-stamp rule as (n), on the deep-dive's own re-match: the dive runs
+  // minutes after the profile was read, so a preferences edit saved in between must still
+  // postdate every matchedAt the dive writes.
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: [raw(1, "alpha")] })]);
+  const LATER = "2026-09-16T10:07:00.000Z";
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...base,
+      deepDive: (posting, prof, opts) =>
+        deepDivePosting(posting, prof, {
+          ...opts,
+          deps: {
+            runCli,
+            setPostingStructure: store.deps.setPostingStructure,
+            setPostingMatch: store.deps.setPostingMatch,
+            setPostingReasoning: store.deps.setPostingReasoning,
+            now: () => LATER,
+            log: () => undefined,
+          },
+        }),
+    },
+  });
+  assert.equal(summary.deepDived, 1);
+  assert.equal(store.rows.get("jpo-1")!.jobSource, "llm", "the dive restructured and re-matched the posting");
+  assert.equal(store.rows.get("jpo-1")!.matchedAt, NOW, "the re-match carries the scan's inputs time");
+});
+
+// ── D.1: a scan whose phases failed says so in its record ───────────────────────────
+
+test("(h) every match batch throws: the summary names the phase and its CODE, and the run is a whole-phase failure", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const logged: { code: string; error: unknown }[] = [];
+  const runCli = scriptedRunner({ failMatch: true }, calls);
+  const postings = Array.from({ length: 4 }, (_, i) => raw(i + 1, "alpha"));
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, runCli, [source("alpha", { postings })]), log: (event, error) => logged.push({ code: event.code, error }) },
+  });
+  assert.equal(summary.matched, 0);
+  assert.deepEqual(summary.failures, [{ phase: "match", chunks: 1, of: 1, code: "ENGINE_FAILED" }], "said on the record, not only in the log");
+  assert.ok(!JSON.stringify(summary).includes("Traceback"), "the raw engine text never reaches the summary");
+  assert.ok(logged.some((l) => l.code === "match_failed" && l.error instanceof PipelineError), "…it stays in the server log");
+  assert.deepEqual(scanWholePhaseFailure(summary), { phase: "match", chunks: 1, of: 1, code: "ENGINE_FAILED" }, "nothing was scored: the door records `error`");
+  assert.equal(summary.deepDived, 0);
+});
+
+test("(i) one deep-dive throwing is a PARTIAL failure: counted of the shortlist, the others still land, the run is not an error", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]);
+  let dives = 0;
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...base,
+      deepDive: async (posting, prof, opts) => {
+        if (dives++ === 0) throw new Error("model exploded");
+        return base.deepDive!(posting, prof, opts);
+      },
+    },
+  });
+  assert.equal(summary.deepDived, 2);
+  assert.deepEqual(summary.failures, [{ phase: "deepdive", chunks: 1, of: 3, code: "ENGINE_FAILED" }]);
+  assert.equal(scanWholePhaseFailure(summary), null, "the scores stand: a deep-dive failure never fails the run");
+});
+
+test("(i2) a deep-dive killed by the scan stopping is the scan ending, not an engine failure", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]);
+  const outer = new AbortController();
+  const phases: string[] = [];
+  let dives = 0;
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    signal: outer.signal,
+    onProgress: (_done, _total, phase) => phases.push(phase ?? ""),
+    deps: {
+      ...base,
+      deepDive: async (posting, prof, opts) => {
+        if (dives++ === 1) {
+          // The budget runs out while this dive is in flight: its subprocess dies with it.
+          outer.abort(new Error("wall budget"));
+          throw new Error("Python process aborted");
+        }
+        return base.deepDive!(posting, prof, opts);
+      },
+    },
+  });
+  assert.equal(summary.deepDived, 1);
+  assert.equal(dives, 2, "nothing is dived after the stop");
+  assert.deepEqual(summary.failures, [], "no failure on the record");
+  assert.equal(phases.at(-1), "aborted", "the stop is said by the phase");
+});
+
+test("(j) the KO-filtered count rides the summary beside `matched`", async () => {
+  const store = makeStore();
+  const totals = (id: string) => (id === "jpo-2" || id === "jpo-3" ? null : 60);
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: depsFor(store, scriptedRunner({ totals }, []), [source("alpha", { postings: Array.from({ length: 4 }, (_, i) => raw(i + 1, "alpha")) })]),
+  });
+  assert.equal(summary.matched, 2);
+  assert.equal(summary.koFiltered, 2);
+  assert.deepEqual(summary.failures, []);
+});
+
+test("(k) a source that reached maxRefs is recorded `truncated`; one under the cap is not", async () => {
+  const store = makeStore();
+  const many = Array.from({ length: SCAN_LIMITS.maxRefs + 5 }, (_, i) => raw(i + 1, "big"));
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: depsFor(store, scriptedRunner({ totals: () => 40 }, []), [source("big", { postings: many }), source("small", { postings: [raw(1, "small")] })]),
+  });
+  const bySource = new Map(summary.sources.map((s) => [s.sourceId, s]));
+  assert.equal(bySource.get("big")!.outcome, "succeeded");
+  assert.equal(bySource.get("big")!.truncated, true);
+  assert.equal(bySource.get("big")!.new, SCAN_LIMITS.maxRefs);
+  assert.equal(bySource.get("small")!.truncated, false);
+});
+
+test("(l) the live line names the source being read and counts ITS detail reads, then the phases", async () => {
+  const store = makeStore();
+  const seen: [number, number, string | undefined][] = [];
+  await runJobseekerScan(WS, {
+    trigger: "manual",
+    onProgress: (done, total, msg) => seen.push([done, total, msg]),
+    deps: depsFor(store, scriptedRunner({ totals: () => 40 }, []), [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]),
+  });
+  assert.deepEqual(seen.slice(0, 5), [
+    [0, 0, "alpha.example"],
+    [0, 3, "alpha.example"],
+    [1, 3, "alpha.example"],
+    [2, 3, "alpha.example"],
+    [3, 3, "alpha.example"],
+  ]);
+  assert.deepEqual(
+    seen.slice(5).map((s) => s[2]),
+    ["structure", "match", "deepdive", "done"],
+    "the phase messages are the closed SCAN_PROGRESS_PHASES vocabulary the doors translate"
+  );
+});
+
+test("scanFailureCode: the engine's typed failures keep their code; anything else is ENGINE_FAILED, never a message", () => {
+  assert.equal(scanFailureCode(new PipelineError({ message: "boom", status: 500, code: "engine_error" })), "ENGINE_FAILED");
+  assert.equal(scanFailureCode(new Error("ECONNRESET")), "ENGINE_FAILED");
+  assert.equal(scanFailureCode("string"), "ENGINE_FAILED");
+});
+
+test("scanWholePhaseFailure: only a structure/match phase with EVERY unit failed; stored summaries without `failures` read null", () => {
+  assert.equal(scanWholePhaseFailure({}), null);
+  assert.equal(scanWholePhaseFailure({ failures: [{ phase: "match", chunks: 1, of: 2, code: "ENGINE_FAILED" }] }), null);
+  assert.equal(scanWholePhaseFailure({ failures: [{ phase: "deepdive", chunks: 3, of: 3, code: "ENGINE_FAILED" }] }), null);
+  assert.deepEqual(scanWholePhaseFailure({ failures: [{ phase: "structure", chunks: 2, of: 2, code: "ENGINE_TIMEOUT" }] }), {
+    phase: "structure",
+    chunks: 2,
+    of: 2,
+    code: "ENGINE_TIMEOUT",
+  });
+});
+
+// ── D.2: a rationale reasoned before the profile moved is owed a new one ────────────
+
+test("(m) after a CV/preference edit the next scan re-dives the rationales reasoned from the old inputs", async () => {
+  const store = makeStore();
+  const sources = [source("alpha", { postings: [raw(1, "alpha"), raw(2, "alpha")] })];
+  const first: CliCall[] = [];
+  const one = await runJobseekerScan(WS, { trigger: "manual", deps: depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, first), sources) });
+  assert.equal(one.deepDived, 2);
+  for (const r of store.rows.values()) assert.equal(r.reasoning?.reasonedAt, NOW, "stamped with the scan's inputs time");
+
+  // Unchanged profile: nothing is owed a rationale.
+  const second: CliCall[] = [];
+  const two = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, second), sources) });
+  assert.equal(two.deepDived, 0);
+  assert.equal(second.filter((c) => c.module === "reasoning_cli").length, 0);
+
+  // The seeker edits their preferences: both rationales predate the inputs.
+  const LATER = "2026-09-16T12:00:00.000Z";
+  const moved: JobseekerProfile = { ...profile, updatedAt: LATER };
+  const third: CliCall[] = [];
+  const three = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, third), sources, true, moved), now: () => LATER },
+  });
+  assert.equal(three.deepDived, 2, "both stale rationales were re-dived");
+  const reasoned = third.find((c) => c.module === "reasoning_cli")!;
+  assert.deepEqual(reasoned.files["preferences.json"], moved.preferences, "for the seeker as they are now");
 });

@@ -102,7 +102,7 @@ export function DevSessionEvidencePanel({
         {judge === "self_grading" ? (
           <span
             title={tIntegrity("judgeSelfGradingTitle")}
-            className="inline-flex items-center gap-1 rounded bg-coral/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-coral"
+            className="inline-flex items-center gap-1 rounded bg-coral/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-coral-ink"
           >
             <Gavel size={11} aria-hidden /> {tIntegrity("judgeSelfGrading")}
           </span>
@@ -121,12 +121,12 @@ export function DevSessionEvidencePanel({
           ) : null}
 
           {state === "error" ? (
-            <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-2 py-1.5 text-micro text-coral">
+            <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-2 py-1.5 text-micro text-coral-ink">
               <span className="min-w-0">{error}</span>
               <button
                 type="button"
                 onClick={() => void load()}
-                className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-coral/40 bg-white px-1.5 py-0.5 font-semibold text-coral hover:bg-coral/10"
+                className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-coral/40 bg-white px-1.5 py-0.5 font-semibold text-coral-ink hover:bg-coral/10"
               >
                 {t("retry")}
               </button>

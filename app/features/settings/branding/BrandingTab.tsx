@@ -184,7 +184,7 @@ export function BrandingTab() {
 
       {loadFailed ? (
         <div className={`${PANEL_SUNKEN} p-4`}>
-          <p className="text-base text-coral">{t("loadFailed")}</p>
+          <p className="text-base text-coral-ink">{t("loadFailed")}</p>
         </div>
       ) : (
         <div className="animate-arrive-in grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

@@ -8,6 +8,15 @@ import { labelOr, useEnumLabel } from "@/app/_lib/use-enum-label";
 import { fieldTargetForCheck, fieldTargetForMissing, type ProfileFieldKey } from "./profileCompletenessFields";
 import { routingReasonsLine, SELF_DECLARED_REASON_KIND } from "./profileRoutingReasons";
 
+/** What the panel shows: a SAVED server result (profile_cli via /api/profile, the
+ *  authority - carries `saved`), or the editor's LIVE readiness (profileReadiness.ts,
+ *  no `saved`, codes and id-keyed gaps only). The panel fetches nothing; it renders
+ *  whichever it is handed, and says which it is. */
+export type ReadinessView = Pick<BuildResult, "archetype" | "confidence" | "completeness"> &
+  Partial<Pick<BuildResult, "reasons" | "reasonCodes" | "missing" | "missingGaps" | "saved">> & {
+    profile?: { displayName?: string };
+  };
+
 // Named for what it panels — the PROFILE build result. It used to export
 // `ResultPanel`, the same name app/_components/results/ResultPanel.tsx exports for
 // the CV-analysis result, so two different components answered to one name in the
@@ -17,7 +26,7 @@ export function ProfileResultPanel({
   onMatchNow,
   onGoToField,
 }: {
-  result: BuildResult;
+  result: ReadinessView;
   /** Present only for a SAVED result: one click runs a match against this profile. */
   onMatchNow?: () => void;
   /** Jump to the editor field that resolves a given completeness gap. */
@@ -84,7 +93,7 @@ export function ProfileResultPanel({
           <button
             type="button"
             onClick={onMatchNow}
-            className="focus-ring ml-auto inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:bg-coral/90"
+            className="focus-ring ml-auto inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:bg-coral-solid/90"
           >
             {t("matchNow")} <ArrowRight size={15} aria-hidden />
           </button>
@@ -110,9 +119,9 @@ export function ProfileResultPanel({
                     type="button"
                     onClick={() => onGoToField?.(target)}
                     title={t("goToField")}
-                    className="focus-ring group -ml-1 inline-flex items-center gap-1 rounded px-1 text-left text-ink hover:text-coral"
+                    className="focus-ring group -ml-1 inline-flex items-center gap-1 rounded px-1 text-left text-ink hover:text-coral-ink"
                   >
-                    <span className="text-coral">{"+"}</span>
+                    <span className="text-coral-ink">{"+"}</span>
                     <span className="underline decoration-dotted decoration-steel/50 underline-offset-2 group-hover:decoration-coral">
                       {label}
                     </span>

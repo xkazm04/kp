@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Point-read one job by id. GET /api/jobs enumerates a ranked, LIMIT-300 slice, so a
@@ -13,11 +13,10 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // Visibility matches the list query's predicate (shared seeded corpus + this team's own
 // openings) — a point-fetch must not hand out what the list would never show. 404 covers
 // both "no such job" and "another team's job", so the endpoint can't be used to probe ids.
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
-    const ws = await currentWorkspace();
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return jsonRefusal("JOB_NOT_FOUND", 404);
     }
@@ -25,4 +24,4 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     return safeJsonError(error, "api:jobs/get", "JOB_LOAD_FAILED");
   }
-}
+});

@@ -13,7 +13,7 @@ import {
 } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db/billing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireBillingAuthority } from "../authority";
@@ -33,7 +33,7 @@ import { requireBillingAuthority } from "../authority";
 // is far above any human buying pace — a person buys once, or retries a card twice.
 const CHECKOUT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Billing is `org:manage` (authority.ts): an owner decision, not a recruiter's.
   const denied = await requireBillingAuthority();
   if (denied) return denied;
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   // Org scope (org-plan Phase 3): the buying org — resolved from the caller's
   // session workspace. Stamped into the checkout metadata so the webhook events
   // attribute back to it, and used for the already-subscribed guard below.
-  const orgId = billingOrgForWorkspace(await currentWorkspace());
+  const orgId = billingOrgForWorkspace(ws);
 
   const body = (await request.json().catch(() => null)) as { plan?: unknown; pack?: unknown } | null;
   // A non-self-serve tier is a valid plan id but is never bought here — fail it with a
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // Land back ON the Billing tab so the recruiter sees their plan; the
     // `billing=success` flag tells BillingTab to confirm + poll for the settled
     // entitlement (the webhook lands the plan a moment later).
-    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=success`;
+    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=${req.kind}-success`;
     const checkout = await gateway.createCheckout(req, { successUrl, orgId });
     return jsonOk(checkout);
   } catch (error) {
@@ -121,4 +121,4 @@ export async function POST(request: NextRequest) {
     // in a language nobody here chose. Log it server-side, answer the stable code.
     return safeJsonError(error, "api/billing/checkout", "BILLING_CHECKOUT_FAILED", 502);
   }
-}
+});

@@ -1,0 +1,104 @@
+[
+  {
+    "context": "tests-scoring-fairness",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Every candidate-typed scorer registers a name-neutrality proof, or says why not",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "pipeline/jobfit/eval/neutrality.py",
+      "pipeline/jobfit/tests/test_neutrality_registry.py",
+      "pipeline/jobfit/tests/test_fairness.py",
+      "pipeline/jobfit/tests/test_name_neutrality.py",
+      "pipeline/jobfit/eval/matching_eval.py",
+      "docs/development/testing-and-evaluation.md",
+      "docs/features/compliance/ai-act-conformity.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/eval/neutrality.py",
+      "pipeline/jobfit/tests/test_neutrality_registry.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "neutrality.discover_candidate_scorers() over pipeline/jobfit (excluding tests/, eval/, llm/bench/, *_cli.py, seed_*.py) returns every public top-level function with a parameter annotated MatchCandidate | CandidateProfileV2 | CandidateProfile - 41 on today's tree, including 'recruiter.fairness_check', 'recruiter.rank_candidates_for_job', 'automation.screen_candidate', 'automation.rematch_candidate', 'winnability.assess_winnability', 'weight_proposal.deterministic_proposals', 'soft_signals.build_soft_signal_panel'",
+      "set(SCORERS) | set(EXEMPT) == discovered and SCORERS & EXEMPT == {}; a source string fed to the discoverer that adds `def new_scorer(c: MatchCandidate) -> int` makes the completeness check fail with a message naming 'new_scorer' (the list is derived from the tree, never hand-kept)",
+      "every EXEMPT entry carries a reason of >= 20 chars that names either the registered scorer covering it transitively (e.g. score_skills -> score_job) or why its output cannot carry a score (e.g. draft_outreach: 'addresses the candidate by name by design; prose that gates nothing'); a reason under 20 chars fails naming the entry",
+      "for each of >= 12 registered scorers (match, score_job, fairness_matrix, ko_filter, eligibility_flags, propose_weights, rank_candidates_for_job, rank_candidates_by_track, fairness_check over distinct names, rematch_candidate(provider=None), screen_candidate(provider=None), assess_winnability, deterministic_proposals, build_soft_signal_panel) x every entry of neutrality.PERTURBATIONS, the canonical payload (the name removed ONLY from that scorer's declared carrier paths) is byte-identical to the 'Alex Smith' baseline",
+      "PLANTED MUTATION: mock.patch.object(recruiter, 'score_job', wrapper returning total-4 when candidate.label ends with 'ová') -> test_neutrality_registry fails on rank_candidates_for_job for the czech_female_ova axis; under the same patch test_fairness.py, test_name_neutrality.py and test_recruiter.py all stay green (the gap the registry closes, measured)",
+      "second-carrier finding: a runner whose payload contains the sentinel name 'Zzneutralitynamezz' at any path outside its declared carriers fails naming that JSON path; non-vacuity: every runner's baseline payload is non-empty and contains the scored key it declares (e.g. rank rows carry 'result', screen carries 'recommendation')",
+      "one perturbation set: matching_eval._probe_gender, test_fairness.GenderNeutralityTest and test_name_neutrality.NameNeutralityTest all read neutrality.PERTURBATIONS; a literal 'Nováková' appears in eval/neutrality.py and in none of those three files; PERTURBATIONS is the UNION of today's three sets (7 name axes + accent-stripped pair + English pair + 2 gendered-prose pairs), never smaller",
+      "no assertion loosened: test-method count in test_fairness.py and test_name_neutrality.py is >= today's, and `npm run test:eval:ci` + `npm run test:python:gate` exit 0"
+    ],
+    "premise": [
+      "pipeline/jobfit/tests/test_fairness.py:113-122 declares _GENDER_PAIRS (4 pairs) and _GENDERED_PROSE (2 pairs) for match() + fairness_matrix() only",
+      "pipeline/jobfit/tests/test_name_neutrality.py:55-63 declares a DIFFERENT set, NAME_VARIANTS (7 axes incl. Vietnamese/Ukrainian/Arabic/Roma), for match() + analyze_cv() only",
+      "pipeline/jobfit/eval/matching_eval.py:311-315 declares a THIRD set (3 pairs) for the report's gender_neutrality probe (_probe_gender at :284)",
+      "pipeline/jobfit/tests/test_fairness.py:135-139 records 'MUTATION THAT STAYED GREEN': a -ová penalty in score_job left all 233 tests in this context passing because no test perturbed the engine it lived in",
+      "pipeline/jobfit/tests/test_name_neutrality.py:210-218 records the same shape a second time: a -ová penalty in the analyze_cv post-pass 'left every guard in this context GREEN, because nothing here ever called analyze_cv with two different names'",
+      "pipeline/jobfit/recruiter.py:36 fairness_check and :72 rank_candidates_for_job, pipeline/jobfit/automation.py:996 screen_candidate and :2553 rematch_candidate, pipeline/jobfit/winnability.py:53 assess_winnability all take MatchCandidate and are called by no name-perturbation test (grep of the three sets' names in pipeline/jobfit/tests finds no call to them)",
+      "pipeline/jobfit/transform.py:262 carries the name into MatchCandidate.label, so the name physically reaches every one of those scorers"
+    ],
+    "rollback": "Additive: two new files plus three files switching their literal pair lists to an import of the (superset) PERTURBATIONS. Reverting the commit restores the three literal lists; no production module changes, no persisted data, no API.",
+    "gate": "policy-tighten",
+    "runner_up": "Non-name proxy axes (a parental-leave gap line, a graduation year disclosing age, first language) as perturbations - the technique names them as where most real leakage lives; traded away because they are not token swaps and need a per-axis 'same evidence' design first.",
+    "technique": "name-and-proxy-neutrality-perturbation-testing",
+    "body": "## Summary\nReplace three hand-kept name-perturbation lists, each wired to a different subset of engines, with ONE perturbation set and ONE registry that every public function taking a candidate must either register an invariance runner in or be exempted from with a written reason - derived from the tree, so a new scorer cannot ship unproven.\n\n## Description\nThe name-neutrality claim (the AI-Act pack's closed G3) is only as wide as the engines someone remembered to perturb. Today that is match(), fairness_matrix() and analyze_cv(), spread across test_fairness.py, test_name_neutrality.py and matching_eval.py with three different pair lists. Twice already a planted -ová penalty stayed green because it lived in an engine no test perturbed (both recorded in the test files' own docstrings). Meanwhile 41 public functions take a MatchCandidate/CandidateProfile - recruiter ranking, the Fair Rank matrix, the keyless screen that gates automated moves, rematch, winnability, weight proposals - and none of them is perturbed. `pipeline/jobfit/eval/neutrality.py` holds the canonical PERTURBATIONS (union of the three sets), an AST discoverer of candidate-typed public functions, SCORERS (name -> runner + declared carrier paths) and EXEMPT (name -> reason). `test_neutrality_registry.py` asserts completeness, runs every scorer x every perturbation for byte-identity outside the declared carriers, and runs the sentinel second-carrier check. The three existing suites import the set instead of re-typing it.\n\n## Flow\n1. discover_candidate_scorers() walks pipeline/jobfit with ast, returns module.func for public defs with a candidate-typed parameter.\n2. Completeness: discovered == SCORERS + EXEMPT, disjoint, reasons >= 20 chars.\n3. For each SCORER: build the baseline input from the fixed profile named 'Alex Smith', then for each perturbation rebuild with only the name (or gendered prose line) changed, run, pop the declared carriers, canonical-JSON, compare bytes.\n4. Sentinel pass: run with 'Zzneutralitynamezz', fail on any path outside the carriers that contains it.\n5. matching_eval/_probe_gender and the two suites iterate neutrality.PERTURBATIONS.\n\n## Expected impact\nThe fairness claim becomes a statement about every candidate-typed function on the tree rather than three of them, and the class 'a new or refactored scorer reads the name' closes at the moment the function is written. The measured probe run on today's tree (screen, rematch, rank, winnability over 5 names x 2 profiles) is neutral, so this lands green and widens the gate.\n\n## Evaluation\nClaim: every candidate-typed scorer is either proven name-invariant over one market-specific perturbation set or exempted with a stated reason, and a new one cannot slip in.\nBefore: 0 of 8 acceptance cases pass (no registry, no discoverer; the planted recruiter mutation stays green).\nAfter: 8 of 8.\nMethod: policy-tighten - node-free Python cases in test_neutrality_registry.py under test:python:gate, plus the planted-mutation case and test:eval:ci.\nResult: pending build.\nGate: policy-tighten",
+    "evidence": "Three literal sets: test_fairness.py:113 `_GENDER_PAIRS = (` (Jan Novák/Jana Nováková, accent-stripped, Ing., John/Jane Smith); test_name_neutrality.py:55 `NAME_VARIANTS: dict[str, str] = {` (czech_male, czech_female_ova, vietnamese, ukrainian, arabic, roma_associated, roma_associated_female); matching_eval.py:311 `pairs = [` (3 pairs). AST scan (public top-level defs with a MatchCandidate/CandidateProfileV2/CandidateProfile-annotated parameter, excluding tests/eval/bench/_cli/seed_) = 41 functions across automation(7), insights(1), interview(1), jobseeker(1), live_case(2), match_reasoning(2), matching(13), profile(3), recruiter(3), soft_signals(1), transform(3), weight_proposal(3), winnability(1). Probe run 2026-09-23 (PYTHONDONTWRITEBYTECODE, keyless): screen_candidate/rematch_candidate/rank_candidates_for_job/assess_winnability over ['Alex Smith','Jiří Novák','Jana Nováková','Nguyễn Thị Thu Hà','Gejza Horváth'] x (_senior_backend,_student_frontend) -> 0 diffs after removing the name; sentinel carriers found: rank rows '[0].label', soft-signal panel '.display_name', screen [] , rematch [] - so the carrier declarations are small and known today."
+  },
+  {
+    "context": "tests-scoring-fairness",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Fair Rank keys identity on candidate id: a namesake can't erase an eligible hire",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "pipeline/jobfit/matching.py",
+      "pipeline/jobfit/recruiter.py",
+      "pipeline/jobfit/tests/test_fairness.py",
+      "pipeline/jobfit/tests/test_recruiter.py",
+      "app/features/shared/groupEvalTypes.ts",
+      "app/features/hiring/decisions/groupEval/groupEvalHelpers.ts",
+      "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx",
+      "app/features/hiring/decisions/GroupEvalModal.tsx",
+      "app/_lib/group-eval-run.ts",
+      "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx",
+      "app/features/hiring/decisions/groupEval/groupEvalRobustness.test.ts",
+      "app/features/hiring/decisions/groupEval/fairness-guard.test.ts",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [],
+    "acceptance": [
+      "fairness_check([('a', senior 'Jan Novák'), ('b', junior 'Jan Novák')], senior job) -> koFailed == ['b'], rankingIds == ['a'], ranking == ['Jan Novák'] (today: ranking == [] - the eligible senior vanishes because his KO'd namesake shares the label)",
+      "a pool where every label is the transform fallback 'Candidate' (transform.py:262) with one KO-failed member -> rankingIds lists every non-KO id, in mean-descending order",
+      "pool-level name neutrality: the same two candidates labelled ('Jan Novák','Petr Svoboda') vs ('Jan Novák','Jan Novák') -> identical rankingIds, koFailed, matrix and mean",
+      "fairness_matrix(...) returns 'order', a permutation of range(n) sorted by mean desc, and 'ranking' == [labels[i] for i in order] exactly as today (back-compat for every existing reader)",
+      "isFairnessAligned({labels:['Jan Novák','Jan Novák'], candidateIds:['a','b'], rankingIds:['a'], ranking:['Jan Novák'], koFailed:['b'], square 2x2 matrix...}) -> true, so assessRobustness returns 'assessed' when weights vary (today the Python output ranking:[] + koFailed:1 != n:2 -> false -> 'unavailable', i.e. the sealed record says robustness could not be assessed because two people share a name)",
+      "isFairnessAligned rejects a rankingIds entry not in candidateIds, a duplicate id, or an id also in koFailed; a legacy blob with NO rankingIds is judged by today's label rule unchanged",
+      "robustOrder by id: rankingIds ['b','a'] vs headline ids ['a','b'] with both labels 'Jan Novák' -> 'diverges' (today robustOrderVerdict(['Jan Novák','Jan Novák'], ['Jan Novák','Jan Novák']) says 'agrees' - a swapped namesake order is invisible); legacy payload without ids falls back to the label comparison",
+      "the Fair Rank audit table and the robust-order pills key React rows on candidate id, never on label (no duplicate key for namesakes)"
+    ],
+    "premise": [
+      "pipeline/jobfit/recruiter.py:61-68 collects ko_failed_labels (a set of display labels) and filters matrix['ranking'] by label - every candidate sharing a KO'd candidate's name is dropped",
+      "pipeline/jobfit/matching.py:1145 labels = [c.label ...] and :1166 'ranking': [labels[i] for i in order] - the robust order is emitted as names, not ids, while candidateIds exist beside it (recruiter.py:53)",
+      "pipeline/jobfit/transform.py:262 label=profile.display_name or 'Candidate' - every unnamed profile shares one label",
+      "app/features/shared/groupEvalTypes.ts:76 `if (ranking.length + koCount !== n) return false;` and :78 label-set membership - the namesake drop makes a real matrix read as misaligned, and assessRobustness (:90) then reports 'unavailable'",
+      "app/features/hiring/decisions/groupEval/groupEvalHelpers.ts:91-97 robustOrderVerdict compares label strings; app/_lib/group-eval-run.ts:982 recommendedOrder: candidates.map((c) => c.label)",
+      "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx:71 `<tr key={r.label}` and GroupEvalFairnessPanel.tsx:157-160 render ranking by label",
+      "the rest of group-eval already moved to ids for exactly this reason: group-eval-run.ts:88 ('by id (not by the non-unique display label)'), :958 comparedIds, groupEvalDelta.test.ts:132 'tracks two candidates with the same label separately by entry id' - the fairness seam is the one left behind",
+      "pipeline/jobfit/tests/test_seed_candidates.py:22 test_names_are_unique - the demo corpus is stamped namesake-free, so no demo walk can surface this"
+    ],
+    "rollback": "Additive fields (order, rankingIds, recommendedIds) with a legacy fallback in every reader: reverting the commits returns the label-keyed path; persisted group-eval blobs written in between carry extra keys the old readers ignore.",
+    "gate": "contract",
+    "runner_up": "weight_proposal.py:47 puts cand.label into the LLM weight-proposer's prompt (dumped at :84) - blind the proposer to names with an index alias; traded away because it moves LLM output and needs a keyed bench, not a keyless case.",
+    "technique": "name-and-proxy-neutrality-perturbation-testing",
+    "body": "## Summary\nThe cross-scheme fairness ranking identifies candidates by display name. When two candidates share a name (or both fall back to 'Candidate') and one is knocked out, both disappear from the robust order - and the TS guard then declares the whole matrix misaligned, so the sealed group evaluation says robustness 'could not be assessed'. Key the ranking, the KO exclusion and the order verdict on candidate id end to end.\n\n## Description\nName neutrality is this context's central contract: the name may move nothing. At the single-candidate level it holds; at the pool level it does not. recruiter.fairness_check drops KO-failed candidates from the ranking by LABEL (recruiter.py:61-68), fairness_matrix emits the ranking as labels (matching.py:1166), isFairnessAligned counts ranking + koFailed against n (groupEvalTypes.ts:76), and robustOrderVerdict compares label strings (groupEvalHelpers.ts:91). Measured: two candidates both named 'Jan Novák', one KO'd -> ranking [] ; with distinct names -> ['Jan Novák']. The fix: fairness_matrix adds `order` (indices); fairness_check excludes by index and emits `rankingIds`; the payload gains `recommendedIds`; the TS guard, verdict, panel and Fair Rank table read ids when present and fall back to labels for legacy sealed blobs. A pool-level namesake case joins the neutrality suite so the contract is pinned where it broke.\n\n## Flow\n1. matching.fairness_matrix: add 'order': list[int]; 'ranking' unchanged.\n2. recruiter.fairness_check: ko_failed index set; rankingIds = [candidateIds[i] for i in order if i not in ko]; ranking = labels of the same.\n3. group-eval-run: persist recommendedIds beside recommendedOrder.\n4. groupEvalTypes.isFairnessAligned: validate rankingIds (subset of candidateIds, unique, disjoint from koFailed, count + koFailed == n); legacy rule when absent.\n5. robustOrderVerdict(rankingIds, headlineIds) with a label fallback; panel + Fair Rank table render labels looked up by id, keyed by id.\n6. test_fairness: NamesakePoolTest; test_recruiter + two TS tests pin the payload.\n\n## Expected impact\nAn eligible candidate can no longer be erased from a sealed fairness audit - or turn the audit into 'could not assess' - because someone else in the pool has the same name. Common Czech names and every unnamed/blinded profile ('Candidate') are exactly the populations this hits; the demo never shows it because seeded names are forced unique.\n\n## Evaluation\nClaim: the robust order, KO exclusion and order verdict are functions of candidate identity, not of display name.\nBefore: 0 of 8 acceptance cases pass (probe: namesake pool -> ranking []).\nAfter: 8 of 8.\nMethod: contract - Python cases in test_fairness.py/test_recruiter.py under test:python:gate, TS cases in groupEvalRobustness.test.ts/fairness-guard.test.ts under test:unit.\nResult: pending build.\nGate: contract",
+    "evidence": "Probe 2026-09-23 (PYTHONPATH=. python, keyless): job = mkjob(seniority='senior', must-have Python); pool = [('id-a', senior bau 'X'), ('id-b', junior bau 'Y')]. ('Jan Novák','Jan Novák') -> koFailed ['id-b'] ranking [] ids ['id-a','id-b']; ('Jan Novák','Petr Svoboda') -> koFailed ['id-b'] ranking ['Jan Novák']. recruiter.py:66 `ko_failed_labels.add(cand.label)`; :68 `matrix[\"ranking\"] = [label for label in matrix[\"ranking\"] if label not in ko_failed_labels]`. groupEvalTypes.ts:76 `if (ranking.length + koCount !== n) return false;` -> 0 + 1 != 2 -> not aligned -> assessRobustness 'unavailable'. groupEvalHelpers.ts:94 `const projected = headlineOrder.filter((l) => inMatrix.has(l));` compares names only."
+  }
+]

@@ -1,0 +1,109 @@
+[
+  {
+    "context": "tests-pipeline-automation",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Generate the 13 hand-mirrored contract numbers; sync tests pin the door",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "pipeline/jobfit/codegen.py",
+      "app/_lib/contract-constants.generated.ts",
+      "app/_lib/interview-transcript.ts",
+      "app/_lib/automation-cache-key.ts",
+      "app/_lib/calibration.ts",
+      "app/_lib/interview-kit-types.ts",
+      "app/_lib/interview-letter-types.ts",
+      "app/_lib/devcase-probe-audit.ts",
+      "app/_lib/fit-thresholds.ts",
+      "pipeline/jobfit/tests/test_automation_constant_sync.py",
+      "pipeline/jobfit/tests/test_fit_threshold_sync.py",
+      "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py",
+      "pipeline/jobfit/tests/test_codegen_contract_constants.py",
+      "docs/architecture/api-contracts.md"
+    ],
+    "new_files": [
+      "app/_lib/contract-constants.generated.ts",
+      "pipeline/jobfit/tests/test_codegen_contract_constants.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "codegen.render_contract_constants() -> a string containing, for each of the 13 names (MAX_SCORECARD_NOTES_CHARS, SCREEN_VOLUME_SPARSE_MAX, SCREEN_VOLUME_MODERATE_MAX, MIN_CALIBRATION_OUTCOMES, CALIBRATION_BIN_COUNT, KIT_MAX_COMPETENCIES, KIT_MAX_QUESTIONS_PER_COMPETENCY, KIT_MAX_MUST_ASKS, KIT_MAX_FAQ, LETTER_MAX_CHARS, MIN_PROBE_DECISION_OPTIONS, FIT_STRONG_FLOOR, FIT_PROMISING_FLOOR), exactly one `export const NAME = <python value>;` line",
+      "with automation.KIT_MAX_FAQ patched to 13 (mock.patch.object) -> render_contract_constants() emits `export const KIT_MAX_FAQ = 13;` (the number is read from Python at render time, not typed into the generator)",
+      "the committed app/_lib/contract-constants.generated.ts == render_contract_constants() byte-for-byte (freshness pinned inside test:python:gate, which CI runs; schemas:check is not a CI step)",
+      "codegen main(['--check']) with the generated file edited to KIT_MAX_FAQ = 99 -> exit 1 and stderr names app/_lib/contract-constants.generated.ts (it is in _GENERATED)",
+      "for each of the 7 TS modules, the comment-stripped source contains NO `export const <mirrored NAME> = <int>;` literal and DOES re-export the name from './contract-constants.generated' -> a hand-typed number cannot come back unnoticed",
+      "the generated file contains no `import` statement -> fit-thresholds.ts stays import-free for client components (its own header's reason)",
+      "the existing non-vacuity probes still pass unchanged: sample_scorecard_notes default == MAX_SCORECARD_NOTES_CHARS, fit_tier_for boundaries at 70/69/55/54, interview_kit caps, the probe gate at MIN_PROBE_DECISION_OPTIONS",
+      "a CONTRACT_CONSTANTS table row naming a Python attribute that does not exist -> render raises (AttributeError/AssertionError naming the row), never emits a stale or missing line"
+    ],
+    "premise": [
+      "pipeline/jobfit/tests/test_automation_constant_sync.py:46-77 - a hand-kept MIRRORED map binds 10 constants across 5 TS files by regex over TS source",
+      "pipeline/jobfit/tests/test_automation_constant_sync.py:80-97, pipeline/jobfit/tests/test_devcase_probe_constant_sync.py:36-45, pipeline/jobfit/tests/test_fit_threshold_sync.py:41-60 - three copies of _strip_ts_comments + _extract_ts_number, each module re-implementing a TS reader (the analysis/prompt version syncs carry two more copies)",
+      "app/_lib/interview-transcript.ts:57, app/_lib/automation-cache-key.ts:62-63, app/_lib/calibration.ts:15,18, app/_lib/interview-kit-types.ts:30-33, app/_lib/interview-letter-types.ts:76, app/_lib/devcase-probe-audit.ts:49, app/_lib/fit-thresholds.ts:13,23 - the 13 numbers typed a second time as TS literals",
+      "pipeline/jobfit/automation.py:161-162,1485-1488,1846,2361, pipeline/jobfit/matching.py:80-81, pipeline/jobfit/devcase/design.py:98 and pipeline/jobfit/calibration_drift.py:40-41 - the Python originals",
+      "app/_lib/automation-cache-key.ts:57-61 - 'THESE TWO NUMBERS ARE HAND-MIRRORED'",
+      "pipeline/jobfit/codegen.py:175-181 - the door already exists and is already used for policy numbers: 'Policy numbers, not a taxonomy - but the same drift problem, so they take the same door' (DEVCASE_MAX/MIN_TIMEBOX_HOURS into taxonomy.generated.ts)",
+      "pipeline/jobfit/codegen.py:186-190 - _GENERATED keeps write() and --check in lockstep, so a new (path, renderer) row inherits both",
+      "docs/architecture/api-contracts.md:678-687 - '§2.3 Types are generated, not written twice ... Do not hand-write a TypeScript mirror' - the 13 literals are that mirror",
+      "package.json:29 schemas:check exists but .github/workflows/ci.yml runs it nowhere (grep: only a comment at :33) - freshness of a generated file is currently guaranteed only by typecheck regenerating it"
+    ],
+    "rollback": "Three commits (codegen + generated file + freshness test; TS modules switched to re-exports; sync tests re-pointed) revert cleanly in reverse order: the TS names and values are unchanged at every step, so no consumer import moves, and reverting restores the literals and the regex pins exactly.",
+    "gate": "contract",
+    "runner_up": "One shared TS-literal reader (tests/_ts_source.py: comment-strip, CRLF, quote-agnostic, word-anchored) replacing the 5 private extractors and fixing the array readers that do not strip comments (test_pipeline_stages_sync, test_prompt_locale, test_role_family_parity) - smaller, but detects drift where this card removes it.",
+    "technique": "commit-vs-derive-policy",
+    "body": "## Summary\nThirteen numbers that TypeScript and the Python pipeline must agree on (scorecard notes budget, screening-volume tiers, calibration bins and floor, interview-kit caps, letter cap, probe threshold, fit floors) are typed twice and held together by three test modules that each carry a private regex parser of TypeScript. Generate them from Python through the codegen door that already exists, and re-point the sync tests at the door instead of at the literals.\n\n## Description\nThis context owns test_automation_constant_sync.py, whose MIRRORED map is the list of places the repo broke its own rule (api-contracts.md §2.3: do not hand-write a TypeScript mirror). Every new cross-language number today costs a new regex extractor with its own blind spots; five near-identical copies of `_strip_ts_comments` exist across the suite. codegen.py already emits policy numbers (the devcase timebox bounds) into taxonomy.generated.ts for exactly this reason. The move: a `CONTRACT_CONSTANTS` table in codegen.py (TS name -> Python module attribute), a `render_contract_constants()` renderer registered in `_GENERATED`, an import-free `app/_lib/contract-constants.generated.ts`, and each of the 7 TS modules replacing its literal with `export { NAME } from \"./contract-constants.generated\"` (names unchanged, so no consumer moves). The three sync modules keep every behavioural non-vacuity probe and swap the literal-equality half for 'the TS module re-exports from the generated file and declares no literal'; a new test pins the committed generated file against the renderer, because CI never runs schemas:check.\n\n## Flow\n1. codegen.py: CONTRACT_CONSTANTS table + render_contract_constants() + _GENERATED row; header names the Python sources.\n2. Run codegen; commit the generated file; add test_codegen_contract_constants.py (render, patched-value derivation, freshness, --check, import-free, bad-row).\n3. Switch the 7 TS modules to re-exports, keeping their doc comments (now pointing at the generator).\n4. Re-point test_automation_constant_sync / test_fit_threshold_sync / test_devcase_probe_constant_sync: literal-equality -> re-export assertion; keep every behavioural probe; delete no test method (review:constitution counts deletions).\n5. api-contracts.md §2.3 lists the third generated file.\n\n## Expected impact\nThe 13-number drift class closes by construction rather than by detection; a new shared number costs one table row, not one more parser. Three copies of the TS comment-stripper leave the suite. The generated file is also freshness-pinned in a CI lane for the first time (schemas:check is not a CI step).\n\n## Evaluation\nClaim: every hand-mirrored contract number has one source (Python) and the TS side can no longer carry a divergent literal.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - test_codegen_contract_constants.py + the three re-pointed sync modules under npm run test:python:gate; npx tsc --noEmit; npm run test:unit (TS consumers of the names)\nResult: pending build\nGate: contract",
+    "evidence": "grep 'export const <NAME>' over the 7 TS files: interview-transcript.ts:57 MAX_SCORECARD_NOTES_CHARS = 6000; automation-cache-key.ts:62 SCREEN_VOLUME_SPARSE_MAX = 5, :63 SCREEN_VOLUME_MODERATE_MAX = 30; calibration.ts:15 MIN_CALIBRATION_OUTCOMES = 20, :18 CALIBRATION_BIN_COUNT = 10; interview-kit-types.ts:30-33 KIT_MAX_* = 8/6/5/12; interview-letter-types.ts:76 LETTER_MAX_CHARS = 2400; devcase-probe-audit.ts:49 MIN_PROBE_DECISION_OPTIONS = 2; fit-thresholds.ts:13 FIT_PROMISING_FLOOR = 55, :23 FIT_STRONG_FLOOR = 70. Python: matching.py:80 FIT_STRONG_THRESHOLD = 70, :81 FIT_PROMISING_THRESHOLD = 55; devcase/design.py:98 MIN_PROBE_DECISION_OPTIONS = 2; automation.py:161-162 POLICY screen_volume 5/30, :1485-1488 KIT_MAX_*, :1846 LETTER_MAX_CHARS = 2400, :2361 MAX_SCORECARD_NOTES_CHARS = 6000; calibration_drift.py:40-41. grep 'def _strip_ts_comments' pipeline/jobfit/tests: test_analysis_prompt_version_sync.py:161, test_automation_constant_sync.py:80, test_devcase_probe_constant_sync.py:36, test_fit_threshold_sync.py:41, test_prompt_version_sync.py:84 = 5 copies. codegen.py:175-181 already renders DEVCASE_MAX_TIMEBOX_HOURS / DEVCASE_MIN_TIMEBOX_HOURS. package.json:29 schemas:check; ci.yml mentions schemas only in comments (:33) and the pip-install step name (:49). Context owners: test_fit_threshold_sync.py -> tests-scoring-fairness, test_devcase_probe_constant_sync.py -> tests-devcase, codegen.py -> pipeline-core (no prior challenge card on any of them)."
+  },
+  {
+    "context": "tests-pipeline-automation",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Skip gate by identity: a skip register that names the new skip and the stale one",
+    "size": "M",
+    "effort": 5,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "pipeline/jobfit/tests/run_gated.py",
+      "pipeline/jobfit/tests/skip-register.json",
+      "pipeline/jobfit/tests/test_run_gated.py",
+      ".github/workflows/ci.yml",
+      "scripts/review/constitution-check.mjs",
+      "scripts/review/__tests__/constitution-check.test.mjs",
+      "docs/development/testing-and-evaluation.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/tests/skip-register.json",
+      "pipeline/jobfit/tests/test_run_gated.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "evaluate_skips(skipped=[(A,'r')], register={A: always}, baseline=1) -> exit 0, report lists A as tolerated with its register `why`",
+      "SUBSTITUTION: register {A: env-conditional, B: always, C..E: always} baseline 5; run where A RAN and a new Y skipped (count 5, inside today's 4-5 band) -> exit 1, stderr names Y, its skip reason, and 'not in pipeline/jobfit/tests/skip-register.json' (today's count gate exits 0)",
+      "LOCAL HOLE: full checkout where the env-conditional A runs (count 4) plus one brand-new skip Y (count 5 <= ceiling) -> exit 1 naming Y (today exits 0)",
+      "an `always` entry B that did not skip -> exit 1: 'stale register entry B ran - delete it and set KP_SKIP_BASELINE to N-1 in .github/workflows/ci.yml' (the remedy names the exact edit)",
+      "an env-conditional entry A that ran -> exit 0 with a one-line note, never a failure",
+      "len(register) != KP_SKIP_BASELINE -> exit 1 naming both numbers BEFORE the suite runs, so the register cannot grow without the env raise review:constitution already blocks",
+      "a register entry whose id is not a discovered test id, or whose `why` is under 20 characters -> exit 1 as dead/unexplained, checked before the suite runs (same rule test-quarantine.json applies to node tests)",
+      "ALLOW_SKIP=1 -> exit 0 regardless (local keyless override unchanged); hermeticity tripwire still runs first"
+    ],
+    "premise": [
+      "pipeline/jobfit/tests/run_gated.py:52 SKIP_BASELINE and :67 ENV_CONDITIONAL_SKIPS - the gate holds a COUNT; :193-221 compares len(result.skipped) to a floor/ceiling band and never looks at which tests skipped",
+      "pipeline/jobfit/tests/run_gated.py:54-66 - the floor is ceiling-1 because one tolerated skip runs in a full checkout, so locally a brand-new silent skip fits inside the band (4 tolerated + 1 new = 5 <= ceiling)",
+      "pipeline/jobfit/tests/run_gated.py:205-211 - the over-ceiling message says only 'A critical test may be silently skipping. Investigate' - it prints the list but cannot say which entry is the new one",
+      ".github/workflows/ci.yml:404-438 - the identity of the tolerated skips lives only as a hand-kept comment derivation keyed on file:line",
+      "that derivation has already drifted: ci.yml:420 says test_interview_eval.py:574 (skipTest is at :579); :428 test_llm_base.py:409,:475 (now :515,:581); :429 test_llm_self_host.py:124 (now :119); :433 test_repo_scan.py:243,:526 (now :264,:547)",
+      "docs/development/testing-and-evaluation.md:187-191 - 'The Python suite (test:python:gate) has its own pawl - the KP_SKIP_BASELINE skip count - and no flake classification' - an admitted gap beside the identity-keyed test-quarantine.json the node suite already has",
+      "scripts/review/constitution-check.mjs:169 lists run_gated.py as a gate-policy file; :516/:572 block a raised KP_SKIP_BASELINE - the register must join that category so its growth stays reviewer-visible"
+    ],
+    "rollback": "Revert the commit series: run_gated.py returns to the count band, the register and its test file are deleted, ci.yml regains its comment derivation. KP_SKIP_BASELINE is never changed by this card, so the constitution lens and release.yml:95 are unaffected either way.",
+    "gate": "policy-tighten",
+    "runner_up": "Turn --timings from a report into a per-module wall-clock ceiling (a module budget file with a ratchet), so the slowest-module list in CI stops being advisory - smaller operator payoff, and ci:budget already holds the job-level ceiling.",
+    "technique": "refusal-names-a-reachable-remedy",
+    "body": "## Summary\nThe gated Python suite decides by counting skips, so a new silent skip that replaces a tolerated one - or that arrives in a full checkout where one tolerated skip runs - passes green, and the tripwire, when it does fire, can only say 'investigate'. Replace the count with a committed skip register keyed by test id: the gate names the unexpected skip, names the stale entry, and names the exact edit.\n\n## Description\nThe operator surface here is the gate's own output (run_gated.py is what an agent or the owner reads when test:python:gate goes red). Today the identity of the five tolerated skips lives as a ci.yml comment keyed on file:line, and four of those line numbers are already wrong. The card adds `pipeline/jobfit/tests/skip-register.json` (entries: test id, `why`, `when`: always | env-conditional, the condition text), and splits run_gated's verdict into a pure `evaluate_skips(skipped, register, baseline, discovered_ids)` so every branch is unit-testable. KP_SKIP_BASELINE stays and must equal the register length, so growing the register still requires the env raise that review:constitution blocks - the count gate is kept as a second lock, not replaced by a looser one. The ci.yml derivation comment shrinks to a pointer at the register; constitution-check adds the register to its gate-policy file category.\n\n## Flow\n1. Write test_run_gated.py against evaluate_skips (all 8 cases red).\n2. Add skip-register.json with the five current ids, whys and conditions (read from the actual skip sites, not from the drifted comment).\n3. Implement evaluate_skips + pre-run register validation (dead id, short why, length != baseline); main() calls it after the hermeticity check.\n4. ci.yml comment -> pointer; constitution-check.mjs category row + fixture case.\n5. testing-and-evaluation.md: replace the 'own pawl' sentence with the register's rules.\n\n## Expected impact\nA silent skip can no longer hide by substitution or in a developer checkout; the red message tells the reader which test and which edit, instead of a count and 'investigate'. The hand-kept file:line derivation that has already rotted is retired.\n\n## Evaluation\nClaim: the Python gate identifies each skip by test id and refuses any skip the register does not name, while keeping the KP_SKIP_BASELINE lock.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - test_run_gated.py in npm run test:python:gate; npm run test:review for the constitution fixture; a real run of test:python:gate stays green with the 5 registered skips\nResult: pending build\nGate: policy-tighten",
+    "evidence": "run_gated.py:194 floor = max(0, SKIP_BASELINE - ENV_CONDITIONAL_SKIPS); :205 `if skipped > SKIP_BASELINE`; :212 `if skipped < floor` - only len(result.skipped) is compared. ci.yml:440 KP_SKIP_BASELINE: \"5\"; release.yml:95 same. Drift check (grep -n skipTest/skipUnless): test_interview_eval.py:579 'grounded DB-fixture bridge unavailable' vs ci.yml:420 ':574'; test_llm_base.py:515,:581 vs ci.yml:428 ':409,:475'; test_llm_self_host.py:119 vs ci.yml:429 ':124'; test_repo_scan.py:264,:419,:547,:559,:899 vs ci.yml ':243,:526 / :398 / :538 / :825'. test-quarantine.json already keys node flakes by file+test with why/since/expires; testing-and-evaluation.md:187-191 names the Python side's lack of it. Prior decks: no skip/register card in any challenge-*/cards; leftover-develop has only the unrelated node 'Treat test.skipIf as a skip marker'."
+  }
+]

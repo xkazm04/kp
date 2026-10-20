@@ -1,0 +1,120 @@
+[
+  {
+    "context": "decisions-review-ui",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One decide-outcome fold: every Decisions door answers a code, one handoff rule",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/hiring/decisions/decisionsDecideOutcome.ts",
+      "app/features/hiring/decisions/decisionsDecideOutcome.test.ts",
+      "app/features/hiring/decisions/useDecisionsQueue.ts",
+      "app/features/hiring/decisions/decisionsBatchRefusal.test.ts",
+      "app/_lib/useAddToPipeline.ts",
+      "app/api/pipeline/batch/route.ts",
+      "app/api/pipeline/batch/route.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/decisions/decisionsDecideOutcome.ts",
+      "app/features/hiring/decisions/decisionsDecideOutcome.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "foldDecideResponse(screening_review entry, 'accept', {ok:true,status:200}, {entry:{}}) -> {ok:true, handoff:{queueForSchedule:true, prepTask:true, offerLink:null}}",
+      "foldDecideResponse(scorecard_review entry, 'accept', {ok:true,status:200}, {routedToHumanRound:true}) -> handoff {queueForSchedule:true, prepTask:false, offerLink:null}; the same body without routedToHumanRound -> queueForSchedule:false",
+      "foldDecideResponse(offer_review entry, 'accept', {ok:true,status:200}, {offerExtended:true, link:'https://h/offer/t'}) -> offerLink 'https://h/offer/t'; with link:42 -> offerLink null (never a non-string link)",
+      "foldDecideResponse(any entry, 'reject', {ok:false,status:409}, {code:'PIPELINE_STAGE_CHANGED', error:'English prose'}) -> {ok:false, failure:{code:'PIPELINE_STAGE_CHANGED', capability:null, status:409}} and the outcome object carries no 'error'/'reason' string; a thrown fetch (res null) -> failure {code:null, capability:null, status:null}",
+      "foldBatchDecide([screening a, scorecard b, screening c], 'accept', {ok:true, results:[{id:a,ok:true},{id:b,ok:true,routedToHumanRound:true},{id:c,ok:false,code:'PIPELINE_STAGE_CHANGED',reason:'English'}]}) -> okIds {a,b}, failedIds {c}, codes ['PIPELINE_STAGE_CHANGED'], queuedLabels [label(a), label(b)], prepIds [a]; JSON.stringify(result) does not contain 'English'",
+      "foldBatchDecide(targets, 'reject', {ok:false, status:403, code:'FORBIDDEN_CAPABILITY', capability:'pipeline:write'}) -> every target in failedIds, requestFailure {code:'FORBIDDEN_CAPABILITY', capability:'pipeline:write'}, codes [] (the whole-request refusal overrides per-id codes)",
+      "POST /api/pipeline/batch where runPipelineEntryAction answers 200 with {routedToHumanRound:true} for an item -> that item's outcome is {id, ok:true, routedToHumanRound:true}; a plain 200 stays {id, ok:true} (route.test.ts, additive field only)",
+      "Source guard (decisionsBatchRefusal.test.ts, re-anchored): the bulk region of useDecisionsQueue.ts never reads `r.reason`, and act()'s failure path resolves the folded failure through capabilityAwareReason with t('decideFailed') as fallback instead of `throw new Error()`"
+    ],
+    "premise": [
+      "app/features/hiring/decisions/useDecisionsQueue.ts:607 `if (!r.ok) throw new Error();` discards the refusal body; the catch at :643-653 only clears the pending state, reloads and returns false - no message. Every door that funnels into act() therefore fails SILENTLY on a 409/403/422: the ledger quick doors (DecisionsAiReviewsSection.tsx:75 -> ledger/LedgerCells.tsx:101,111), the candidate modal (useDecisionsCandidate.ts:323-324 only closes on ok, says nothing otherwise) and the analysis modal (useDecisionsQueue.ts:740-743 `void act(...)`).",
+      "The server does answer with a code: app/_lib/pipeline-entry-action.ts:332-333 `staleResponse = ... err(409, \"PIPELINE_STAGE_CHANGED\", { entry })`, :370 err(422, \"PIPELINE_TERMINAL_NOT_ADVANCE\").",
+      "Bulk path paints server English: useDecisionsQueue.ts:473 `if (r.reason) reasons.add(r.reason)` and :517 `reason: requestReason ?? (reasons.size ? [...reasons].join(\" · \") : null)`, rendered by DecisionsBatchBar.tsx:158 - against the contract at app/_lib/useAddToPipeline.ts:154-156 (\"The bar must never paint `reason`\") and app/api/pipeline/batch/route.ts:112-116 (the board bar already moved to codes; app/features/hiring/pipeline/usePipelineBulk.ts:214,234 collects `r.code` into reasonCodes).",
+      "The forward-handoff rule is written twice: act() at useDecisionsQueue.ts:615-635 (scorecard routedToHumanRound, offer link, screening prep) and bulkDecideReviews at :479-485 (screening only, commented as 'parity with act()'s screening_review branch').",
+      "The copies already drifted: pipeline-entry-action.ts:437 returns `ok({ entry, routedToHumanRound: true })` for an AI scorecard accept, but batch/route.ts:108-109 pushes only `{ id: item.id, ok: true }`, and the bulk handoff (:480) filters `approvalKind === \"screening_review\"` - a batch-accepted AI scorecard is routed to the human round with no queued-for-Schedule narration.",
+      "Collision note: challenge-r03 group-eval-comparison/A rewrites the group-eval open flow in the same hook (openGroupEval :657-738, the evalTaskId render block :567-577). This card touches only act() :579-655 and bulkDecideReviews :450-521 - region-disjoint - and must be built AFTER that wave lands."
+    ],
+    "rollback": "Three commits (pure fold + tests; batch route additive field + test; hook rewire + catalog keys + doc). Each reverts cleanly: the route field is additive (older clients ignore it), and reverting the hook commit restores the old act()/bulk bodies verbatim since the fold module has no other consumers.",
+    "gate": "contract",
+    "runner_up": "Serve the queue from a projected GET /api/decisions (context-map already names it; it does not exist) instead of downloading the whole board via GET /api/pipeline and filtering client-side.",
+    "technique": "partial-failure-reselect",
+    "body": "## Summary\nEvery decision the Decisions tab issues - ledger quick accept/reject, the candidate modal, the analysis modal, the group-eval rationale dialog, the batch bar - goes through two hand-written paths in useDecisionsQueue.ts that disagree with each other and with the repo's error contract. Replace both with one pure fold (decisionsDecideOutcome.ts) that turns a response into either a typed handoff or a coded failure, so every door says why it failed in the reader's language and the Schedule/offer handoff is decided by one rule.\n\n## Description\nact() throws away the refusal body (`if (!r.ok) throw new Error()`), so a stale-stage 409, a capability 403 or a terminal-advance 422 on any single-row door silently restores the row and says nothing. The batch path does the opposite mistake: it paints the server's English `reason` in every locale, which the batch type's own comment forbids and which the board's bulk bar already stopped doing. The post-decision handoff (queue for Schedule, background interview_prep, offer link) is duplicated between the two, and the copies have already drifted: the batch route drops `routedToHumanRound`, so a batch-accepted AI scorecard lands on the human round without the handoff banner. The fold owns: response -> {ok, handoff} | {ok:false, failure{code, capability, status}}, and batch results -> {okIds, failedIds, codes, requestFailure, handoffs}. The batch route adds `routedToHumanRound` to a per-id ok outcome (additive). act() toasts `capabilityAwareReason(errMsg, failure, t('decideFailed'))` and still returns the boolean its awaiting callers (group-eval rationale dialog, candidate modal) rely on; the bulk result resolves codes through errMsg instead of joining English.\n\n## Flow\n1. Write decisionsDecideOutcome.test.ts from the acceptance cases (fails: module absent).\n2. Implement the pure fold (no React, no fetch).\n3. batch/route.ts: carry `routedToHumanRound` on a 200 outcome; extend PipelineBatchOutcome in useAddToPipeline.ts; route test.\n4. Rewire act() and bulkDecideReviews onto the fold; delete the duplicated handoff code; add decisions.decideFailed to all four catalogs under the shared-surface lock.\n5. Re-anchor decisionsBatchRefusal.test.ts; update docs/features/pipeline/README.md (Decisions: failure reporting + batch handoff parity).\n\n## Expected impact\nA recruiter whose quick reject lost a race is told so (in cs/de/fr too) instead of watching the row blink back; batch failures stop leaking English; batch-accepting AI scorecards narrates the human-round handoff like the one-by-one path. The next door added to the tab (e.g. an undo window) inherits correct failure and handoff behaviour by calling one function.\n\n## Evaluation\nClaim: every Decisions door resolves a refusal to a coded, localized message, and single/batch accepts share one handoff rule.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: npm run test:unit (decisionsDecideOutcome.test.ts, batch route.test.ts, decisionsBatchRefusal.test.ts) + npm run i18n:check + npx tsc --noEmit\nResult: pending build\nGate: contract",
+    "evidence": "useDecisionsQueue.ts:607  `if (!r.ok) throw new Error();`\nuseDecisionsQueue.ts:643-653  catch { setResolving(...delete); load(); return false; }  -- no toast, no message\nuseDecisionsQueue.ts:473  `if (r.reason) reasons.add(r.reason);`\nuseDecisionsQueue.ts:517  `reason: requestReason ?? (reasons.size ? [...reasons].join(\" · \") : null),`\nDecisionsBatchBar.tsx:158  `{bulkResult.reason ? <span className=\"block text-steel\">{bulkResult.reason}</span> : null}`\nuseAddToPipeline.ts:154-156  \"`reason` is the canonical English beside it ... The bar must never paint `reason`.\"\nusePipelineBulk.ts:234  `if (r.code) reasonCodes.add(r.code);` (board already fixed)\npipeline-entry-action.ts:332-333  `err(409, \"PIPELINE_STAGE_CHANGED\", { entry })`\npipeline-entry-action.ts:437  `return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });`\nbatch/route.ts:108-109  `if (r.status === 200) { results.push({ id: item.id, ok: true }); }`\nuseDecisionsQueue.ts:480  `targets.filter((e) => okIds.has(e.id) && e.approvalKind === \"screening_review\")`\nuseDecisionsQueue.ts:615-617  act() narrates scorecard routedToHumanRound; bulk has no equivalent.\nDecisionsAiReviewsSection.tsx:75  `act={(e, action) => act(e, action)}` (promise ignored)\nuseDecisionsCandidate.ts:323-324  `const ok = await act(...); if (ok) setView(null);` (no else)"
+  },
+  {
+    "context": "decisions-review-ui",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Quick decisions land after a stated 8-second undo window, not on the click",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/features/hiring/decisions/decisionsCommitWindow.ts",
+      "app/features/hiring/decisions/decisionsCommitWindow.test.ts",
+      "app/features/hiring/decisions/useDecisionCommitWindow.ts",
+      "app/features/hiring/decisions/DecisionsUndoStrip.tsx",
+      "app/features/hiring/decisions/DecisionsAiReviewsSection.tsx",
+      "app/features/hiring/decisions/useDecisionsCandidate.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/decisions/decisionsCommitWindow.ts",
+      "app/features/hiring/decisions/decisionsCommitWindow.test.ts",
+      "app/features/hiring/decisions/useDecisionCommitWindow.ts",
+      "app/features/hiring/decisions/DecisionsUndoStrip.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "arm(idle, {entryId:'a', action:'reject', label:'Ana'}, now=0) -> state {kind:'pending', entryId:'a', action:'reject', deadline:DECISION_UNDO_MS}, commands [] (nothing is written at arming), hiddenIds(state) = {'a'}",
+      "undo(pending a) -> idle, commands [] (no commit is EVER issued for a), hiddenIds empty - the row is back",
+      "expire(pending a, now=DECISION_UNDO_MS) -> {kind:'committing', entryId:'a'}, commands [commit('a','reject')]; expire at now=DECISION_UNDO_MS-1 -> unchanged, no command",
+      "arm(pending a, {entryId:'b', action:'accept'}) -> commands [commit('a','reject')] then state pending b (flush-then-arm: one window, one undo affordance, always naming the latest); a following undo restores only b",
+      "arm(pending a, {entryId:'a', action:'reject'}) (double click) and arm(committing a, {entryId:'a', ...}) -> state unchanged, commands [] (single-pending guard in the handler, checked against current state)",
+      "teardown(pending a) -> commands [commit('a','reject')] (leaving flushes, never cancels); teardown(idle) -> commands []",
+      "settled(committing a, ok:false) -> idle, hiddenIds no longer contains 'a' (the row reappears) and lastFailure = {entryId:'a'} for the strip; settled(ok:true) -> idle with lastFailure null",
+      "DECISION_UNDO_MS is within [5000, 10000] and decisions.undo.pending (all four catalogs) interpolates {seconds} and {name}, so the interval is stated before it runs"
+    ],
+    "premise": [
+      "The ledger's reject door is one click and irreversible: ledger/LedgerCells.tsx:109-117 renders the ✕ with onClick={onReject}; ledger/DecisionsLedger.tsx:131 wires it to `act(entry, \"reject\")`; DecisionsAiReviewsSection.tsx:75 passes act straight through. No confirm, no rationale, no undo.",
+      "What that click does server-side cannot be taken back: app/_lib/pipeline-entry-action.ts:463-469 seals the reject into the tamper-evident decision chain, :488 `if (action === \"reject\") await dispatchRejection(updated);` (candidate email), :494 fires the ATS `candidate.rejected` webhook. The store documents the same property for a wave reject (app/_lib/db/pipeline.ts:1201-1203 'the rejection is terminal - no undo path, and the candidate already got a (queued) rejection email'), and its only safety valve, the Reconsider queue, covers auto-rejects only (next premise).",
+      "The same tab already treats this act as needing protection everywhere else: batch reject is confirm-gated 'because it emails candidates' (useDecisionsQueue.ts:155-157; DecisionsBatchBar.tsx:166-194), and the screening wave has an explicit second confirmation 'before the irreversible, emailed, sealed reject dispatch' that 'covers an accidental click on a FRESH one' (DecisionsScreenWaveConfirmModal.tsx:1-4). The single-row door, the fastest and most clicked, is the only unguarded one.",
+      "The candidate modal's decision bar is equally one-shot: pipeline/candidate/decision/CandidateDecisionBar.tsx:84 onClick={onReject} -> useDecisionsCandidate.ts:338 `onReject: () => void decide(current, \"reject\")` -> act.",
+      "The only recovery today is the Reconsider queue, which lists AUTO-rejected rows only (DecisionsReconsiderQueue.tsx:1-3 'the safety valve over irreversible auto-rejection'), i.e. a human mis-click has no in-product way back at all.",
+      "Not a duplicate: leftover-develop 'Collect a sealed rationale on ledger and batch reject' asks for a reason field; this card adds no rationale and no confirm - it defers the write (registry batch-undo-commit-window: a confirm 'decays into a click-through by the tenth invocation', a window 'charges nothing up front').",
+      "Collision note: stays out of DecisionsTab.tsx / useDecisionsQueue.ts / DecisionsModals.tsx (challenge-r03 group-eval-comparison/A) and DecisionsEmptyHandoff.tsx (glyph-system/B). The window wraps the act already handed to the section and to useDecisionsCandidate."
+    ],
+    "rollback": "Revert the wiring commit (DecisionsAiReviewsSection.tsx + useDecisionsCandidate.ts) and the doors call act() directly again; the reducer, hook and strip become unused and go in a second revert. No server, schema or record change, so there is nothing to migrate back - a cancelled window never wrote anything.",
+    "gate": "none",
+    "runner_up": "Make the session-local banners durable (queued-for-Schedule, extended-offer links, wave comms/seal failures live only in useState at useDecisionsQueue.ts:81,86,180,184) by deriving them from the sitting's pipeline events, so a reload cannot lose an offer's secure link or an Art. 22 seal gap.",
+    "technique": "deferred-write-window",
+    "body": "## Summary\nA recruiter working the decisions ledger can reject a candidate with one click on ✕ - sealed, emailed and webhooked on the spot, with no way back. Put every single-row decision (ledger ✓/✕ and the candidate modal's Accept/Reject) behind a stated 8-second commit window: the row leaves at once, an undo strip names who and counts the seconds, and the write happens only when the window closes. Undo cancels a timer; nothing is ever retracted.\n\n## Description\nThe Decisions tab guards its bulk reject with a confirm and the screening wave with a second confirmation for exactly one reason - the reject is irreversible and emails the candidate - yet the per-row ✕, the door recruiters use most, fires act() on the click. A confirm would slow the 95% of correct clicks; the commit window charges nothing up front and is still open when the mistake becomes visible. A pure reducer (decisionsCommitWindow.ts) owns the lifecycle: idle -> pending -> committing -> idle, with undo, expire, flush-then-arm for a second decision, a handler-level single-pending guard, and teardown that COMMITS. useDecisionCommitWindow.ts is a module-scoped store (one holder read at commit time, one timer, useSyncExternalStore) so the ledger section and the candidate modal share one window, the payload (entry snapshot + action + the act captured at arming) outlives the tab when the recruiter switches ?tab=, and pagehide flushes. The section subtracts hiddenIds from the rows it hands the ledger (an overlay, so the live refresh keeps running for every other row); the header count still includes the pending row, which is true - it is still pending, and the strip says so. DecisionsUndoStrip renders 'Rejecting Ana in 8 s - Undo' (role=status, one announcement, not a per-second live region) and, on a failed commit, that the decision did not land. Offer accepts are untouched (the ledger already hides ✓ on offers; the modal's accept carries ttlDays through the payload).\n\n## Flow\n1. Write decisionsCommitWindow.test.ts from the acceptance cases (fails: module absent).\n2. Implement the pure reducer + DECISION_UNDO_MS.\n3. Implement the store hook (timer, pagehide flush, beforeunload prompt while pending) and DecisionsUndoStrip (tokens only, both themes).\n4. Wire DecisionsAiReviewsSection (wrap act for the quick doors, filter hiddenIds, mount the strip) and useDecisionsCandidate (decide arms the window and closes the modal).\n5. Add decisions.undo.* to all four catalogs under the shared-surface lock; document the window in docs/features/pipeline/README.md (Decisions tab: quick decisions are deferred 8 s; batch and wave keep their confirms).\n\n## Expected impact\nA mis-click on the most-used adverse action stops being a sealed, emailed, terminal event: the recruiter has 8 seconds to take it back with zero added clicks on the correct path, and no retraction ever appears in the decision chain or the candidate's inbox. It also makes the fast ledger safe to use at speed, which is the reason the ledger replaced the card grid.\n\n## Evaluation\nClaim: a single-row decision issues no write until its stated window expires, undo within the window issues none at all, and leaving the tab commits rather than drops it.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: npm run test:unit (decisionsCommitWindow.test.ts) + npm run i18n:check + npm run lint + npx tsc --noEmit; one manual pass in both themes (reject -> undo -> row back; reject -> switch tab -> row gone on return)\nResult: pending build\nGate: none",
+    "evidence": "ledger/LedgerCells.tsx:109-117  <button ... onClick={onReject} aria-label={t(\"quickReject\", { name })}> <X/> </button>\nledger/DecisionsLedger.tsx:131  `onReject={() => act(entry, \"reject\")}`\nDecisionsAiReviewsSection.tsx:75  `act={(e, action) => act(e, action)}`\npipeline-entry-action.ts:487-488  \"A human reject is the gate; the candidate hears about it\" / `if (action === \"reject\") await dispatchRejection(updated);`\npipeline-entry-action.ts:494  `if (action === \"reject\") void dispatchAtsEvent(\"candidate.rejected\", ...)`\ndb/pipeline.ts:1201-1203  \"the rejection is terminal — no undo path, and the candidate already got a (queued) rejection email\"\nuseDecisionsQueue.ts:155-157  \"reject is confirm-gated because it emails candidates\"\nDecisionsScreenWaveConfirmModal.tsx:1-4  \"Explicit second confirmation before the irreversible, emailed, sealed reject dispatch ... this covers an accidental click on a FRESH one.\"\nCandidateDecisionBar.tsx:84  `onClick={onReject}`; useDecisionsCandidate.ts:338  `onReject: () => void decide(current, \"reject\")`\ngrep -rn -i undo over app/features/hiring/decisions + app/_lib: only the wave's per-row Spare/Undo (DecisionsScreenWaveLists.tsx:91-105); no decision undo anywhere.\nRegistry: software-engineering batch-undo-commit-window (techniques deferred-write-window, single-pending-batch-invariant, flush-on-teardown); working band 'five to ten seconds' (deferred-write-window.md:121)."
+  }
+]

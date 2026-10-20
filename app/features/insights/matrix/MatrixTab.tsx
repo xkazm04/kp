@@ -18,6 +18,7 @@ import { MatrixFilterRow } from "./MatrixFilterRow";
 import { MatrixDataNotices } from "./MatrixDataNotices";
 import { MatrixGrid } from "./MatrixGrid";
 import { MatrixReasoningPopover } from "./MatrixReasoningPopover";
+import { MatrixSlatePanel } from "./MatrixSlatePanel";
 import { useMatrixTab } from "./useMatrixTab";
 import { deriveMatrixMode, pickGridState, type MatrixMode, type MatrixModeOverride } from "./matrixTabState";
 import { BTN_PRIMARY, BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
@@ -71,7 +72,7 @@ export function MatrixTab() {
     <section className="stagger-children space-y-4" aria-busy={!data && !error}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
           <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
             {mode === "focus"
@@ -100,6 +101,8 @@ export function MatrixTab() {
             setSelectMode={m.setSelectMode}
             exitSelect={m.exitSelect}
             exportCsv={m.exportCsv}
+            slateOpen={m.slateOpen}
+            setSlateOpen={m.setSlateOpen}
             t={t}
           />
         ) : null}
@@ -219,6 +222,10 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
         </p>
       ) : null}
 
+      {m.slate && state === "grid" ? (
+        <MatrixSlatePanel slate={m.slate} review={m.reviewSlate} close={() => m.setSlateOpen(false)} t={t} />
+      ) : null}
+
       {m.selectMode ? (
         <MatrixSelectBar
           selectedSize={m.selected.size}
@@ -268,7 +275,7 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           </button>
         </div>
       ) : state === "empty" ? (
-        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} />
+        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} job={scopedPosition?.id ?? null} />
       ) : state === "filtered" ? (
         // The dataset has candidates/positions, but the min-fit floor or family filter
         // hid them all — show a recoverable empty state instead of sticky headers over

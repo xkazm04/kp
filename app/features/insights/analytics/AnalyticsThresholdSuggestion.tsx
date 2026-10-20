@@ -6,6 +6,8 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { track } from "@/app/_lib/analytics/track";
 import { labelize } from "@/app/_lib/format";
 import type { CalibrationLeakage, ThresholdRecommendation } from "@/app/_lib/calibration";
+import type { FloorMoveBucket, FloorMovePreview } from "@/app/_lib/floor-move-preview";
+import { BTN_GHOST } from "@/app/_components/ui/recipes";
 
 // Direction 3 + family-floors — the recommendation. Deterministic, honesty-gated,
 // display-only until an explicit click routes the write through the existing
@@ -25,6 +27,7 @@ export function ThresholdSuggestion({
   rec,
   roleFamily,
   leakage,
+  autoRejectEnabled,
   onApplied,
 }: {
   rec: ThresholdRecommendation;
@@ -34,6 +37,8 @@ export function ThresholdSuggestion({
    *  payload the panel already receives; it belongs beside the Apply button, where
    *  the irreversible-feeling click is, not in a doc. */
   leakage?: CalibrationLeakage;
+  /** A saved threshold has no screening effect while auto-reject is disabled. */
+  autoRejectEnabled: boolean | null;
   onApplied: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
@@ -123,11 +128,17 @@ export function ThresholdSuggestion({
         })}
       </p>
       <p className="mt-1 text-sm text-steel">{t("recBasis", { total: rec.totalOutcomes })}</p>
+      {autoRejectEnabled === false ? (
+        <p className="mt-2 rounded-md border border-dial-amber/40 bg-white p-2 text-sm text-ink" role="status">
+          {t("recAutoRejectOff")}
+        </p>
+      ) : null}
       {/* UAT KAT-L1-006 — a suggestion derived from a score-caused label must say so
           where it is acted on. The clean arm is the check, once it clears the gate. */}
       {leakage && leakage.level === "high" ? (
         <p className="mt-2 rounded-md border border-coral/40 bg-coral/10 p-2 text-sm text-ink">{t("recLeakageCaveat")}</p>
       ) : null}
+      {shown.kind !== "done" ? <FloorMovePreviewBlock roleFamily={roleFamily} suggested={rec.suggestedThreshold} /> : null}
       {shown.kind === "done" ? (
         <p className="mt-2 text-sm font-medium text-moss" role="status">
           {roleFamily
@@ -145,7 +156,7 @@ export function ThresholdSuggestion({
             {phase.kind === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
           </button>
           {shown.kind === "error" ? (
-            <span className="text-sm text-coral" role="alert">
+            <span className="text-sm text-coral-ink" role="alert">
               {shown.message}
             </span>
           ) : null}
@@ -181,5 +192,99 @@ export function ThresholdSuggestionAbsent({
         <p className="mt-1 max-w-prose text-sm text-steel">{t("recAbsentFamily", { family: labelize(roleFamily) })}</p>
       ) : null}
     </div>
+  );
+}
+
+/** Challenge-r08 cv-analysis-archetypes/B — before Apply, who on TODAY's board the
+ *  suggested floor moves, per role, from the screening wave's own dry run
+ *  (GET /floor-preview writes nothing). Asked for, not auto-fetched: it runs two dry
+ *  runs per role and is seat-gated like Apply. The result is REMEMBERED WITH THE SCOPE
+ *  AND NUMBER it previewed, for the same reason `Phase` is above: this component stays
+ *  mounted across a family switch, and a preview of one scope must never be painted
+ *  under another. Counts and names only, never a rate (a board is a handful per role). */
+function FloorMovePreviewBlock({ roleFamily, suggested }: { roleFamily: string; suggested: number }) {
+  const t = useTranslations("analytics.calibration");
+  const errMsg = useErrorMessage();
+  const key = `${roleFamily}|${suggested}`;
+  type State =
+    | { kind: "idle" }
+    | { kind: "loading"; key: string }
+    | { kind: "ready"; key: string; preview: FloorMovePreview }
+    | { kind: "error"; key: string; message: string };
+  const [state, setState] = useState<State>({ kind: "idle" });
+  const shown: State = state.kind !== "idle" && state.key !== key ? { kind: "idle" } : state;
+
+  const load = async () => {
+    const at = key;
+    setState({ kind: "loading", key: at });
+    try {
+      const r = await fetch(`/api/analytics/calibration/floor-preview${roleFamily ? `?roleFamily=${encodeURIComponent(roleFamily)}` : ""}`);
+      const body = (await r.json().catch(() => ({}))) as FloorMovePreview & { code?: string; error?: string };
+      if (!r.ok) return setState({ kind: "error", key: at, message: errMsg(body, t("previewError")) });
+      // The server re-derives the number; if it moved since the card rendered, this
+      // preview is about a different floor than the button offers — say nothing false.
+      if (body.suggestedThreshold !== suggested) return setState({ kind: "error", key: at, message: errMsg({ code: "CALIBRATION_RECOMMENDATION_CHANGED" }, t("previewError")) });
+      setState({ kind: "ready", key: at, preview: body });
+    } catch {
+      setState({ kind: "error", key: at, message: t("previewError") });
+    }
+  };
+
+  if (shown.kind === "idle" || shown.kind === "loading") {
+    return (
+      <button type="button" onClick={load} disabled={shown.kind === "loading"} className={`${BTN_GHOST} mt-2 h-8 px-2 text-sm`}>
+        {shown.kind === "loading" ? t("previewLoading") : t("previewShow")}
+      </button>
+    );
+  }
+  if (shown.kind === "error") {
+    return (
+      <p className="mt-2 text-sm text-coral-ink" role="alert">
+        {shown.message}
+      </p>
+    );
+  }
+  const p = shown.preview;
+  const nothing = p.totals.entering + p.totals.leaving + p.totals.shielded + p.totals.spared === 0;
+  return (
+    <div className="mt-2 rounded-md border border-stone-200 bg-white p-2 text-sm text-ink" role="status">
+      {p.autoRejectOff ? (
+        <p>{t("previewAutoRejectOff")}</p>
+      ) : nothing ? (
+        <p>{t("previewNone")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {p.roles.map((role) => (
+            <li key={role.jobId}>
+              <p className="font-semibold">{role.jobTitle ?? role.jobId}</p>
+              <PreviewNames bucket={role.entering} label={t("previewEntering", { count: role.entering.total })} />
+              <PreviewNames bucket={role.leaving} label={t("previewLeaving", { count: role.leaving.total })} />
+              {role.shielded > 0 ? <p className="text-steel">{t("previewShielded", { count: role.shielded })}</p> : null}
+              {role.spared > 0 ? <p className="text-steel">{t("previewSpared", { count: role.spared })}</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 text-meta text-steel">{t("previewNote")}</p>
+    </div>
+  );
+}
+
+function PreviewNames({ bucket, label }: { bucket: FloorMoveBucket; label: string }) {
+  const t = useTranslations("analytics.calibration");
+  if (bucket.total === 0) return null;
+  return (
+    <p>
+      {label}{" "}
+      {bucket.rows.map((row, i) => (
+        <span key={row.entryId}>
+          {i > 0 ? ", " : null}
+          <a href={row.href} className="focus-ring underline decoration-stone-300 underline-offset-2 hover:text-coral-ink">
+            {t("previewName", { label: row.label, score: row.matchScore ?? "–" })}
+          </a>
+        </span>
+      ))}
+      {bucket.more > 0 ? <span className="text-steel"> {t("previewMore", { count: bucket.more })}</span> : null}
+    </p>
   );
 }

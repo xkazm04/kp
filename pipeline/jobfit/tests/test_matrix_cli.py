@@ -6,15 +6,12 @@ symmetric with how unresolved `--job-ids` land in `missing`.
 
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
 from pipeline.jobfit.jobs import normalize_job
+from pipeline.jobfit.matching import fit_tier_for
 from pipeline.jobfit.matrix_cli import main
+from pipeline.jobfit.tests._helpers import CliRun, run_cli
 
 JOB = normalize_job(
     {
@@ -47,35 +44,70 @@ BAD_PROFILE = {
 }
 
 
-def _run(profiles: list[dict]) -> dict:
-    with tempfile.TemporaryDirectory() as tmp:
-        profiles_path = Path(tmp) / "profiles.json"
-        profiles_path.write_text(json.dumps(profiles), encoding="utf-8")
-        jobs_path = Path(tmp) / "jobs.json"
-        jobs_path.write_text(json.dumps([JOB.model_dump(mode="json")]), encoding="utf-8")
-
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = main(
-                [
-                    "--profiles-json",
-                    str(profiles_path),
-                    "--job-ids",
-                    JOB.id,
-                    "--jobs-json",
-                    str(jobs_path),
-                ]
-            )
-        return {"code": code, "payload": json.loads(out.getvalue() or "{}")}
+def _run(profiles: list[dict], job_ids: str | None = None, jobs: list[dict] | None = None) -> CliRun:
+    return run_cli(
+        main,
+        ["--profiles-json", "@profiles.json", "--job-ids", job_ids or JOB.id, "--jobs-json", "@jobs.json"],
+        files={
+            "profiles.json": profiles,
+            "jobs.json": jobs if jobs is not None else [JOB.model_dump(mode="json")],
+        },
+    )
 
 
 class MatrixCliMissingCandidatesTest(unittest.TestCase):
+    def test_cell_payload_names_the_hard_gate_that_blocked_it(self) -> None:
+        german_only = {
+            **GOOD_PROFILE,
+            "id": "german-only",
+            "label": "German-only candidate",
+            "payload": {**GOOD_PROFILE["payload"], "languages": ["German"]},
+        }
+        result = _run([GOOD_PROFILE, german_only])
+        self.assertEqual(result.code, 0)
+        cells = result.payload["cells"]
+        self.assertEqual(len(cells), 2)
+        self.assertEqual(len(cells[0]), 1)
+        self.assertFalse(cells[0][0]["blocked"])
+        self.assertIsInstance(cells[0][0]["score"], int)
+        self.assertEqual(cells[1][0], {"score": None, "blocked": True, "koKeys": ["language"]})
+
+    def test_scored_cell_carries_the_scorers_tier_band_and_unproven_count(self) -> None:
+        # score_job already computes fit_tier, the confidence band and the unproven
+        # skills; the grid used to keep only `.total` and band the number itself on a
+        # private scale. A scored cell now carries the scorer's own read of the pair.
+        result = _run([GOOD_PROFILE])
+        self.assertEqual(result.code, 0)
+        cell = result.payload["cells"][0][0]
+        self.assertFalse(cell["blocked"])
+        score = cell["score"]
+        self.assertIsInstance(score, int)
+        self.assertEqual(cell["fitTier"], fit_tier_for(score))
+        conf = cell["confidence"]
+        self.assertEqual(set(conf), {"low", "high", "level"})
+        self.assertLessEqual(conf["low"], score)
+        self.assertLessEqual(score, conf["high"])
+        self.assertIn(conf["level"], {"tight", "moderate", "wide"})
+        self.assertIsInstance(cell["unprovenCount"], int)
+        self.assertGreaterEqual(cell["unprovenCount"], 0)
+
+    def test_blocked_cell_carries_no_scorer_fields(self) -> None:
+        german_only = {
+            **GOOD_PROFILE,
+            "id": "german-only",
+            "payload": {**GOOD_PROFILE["payload"], "languages": ["German"]},
+        }
+        cell = _run([german_only]).payload["cells"][0][0]
+        self.assertEqual(set(cell), {"score", "blocked", "koKeys"})
+        self.assertIsNone(cell["score"])
+        self.assertTrue(cell["blocked"])
+
     def test_invalid_profile_is_surfaced_not_dropped(self) -> None:
         # A malformed profile sits between/with a valid one. The bad row is recorded
         # in missingCandidates (not silently swallowed); the valid row still scores.
         result = _run([GOOD_PROFILE, BAD_PROFILE])
-        self.assertEqual(result["code"], 0)
-        payload = result["payload"]
+        self.assertEqual(result.code, 0)
+        payload = result.payload
 
         # The valid candidate produces exactly one scored row.
         self.assertEqual([c["id"] for c in payload["candidates"]], ["good-1"])
@@ -91,8 +123,8 @@ class MatrixCliMissingCandidatesTest(unittest.TestCase):
 
     def test_all_valid_reports_no_missing_candidates(self) -> None:
         result = _run([GOOD_PROFILE])
-        self.assertEqual(result["code"], 0)
-        payload = result["payload"]
+        self.assertEqual(result.code, 0)
+        payload = result.payload
         self.assertEqual(payload["missingCandidates"], [])
         self.assertEqual(len(payload["candidates"]), 1)
 
@@ -100,8 +132,8 @@ class MatrixCliMissingCandidatesTest(unittest.TestCase):
         # A dropped profile with no label is still nameable by its id, so the banner
         # never renders a blank entry.
         result = _run([{"id": "no-label", "payload": {"skillClaims": [{"level": "working"}]}}])
-        self.assertEqual(result["code"], 0)
-        miss = result["payload"]["missingCandidates"]
+        self.assertEqual(result.code, 0)
+        miss = result.payload["missingCandidates"]
         self.assertEqual(len(miss), 1)
         self.assertEqual(miss[0]["id"], "no-label")
         self.assertEqual(miss[0]["label"], "no-label")
@@ -115,26 +147,8 @@ class MatrixCliMalformedJobsTest(unittest.TestCase):
     def test_malformed_job_record_is_skipped_not_fatal(self) -> None:
         # Job.company/location are required, so this record fails Job.model_validate.
         malformed = {"id": "job-poison", "title": "No company or location"}
-        with tempfile.TemporaryDirectory() as tmp:
-            profiles_path = Path(tmp) / "profiles.json"
-            profiles_path.write_text(json.dumps([GOOD_PROFILE]), encoding="utf-8")
-            jobs_path = Path(tmp) / "jobs.json"
-            jobs_path.write_text(
-                json.dumps([JOB.model_dump(mode="json"), malformed]), encoding="utf-8"
-            )
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                code = main(
-                    [
-                        "--profiles-json",
-                        str(profiles_path),
-                        "--job-ids",
-                        f"{JOB.id},job-poison",
-                        "--jobs-json",
-                        str(jobs_path),
-                    ]
-                )
-            payload = json.loads(out.getvalue() or "{}")
+        run = _run([GOOD_PROFILE], f"{JOB.id},job-poison", [JOB.model_dump(mode="json"), malformed])
+        code, payload = run.code, run.payload
 
         # Pre-fix: the inline validate loop raised -> emit_error -> exit 1.
         self.assertEqual(code, 0)
@@ -147,8 +161,8 @@ class MatrixCliMalformedJobsTest(unittest.TestCase):
 
     def test_all_valid_reports_no_missing_jobs(self) -> None:
         result = _run([GOOD_PROFILE])
-        self.assertEqual(result["code"], 0)
-        self.assertEqual(result["payload"]["missingJobs"], [])
+        self.assertEqual(result.code, 0)
+        self.assertEqual(result.payload["missingJobs"], [])
 
 
 class MatrixCliDuplicatePositionTest(unittest.TestCase):
@@ -156,25 +170,8 @@ class MatrixCliDuplicatePositionTest(unittest.TestCase):
         # listOpenPositions can repeat a job_id (a title edited between pipeline adds),
         # so --job-ids may arrive as "id,id". The grid keys columns by id, so a repeated
         # id must collapse to a single column instead of emitting duplicate React keys.
-        with tempfile.TemporaryDirectory() as tmp:
-            profiles_path = Path(tmp) / "profiles.json"
-            profiles_path.write_text(json.dumps([GOOD_PROFILE]), encoding="utf-8")
-            jobs_path = Path(tmp) / "jobs.json"
-            jobs_path.write_text(json.dumps([JOB.model_dump(mode="json")]), encoding="utf-8")
-
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                code = main(
-                    [
-                        "--profiles-json",
-                        str(profiles_path),
-                        "--job-ids",
-                        f"{JOB.id},{JOB.id}",
-                        "--jobs-json",
-                        str(jobs_path),
-                    ]
-                )
-            payload = json.loads(out.getvalue() or "{}")
+        run = _run([GOOD_PROFILE], f"{JOB.id},{JOB.id}")
+        code, payload = run.code, run.payload
 
         self.assertEqual(code, 0)
         # Exactly one column, no duplicate id.

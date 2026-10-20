@@ -242,6 +242,13 @@ const COLOR_EXEMPT = [
   // skin that must not follow the app theme — it has to stay readable while you
   // are debugging the theme itself.
   "app/_dev-inspector/**",
+  // The gig report's own stylesheet: a standalone HTML file the operator opens from disk
+  // (and GET /api/gigs/[id]/report serves sandboxed). kp's tokens never reach it, so its
+  // light and prefers-color-scheme dark palettes are literal by design. One file, no UI.
+  "app/_lib/gigs/report/report-css.ts",
+  // The client proposal's stylesheet, for the same reason: a standalone, client-facing HTML
+  // file (attached to a bid or printed), light only, that kp's tokens never reach.
+  "app/_lib/gigs/proposal/proposal-css.ts",
   // Test data: hexes here are inputs and expected values for the color
   // sanitizers and the glyph token snapper, not rendered color.
   "app/**/*.test.{ts,tsx}"
@@ -274,7 +281,7 @@ const config = [
     // copies from isolated agent runs. Without this, `eslint .` traverses those
     // stale checkouts and reports their (pre-existing, unrelated) violations as
     // if they were this tree's. eslint has no business in .claude.
-    ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**"]
+    ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**", "kpi-sim/**", ".contest/**"]
   },
   {
     // ---------------------------------------------------------------------

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearSetupDraft, draftFromState, readSetupDraft, writeSetupDraft, type SetupDraft } from "./setupDraft";
 import type { SetupState } from "./setupSteps";
+import { parseSetupSeat, type SetupSeat } from "./setupSeat";
 
 // Keeps the wizard's answers across a reload, and nothing else. The rules live in
 // setupDraft.ts (pure); this is only the wiring: probe who we are, restore once,
@@ -23,6 +24,11 @@ export function useSetupDraft(opts: {
   stepIndex: number;
   maxVisited: number;
   restore: (draft: SetupDraft) => void;
+  /** The caller's seat, off the SAME response as the scope (one fetch, not two) —
+   *  called before the restore, so a restored position is clamped to the run this
+   *  seat walks. Never called when the probe fails: the seat stays unknown, which
+   *  is the full run (setupSeat.ts). */
+  onSeat: (seat: SetupSeat) => void;
 }): { clear: () => void } {
   const { enabled, state, base, stepIndex, maxVisited } = opts;
   // The principal the draft belongs to. `undefined` = the probe has not answered
@@ -33,8 +39,10 @@ export function useSetupDraft(opts: {
   // re-trigger it when the parent re-creates it — hence a ref, kept current in its
   // own effect rather than during render.
   const restoreRef = useRef(opts.restore);
+  const seatRef = useRef(opts.onSeat);
   useEffect(() => {
     restoreRef.current = opts.restore;
+    seatRef.current = opts.onSeat;
   });
   const restored = useRef(false);
 
@@ -43,8 +51,10 @@ export function useSetupDraft(opts: {
     let alive = true;
     fetch("/api/me/onboarding")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { scope?: unknown } | null) => {
-        if (alive) setScope(typeof d?.scope === "string" ? d.scope : null);
+      .then((d: { scope?: unknown; seat?: unknown } | null) => {
+        if (!alive) return;
+        seatRef.current(parseSetupSeat(d));
+        setScope(typeof d?.scope === "string" ? d.scope : null);
       })
       .catch(() => {
         /* no identity is still a usable scope — the draft just lands under "anonymous" */

@@ -44,6 +44,7 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
 
   const nextOffsetRef = useRef(0); // offset to request on the next page load
   const loadingRef = useRef(false); // guards against overlapping/duplicate loads
+  const requestRef = useRef<AbortController | null>(null);
   const hasMoreRef = useRef(true); // mirrors hasMore for the synchronous guard below
   const startedRef = useRef(false); // ensures the on-mount auto-load fires once
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -55,13 +56,16 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
     // would otherwise waste a request past the end. (First page is always allowed.)
     if (nextOffsetRef.current !== 0 && !hasMoreRef.current) return;
     loadingRef.current = true;
+    const controller = new AbortController();
+    requestRef.current = controller;
     const isInitial = nextOffsetRef.current === 0;
     if (isInitial) setGracePassed(false); // re-arm the skeleton grace for this (re)load
     setPhase(isInitial ? "initial" : "more");
     setFailure(null);
     try {
-      const res = await fetch(buildUrl(nextOffsetRef.current, pageSize));
+      const res = await fetch(buildUrl(nextOffsetRef.current, pageSize), { signal: controller.signal });
       const body = asRecord(await res.json().catch(() => null));
+      if (controller.signal.aborted) return;
       // Coded envelope, same as useJsonFetch: keep { code, status } and resolve
       // the catalog through useErrorMessage. Never paint body.error (canonical
       // English) as the user-facing string.
@@ -79,20 +83,31 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
       nextOffsetRef.current = page.nextOffset;
       setPhase("idle");
     } catch {
+      if (controller.signal.aborted) return;
       // Transport / selectPage throw: no HTTP envelope. errorLabel is the
       // already-localized fallback once resolveMessage sees a null code.
       setFailure({ code: null, status: 0 });
       setPhase("error");
     } finally {
-      loadingRef.current = false;
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        loadingRef.current = false;
+      }
     }
   }, [buildUrl, pageSize, selectPage]);
 
   // First page on mount (a failed initial load is retried manually, not here).
   useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    void loadMore();
+    if (!startedRef.current) {
+      startedRef.current = true;
+      void loadMore();
+    }
+    return () => {
+      requestRef.current?.abort();
+      requestRef.current = null;
+      loadingRef.current = false;
+      startedRef.current = false;
+    };
   }, [loadMore]);
 
   // Hold the initial-load skeleton back until the grace window elapses. If the

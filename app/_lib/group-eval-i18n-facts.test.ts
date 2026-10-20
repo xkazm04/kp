@@ -106,3 +106,43 @@ test("topPick carries whyKind when the server fell back to a canned line, and th
   assert.equal(payload.summaryFacts?.kind, "recommendation");
   assert.equal(typeof payload.risks?.[0], "object");
 });
+
+// lens-sweep round 2 (security-auditor, context lib-group-eval). The AI compare
+// narrative IS produced in the org locale — but `getWorkspaceDefaultLocale()` was
+// called with NO argument, so it always read DEFAULT_WORKSPACE_ID's language even
+// though the run's own `workspaceId` was in scope. A non-default team's persisted,
+// team-shared comparison was therefore written in another tenant's configured
+// language, and `comparisonLang` recorded that wrong language permanently.
+// `app/_lib/automation-run.ts` documents and fixes exactly this defect for the
+// background pass ("a bare getWorkspaceDefaultLocale() read the DEFAULT workspace").
+//
+// The spawn itself is forced to ENOENT above so this suite stays hermetic, which
+// means the `--lang` it would have passed is not observable at runtime. The
+// tenanting is therefore pinned at the SOURCE, in the idiom
+// app/api/rate-limit-contract.test.ts established here.
+test("the compare narrative's language comes from the RUN's workspace, not the default tenant", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const src = readFileSync(fileURLToPath(new URL("./group-eval-run.ts", import.meta.url)), "utf8");
+
+  // Scan CODE only: the comment beside the fix names the retired call shape, and a
+  // matcher that also read comments would be satisfied — or defeated — by prose.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(
+    code,
+    /getWorkspaceDefaultLocale\(\s*\)/,
+    "a bare getWorkspaceDefaultLocale() reads DEFAULT_WORKSPACE_ID — every call must name the run's workspace",
+  );
+  assert.match(
+    src,
+    /"--lang",\s*getWorkspaceDefaultLocale\(workspaceId\)/,
+    "the compare CLI's --lang must be the run's own workspace default",
+  );
+  // …and the argument must actually reach that call site, rather than a same-named
+  // local that happens to satisfy the regex.
+  assert.match(
+    src,
+    /async function runGroupCompare\([\s\S]{0,400}?workspaceId: string/,
+    "runGroupCompare must take the workspace it is evaluating for",
+  );
+});

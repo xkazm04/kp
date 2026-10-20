@@ -46,7 +46,8 @@ const sites = sourceFiles(join(REPO_ROOT, "app")).flatMap((path) =>
 );
 
 test("self-check: the scan found the render sites it reasons over", () => {
-  assert.ok(sites.length >= 12, `expected the MotionizedGlyph render sites, found ${sites.length}`);
+  // 11 since the Channels "Intake Studio" empty state left with its view (kit promotion, 2026-09-25).
+  assert.ok(sites.length >= 11, `expected the MotionizedGlyph render sites, found ${sites.length}`);
 });
 
 test("the vocabulary is four square steps and their sm: mirrors", () => {

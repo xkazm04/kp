@@ -1,0 +1,96 @@
+{
+ "schema": "conform-run/1",
+ "worker": "103833f6-179f-4ee7-850e-dc539d8d8f0a",
+ "subject": "migrations",
+ "evaluatedAt": "2026-10-19T10:40:12.760095+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "db-core-migrations",
+   "subject": "migrations",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/core.ts:317 The database boot sequence runs schema mutations and table rebuilds directly on startup without a pre-migration snapshot gate, version ledger bump, or rollback halt policy.",
+   "techniques": [
+    {
+     "technique": "idempotent-steps",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/add-columns.ts:58 Guarded column addition operates without an authoritative version ledger, re-evaluating schema existence on every boot."
+    },
+    {
+     "technique": "pre-migration-snapshots",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:317 ensureDb opens the connection and mutates the schema on boot without taking an automated pre-migration snapshot."
+    },
+    {
+     "technique": "transactional-ddl",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:2881 rebuildTable transactions lack dependent object re-creation and omit foreign key verification prior to commit."
+    },
+    {
+     "technique": "error-propagation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:1859 migrateUniqueIndex catches unique constraint failures and returns instead of halting the migration chain."
+    },
+    {
+     "technique": "schema-drift-detection",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core-migrations.test.ts:211 The migration upgrade test uses a synthetic inline database rather than an authentic checked-in fixture from the oldest release."
+    },
+    {
+     "technique": "data-migrations",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:3785 The data backfill skips invalid records without performing count reconciliation with predicates to loudly fail the step."
+    },
+    {
+     "technique": "expand-deploy-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/core.ts:30 The application runs against an isolated local SQLite file singleton per process with no concurrent rolling deployments."
+    },
+    {
+     "technique": "dynamic-table-set-migrations",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/core.ts:321 The database schema consists of fixed static application tables declared in code with no operator-defined dynamic table sets."
+    },
+    {
+     "technique": "migrate-from-data-shape",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/core.ts:4 SQLite provides transactional storage capable of atomic metadata recording, making data-shape derivation inapplicable."
+    }
+   ],
+   "registryProposal": "The migrations standard treats ledger-less replay as a recognized variant in the golden path overview, but the idempotent-steps technique mandates 'Ledger always'; the standard should align these sections to clearly specify acceptable invariants for ledger-less embedded engines."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "migrations",
+   "context": "jd-ledger",
+   "reason": "Frontend UI table view and client-side view logic for job descriptions; the migrations subject governs backend database schema evolution, not client-side presentation components."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T10:40:12.760095+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "migrations"
+   ],
+   "techniques": [
+    "data-migrations",
+    "dynamic-table-set-migrations",
+    "error-propagation",
+    "expand-deploy-contract",
+    "idempotent-steps",
+    "migrate-from-data-shape",
+    "pre-migration-snapshots",
+    "schema-drift-detection",
+    "transactional-ddl"
+   ],
+   "deviations": 1,
+   "context": "db-core-migrations",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

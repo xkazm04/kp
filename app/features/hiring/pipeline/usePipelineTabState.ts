@@ -1,20 +1,17 @@
 "use client";
 
 // All of PipelineTab's state, effects and handlers (board load/poll, compound
-// filters + URL sync, saved views, bulk select/move/decide/invite/outreach, drag
-// move, and the drawer/profile/job navigation helpers). Split out of the .tsx so
+// filters + URL sync, drag move, and the drawer/profile/job navigation helpers). Split out of the .tsx so
 // the component file is just wiring + markup; this hook owns no JSX.
 //
 // Each of those concerns now lives in its own hook (usePipelineSla,
-// usePipelineBoardData, usePipelineFilters, usePipelineSavedViews, usePipelineBulk,
-// usePipelineNavigation); what is left here is the composition — the tab-level
+// usePipelineBoardData, usePipelineFilters, usePipelineNavigation); what is left here is the composition — the tab-level
 // derivations that read across two concerns (the stat counts, the filtered board,
 // the drawer cohort) and the ONE flat object PipelineTab and its children destructure.
 //
 // The call order below is load-bearing: effects run in hook-call order, so the hooks
 // are composed in the same sequence their effects were registered when this was one
-// body (SLA hydration → board load/poll → URL-sync teardown → view hydration → the
-// outreach-completion watcher → the batch-screen reload).
+// body (SLA hydration → board load/poll → URL-sync teardown → the batch-screen reload).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -35,10 +32,9 @@ import { stageHasRole, stagesWithRole } from "@/app/_lib/pipeline-stages";
 import { daysSince, slaForStage, type Entry } from "@/app/features/shared/pipelineTypes";
 import { boardPopulation } from "./pipelineBoardPopulation";
 import { usePipelineSla } from "./usePipelineSla";
+import { pendingLocalAdoption } from "@/app/_lib/stage-sla";
 import { usePipelineBoardData } from "./usePipelineBoardData";
 import { usePipelineFilters, emptyFacets } from "./usePipelineFilters";
-import { usePipelineSavedViews } from "./usePipelineSavedViews";
-import { usePipelineBulk } from "./usePipelineBulk";
 import { usePipelineNavigation } from "./usePipelineNavigation";
 import {
   nextCandidateView,
@@ -74,7 +70,8 @@ export function usePipelineTabState() {
     []
   );
 
-  const { slaOverrides, setStageSla, editingSla, setEditingSla } = usePipelineSla();
+  const sla = usePipelineSla();
+  const { slaOverrides, editingSla, setEditingSla } = sla;
   const { tasks } = useTasks();
   // 5d2e0998 — the empty board offers the guided tour (simulation start).
   const sim = useSimulation();
@@ -88,12 +85,14 @@ export function usePipelineTabState() {
     drawerOpen: candidate != null,
   });
   const { entries, events, error, eventsError, load, moveError, moveErrorEntryId, dismissMoveError, moveEntry } = board;
-  // The compound filters + their two-way URL sync, and the visible-scope signature
-  // the bulk confirms are stamped with.
+  // A stage cadence is TEAM data on the axis (PATCH /api/pipeline/stage-sla): each save
+  // and each adoption of a browser's leftover cadences ends in a board reload, which
+  // brings the new axis back as the truth the chip, the dot and the filters age on.
+  const setStageSla = (stage: string, days: number | null) => void sla.saveStageSla(stage, days, load);
+  const adoptLocalSla = () => void sla.adoptLocalSla(pendingLocalAdoption(sla.localSla, board.axis), load);
+  // The compound filters + their two-way URL sync, and the visible-scope signature.
   const filters = usePipelineFilters();
   const { query, quicks, scoreBands, sources, sort, stageFilter, filtering, visibleScope } = filters;
-  // Saved views read and write the filter state through the handle above.
-  const savedViews = usePipelineSavedViews({ filters });
 
   const positions = useMemo(() => groupPositions(entries ?? []), [entries]);
 
@@ -121,8 +120,10 @@ export function usePipelineTabState() {
   const population = boardPopulation(entries);
   const activeCount = population.active.filter((e) => !isTerminal(e)).length;
   const interviewCount = population.active.filter((e) => interviewStages.includes(e.stage)).length;
-  // The threshold resolves by ROLE on the same axis (pipelineTypes.slaForStage): a
-  // workspace's own "Tech round" ages like an interview, not on the flat legacy cut.
+  // The threshold resolves on the same axis (pipelineTypes.slaForStage): the team's own
+  // cadence for the column when it set one, else its ROLE's default, so a workspace's
+  // "Tech round" ages like an interview, not on the flat legacy cut. `slaOverrides` is
+  // only the optimistic value between a save and the reload that returns it.
   const isStale = (e: Entry) =>
     !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides, board.axis);
   const staleCount = population.active.filter(isStale).length;
@@ -166,9 +167,6 @@ export function usePipelineTabState() {
     [boardPositions, filteredEntries, boardColumns]
   );
 
-  // Bulk select mode + the four batch actions, resolved against exactly what the
-  // board renders (filteredEntries) and scoped by what it was showing (visibleScope).
-  const bulk = usePipelineBulk({ t, entries, filteredEntries, visibleScope, relayConfigured, load });
   const nav = usePipelineNavigation({ entries, showCandidate });
 
   // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
@@ -216,27 +214,17 @@ export function usePipelineTabState() {
     sources, toggleSource: filters.toggleSource, sourceValues,
     sort, setSortAndSync: filters.setSortAndSync,
     stageFilter, clearStageFilter: filters.clearStageFilter, showStage: filters.showStage, clearFilters: filters.clearFilters,
-    selectMode: bulk.selectMode, toggleSelectMode: bulk.toggleSelectMode,
-    selectedIds: bulk.selectedIds, toggleSelected: bulk.toggleSelected, selectAllVisible: bulk.selectAllVisible,
-    clearSelection: bulk.clearSelection, selectedOutsideCount: bulk.selectedOutsideCount,
-    bulkStage: bulk.bulkStage, setBulkStage: bulk.setBulkStage, bulkBusy: bulk.bulkBusy, bulkResult: bulk.bulkResult,
-    confirmingBulkReject: bulk.confirmingBulkReject, confirmingBulkOutreach: bulk.confirmingBulkOutreach,
-    dispatchBulkConfirm: bulk.dispatchBulkConfirm,
-    views: savedViews.views, viewDialog: savedViews.viewDialog, setViewDialog: savedViews.setViewDialog,
-    openSaveView: savedViews.openSaveView, openRenameView: savedViews.openRenameView,
-    commitViewDialog: savedViews.commitViewDialog,
-    toggleDefaultView: savedViews.toggleDefaultView, applyView: savedViews.applyView, deleteView: savedViews.deleteView,
-    activeViewId: savedViews.activeViewId, copyViewLink: savedViews.copyViewLink, copiedViewId: savedViews.copiedViewId,
+    visibleScope,
     slaOverrides, setStageSla, editingSla, setEditingSla,
+    slaSaveError: sla.slaSaveError,
+    localSlaOffers: pendingLocalAdoption(sla.localSla, board.axis),
+    adoptLocalSla, discardLocalSla: sla.discardLocalSla,
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
     axis: board.axis, retiredStages: board.retiredStages, plan: board.plan, rejectedByLane: board.rejectedByLane,
     isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
-    openCandidate: nav.openCandidate, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
+    openCandidate: nav.openCandidate, recordEntry: nav.recordEntry, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
-    selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,
-    bulkMove: bulk.bulkMove, bulkDecide: bulk.bulkDecide, bulkInvite: bulk.bulkInvite, bulkOutreach: bulk.bulkOutreach,
-    outreachTaskActive: bulk.outreachTaskActive,
     sim,
     focusDegradedCohort,
     SCORE_BANDS,

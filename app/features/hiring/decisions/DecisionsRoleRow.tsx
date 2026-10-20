@@ -91,7 +91,7 @@ export function RoleDecisionRow({
               aria-pressed={picking}
               title={t("selectTitle")}
               className={`focus-ring inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-sm font-semibold ${
-                picking ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
+                picking ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
               }`}
             >
               <ListChecks size={14} /> {picking ? t("selectExit") : t("select")}
@@ -116,7 +116,7 @@ export function RoleDecisionRow({
             className={`focus-ring inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-sm font-semibold disabled:opacity-60 ${
               evaluated && !picking
                 ? "border-moss/40 bg-moss/10 text-moss hover:bg-moss/15"
-                : "border-coral/40 bg-coral/5 text-coral hover:bg-coral/10"
+                : "border-coral/40 bg-coral/5 text-coral-ink hover:bg-coral/10"
             }`}
             title={picking ? t("compareTitle") : evaluated ? t("viewEvalTitle") : t("groupEvalTitle")}
           >
@@ -157,7 +157,7 @@ export function RoleDecisionRow({
               {picking ? (
                 <span
                   className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-sm border ${
-                    isPicked ? "border-coral bg-coral text-white" : "border-stone-300 bg-white"
+                    isPicked ? "border-coral bg-coral-solid text-white" : "border-stone-300 bg-white"
                   }`}
                   aria-hidden
                 >

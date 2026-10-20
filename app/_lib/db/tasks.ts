@@ -275,6 +275,23 @@ export function listTaskHistory(
   return rows.map(rowToTaskLite);
 }
 
+/** The stored params of a page's rows, by id, in ONE query — the bounded read behind
+ *  the list routes' replay verdict (app/_lib/task-replay.ts). Callers hand in only the
+ *  rows that need it (dead rows of path-bearing kinds), so the 2 s poll stays one
+ *  small read instead of a getTask per row. Scoped: another team's id reads nothing. */
+export function listTaskParams(ids: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  if (ids.length === 0) return out;
+  const db = ensureDb();
+  const rows = db
+    // A page is at most 60 rows (listRecentTasks) or 50 (history), so the placeholder
+    // list is bounded far under SQLite's variable limit.
+    .prepare(`SELECT id, params_json FROM tasks WHERE workspace_id = ? AND id IN (${ids.map(() => "?").join(", ")})`)
+    .all(workspaceId, ...ids) as { id: string; params_json: string | null }[];
+  for (const r of rows) out.set(r.id, safeRowParse(r.params_json, "task.params", r.id));
+  return out;
+}
+
 export function countTaskHistory(beforeIso: string, filter?: TaskHistoryFilter, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const { sql, params } = taskHistoryClauses(filter);

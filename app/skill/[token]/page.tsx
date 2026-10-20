@@ -1,12 +1,11 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
-import { getTranslations } from "next-intl/server";
-import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import SkillKitView from "./kit/SkillKitView";
+import type { SkillKitCard } from "./kit/skillKitModel";
 
 // The credential PAGE was the only public token door with no throttle at all: its
 // sibling /api/skill-profile/[token]/verify has had 30/10min per client since the
@@ -29,7 +28,8 @@ export const instant = false;
 
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const t = await getTranslations("skillProfile");
+  const tAxis = await getTranslations("devcase.dimension");
+  const format = await getFormatter();
   // An RSC page has no NextRequest, so the client address comes off the request
   // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
   // proxy-aware resolveClientIp). Nothing here can answer 429 — a page renders a
@@ -37,16 +37,8 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // temporarily unavailable and is worth retrying, which is the honest reading of a
   // throttle and never implies the credential is bad.
   if (!rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)) {
-    return (
-      <main className="mx-auto max-w-xl px-4 py-12">
-        <div className="mb-4 flex justify-end">
-          <LanguageSwitcher />
-        </div>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h1 className="mt-1 font-serif text-display text-ink">{t("throttledTitle")}</h1>
-        <p className="mt-2 text-body text-steel">{t("throttledBody")}</p>
-      </main>
-    );
+    // The throttled letter renders t("throttledTitle") / t("throttledBody") (SkillKitView).
+    return <SkillKitView card={{ kind: "throttled" }} />;
   }
   const verdict = verifySkillProfileToken(token);
   if (!verdict.found || !verdict.profile) notFound();
@@ -54,7 +46,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   const p = verdict.profile;
   const axes = Object.entries(p.axes);
   const confidencePct = Math.round((p.confidence ?? 0) * 100);
-  const issued = p.issuedAt.slice(0, 10);
+  const issued = format.dateTime(new Date(p.issuedAt), { dateStyle: "medium" });
   // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
   // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
   // so a third party never reads a green shield over a 0.
@@ -80,142 +72,23 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
     stale: freshness.stale,
   });
 
-  const badge =
-    state === "verified"
-      ? { Icon: ShieldCheck, cls: "border-green-200 bg-green-50 text-green-800", label: t("verified") }
-      : state === "revoked"
-        ? { Icon: ShieldX, cls: "border-stone-300 bg-stone-100 text-steel", label: t("revoked") }
-        : state === "incomplete"
-          ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("incomplete") }
-          : state === "unverifiable"
-            ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("unverifiable") }
-            : state === "stale"
-              ? { Icon: ShieldAlert, cls: "border-amber-200 bg-amber-50 text-amber-800", label: t("stale") }
-              : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
+  // Everything the letter shows is resolved HERE, on the server, and handed over as plain props:
+  // the client letter never refetches, and the server HTML is the whole card (it prints without
+  // JavaScript). Markup: ./kit/SkillKitView, the composition-kit letter (Gate 2, kit-unification).
+  const card: SkillKitCard = {
+    kind: "card",
+    state,
+    showsScores: skillProfileShowsScoreCard(state),
+    transferScore: p.transferScore,
+    confidencePct,
+    issued,
+    version: p.version,
+    staleReason: freshness.reason,
+    axes: axes.map(([name, score]) => {
+      const axisKey = name as Parameters<typeof tAxis>[0];
+      return { name, label: tAxis.has(axisKey) ? tAxis(axisKey) : name, score };
+    }),
+  };
 
-  return (
-    <main className="mx-auto max-w-xl px-4 py-12">
-      {/* The candidate's own escape hatch, as on every other public door (status,
-          offer, erasure). This card is SHARED with employers by the candidate and
-          reached from a link in a letter, so the reader's language is whatever the
-          link carried — and until now this was the one door with no way out of a
-          language they do not read. */}
-      <div className="mb-4 flex justify-end">
-        <LanguageSwitcher />
-      </div>
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-      <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
-      <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
-
-      <div className={`mt-4 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${badge.cls}`}>
-        <badge.Icon className="h-4 w-4" aria-hidden />
-        {badge.label}
-      </div>
-
-      {/* A stale credential stays genuine — say so plainly and name why (old / superseded
-          methodology) so an employer reads "still real, just not current", not "fake". */}
-      {state === "stale" ? (
-        <p className="mt-2 max-w-xl text-sm text-amber-700">
-          {freshness.reason === "methodology"
-            ? t("staleMethodology", { issued, version: p.version })
-            : t("staleAge", { issued, version: p.version })}
-        </p>
-      ) : null}
-
-      {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #2): gate the numeric score
-          card on the full TRUST state (verified/stale = genuine, attested), NOT on
-          `substantive` alone. A tampered/revoked/unverifiable credential can still be
-          "substantive" (has numbers), so the old gate rendered attacker-/stale-controlled
-          scores as the visual focus directly under a red "do not trust" badge. Untrusted or
-          unattested states now withhold the numbers entirely; `incomplete` explains the
-          absence in the muted block below, the rest are already fully named by the badge. */}
-      {skillProfileShowsScoreCard(state) ? (
-      <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <div className="font-serif text-display leading-none text-ink">{Math.round(p.transferScore)}</div>
-            <div className="mt-1 text-sm text-steel">{t("transferLabel")}</div>
-          </div>
-          <div className="text-right text-sm text-stone-500">
-            <div>
-              {t("confidenceLabel")}: <b className="text-ink">{confidencePct}%</b>
-            </div>
-            <div className="mt-0.5">
-              {t("issuedLabel")}: {issued}
-            </div>
-          </div>
-        </div>
-
-        {axes.length > 0 ? (
-          <div className="mt-6">
-            <h2 className="text-meta uppercase text-steel">{t("axesLabel")}</h2>
-            <ul className="mt-2 space-y-2">
-              {axes.map(([name, score]) => {
-                const pct = Math.max(0, Math.min(100, score));
-                return (
-                <li key={name}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-ink">{name}</span>
-                    <span className="font-mono text-stone-500">{Math.round(score)}</span>
-                  </div>
-                  {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #5): the axis meter
-                      was a purely presentational div — no role/value, so assistive tech got the
-                      number with no notion of scale, and a 0-score axis rendered a visually
-                      empty track indistinguishable from "no data". Expose it as a labelled
-                      meter, and draw a faint baseline tick at score 0 so an empty bar reads as
-                      "low", not "missing". */}
-                  <div
-                    role="meter"
-                    aria-valuenow={Math.round(pct)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={t("axisMeterLabel", { axis: name, score: Math.round(score) })}
-                    className="mt-1 h-1.5 w-full rounded-full bg-stone-100"
-                  >
-                    {pct > 0 ? (
-                      <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
-                    ) : (
-                      <div className="h-full w-1 rounded-full bg-stone-300" aria-hidden />
-                    )}
-                  </div>
-                </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
-      </section>
-      ) : state === "incomplete" ? (
-        // `summaryUnavailable` says the credential "was issued without a scored skill
-        // summary" — TRUE only of `incomplete`. When the score gate widened from
-        // `substantive` alone to the full trust state (the note above), the other three
-        // withheld states started falling into this block too, so a REVOKED or TAMPERED
-        // credential — which does carry numbers, we are simply refusing to vouch for them —
-        // told the reader it had been issued empty, and an UNVERIFIABLE one (our own key
-        // misconfigured) blamed the issuance for a server-side problem. A false statement
-        // about what kp issued is worse than no statement, and the badge above already
-        // names each of those three states in full ("This credential has been revoked",
-        // "Signature invalid, do not trust", "Verification temporarily unavailable"), so
-        // they now render the badge alone. Per-state body copy is a follow-up: it needs
-        // new keys in all four locale catalogs.
-        <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-6 text-sm text-steel">
-          {t("summaryUnavailable")}
-        </section>
-      ) : null}
-
-      <p className="mt-4 text-meta text-stone-400">
-        {t("methodology")}{" "}
-        {/* rel=noreferrer: this page's own URL IS the capability token (no session is
-            involved on /skill/[token]), and /about is a TRACKED route — so without
-            this, clicking through sends `r: https://<host>/skill/<token>` to
-            Plausible as the referrer, the same leak the data-exclude list closes at
-            the front door. Any future outbound same-origin link from a token page
-            needs it too. */}
-        <Link href="/about" className="underline" rel="noreferrer">
-          {t("methodologyLink")}
-        </Link>
-        . {t("version", { version: p.version })}
-      </p>
-    </main>
-  );
+  return <SkillKitView card={card} />;
 }

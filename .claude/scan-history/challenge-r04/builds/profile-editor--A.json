@@ -1,0 +1,19 @@
+{
+  "card": "profile-editor/A",
+  "title": "Version-stamp the editor's crash backup and restore it three-way, never blind",
+  "status": "landed",
+  "base": "70b6d7f1e",
+  "shas": ["a0ab91125", "1bbacb77b", "b93e3e3ec", "409f2504b"],
+  "tests_added": [
+    "app/features/tools/profile/profileEditorBackup.test.ts",
+    "app/features/tools/profile/useProfileEditorFields.test.ts (key case rewritten to pin backupSlot + the old collisions)"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {"tsc": 2, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": null, "unit": 1, "ts_ratchet": 0, "perf": 1},
+  "files_changed": 11,
+  "lines_changed": 517,
+  "deviations_from_card": "Shrunk: profileDraftMerge.ts only gained `export` on same(). EditorPending (profileRebuildMerge.ts, outside the write set) is not widened; the hook declares FieldsPending = EditorPending + origin 'restore' + restoredFrom/offered. The offer case carries `fields` (what differs) so 'Restore my edits' shows; a legacy slot equal to the load plans `none`. Added (beyond the card): while a restore is undecided (contested or offered fields) the hook does NOT rewrite the slot, else a second refresh would silently delete the only copy of the recruiter's contested values. Plain-edit and blank-create keep the legacy key shapes (kp.profileEditor.<id|new>) so pre-envelope backups are found and offered; analysis-opened editors append @<slug>. profileEditorBackupKey removed (backupSlot replaces it; no other caller). Doc commit landed before the wiring commit (lock ordering); range is consistent.",
+  "notes": "cases_red_before: the module did not exist at base (all 8 red); against a no-op stub, case 7 (unusable raw -> none) passes trivially, 7 of 8 red. Gates: tsc exit 2 ONLY on foreign paths (kpi-sim/ untracked tree + sibling in-flight app/_lib/devcase-authenticity*, devcase-run-unreadable, repo-snapshot*) - no error under app/features/tools/profile. test:unit exit 1 on ONE file, app/_lib/python-runner-concurrency.test.ts ('an aborted spawn kills the whole process tree') - unrelated to this card (no profile code in its graph); 9987 other tests pass. test:perf: red on many api routes and app/page.tsx (1395/1390 modules, 8779/8723 KB) on the COMBINED tree; measured on a git-archive of base 70b6d7f1e + this card's four files: 1389 -> 1390 modules, 8702 -> 8714 KB, i.e. within ceiling - the page.tsx overage comes from siblings' uncommitted/committed work (e.g. decisionsDecideOutcome.ts, useAddToPipeline.ts). Integration for slot B (wave 2, same files): the hook's 2nd param is now an EditorIdentity object {editingId, sourceAnalysisSlug, initialUpdatedAt}; the banner text/labels are computed in ProfileEditor as bannerText/useAnywayLabel/undoLabel; the 'Keep this' button is hidden for an undecided offered restore. A rebuild whose rebuild-slot backup plans moved/offer replaces the rebuild pending with the restore pending (rebuild Undo is then lost for that session) - edge case, noted not handled. applyDraft over an undecided restore replaces it (explicit recruiter action). Catalog keys appended at end of profile.editor: restoreOffer, restoreContested, restoreAppliedNote, restoreUseMine, restoreApply, restoreDiscard."
+}

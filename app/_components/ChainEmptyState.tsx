@@ -2,11 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { PANEL_SUNKEN } from "./ui/recipes";
-import { MotionizedGlyph, type TracedGlyph } from "./glyph/MotionizedGlyph";
-import { glyphForTab } from "./glyph/glyphRegistry";
+import { ARROW_LINK, PANEL_SUNKEN } from "./ui/recipes";
+import { MotionizedGlyph } from "./glyph/MotionizedGlyph";
+import { glyphForTab, type GlyphId } from "./glyph/glyphRegistry";
 import { GLYPH_SIZE } from "./glyph/glyphSizes";
-import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import type { WorkspaceTabId } from "@/app/features/shell/tabs";
+import { chainLinkHref, type ChainLink } from "./chainLinkHref";
 
 // Chain-aware empty state: an empty tab explains WHERE its data comes from and
 // links to the upstream step instead of dead-ending ("no candidates" → set up a
@@ -14,8 +15,8 @@ import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tab
 // chain it teaches: JD (library) → job (jobs) → channel (channels) → candidates
 // (pipeline) → decisions → schedule → offer/hired. Each call site declares its
 // own upstream link(s) — the copy lives in that tab's catalog namespace, the
-// navigation always goes through buildTabSwitchUrl so the destination opens
-// clean. Client-only: meant for tab bodies inside the Workspace SPA.
+// navigation always goes through chainLinkHref (buildTabSwitchUrl plus the link's
+// optional `params`) so the destination opens clean, or pre-scoped when the caller knows the scope. Client-only: meant for tab bodies inside the Workspace SPA.
 export function ChainEmptyState({
   icon: Icon,
   glyph,
@@ -26,17 +27,17 @@ export function ChainEmptyState({
   extraAction,
 }: {
   icon?: LucideIcon;
-  // A /motionize traced glyph (app/_components/glyph/glyphs/), rendered instead of
+  // A /motionize traced glyph id (app/_components/glyph/glyphRegistry.ts), rendered instead of
   // the lucide `icon`. Reserved for the first-run "nothing here yet" case — a
   // self-drawing illustration on a filtered-to-zero list is noise, so those call
   // sites keep the flat icon. Explicit `glyph` wins over `tab`.
-  glyph?: TracedGlyph;
+  glyph?: GlyphId;
   // Resolve the traced hero through glyphForTab. Unmapped tabs render no glyph
   // (and fall through to `icon` if supplied).
   tab?: WorkspaceTabId;
   title: string;
   body?: string;
-  links: { tab: WorkspaceTabId; label: string }[];
+  links: ChainLink[];
   // Non-navigation affordance rendered alongside the links (e.g. the Pipeline
   // empty state's "watch the hiring story" tour trigger).
   extraAction?: React.ReactNode;
@@ -47,7 +48,7 @@ export function ChainEmptyState({
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-center`}>
       {resolved ? (
-        <MotionizedGlyph data={resolved.data} viewBox={resolved.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
+        <MotionizedGlyph glyph={resolved} className={`mx-auto ${GLYPH_SIZE.lg}`} />
       ) : Icon ? (
         <Icon className="mx-auto text-moss" size={28} aria-hidden />
       ) : null}
@@ -59,8 +60,8 @@ export function ChainEmptyState({
             <button
               key={link.tab}
               type="button"
-              onClick={() => router.push(buildTabSwitchUrl(link.tab, search.toString()))}
-              className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+              onClick={() => router.push(chainLinkHref(link, search.toString()))}
+              className={ARROW_LINK}
             >
               {link.label} <ArrowRight size={13} aria-hidden />
             </button>

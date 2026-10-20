@@ -68,7 +68,45 @@
 // KP_FLAKE_RERUN=0 turns step 2 off (the run then reports `FAILED … not re-run`
 // rather than guessing) for a caller that only wants the first verdict.
 //
-// Args: none → the full suite (the two default globs). Any argv → run exactly
+// ─────────────────────────────────────────────────────────────────────────────
+// A RUN THAT RAN NOTHING IS RED (measured 2026-10-07, node v24.14.0)
+//
+// `node --test <pattern>` exits 0 when the pattern matches no file, and its
+// argv is read as a glob — so `app/api/jobs/[id]/route.test.ts` is a character
+// class that matches nothing: 0 tests, exit 0, a green gate that checked
+// nothing (51 tracked test files sit under bracketed directories). Three rules:
+//
+//   a. An argument that names an existing file runs exactly that file. CHOSEN:
+//      escape, not resolve — each glob metacharacter becomes a one-character
+//      class (`[` → `[[]`, `*` → `[*]`, …; node's glob has no backslash
+//      escape), and the path is handed to node as a literal pattern.
+//   b. An argument that is not a file is a glob; one matching no file is red and
+//      the message names it (checked here with fs.globSync, the engine
+//      `--test` uses).
+//   c. A run whose machine reporter counted 0 tests in total is red, whatever
+//      node's exit code was — so is a run that exited 0 and left no count.
+//      Counted through scripts/test/flake-reporter.mjs, never from console text.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ONE SUITE PER MACHINE AT A TIME (measured 2026-10-18, node v24.14.0, 16 cores)
+//
+// `node --test` runs availableParallelism()-1 files at once, and many of them spawn
+// children of their own. That sizing assumes the suite has the machine to itself.
+// On a box where parallel agent lanes each run this gate, it does not: three suites
+// started together put ~45 test processes on 16 cores, and the files that assert on
+// wall-clock bounds fail. The python-runner files did it every time at 3 concurrent
+// suites ("Python process timed out after 4s", the 80 ms background bound) and never
+// at 1 or 2. Each passes alone, so it reads as a flake in whichever file lost.
+//
+// So a run takes a machine-wide slot first: a lock directory in os.tmpdir() (mkdir
+// is atomic), owned by this launcher's pid. A second run waits and says whose run
+// it is waiting for. The holder's runner children inherit KP_TEST_SLOT_HELD, so a
+// launcher started BY a test (gate-exit-code.test.ts, the bench driver) does not
+// wait on its own parent. A slot whose owner is dead, or older than
+// SLOT_STALE_MS, is taken over. KP_TEST_SLOT=0 opts out; KP_TEST_SLOT_DIR moves
+// the lock (the fixture in app/_lib/testing/unit-db.test.ts uses it).
+//
+// Args: none → the full suite (the default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -101,7 +139,50 @@ const DEFAULT_PATTERNS = [
   "edge/**/*.test.ts",
   "i18n/**/*.test.ts",
 ];
-const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
+
+/** One-character classes: node's `--test` glob has no backslash escape. */
+function escapeGlob(p) {
+  return p.replaceAll("\\", "/").replace(/[[*?{}()!]/g, "[$&]");
+}
+
+/** Rule (a) and (b): turn argv into patterns node will read as intended, or say why not. */
+function resolvePatterns(args) {
+  const out = [];
+  const unmatched = [];
+  for (const arg of args) {
+    let isFile = false;
+    try {
+      isFile = fs.statSync(arg).isFile();
+    } catch {
+      /* not a path on disk — it is a glob, judged below */
+    }
+    if (isFile) {
+      out.push(escapeGlob(arg));
+      continue;
+    }
+    let hits = 0;
+    try {
+      hits = fs.globSync(arg.replaceAll("\\", "/")).length;
+    } catch {
+      /* a pattern the glob engine rejects matches nothing */
+    }
+    if (hits === 0) unmatched.push(arg);
+    else out.push(arg);
+  }
+  return { out, unmatched };
+}
+
+let patterns = DEFAULT_PATTERNS;
+if (process.argv.length > 2) {
+  const resolved = resolvePatterns(process.argv.slice(2));
+  if (resolved.unmatched.length) {
+    for (const p of resolved.unmatched) {
+      console.error(`test:unit — the pattern ${JSON.stringify(p)} matches no file, so it would have run 0 tests. Failing instead of passing.`);
+    }
+    process.exit(1);
+  }
+  patterns = resolved.out;
+}
 
 // A tree this broken is not a flake question. Re-running fifty files to learn
 // that fifty files are broken doubles the slowest gate in CI to say nothing.
@@ -156,7 +237,8 @@ function readFailures(file) {
     // record, and losing every failure because the last one was cut short is
     // exactly the misreading the whole classification exists to avoid.
     try {
-      out.push(JSON.parse(line));
+      const rec = JSON.parse(line);
+      if (rec.file) out.push(rec);
     } catch {
       /* a partial record proves nothing about the ones that parsed */
     }
@@ -189,6 +271,25 @@ function runSuite(files, destination) {
   );
 }
 
+/** The test total the machine reporter recorded; null when it left none (a killed runner). */
+function readTestCount(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+  for (const line of text.split("\n")) {
+    try {
+      const rec = JSON.parse(line);
+      if (rec.summary && Number.isFinite(rec.summary.tests)) return rec.summary.tests;
+    } catch {
+      /* partial record */
+    }
+  }
+  return null;
+}
+
 /** The whole run, as a code. Kept a function so the temp dir is cleaned by the
  *  caller — `process.exit()` abandons the stack, so a `finally` around it never
  *  runs and the directory would leak once per red build. */
@@ -201,7 +302,19 @@ function run(workdir) {
   }
   // A signal death is a failure, not a pass — never let it map to 0.
   const firstCode = first.status ?? (first.signal ? 1 : 0);
-  if (firstCode === 0) return 0;
+  if (firstCode === 0) {
+    // Rule (c): node exits 0 for a run that ran nothing.
+    const count = readTestCount(firstDest);
+    if (count === null || count === 0) {
+      console.error(
+        count === 0
+          ? "test:unit — the run executed 0 tests. A run that checked nothing is not a pass."
+          : "test:unit — node exited 0 but the reporter recorded no test count. A run that cannot prove it checked something is not a pass."
+      );
+      return 1;
+    }
+    return 0;
+  }
 
   const failures = readFailures(firstDest);
   const files = [...new Set(failures.map((f) => f.file))];
@@ -238,11 +351,88 @@ function run(workdir) {
   return failures.length && !outcome.blocking ? 0 : firstCode;
 }
 
+// A suite that has run this long is not running any more: even three contending
+// suites finished in ~14 minutes. Past it, a lock is a leftover, whoever's pid it names.
+const SLOT_STALE_MS = 45 * 60 * 1000;
+const SLOT_POLL_MS = 1000;
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** The slot's owner record, or null when it is missing or half-written. */
+function readSlotOwner(dir) {
+  try {
+    const owner = JSON.parse(fs.readFileSync(path.join(dir, "owner.json"), "utf8"));
+    return Number.isInteger(owner.pid) && Number.isFinite(owner.at) ? owner : null;
+  } catch {
+    return null; // a holder between mkdir and its write — judged by the dir's age below
+  }
+}
+
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0); // signal 0 = existence probe; sends nothing
+    return true;
+  } catch (e) {
+    return e.code === "EPERM"; // exists, owned by someone else
+  }
+}
+
+/** Take the machine-wide slot, waiting while a live run holds it. Returns the
+ *  release function, or null when this run must not take one. */
+function acquireSuiteSlot() {
+  if (process.env.KP_TEST_SLOT === "0" || process.env.KP_TEST_SLOT_HELD) return null;
+  const dir = process.env.KP_TEST_SLOT_DIR || path.join(os.tmpdir(), "kp-test-unit-slot");
+  let announced = false;
+  for (;;) {
+    try {
+      fs.mkdirSync(dir);
+      fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid, cwd: REPO_ROOT, at: Date.now() }));
+      break;
+    } catch (e) {
+      if (e.code !== "EEXIST") {
+        console.error(`test:unit — could not take the suite slot at ${dir} (${e.code}); running without it.`);
+        return null;
+      }
+    }
+    const owner = readSlotOwner(dir);
+    let since = owner?.at;
+    if (since === undefined) {
+      try {
+        since = fs.statSync(dir).mtimeMs;
+      } catch {
+        continue; // released between our mkdir and this stat — take it on the next pass
+      }
+    }
+    const stale = Date.now() - since > SLOT_STALE_MS || (owner !== null && !pidAlive(owner.pid));
+    if (stale) {
+      // Remove only the lock we judged: a waiter that got there first has written a new owner.
+      if (JSON.stringify(readSlotOwner(dir)) === JSON.stringify(owner)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      continue;
+    }
+    if (!announced) {
+      announced = true;
+      const who = owner ? `pid ${owner.pid} in ${owner.cwd}` : "a run that is starting";
+      console.log(`test:unit — another suite is running on this machine (${who}); waiting for it, so the two do not starve each other's timing-bound tests…`);
+    }
+    sleepSync(SLOT_POLL_MS);
+  }
+  process.env.KP_TEST_SLOT_HELD = String(process.pid);
+  return () => {
+    if (readSlotOwner(dir)?.pid === process.pid) fs.rmSync(dir, { recursive: true, force: true });
+  };
+}
+
+const releaseSlot = acquireSuiteSlot();
 const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "kp-flake-"));
 let code = 1;
 try {
   code = run(workdir);
 } finally {
   fs.rmSync(workdir, { recursive: true, force: true });
+  releaseSlot?.();
 }
 process.exit(code);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createWorkspace, listWorkspacesByOrg, listWorkspacesForUser, DEFAULT_WORKSPACE_ID, type Workspace } from "@/app/_lib/db/workspaces";
 import { listMembershipsForWorkspace, upsertMembership } from "@/app/_lib/db/memberships";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withSession, withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { callerOrgCapabilities, currentUser, requireCapability, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";
@@ -17,7 +17,7 @@ import type { MemberRole } from "@/app/_lib/auth/roles";
  *  it. `role` is null for a workspace the caller administers without belonging to. */
 export type WorkspaceListRow = Workspace & { memberCount: number; role: MemberRole | null; canManage: boolean };
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     // Any member may see the workspace list; WHICH workspaces they see depends on
     // their authority (below). This route used to have no gate at all and returned
@@ -47,7 +47,7 @@ export async function GET() {
 
     return NextResponse.json({
       workspaces: rows,
-      current: await currentWorkspace(),
+      current: ws,
       // The tenant every workspace-less record falls back to. The console needs it
       // to bucket legacy invites (invites.workspace_id is nullable), and a client
       // component cannot import it — db/workspaces.ts opens better-sqlite3.
@@ -60,9 +60,9 @@ export async function GET() {
   } catch (error) {
     return jsonError(error, "Failed to list workspaces.");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   try {
     // Creating a team is an org-level administrative act: `team:manage` held
     // anywhere in the org. Previously this route had NO capability check.
@@ -96,4 +96,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return jsonError(error, "Failed to create the workspace.");
   }
-}
+});

@@ -2,6 +2,7 @@
 
 import { ExternalLink, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { matrixReasoningKey } from "./matrixSelection";
 import type { Popover, ReasonState } from "./matrixTabTypes";
 
 // deec915c — the on-demand "why this score" popover. Anchored under the clicked
@@ -33,6 +34,10 @@ export function MatrixReasoningPopover({
   dialogRef: React.RefObject<HTMLDivElement | null>;
   onViewFullMatch: () => void;
 }) {
+  // The reasoning cache is keyed by language as well as by cell, because the narrative
+  // is a different answer per locale (matrixSelection.ts::matrixReasoningKey). This
+  // reader must therefore spell the key the same way the fetch that wrote it did.
+  const locale = useLocale();
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={closePopover} aria-hidden />
@@ -47,7 +52,7 @@ export function MatrixReasoningPopover({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="flex items-center gap-1 truncate font-semibold text-ink">
-              <Sparkles size={13} className="shrink-0 text-coral" /> {popover.cand.label}
+              <Sparkles size={13} className="shrink-0 text-coral-ink" /> {popover.cand.label}
             </p>
             <p className="truncate text-steel">
               {popover.pos.title}
@@ -69,7 +74,8 @@ export function MatrixReasoningPopover({
             <p className="text-amber-800">{blockedLabel(popover.cell)}</p>
           ) : (
             (() => {
-              const st = reasoning[`${popover.candId}|${popover.posId}`];
+              // Same key the fetch wrote, language included (matrixSelection.ts).
+              const st = reasoning[matrixReasoningKey(popover.candId, popover.posId, locale)];
               // Tier 2: /api/match/reasoning is an LLM-backed call, so a genuine miss
               // can take a couple of seconds — long enough to earn one quiet line of
               // real copy rather than nothing. reveal-quiet still gates it behind the
@@ -94,7 +100,7 @@ export function MatrixReasoningPopover({
                   ) : null}
                   {d.gaps?.length ? (
                     <div>
-                      <p className="text-meta font-semibold uppercase text-coral">{t("gaps")}</p>
+                      <p className="text-meta font-semibold uppercase text-coral-ink">{t("gaps")}</p>
                       <ul className="list-disc pl-4 text-steel">
                         {d.gaps.slice(0, 4).map((s, i) => (
                           <li key={i}>{s}</li>
@@ -121,7 +127,7 @@ export function MatrixReasoningPopover({
         <button
           type="button"
           onClick={onViewFullMatch}
-          className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+          className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral-ink hover:underline"
         >
           {t("viewFullMatch")} <ExternalLink size={12} />
         </button>

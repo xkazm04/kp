@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { ProfileDraftError, runProfileDraft } from "@/app/_lib/profile-draft-run";
+import { engineRefusal } from "@/app/_lib/python-runner";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getServerLocale } from "@/i18n/server";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #2): this route spawns a
 // Gemini child, so it needs a function budget wide enough for the child timeout
@@ -28,7 +30,7 @@ const DRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // saves via POST/PUT /api/profile. Synchronous convenience wrapper over
 // app/_lib/profile-draft-run.ts; the UI runs drafting through the background
 // task kind "profile_draft" (tracked, refresh-safe), both share runProfileDraft.
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   try {
     // Both guards precede the body read: a caller who may not spend must not even
     // reach the parse, and open mode (no KP_OPERATOR_PASSWORD) makes the gate a no-op
@@ -62,6 +64,10 @@ export async function POST(request: NextRequest) {
       // kept, so a 504 still reads as a timeout to anything counting statuses.
       return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED", error.status);
     }
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED");
   }
-}
+});

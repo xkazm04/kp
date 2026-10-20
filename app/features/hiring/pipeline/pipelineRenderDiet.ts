@@ -17,8 +17,8 @@
 // unambiguous (no separator a label could contain) and keeps the file plain text.
 
 import type { Entry, PipelineEvent } from "@/app/features/shared/pipelineTypes";
-import { slaForStage } from "@/app/features/shared/pipelineTypes";
-import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
+import { agingTierAt } from "@/app/_lib/aging-policy";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 
 const DAY_MS = 86_400_000;
@@ -41,11 +41,10 @@ export function agingBucket(
   now: number,
   axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
 ): 0 | 1 {
-  if (stageHasRole(e.stage, "terminal", axis)) return 0;
-  const changed = e.stageChangedAt ? Date.parse(e.stageChangedAt) : NaN;
-  if (!Number.isFinite(changed)) return 0;
-  const days = Math.floor((now - changed) / DAY_MS);
-  return days >= slaForStage(e.stage, overrides, axis) ? 1 : 0;
+  // One aging clock: the tier comes from aging-policy.ts, the same function the
+  // sidebar badge and the automation pass's feed alerts read (terminal never ages, a
+  // non-positive SLA never ages, an unparseable timestamp reads fresh).
+  return agingTierAt(e.stage, e.stageChangedAt, now, axis, overrides) === "none" ? 0 : 1;
 }
 
 /** Day-bucketed relative-time class for an ISO instant at `now` — EXACTLY the cut
@@ -186,57 +185,4 @@ export function eventSignature(ev: PipelineEvent, now: number = Date.now()): str
 /** Content signature of the events list (the initial feed page). */
 export function eventsSignature(events: readonly PipelineEvent[], now: number = Date.now()): string {
   return JSON.stringify(events.map((ev) => eventSignature(ev, now)));
-}
-
-/** React.memo equality for a CandidateRow: re-render only when the entry's rendered
- *  content OR one of the presentational flags changed. The handler props are
- *  intentionally excluded — their behavior is fully determined by `entry` (compared
- *  here) and the stable board state they close over, so a fresh closure per render
- *  must not by itself force a reconcile. Presence of the optional action/move
- *  handlers IS compared, since it toggles affordances. */
-export function candidateRowEqual(
-  prev: {
-    entry: Entry;
-    pending?: boolean;
-    stale?: boolean;
-    selectMode?: boolean;
-    selected?: boolean;
-    draggable?: boolean;
-    onActions?: unknown;
-    onMove?: unknown;
-  },
-  next: typeof prev
-): boolean {
-  return (
-    prev.pending === next.pending &&
-    prev.stale === next.stale &&
-    prev.selectMode === next.selectMode &&
-    prev.selected === next.selected &&
-    prev.draggable === next.draggable &&
-    !!prev.onActions === !!next.onActions &&
-    !!prev.onMove === !!next.onMove &&
-    entrySignature(prev.entry) === entrySignature(next.entry)
-  );
-}
-
-/** The full per-cell signature StageCell memoizes on: each entry's content PLUS its
- *  stale verdict and selected state (both of which the cell renders but which live
- *  outside the entry object). Evaluating `isStale`/`selectedIds` here means an SLA
- *  override or a selection toggle correctly re-renders the affected cell even though
- *  the entry data itself is unchanged. */
-export function stageCellSignature(
-  entries: readonly Entry[],
-  isStale: (e: Entry) => boolean,
-  selectedIds: ReadonlySet<string>
-): string {
-  // Cheap concat of the CACHED per-entry strings (Direction 3) — no second
-  // JSON.stringify over the array. On a keystroke-driven parent render the entry
-  // objects are stable, so entrySignature is a WeakMap hit and this does zero JSON
-  // work; only the stale/selected flags are folded fresh (they live outside the
-  // entry object). Control-char separators keep the join collision-free.
-  let s = "";
-  for (const e of entries) {
-    s += entrySignature(e) + FIELD_SEP + (isStale(e) ? 1 : 0) + FIELD_SEP + (selectedIds.has(e.id) ? 1 : 0) + REC_SEP;
-  }
-  return s;
 }

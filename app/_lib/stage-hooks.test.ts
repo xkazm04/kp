@@ -12,6 +12,8 @@ import { listPipelineEventsForEntry } from "./db/pipeline-events.ts";
 import { listRecentInterviewSessions } from "./db/interviews.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { runStageEnteredHook } from "./stage-hooks.ts";
+import { _resetStageHookInviteForTests, registerStageHookInvite, type StageHookInvite } from "./stage-hooks-invite.ts";
+import { registerLateBoundImplementations } from "./late-bound-boot.ts";
 
 after(() => cleanupUnitDb());
 
@@ -166,6 +168,25 @@ test("no deliverable address: the invite FAILS on the record and the stage move 
   assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar");
 });
 
+test("an AI agent on the AI-round column is skipped, not parked on the Schedule docket", async () => {
+  const entry = createPipelineEntry({
+    candidateId: "agent-fit-sh-agent",
+    candidateLabel: "Fit Agent",
+    jobId: "sh-job-agent",
+    jobTitle: "Hook Test Role",
+    contact: null,
+    stage: "Interview",
+    population: "agent",
+    workspaceId: WS_AUTO,
+  }).entry;
+
+  const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+
+  assert.deepEqual(res, { outcome: "skipped", reason: "agent_population" });
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, null, "nothing for a person to dismiss");
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0);
+});
+
 test("a HUMAN round at the interview step is not this hook's business", async () => {
   const entry = entryAt(WS_HUMAN_ROUND, "Interview", "person@example.com");
 
@@ -195,4 +216,55 @@ test("a candidate who already moved on is not invited to the step they left", as
   assert.equal(res.outcome, "skipped");
   assert.equal(res.outcome === "skipped" && res.reason, "stage_moved");
   assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0);
+});
+
+test("an UNREGISTERED mint door is a loud failure: parked for a human, logged by name, never a silent skip", async () => {
+  // The mint is late-bound (stage-hooks-invite.ts): instrumentation-node.ts registers it
+  // at boot, unit-db.ts does the same for this process. A boot that never registered it
+  // must not read as "nothing to do" — the candidate would sit on the column with no
+  // link and nobody told.
+  const entry = entryAt(WS_AUTO, "Interview", "unregistered@example.com");
+  const logged: string[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    logged.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "));
+  };
+  _resetStageHookInviteForTests();
+  try {
+    const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+    assert.equal(res.outcome, "failed");
+    assert.equal(res.outcome === "failed" && res.reason, "error");
+  } finally {
+    console.error = original;
+    registerLateBoundImplementations();
+  }
+  assert.ok(
+    logged.some((line) => line.includes("[stage-hooks]") && line.includes("not registered") && line.includes("instrumentation-node.ts")),
+    `the server log names the missing registration, got: ${JSON.stringify(logged)}`
+  );
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0, "nothing was minted");
+  assert.ok(!kinds(entry.id, WS_AUTO).includes("interview_invite_sent"), "nothing claims to have been sent");
+  // Failed OPEN, towards the human — the same place every other mint failure lands.
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar");
+
+  // …and once registered again, the same kind of arrival mints as before.
+  const next = entryAt(WS_AUTO, "Interview", "reregistered@example.com");
+  assert.equal((await runStageEnteredHook({ entryId: next.id, stage: "Interview", workspaceId: WS_AUTO })).outcome, "invited");
+});
+
+test("a mint refused by the send gate AFTER the arrival check parks as suppressed, never as a billing miss", async () => {
+  // The arrival check reads contactability first; the mint door (8b293dc05) asks the
+  // send gate again. If the answer changed between the two reads, the refusal is
+  // COMMS_SUPPRESSED and carries no quota — the hook must not read one.
+  const entry = entryAt(WS_AUTO, "Interview", "raced@example.com");
+  registerStageHookInvite(async () => ({ ok: false, refusal: "COMMS_SUPPRESSED" }) as Awaited<ReturnType<StageHookInvite>>);
+  try {
+    const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+    assert.equal(res.outcome, "failed");
+    assert.equal(res.outcome === "failed" && res.reason, "suppressed");
+  } finally {
+    registerLateBoundImplementations();
+  }
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0, "nothing was minted");
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar", "parked for a human");
 });

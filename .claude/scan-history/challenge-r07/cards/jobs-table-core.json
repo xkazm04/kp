@@ -1,0 +1,115 @@
+[
+  {
+    "context": "jobs-table-core",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Roles desk: server owns sort, status filter and the 20-row window",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/jobs.ts",
+      "app/api/jobs/route.ts",
+      "app/features/library/jobs/useJobsList.ts",
+      "app/features/library/jobs/useJobsList.test.ts",
+      "app/features/library/jobs/JobsTabResults.tsx",
+      "app/features/library/jobs/JobsTable.tsx",
+      "app/features/library/jobs/jobsTableView.ts",
+      "app/features/library/jobs/jobsTableView.test.ts",
+      "app/features/library/jobs/jobsTabDeepLink.ts",
+      "app/features/library/jobs/jobsTabDeepLink.test.ts",
+      "app/features/library/jobs/jobsIngestLatch.ts",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/jobs-browse.test.ts",
+      "app/api/jobs/jobs-list-window.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Workspace holding 320 matching roles where the alphabetically-first title ('Aaa Analyst') is non-entry-eligible and so ranks ~310th under today's ORDER BY is_entry_eligible DESC: listJobsPage({sort:'title',dir:'asc',offset:0,limit:20}) returns 'Aaa Analyst' as row 1 and matching = 320 (today the client sorts the 300-row entry-ranked slice and that role is unreachable).",
+      "roleStatus='filled' with one filled role ranked past the 300-row cut: the store page contains it and countJobs with the same filter counts it (today useJobsList filters `jobs` client-side after the cut, so it never shows and the pager reports a total that excludes it).",
+      "The SQL roleStatus predicate agrees with roleStatusOf (jobsRoleStatus.ts) on every cell of the matrix status {NULL,'published','draft','closed'} x hired {0,1,3} x target_hires {NULL,1,3}, including a shared corpus row whose job_workspace_state overlay says 'closed' for team B only: team A's roleStatus='open' still returns it, team B's roleStatus='closed' returns it.",
+      "The per-row `hired` the window decorates equals listJobPipelineStats(ws)[id].hired on a workspace whose terminal stage has been renamed on its pipeline axis (hired is read by terminal ROLE, not the literal stage name).",
+      "Missing values sort last in both directions: sort='salary' with a NULL salary_min row puts it last for dir='asc' AND dir='desc'; sort='title' is accent-folded and case-insensitive ('Ucetni', 'Účetní', 'účetní' adjacent, between 'Tester' and 'Vývojář'), ties broken by jobs.id.",
+      "GET /api/jobs?sort=title&dir=asc&offset=40&roleStatus=open answers 20 rows plus {matching, truncated, limit} and an echo {sort,dir,offset,roleStatus}; an unknown sort ('payload_json'), dir ('sideways') or roleStatus ('hired') falls back to the default instead of reaching SQL; offset '-1'/'abc' reads as 0; offset past matching answers [] with matching unchanged.",
+      "A call with no sort/offset/roleStatus (the JD library, analytics, org-benchmarks callers of listJobs) returns byte-identical rows in today's entry-eligible order.",
+      "useJobsList wire mapping: jobsListQuery({...filters, sort:{col:'status',dir:'desc'}, pageIndex:2, roleStatus:'filled'}) emits sort=status&dir=desc&offset=40&roleStatus=filled, and the ingest latch whose draft is absent from the refreshed 20-row page resolves to a point-fetch of that id instead of 'clear' (the modal still auto-opens after an ingest)."
+    ],
+    "premise": [
+      "app/features/library/jobs/JobsTabResults.tsx:52 sorts CLIENT-side: useTableSort<Job, JobSortCol>(jobs ?? [], JOB_SORT_ACCESSORS, { col: \"title\", dir: \"asc\" }) over whatever the route returned.",
+      "app/features/library/jobs/JobsTabResults.tsx:57-58 and :155 window that sorted slice client-side (clampPage/pageSlice, TablePager total={sorted.length}).",
+      "app/_lib/db/jobs.ts:572 JOBS_PAGE_DEFAULT_LIMIT = 300 and :786 the page is cut in ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, jobs.id — a different order from the one the table displays.",
+      "app/api/jobs/route.ts:49 reads listJobsPage(filter, ws) with no sort/offset; :58 matching = countJobs(filter, ws) — the route already carries the honest count, the client has no way to reach rows past the cut.",
+      "app/features/library/jobs/useJobsList.ts:84-91 declares the Status filter CLIENT-side 'deliberately' because 'filled' needs the pipeline's hired count; :190 applies it as jobs.filter(roleStatusOf(job) === roleStatus) over the truncated page.",
+      "app/api/jobs/route.ts:56-57 already joins the hired count per request (listJobPipelineStats(ws) → hired) — the fact the client-side filter said the server could not express is computed server-side on every call.",
+      "app/_lib/db/pipeline.ts:1059-1086 listJobPipelineStats counts hired by stageHasRole(stage,'terminal',axis) from getPipelineAxis(workspaceId) — expressible as a bound IN-list of terminal stage ids in a GROUP BY subquery.",
+      "app/_lib/db/core.ts:509-527 every sortable column already exists on jobs (title, location, work_mode, seniority, role_family, salary_min) — no payload_json parse needed to ORDER BY.",
+      "app/features/library/jobs/jobsIngestLatch.ts:35 and jobsTabDeepLink.ts:48 resolve the just-ingested / deep-linked id with jobs.find over the loaded rows; jobsTabDeepLink.ts:65 already has the point-fetch the latch will need once the page is 20 rows.",
+      "Open leftovers adopted (both M, both still open — neither appears in low-risk-drain-2026-09-22*-results.jsonl): 'Drive the Jobs pager from GET /api/jobs offset' and 'Do not client-filter filled status only on the truncated page' (leftover-develop-2026-09-17.jsonl, context jobs-table-core). They are one move: they cannot be built separately without splitting an axis across tiers."
+    ],
+    "rollback": "The series reverts cleanly: the new JobFilter fields are optional and default to today's ORDER BY/LIMIT, so reverting the client commits alone restores the client-sorted table against an unchanged route contract; reverting the store commit removes the params the route then ignores. No schema, no migration, no billing path (published_at is never read or written).",
+    "gate": "architecture",
+    "runner_up": "One lifecycle read for drafts: DraftsPanel's separate GET /api/jobs/status list and the table's draft rows (roleStatus 'draft') are two reads of one fact that a publish must reconcile by hand (patchJobStatus + reload + onPublished) — fold the drafts rail into the table's own status axis.",
+    "technique": "client-server-split",
+    "body": "## Summary\nThe Roles desk splits its three query axes across two tiers: the server cuts a 300-row page in entry-eligibility order, then the client sorts that slice by title, filters it by status and windows it to 20 rows. Move sort, the status predicate and the window to `listJobsPage`/`GET /api/jobs` so every axis is owned by the tier that can see every row it depends on.\n\n## Description\nThe registry's `table` / client-server-split rule: *never place an axis's executor below an axis that truncates*. Today the page is cut at `LIMIT 300` ordered by `is_entry_eligible DESC` (db/jobs.ts:786), and the table displays it as \"sorted by Role A-Z\" (JobsTabResults.tsx:52) - a true statement about the slice presented as one about the corpus. The Status filter (useJobsList.ts:190) has the same flaw, and its stated reason (\"filled needs the pipeline's hired count\") no longer holds: the route already computes that count on every request (route.ts:56-57). The move: `JobFilter` gains optional `sort`, `dir`, `offset`, `roleStatus`; `listJobsPage` builds ORDER BY from an allowlisted column map over real columns (NULLs last both ways, accent-folded title via a deterministic registered SQL function, `jobs.id` tiebreak) and LEFT JOINs one `GROUP BY job_id` subquery of terminal-stage entries (stage ids resolved from the workspace axis, bound as parameters) so both `hired` and the roleStatus predicate are SQL; `countJobs` binds the identical predicate. The tenant predicate stays inlined literally in each template (jobs-tenancy.test.ts greps it). The client drops `useTableSort` for server sort state, sends `offset = pageIndex*20`, drives `TablePager` from `matching`, and the ingest latch falls back to the existing point-fetch when the new draft is not on the current page.\n\n## Flow\n1. Recruiter clicks the Salary header -> useJobsList sets sort {salary, desc}, pageIndex 0.\n2. Debounced fetch `GET /api/jobs?sort=salary&dir=desc&offset=0&limit=20&openOnly=true`.\n3. Route validates params against allowlists, calls listJobsPage + countJobs with ONE filter object, answers 20 rows + matching + echo.\n4. Table renders the rows; pager shows ceil(matching/20) pages; page 5 is `offset=80`, a real request.\n5. Status filter 'filled' is a wire param; the count beside it is the count of filled roles in the workspace, not in the slice.\n\n## Expected impact\nCorrect sort and status filtering for every workspace past 300 visible roles (100 shared corpus + 200 authored), where today whole roles are unreachable from the table while the summary line admits only that the list \"is cut\". Each filter keystroke transfers and JSON-parses 20 payload rows instead of up to 300 (15x less work per request, measured as rows returned by the route). Closes the class: no Roles-desk axis runs over a partial copy.\n\n## Evaluation\nClaim: every Roles-desk axis (sort, status, window) is answered over the whole matching set, and default callers are unchanged.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test cases in app/_lib/db/jobs-browse.test.ts (store, fixture DB with 320 rows + overlay + renamed terminal stage), app/api/jobs/jobs-list-window.test.ts (route params/echo), useJobsList.test.ts and jobsTabDeepLink.test.ts (wire mapping, latch fallback); then the integration gate (tsc, lint, test:unit, test:perf).\nResult: pending build.\nGate: architecture.",
+    "evidence": "JobsTabResults.tsx:52  const { sorted, sort, toggle } = useTableSort<Job, JobSortCol>(jobs ?? [], JOB_SORT_ACCESSORS, { col: \"title\", dir: \"asc\" });\nJobsTabResults.tsx:155 <TablePager page={safePage} total={sorted.length} onPage={setPageIndex} />\nuseJobsList.ts:137  const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly: false, openOnly, q });   // no sort, no offset, no roleStatus\nuseJobsList.ts:190  const visible = jobs === null || !roleStatus ? jobs : jobs.filter((job) => roleStatusOf(job) === roleStatus);\ndb/jobs.ts:572      export const JOBS_PAGE_DEFAULT_LIMIT = 300;\ndb/jobs.ts:786      ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, jobs.id LIMIT @limit\nroute.ts:56-57      const pipelineStats = listJobPipelineStats(ws); const jobs = page.map((job) => ({ ...job, hired: pipelineStats[job.id]?.hired ?? 0 }));\nroute.ts:58         const matching = countJobs(filter, ws);\ncore.ts:509-527     jobs(title, location, work_mode, seniority, role_family, salary_min, ...) - all sort keys are columns.\nleftover-develop-2026-09-17.jsonl: {\"title\":\"Drive the Jobs pager from GET /api/jobs offset\",\"context\":\"jobs-table-core\",\"size\":\"M\"} and {\"title\":\"Do not client-filter filled status only on the truncated page\",\"context\":\"jobs-table-core\",\"size\":\"M\"}; grep of both low-risk-drain-2026-09-22*-results.jsonl: no match (still open).\nRegistry: software-engineering/table, technique client-server-split: 'window on the server + sort on the client is broken by construction'.\nRisk notes for the builder: SQLite has no ICU collation - declare the accent-fold (NFD strip + lower) as a registered deterministic function and state the Czech 'ch' digraph as a known deviation from compareCells' Intl.Collator; keep the tenant predicate inline (jobs-tenancy.test.ts source guard); listJobs' default order is a contract for analytics/JD library callers."
+  },
+  {
+    "context": "jd-public-detail-page",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Public JD speaks the role's posting languages; hreflang offers only what ships",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/jds/[slug]/page.tsx",
+      "app/jds/[slug]/jdPublicHeader.ts",
+      "app/jds/[slug]/jdPublicHeader.test.ts",
+      "app/jds/[slug]/JdBody.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [
+      "app/jds/[slug]/jdPublicVariant.ts",
+      "app/jds/[slug]/jdPublicVariant.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "Role jd-backend opened in [en, cs] with a stored cs translation newer than jdLastEditedAt: resolvePublicJdVariant({requested:'cs', sourceLang:'en', translations:[cs], lastEditedAt, archived:false}) -> {kind:'translated', lang:'cs', body:<cs bodyMd>, title:<cs title>, fromLang:'en'}.",
+      "Same role, requested 'de' (opened in de but the render was refused keyless, nothing stored): -> {kind:'canonical'} with the JD's own body - a whole unit, never a mix and never an empty page.",
+      "Stored cs translation OLDER than jdLastEditedAt(slug, owner) (a JD edit whose best-effort re-ingest failed, so deleteJobTranslations never ran): -> canonical, and 'cs' is NOT in the alternates.",
+      "publicJdAlternates for that role lists exactly the source language + languages with a fresh stored translation (+ x-default), each variant's canonical is its OWN URL (/jds/backend?lang=cs self-canonical), and a keyless install with no translations advertises only the source + x-default (today: all four LOCALES always).",
+      "Archived JD: no alternates and always canonical body, whatever ?lang= says (unchanged noindex behaviour).",
+      "Tenancy: translations are read with the OWNER workspace resolved by loadPublicJd, never the viewer's - a visiting team's cs translation of a shared role is never served on another team's JD page; the public projection carries only {lang, title, bodyMd, sourceLang} (no createdAt, no workspace, no job row).",
+      "A translated variant renders a machine-translation disclosure naming the source language with a link to the canonical original, operator JdActions mount only on the canonical variant, and the copy-as-Markdown button copies the body actually served; the four new jdPublic keys exist in en/cs/de/fr (i18n:check)."
+    ],
+    "premise": [
+      "app/jds/[slug]/page.tsx:108 states the JD BODY stays in its authored language, and :257 renders <JdBody markdown={jd.body} /> for every ?lang= - only the chrome follows the visitor's locale.",
+      "app/jds/[slug]/jdPublicHeader.ts:23-36 publicJdAlternates advertises ALL LOCALES as `${path}?lang=${l}` plus x-default, with ONE canonical (the bare path) for every variant; page.tsx:83 and :91 feed it straight into metadata.",
+      "app/jds/[slug]/jdPublicHeader.test.ts:8-19 pins 'four hreflang alternates' - the current claim, which this card changes deliberately.",
+      "proxy.ts:171 honours ?lang= by setting the locale cookie and forwards without a redirect, so the page can read the explicit ?lang= search param as the requested variant.",
+      "app/_lib/db/job-translations.ts:24-33 stores a per-language rendering {lang, sourceLang, title, bodyMd} of the role's posting and :78-87 getJobTranslation(jobId, lang, workspaceId) reads one - workspace-bound with no shared tier (:16-22).",
+      "docs/features/jobs/README.md:1862-1880 - opening a role in several languages orders and persists a translation per language (runPostingTranslations, job-translate-run.ts); nothing public reads them: the only reader is the operator-gated GET /api/jobs/[id]/translations (requireOperator).",
+      "app/_lib/db/jobs.ts:468-473 jdLastEditedAt(slug, workspaceId) is the existing staleness signal; app/api/jds/[slug]/route.ts:152-153 shows a JD edit whose re-ingest fails leaves the old job (and so its translations) in place.",
+      "docs/features/jobs/README.md:78 documents the four alternates as the '?lang= contract' - the doc changes with the code."
+    ],
+    "rollback": "Additive and self-contained: revert the series and the page returns to the single authored body with four alternates. No table, no route, no write path is touched; the canonical (source-language) serving path is byte-identical before and after, so reverting cannot strand a reader.",
+    "gate": "contract",
+    "runner_up": "Emit schema.org JobPosting JSON-LD on live public JDs (open leftover, M, risk 2 - below this mode's risk floor, so left to --develop).",
+    "technique": "canonical-fallback-serving",
+    "body": "## Summary\nA role opened in Czech and English already has a paid, stored Czech rendering of its posting - but the public page a Czech candidate lands on (`/jds/<slug>?lang=cs`) shows the English body under Czech chrome, while telling search engines a Czech version exists for every locale. Serve the stored translation for an explicit `?lang=`, fall back to the whole original otherwise, and advertise only the languages the page can actually deliver.\n\n## Description\nThe localization registry's canonical-fallback-serving rule: fall back per whole unit, keep the source path byte-identical, and derive the language offer from what the store can serve. Today the offer is aspirational: `publicJdAlternates` lists all four LOCALES regardless of content, and gives every variant the same canonical (which also makes search engines fold the variants together). Meanwhile `job_translations` holds exactly the per-language units a variant needs, keyed to the owning team. A new pure resolver `jdPublicVariant.ts` takes {requested ?lang, sourceLang, owner translations, jdLastEditedAt, archived} and returns canonical or translated; the page reads translations with the owner workspace `loadPublicJd` already resolved, drops a translation older than the JD's last edit (the re-ingest-failed case), renders a machine-translation disclosure (recruiting `candidate-ai-disclosure-and-explanation`) with a link to the original, and builds alternates + a self-referencing canonical from the resolver's served set.\n\n## Flow\n1. Recruiter opens role 'Backend Engineer' in en + cs; the go-live renders and stores the cs posting (unchanged).\n2. They share `/jds/backend-engineer?lang=cs` on a Czech board.\n3. The candidate's page: Czech chrome, Czech posting body, a one-line note \"Machine-translated from English - read the original\", Apply CTA unchanged.\n4. Crawlers see hreflang en + cs + x-default only, each self-canonical; `?lang=de` (never rendered) serves the whole English original and is not advertised.\n5. The recruiter edits the JD and the re-ingest fails: the stale cs rendering stops being served and advertised until a new one is generated.\n\n## Expected impact\nCandidates reached in the language the role was opened in, on the one public page every share link points to - turning the translation spend already incurred at go-live into candidate-facing value. Search presence becomes honest: no hreflang for a language with no translated content, and per-variant canonicals so the translated page can rank at all. Keyless installs lose nothing: canonical path identical, and the page stops claiming languages it never had.\n\n## Evaluation\nClaim: an explicit ?lang= with a fresh owner translation serves it whole and disclosed; every other request serves the whole original; alternates list exactly the served set.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test in app/jds/[slug]/jdPublicVariant.test.ts (resolver matrix incl. stale + archived + tenancy projection) and the updated jdPublicHeader.test.ts; i18n:check for the four locales; integration gate.\nResult: pending build.\nGate: contract.",
+    "evidence": "page.tsx:108   // The JD BODY stays in its authored language (JdBody below is not translated).\npage.tsx:257   <JdBody markdown={jd.body} />\njdPublicHeader.ts:28-35  const path = `/jds/${encodeURIComponent(slug)}`; return { canonical: path, languages: { ...Object.fromEntries(LOCALES.map((l) => [l, `${path}?lang=${l}`])), \"x-default\": path } };\njdPublicHeader.test.ts:8  test(\"live JD metadata includes four hreflang alternates\", ...)\nproxy.ts:171   const lang = coerceLocale(req.nextUrl.searchParams.get(\"lang\"));  // cookie set, request forwarded - no redirect\njob-translations.ts:78-87 getJobTranslation(jobId, lang, workspaceId) - SELECT ... WHERE job_id = ? AND lang = ? AND workspace_id = ?\napp/api/jobs/[id]/translations/route.ts GET: requireOperator() first - the ONLY reader of job_translations.\njobs.ts:468    export function jdLastEditedAt(slug, workspaceId) - MAX(created_at) over jd_revisions.\napi/jds/[slug]/route.ts:152  } catch (ingestError) { console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);\ngrep 'ld+json' app/**/*.tsx: only app/about/page.tsx - no JSON-LD on /jds (runner-up stays open).\nRegistry: localization/translation-pipeline-topology technique canonical-fallback-serving ('Offer only what you serve: the switcher is derived, not aspirational'; 'The canonical path stays byte-identical'); recruiting/candidate-ai-disclosure-and-explanation for the MT note.\nNot a collision: leftover jd-public-detail-page items are the JSON-LD (open, runner-up), sitemap (built af9bde46c), Apply-on-archived and anonymous-header (descoped, already implemented); no prior challenge deck names this context."
+  }
+]

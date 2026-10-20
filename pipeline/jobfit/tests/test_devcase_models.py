@@ -135,5 +135,90 @@ class TestDevCaseModels(unittest.TestCase):
         self.assertFalse(TransferAssessment().model_dump(by_alias=True)["hasTransfers"])
 
 
+def _composite(scores, rubric=None):
+    # Imported per call so a missing symbol reds each case instead of the whole module.
+    from pipeline.jobfit.devcase.models import rubric_composite
+
+    return rubric_composite(scores, RUBRIC_DIMENSIONS if rubric is None else rubric)
+
+
+class TestRubricComposite(unittest.TestCase):
+    """challenge-r05 devcase-core/B — the rubric weights COMPUTE the headline: the case score is
+    the sum of per-dimension contributions (registry: component-sum-is-authoritative)."""
+
+    WORKED = {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40}
+
+    def test_worked_example_is_the_weighted_sum_not_the_mean(self):
+        c = _composite(self.WORKED)
+        # 0.2*40 + 0.25*90 + 0.25*90 + 0.15*40 + 0.15*40 = 65 (the unweighted mean reads 60).
+        self.assertEqual(c["overall"], 65)
+        self.assertEqual(c["contributions"], {"framing": 8.0, "tooling": 22.5, "judgment": 22.5, "architecture": 6.0, "transfer": 6.0})
+        self.assertEqual(sum(c["contributions"].values()), c["overall"])
+        self.assertEqual(c["missing"], [])
+        self.assertEqual(c["scoredWeight"], 1.0)
+        self.assertFalse(c["normalised"])
+
+    def test_absent_dimension_is_excluded_never_imputed_as_50(self):
+        scores = {k: v for k, v in self.WORKED.items() if k != "architecture"}
+        c = _composite(scores)
+        self.assertEqual(c["missing"], ["architecture"])
+        self.assertAlmostEqual(c["scoredWeight"], 0.85, places=6)
+        self.assertNotIn("architecture", c["contributions"])
+        # Renormalised over the scored weight: (8 + 22.5 + 22.5 + 6) / 0.85 = 69.41 -> 69.
+        self.assertEqual(c["overall"], 69)
+        self.assertEqual(round(sum(c["contributions"].values())), c["overall"])
+        # Imputing MISSING_DIMENSION_SCORE (50) would have read 8+22.5+22.5+7.5+6 = 66.5.
+        self.assertNotEqual(c["overall"], 66)
+        self.assertNotEqual(c["overall"], 67)
+
+    def test_nothing_scored_has_no_composite(self):
+        c = _composite({})
+        self.assertIsNone(c["overall"])
+        self.assertEqual(c["scoredWeight"], 0.0)
+        self.assertEqual(len(c["missing"]), 5)
+
+    def test_case_weights_take_precedence_over_the_canonical_rubric(self):
+        # judgment 0.40, the other four rescaled from their canonical 0.75 to 0.60 (x0.8).
+        case = [
+            {"name": "framing", "weight": 0.16},
+            {"name": "tooling", "weight": 0.20},
+            {"name": "judgment", "weight": 0.40},
+            {"name": "architecture", "weight": 0.12},
+            {"name": "transfer", "weight": 0.12},
+        ]
+        c = _composite(self.WORKED, case)
+        # 6.4 + 18 + 36 + 4.8 + 4.8 = 70
+        self.assertEqual(c["overall"], 70)
+        self.assertEqual(c["contributions"]["judgment"], 36.0)
+        self.assertFalse(c["normalised"])
+
+    def test_weights_off_the_unit_sum_are_normalised_and_flagged(self):
+        case = [{"name": d["name"], "weight": 0.4} for d in RUBRIC_DIMENSIONS]  # sums to 2.0
+        c = _composite(self.WORKED, case)
+        self.assertTrue(c["normalised"])
+        # Equal weights after normalisation -> the plain mean, 60, and contributions still sum to it.
+        self.assertEqual(c["overall"], 60)
+        self.assertEqual(round(sum(c["contributions"].values())), 60)
+
+    def test_a_case_rubric_missing_a_weight_falls_back_to_the_canonical_one(self):
+        case = [{"name": "judgment", "label": "Judgment"}]  # no weight -> canonical 0.25
+        self.assertEqual(_composite(self.WORKED, case)["overall"], 65)
+
+    def test_models_carry_overall_score_and_row_contribution(self):
+        ev = CaseEvaluation.model_validate(
+            {
+                "dimensionScores": {"judgment": 80},
+                "overallScore": 80,
+                "dimensions": [{"name": "judgment", "label": "Judgment", "weight": 0.25, "score": 80, "contribution": 80.0}],
+            }
+        )
+        dumped = ev.model_dump(by_alias=True)
+        self.assertEqual(dumped["overallScore"], 80)
+        self.assertEqual(dumped["dimensions"][0]["contribution"], 80.0)
+        # Old bundles carry neither: they stay None so the UI can label them legacy.
+        legacy = CaseEvaluation.model_validate({"dimensionScores": {"judgment": 80}}).model_dump(by_alias=True)
+        self.assertIsNone(legacy["overallScore"])
+
+
 if __name__ == "__main__":
     unittest.main()

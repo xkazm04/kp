@@ -1,0 +1,32 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ba76aaaf-805b-4580-91fe-1bf6d8c0b83d",
+ "subject": "usage-aggregation-semantics",
+ "evaluatedAt": "2026-10-18T03:02:46.573193+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "usage-aggregation-semantics",
+   "context": "billing-plan-and-spend",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "usage-aggregation-semantics",
+   "context": "billing-subscriptions",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "usage-aggregation-semantics",
+   "context": "billing-api",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "usage-aggregation-semantics",
+   "context": "db-analytics-billing-llm",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  }
+ ],
+ "consults": []
+}

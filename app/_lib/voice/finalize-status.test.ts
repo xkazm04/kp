@@ -21,6 +21,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { interviewFinalStatus, unmountBeaconStatus, SUBSTANTIVE_TURNS } from "./finalize-status.ts";
+import type { DirectedEndContext } from "./finalize-status.ts";
 
 test("a live call with real candidate turns and no error is completed", () => {
   assert.equal(
@@ -119,4 +120,65 @@ test("#5: a true abandonment (no End in flight) stays conservatively failed", ()
     unmountBeaconStatus(false, { errored: false, reachedLive: true, turnCount: 20, candidateTurnCount: 20 }),
     "failed",
   );
+});
+
+// ---- the DIRECTED rule (spark ai-interview-parity) --------------------------
+//
+// A drop used to be terminal, so finalizing a substantive-but-unfinished call
+// "completed" at least got it scored. A directed call can be RESUMED: `failed`
+// keeps the link reconnectable and the reconnect continues the same agenda. So a
+// drop before the closing block is now "failed" — an interview the candidate can
+// still finish, rather than a locked link and a scorecard for half a conversation.
+
+const substantive = { errored: false, reachedLive: true, turnCount: 20, candidateTurnCount: 10 };
+const directed = (over: Partial<DirectedEndContext> = {}): DirectedEndContext => ({
+  directed: true,
+  ending: "drop",
+  closingBegun: false,
+  ...over,
+});
+
+test("directed: a drop BEFORE the closing block is failed — the link stays resumable", () => {
+  assert.equal(interviewFinalStatus(substantive, directed()), "failed");
+});
+
+test("directed: a drop AFTER the closing block began keeps the old rule", () => {
+  // The read-back and the candidate's questions had started: the conversation
+  // reached its ending and a socket blip at goodbye must not un-score it (#2).
+  assert.equal(interviewFinalStatus(substantive, directed({ closingBegun: true })), "completed");
+});
+
+test("directed: the candidate's End and the director's end_interview are DECISIONS", () => {
+  // Whoever ended it meant to. An unfinished agenda is not a reason to reopen a
+  // link the candidate deliberately closed (or the director closed on time).
+  assert.equal(interviewFinalStatus(substantive, directed({ ending: "candidate_end" })), "completed");
+  assert.equal(interviewFinalStatus(substantive, directed({ ending: "director_end" })), "completed");
+});
+
+test("UNDIRECTED calls keep today's rule byte for byte", () => {
+  // The lab, and any session with nothing grounded to talk about: there is no
+  // agenda, so there is no "before the closing block" to be before.
+  assert.equal(interviewFinalStatus(substantive, directed({ directed: false })), "completed");
+  assert.equal(interviewFinalStatus(substantive, null), "completed");
+  assert.equal(interviewFinalStatus(substantive, undefined), "completed");
+  assert.equal(interviewFinalStatus(substantive), "completed");
+});
+
+test("the directed rule never RESCUES a call the base rule already failed", () => {
+  // It can only ever downgrade. A silent-mic call is still failed, and a directed
+  // ending cannot make an un-scoreable call scoreable.
+  const silent = { errored: false, reachedLive: true, turnCount: 4, candidateTurnCount: 0 };
+  for (const ending of ["drop", "candidate_end", "director_end"] as const) {
+    for (const closingBegun of [false, true]) {
+      assert.equal(interviewFinalStatus(silent, directed({ ending, closingBegun })), "failed");
+    }
+  }
+});
+
+test("the unmount beacon carries the directed context too", () => {
+  // A tab closed mid-drop on a directed call must beacon the resumable verdict,
+  // not a terminal "completed" that locks the candidate out.
+  assert.equal(unmountBeaconStatus(true, substantive, directed()), "failed");
+  assert.equal(unmountBeaconStatus(true, substantive, directed({ ending: "candidate_end" })), "completed");
+  assert.equal(unmountBeaconStatus(false, substantive, directed({ ending: "candidate_end" })), "failed");
 });

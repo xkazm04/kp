@@ -209,17 +209,27 @@ auto-optimizer:
   brain.
 - **ElevenLabs**: Backend B tests the candidate-safe override brief; Backend A additionally
   tests EL's real agent + orchestration.
-- **Brief drift risk (resolved for default/student/case).** Phase 0 re-renders the brief in
-  Python from the shared `interview-script.json` + persona constants ported from
-  `student-interview.ts`, pinned by a drift-guard test. Phase 2 added the faithful path:
-  `scripts/interview-brief.ts` (`--briefs ts`) emits the exact production `default`/`student`/
-  `case` briefs from the live TS source, and a CI test asserts `bridge == port` — so the port
-  is provably faithful and the bridge is available when you want the source of truth. The
-  grounded prep-chronology `composeBrief` — which reads a pipeline entry + `interview_prep` from
-  the DB — is covered by a **DB-fixture bridge** (`scripts/interview-brief-grounded.ts`): it
-  seeds a throwaway entry + prep into a temp `KP_DB_PATH` and runs the real
-  `buildGroundedInterview`, so `brief: "grounded"` scenarios test the production brief verbatim.
-  Every production brief is now headless-testable.
+- **Brief faithfulness: a committed, generated snapshot.** The eval never re-renders a brief
+  and never spawns node. `scripts/interview-briefs-snapshot.ts` (`npm run interview:briefs`)
+  renders all four kinds through the production builders — `defaultInterviewerInstructions`,
+  `studentInterviewerInstructions`, `caseGroundedInterviewerInstructions` over
+  `DEMO_CASE_SCENARIO`, and the grounded prep-chronology `composeBrief` through the real
+  `buildGroundedInterview` over a fixture entry + `interview_prep` seeded into a throwaway
+  `KP_DB_PATH` — with a `{{ROLE}}` sentinel where the role (or, for grounded, the job title)
+  goes, and writes `pipeline/jobfit/eval/interview_briefs.json`. Each kind also records its
+  `fallbackRole`: the builders fall back when the role is empty (`role || "<fallback>"`), which
+  a literal replace cannot reproduce, so the generator renders once with `''` and solves for
+  the string that stood where the sentinel was. `interview_eval.py` validates the file at
+  import (schema, all four kinds, sentinel present) and `render_brief` substitutes the role, or
+  the fallback when a scenario has none. A kind the snapshot does not carry **raises**, naming
+  it — a row labelled `grounded` is never scored against the default agent.
+  `app/_lib/voice/interview-brief-snapshot.test.ts` (in `npm run test:unit`) holds the file to
+  the builders: it re-renders and compares, proves the substitution and each fallback by
+  rendering real roles directly, and checks the grounded render is byte-stable across two
+  throwaway DBs. **After any interviewer-brief copy change, run `npm run interview:briefs` and
+  commit the JSON** — that test fails, naming the kind and the command, until you do. This
+  replaced a Python port of the prompt text (drift-guarded only by a substring test, so every
+  copy change was written twice) and two node bridges that fell back silently.
 
 ---
 
@@ -246,18 +256,14 @@ python -m pipeline.jobfit.eval.interview_eval --sample 20 --seed 3   # + 20 rota
 python -m pipeline.jobfit.eval.interview_eval --baseline runs/base.json --update-baseline  # record a baseline
 python -m pipeline.jobfit.eval.interview_eval --baseline runs/base.json --strict --json     # gate on regressions
 python -m pipeline.jobfit.eval.interview_eval --scorecard                     # + downstream scorecard sanity
-python -m pipeline.jobfit.eval.interview_eval --briefs ts                     # test the EXACT production briefs (TS bridge)
 python -m pipeline.jobfit.eval.interview_eval --backend elevenlabs            # drive the real ElevenLabs agent (needs EL env)
 python -m pipeline.jobfit.eval.interview_eval --scenario adversarial_injection   # one scenario, debug
 ```
 
-`--briefs ts` renders the `default`/`student`/`case` briefs from the live TS source via
-`scripts/interview-brief.ts` (falls back to the drift-guarded Python port if node is
-unavailable). Scenarios with `brief: "grounded"` always render the **real** grounded
-prep-chronology brief via `scripts/interview-brief-grounded.ts` — a DB-fixture bridge that seeds
-a throwaway entry + `interview_prep` into a temp DB (`KP_DB_PATH`) and runs the production
-`buildGroundedInterview` → `composeBrief` (falls back to the default brief, exactly as
-`composeBrief` itself does on an empty chronology). `--backend elevenlabs`
+Every mode scores the production briefs from the committed snapshot (§4.5); `--briefs` is a
+deprecated no-op kept for one release. To read one brief as the agent receives it, run
+`scripts/interview-brief.ts --brief default|student|case|grounded --role "<role>"` (the same
+render the snapshot is generated from). `--backend elevenlabs`
 runs each persona through the real ElevenLabs agent's simulate-conversation API and normalizes
 the result through the **same** validators; the text backend (default) covers OpenAI Realtime.
 `--scorecard` additionally routes every transcript through the real `interview_scorecard()` and
@@ -323,17 +329,14 @@ satisfy both.
   persona heatmap (behaviour/seniority) + regression-vs-baseline diff in the report and the
   `--strict` gate. *Still to do here:* route transcripts through the real `interview_scorecard()`
   for downstream-sanity.
-- **Phase 2 (mostly done).** TS brief-bridge (`scripts/interview-brief.ts` + `--briefs ts`):
-  emits the exact `default`/`student`/`case` production briefs; `bridge == port` is verified in
-  CI, so the Python port is provably faithful. Backend A (`elevenlabs_backend.py` + `--backend
-  elevenlabs`): persona → `simulated_user_config`, invariants → `extra_evaluation_criteria`,
-  response normalized through the same validators (mapping/normalization unit-tested; live run
-  needs `ELEVENLABS_API_KEY`+`ELEVENLABS_AGENT_ID`). **All four production briefs are now
-  testable:** `default`/`student`/`case` via the pure TS bridge, and the grounded
-  prep-chronology `composeBrief` via `scripts/interview-brief-grounded.ts` — a DB-fixture bridge
-  that seeds a throwaway entry + `interview_prep` into a temp DB and runs the real
-  `buildGroundedInterview` (`brief: "grounded"` scenarios; live-verified end-to-end). *Still to
-  do:* the **nightly 3–5 real-voice smoke** (STT/TTS/barge-in/latency) is a manual op — it needs
+- **Phase 2 (mostly done).** The Python port is gone: every brief comes from the generated
+  snapshot `pipeline/jobfit/eval/interview_briefs.json` (§4.5), which covers all four
+  production briefs — `default`/`student`/`case` and the grounded prep-chronology
+  `composeBrief` — and is held to the TS builders by a node:test. Backend A
+  (`elevenlabs_backend.py` + `--backend elevenlabs`): persona → `simulated_user_config`,
+  invariants → `extra_evaluation_criteria`, response normalized through the same validators
+  (mapping/normalization unit-tested; live run needs `ELEVENLABS_API_KEY`+`ELEVENLABS_AGENT_ID`).
+  *Still to do:* the **nightly 3–5 real-voice smoke** (STT/TTS/barge-in/latency) is a manual op — it needs
   live audio + keys; EL's post-call analysis grades those real calls for free.
 - **Phase 3 (done).** `interview_optimize.py` — eval-gated hill-climb: propose additive
   guardrail rules → re-evaluate → accept only on a strict score gain with zero new reliability
@@ -710,6 +713,88 @@ Five properties the harness described but did not have. All five are pinned offl
 | **Unsupported language** (`voice/tts.py`) | `voice_path()` read `VOICES.get(lang) or VOICES["en"]`: a `de`/`fr` scenario was spoken by `en_US-lessac-medium`, EL's ASR transcribed the resulting nonsense, and the WER / entity numbers described a defect the interviewer never had. | `supported()` / `UNSUPPORTED_LANGS = ("de", "fr")`; `available()` returns the reason and `voice_path()` / `synthesize()` raise `UnsupportedLanguage`. Both preflights now check the language each scenario will **actually speak** — `v0_smoke` already resolved the scenario first, and `interview_eval --backend voice` probed a fixed `"en"`, so a de/fr scenario cleared the gate, minted a REAL session and raised inside `speak()` on the first utterance. The sweep's check runs after the sim-brief split and **before** the app is probed, and names every language it cannot speak. Adding one is a `VOICES` entry plus a `python -m piper.download_voices` line here. |
 | **`base_url` validation** (`voice/app_client.py`) | The only statement about where this client may point was the lint comment `# noqa: S310 (localhost)`, and the module had no test at all — it posts candidate transcripts and mints provider credentials at whatever `--base-url` it is handed. | `validate_base_url()` runs on every call: an `http(s)` URL whose host is loopback, a private-IP literal, or a container/LAN name (`is_local_url`, the same predicate the no-egress seal uses), else a host named in `KP_VOICE_APP_ALLOWED_HOSTS` (comma-separated, for a staging box you mean to target). Everything else raises `AppError` naming the host. |
 | **Spelled-out numbers** (`wer.normalize`) | We synthesize the candidate's speech from text we wrote ("a team of **five**") while EL's ASR writes **digits** ("a team of **5**"), so every number was charged as a substitution against a transcript that was perfectly correct — a content-free tax on exactly the work-history utterances a persona is full of. | Table-driven folding for `en` + `cs`, including compounds (`twenty five` → `25`, `sto dvacet` → `120`). Only the properly-accented Czech spellings are listed: folding `pet` and `pět` to the same 5 would hide the dropped-diacritic error this module exists to catch, and `pet`/`set`/`tri` are ordinary English words. `TECH_TERMS` also lost its three `kubernetes` entries (a set, so a repeat was invisible at runtime and in review); the source is now pinned against repeats. |
+
+---
+
+## 9.13 The engine seam — scoring a CANDIDATE, not just the incumbent (2026-09-08)
+
+Everything above measures the engine we already use. That is the right shape for catching a
+regression in the integration and the wrong shape for answering *which recogniser should we
+use*, and the two questions had quietly become one instrument.
+
+The gap was structural rather than a missing metric. §9.9 already established the metric
+that matters — `entity_fidelity`, because a live Czech call scored **8.33 % WER**, sat well
+inside the 35 % budget, and still turned `React` → `Rust` and `PostgreSQL` → `později SQL`,
+so the candidate would have been rated on a fabricated skill set. That lesson was wired into
+the **session gate** and never into an **engine decision**, because `el_ws.py` speaks one
+provider's realtime conversation protocol directly and `run_voice_scenario` drives that
+driver rather than an interface. There was no way to run a second engine at all, so "is this
+other model better for us" could only ever be answered by a published leaderboard — which
+ranks engines on someone else's error distribution.
+
+| Where | Was | Now |
+|---|---|---|
+| **The seam** (`voice/recognizers.py`, new) | The only way to obtain a transcript was to open a full conversational session against one provider. | A `Recognizer` is one method — `transcribe(pcm, *, lang) -> str` — deliberately far narrower than a session, because choosing an engine needs neither turn-taking nor barge-in nor agent replies, only the transcript the scorer will grade. `CallableRecognizer` covers in-process engines and the tests; `CommandRecognizer` drives a local binary over a temp WAV, which is the drop-in path for an offline open-weights model (whisper.cpp, faster-whisper, sherpa-onnx, vosk) **without the project taking a dependency on any of them**. Adding a candidate is a `register()` call or one `KP_ASR_CMD_<NAME>` variable, never an edit to the harness. |
+| **The choice instrument** (`voice/bakeoff.py`, new) | Nothing. The engine question had no instrument. | `python -m pipeline.jobfit.eval.voice.bakeoff` synthesizes the selection set **once per utterance**, applies the §9.9 degradation once, and hands every engine **the same bytes** — re-synthesizing per engine would make the arms differ by more than the engine under test. It reports both numbers and, when they disagree, says so. |
+| **The metric contract** | Both numbers were computed and reported; neither was named as *the* ranking input. | **Decisive-term recall is optimized; aggregate WER is demoted to a threshold** (35 %, matching the session gate so the two surfaces cannot quietly disagree about "unusable"). The aggregate keeps a real job — an engine whose bulk accuracy collapses is unusable however well it preserves nouns — but it must never *rank*, because ranking is the operation it performs worst. |
+| **Unreachable engines** | — | Reported, never silently dropped (`UNREACHABLE — <reason>`, the `tts.available()` shape). A ranking over a population that was never assembled is the same failure one level up. An engine that dies mid-run also **discards its partial scores** rather than being ranked on the utterances it happened to survive. |
+
+### Why the aggregate cannot be the ranking input, measured here
+
+Two candidate engines over the same three-utterance set — one substituting domain nouns with
+the sentence frame intact (the real V1 output), one garbling only function words and
+inflection:
+
+| | aggregate WER | decisive-term recall |
+|---|---|---|
+| substitutes nouns | **16.7 %** | 66.7 % (lost `react`, `postgresql`) |
+| garbles glue | 27.8 % | **100 %** |
+
+The aggregate prefers the engine that fabricated two skills, by 40 %. And on the **decisive
+utterance alone both engines score an identical 23.1 %** — the two error classes happened to
+cost the same number of tokens, so there the aggregate is not merely wrong about the ranking,
+it is blind. That is why `BakeoffReport.inversions()` exists and why the report prints the
+disagreement rather than leaving it to be noticed.
+
+### Using it
+
+```
+# any local ASR binary; {audio} is required, {lang} optional
+KP_ASR_CMD_WHISPER="whisper-cli -m ggml-base.bin -l {lang} -nt -f {audio}"
+python -m pipeline.jobfit.eval.voice.bakeoff --noise-snr-db 10
+```
+
+Every number travels with `n` and the degradation condition, both printed in the header. A
+recall figure without those is not a measurement — and it is the form in which every
+published ranking arrives.
+
+### What this does not do, and the axis that matters most
+
+The selection set is synthesized, which buys exact ground truth for free and spends realism:
+it can vary the **channel** (seeded noise, gain) and cannot vary the **speaker** — accent,
+disfluency, rate, or a speaker changing language mid-sentence. Read against a current vendor
+feature list, this harness can score noise tolerance, partly score vocabulary biasing, and
+**cannot score** per-word timing, speaker attribution, automatic language identification, or
+in-sentence language switching.
+
+That last one is the gap worth naming, because it is not hypothetical: the recorded V1
+corruption *is* the in-sentence switch case — a Czech sentence carrying English technology
+nouns — and a one-language-at-a-time synthesizer is least able to generate more of exactly
+the case this product has already been broken by once. `DEFAULT_SET` keeps that utterance
+verbatim, and a test pins it there so a later tidy-up cannot drop it.
+
+One non-obvious hazard, found by running the thing end to end rather than by a unit test:
+formatting the audio path into the command template *before* splitting it let `shlex` eat the
+backslashes, so `C:\Users\...\tmp.wav` reached the engine as `C:Users...tmp.wav` and every
+candidate reported a missing file for a file the harness had just written. The template is
+now split first and substituted per token, with `posix=False` on Windows so an operator's
+model path survives too. Both directions are pinned in `tests/test_voice_bakeoff.py`.
+
+**Rights, checked before quality.** An open-weights engine's licence governs what may be
+done with its *output*, and it is the one placement input no probe can establish — the
+weights are byte-identical before and after a re-licensing. Read the licence before adding a
+candidate, not after it wins: a bake-off that ranks an engine the product may not ship has
+spent its budget on an answer it cannot use.
 
 ---
 

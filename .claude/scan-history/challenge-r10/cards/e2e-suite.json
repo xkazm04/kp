@@ -1,0 +1,115 @@
+[
+  {
+    "context": "e2e-suite",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "E2E specs import the routes' own view types: tsc catches payload drift CI hid",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "e2e/wire.ts",
+      "e2e/wire.typecheck.ts",
+      "e2e/journey-one-thread.spec.ts",
+      "e2e/journey-role-to-schedule.spec.ts",
+      "e2e/token-doors-axe.spec.ts",
+      "e2e/quality-tables.spec.ts",
+      "app/_lib/schedule-public-view.ts",
+      "app/_lib/schedule-public-view.test.ts",
+      "app/api/schedule/[token]/route.ts",
+      "app/schedule/[token]/use-schedule-invite.ts",
+      "app/e2e-wire-contract.test.ts",
+      "docs/development/testing-and-evaluation.md",
+      "docs/features/scheduling/README.md"
+    ],
+    "new_files": [
+      "e2e/wire.ts",
+      "e2e/wire.typecheck.ts",
+      "app/_lib/schedule-public-view.ts",
+      "app/_lib/schedule-public-view.test.ts",
+      "app/e2e-wire-contract.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "tsc over e2e/wire.typecheck.ts: a `// @ts-expect-error` line reading `.devSubmissionId` off an element of `readBoard(req).entries` (typed PipelineEntryView) compiles; if devSubmissionId is ever re-added to BOARD_ENTRY_FIELDS the directive goes unused and `npx tsc --noEmit` fails, forcing journey-one-thread's read-path choice to be revisited",
+      "tsc: `readEntry(req, id)` (GET /api/pipeline/[id]) is typed `{ entry: PipelineEntry }`, so `entry.devSubmissionId` and `entry.devCaseId` compile as `string | null` with no local BoardEntry type left in journey-one-thread.spec.ts",
+      "tsc: the stage filter in journey-role-to-schedule is written against `PipelineStage` (app/_lib/pipeline-stages.ts), so a `// @ts-expect-error` comparing a board entry's stage to the literal \"Screend\" compiles only while the typo is still an error",
+      "unit (app/_lib/schedule-public-view.test.ts): `publicInviteView(invite)` for a ScheduleInvite fixture carrying entryId 'e-1' and reconcileReason 'boom' returns an object with no `entryId` and no `reconcileReason` key, and its key set equals the declared PUBLIC_INVITE_FIELDS list exactly",
+      "unit (source pin in app/e2e-wire-contract.test.ts): app/api/schedule/[token]/route.ts no longer declares `function publicInviteView` and imports it from app/_lib/schedule-public-view; use-schedule-invite.ts's `Invite` is derived from `PublicInviteView` rather than re-declared field by field",
+      "unit (source pin): e2e/journey-one-thread, journey-role-to-schedule, token-doors-axe and quality-tables carry ZERO `json()) as` casts for the paths e2e/wire.ts covers; a per-file ceiling for the untouched specs (app-master-hire 18, profile-builder 3, profile-roster 3) may only shrink",
+      "unit (source pin): every import from `@/app/` in e2e/wire.ts is `import type`, so Playwright's process never loads better-sqlite3 or a route graph",
+      "unit: the pure `describeWireFailure('GET', '/api/pipeline', 500, '{\"code\":\"PIPELINE_LIST_FAILED\"}')` message contains the method, the path, the status and the code, so a wire read that fails in CI names what the server answered"
+    ],
+    "premise": [
+      "e2e/journey-one-thread.spec.ts:345-355 records a shipped drift: after board-poll-carries-only-what-it-draws dropped devCaseId/devSubmissionId from GET /api/pipeline, the spec's filter on devSubmissionId 'matched nothing at all' and 'reported \"0 board entries\" for a promote that had in fact landed one' - found only by a CI e2e run, because the spec re-declares the row shape locally (e2e/journey-one-thread.spec.ts:522-532, `type BoardEntry` including devCaseId/devSubmissionId)",
+      "app/_lib/db/pipeline.ts:150-155 already exports PipelineEntryView and says 'Client consumers import this with `import type` instead of re-declaring divergent, partial local row types - those drift silently from the server the moment a field is renamed'; the e2e suite is a consumer that does not",
+      "60 `json()) as` casts across 7 spec files (grep -c: app-master-hire 18, journey-one-thread 17, journey-role-to-schedule 9, token-doors-axe 7, profile-builder 3, profile-roster 3, quality-tables 3); GET /api/pipeline alone is re-typed inline at journey-role-to-schedule.spec.ts:312-314 and :418, journey-one-thread.spec.ts:375 and :437, quality-tables.spec.ts:71, token-doors-axe.spec.ts:129",
+      "tsconfig.json:32-44 includes `**/*.ts` and excludes only node_modules and edge, so e2e/ IS typechecked by `npm run typecheck` - the one gate a challenge builder can run, while e2e itself cannot be booted by builders",
+      "app/api/schedule/[token]/route.ts:48 `function publicInviteView` is a non-exported projection inside a route file, and eslint.config.mjs:111-117 NO_ROUTE_HANDLER_IMPORT forbids importing a route (type imports included - the selector has no importKind filter), so neither e2e nor the candidate client can share it; app/schedule/[token]/use-schedule-invite.ts:9-21 re-declares it by hand as `Invite` (and already lacks `proposals`, which the projection sends)",
+      "app/_lib/pipeline-stages.ts:12 `PIPELINE_STAGES = [\"Accepted\", \"Screened\", \"Interview\", \"Offer\", \"Hired\"] as const` is the typed vocabulary the specs re-type as bare strings (journey-role-to-schedule.spec.ts:342, :265, :422)"
+    ],
+    "rollback": "Reverts cleanly as a series: the spec edits only swap casts for typed readers (same HTTP calls, same assertions), publicInviteView moves verbatim with the route re-importing it (wire bytes pinned identical by the key-set test), and the new files are leaf modules nothing in the app graph imports.",
+    "gate": "contract",
+    "runner_up": "Specs mint their own subjects through one e2e/fixtures/board.ts (POST /api/pipeline + stage move) instead of scanning the seed corpus for an active, invite-free, uniquely-labelled entry (journey-role-to-schedule.spec.ts:310-349, token-doors-axe.spec.ts:129) - bigger payoff for re-runnability but verifiable only by an e2e run no builder can make.",
+    "technique": "generated-type-contracts",
+    "dependencies": "Leaves GET /api/devcase/postings casts (journey-one-thread.spec.ts:217, :311; token-doors-axe.spec.ts:188) untouched: r09 devcase-lifecycle rewrites app/api/devcase/postings/route.ts and creates app/_lib/devcase-postings-view.ts - type those reads against that view after it lands. Only `import type` from app/_lib/db/pipeline.ts (r09 comms-locale-optout writes it; no conflict). Shares e2e/journey-role-to-schedule.spec.ts and e2e/token-doors-axe.spec.ts with this context's slot-B card (disjoint hunks: wire reads vs the axe helper) - if both are built, build sequentially. No app/page.tsx or task-hub graph exposure; no new route; no new error code; no catalog keys.",
+    "body": "## Summary\nThe e2e suite re-declares every API payload it reads as an inline cast (60 of them), so when a route's projection changes the specs keep compiling and fail - or worse, silently match nothing - only in the CI e2e job. Give the suite one typed reader module whose types are the product's own view types (`import type`), lift the one projection that is trapped in a route file, and let `tsc` - which builders CAN run - catch payload drift at edit time.\n\n## Description\n`e2e/wire.ts` exports small typed readers (`readBoard`, `readEntry`, `readSchedule`, `readPublicInvite`, `readDecisionRecords`, `readTask`, `readLifecycles`) over Playwright's `APIRequestContext`, typed from `PipelineEntryView`/`PipelineEntry` (db/pipeline.ts), `ScheduleInvite` (schedule-store.ts), `TaskRecord` (db/tasks.ts), `LifecycleRecord` (db/devcase.ts), `DecisionRecord` + the `verifyDecisionChain` return type (decision-record-store.ts), with stage literals typed as `PipelineStage`. All app imports are `import type`, so nothing server-side loads in Playwright's process. `publicInviteView` moves from `app/api/schedule/[token]/route.ts` into `app/_lib/schedule-public-view.ts` with an exported `PublicInviteView` type and a PUBLIC_INVITE_FIELDS list; the route and the candidate hook (`use-schedule-invite.ts`) both consume it, which also closes the hook's missing `proposals` field. `e2e/wire.typecheck.ts` holds `@ts-expect-error` pins for the facts the journeys depend on (devcase ids are NOT on the board projection; stages are the closed vocabulary). A source-pin test ratchets inline casts in the migrated specs to zero and caps the rest.\n\n## Flow\n1. Write app/_lib/schedule-public-view.test.ts and app/e2e-wire-contract.test.ts (red).\n2. Lift publicInviteView + PublicInviteView; route and hook import it (wire bytes unchanged).\n3. Add e2e/wire.ts readers with describeWireFailure; add e2e/wire.typecheck.ts pins.\n4. Migrate journey-one-thread (drop local BoardEntry), journey-role-to-schedule, token-doors-axe, quality-tables onto the readers.\n5. Update docs/development/testing-and-evaluation.md (the wire rule) and docs/features/scheduling/README.md (the projection's new home).\n6. Gates: tsc, lint, test:unit, docs:check. e2e run owed on the keyless CI job (behaviour-neutral by construction: same calls, same assertions).\n\n## Expected impact\nThe class that journey-one-thread.spec.ts:345-355 documents - a projection change that turns an e2e assertion into a silent empty match, discovered only in the CI browser job - becomes a `tsc` error at the edit that caused it. The candidate schedule page and the e2e suite stop keeping two hand copies of the public invite wire, and the public projection gets a unit-pinned field allowlist (today it is pinned only by prose).\n\n## Evaluation\nClaim: e2e payload reads are compile-checked against the product's own view types and the public invite projection is a shared, pinned module.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: contract - `npx tsc --noEmit -p tsconfig.json` (the @ts-expect-error pins) + `npm run test:unit -- app/_lib/schedule-public-view.test.ts app/e2e-wire-contract.test.ts`; keyless e2e job owed on CI.\nResult: pending build.\nGate: contract",
+    "evidence": "e2e/journey-one-thread.spec.ts:347-353: 'GET /api/pipeline projects every row through BOARD_ENTRY_FIELDS (pipeline.ts:72) ... dropped `devCaseId` / `devSubmissionId` ... Filtering the list on `devSubmissionId` therefore matched nothing at all ... reported \"0 board entries\" for a promote that had in fact landed one.' (Its own cite pipeline.ts:72 is itself stale: BOARD_ENTRY_FIELDS is at app/_lib/db/pipeline.ts:117.)\napp/_lib/db/pipeline.ts:150-155: 'Client consumers import this with `import type` instead of re-declaring divergent, partial local row types - those drift silently ...' export type PipelineEntryView = Pick<PipelineEntry, (typeof BOARD_ENTRY_FIELDS)[number]> & BoardScoreStamps;\ngrep -c \"json()) as\" e2e/*.spec.ts -> app-master-hire 18, journey-one-thread 17, journey-role-to-schedule 9, token-doors-axe 7, profile-builder 3, profile-roster 3, quality-tables 3 (60 total).\ntsconfig.json include [\"**/*.ts\", ...], exclude [\"node_modules\", \"edge\"].\napp/api/schedule/[token]/route.ts:48 `function publicInviteView(invite: ScheduleInvite) {` (not exported); eslint.config.mjs:112 selector `ImportDeclaration[source.value=/api\\x2f.+\\x2froute(\\.tsx?)?$/]` (no importKind filter).\napp/schedule/[token]/use-schedule-invite.ts:9 `export type Invite = {` ... no `proposals` field, while publicInviteView returns `proposals: invite.proposals`."
+  },
+  {
+    "context": "e2e-suite",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "One axe policy for every spec: a contrast-measured holdout ledger that expires",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "e2e/a11y-policy.ts",
+      "e2e/a11y-policy.test.ts",
+      "e2e/a11y.ts",
+      "e2e/analyze-smoke.spec.ts",
+      "e2e/journey-role-to-schedule.spec.ts",
+      "e2e/token-doors-axe.spec.ts",
+      "e2e/public-pages.spec.ts",
+      "e2e/landing.spec.ts",
+      "scripts/run-unit-tests.mjs",
+      "playwright.config.ts",
+      "docs/development/testing-and-evaluation.md"
+    ],
+    "new_files": [
+      "e2e/a11y-policy.ts",
+      "e2e/a11y-policy.test.ts",
+      "e2e/a11y.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "unit: `holdoutVerdict(ledger['eyebrow-coral-on-paper'])` measures contrastRatio(CORAL, PAPER) from app/_lib/brand.ts via app/_lib/brand-config.ts contrastRatio -> 3.66 against bar 4.5 -> `{ stillNeeded: true }`; the same entry evaluated with fg '#a8402f' -> `{ stillNeeded: false }` and a message naming the holdout id to delete",
+      "unit: the 'white-label-on-coral' entry (WHITE on CORAL, 3.87 vs 4.5) carries `blocksKeyless: 'token-doors-axe'`; when it evaluates as no longer needed, the message names enrolling token-doors-axe in KEYLESS_SPECS - the promise playwright.config.ts:75-81 makes in prose",
+      "unit: every ledger entry has a rule id, a scope (page path or band selector), a non-empty reason, and EITHER a measured token pair OR `artDirection: true` naming a file under app/landing/; an entry with neither fails the test",
+      "unit (pure `filterSerious(violations, scope, ledger)` over axe-shaped fixtures): a `color-contrast` violation on a `.text-coral` node in a scope that holds the eyebrow holdout is tolerated, while a `button-name` violation on the SAME node is reported - the case the current `.exclude(\".text-coral\")` silently hides",
+      "unit (pure `unusedHoldouts(ledger, seen, scope)`): a holdout scoped to '/trust' that matched no violation in that page's run is returned as stale - public-pages.spec.ts's shrink-only 'still needed?' rule generalised to every spec",
+      "unit (source pin): no `new AxeBuilder(` outside e2e/a11y.ts, no `.exclude(` in any e2e/*.spec.ts, and AXE_TAGS is exactly [\"wcag2a\",\"wcag2aa\",\"wcag21a\",\"wcag21aa\"] - candidate token doors are held to the bar the marketing pages already meet",
+      "unit (source pin): scripts/run-unit-tests.mjs DEFAULT_PATTERNS contains \"e2e/**/*.test.ts\" and playwright.config.ts declares a testMatch limited to *.spec.ts, so e2e/a11y-policy.test.ts runs under node:test and is NOT also collected by Playwright (whose default testMatch includes *.test.ts)",
+      "e2e run OWED on the keyless CI job (builders cannot boot Next): the migrated specs stay green, and any new wcag21 finding on /schedule or /offer lands as a measured ledger entry - never as a dropped tag"
+    ],
+    "premise": [
+      "ONE token pairing - coral #d65a4a on paper #fdf8ee, 3.66:1 - is handled four different ways: a blanket DOM exclusion `.exclude(\".text-coral\")` in journey-role-to-schedule.spec.ts:84 and token-doors-axe.spec.ts:110 (hides EVERY rule on those nodes, never expires); a per-page rule holdout asserted to still fail in public-pages.spec.ts:51-56; a per-band holdout in landing.spec.ts:39 (#voice is the same pairing, landing.spec.ts:29); and a whole spec kept out of the release gate in playwright.config.ts:75-81 ('It joins this list when the token is darkened')",
+      "The expiry of the exclusion is prose only: journey-role-to-schedule.spec.ts:79-80 'If the design system ever darkens light-theme coral, delete this exclusion' and token-doors-axe.spec.ts:108 repeats it - nothing checks it, and the specs are only run in CI",
+      "Five AxeBuilder call sites with three tag sets: analyze-smoke.spec.ts:64-65 and journey-role-to-schedule.spec.ts:82-83 and token-doors-axe.spec.ts:110 use [wcag2a, wcag2aa]; landing.spec.ts:45 and public-pages.spec.ts:61 add wcag21a/wcag21aa - so the candidate token doors (schedule, offer, erasure, invite) are held to a LOWER bar than the marketing pages",
+      "The measurement machinery already exists and is pure: app/_lib/brand-config.ts:106 `export function contrastRatio(hex1, hex2)`, reading app/_lib/brand.ts:31 PAPER '#fdf8ee', :33 CORAL '#d65a4a', :39 WHITE '#ffffff' (lockstep with globals.css enforced by design:check)",
+      "No e2e policy module can be unit-tested today: scripts/run-unit-tests.mjs:98-103 DEFAULT_PATTERNS are app/, packages/, edge/, i18n/ only, and playwright.config.ts sets no testMatch (grep testMatch -> none), so a *.test.ts under e2e/ would be collected by Playwright instead"
+    ],
+    "rollback": "Reverts cleanly: the three new e2e modules are leaves, each spec's local axe helper is restored from the revert, and the runner-glob and testMatch lines are single-line additions whose removal returns both runners to today's collection.",
+    "gate": "policy-tighten",
+    "runner_up": "Every spec declares its env needs in a parsed header and the keyless pin fails on an undecided spec (jobseeker-keyless.spec.ts, 82 lines, runs in no job) - close to the open S item 'Enrol jobseeker-keyless in KEYLESS_SPECS', so held back.",
+    "technique": "waiver-names-its-finding",
+    "dependencies": "e2e/landing.spec.ts is also written by r09 spark-about-illustrations ('Walk all nine spotlights in one dialog') - build this card AFTER that card lands, and touch only landing's axe helper and CONTRAST_HOLDOUT_BANDS. Shares e2e/journey-role-to-schedule.spec.ts and e2e/token-doors-axe.spec.ts with this context's slot-A card (disjoint hunks) - build sequentially if both are chosen. playwright.config.ts's KEYLESS_SPECS array is not edited (keyless-e2e-pin.test.mjs parses it); only a testMatch line and the token-doors-axe comment's pointer to the ledger change. No app/page.tsx or task-hub graph exposure; no route; no catalog keys.",
+    "body": "## Summary\nThe suite's accessibility gate is five hand-copied helpers with three WCAG tag sets and four incompatible ways of tolerating the same coral-on-paper contrast debt - one of them a blanket DOM exclusion that hides every other rule on those nodes and never expires. Replace them with one axe runner and one ledger of named, rule-scoped holdouts whose contrast is MEASURED from the brand tokens, so the day the palette changes a unit test - not a CI browser run nobody can make locally - names every holdout to delete and the spec to enrol.\n\n## Description\n`e2e/a11y-policy.ts` (pure, node-testable) holds AXE_TAGS (one set, wcag2a/aa + 21a/aa), the HOLDOUTS ledger (id, rule, scope, reason, and either `{ fg, bg, bar }` token names measured through `contrastRatio` or `artDirection: true` for app/landing/), and the pure functions `holdoutVerdict`, `filterSerious` and `unusedHoldouts`. `e2e/a11y.ts` is the only place that constructs `AxeBuilder`; specs call `expectA11y(page, scope)`. The `.exclude(\".text-coral\")` waivers become rule-scoped entries, so a missing label on an eyebrow is caught again. public-pages' and landing's shrink-only lists move into the ledger with their measured ratios. `scripts/run-unit-tests.mjs` gains `e2e/**/*.test.ts` and `playwright.config.ts` gains `testMatch: \"**/*.spec.ts\"`, which makes every pure e2e policy module unit-testable from now on.\n\n## Flow\n1. Write e2e/a11y-policy.test.ts against fixture axe results (red); add the runner glob + testMatch.\n2. Implement a11y-policy.ts and a11y.ts.\n3. Migrate analyze-smoke, journey-role-to-schedule, token-doors-axe, public-pages, then (after r09 spark lands) landing.\n4. Point the token-doors-axe comment in playwright.config.ts at the ledger entry; update docs/development/testing-and-evaluation.md (one policy, how a holdout is added and how it expires).\n5. Gates: tsc, lint, test:unit, test:docs (keyless pin still parses). Keyless e2e run owed on CI.\n\n## Expected impact\nCloses the class 'accessibility waiver outlives its reason': the coral decision (owner's palette call) becomes a single measured fact that reports, on change, exactly which exclusions and which gate enrolment it unlocks. Candidate-facing token doors - reached from email on a phone, the most consequential page of each flow - are held to the same WCAG 2.1 bar as the marketing pages. Rule-scoped holdouts restore detection of non-contrast defects on the excluded nodes.\n\n## Evaluation\nClaim: every axe check in the suite runs through one policy whose holdouts are named, scoped to a rule, measured from tokens and self-expiring.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: policy-tighten - `npm run test:unit -- e2e/a11y-policy.test.ts` (7 cases) + tsc + lint; case 8 is the keyless e2e job on CI, owed.\nResult: pending build.\nGate: policy-tighten",
+    "evidence": "grep -n 'AxeBuilder|.exclude(|withTags' e2e/*.ts:\n  analyze-smoke.spec.ts:64-65 new AxeBuilder({ page }).withTags([\"wcag2a\", \"wcag2aa\"])\n  journey-role-to-schedule.spec.ts:82-84 .withTags([\"wcag2a\", \"wcag2aa\"]) .exclude(\".text-coral\")\n  landing.spec.ts:45 .withTags([\"wcag2a\", \"wcag2aa\", \"wcag21a\", \"wcag21aa\"])\n  public-pages.spec.ts:61 .withTags([\"wcag2a\", \"wcag2aa\", \"wcag21a\", \"wcag21aa\"])\n  token-doors-axe.spec.ts:110 .withTags([\"wcag2a\", \"wcag2aa\"]).exclude(\".text-coral\")\nMeasured with the WCAG formula brand-config.ts uses: coral/paper = 3.66, white/coral = 3.87 (both < 4.5).\nplaywright.config.ts:75-81: 'NOT token-doors-axe ... white on `.bg-coral` (#ffffff on #d65a4a, 3.87:1) ... It joins this list when the token is darkened.'\npublic-pages.spec.ts:51-56 A11Y_HOLDOUTS { \"/about\", \"/trust\", \"/privacy\", \"/terms\": [\"color-contrast\"] }; :35-38 the /trust,/privacy,/terms node is the EYEBROW coral on paper 3.65:1.\nlanding.spec.ts:39 CONTRAST_HOLDOUT_BANDS = [\"#proof\", \"#voice\", \"#trust\", \"#pricing\"]; :29 '#voice coral #d65a4a on cream #fdf8ee'.\nscripts/run-unit-tests.mjs:98-103 DEFAULT_PATTERNS = app/**, packages/**, edge/**, i18n/** (no e2e/**); grep testMatch playwright.config.ts -> no match."
+  }
+]

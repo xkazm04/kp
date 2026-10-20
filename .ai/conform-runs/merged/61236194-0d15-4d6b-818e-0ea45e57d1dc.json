@@ -1,0 +1,273 @@
+{
+ "schema": "conform-run/1",
+ "worker": "61236194-0d15-4d6b-818e-0ea45e57d1dc",
+ "subject": "compensation-banding-and-market-honesty",
+ "evaluatedAt": "2026-10-15T01:29:55.166247+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "job-intake-schema",
+   "subject": "compensation-banding-and-market-honesty",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/salary-benchmark.ts:76 The thin-sample threshold gates an advisory UI caveat rather than gating publication, allowing benchmark rows with null or sub-floor samples to emit usable anchor bands instead of refusing.",
+   "techniques": [
+    {
+     "technique": "benchmark-provenance-source-and-sample",
+     "verdict": "deviation",
+     "evidence": "app/_lib/salary-benchmark.ts:76 Thin or absent sample size only triggers an advisory UI caveat rather than gating publication as required by the standard."
+    },
+    {
+     "technique": "currency-lock-and-no-silent-conversion",
+     "verdict": "conformant",
+     "evidence": "app/_lib/salary-band.ts:33 Shared case- and whitespace-insensitive currency comparison predicate gates cross-currency evaluation."
+    },
+    {
+     "technique": "grounded-band-is-read-only",
+     "verdict": "conformant",
+     "evidence": "app/_lib/salary-band.ts:92 Pins the grounded market analysis band across JD text re-parses and clears the imputed phantom marker."
+    },
+    {
+     "technique": "refuse-to-quote-an-uncalibrated-market",
+     "verdict": "deviation",
+     "evidence": "app/_lib/role-families.ts:52 Uncalibrated or unmapped role families default to general_professional rather than refusing to produce a figure."
+    },
+    {
+     "technique": "role-family-by-seniority-anchor-bands",
+     "verdict": "deviation",
+     "evidence": "app/_lib/role-families.ts:10 Maintains a coarse 16-family grid, but title resolution snaps unmapped roles to a fallback family instead of refusing."
+    }
+   ]
+  },
+  {
+   "context": "market-data-pipeline",
+   "subject": "compensation-banding-and-market-honesty",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "scripts/apply-market-salaries.mjs:156 Families lacking empirical ISPV survey coverage or falling below MIN_SAMPLE_K are retained as published benchmark bands under a manual source label rather than being rejected.",
+   "techniques": [
+    {
+     "technique": "benchmark-provenance-source-and-sample",
+     "verdict": "deviation",
+     "evidence": "scripts/apply-market-salaries.mjs:156 Retains hand-authored bands without sample sizes when ISPV sample is insufficient instead of gating publication."
+    },
+    {
+     "technique": "advertised-pay-is-not-earnings",
+     "verdict": "conformant",
+     "evidence": "scripts/lib/market-earnings.mjs:243 Staffing agencies have no survey wage sphere, so agency earnings are set to null instead of borrowing advertised pay."
+    },
+    {
+     "technique": "currency-lock-and-no-silent-conversion",
+     "verdict": "deviation",
+     "evidence": "scripts/apply-market-salaries.mjs:118 Allows writing Czech CZK-derived survey calibration into non-CZ market blocks."
+    },
+    {
+     "technique": "price-the-role-not-the-person",
+     "verdict": "deviation",
+     "evidence": "scripts/salary.py:66 Evaluates individual candidate CV files through multimodal analysis to produce personal compensation estimates rather than pricing roles."
+    },
+    {
+     "technique": "refuse-to-quote-an-uncalibrated-market",
+     "verdict": "deviation",
+     "evidence": "scripts/apply-market-salaries.mjs:154 Uncalibrated and under-sampled families fall back to unmeasured manual bands rather than producing a refusal."
+    }
+   ]
+  },
+  {
+   "context": "jobs-intake",
+   "subject": "compensation-banding-and-market-honesty",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/market_salary_cli.py:133 A missing or unmapped role family automatically defaults to software_engineering, forcing a figure to be returned instead of refusing to price an uncalibrated role.",
+   "techniques": [
+    {
+     "technique": "refuse-to-quote-an-uncalibrated-market",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/market_salary_cli.py:133 Forces an uncalibrated role to default to software_engineering rather than refusing to quote."
+    },
+    {
+     "technique": "role-family-by-seniority-anchor-bands",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/jobs.py:372 Unrecognized role families fall back to classification heuristics that resolve to a default family rather than refusing."
+    },
+    {
+     "technique": "grounded-band-is-read-only",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/jobs.py:396 Unconditionally writes parsed ad salary into salary_band without protecting previously grounded analysis bands."
+    },
+    {
+     "technique": "price-the-role-not-the-person",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/market_salary_cli.py:161 Pricing prompt is constructed strictly from an allow-list of role fields excluding candidate identity."
+    },
+    {
+     "technique": "currency-lock-and-no-silent-conversion",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/market_salary_cli.py:155 Locks the pricing prompt currency to the active market configuration rather than a hardcoded literal."
+    }
+   ]
+  },
+  {
+   "context": "spark-trust-market",
+   "subject": "compensation-banding-and-market-honesty",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/landing/spark/market/parts.tsx:175 Uncalibrated role families lacking an empirical median are dropped silently from the visualization instead of rendering a visible refusal that explains the omission.",
+   "techniques": [
+    {
+     "technique": "refuse-to-quote-an-uncalibrated-market",
+     "verdict": "deviation",
+     "evidence": "app/landing/spark/market/parts.tsx:175 Silently drops uncalibrated role families rather than rendering an informative refusal stating why no band exists."
+    },
+    {
+     "technique": "advertised-pay-is-not-earnings",
+     "verdict": "conformant",
+     "evidence": "app/landing/spark/market/data.ts:47 Explicitly isolates advertised vacancy pay from survey earnings and refuses to render advertised figures as market medians."
+    },
+    {
+     "technique": "benchmark-provenance-source-and-sample",
+     "verdict": "conformant",
+     "evidence": "app/landing/spark/market/parts.tsx:190 Displays empirical survey sample size (headcount in thousands) directly beside each role family's salary band."
+    },
+    {
+     "technique": "currency-lock-and-no-silent-conversion",
+     "verdict": "conformant",
+     "evidence": "app/landing/spark/market/data.ts:203 Locks all monetary figures to the snapshot currency and formats with explicit currency labels per reader locale."
+    },
+    {
+     "technique": "role-family-by-seniority-anchor-bands",
+     "verdict": "conformant",
+     "evidence": "app/landing/spark/market/parts.tsx:198 Renders each role family as a progression range bounded by junior and lead seniority anchors with an empirical median."
+    }
+   ]
+  },
+  {
+   "context": "tests-interview-jobs",
+   "subject": "compensation-banding-and-market-honesty",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_market_salary_cli.py:87 Tests verify and assert that a taxonomy miss on an uncalibrated role family returns degenerate zeros rather than asserting a structured, reasoned refusal.",
+   "techniques": [
+    {
+     "technique": "refuse-to-quote-an-uncalibrated-market",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_market_salary_cli.py:87 Asserts that an uncalibrated family emits degenerate (0, 0) numbers instead of asserting a structured refusal outcome."
+    },
+    {
+     "technique": "price-the-role-not-the-person",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_market_salary_cli.py:178 Pins the role-field allowlist by asserting that candidate identity sentinels never appear in the pricing prompt."
+    },
+    {
+     "technique": "currency-lock-and-no-silent-conversion",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_salary_currency_validation.py:74 Asserts that unrecognized currency and period tokens fail closed to manual review rather than defaulting."
+    },
+    {
+     "technique": "advertised-pay-is-not-earnings",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_campaign.py:125 Tests that an imputed taxonomy anchor band is never advertised as an employer's stated salary in campaign copy."
+    },
+    {
+     "technique": "benchmark-provenance-source-and-sample",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_market_salary_cli.py:50 Asserts that hand-entered families lacking observation counts are returned as usable benchmark readings with null sampleK."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-15T01:29:55.166247+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "compensation-banding-and-market-honesty"
+   ],
+   "techniques": [
+    "benchmark-provenance-source-and-sample",
+    "currency-lock-and-no-silent-conversion",
+    "grounded-band-is-read-only",
+    "refuse-to-quote-an-uncalibrated-market",
+    "role-family-by-seniority-anchor-bands"
+   ],
+   "deviations": 1,
+   "context": "job-intake-schema",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:29:55.166247+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "compensation-banding-and-market-honesty"
+   ],
+   "techniques": [
+    "advertised-pay-is-not-earnings",
+    "benchmark-provenance-source-and-sample",
+    "currency-lock-and-no-silent-conversion",
+    "price-the-role-not-the-person",
+    "refuse-to-quote-an-uncalibrated-market"
+   ],
+   "deviations": 1,
+   "context": "market-data-pipeline",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:29:55.166247+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "compensation-banding-and-market-honesty"
+   ],
+   "techniques": [
+    "currency-lock-and-no-silent-conversion",
+    "grounded-band-is-read-only",
+    "price-the-role-not-the-person",
+    "refuse-to-quote-an-uncalibrated-market",
+    "role-family-by-seniority-anchor-bands"
+   ],
+   "deviations": 1,
+   "context": "jobs-intake",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:29:55.166247+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "compensation-banding-and-market-honesty"
+   ],
+   "techniques": [
+    "advertised-pay-is-not-earnings",
+    "benchmark-provenance-source-and-sample",
+    "currency-lock-and-no-silent-conversion",
+    "refuse-to-quote-an-uncalibrated-market",
+    "role-family-by-seniority-anchor-bands"
+   ],
+   "deviations": 1,
+   "context": "spark-trust-market",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:29:55.166247+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "compensation-banding-and-market-honesty"
+   ],
+   "techniques": [
+    "advertised-pay-is-not-earnings",
+    "benchmark-provenance-source-and-sample",
+    "currency-lock-and-no-silent-conversion",
+    "price-the-role-not-the-person",
+    "refuse-to-quote-an-uncalibrated-market"
+   ],
+   "deviations": 1,
+   "context": "tests-interview-jobs",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

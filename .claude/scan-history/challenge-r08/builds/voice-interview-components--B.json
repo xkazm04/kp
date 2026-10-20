@@ -1,0 +1,16 @@
+{
+  "card": "voice-interview-components/B",
+  "title": "A dropped call resumes itself: save the record first, then a cancellable redial",
+  "status": "landed",
+  "base": "8d7bb1ea7",
+  "shas": ["beedb4d35", "3d6ee63b1", "3a339d93b", "af5ee5f79", "7ab848fac"],
+  "tests_added": ["app/_components/voice/reconnect-plan.test.ts"],
+  "cases_red_before": 9,
+  "cases_green_after": 9,
+  "cases_total": 9,
+  "gates": {"tsc": 0, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": null, "unit": 1, "perf": 1, "ts_ratchet": 0},
+  "files_changed": 11,
+  "lines_changed": 663,
+  "deviations_from_card": "Critic revision applied: the plan is driven from an outcome finalize() records (so ElevenLabs onDisconnect is covered as well as handleOaiDrop), and saveStateOf yields 'refused' for ANY permanent 4xx (400/403/404/409/413) via isPermanentRefusal + the hook's recorded refusedStatus, not only discardedTurns > 0. saveStateOf lives in reconnect-plan.ts (pure, node-importable) and is re-exported from useTranscriptPersistence.ts. The hook's saveFailed/setSaveFailed/setDiscardedTurns booleans were replaced by one saveState (+ resetSave; retrySave now returns whether it landed and never doubles an in-flight POST). Added beyond the 7 card cases: 'pending' -> save_first / wait_save, reachedLive:false -> none (a never-live connect such as a mic denial is not redialled), and a source guard on the shell. Commit order is feat -> test (each commit green) rather than test -> feat, because the source-guard case cannot be green before the shell change. No new error codes; no route changes.",
+  "notes": "Close-the-loop: the Retry banner now shows only for saveState 'failed'; a non-discard permanent refusal gets its own line (reconnect.saveRefused) instead of a Retry that would be refused forever; Start is disabled while a prior save is pending and every Start (auto or click) runs startPrecondition before start() resets the ids, so a manual click also settles the prior session first; errConnectionLost no longer promises a Start button (all 4 locales). Gates: tsc red ONLY on foreign paths (untracked kpi-sim/ tree, app/_lib/journey/project.ts, app/_lib/task-failure-code.test.ts - sibling in-flight work); all voice tests 136/136. test:unit: one BROKEN, app/features/hiring/pipeline/drawerCommsTruth.test.ts (pipeline-candidate-drawer sibling, not in this card's graph). test:perf: committed HEAD 7ab848fac measures app/page.tsx 1433 modules / 9124.9 KB vs ceiling 1432 / 9125 - this card raised exactly its measured share (+2 modules, +13 KB past headroom; git archive of dbec17533 with only this card's files reverted = 1431 / 9108.2 KB, already 1 module over the 1430 ceiling the rediscovery raise left), so the remaining 1-module overage is a sibling's committed share for wave integration. hire-from-need +1 KB and job-ingest are server graphs this card does not reach. Not visually verified in the browser (no dev/build per brief, and the notice needs a live dropped call); ReconnectNotice composes NOTICE/BTN_GHOST/BTN_SECONDARY recipes only, design:check green."
+}

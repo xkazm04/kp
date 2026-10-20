@@ -72,7 +72,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
 
   return (
     <div data-sim="jd-builder" className={`${PANEL} p-4`}>
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
         <Sparkles size={14} /> {t("generateWithAi")}
       </p>
       <p className="mt-1 text-sm text-steel">{t("intro")}</p>

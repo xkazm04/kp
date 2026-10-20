@@ -160,7 +160,7 @@ export function CompanionInputPanel() {
           aria-label={micLabel}
           title={micLabel}
           className={`focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
-            recording ? "bg-coral/10 text-coral" : "text-steel hover:text-ink"
+            recording ? "bg-coral/10 text-coral-ink" : "text-steel hover:text-ink"
           }`}
         >
           {recording ? <Square size={15} aria-hidden /> : <Mic size={17} aria-hidden />}

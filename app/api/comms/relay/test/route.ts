@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRelay } from "@/app/_lib/comms-relay";
+import { egressSealed, SEALED } from "@/app/_lib/egress-seal";
 import { buildCommEnvelope } from "@/app/_lib/comms-envelope";
 import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "@/app/_lib/ats-webhook";
-import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
+import { assertRelayEndpointResolved, COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Send a signed `relay.test` envelope to the ACTIVE relay (env → stored config)
 // so an integrator can confirm reachability + signature verification before any
@@ -26,7 +27,7 @@ import { COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
 // wiring a relay up.
 const PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -36,18 +37,23 @@ export async function POST(request: NextRequest) {
   if (!rateLimit(`comms-relay-test:${clientIpFrom(request.headers)}`, PROBE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
+  // The egress seal answers BEFORE the relay is resolved: resolveRelay() reads "no relay"
+  // under the seal, and "sealed" must not be reported as "not configured".
+  if (egressSealed()) return NextResponse.json({ ok: false, sealed: true, reason: SEALED }, { status: 409 });
   const relay = resolveRelay();
   if (!relay) {
     return NextResponse.json({ ok: false, reason: "No relay configured." }, { status: 400 });
   }
-  // Re-vet a STORED url at fetch time (rules can tighten after a write; env stays
-  // the operator's own responsibility, matching the delivery path).
-  if (relay.source === "config") {
-    try {
-      assertPublicHttpsEndpoint(relay.url, "relay url");
-    } catch (e) {
-      return NextResponse.json({ ok: false, reason: e instanceof Error ? e.message : "Relay URL not allowed." }, { status: 400 });
-    }
+  // Re-vet at fetch time with the SAME resolved guard the delivery path uses
+  // (comms.ts WebhookChannel.deliver), for env and stored relays alike: the delivery
+  // vets both, so a probe that skipped either answered `ok` for an endpoint every real
+  // message dead-letters on — and a string-only check let a name that resolves into
+  // private space (DNS rebinding, 169.254.169.254) take a signed POST and report its
+  // HTTP status back, a reachability oracle on the deployment's own network.
+  try {
+    await assertRelayEndpointResolved(relay.url);
+  } catch (e) {
+    return NextResponse.json({ ok: false, reason: e instanceof Error ? e.message : "Relay URL not allowed." }, { status: 400 });
   }
   const envelope = buildCommEnvelope(
     { to: "relay-test", subject: "kp relay test", body: "Test ping from the kp delivery relay configuration.", kind: "relay.test" },
@@ -79,4 +85,4 @@ export async function POST(request: NextRequest) {
           : "network error";
     return NextResponse.json({ ok: false, reason }, { status: 400 });
   }
-}
+});

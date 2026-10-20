@@ -1,0 +1,695 @@
+// The seeker's CV as a DOCUMENT — pure, no React, so `node --test` holds it.
+//
+// An imported CV reaches the product as two things: the profile the draft read out of it
+// (name, skills with provenance, dated roles, languages, education) and the raw text it was
+// read from. This module turns both into the structure a designed CV is laid out from —
+// identity, contacts, a summary, dated roles with bullets, the seeker's OWN skill groups,
+// education, languages — so a template can make it look good and a PDF can keep that look.
+//
+// "Better expressed" is deliberately narrow and deterministic: canonical spellings of
+// technology names (NextJS -> Next.js, Postgres -> PostgreSQL), a small dictionary of
+// common misspellings (Continous -> Continuous), line-wrap hyphens re-joined
+// (prototype-to- production), a sentence's first letter capitalised. Every change is
+// RECORDED in `improvements`, so the page can say exactly what was tidied, and nothing is
+// ever invented: no new claim, no new number, no guessed date (registry technique
+// text-extraction-damage-and-repair: repair is reasoning about the encoding, never about
+// the content). A verb never raises the claim — "Responsible for" is not rewritten into
+// "Owned" (recruiting/cv-content-construction/accomplishment-statements-without-invention:
+// responsibility into ownership is the owner's choice); what the rules cannot fix without
+// a fact is an owner QUESTION (`questions`, cvContent.ts), never an edit.
+
+import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
+import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { applyAcceptedEdits, descriptorQuestions, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
+
+export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
+/** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
+ *  horizon, off-target in a tailored sheet, or simply without bullets. It stays in its
+ *  place in the date order; nothing with a date is ever deleted.
+ *  `bullets` are the printed ones, strongest outcome first, within the role's recency
+ *  budget (cvContent.ts `roleBudget`); `trimmed` holds what the budget held back — never
+ *  printed, kept for the owner to restore and for the tailoring pass to re-rank. */
+export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[]; compact: boolean; trimmed?: CvBullet[] };
+/** A bullet may open with a lead phrase ("RAG pipeline design:") the template sets in bold.
+ *  `emphasis` = the target terms the template bolds in `text`, each a verbatim substring
+ *  of it — set only by the tailoring pass, at most two per ROLE (cvTailor.ts); [] otherwise. */
+export type CvBullet = { lead: string | null; text: string; emphasis: string[] };
+/** `level` is a WORD for the sheet — the CV's own ("senior") — never a meter; null when
+ *  the CV states none (registry evidenced-skills-over-self-ratings). Never bolded. */
+export type CvSkillItem = { name: string; level: string | null };
+/** `title` is the CV's own group label ("LLM related"); null = the template's localised "Skills". */
+/** `trimmed`: items past the skills cap (cvContent.ts SKILL_CAP) — never printed. */
+export type CvSkillGroup = { title: string | null; items: CvSkillItem[]; trimmed?: CvSkillItem[] };
+export type CvEducation = { title: string; detail: string | null; dates: string | null };
+/** A deterministic wording change (this file). */
+/** `repeat`: a line's opening role title dropped, since the entry line already sets it. */
+export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital" | "repeat"; before: string; after: string };
+/** What the rules could not decide without the owner — designer-only, NEVER printed.
+ *  `text` is the line (or skill) it is about, verbatim; `roleIndex` indexes `experience`.
+ *  - `no_outcome`      a bullet with an action and an object but no outcome;
+ *  - `missing_metric`  a bullet that states a change without saying how much;
+ *  - `listed_only`     a skill listed but used in no role or project;
+ *  - `self_descriptor` a self-description ("results-driven") in the seeker's own words. */
+export type CvOwnerQuestion = {
+  kind: "no_outcome" | "listed_only" | "missing_metric" | "self_descriptor";
+  roleIndex: number | null;
+  text: string;
+};
+/** A tailoring move (cvTailor.ts): what led BEFORE and what leads now, `where` it happened
+ *  (a role, a skill group), `n` for a counted move (terms set in bold). Order and emphasis
+ *  only — never a new word. */
+export type CvTailorMove = {
+  kind: "tailor";
+  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective" | "projects";
+  before: string;
+  after: string;
+  where: string | null;
+  n: number;
+};
+export type CvImprovement = CvEdit | CvTailorMove;
+
+export type CvDocument = {
+  /** The language the CV is written in; the template's headings follow it. */
+  lang: CvLang;
+  /** The market the sheet is typeset for — its date words ("03/2020 – dosud") and, later,
+   *  its conventions. The CV's own language for now; never the reader's UI locale. The
+   *  model carries NO photo, birth date, age, marital status, nationality or signature:
+   *  every protected-attribute field is off by default (cvContent.ts isPersonalData). */
+  market: CvLang;
+  name: string;
+  headline: string | null;
+  /** The seeker's STATED direction under the headline ("Seeking: AI Engineer roles"), set
+   *  only by the tailoring pass — a preference, labelled as one, never a held title. */
+  objective?: string | null;
+  location: string | null;
+  contacts: CvContact[];
+  summary: string | null;
+  experience: CvRole[];
+  /** Dated "relevant projects" from the profile's NON-job evidence (project, thesis,
+   *  course, certification) — the bridging evidence of a career change; set after the
+   *  experience. The tailoring pass keeps only those that speak to its target. [] = none. */
+  projects: CvRole[];
+  skills: CvSkillGroup[];
+  education: CvEducation[];
+  /** "Czech – native", "English – C1": the level on the common European scale when the
+   *  CV states one, else the CV's own word, else the name alone. */
+  languages: string[];
+  improvements: CvImprovement[];
+  /** Owner questions (cvContent.ts): shown in the designer, never on the sheet. */
+  questions: CvOwnerQuestion[];
+};
+
+// ── canonical terms ────────────────────────────────────────────────────────────────
+//
+// Spelling of a technology name, not a claim about it: "postgres" and "PostgreSQL" name
+// the same thing, and a reader who knows the field reads the wrong casing as carelessness.
+
+const TERMS: [RegExp, string][] = [
+  [/\bnext\.?js\b/gi, "Next.js"],
+  [/\breact\.?js\b/gi, "React"],
+  [/\bnode\.?js\b|\bnodejs\b/gi, "Node.js"],
+  [/\bvue\.?js\b/gi, "Vue.js"],
+  [/\bexpress\s?\.?js\b/gi, "Express.js"],
+  // A bare "js" beside a slash or a bracket ("python/js") — never the ".js" of a name.
+  [/(?<=[/(])js(?![\p{L}\d])|(?<![.\p{L}\d])js(?=[/)])/gu, "JS"],
+  [/\bpostgres(?:ql)?\b/gi, "PostgreSQL"],
+  [/\bmongo\s?db\b/gi, "MongoDB"],
+  [/\bmysql\b/gi, "MySQL"],
+  [/\bfastapi\b/gi, "FastAPI"],
+  [/\bjavascript\b/gi, "JavaScript"],
+  [/\btypescript\b/gi, "TypeScript"],
+  [/\bgithub\b/gi, "GitHub"],
+  [/\bgitlab\b/gi, "GitLab"],
+  [/\bgraphql\b/gi, "GraphQL"],
+  [/\blangchain\b/gi, "LangChain"],
+  [/\bopenai\b/gi, "OpenAI"],
+  [/\bkubernetes\b/gi, "Kubernetes"],
+  [/\bdocker\b/gi, "Docker"],
+  [/\bterraform\b/gi, "Terraform"],
+  [/\bjira\b/gi, "Jira"],
+  [/\bconfluence\b/gi, "Confluence"],
+  [/\bfigma\b/gi, "Figma"],
+  [/\bpython\b/gi, "Python"],
+  [/\bkafka\b/gi, "Kafka"],
+  [/\bci\/cd\b/gi, "CI/CD"],
+  [/\bui\/ux\b/gi, "UI/UX"],
+];
+
+// Acronyms written in lower or title case ("rest api", "Llm"). Words that are also
+// ordinary English ("rest", "soap", "qa") are read as the acronym only beside another
+// technical token ("Rest/Graph", "rest API") — "the rest of the team" stays prose.
+const ACRONYMS = new Set(["api", "apis", "sql", "llm", "llms", "rag", "mcp", "uml", "aws", "gcp", "seo", "crm", "erp", "sdk", "rpc", "etl"]);
+const AMBIGUOUS = new Set(["rest", "soap", "qa"]);
+
+function acronymOf(word: string): string {
+  const lower = word.toLowerCase();
+  return lower.endsWith("s") && ACRONYMS.has(lower.slice(0, -1)) ? lower.slice(0, -1).toUpperCase() + "s" : lower.toUpperCase();
+}
+
+const MISSPELLINGS: Record<string, string> = {
+  continous: "continuous",
+  developement: "development",
+  managment: "management",
+  enviroment: "environment",
+  experiance: "experience",
+  sucessful: "successful",
+  succesful: "successful",
+  responsability: "responsibility",
+  implemention: "implementation",
+  maintainance: "maintenance",
+  collegues: "colleagues",
+  knowlege: "knowledge",
+  architecure: "architecture",
+  infrastucture: "infrastructure",
+  perfomance: "performance",
+};
+
+/** Apply the canonical spellings and misspelling fixes to one string, recording each. */
+export function polishTerms(text: string, log: CvImprovement[]): string {
+  let out = text;
+  for (const [re, canonical] of TERMS) {
+    out = out.replace(re, (m: string) => {
+      if (m !== canonical) log.push({ kind: "term", before: m, after: canonical });
+      return canonical;
+    });
+  }
+  // Unicode-aware word edges: JS `\b` is ASCII-only, so "Každan" would read as "Ka" + "dan".
+  out = out.replace(/(?<![\p{L}\d])(\p{L}+)(?![\p{L}\d])/gu, (word: string, _w: string, offset: number, all: string) => {
+    const lower = word.toLowerCase();
+    if (word === word.toUpperCase()) return word;
+    let next: string | null = null;
+    if (ACRONYMS.has(lower)) next = acronymOf(word);
+    else if (AMBIGUOUS.has(lower)) {
+      const before = all.slice(Math.max(0, offset - 1), offset);
+      const after = all.slice(offset + word.length, offset + word.length + 6);
+      if (before === "/" || /^\/|^\s+apis?(?![\p{L}])/iu.test(after)) next = word.toUpperCase();
+    }
+    if (!next || next === word) return word;
+    log.push({ kind: "term", before: word, after: next });
+    return next;
+  });
+  out = out.replace(/(?<![\p{L}\d])(\p{L}+)(?![\p{L}\d])/gu, (m: string) => {
+    const fix = MISSPELLINGS[m.toLowerCase()];
+    if (!fix) return m;
+    const next = m[0] === m[0]!.toUpperCase() ? fix[0]!.toUpperCase() + fix.slice(1) : fix;
+    log.push({ kind: "spelling", before: m, after: next });
+    return next;
+  });
+  return out;
+}
+
+// ── contacts and header ────────────────────────────────────────────────────────────
+
+const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const PHONE = /\+?\d[\d ().-]{7,}\d/g;
+const URLISH = /\b(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com\/[\w\-/%]+|github\.com\/[\w\-/]+|[\w-]+\.(?:dev|io|me|com|cz|eu|net|org)\/[\w\-/]*)/gi;
+
+/** Contacts are read from the header only — the lines before the first section heading
+ *  (at most 12) — so a date range or a client's phone inside a role is never one. */
+export function findContacts(text: string): CvContact[] {
+  const lines = (text || "").split(/\r?\n/).slice(0, 12);
+  const firstHeading = lines.findIndex((l) => sectionOf(l.trim()) !== null);
+  const head = (firstHeading < 0 ? lines : lines.slice(0, firstHeading)).join("\n");
+  const out: CvContact[] = [];
+  const seen = new Set<string>();
+  const push = (c: CvContact) => {
+    const key = c.kind + ":" + c.value.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(c);
+    }
+  };
+  for (const m of head.match(EMAIL) ?? []) push({ kind: "email", value: m, href: `mailto:${m}` });
+  for (const m of head.match(PHONE) ?? []) {
+    const digits = m.replace(/\D/g, "");
+    // A date range ("2019 - 2020") or a year list is not a phone number.
+    if (digits.length < 9 || /^(19|20)\d\d(19|20)\d\d$/.test(digits)) continue;
+    push({ kind: "phone", value: m.trim(), href: `tel:${m.replace(/[^\d+]/g, "")}` });
+  }
+  for (const m of head.match(URLISH) ?? []) {
+    const bare = m.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+    const kind = /^linkedin\.com\//i.test(bare) ? "linkedin" : /^github\.com\//i.test(bare) ? "github" : "url";
+    push({ kind, value: bare, href: `https://${bare}` });
+  }
+  return out;
+}
+
+// Short uppercase words that are acronyms in a CV header or a group label. Anything else
+// in an ALL-CAPS line is a shouted word ("WEB DEV" -> "Web Dev").
+const KEEP_UPPER = new Set(["AI", "IT", "SW", "HW", "QA", "UX", "UI", "HR", "BI", "ML", "DB", "PM", "BA", "CEO", "CTO", "CFO", "COO", "VP", "EU", "USA", "UK", "SAP", "GIS", ...[...ACRONYMS].map((a) => a.toUpperCase())]);
+
+function titleCase(line: string): string {
+  // "MICHAL KAŽDAN" -> "Michal Každan"; a known acronym stays ("AI", "SW").
+  return line
+    .split(/(\s+|&|\/)/)
+    .map((w) => (KEEP_UPPER.has(w) ? w : w.charAt(0).toLocaleUpperCase() + w.slice(1).toLocaleLowerCase()))
+    .join("");
+}
+
+function isShouting(line: string): boolean {
+  const letters = [...line].filter((c) => /\p{L}/u.test(c));
+  return letters.length >= 4 && letters.every((c) => c === c.toLocaleUpperCase());
+}
+
+// ── sections ───────────────────────────────────────────────────────────────────────
+
+const SECTION_WORDS: Record<string, string[]> = {
+  summary: ["profile", "summary", "about", "about me", "profil", "shrnutí", "o mně", "zusammenfassung", "über mich", "résumé", "profil professionnel"],
+  // Read so it can be LEFT OUT: a block of birth date, nationality, marital status.
+  personal: ["personal details", "personal information", "personal data", "personal info", "osobní údaje", "osobní informace", "persönliche daten", "persönliche angaben", "informations personnelles", "état civil"],
+  experience: ["experience", "work experience", "employment", "prior experience", "career", "zkušenosti", "pracovní zkušenosti", "praxe", "berufserfahrung", "erfahrung", "expérience", "expérience professionnelle"],
+  education: ["education", "vzdělání", "ausbildung", "bildung", "formation"],
+  skills: ["skills", "dovednosti", "kenntnisse", "fähigkeiten", "compétences", "technical skills", "tech stack"],
+  languages: ["languages", "jazyky", "sprachen", "langues"],
+};
+const DATE_RANGE = /((?:0?[1-9]|1[0-2])[./](?:19|20)\d\d|(?:19|20)\d\d)\s*(?:-|–|—|to)\s*((?:0?[1-9]|1[0-2])[./](?:19|20)\d\d|(?:19|20)\d\d|present|now|current|dosud|současnost|heute|aujourd'hui)/i;
+
+function sectionOf(line: string): string | null {
+  const bare = line.replace(DATE_RANGE, "").trim().replace(/[:：\-–—#*_ ]+$/g, "").toLocaleLowerCase();
+  if (!bare || bare.length > 40) return null;
+  for (const [kind, words] of Object.entries(SECTION_WORDS)) if (words.includes(bare)) return kind;
+  return null;
+}
+
+type Block = { kind: string | null; title: string; lines: string[]; dates: string | null };
+
+/** Cut the text into blocks at every heading: a known section word, or an unknown ALL-CAPS
+ *  label (a sidebar's own skill group, "LLM RELATED"). */
+export function blocksOf(text: string): Block[] {
+  const blocks: Block[] = [{ kind: "header", title: "", lines: [], dates: null }];
+  for (const raw of (text || "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      blocks[blocks.length - 1]!.lines.push("");
+      continue;
+    }
+    const kind = sectionOf(line);
+    const label = line.replace(DATE_RANGE, "").trim();
+    if (kind || (isShouting(label) && label.length <= 30 && blocks.length > 0 && blocks[0]!.lines.filter(Boolean).length >= 2)) {
+      blocks.push({ kind: kind ?? "group", title: label, lines: [], dates: line.match(DATE_RANGE)?.[0] ?? null });
+      continue;
+    }
+    blocks[blocks.length - 1]!.lines.push(line);
+  }
+  return blocks;
+}
+
+// ── bullets ────────────────────────────────────────────────────────────────────────
+
+const ABBREVIATION = /(?:(?:^|[\s(])(?:inc|ltd|co|corp|llc|gmbh|e\.g|i\.e|etc|vs|approx|dr|mr|ms|no|nr|tel|resp|mj|tzv|např|atd)\.|(?:\p{L}\.){2,})$/iu;
+
+/** A sentence ends at . ! ? before the next word, whatever its case (a wrapped CV often
+ *  starts the next line lower-case) — except after an abbreviation ("s.r.o.", "Inc.").
+ *  Every piece is kept verbatim; only whitespace at the cut is dropped. */
+export function splitSentences(body: string): string[] {
+  const parts: string[] = [];
+  for (const piece of (body || "").split(/(?<=[.!?])\s+(?=[\p{L}\d])/u)) {
+    const prev = parts[parts.length - 1];
+    if (prev !== undefined && ABBREVIATION.test(prev)) parts[parts.length - 1] = `${prev} ${piece}`;
+    else parts.push(piece);
+  }
+  return parts.map((part) => part.trim()).filter((part) => part.length > 1);
+}
+
+/** Wrapped lines rejoined ("prototype-to-\nproduction"), then cut into sentence bullets.
+ *  A line that closes a parenthesis and a next line that opens with a capital are two
+ *  items, not one wrapped sentence: "IT Analyst (API design)\nFrontend development (React)"
+ *  is how a CV lists without full stops, and joining them printed one run-on bullet. */
+export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
+  return (text || "").split(/(?<=\))[ \t]*\r?\n\s*(?=\p{Lu})/u).flatMap((chunk) => sentenceBullets(chunk, log));
+}
+
+function sentenceBullets(text: string, log: CvImprovement[]): CvBullet[] {
+  let body = text.replace(/\s+/g, " ").trim();
+  // "prototype-to- production": a hyphen the line wrap left open. Recorded with the whole
+  // compound so the change reads as what it is.
+  body = body.replace(/([\p{L}-]*\p{L})- (\p{Ll}+)/gu, (m, a: string, b: string) => {
+    log.push({ kind: "hyphen", before: m, after: `${a}-${b}` });
+    return `${a}-${b}`;
+  });
+  return splitSentences(body).map((part) => {
+    let s = polishTerms(part, log);
+    if (/^\p{Ll}/u.test(s)) {
+      log.push({ kind: "capital", before: s.slice(0, 12), after: s.charAt(0).toLocaleUpperCase() + s.slice(1, 12) });
+      s = s.charAt(0).toLocaleUpperCase() + s.slice(1);
+    }
+    const lead = /^([^:.]{3,60}):\s+(.+)$/.exec(s);
+    return lead ? { lead: lead[1]!.trim(), text: lead[2]!.trim(), emphasis: [] } : { lead: null, text: s, emphasis: [] };
+  });
+}
+
+// ── roles ──────────────────────────────────────────────────────────────────────────
+
+/** A legal form after a comma is part of the employer's name, never the employer. */
+const LEGAL_FORM = /^(?:inc|ltd|llc|llp|plc|corp|co|gmbh|ag|se|kg|sa|s\.a|sas|sarl|spa|srl|bv|b\.v|nv|n\.v|oy|ab|as|a\.\s?s|s\.\s?r\.\s?o|spol\.\s?s\s?r\.\s?o|k\.\s?s|v\.\s?o\.\s?s)\.?$/i;
+
+/** "Role — Org (dates)" (the keyless draft's form), "Role, Org", "Role at Org" -> parts. */
+export function parseRoleTitle(title: string): { role: string; org: string | null; dates: string | null } {
+  let rest = title.trim();
+  let dates: string | null = null;
+  const paren = /\s*\(([^()]*\d{4}[^()]*)\)\s*$/.exec(rest);
+  if (paren) {
+    dates = paren[1]!.trim();
+    rest = rest.slice(0, paren.index).trim();
+  } else {
+    const d = DATE_RANGE.exec(rest);
+    if (d) {
+      dates = d[0];
+      rest = (rest.slice(0, d.index) + rest.slice(d.index + d[0].length)).trim().replace(/^[:\-–—,\s]+|[:\-–—,\s]+$/g, "");
+    }
+  }
+  const dash = rest.split(/\s+[—–]\s+/);
+  if (dash.length >= 2) return { role: dash[0]!.trim(), org: dash.slice(1).join(" — ").trim(), dates };
+  const at = /^(.+?)\s+(?:at|@|ve|bei|chez)\s+(.+)$/i.exec(rest);
+  if (at) return { role: at[1]!.trim(), org: at[2]!.trim(), dates };
+  return { role: rest, org: null, dates };
+}
+
+/** Typography only: an en dash between the ends, a two-digit month ("7/2026" ->
+ *  "07/2026") and the market's own word for an open end ("present", "dosud", "heute",
+ *  "aujourd'hui"). No date is inferred, moved or completed. */
+export function formatDates(dates: string | null, market: CvLang = "en"): string | null {
+  if (!dates) return null;
+  return dates
+    .replace(/(?<!\d)(\d)(?=[./](?:19|20)\d\d)/g, "0$1")
+    .replace(/\s*(?:-|–|—|to)\s*(?=(?:\d|present|now|current|today|dosud|současnost|nyní|heute|aktuell|aujourd|actuel))/i, " – ")
+    .replace(OPEN_END, PRESENT_WORD[market])
+    .trim();
+}
+
+const OPEN_END = /(?<![\p{L}])(present|now|current|today|dosud|současnost|nyní|heute|aktuell|aujourd'hui|actuellement|actuel)(?![\p{L}'])/iu;
+
+// ── the document's language ────────────────────────────────────────────────────────
+//
+// The section headings follow the language the CV is WRITTEN in, not the reader's UI:
+// an English CV opened by a seeker whose product runs in Czech must not come out with
+// "Pracovní zkušenosti" above English bullets. So the headings are content, detected
+// from the text and kept here beside the reading, not in the UI catalogs.
+
+export const CV_LANGS = ["en", "cs", "de", "fr"] as const;
+export type CvLang = (typeof CV_LANGS)[number];
+
+const STOPWORDS: Record<CvLang, RegExp> = {
+  en: /(?<![\p{L}])(the|and|with|for|of|in|to|using|including)(?![\p{L}])/giu,
+  cs: /(?<![\p{L}])(a|v|ve|na|se|pro|s|z|jako|při|který|která)(?![\p{L}])/giu,
+  de: /(?<![\p{L}])(und|der|die|das|mit|für|von|im|bei|als)(?![\p{L}])/giu,
+  fr: /(?<![\p{L}])(et|le|la|les|des|pour|avec|dans|du|en)(?![\p{L}])/giu,
+};
+
+export function cvLanguageOf(text: string): CvLang {
+  let best: CvLang = "en";
+  let bestN = 0;
+  for (const lang of CV_LANGS) {
+    const n = (text.match(STOPWORDS[lang]) ?? []).length;
+    if (n > bestN) {
+      best = lang;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+export type CvHeadings = { summary: string; experience: string; projects: string; skills: string; education: string; languages: string; contact: string };
+
+export const CV_HEADINGS: Record<CvLang, CvHeadings> = {
+  en: { summary: "Profile", experience: "Experience", projects: "Projects", skills: "Skills", education: "Education", languages: "Languages", contact: "Contact" },
+  cs: { summary: "Profil", experience: "Pracovní zkušenosti", projects: "Projekty", skills: "Dovednosti", education: "Vzdělání", languages: "Jazyky", contact: "Kontakt" },
+  de: { summary: "Profil", experience: "Berufserfahrung", projects: "Projekte", skills: "Kenntnisse", education: "Ausbildung", languages: "Sprachen", contact: "Kontakt" },
+  fr: { summary: "Profil", experience: "Expérience", projects: "Projets", skills: "Compétences", education: "Formation", languages: "Langues", contact: "Contact" },
+};
+
+/** The objective line under the headline, in the CV's language: the seeker's STATED
+ *  target, labelled as what they are looking for — never worded as a title they held. */
+export const CV_OBJECTIVE: Record<CvLang, (target: string) => string> = {
+  en: (target) => `Seeking: ${target} roles`,
+  cs: (target) => `Hledám pozici: ${target}`,
+  de: (target) => `Angestrebte Position: ${target}`,
+  fr: (target) => `Poste recherché : ${target}`,
+};
+
+// ── a role's own lines in the CV text ──────────────────────────────────────────────
+
+const LEADING_YEAR = /^(?:19|20)\d\d(?![\d/.])/;
+
+function foldText(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Where a role sits in the CV text: the line naming its organisation, the dates on or
+ *  beside it, and the lines under it up to the next role, heading, blank line or dated
+ *  line. Verbatim - nothing here writes a word the CV does not hold. Null when the
+ *  organisation is not found (or is too short to find safely). */
+export function sourceRoleOf(text: string, org: string | null, allOrgs: readonly string[], role = "", nth = 0): { dates: string | null; lines: string[] } | null {
+  const needle = org ? foldText(org) : "";
+  if (needle.length < 3) return null;
+  const lines = (text || "").split(/\r?\n/).map((l) => l.trim());
+  // The nth mention: one employer twice in a career (a return years later) is two roles.
+  const mentions = lines.flatMap((l, i) => (foldText(l).includes(needle) ? [i] : []));
+  const at = mentions[Math.min(nth, mentions.length - 1)] ?? -1;
+  if (at < 0) return null;
+  const own = foldText(role);
+  const others = allOrgs.map(foldText).filter((o) => o.length >= 3 && o !== needle);
+  const dateOn = (l: string | undefined) => (l ? (l.match(DATE_RANGE)?.[0] ?? l.match(LEADING_YEAR)?.[0] ?? null) : null);
+  // The dates on the employer's line or the one above it - or a little further up, where a
+  // CV sets them on their own line above the title ("Freelancer 03/2025 - 10/2025" /
+  // "AI Automation Specialist" / "Groupon, Inc. - ..."). The look-back stops at the previous
+  // role's last sentence or another employer, so it never borrows a neighbour's dates.
+  let dates = dateOn(lines[at]) ?? dateOn(lines[at - 1]) ?? null;
+  for (let k = 2; !dates && k <= 3 && at - k >= 0; k++) {
+    const l = lines[at - k]!;
+    if (!l || /[.!?]$/.test(l) || others.some((o) => foldText(l).includes(o))) break;
+    dates = dateOn(l);
+  }
+  const body: string[] = [];
+  for (let i = at + 1; i < lines.length; i++) {
+    const l = lines[i]!;
+    const f = foldText(l);
+    if (!l || sectionOf(l) || others.some((o) => f.includes(o)) || DATE_RANGE.test(l) || LEADING_YEAR.test(l)) break;
+    if (isShouting(l) && l.length <= 30) break;
+    // The role's own title line repeats the heading the sheet already sets.
+    if (own && (f === own || own.startsWith(f))) continue;
+    body.push(l);
+  }
+  return { dates, lines: body };
+}
+
+/** A line that opens with the role's own title repeats the entry line the sheet already
+ *  sets ("QA Engineer - SingleCase" over "QA Engineer (SOAP, Cypress) - Legal web app").
+ *  The title goes; what the line says about the work stays, in its words: "Legal web app
+ *  (SOAP, Cypress)". A line that is only the title, or says nothing past it, is left. */
+export function withoutRoleHead(line: string, role: string, log: CvImprovement[]): string {
+  const own = foldText(role);
+  if (own.length < 3 || !foldText(line).startsWith(own)) return line;
+  const rest = line.slice(role.length).trim();
+  const both = /^\(([^()]+)\)\s*[-–—:]\s*(.+)$/.exec(rest);
+  const tail = /^[-–—:]\s*(.+)$/.exec(rest);
+  const only = /^\(([^()]+)\)$/.exec(rest);
+  const out = both ? `${both[2]!.trim()} (${both[1]!.trim()})` : tail ? tail[1]!.trim() : only ? only[1]!.trim() : null;
+  if (!out || out.length < 3) return line;
+  const cased = out.charAt(0).toLocaleUpperCase() + out.slice(1);
+  log.push({ kind: "repeat", before: line, after: cased });
+  return cased;
+}
+
+// ── skills ─────────────────────────────────────────────────────────────────────────
+
+const LEVEL_WORD = /\s*\((junior|medior|mid|senior|lead|expert|advanced|intermediate|basic|beginner|native|fluent)\)\s*$/i;
+
+function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] {
+  const groups: CvSkillGroup[] = [];
+  for (const b of blocks) {
+    if (b.kind !== "group" && b.kind !== "skills") continue;
+    // A "Skills" line is a comma list before it is an item: a whole stack on one line
+    // ("Python (senior), SQL, LangChain, …") is split first, then each item is measured.
+    const items = b.lines
+      .filter((l) => l && !/[.!?]$/.test(l))
+      .flatMap((l) => (b.kind === "skills" && l.includes(",") ? l.split(/\s*,\s*/) : [l]))
+      .filter((l) => l && l.length <= 48 && !isPersonalData(l))
+      .map((l) => {
+        const m = LEVEL_WORD.exec(l);
+        const name = polishTerms((m ? l.slice(0, m.index) : l).trim(), log);
+        return { name, level: m ? m[1]!.toLowerCase() : null };
+      })
+      .filter((i) => i.name);
+    if (items.length) groups.push({ title: b.kind === "skills" ? null : titleCase(b.title), items });
+  }
+  return groups;
+}
+
+// ── the document ───────────────────────────────────────────────────────────────────
+
+const PROJECT_KINDS = new Set(["project", "thesis", "course", "certification"]);
+/** A project is dated evidence, not a role: two lines of it are enough. */
+const PROJECT_BUDGET = 2;
+
+export function buildCvDocument(input: {
+  profile: ProfilePayload;
+  /** `languages`, when the seeker set any in /me, is their own statement and wins over
+   *  the CV's Languages block and the read profile list alike. */
+  preferences: Pick<JobseekerPreferences, "targetTitles"> & Partial<Pick<JobseekerPreferences, "languages">>;
+  cvSourceText: string | null;
+  /** "Now" for the recency budget; the caller's clock by default. */
+  today?: Date;
+  /** The line edits the seeker ACCEPTED in the CV studio (cvContent.ts acceptedEditsOf):
+   *  applied onto the CV text before anything is read from it, so the preview, the print
+   *  page and the PDF carry exactly what the seeker approved — and nothing they did not. */
+  acceptedEdits?: readonly { before: string; after: string }[] | null;
+}): CvDocument {
+  // `preferences` stays on the input (the callers hold it); only its `languages` — the
+  // seeker's own statement from /me — shapes the sheet (the Languages section below).
+  const { profile } = input;
+  const today = input.today ?? new Date();
+  const text = applyAcceptedEdits(input.cvSourceText ?? "", input.acceptedEdits);
+  const log: CvImprovement[] = [];
+  const lang = cvLanguageOf(text);
+  const blocks = blocksOf(text);
+  const header = blocks[0]!.lines.filter(Boolean);
+
+  const rawName = profile.displayName?.trim() || header[0] || "";
+  const name = isShouting(rawName) ? titleCase(rawName) : rawName;
+  // The headline is the CV's own, or none. A target title never stands in for it: set
+  // under the name, "AI Engineer" reads as a title the seeker has held. The direction is
+  // said by the tailoring's objective line ("Seeking: AI Engineer roles"), labelled as
+  // sought (cvTailor.ts).
+  // Compared folded: an AI draft writes "Michal Každan" for the CV's "MICHAL KAŽDAN",
+  // and the shouted name must not come back as the headline.
+  // A header line that states a personal attribute ("Married", "Date of birth: …") is
+  // never a headline: it is left off the sheet altogether.
+  const headlineLine = header.find((l) => foldText(l) !== foldText(rawName) && l.length <= 60 && !isPersonalData(l) && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
+  const headline = headlineLine ? polishTerms(isShouting(headlineLine) ? titleCase(headlineLine) : headlineLine, log) : null;
+
+  const summaryBlock = blocks.find((b) => b.kind === "summary");
+  const summaryText = summaryBlock ? summaryBlock.lines.filter(Boolean).join(" ").trim() : "";
+  const summarySentences = summaryText ? bulletsOf(summaryText, log).map(bulletLine).filter((s) => !isPersonalData(s)) : [];
+  const summary = summarySentences.length ? summarySentences.join(" ") : null;
+
+  const jobs = (profile.evidence ?? []).filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary");
+  // Non-job evidence that is evidence of a skill: the career changer's bridge. Hobbies and
+  // "other" stay off (a section earns its place only if it carries evidence).
+  const bridging = (profile.evidence ?? []).filter((e) => PROJECT_KINDS.has(e.kind ?? "") && e.title?.trim());
+  const parsed = jobs.map((e) => {
+    const parsedTitle = parseRoleTitle(e.title ?? "");
+    // Where the role was, as the CV itself may spell it. A draft writes titles in more
+    // shapes than parseRoleTitle knows - "AI Consultant, BornDigital, s.r.o." on a real
+    // CV, whose roles then printed with a paraphrase and no dates - so every candidate is
+    // tried against the text, and a comma split is only believed when the CV holds it.
+    const paren = (s: string) => /\(([^()]{3,60})\)\s*$/.exec(s)?.[1]?.trim() ?? null;
+    // "Role for Employer" ("AI Automation Specialist (Freelancer) for Groupon, Inc." on a
+    // real draft) - believed, like the comma split, only when the CV holds the employer.
+    const forSplit = parsedTitle.org ? null : /^(.+?)\s+for\s+(.{3,})$/i.exec(parsedTitle.role);
+    const forOrg = forSplit ? forSplit[2]!.trim() : null;
+    const commaAt = parsedTitle.org || forOrg ? -1 : parsedTitle.role.indexOf(", ");
+    // A comma before a legal form belongs to the employer's name ("Groupon, Inc.",
+    // "Moneta Money Bank, a.s."): "Inc." is never the employer.
+    const rawTail = commaAt > 0 ? parsedTitle.role.slice(commaAt + 2).trim() : null;
+    const tail = rawTail && !LEGAL_FORM.test(rawTail) ? rawTail : null;
+    const candidates = [parsedTitle.org, forOrg, tail, tail ? tail.replace(/\s*\([^()]*\)\s*$/, "").trim() : null, tail ? paren(tail) : null, parsedTitle.org ? null : paren(parsedTitle.role)].filter(
+      (c, i, all): c is string => !!c && c.length >= 3 && all.indexOf(c) === i
+    );
+    const org = candidates.find((c) => foldText(text).includes(foldText(c))) ?? parsedTitle.org ?? paren(parsedTitle.role) ?? null;
+    // A believed split (comma or "for") names the role and the employer apart.
+    const fromFor = !!forSplit && !!org && org === forOrg;
+    const fromTail = !fromFor && !!tail && !!org && org !== parsedTitle.org && (tail === org || tail.includes(org));
+    const parts = fromFor
+      ? { ...parsedTitle, role: forSplit![1]!.trim(), org: forOrg }
+      : fromTail
+        ? { ...parsedTitle, role: parsedTitle.role.slice(0, commaAt).trim(), org: tail }
+        : parsedTitle;
+    return { e, parts, org };
+  });
+  const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);
+  const seen = new Map<string, number>();
+  const experience: CvRole[] = parsed.map(({ e, parts, org }, index) => {
+    const key = org ? foldText(org) : "";
+    const nth = seen.get(key) ?? 0;
+    seen.set(key, nth + 1);
+    // The CV's own lines for this role, when the text holds them: an AI draft paraphrases
+    // (it dropped "TypeScript" and every date from a real CV, and wrote a Czech summary of
+    // an English CV), and the designed CV promises the seeker's own words. The draft's
+    // text is the fallback.
+    const source = sourceRoleOf(text, org, orgs, parts.role, nth);
+    const dates = formatDates(parts.dates ?? source?.dates ?? null, lang);
+    // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
+    // weakest bullets are held back, never the strongest, and never the role itself.
+    const ranked = rankByOutcome(
+      bulletsOf(source && source.lines.length ? source.lines.map((l) => withoutRoleHead(l, parts.role, log)).join("\n") : applyAcceptedEdits(e.text ?? "", input.acceptedEdits), log),
+      bulletLine
+    );
+    const budget = roleBudget(index, dates, today);
+    const bullets = ranked.slice(0, budget);
+    return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
+  });
+
+  const projects: CvRole[] = bridging.map((e) => {
+    const parts = parseRoleTitle(e.title ?? "");
+    const ranked = rankByOutcome(bulletsOf(e.text ?? "", log), bulletLine);
+    const bullets = ranked.slice(0, PROJECT_BUDGET);
+    return { role: polishTerms(parts.role, log), org: parts.org, dates: formatDates(parts.dates, lang), bullets, compact: bullets.length === 0, trimmed: ranked.slice(PROJECT_BUDGET) };
+  });
+
+  const groups = skillGroupsFrom(blocks, log);
+  const listed: CvSkillGroup[] = groups.length
+    ? groups
+    : (() => {
+        // No groups in the CV text: the profile's claims, strongest first, as one group.
+        const claims = (profile.skillClaims ?? []).filter((c) => c.skill?.trim());
+        const ordered = [...claims.filter((c) => c.level === "strong"), ...claims.filter((c) => c.level !== "strong")];
+        const items = ordered.map((c) => {
+          const name = polishTerms(c.skill!.trim(), log);
+          return { name: name === name.toLowerCase() ? name.charAt(0).toLocaleUpperCase() + name.slice(1) : name, level: null };
+        });
+        return items.length ? [{ title: null, items }] : [];
+      })();
+  // Evidence, most recent first: every line a role holds (printed or held back), then the
+  // projects. A skill used there is an index into the experience; one used nowhere is asked.
+  const evidence = [...experience, ...projects].map((r) => [r.role, ...r.bullets.map(bulletLine), ...(r.trimmed ?? []).map(bulletLine)].join("\n"));
+  const ordered = orderSkills(listed, evidence);
+  const skills: CvSkillGroup[] = ordered.groups;
+  const langBlock = blocks.find((b) => b.kind === "languages");
+  const statedLanguages = (input.preferences.languages ?? []).filter((l) => l.trim());
+
+  const eduBlock = blocks.find((b) => b.kind === "education");
+  const education: CvEducation[] = eduBlock
+    ? [
+        {
+          title: eduBlock.lines.filter(Boolean)[0] ?? profile.educationDetail ?? "",
+          detail: eduBlock.lines.filter(Boolean).slice(1).join(" · ") || null,
+          dates: formatDates(eduBlock.dates, lang),
+        },
+      ].filter((e) => e.title)
+    : profile.educationDetail
+      ? [{ title: profile.educationDetail, detail: null, dates: null }]
+      : [];
+
+  return {
+    lang,
+    market: lang,
+    name,
+    headline,
+    location: profile.location?.trim() || null,
+    contacts: findContacts(text),
+    summary,
+    experience,
+    projects,
+    skills,
+    education,
+    languages: statedLanguages.length ? languageLines(null, statedLanguages, lang) : languageLines(langBlock ? langBlock.lines.filter(Boolean) : null, (profile.languages ?? []).filter(Boolean), lang),
+    improvements: dedupeImprovements(log),
+    questions: [...descriptorQuestions({ headline, summarySentences, roles: experience }), ...outcomeQuestions(experience), ...ordered.questions],
+  };
+}
+
+/** A bullet as the sheet sets it: the lead phrase, then the text. */
+export function bulletLine(b: { lead: string | null; text: string }): string {
+  return b.lead ? `${b.lead}: ${b.text}` : b.text;
+}
+
+function dedupeImprovements(log: CvImprovement[]): CvImprovement[] {
+  const seen = new Set<string>();
+  return log.filter((i) => {
+    const key = `${i.kind}:${i.before}->${i.after}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

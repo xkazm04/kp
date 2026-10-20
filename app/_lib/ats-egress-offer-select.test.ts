@@ -23,13 +23,13 @@ test("a re-extended entry's ATS record carries the ACCEPTED offer, not the oldes
     entryId: entry.id, candidateLabel: "Reext Cand", jobId: "job-ats", jobTitle: "ATS Role",
     currency: "USD", salary: 90000, payload: null,
   });
-  markOfferResponded(first.token, "declined");
+  markOfferResponded(first.token!, "declined");
   // Second offer: higher comp, ACCEPTED — this is the hire.
   const second = createOffer({
     entryId: entry.id, candidateLabel: "Reext Cand", jobId: "job-ats", jobTitle: "ATS Role",
     currency: "USD", salary: 120000, payload: null,
   });
-  markOfferResponded(second.token, "accepted");
+  markOfferResponded(second.token!, "accepted");
 
   const record = getAtsRecord(entry.id)!;
   assert.ok(record.offer, "the record carries an offer");

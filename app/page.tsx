@@ -2,8 +2,14 @@ import { Suspense } from "react";
 import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
+import { callerCapabilities, currentSession } from "@/app/_lib/auth/current-user";
+import { isOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import type { ShellPrincipal } from "@/app/features/shell/shellPrincipal";
 import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
 import { signupEnabled } from "@/app/_lib/workspace-lock";
+import { jobseekerEnabled } from "@/app/_lib/jobseeker/enabled";
+import { SetupSeekOfferProvider } from "@/app/features/shell/setup/SetupSeekOfferProvider";
 
 // '/' is gated SERVER-SIDE between two surfaces: the public landing (SparkHome)
 // for anonymous visitors, and the workspace dashboard once signed in. The gate is
@@ -24,6 +30,23 @@ import { signupEnabled } from "@/app/_lib/workspace-lock";
 // (Section switching inside the workspace is ?tab= query state handled
 // client-side by Workspace, so it stays instant regardless.)
 export const instant = false;
+
+// Who is looking, resolved ONCE here for the whole client shell: the tenant (the
+// same `current` GET /api/workspaces answers) and the caller's effective
+// capabilities (the same set GET /api/me/capabilities answers — open/dev and
+// operator sessions fold to owner inside callerCapabilities). Without it the shell
+// re-discovered the tenant three times over the wire and rendered its settings
+// doors unlocked until a capabilities GET landed. A failure here is `null`, which
+// is exactly the old behaviour: every consumer falls back to its fetch and the
+// nav fails open. See app/features/shell/shellPrincipal.ts.
+async function resolveShellPrincipal(): Promise<ShellPrincipal | null> {
+  try {
+    const [workspaceId, capabilities] = await Promise.all([currentWorkspace(), callerCapabilities()]);
+    return { workspaceId, capabilities };
+  } catch {
+    return null; // fail open: the client shell resolves both facts itself, as before
+  }
+}
 
 export default async function Home({
   searchParams,
@@ -47,9 +70,15 @@ export default async function Home({
   // is the every-load one). Demo sessions are excluded inside the gate — after
   // the entered check, so the anonymous landing stays DB-free.
   const firstRunOnboarding = !demoMode && (sp?.onboarding === "1" || (await needsOnboarding()));
+  const [session, principal, operator] = await Promise.all([currentSession(), resolveShellPrincipal(), isOperator()]);
+  // The job-seeker module is off unless the install sets KP_JOBSEEKER=1; the first-run
+  // wizard offers its "looking for a job" arm (and the hand-off to /me) only when it is on
+  // (app/features/shell/setup/setupSeekOffer.ts). Pure env read, like signupEnabled().
   return (
     <Suspense fallback={<div className="min-h-screen bg-paper" />}>
-      <Workspace firstRunOnboarding={firstRunOnboarding} />
+      <SetupSeekOfferProvider offered={jobseekerEnabled()}>
+        <Workspace firstRunOnboarding={firstRunOnboarding} hasSession={Boolean(session)} principal={principal} operator={operator} />
+      </SetupSeekOfferProvider>
     </Suspense>
   );
 }

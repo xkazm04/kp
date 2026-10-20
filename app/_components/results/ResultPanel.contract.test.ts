@@ -43,6 +43,15 @@ test("the live tab already hands the slug through after persist", () => {
   assert.match(live, /analysisSlug=\{result\.analysis\.persistence\?\.slug/);
 });
 
+test("persisted live results expose actions linked to the saved report", () => {
+  const actions = readFileSync(fileURLToPath(new URL("./ReportActions.tsx", import.meta.url)), "utf8");
+  assert.match(live, /liveReportActions/);
+  assert.match(src, /liveReportActions && analysisSlug \? \(/);
+  assert.match(src, /reportPath=\{`\/history\/\$\{encodeURIComponent\(analysisSlug\)\}`\}/);
+  assert.match(actions, /new URL\(reportPath \?\? window\.location\.href, window\.location\.origin\)/);
+  assert.match(actions, /url\.hash = window\.location\.hash/);
+});
+
 test("the saved report does not mount a second editor in its own header", () => {
   assert.doesNotMatch(history, /<DispositionEditor/);
   assert.match(history, /initialDisposition=\{found\.row\.disposition/);

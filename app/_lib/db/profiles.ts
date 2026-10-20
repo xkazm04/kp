@@ -36,7 +36,19 @@ export type ProfileLineage = { sourceAnalysisSlug: string; sourceCvHash: string;
 // One profile flagged stale: a NEWER analysis of the SAME CV content exists in the
 // workspace than the one this profile was built from. Carries the newer analysis's
 // slug (the rebuild target) and its analyzed-at date (the badge's title).
-export type ProfileStaleness = { newerSlug: string; newerAnalyzedAt: string };
+//
+// It also answers, before anything runs, whether a rebuild would overwrite a human:
+// `edited` is profileDivergence's rule (updated_at strictly newer than
+// lineage_stamped_at) read in the same join, and `updatedAt` is the version a rebuild's
+// PUT re-asserts as expectedUpdatedAt. The roster's batch refresh counts clean vs
+// edited from these two columns and never writes an edited profile — the registry's
+// "a bulk rebuild never runs over a population it has not first counted".
+export type ProfileStaleness = {
+  newerSlug: string;
+  newerAnalyzedAt: string;
+  edited: boolean;
+  updatedAt: string | null;
+};
 
 // Tenant scope (P2): `workspaceId` defaults to the single workspace (behavior-
 // preserving; existing/candidate/task callers stay correct). INSERT stamps it;
@@ -81,6 +93,38 @@ export function saveProfile(
   return { id, createdAt };
 }
 
+// The oldest profile built from this CV in this workspace (never across tenants).
+export function findProfileIdBySourceCvHash(cvHash: string | null | undefined, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  if (!cvHash) return null;
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT id FROM profiles WHERE workspace_id = ? AND source_cv_hash = ?
+       ORDER BY created_at ASC, id ASC LIMIT 1`
+    )
+    .get(workspaceId, cvHash) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
+// saveProfile, unless this workspace already holds a profile for the same CV (one per
+// CV identity). Check + INSERT share one IMMEDIATE transaction, so two builds racing
+// across the route's profile_cli spawn cannot both land. No hash ⇒ plain saveProfile.
+export function saveProfileForCv(
+  input: SaveProfileInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  lineage?: ProfileLineage
+): { saved: { id: string; createdAt: string } } | { existingId: string } {
+  const hash = lineage?.sourceCvHash;
+  if (!hash) return { saved: saveProfile(input, workspaceId, lineage) };
+  const db = ensureDb();
+  return db
+    .transaction(() => {
+      const existingId = findProfileIdBySourceCvHash(hash, workspaceId);
+      return existingId ? { existingId } : { saved: saveProfile(input, workspaceId, lineage) };
+    })
+    .immediate();
+}
+
 export function listProfiles(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRow[] {
   const db = ensureDb();
   return db
@@ -91,22 +135,26 @@ export function listProfiles(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
     .all(workspaceId, limit) as ProfileRow[];
 }
 
+// `sourceCvHash` rides OFF `row`: the roster serializes `.row` verbatim.
+export type ProfileRecord = { row: ProfileRow; payload: unknown; sourceCvHash: string | null };
+
 // Like listProfiles but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of getProfileRecord.
-export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
+// Carries the source CV hash the matrix population joins on (candidate-population.ts).
+export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRecord[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
+      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at, source_cv_hash
        FROM profiles WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(workspaceId, limit) as (ProfileRow & { payload_json: string })[];
-  const out: { row: ProfileRow; payload: unknown }[] = [];
+    .all(workspaceId, limit) as (ProfileRow & { payload_json: string; source_cv_hash: string | null })[];
+  const out: ProfileRecord[] = [];
   for (const r of rows) {
-    const { payload_json, ...rest } = r;
+    const { payload_json, source_cv_hash, ...rest } = r;
     const payload = safeRowParse(payload_json, "listProfileRecords", rest.id);
     if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
-    out.push({ row: rest, payload });
+    out.push({ row: rest, payload, sourceCvHash: source_cv_hash ?? null });
   }
   return out;
 }
@@ -122,12 +170,12 @@ export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WO
 // must reflect on the very next read (the roster's optimistic prune + the matrix's
 // forced refetch would otherwise show a just-deleted row for up to the TTL). Every
 // profiles write below clears it — cheap, since writes are rare next to these reads.
-const profileRecordsCache = createTtlCache<{ row: ProfileRow; payload: unknown }[]>();
+const profileRecordsCache = createTtlCache<ProfileRecord[]>();
 
 /** The workspace's profile records, memoized for a short TTL. Both Profile-tab
  *  routes call this so the second read on a tab load is free. Byte-identical to
  *  listProfileRecords(PROFILE_LIST_LIMIT, ws) — the roster projects `.row` off it. */
-export function cachedProfileRecords(workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
+export function cachedProfileRecords(workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRecord[] {
   return profileRecordsCache.get(workspaceId, () => listProfileRecords(PROFILE_LIST_LIMIT, workspaceId));
 }
 
@@ -150,6 +198,15 @@ export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKS
   const payload = safeRowParse(payload_json, "getProfileRecord", rest.id);
   if (payload == null) return null;
   return { row: rest, payload };
+}
+
+// The analysis a profile was built FROM (the rebuild merge's baseline); NULL if hand-built.
+export function profileSourceAnalysisSlug(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT source_analysis_slug FROM profiles WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as { source_analysis_slug: string | null } | undefined;
+  return row?.source_analysis_slug ?? null;
 }
 
 // Overwrite an existing profile in place (created_at is preserved so the roster
@@ -264,10 +321,12 @@ export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Re
   // (the old LIMIT-1 tiebreak was arbitrary; ties don't occur with distinct saves).
   const rows = db
     .prepare(
-      `SELECT id, newerSlug, newerAnalyzedAt FROM (
+      `SELECT id, newerSlug, newerAnalyzedAt, updatedAt, lineageStampedAt FROM (
          SELECT p.id AS id,
                 a.slug AS newerSlug,
                 a.created_at AS newerAnalyzedAt,
+                p.updated_at AS updatedAt,
+                p.lineage_stamped_at AS lineageStampedAt,
                 ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY a.created_at DESC, a.slug DESC) AS rn
          FROM profiles p
          JOIN analyses a
@@ -280,9 +339,23 @@ export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Re
            AND p.source_analyzed_at IS NOT NULL
        ) WHERE rn = 1`
     )
-    .all(workspaceId) as { id: string; newerSlug: string; newerAnalyzedAt: string }[];
+    .all(workspaceId) as {
+    id: string;
+    newerSlug: string;
+    newerAnalyzedAt: string;
+    updatedAt: string | null;
+    lineageStampedAt: string | null;
+  }[];
   const out: Record<string, ProfileStaleness> = {};
-  for (const r of rows) out[r.id] = { newerSlug: r.newerSlug, newerAnalyzedAt: r.newerAnalyzedAt };
+  for (const r of rows) {
+    out[r.id] = {
+      newerSlug: r.newerSlug,
+      newerAnalyzedAt: r.newerAnalyzedAt,
+      // Exactly profileDivergence's `diverged` (held to it by the equivalence oracle).
+      edited: r.updatedAt != null && r.lineageStampedAt != null && r.updatedAt > r.lineageStampedAt,
+      updatedAt: r.updatedAt,
+    };
+  }
   return out;
 }
 
@@ -298,7 +371,7 @@ export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKS
   // profiles-tenancy guard requires every statement to carry workspace_id).
   const rec = getProfileRecord(id, workspaceId);
   if (!rec) return false;
-  return updateProfile(
+  const updated = updateProfile(
     id,
     {
       label: maskCandidateName(rec.row.label),
@@ -309,6 +382,20 @@ export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKS
     },
     workspaceId
   );
+  if (updated) forgetProfileCvIdentity(id, workspaceId);
+  return updated;
+}
+
+// Erasure's one deliberate lineage write: drop the CV content hash so the same file
+// uploaded after the erasure is a stranger to this row. Kept, it made
+// findProfileIdBySourceCvHash refuse the new upload's profile as "already exists"
+// (pointing at the erased row) and let profileStaleness offer to rebuild the erased
+// profile from the new analysis. The source slug and date stay: they are not a
+// content identifier. setProfileLineage stays the only path that WRITES lineage.
+function forgetProfileCvIdentity(id: string, workspaceId: string): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE profiles SET source_cv_hash = NULL WHERE id = ? AND workspace_id = ?`).run(id, workspaceId);
+  invalidateProfileRecordsCache();
 }
 
 // Returns false when no row matched the id. Pipeline entries reference a profile

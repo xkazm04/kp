@@ -4,9 +4,9 @@ The matrix (runner.py) scores structural CONTRACTS (is the payload well-shaped);
 this adds SEMANTIC quality — an independent judge scores each served output 1-10 on
 relevance / correctness / adherence + an overall score, so the scorecard answers
 "which model writes the best output for each op", not just "which produced valid
-JSON". The judge is the Claude CLI (via MonitoredClaudeCli, so its own traffic is
-also tracked in LightTrack) — a different engine than the OpenRouter/API targets, so
-a target's own family doesn't grade itself. Reuses the shared devcase.llm_judge
+JSON". The judge is the Claude CLI (via ClaudeCliAdapter, so its own traffic is
+metered and tracked in LightTrack like any adapter's) — a different engine than the
+OpenRouter/API targets, so a target's own family doesn't grade itself. Reuses the shared devcase.llm_judge
 scaffold (map → parse → skip-malformed).
 
 The judge sees the task, the scenario CONTEXT (the record's ``meta`` — seed ids,
@@ -22,9 +22,8 @@ from __future__ import annotations
 import json
 from typing import Any, Sequence
 
-from ...claude_cli import ClaudeCliProvider
 from ...devcase.llm_judge import run_judge
-from ..monitor import MonitoredClaudeCli
+from ..adapters.claude_cli import ClaudeCliAdapter
 from .runner import BenchRecord
 
 # One-line task descriptions per bench use case (recruiter-domain framing for the judge).
@@ -166,15 +165,15 @@ def _coerce_dim(value: Any) -> float | None:
     return None
 
 
-def default_judge_provider(model: str | None = None, *, timeout: int = 120) -> ClaudeCliProvider:
+def default_judge_provider(model: str | None = None, *, timeout: int = 120) -> ClaudeCliAdapter:
     """The default bench judge: the Claude CLI, stamped so its calls are attributable
     in LightTrack under the ``bench_judge`` operation."""
-    return MonitoredClaudeCli(model=model, timeout=timeout, use_case="bench_judge")
+    return ClaudeCliAdapter(model=model, timeout=timeout, use_case="bench_judge")
 
 
 def judge_records(
     records: Sequence[BenchRecord],
-    provider: ClaudeCliProvider,
+    provider: Any,
     *,
     workers: int = 2,
 ) -> int:

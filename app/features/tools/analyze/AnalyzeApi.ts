@@ -1,7 +1,7 @@
-import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
-import type { StageStatus } from "@/app/_components/AnalysisProgress";
+import { analysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
+import type { StageStatus } from "@/app/_components/analysis-progress-logic";
 import { asAnalyzePhase } from "@/app/_lib/analyze-phases";
-import type { AnalyzeErrorCode, AnalyzeErrorInfo, ProgressEmitter } from "./AnalyzeTypes";
+import type { AnalyzeErrorCode, AnalyzeErrorInfo, GithubStatus, ProgressEmitter } from "./AnalyzeTypes";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -89,6 +89,18 @@ export function resolveAnalyzeErrorText(info: AnalyzeErrorInfo, r: AnalyzeMessag
   return (info.code ? r.analyzeCode(info.code) : null) ?? r.generic;
 }
 
+/** The line for one variant that did not make a partial result. The server sends a CODE
+ *  (`errors.<CODE>`, or the generic analyze code) and no engine text; the engine's own
+ *  sentence is never shown, and an older stored row that still carries one gets the
+ *  generic line too. Pure, so the choice is pinned without rendering. */
+export function partialFailureLine(
+  failure: { label: string; code?: string | null },
+  r: { appCode: (code: string) => string | null; item: (label: string, text: string) => string; generic: (label: string) => string }
+): string {
+  const known = failure.code ? r.appCode(failure.code) : null;
+  return known ? r.item(failure.label, known) : r.generic(failure.label);
+}
+
 /** Seconds from a `Retry-After` header — the delta-seconds form or an HTTP date.
  *  Anything unparseable answers undefined, so the caller simply shows the plain
  *  throttle line. */
@@ -103,6 +115,38 @@ export function retryAfterSeconds(headers: Headers): number | undefined {
   return delta > 0 ? delta : undefined;
 }
 
+/** What the GitHub panel shows for the deep-dive the analyze task ran. */
+export type GithubDeepDiveView = {
+  status: GithubStatus;
+  analysis: GithubAnalysis | null;
+  error: AnalyzeErrorInfo | null;
+  warning: AnalyzeErrorInfo | null;
+};
+
+/**
+ * Map the task result's `githubDeepDive` onto the panel's state. Pure, so the mapping is
+ * pinned without React. The failure shape is the one the door path already produces
+ * (`errGithubFailed` + the route's code), so both resolve through the same precedence:
+ * the deep-dive's code (results.github.errors, or errors.FORBIDDEN_CAPABILITY for a
+ * handle the server dropped) beats the generic line. `skipped` (blind) and an absent
+ * stage are `idle` — no panel; the blind note beside the field already says why.
+ */
+export function githubViewFromDeepDive(dive: Analysis["githubDeepDive"]): GithubDeepDiveView {
+  const idle: GithubDeepDiveView = { status: "idle", analysis: null, error: null, warning: null };
+  if (!dive || dive.status === "skipped") return idle;
+  if (dive.status === "done" && dive.analysis) {
+    return {
+      status: "done",
+      analysis: dive.analysis,
+      error: null,
+      warning: dive.warning === "githubJdDropped" ? { code: "githubJdDropped" } : null,
+    };
+  }
+  // An `error`, or a `done` that carried no payload (not a result, so never an empty panel).
+  const error: AnalyzeErrorInfo = dive.code ? { code: "errGithubFailed", apiCode: dive.code } : { code: "errGithubFailed" };
+  return { status: "error", analysis: null, error, warning: null };
+}
+
 // POST the upload; the server persists it and starts a background `analyze`
 // task, returning its id. The actual run is tracked + refresh-safe via /api/tasks.
 export async function submitAnalysis(
@@ -113,11 +157,18 @@ export async function submitAnalysis(
   companyText: string,
   jdSlug: string | null,
   reportLang?: string,
-  blind?: boolean
+  blind?: boolean,
+  signal?: AbortSignal,
+  // The GitHub handle rides the analyze TASK (challenge-r02 analyze-engine/A): the server
+  // runs the deep-dive as a stage of the run and persists it onto the saved row. Never
+  // sent on a blind run — blind screening redacts identity and the deep-dive renders it
+  // (the server refuses it too; this keeps the handle from leaving the browser at all).
+  githubProfile?: string,
 ): Promise<string> {
   const form = new FormData();
   form.append("grounding", "true");
   if (blind) form.append("blind", "true");
+  if (!blind && githubProfile?.trim()) form.append("githubProfile", githubProfile.trim());
   if (cvFiles.length === 1) form.append("cv", cvFiles[0]);
   else for (const file of cvFiles) form.append("cvs", file);
   if (jobDescriptionFile) form.append("jobDescription", jobDescriptionFile);
@@ -127,7 +178,7 @@ export async function submitAnalysis(
   if (jdSlug) form.append("jdSlug", jdSlug);
   if (reportLang) form.append("reportLang", reportLang); // CV3 — per-run report language
 
-  const response = await fetch("/api/analyze", { method: "POST", body: form });
+  const response = await fetch("/api/analyze", { method: "POST", body: form, signal });
   // A refusal is not guaranteed to be JSON (a proxy's own 413/429 page is not),
   // so a parse failure must degrade to the coded path rather than throw a
   // SyntaxError the surface would render as an unexplained crash.
@@ -324,10 +375,11 @@ export async function watchAnalysis(
       throw new AnalyzeClientError("errBadPayload");
     }
     if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
-      // task.error is engine/server text (Python stderr, or empty when the server
-      // only had a generic coded fallback). Prefer it verbatim when present;
-      // otherwise the localized "did not complete" message shows.
-      throw new AnalyzeClientError("errIncomplete", task.error);
+      // task.error is a code when the runtime authored the failure (tasks.ts: ENGINE_*,
+      // TASK_TIME_LIMIT), so it rides as apiCode and resolves in the reader's language;
+      // otherwise it is engine/server text, preferred verbatim, and with neither the
+      // localized "did not complete" message shows.
+      throw new AnalyzeClientError("errIncomplete", task.error, task.error);
     }
   }
 }

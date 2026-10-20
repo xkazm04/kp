@@ -26,10 +26,12 @@
 // rotation, and it is the tenant whose LLM allowance is being drawn down.
 //
 // Dependency-light (no better-sqlite3, no handler graph) so the routes, the contract
-// test and the exhaustiveness test can all read the same table; the one import is the
-// in-process limiter, because the CLASS and the BUCKET it opens are the same decision.
+// test and the exhaustiveness test can all read the same table; the imports are the
+// in-process limiter, because the CLASS and the BUCKET it opens are the same decision,
+// and the import-free kind vocabulary the table is keyed by.
 
 import { rateLimit } from "./rate-limit";
+import { isTaskKind, type TaskKind } from "./task-kinds";
 
 export const TASK_BUDGET_CLASSES = ["cheap", "metered", "agent"] as const;
 export type TaskBudgetClass = (typeof TASK_BUDGET_CLASSES)[number];
@@ -53,10 +55,10 @@ export const TASK_BUDGETS: Record<TaskBudgetClass, TaskBudget> = {
   agent: { ip: { limit: 6, windowMs: TEN_MIN }, workspace: { limit: 15, windowMs: HOUR } },
 };
 
-/** Every kind in `HANDLERS` (app/_lib/tasks.ts), classified. `task-budget.test.ts`
- *  parses that registry and fails on a kind missing from here, so a new task kind
- *  cannot inherit a budget by accident. */
-export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
+/** Every kind in TASK_KINDS (app/_lib/task-kinds.ts), classified. Keyed by TaskKind,
+ *  so a new task kind without a class here is a compile error — it cannot inherit a
+ *  budget by accident. */
+export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // ── cheap ──
   // One entry, one automation call — and the Decisions bulk-accept burst path.
   automation: "cheap",
@@ -68,6 +70,9 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   profile_draft: "cheap",
   // One assistant call that files a message into a thread.
   companion_digest: "cheap",
+  // One short letter for one candidate, over a handful of competency names; at most one
+  // per application from the candidate's door, plus a recruiter's occasional redraft.
+  interview_letter: "cheap",
 
   // ── metered ──
   // A CV (or several variants) through the Python pipeline + a paid multimodal call.
@@ -80,6 +85,10 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   evaluate_submission: "metered",
   campaign: "metered",
   agent_fit: "metered",
+  // One call over the role's own text, once per role — the same shape as agent_fit, and
+  // budgeted with it. Not "cheap": unlike interview_prep it is a whole-artifact author
+  // pass (every competency, every question, the FAQ) rather than a handful of probes.
+  interview_kit: "metered",
   // Fan-out, but over a cohort the caller explicitly selected on the board.
   batch_outreach: "metered",
 
@@ -97,13 +106,36 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   // spawns, and up to `deepDive.maxPerScan` pairs of model calls. The route's own
   // limiter (6/10min) is the first bound; this class is the tenant-hour one.
   jobseeker_scan: "agent",
+  // The gig listing scan (WP4, /api/gigs/scan): official-API reads from every enabled
+  // gig source under the shared politeness budget, then deterministic qualification. No
+  // model call, but minutes of third-party fetching - the tenant-hour bound of its
+  // job-seeker sibling, behind the route's own 6/10min limiter.
+  gig_scan: "agent",
+  // The gig research pass the scan enqueues (gigs/research.ts): up to eight web-researched
+  // briefs, each minutes of a pinned model reading pages. Server-only (the scan enqueues
+  // it), so this class binds only a route that budgets it through enforceTaskBudget.
+  gig_research: "agent",
+  // The gig plan runner (gigs/plans.ts): three model seats per gig, one of them at xhigh
+  // effort, across up to fifty gigs. Its door (/api/gigs/[id]/plans, /api/gigs/plans)
+  // carries its own 20/10min limiter; this is the class a budgeted door would spend.
+  gig_plans: "agent",
+  // The gig's HTML report (gigs/report/run.ts): one pinned model call per stage a gig
+  // reaches, plus the operator's "regenerate now" behind its own 20/10min limiter.
+  gig_report: "agent",
+  // A freelance gig's client proposal (gigs/proposal/run.ts): one pinned model call per
+  // accepted plan or operator request, behind its door's own 20/10min limiter.
+  gig_proposal: "agent",
+  // Cohort Studio (analyze-cohort-run.ts): up to COHORT_CAP CV analyses (each a paid
+  // multimodal call) plus a comparative pass run twice — the same fan-out shape as
+  // group_eval. Server-only; its door (/api/analyze/cohort) carries its own limiter.
+  analyze_cohort: "agent",
 };
 
-/** The class a kind is budgeted under. An unknown kind (one added to HANDLERS and
- *  not classified here, which the test forbids) falls to the TIGHTEST class, never
- *  the loosest: a budget omission must cost throughput, not money. */
+/** The class a kind is budgeted under. A string outside the vocabulary (a row an
+ *  older build wrote; the type forbids an unclassified KIND) falls to the TIGHTEST
+ *  class, never the loosest: a budget omission must cost throughput, not money. */
 export function taskBudgetClass(kind: string): TaskBudgetClass {
-  return TASK_BUDGET_CLASS[kind] ?? "agent";
+  return isTaskKind(kind) ? TASK_BUDGET_CLASS[kind] : "agent";
 }
 
 /** The budget for a kind — `TASK_BUDGETS[taskBudgetClass(kind)]`. */

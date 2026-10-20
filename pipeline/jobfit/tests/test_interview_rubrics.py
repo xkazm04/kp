@@ -156,3 +156,33 @@ class TestInterviewRubrics(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestWorkingWithAiToolsAxis(unittest.TestCase):
+    """S1 — the optional dev-case axis. TS twin: interview-rubric.test.ts (S1 block)."""
+
+    AXIS = "Working with AI tools"
+
+    def test_no_dev_case_is_byte_identical_to_pre_s1(self) -> None:
+        h = automation.rubric_version_hash
+        self.assertEqual(h(automation.rubric_for_candidate("bau", None)), "c5303546821999e1")
+        self.assertEqual(h(automation.rubric_for_candidate("bau", None, False)), "c5303546821999e1")
+        self.assertEqual(h(automation.rubric_for_candidate("student", None, False)), "981e0b005f004e88")
+        self.assertEqual(h(automation.rubric_for_candidate("bau", "healthcare_clinical", False)), "706059338ba7503e")
+        for base in automation.INTERVIEW_RUBRICS.values():
+            self.assertNotIn(self.AXIS, [c["competency"] for c in base])
+
+    def test_dev_case_appends_the_axis_and_moves_the_version(self) -> None:
+        plain = automation.rubric_for_candidate("bau", None)
+        full = automation.rubric_for_candidate("bau", None, True)
+        self.assertEqual(full[:-1], plain)
+        self.assertEqual(full[-1]["competency"], self.AXIS)
+        self.assertEqual(sorted(full[-1]["anchors"], key=int), ["1", "2", "3", "4", "5"])
+        # Same literals as interview-rubric.test.ts: TS == Python on the extended rubric.
+        h = automation.rubric_version_hash
+        self.assertEqual(h(full), "9386895b760c9505")
+        self.assertEqual(h(automation.rubric_for_candidate("student", None, True)), "d152a9389079978e")
+        self.assertEqual(h(automation.rubric_for_candidate("bau", "healthcare_clinical", True)), "4e5754969aaf5010")
+
+    def test_the_letter_allowlist_knows_the_axis(self) -> None:
+        self.assertIn(self.AXIS, automation._rubric_competency_names())

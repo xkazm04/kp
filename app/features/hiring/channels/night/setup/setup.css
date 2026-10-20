@@ -1,0 +1,156 @@
+/* The Night Post, level 1: one channel's setup (night/setup/*), inside the kit's LevelFrame and a
+   KitSurface. Colour ONLY through app/globals.css tokens, the kit's --k-* and the Night Post's --cn-*
+   (color-mix of tokens); type ONLY through the type tokens (nothing below 14px). Two registers, never
+   flattened: Studio Light is calm (hairlines, 8-12px radii, no tilt), Spark Dark is playful (2px
+   drawn outlines, 16px radii, hard sticker shadows, a slight tilt on the status strip). Every part
+   reads its condition from `data-cond` (live | wait | reach | fail | off | unknown): dashed = not
+   set up or not read, coral = failing. Motion only on a state change (the depot's barrier and
+   shutter, channelsNightScene.css); none under reduced motion. */
+
+.cns-body { display: grid; gap: 14px; min-width: 0; padding-top: 4px; }
+.cns-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.cns-row--split { justify-content: space-between; align-items: flex-start; }
+.cns-row--field { flex-wrap: nowrap; }
+.cns-row--field > .k-input { flex: 1; min-width: 0; }
+.cns-help { margin: 0; font-size: var(--text-micro); line-height: 1.45; color: var(--k-quiet); max-width: 72ch; }
+.cns-help--once { color: var(--color-amber-800); font-weight: 600; }
+.cns-intro { margin: 0; font-size: var(--text-body); line-height: 1.5; color: var(--k-quiet); max-width: 72ch; }
+.cns-intro b { color: var(--k-ink); font-weight: 600; }
+.cns-hold { min-height: 12rem; }
+.cns-line { display: block; }
+.cns-line + .cns-line { margin-top: 8px; }
+.cns-sub { font-size: var(--text-micro); color: var(--k-quiet); }
+.cns-sub[data-bad] { color: var(--color-red-700); font-weight: 600; }
+
+/* ---------- the status strip: the channel's condition, then its one fact ---------- */
+.cns-status {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 8px 0 14px; padding: 12px 16px;
+  border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg); background: var(--color-white);
+}
+.cns-status .k-cond { font-size: var(--text-h3); }
+.cns-status__fact { margin: 0; flex: 1 1 18rem; font-size: var(--text-body); color: var(--k-quiet); }
+.cns-status__extra { margin-left: auto; }
+.cns-status:is([data-cond="off"], [data-cond="unknown"]) { border-style: dashed; background: var(--k-plane); }
+.cns-status[data-cond="fail"] { border-color: var(--color-coral); }
+.cns-status[data-cond="live"] { border-color: color-mix(in srgb, var(--color-moss) 45%, var(--k-rule-strong)); }
+.cns-status[data-loud] { border-color: var(--color-coral); border-width: 2px; }
+.cns-status[data-loud] .cns-status__fact { color: var(--color-red-700); font-weight: 600; }
+[data-theme="dark"] .cns-status { border: 2px solid var(--color-ink); box-shadow: var(--sticker-sm-shadow); rotate: -.3deg; }
+[data-theme="dark"] .cns-status:is([data-cond="off"], [data-cond="unknown"]) { border-style: dashed; box-shadow: none; }
+[data-theme="dark"] .cns-status:is([data-cond="fail"], [data-loud]) { border-color: var(--color-coral); box-shadow: 3px 3px 0 var(--color-coral); }
+
+/* ---------- a result line: what an action's real answer was ---------- */
+.cns-result { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: var(--text-micro); line-height: 1.45; color: var(--color-red-700); }
+.cns-result[data-ok] { color: var(--color-moss); }
+.cns-result > span:first-child { display: inline-flex; padding-top: 1px; }
+.cns-result b { font-weight: 700; }
+
+/* ---------- fields ---------- */
+.cns-form { display: grid; gap: 14px; }
+.cns-field { display: grid; gap: 6px; min-width: 0; }
+.cns-field__label { font-size: var(--text-micro); font-weight: 600; color: var(--k-ink); }
+.cns-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.cns-secret__input { flex: 1 1 16rem; min-width: 0; }
+.cns-mask {
+  display: inline-flex; align-items: center; min-width: 12rem; height: 40px; padding: 0 12px; letter-spacing: .2em; color: var(--k-quiet);
+  border: var(--k-line) dashed var(--k-rule-strong); border-radius: var(--k-radius); background: var(--k-plane);
+}
+[data-theme="dark"] .cns-mask { border-width: 2px; border-radius: 12px; }
+.cns-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: var(--text-micro); color: var(--k-quiet); }
+
+/* ---------- a panel inside a card (a form, the steps, the CV test) ---------- */
+.cns-panel { display: grid; gap: 12px; min-width: 0; padding: 14px 16px; border-radius: var(--k-radius); background: var(--k-plane); }
+[data-theme="dark"] .cns-panel { border: 2px dashed var(--k-rule-strong); border-radius: 12px; }
+
+/* ---------- cards: one receiver, one feed ---------- */
+.cns-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.cns-card {
+  display: grid; gap: 10px; min-width: 0; padding: 14px 16px 16px 18px; scroll-margin: 16px;
+  border: var(--k-line) solid var(--k-rule); border-left: 4px solid var(--color-dial-stone); border-radius: var(--k-radius-lg); background: var(--color-white);
+}
+.cns-card[data-cond="live"] { border-left-color: var(--color-moss); }
+.cns-card[data-cond="wait"] { border-left-color: var(--color-steel); }
+.cns-card[data-cond="reach"] { border-left-color: var(--color-dial-amber); }
+.cns-card[data-cond="fail"] { border-color: var(--color-coral); border-left-color: var(--color-coral); }
+.cns-card:is([data-cond="off"], [data-cond="unknown"]) { border-left-style: dashed; }
+.cns-card[data-focus] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-coral) 22%, transparent); }
+[data-theme="dark"] .cns-card { border: 2px solid var(--color-ink); border-left-width: 8px; border-radius: 16px; box-shadow: var(--sticker-xs-shadow); }
+[data-theme="dark"] .cns-card[data-cond="live"] { border-left-color: var(--color-moss); }
+[data-theme="dark"] .cns-card[data-cond="wait"] { border-left-color: var(--color-steel); }
+[data-theme="dark"] .cns-card[data-cond="reach"] { border-left-color: var(--color-dial-amber); }
+[data-theme="dark"] .cns-card[data-cond="fail"] { border-color: var(--color-coral); box-shadow: 3px 3px 0 var(--color-coral); }
+[data-theme="dark"] .cns-card:is([data-cond="off"], [data-cond="unknown"]) { border-left-color: var(--color-dial-stone); border-left-style: dashed; }
+[data-theme="dark"] .cns-card[data-focus] { box-shadow: var(--sticker-sm-shadow), 0 0 0 3px var(--color-coral); }
+.cns-card__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; min-width: 0; }
+.cns-card__title { margin: 0; min-width: 0; font-size: var(--text-h3); line-height: 1.35; font-weight: 600; overflow-wrap: anywhere; }
+[data-theme="dark"] .cns-card__title { font-weight: 700; }
+.cns-card__tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cns-card .k-kv > div { padding: 6px 0; }
+.cns-card .k-note { margin: 0; }
+
+/* ---------- the careers page: a role and its apply link per row ---------- */
+.cns-roles { max-height: 30rem; overflow-y: auto; border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius-lg); background: var(--color-white); }
+.cns-roles:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+[data-theme="dark"] .cns-roles { border: 2px solid var(--color-ink); border-radius: 16px; box-shadow: var(--sticker-xs-shadow); }
+.cns-roles ul { list-style: none; margin: 0; padding: 0; }
+.cns-role { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 14px; border-bottom: var(--k-line) solid var(--k-rule); }
+.cns-role:last-child { border-bottom: 0; }
+[data-theme="dark"] .cns-role { border-bottom-style: dashed; }
+.cns-role__name { grid-column: 1; font-size: var(--text-micro); font-weight: 600; overflow-wrap: anywhere; }
+.cns-role__url {
+  grid-column: 1; justify-self: start; max-width: 100%; padding: 3px 8px; font-family: var(--font-mono); font-size: var(--text-micro); overflow-wrap: anywhere;
+  color: var(--k-ink); background: var(--k-plane); border-radius: 4px; text-decoration: none;
+}
+.cns-role__url:hover { text-decoration: underline; }
+.cns-role > .k-btn { grid-column: 2; grid-row: 1 / span 2; }
+
+/* ---------- a receiver's endpoint: masked until revealed ---------- */
+.cns-endpoint { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; min-width: 0; }
+.cns-endpoint > .cns-field__label { grid-column: 1 / -1; }
+.cns-endpoint__value {
+  min-width: 0; padding: 7px 10px; font-family: var(--font-mono); font-size: var(--text-micro); line-height: 1.4; overflow-wrap: anywhere;
+  border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius); background: var(--k-plane); color: var(--k-ink);
+}
+.cns-endpoint__value[data-masked] { color: var(--k-quiet); }
+[data-theme="dark"] .cns-endpoint__value { border-width: 2px; border-color: var(--k-rule-strong); border-radius: 12px; }
+.cns-endpoint__acts { display: inline-flex; gap: 8px; }
+@container (max-width: 640px) { .cns-endpoint { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- the setup steps ---------- */
+.cns-guide { display: grid; gap: 12px; }
+.cns-steps { margin: 0; padding: 0; list-style: none; counter-reset: cns-step; display: grid; gap: 10px; animation: cns-steps-in .18s var(--k-ease); }
+.cns-steps li { counter-increment: cns-step; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: var(--text-micro); line-height: 1.55; color: var(--k-quiet); }
+.cns-steps li::before {
+  content: counter(cns-step); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 999px;
+  background: var(--color-ink); color: var(--color-white); font-size: var(--text-micro); font-weight: 600;
+}
+[data-theme="dark"] .cns-steps li::before { background: var(--color-dial-amber); color: var(--color-paper); border: 2px solid var(--color-ink); rotate: -4deg; }
+.cns-steps b { color: var(--k-ink); font-weight: 600; }
+@keyframes cns-steps-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- the relay's and the edge's evidence ---------- */
+.cns-evidence { display: grid; gap: 8px; min-width: 0; padding-top: 10px; border-top: var(--k-line) solid var(--k-rule); }
+[data-theme="dark"] .cns-evidence { border-top: 2px dashed var(--k-rule-strong); }
+.cns-evidence__title { margin: 0; font-family: var(--font-serif); font-size: var(--text-h3); font-weight: 600; }
+[data-theme="dark"] .cns-evidence__title { font-weight: 800; }
+
+/* ---------- the drawing beside the sheet; the relay's gate sits on the depot's ground ---------- */
+.cns-art { max-width: 280px; }
+
+/* ---------- the stepper: previous, a dot per channel, next ---------- */
+.cns-stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.cns-stepper__at { font-size: var(--text-micro); color: var(--k-quiet); font-variant-numeric: tabular-nums; }
+.cns-dots { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; }
+.cns-dot {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: var(--k-line) solid transparent; border-radius: 999px;
+  background: none; color: var(--k-quiet); cursor: pointer; transition: background-color .2s, border-color .2s;
+}
+.cns-dot:hover { background: var(--k-hover); }
+.cns-dot:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+.cns-dot[aria-current] { border-color: var(--color-ink); background: var(--color-white); cursor: default; }
+[data-theme="dark"] .cns-dot[aria-current] { border-width: 2px; box-shadow: var(--sticker-xs-shadow); rotate: -4deg; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cns-steps { animation: none; }
+  .cns-dot { transition: none; }
+}

@@ -1,0 +1,417 @@
+{
+  "source": [
+    "public/dev/cohort/cohort20.done.json",
+    "data/seed_jobs/jobs.json"
+  ],
+  "roles": [
+    {
+      "slug": "senior-java-backend-engineer",
+      "title": "Senior Java Backend Engineer",
+      "created_at": "2026-10-08T09:00:00.000Z",
+      "roleFamily": "software_engineering",
+      "seniority": "senior",
+      "company": "Česká spořitelna",
+      "analysisCount": 3,
+      "pipeline": {
+        "total": 8
+      }
+    },
+    {
+      "slug": "senior-data-engineer-data-tribe",
+      "title": "Senior Data Engineer – Data Tribe",
+      "created_at": "2026-10-07T09:00:00.000Z",
+      "roleFamily": "data_ai",
+      "seniority": "senior",
+      "company": "Česká spořitelna",
+      "analysisCount": 0,
+      "pipeline": {
+        "total": 0
+      }
+    },
+    {
+      "slug": "senior-sdet-test-automation-engineer-george",
+      "title": "Senior SDET / Test Automation Engineer (George)",
+      "created_at": "2026-10-06T09:00:00.000Z",
+      "roleFamily": "software_engineering",
+      "seniority": "senior",
+      "company": "Česká spořitelna",
+      "analysisCount": 0,
+      "pipeline": null
+    },
+    {
+      "slug": "product-owner-george",
+      "title": "Product Owner – George",
+      "created_at": "2026-10-05T09:00:00.000Z",
+      "roleFamily": "product_project",
+      "seniority": "medior",
+      "company": "Česká spořitelna",
+      "analysisCount": 0,
+      "pipeline": {
+        "total": 0
+      }
+    },
+    {
+      "slug": "junior-frontend-engineer-george-web",
+      "title": "Junior Frontend Engineer – George web",
+      "created_at": "2026-10-04T09:00:00.000Z",
+      "roleFamily": "software_engineering",
+      "seniority": "junior",
+      "company": "Česká spořitelna",
+      "analysisCount": 0,
+      "pipeline": null
+    },
+    {
+      "slug": "senior-devops-engineer-platform-tribe",
+      "title": "Senior DevOps Engineer (Platform Tribe)",
+      "created_at": "2026-10-03T09:00:00.000Z",
+      "roleFamily": "software_engineering",
+      "seniority": "senior",
+      "company": "Česká spořitelna",
+      "analysisCount": 0,
+      "pipeline": null
+    }
+  ],
+  "proposals": {
+    "senior-java-backend-engineer": {
+      "jdSlug": "senior-java-backend-engineer",
+      "jdTitle": "Senior Java Backend Engineer",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [
+        {
+          "memberId": "analysis-cand-000",
+          "label": "Klára Blažková",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-000"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-040",
+          "label": "David Kříž",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-040"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-007",
+          "label": "Vít Malý",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-007"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-047",
+          "label": "Jan Mareš",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-047"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-016",
+          "label": "Adam Malý",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-016"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-030",
+          "label": "Filip Sýkora",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-030"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-013",
+          "label": "Karolína Hájková",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-013"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "analysis-cand-004",
+          "label": "Hana Černá",
+          "source": {
+            "kind": "analysis",
+            "slug": "analysis-cand-004"
+          },
+          "membership": "applicant",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": null,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-039",
+          "label": "Klára Kovářová",
+          "source": {
+            "kind": "profile",
+            "id": "cand-039"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 88,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-032",
+          "label": "Radek Čermák",
+          "source": {
+            "kind": "profile",
+            "id": "cand-032"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 85,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-024",
+          "label": "Gabriela Černá",
+          "source": {
+            "kind": "profile",
+            "id": "cand-024"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 82,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-015",
+          "label": "Tadeáš Jelínek",
+          "source": {
+            "kind": "profile",
+            "id": "cand-015"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 79,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-022",
+          "label": "Petr Navrátil",
+          "source": {
+            "kind": "profile",
+            "id": "cand-022"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 76,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-012",
+          "label": "Matěj Pospíšil",
+          "source": {
+            "kind": "profile",
+            "id": "cand-012"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 73,
+          "reusable": true
+        },
+        {
+          "memberId": "profile:cand-042",
+          "label": "Jan Procházka",
+          "source": {
+            "kind": "profile",
+            "id": "cand-042"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 70,
+          "reusable": false
+        },
+        {
+          "memberId": "profile:cand-003",
+          "label": "Martin Novotný",
+          "source": {
+            "kind": "profile",
+            "id": "cand-003"
+          },
+          "membership": "matched",
+          "roleFamily": null,
+          "seniority": null,
+          "matchScore": 67,
+          "reusable": false
+        }
+      ],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 15
+    },
+    "senior-data-engineer-data-tribe": {
+      "jdSlug": "senior-data-engineer-data-tribe",
+      "jdTitle": "Senior Data Engineer – Data Tribe",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 0
+    },
+    "senior-sdet-test-automation-engineer-george": {
+      "jdSlug": "senior-sdet-test-automation-engineer-george",
+      "jdTitle": "Senior SDET / Test Automation Engineer (George)",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 0
+    },
+    "product-owner-george": {
+      "jdSlug": "product-owner-george",
+      "jdTitle": "Product Owner – George",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 0
+    },
+    "junior-frontend-engineer-george-web": {
+      "jdSlug": "junior-frontend-engineer-george-web",
+      "jdTitle": "Junior Frontend Engineer – George web",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 0
+    },
+    "senior-devops-engineer-platform-tribe": {
+      "jdSlug": "senior-devops-engineer-platform-tribe",
+      "jdTitle": "Senior DevOps Engineer (Platform Tribe)",
+      "companyText": "Česká spořitelna",
+      "orgName": "Česká spořitelna",
+      "members": [],
+      "leftOut": {
+        "applicants": 0,
+        "matched": 0
+      },
+      "cap": 20,
+      "freshCount": 0
+    }
+  },
+  "population": [
+    {
+      "key": "profile:cand-048",
+      "source": "profile",
+      "slug": "profile:cand-048",
+      "id": "cand-048",
+      "name": "Vít Dvořák",
+      "seniority": null,
+      "analyses": [
+        {
+          "slug": "profile:cand-048"
+        }
+      ]
+    },
+    {
+      "key": "profile:cand-037",
+      "source": "profile",
+      "slug": "profile:cand-037",
+      "id": "cand-037",
+      "name": "Štěpán Procházka",
+      "seniority": null,
+      "analyses": [
+        {
+          "slug": "profile:cand-037"
+        }
+      ]
+    },
+    {
+      "key": "analysis-cand-005",
+      "source": "analysis",
+      "slug": "analysis-cand-005",
+      "id": null,
+      "name": "Aneta Kovářová",
+      "seniority": null,
+      "analyses": [
+        {
+          "slug": "analysis-cand-005"
+        }
+      ]
+    },
+    {
+      "key": "analysis-cand-033",
+      "source": "analysis",
+      "slug": "analysis-cand-033",
+      "id": null,
+      "name": "Zuzana Čermáková",
+      "seniority": null,
+      "analyses": [
+        {
+          "slug": "analysis-cand-033"
+        }
+      ]
+    }
+  ]
+}

@@ -194,3 +194,87 @@ test("an invalid Polar customer is a thrown error, never a silent second custome
     }
   );
 });
+
+// ---- the subscription READ (challenge-r07 billing-subscriptions/B) -----------------
+// The daily subscription reconcile reads each stored subscription back from the
+// provider. The GET mirrors fetchProduct: same headers, same budget, never retried,
+// null on any failure (an unreadable subscription is "unknown", never drift), and it
+// refuses outright under KP_OFFLINE. The method is read through a loose handle so this
+// file type-checks on the tree it was written against.
+type SubscriptionReader = { fetchSubscription?: (id: string) => Promise<unknown | null> };
+const readSubscription = (g: PolarGateway, id: string): Promise<unknown | null> => {
+  const f = (g as unknown as SubscriptionReader).fetchSubscription;
+  assert.equal(typeof f, "function", "PolarGateway.fetchSubscription exists");
+  return f!.call(g, id);
+};
+
+test("fetchSubscription GETs /v1/subscriptions/{id} with the gateway's own headers", async () => {
+  const seen: Array<{ url: string; init?: RequestInit }> = [];
+  await withFetch(
+    async (input, init) => {
+      seen.push({ url: String(input), init });
+      return new Response(JSON.stringify({ id: "sub_1", status: "active" }), { status: 200 });
+    },
+    async () => {
+      assert.deepEqual(await readSubscription(gateway(), "sub_1"), { id: "sub_1", status: "active" });
+      const pinned = new PolarGateway({ ...CFG, apiVersion: "2026-10" });
+      await readSubscription(pinned, "sub/2");
+    }
+  );
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].url, "https://sandbox-api.polar.sh/v1/subscriptions/sub_1");
+  assert.equal(seen[1].url, "https://sandbox-api.polar.sh/v1/subscriptions/sub%2F2", "the id is path-encoded");
+  assert.equal((seen[0].init?.method ?? "GET").toUpperCase(), "GET");
+  assert.equal(seen[0].init?.body, undefined, "a read carries no body");
+  const h0 = seen[0].init?.headers as Record<string, string>;
+  const h1 = seen[1].init?.headers as Record<string, string>;
+  assert.equal(h0.Authorization, "Bearer unit-token");
+  assert.equal("Polar-Version" in h0, false, "unpinned: no Polar-Version header");
+  assert.equal(h1["Polar-Version"], "2026-10", "pinned: the operator's contract is named");
+  assert.ok(seen[0].init?.signal instanceof AbortSignal, "the read is bounded");
+});
+
+test("fetchSubscription answers null on a non-2xx, a throw or a timeout — once, never retried", async () => {
+  for (const impl of [
+    async () => new Response("nope", { status: 503 }),
+    async () => new Response("gone", { status: 404 }),
+    async () => {
+      throw new Error("socket hang up");
+    },
+    hangingFetch,
+  ] as Array<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>) {
+    let calls = 0;
+    await withFetch(
+      async (input, init) => {
+        calls += 1;
+        return impl(input, init);
+      },
+      async () => {
+        assert.equal(await readSubscription(gateway(), "sub_1"), null);
+      },
+      { timeoutMs: 20 }
+    );
+    assert.equal(calls, 1, "a background read is never retried");
+  }
+});
+
+test("fetchSubscription refuses under KP_OFFLINE without touching the network", async () => {
+  let calls = 0;
+  const prior = process.env.KP_OFFLINE;
+  process.env.KP_OFFLINE = "1";
+  try {
+    await withFetch(
+      async () => {
+        calls += 1;
+        return new Response("{}", { status: 200 });
+      },
+      async () => {
+        assert.equal(await readSubscription(gateway(), "sub_1"), null);
+      }
+    );
+  } finally {
+    if (prior === undefined) delete process.env.KP_OFFLINE;
+    else process.env.KP_OFFLINE = prior;
+  }
+  assert.equal(calls, 0);
+});

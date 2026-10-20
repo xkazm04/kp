@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
+import { freezeRubricFromBrief } from "@/app/_lib/db/role-slate";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { intakeLang } from "@/app/_lib/intake-lang";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentUser } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -16,12 +17,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // the brief threading the DevNeed's structured fields. The intake row is
 // stamped with the produced jd_slug/job_id so the job can be walked back to
 // the conversation that defined it.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Codes (docs/architecture/api-contracts.md §1.1). The not-ready refusal is
     // the one that matters most here: it NAMES what the brief still needs, and
@@ -80,7 +80,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // this change rather than outliving it. `title`, `jdSlug` and `options` are
     // the seam's to set — a task pointed at a different row than the one just
     // created is the drift it exists to prevent.
-    const buildInput = { needText, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options };
+    // `brief` and `company` ride the persisted intent too: the retry's row-fallback
+    // replay (task pruned) rebuilds from it, and without them the role loses its
+    // must-have stack, responsibilities, stated requirements and stated languages.
+    const company = typeof body.company === "string" ? body.company : undefined;
+    const buildInput = { needText, company, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options, brief };
     const { slug, taskId } = startJdBuild({
       title,
       options,
@@ -88,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       workspaceId: ws,
       createdBy: (await currentUser()).userId,
       params: {
-        company: typeof body.company === "string" ? body.company : undefined,
+        company,
         seniority: brief.seniority,
         roleFamily: brief.roleFamily,
         needText,
@@ -99,8 +103,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.
     markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
-    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId });
+    // ADR-0012 §2 — THIS is where a stated need becomes a role, so this is where
+    // the role freezes the rubric its candidates (people and agents) are judged
+    // by. BEST-EFFORT: the promote's contract is "a JD build started", and a brief
+    // that grades nothing is a real, recoverable state — the slate reports "no
+    // rubric" until it does. An unchanged brief re-promoted mints no new version.
+    let rubricVersion: number | null = null;
+    try {
+      const frozen = freezeRubricFromBrief(jdJobId(slug), brief, { intakeId: id, workspaceId: ws });
+      if (frozen.ok) rubricVersion = frozen.rubric.version;
+      else console.warn(`[intake:promote] no rubric frozen for ${slug}: ${frozen.reason}`);
+    } catch (error) {
+      console.warn(`[intake:promote] rubric freeze failed for ${slug}: ${error instanceof Error ? error.message : error}`);
+    }
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId, rubricVersion });
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }
-}
+});

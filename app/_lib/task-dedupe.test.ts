@@ -7,8 +7,27 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDedupeKey, stableKey } from "./task-dedupe.ts";
+import { DEDUPE_BUILDERS, buildDedupeKey, stableKey } from "./task-dedupe.ts";
 import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
+import { TASK_KINDS } from "./task-kinds.ts";
+
+test("every task kind declares its dedupe identity — a builder or an explicit null", () => {
+  // Before the table was keyed by TaskKind, a kind with no entry silently never
+  // deduped and nothing said whether that was a decision. Now "no identity" is a
+  // declared null, and a kind with neither is a compile error (and red here).
+  for (const k of TASK_KINDS) {
+    assert.ok(Object.hasOwn(DEDUPE_BUILDERS, k), `${k} has no dedupe decision`);
+    const b = DEDUPE_BUILDERS[k];
+    assert.ok(b === null || typeof b === "function", `${k}: a builder or null`);
+  }
+  const known: readonly string[] = TASK_KINDS;
+  for (const k of Object.keys(DEDUPE_BUILDERS)) assert.ok(known.includes(k), `${k} is not a task kind any more`);
+  // profile_draft is the declared opt-out: every draft is a fresh creative pass.
+  assert.equal(DEDUPE_BUILDERS.profile_draft, null);
+  assert.equal(buildDedupeKey("profile_draft", { notes: "x" }), null);
+  // An unknown kind (a legacy row) still yields null → a unique key, never a merge.
+  assert.equal(buildDedupeKey("a_kind_nobody_declared", { id: "x" }), null);
+});
 
 test("stableKey joins present, non-empty parts with the prefix", () => {
   assert.equal(stableKey("analyze", "abc"), "analyze:abc");
@@ -212,4 +231,53 @@ test("repo_scan keys by tenant + target, so two readings of one repo are one run
   // No target at all is no identity: a unique key, never a colliding constant.
   assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", workspaceId: "ws1" }), null);
   assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", repoUrl: "https://github.com/acme/app" }), null);
+});
+
+test("gig_scan keys by tenant, and a single-source scan by tenant + source", () => {
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1" }), "gig_scan:ws-1");
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-a" }), "gig_scan:ws-1:source:gsrc-a");
+  assert.notEqual(
+    buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-a" }),
+    buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-b" }),
+    "two different sources each run"
+  );
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "  " }), "gig_scan:ws-1", "a blank source is the whole-workspace scan");
+  assert.equal(buildDedupeKey("gig_scan", { sourceId: "gsrc-a" }), null, "no tenant, no key");
+});
+
+test("gig_plans and gig_research key by tenant + the SET of gigs; order does not split a request", () => {
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g2", "g1", "g2"] }), "gig_plans:ws-1:g1,g2");
+  assert.equal(
+    buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g1", "g2"] }),
+    buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g2", "g1"] }),
+    "a double-click on the same selection coalesces"
+  );
+  assert.notEqual(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g1"] }), buildDedupeKey("gig_plans", { workspaceId: "ws-2", gigIds: ["g1"] }));
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: [] }), null, "no gig, no identity");
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1" }), null);
+  assert.equal(buildDedupeKey("gig_plans", { gigIds: ["g1"] }), null, "no tenant, no key");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", gigIds: ["b", "a"] }), "gig_research:ws-1:a,b");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", sourceId: "s1" }), "gig_research:ws-1:source:s1");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1" }), "gig_research:ws-1");
+  // The accept loop's pass never folds onto a scan's pass over the same gig (it would lose its plans step).
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", gigIds: ["a"], thenPlans: true }), "gig_research:ws-1:loop:a");
+});
+
+test("gig_report keys by tenant + gig: a burst of stage moves folds onto the run in flight", () => {
+  assert.equal(buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", stage: "planned" }), "gig_report:ws-1:g1");
+  assert.equal(
+    buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", stage: "planned" }),
+    buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", force: true }),
+    "the stage and force do not split one gig's run"
+  );
+  assert.notEqual(buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1" }), buildDedupeKey("gig_report", { workspaceId: "ws-2", gigId: "g1" }));
+  assert.equal(buildDedupeKey("gig_report", { workspaceId: "ws-1" }), null, "no gig, no key");
+  assert.equal(buildDedupeKey("gig_report", { gigId: "g1" }), null, "no tenant, no key");
+});
+
+test("gig_proposal keys by tenant + gig: an accept and an operator's request fold onto one run", () => {
+  assert.equal(buildDedupeKey("gig_proposal", { workspaceId: "ws-1", gigId: "g1" }), "gig_proposal:ws-1:g1");
+  assert.notEqual(buildDedupeKey("gig_proposal", { workspaceId: "ws-1", gigId: "g1" }), buildDedupeKey("gig_proposal", { workspaceId: "ws-2", gigId: "g1" }));
+  assert.equal(buildDedupeKey("gig_proposal", { workspaceId: "ws-1" }), null, "no gig, no key");
+  assert.equal(buildDedupeKey("gig_proposal", { gigId: "g1" }), null, "no tenant, no key");
 });

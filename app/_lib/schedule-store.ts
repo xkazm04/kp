@@ -2,9 +2,18 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
-import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
+import { isReminderDue, isScheduleNudgeDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
-import { isScheduleInviteExpired } from "./schedule-slots";
+import {
+  BOOKING_COLLISION_REACH_MS,
+  INVITE_LINK_TTL_MS,
+  bookingCollides,
+  isScheduleInviteExpired,
+  scheduleInviteExpiryAnchor,
+  type BookedInterval,
+} from "./schedule-slots";
+import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { addColumns } from "./db/add-columns";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -104,7 +113,7 @@ function db(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_sched_entry ON schedule_invites (entry_id);
   `);
   // Migrations for stores created before the reminder columns existed.
-  for (const col of [
+  addColumns(d, "schedule_invites", [
     "slot_at TEXT",
     "reminder_sent_at TEXT",
     "reminder_attempts INTEGER NOT NULL DEFAULT 0",
@@ -127,13 +136,12 @@ function db(): Database.Database {
     "calendar_event_link TEXT",
     "calendar_event_state TEXT",
     "calendar_event_at TEXT",
-  ]) {
-    try {
-      d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
-    } catch {
-      /* column already exists */
-    }
-  }
+    // Book-your-interview nudge for still-pending links (own columns: a nudge must not
+    // mark the later confirmed-interview reminder as already sent).
+    "nudge_sent_at TEXT",
+    "nudge_attempts INTEGER NOT NULL DEFAULT 0",
+    "nudge_last_attempt_at TEXT",
+  ]);
   // Tenant backfill (P1): existing invites → the default workspace. A subquery join to
   // pipeline_entries would be more "correct" in spirit, but this store owns its OWN
   // connection (the pipeline_entries table may not exist on it — e.g. an isolated test
@@ -315,32 +323,38 @@ export function createScheduleInvite(input: {
   } catch {
     /* no pipeline_entries on this connection — default workspace */
   }
-  const existing = d
-    .prepare(
-      `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
-        ORDER BY created_at DESC LIMIT 1`
-    )
-    .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
-  // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
-  // a link aged past the TTL is a dead capability the token route refuses, so
-  // re-inviting must mint a fresh token rather than hand back the stale one
-  // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
-  if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
-  const now = new Date().toISOString();
-  const id = randomId("sch");
-  const token = randomToken("st");
-  // RETURNING * hands the freshly-inserted row back in the same statement, so we
-  // don't issue a second SELECT to read what we just wrote.
-  const row = d
-    .prepare(
-      `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
-    )
-    .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
-    string,
-    unknown
-  >;
-  return rowTo(row);
+  // The reuse read and the INSERT hold ONE write lock: two mints for one entry (a bulk
+  // cohort overlapping a single invite, or two processes on the file) used to both read
+  // "no live invite" and both insert, leaving two live tokens for one candidate.
+  const mint = d.transaction((): ScheduleInvite => {
+    const existing = d
+      .prepare(
+        `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
+          ORDER BY created_at DESC LIMIT 1`
+      )
+      .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
+    // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
+    // a link aged past the TTL is a dead capability the token route refuses, so
+    // re-inviting must mint a fresh token rather than hand back the stale one
+    // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
+    if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
+    const now = new Date().toISOString();
+    const id = randomId("sch");
+    const token = randomToken("st");
+    // RETURNING * hands the freshly-inserted row back in the same statement, so we
+    // don't issue a second SELECT to read what we just wrote.
+    const row = d
+      .prepare(
+        `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
+      )
+      .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
+      string,
+      unknown
+    >;
+    return rowTo(row);
+  });
+  return mint.immediate();
 }
 
 export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
@@ -393,6 +407,30 @@ export function listScheduleInvitesForEntry(entryId: string, workspaceId: string
   return rows.map(rowTo);
 }
 
+/** The workspace's OTHER confirmed bookings that could clash with `slotAt` — every row
+ *  whose start sits within BOOKING_COLLISION_REACH_MS either side (the longest interval
+ *  bookingCollides allows), with its real length. Called INSIDE confirm/reschedule's
+ *  `.immediate()` transaction, so the overlap decision and the write hold one lock: this is
+ *  the collision authority, not a pre-read. slot_at is always a canonical toISOString()
+ *  instant, so the window compares lexically. */
+function otherBookingsNear(d: Database.Database, slotAt: string, token: string, workspaceId: string): BookedInterval[] {
+  const ms = Date.parse(slotAt);
+  if (Number.isNaN(ms)) return [];
+  const rows = d
+    .prepare(
+      `SELECT slot_at, duration_min FROM schedule_invites
+        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND token != ? AND workspace_id = ?
+          AND slot_at >= ? AND slot_at <= ?`
+    )
+    .all(
+      token,
+      workspaceId,
+      new Date(ms - BOOKING_COLLISION_REACH_MS).toISOString(),
+      new Date(ms + BOOKING_COLLISION_REACH_MS).toISOString()
+    ) as { slot_at: string; duration_min: number | null }[];
+  return rows.map((r) => ({ slotAt: r.slot_at, durationMin: r.duration_min == null ? null : Number(r.duration_min) }));
+}
+
 export type ConfirmResult =
   | { ok: true; invite: ScheduleInvite }
   | { ok: false; reason: "not_found" | "taken"; invite: ScheduleInvite | null };
@@ -400,8 +438,9 @@ export type ConfirmResult =
 /** Confirm a slot, atomically rejecting a time another candidate already took.
  *  better-sqlite3 runs synchronously, so the read-then-write below executes as a
  *  single uninterrupted transaction — two concurrent confirms can't both claim
- *  the same slot_at, which is what `bookedSlots()`/`proposeSlots()` only guard at
- *  read time. Collision identity is the ISO `slot_at`, not the display label.
+ *  an overlapping time, which is what `bookedIntervals()`/`proposeSlots()` only guard at
+ *  read time. A clash is a real-duration overlap or the same interview-zone hour
+ *  (bookingCollides), measured on the ISO `slot_at`, not the display label.
  *  IMMEDIATE (write lock at BEGIN) plus a compensating precondition on the UPDATE:
  *  see the note beside it — a DEFERRED read→write upgrade across connections is the
  *  one busy state SQLite's busy_timeout will not wait out. */
@@ -411,12 +450,31 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
-    if (inv.status === "confirmed") return { ok: true, invite: inv }; // idempotent re-confirm of the same invite
+    // Idempotent re-confirm — but only of the SAME booking. This branch used to answer
+    // `ok: true` for any confirm landing on an already-confirmed invite, whatever time it
+    // named. The candidate token route reads `ok` as a fresh booking and then advances the
+    // pipeline entry and composes the confirmation from the REQUESTED slot, not from the
+    // invite it got back, so a double-submit or a retry after a lost response stamped the
+    // board and the letter with an hour nobody ever held — while the row kept the first
+    // one, and every later reader disagreed with the letter already in the candidate's
+    // inbox. Identity is the ISO `slot_at` wherever the caller supplies one (the same
+    // collision domain the clash check below uses), and the display label only for the
+    // legacy label-only callers. A mismatch is `taken`: this link no longer holds that
+    // time, which is exactly the remedy the caller already renders for that reason.
+    if (inv.status === "confirmed") {
+      const sameBooking = slotAt ? inv.slotAt === slotAt : inv.slot === slot;
+      return sameBooking ? { ok: true, invite: inv } : { ok: false, reason: "taken", invite: inv };
+    }
     // Collision domain is per-team (a team's booking can't clash with another team's
-    // calendar): scope the check to this invite's workspace.
+    // calendar): scope the check to this invite's workspace. With an instant, the clash is
+    // a REAL-DURATION overlap or the same interview-zone hour (bookingCollides) against
+    // the other confirmed rows — synchronous, inside this `.immediate()` transaction, so
+    // no concurrent confirm can slip between the decision and the write. It used to be
+    // `slot_at = ?` equality, which let a 14:30 book beside a 14:00. The legacy label-only
+    // caller keeps label equality (it has no instant to measure).
     const clash = slotAt
-      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slotAt, token, inv.workspaceId)
-      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
+      ? bookingCollides({ slotAt, durationMin: inv.durationMin }, otherBookingsNear(d, slotAt, token, inv.workspaceId))
+      : !!d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // RETURNING * gives the just-updated row back in the same statement (inside the
     // transaction), replacing the previous UPDATE-then-re-SELECT pair.
@@ -495,6 +553,43 @@ export function recordCalendarEvent(
     );
 }
 
+/** Invites of ONE entry (in its own team) that still hold a calendar event id. The
+ *  erasure door reads these FRESH after the commit: the scrub replaced every token, so a
+ *  list read before it would key the outcome on tokens that no longer exist. */
+export function invitesWithCalendarEvent(entryId: string, workspaceId: string): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT * FROM schedule_invites
+        WHERE entry_id = ? AND workspace_id = ? AND calendar_event_id IS NOT NULL
+        ORDER BY created_at ASC`
+    )
+    .all(entryId, workspaceId) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
+/** Invites that still hold a calendar event although their entry has been anonymized
+ *  (erasure or consent expiry): the retry queue for calendar/erasure-events.ts. The state
+ *  is the invite's own kept `calendar_event_id` — no separate queue. Rows whose last
+ *  calendar attempt (`calendar_event_at`) is newer than `retryBefore` are skipped, so a
+ *  Google outage is retried slowly. Oldest attempt first (never-attempted rows lead),
+ *  at most `limit`. Cross-tenant by design, like dueReminders: every call is then made
+ *  with the invite's OWN workspace. */
+export function erasedInvitesWithCalendarEvent(retryBefore: string, limit: number): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT s.*
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE p.anonymized_at IS NOT NULL
+          AND s.calendar_event_id IS NOT NULL
+          AND (s.calendar_event_at IS NULL OR s.calendar_event_at <= ?)
+        ORDER BY COALESCE(s.calendar_event_at, '') ASC, s.created_at ASC
+        LIMIT ? -- tenancy:global`
+    )
+    .all(retryBefore, limit) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:
  *  the "change time" affordance exists to remove recruiter triage, not to let a
  *  candidate churn the calendar — past this the email's "just reply" path takes
@@ -507,8 +602,8 @@ export type RescheduleResult =
 
 /** Move a CONFIRMED booking to a new slot. Same synchronous-transaction collision
  *  authority as confirmScheduleInvite (two concurrent reschedules — or a reschedule
- *  racing another candidate's first confirm — can't both claim the same slot_at;
- *  identity is the ISO slot_at, not the label). The old slot is freed implicitly by
+ *  racing another candidate's first confirm — can't both claim overlapping time;
+ *  bookingCollides on the ISO slot_at, not the label). The old slot is freed implicitly by
  *  overwriting slot_at (it drops out of bookedSlots()). Re-anchors confirmed_at to
  *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
  *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
@@ -537,11 +632,10 @@ export function rescheduleScheduleInvite(
     // Re-picking the same time is a no-op (the reschedule count is precious) —
     // don't burn a reschedule or churn the reminder cycle for an unchanged slot.
     if (inv.slotAt === slotAt) return { ok: true, invite: inv };
-    // Collision identity is slot_at; exclude this invite's own row so freeing the
-    // old slot here can't be seen as a clash against itself.
-    const clash = d
-      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
-      .get(slotAt, token, inv.workspaceId);
+    // Same overlap authority as confirm (bookingCollides, inside this transaction); the
+    // invite's own row is excluded so moving within — or out of — its own current booking
+    // can't be seen as a clash against itself.
+    const clash = bookingCollides({ slotAt, durationMin: inv.durationMin }, otherBookingsNear(d, slotAt, token, inv.workspaceId));
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // A recruiter move doesn't spend the candidate's reschedule budget.
     const countClause = recruiter ? "" : "reschedule_count = reschedule_count + 1,";
@@ -707,20 +801,22 @@ export function setScheduleInviteProposals(token: string, proposals: { value: st
 /** Recruiter declined all of a candidate's proposed times: clear them and record the
  *  honest 'declined' state the candidate page reads ("couldn't accommodate — the
  *  recruiter will reach out"). Only a currently-'pending' proposal declines (so a
- *  double-tap or a stale request is a no-op). Returns the updated row, or null. */
+ *  double-tap or a stale request is a no-op). proposals_at is KEPT: it is the anchor
+ *  scheduleInviteExpiryAnchor restarts the link TTL from, and nulling it would snap the
+ *  anchor back to the mint and expire the link the moment the recruiter declines. The
+ *  'declined' status makes the stamp read as "declined at/after" (candidate-timeline).
+ *  Returns the updated row, or null. */
 export function declineScheduleInviteProposals(token: string): ScheduleInvite | null {
   const updated = db()
     .prepare(
       `UPDATE schedule_invites
-          SET proposals = NULL, proposals_at = NULL, proposal_status = 'declined'
+          SET proposals = NULL, proposal_status = 'declined'
         WHERE token = ? AND proposal_status = 'pending' RETURNING *`
     )
     .get(token) as Record<string, unknown> | undefined;
   return updated ? rowTo(updated) : null;
 }
 
-/** ISO datetimes already taken by confirmed invites — so two candidates don't
- *  double-book. Returns slot_at (the real identity), not the display label. */
 /** How many confirmed interviews lie in the FUTURE (slot_at strictly after `now`)
  *  for a workspace — the Schedule nav badge's count: "N upcoming events on the
  *  calendar", not the reminder queue. Cheap COUNT over the same partial-indexed
@@ -735,6 +831,37 @@ export function countFutureConfirmedInvites(workspaceId: string = DEFAULT_WORKSP
   return row.n;
 }
 
+/** Upcoming confirmed interviews in this workspace whose calendar event did NOT land
+ *  (`calendar_event_state` 'failed') — the count the Integrations panel puts beside a dead
+ *  grant ("N upcoming interviews are not on your calendar"), so the failed chips have a
+ *  named cause and a size. Past interviews are not counted: nothing is left to fix. */
+export function countUnsyncedUpcomingInvites(workspaceId: string = DEFAULT_WORKSPACE_ID, now: number = Date.now()): number {
+  const row = db()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM schedule_invites
+        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND slot_at > ?
+          AND calendar_event_state = 'failed' AND workspace_id = ?`
+    )
+    .get(new Date(now).toISOString(), workspaceId) as { n: number };
+  return row.n;
+}
+
+/** The workspace's confirmed bookings WITH their length — what the slot proposer needs to
+ *  hide a time an off-grid or long booking runs into (proposeSlots / bookingCollides). A
+ *  legacy row with no duration reads as DEFAULT_INTERVIEW_MINUTES, never zero. */
+export function bookedIntervals(workspaceId: string = DEFAULT_WORKSPACE_ID): BookedInterval[] {
+  const rows = db()
+    .prepare(`SELECT slot_at, duration_min FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as { slot_at: string; duration_min: number | null }[];
+  return rows.map((r) => ({
+    slotAt: r.slot_at,
+    durationMin: r.duration_min == null ? DEFAULT_INTERVIEW_MINUTES : Number(r.duration_min),
+  }));
+}
+
+/** ISO datetimes already taken by confirmed invites (bare instants, no length). Kept for
+ *  callers that only need the instants; anything deciding availability wants
+ *  bookedIntervals(). */
 export function bookedSlots(workspaceId: string = DEFAULT_WORKSPACE_ID): string[] {
   const rows = db()
     .prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
@@ -763,7 +890,9 @@ export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvit
   // eligibility rule itself lives in isEntryReminderEligible (pipeline-status.ts) —
   // the single source the rest of the app shares — and is applied here in JS rather
   // than re-encoded as a SQL predicate so the two can't drift; a null entry (orphan
-  // invite, no matching row) stays eligible, as before the join. The partial index
+  // invite, no matching row) stays eligible, as before the join. An ANONYMIZED entry is
+  // excluded in SQL: erasure leaves the invite's status alone (the candidate declined
+  // nothing), so this is where its confirmed row stops being actionable. The partial index
   // still drives the invite-side filter; p is reached by primary key. Same kp.sqlite
   // file, separate connection — the join resolves against db.ts's tables.
   const rows = db()
@@ -772,7 +901,8 @@ export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvit
          FROM schedule_invites s
          LEFT JOIN pipeline_entries p ON p.id = s.entry_id
         WHERE s.status = 'confirmed' AND s.slot_at IS NOT NULL AND s.reminder_sent_at IS NULL
-          AND s.reminder_attempts < ?`
+          AND s.reminder_attempts < ?
+          AND (p.id IS NULL OR p.anonymized_at IS NULL)`
     )
     .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
   return rows
@@ -846,4 +976,68 @@ export function markReminderSent(id: string): void {
 // Slot proposal + structural validation live in schedule-slots.ts (pure, no
 // DB, unit-testable) so the confirm-side validation (idea-e05aedfb) and the
 // proposal can never drift apart. This store keeps only the persistence side
-// (bookedSlots/confirmScheduleInvite are the collision authority).
+// (confirmScheduleInvite/rescheduleScheduleInvite, via schedule-slots' bookingCollides,
+// are the collision authority).
+
+// --- Book-your-interview nudge (pending links) -----------------------------------
+
+/** A pending invite owed its nudge, plus the retry counter the claim CAS needs. */
+export type DueScheduleNudge = { invite: ScheduleInvite; attempts: number };
+
+/** Pending invites old enough to nudge and not yet expired, whose linked entry is
+ *  still on the interview track and not anonymized. Same eligibility rule as
+ *  dueReminders (isEntryReminderEligible), same backoff after a failed attempt. */
+export function dueScheduleNudges(): DueScheduleNudge[] {
+  const now = Date.now();
+  const rows = db()
+    .prepare(
+      `SELECT s.*, p.id AS entry_row_id, p.status AS entry_status, p.stage AS entry_stage, p.locale AS entry_locale
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.status = 'pending' AND s.nudge_sent_at IS NULL
+          AND s.nudge_attempts < ?
+          AND (p.id IS NULL OR p.anonymized_at IS NULL)`
+    )
+    .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
+  const out: DueScheduleNudge[] = [];
+  for (const r of rows) {
+    if (!isEntryReminderEligible(r.entry_row_id == null ? null : { status: String(r.entry_status), stage: String(r.entry_stage) })) continue;
+    const invite = rowTo(r);
+    if (isScheduleInviteExpired(invite, now)) continue;
+    if (!isScheduleNudgeDue({ nowMs: now, anchorMs: scheduleInviteExpiryAnchor(invite), ttlMs: INVITE_LINK_TTL_MS })) continue;
+    const attempts = Number(r.nudge_attempts ?? 0);
+    const lastMs = r.nudge_last_attempt_at ? Date.parse(String(r.nudge_last_attempt_at)) : NaN;
+    if (!Number.isNaN(lastMs) && now < lastMs + reminderRetryDelayMs(attempts)) continue;
+    out.push({ invite, attempts });
+  }
+  return out;
+}
+
+/** Atomically claim the next nudge attempt (optimistic CAS on the attempt counter,
+ *  the cap and the backoff cutoff), exactly like claimReminderAttempt. Also re-asserts
+ *  status = 'pending', so a candidate who books between the read and the claim is
+ *  not nudged. */
+export function claimNudgeAttempt(
+  id: string,
+  expectedAttempts: number,
+  cutoffIso: string,
+  maxAttempts: number = REMINDER_MAX_ATTEMPTS
+): boolean {
+  const res = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET nudge_attempts = nudge_attempts + 1, nudge_last_attempt_at = ?
+        WHERE id = ? AND status = 'pending'
+          AND nudge_sent_at IS NULL
+          AND nudge_attempts = ?
+          AND nudge_attempts < ?
+          AND (nudge_last_attempt_at IS NULL OR nudge_last_attempt_at <= ?)`
+    )
+    .run(new Date().toISOString(), id, expectedAttempts, maxAttempts, cutoffIso);
+  return res.changes > 0;
+}
+
+/** Terminal success for a nudge: the link is never nudged again. */
+export function markNudgeSent(id: string): void {
+  db().prepare(`UPDATE schedule_invites SET nudge_sent_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
+}

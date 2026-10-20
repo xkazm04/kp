@@ -45,6 +45,12 @@ registerHooks({
   },
 });
 
+// The job-seeker module is OFF unless the install says KP_JOBSEEKER=1
+// (app/_lib/jobseeker/enabled.ts); this file pins the registry with the module ON,
+// and the last test turns it off to pin that its scan job is then neither listed nor
+// writable. Read per call, so setting it here (and flipping it there) is enough.
+process.env.KP_JOBSEEKER = "1";
+
 // Loaded AFTER the hooks — resolution hooks only affect later imports.
 const { GET, POST } = await import("./route.ts");
 const { recordRun } = await import("../../../_lib/scheduler-store.ts");
@@ -103,7 +109,20 @@ test("GET keeps every legacy field AND adds jobs[] — one entry per registered 
     SCHEDULER_JOBS.map((j) => j.name),
     "jobs[] is the registry, in registry order"
   );
-  assert.deepEqual(body.jobs.map((j) => j.name), ["policy_pass", "reminders", "jobseeker_scan"]);
+  // The literal beside the derived list above, so a job added to the registry is a
+  // deliberate edit here rather than a silently-widening assertion.
+  // `interview_recording_retention` (spark ai-interview-parity, WP3) is the daily
+  // storage-limitation sweep over opt-in candidate audio. `gig_scan` + `gig_sync` (Gigs
+  // WP3) are the gig listing scan and the Personas run pull, both registered OFF.
+  assert.deepEqual(body.jobs.map((j) => j.name), [
+    "policy_pass",
+    "reminders",
+    "jobseeker_scan",
+    "interview_recording_retention",
+    "gig_scan",
+    "gig_sync",
+    "role_run_advance",
+  ]);
   for (const job of body.jobs) {
     assert.equal(typeof job.labelKey, "string");
     assert.ok(Array.isArray(job.runs));
@@ -191,4 +210,22 @@ test("the malformed-interval refusal is unchanged", async () => {
   const res = await post({ intervalMinutes: "soon" });
   assert.equal(res.status, 400);
   assert.equal((await json(res)).code, "SCHEDULE_INTERVAL_INVALID");
+});
+
+test("with the job-seeker module OFF, its scan job is neither listed nor writable", async () => {
+  const was = process.env.KP_JOBSEEKER;
+  delete process.env.KP_JOBSEEKER;
+  try {
+    const body = await json(await GET());
+    assert.deepEqual(
+      body.jobs.map((j) => j.name),
+      ["policy_pass", "reminders", "interview_recording_retention", "gig_scan", "gig_sync", "role_run_advance"],
+      "jobseeker_scan is not part of an install that leaves the module off"
+    );
+    const res = await post({ job: "jobseeker_scan", enabled: false });
+    assert.equal(res.status, 400);
+    assert.equal((await json(res)).code, "AUTOMATION_TASK_UNKNOWN", "an off module's job answers like a job that does not exist");
+  } finally {
+    process.env.KP_JOBSEEKER = was;
+  }
 });

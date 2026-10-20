@@ -77,6 +77,26 @@ test("the cascade never returns an empty string", () => {
   // The `to` on the wire is always non-empty — `ref` (the entry id) keeps even the
   // unaddressable case traceable in the Outbox, but a blank `to` would not be.
   for (const entry of [{}, { contact: " " }, { candidateLabel: "" }, { candidateId: "\t" }]) {
-    assert.ok(candidateRecipient(entry).length > 0);
+    assert.ok((candidateRecipient(entry) ?? "").length > 0);
+  }
+});
+
+// An AI agent on the slate has no mailbox (population 'agent'). The cascade used to
+// resolve its label/id/literal all the same, which a relay can only dead-letter.
+test("an agent-population entry is REFUSED a recipient, whatever else it carries", () => {
+  for (const entry of [
+    { population: "agent", contact: "bot@example.com", candidateLabel: "Agent Smith", candidateId: "ent_ag1" },
+    { population: "agent", candidateLabel: "Agent Smith" },
+    { population: "agent" },
+    { population: " Agent " },
+  ]) {
+    assert.equal(candidateRecipient(entry), null);
+  }
+});
+
+test("a person resolves exactly as before — absent, null and 'human' are all the old cascade", () => {
+  for (const population of [undefined, null, "human"]) {
+    assert.equal(candidateRecipient({ population, contact: "jane@example.com", candidateLabel: "Jane" }), "jane@example.com");
+    assert.equal(candidateRecipient({ population }), "candidate");
   }
 });

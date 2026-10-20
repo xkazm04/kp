@@ -1,0 +1,69 @@
+{
+  "total_count": 4,
+  "incomplete_results": false,
+  "items": [
+    {
+      "url": "https://api.github.com/repos/acme-oss/uploader/issues/412",
+      "repository_url": "https://api.github.com/repos/acme-oss/uploader",
+      "comments_url": "https://api.github.com/repos/acme-oss/uploader/issues/412/comments",
+      "html_url": "https://github.com/acme-oss/uploader/issues/412",
+      "id": 3100000412,
+      "number": 412,
+      "title": "Retry storm on 503 from the storage backend",
+      "user": { "login": "maintainer-a", "type": "User" },
+      "labels": [{ "name": "bounty" }, { "name": "$500" }, { "name": "rust" }],
+      "state": "open",
+      "comments": 2,
+      "created_at": "2026-09-20T08:15:00Z",
+      "updated_at": "2026-09-23T10:00:00Z",
+      "body": "When the backend answers 503 the uploader retries without backoff.\n\n<!-- Please describe the expected behaviour -->\nExpected: exponential backoff, give up after 5 tries."
+    },
+    {
+      "url": "https://api.github.com/repos/calc-org/web/issues/88",
+      "repository_url": "https://api.github.com/repos/calc-org/web",
+      "comments_url": "https://api.github.com/repos/calc-org/web/issues/88/comments",
+      "html_url": "https://github.com/calc-org/web/issues/88",
+      "id": 3100000088,
+      "number": 88,
+      "title": "[Bounty] Keyboard navigation for the date picker",
+      "user": { "login": "calc-bot", "type": "User" },
+      "labels": [{ "name": "💎 Bounty" }, { "name": "a11y" }],
+      "state": "open",
+      "comments": 3,
+      "created_at": "2026-09-22T12:00:00Z",
+      "updated_at": "2026-09-23T09:00:00Z",
+      "body": "The date picker cannot be operated from the keyboard. Arrow keys should move the focus day by day."
+    },
+    {
+      "url": "https://api.github.com/repos/SPLURT-Station/S.P.L.U.R.T-tg/issues/1231",
+      "repository_url": "https://api.github.com/repos/SPLURT-Station/S.P.L.U.R.T-tg",
+      "comments_url": "https://api.github.com/repos/SPLURT-Station/S.P.L.U.R.T-tg/issues/1231/comments",
+      "html_url": "https://github.com/SPLURT-Station/S.P.L.U.R.T-tg/issues/1231",
+      "id": 5561422954,
+      "number": 1231,
+      "title": "[BOUNTY] Port the lobby crew manifest to TGUI",
+      "user": { "login": "SPLURT-Station-Bot", "type": "User" },
+      "labels": [{ "name": "bounty" }],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-09-24T00:52:19Z",
+      "updated_at": "2026-09-24T06:00:07Z",
+      "body": "### About the Bounty\n\nPort the manifest UI.\n\nIf you want to take this, contact Voidcrafter in discord for payment information before starting.\nPayment methods: PayPal / Cryptocurrency"
+    },
+    {
+      "url": "https://api.github.com/repos/tiny/lib/pull/7",
+      "repository_url": "https://api.github.com/repos/tiny/lib",
+      "comments_url": "https://api.github.com/repos/tiny/lib/issues/7/comments",
+      "html_url": "https://github.com/tiny/lib/pull/7",
+      "id": 3100000007,
+      "number": 7,
+      "title": "A pull request that carries the bounty label",
+      "labels": [{ "name": "bounty" }],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-09-21T00:00:00Z",
+      "pull_request": { "url": "https://api.github.com/repos/tiny/lib/pulls/7" },
+      "body": "Not an issue."
+    }
+  ]
+}

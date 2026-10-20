@@ -9,11 +9,14 @@ all four app locales, so a German or French JD baked the ENGLISH sentence into a
 candidate-facing posting.
 """
 
+import io
+import json
 import unittest
+from unittest import mock
 
 from pipeline.jobfit.i18n import normalize_lang
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.market_salary_cli import _FALLBACK_SUMMARY, _coerce, _fallback
+from pipeline.jobfit.market_salary_cli import _FALLBACK_SUMMARY, _coerce, _fallback, main
 from pipeline.jobfit.taxonomy import THIN_SAMPLE_K, role_band, role_benchmark
 
 # The app's four locales (messages/{en,cs,de,fr}.json). The CLI's --lang is the
@@ -126,6 +129,63 @@ class FallbackSummaryLocaleTest(unittest.TestCase):
     def test_summaries_are_distinct_per_locale(self) -> None:
         rendered = {lang: _fallback("software_engineering", "medior", lang)["summary"] for lang in APP_LOCALES}
         self.assertEqual(len(set(rendered.values())), len(APP_LOCALES), msg=rendered)
+
+
+class GroundedPromptPricesTheRoleTest(unittest.TestCase):
+    """The grounded prompt prices the ROLE, never the person.
+
+    LLM salary advice measurably moves with who is asking - name, gender, origin -
+    at the same role (arXiv 2402.14875, 2506.10491). The CLI builds its prompt from
+    six role fields; this pins that as an allow-list, so a caller that starts
+    passing a candidate record through cannot leak it into the figure silently.
+    """
+
+    IDENTITY = {
+        "candidateName": "SENTINEL-NAME",
+        "name": "SENTINEL-NAME-2",
+        "gender": "SENTINEL-GENDER",
+        "nationality": "SENTINEL-ORIGIN",
+        "age": "SENTINEL-AGE",
+    }
+
+    def _prompt_for(self, role: dict) -> str:
+        from pipeline.jobfit.gemini import GroundedAnswer
+
+        captured: dict = {}
+
+        def fake(**kwargs):
+            captured.update(kwargs)
+            return GroundedAnswer(text="", payload={}, sources=[])
+
+        with (
+            mock.patch("pipeline.jobfit.market_salary_cli.grounded_answer", side_effect=fake),
+            mock.patch("pipeline.jobfit.market_salary_cli.load_local_env"),
+            mock.patch("sys.stdin", io.StringIO(json.dumps(role))),
+            mock.patch("sys.stdout", io.StringIO()),
+        ):
+            self.assertEqual(main([]), 0)
+        return captured["prompt"]
+
+    def test_role_fields_reach_the_prompt(self) -> None:
+        prompt = self._prompt_for({"title": "Backend Engineer", "seniority": "senior", "stack": ["Go"]})
+        self.assertIn("Backend Engineer", prompt)
+        self.assertIn("senior", prompt)
+
+    def test_no_candidate_identity_reaches_the_prompt(self) -> None:
+        role = {"title": "Backend Engineer", "seniority": "senior", **self.IDENTITY}
+        prompt = self._prompt_for(role)
+        for key, value in self.IDENTITY.items():
+            self.assertNotIn(value, prompt, msg=f"{key} leaked into the pricing prompt")
+
+
+class SalaryCliErrorEnvelopeTest(unittest.TestCase):
+    def test_malformed_json_uses_shared_error_code(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stdin", io.StringIO("{")), mock.patch("sys.stderr", stderr):
+            self.assertEqual(main(["--no-grounding"]), 1)
+        envelope = json.loads(stderr.getvalue())
+        self.assertEqual(envelope["status"], 400)
+        self.assertEqual(envelope["code"], "invalid_input")
 
 
 if __name__ == "__main__":

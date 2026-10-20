@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
+import { AlarmClock, Archive, ArrowRight, Eye, Play, RefreshCw } from "lucide-react";
+import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
+import { lifecycleDetailView, outcomeActions, type OutcomeWarningCode } from "@/app/_lib/devcase-stage-outcome";
 import { StatusChip } from "@/app/_components/StatusChip";
 import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -11,20 +14,49 @@ import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
 import { useStageLabel } from "./DevLabels";
 import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
-import type { Lifecycle } from "./DevTypes";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import type { Lifecycle, PostingInFlight } from "./DevTypes";
+import { closeWarning } from "./devcaseInFlight";
+import { BTN_AFFIRM, NOTICE } from "@/app/_components/ui/recipes";
+import { DevSourcePreview } from "./DevSourcePreview";
+
+// How each run-outcome warning reads. Exhaustive over the vocabulary, so a warning the
+// runner learns cannot render without a decided tone: `caution` asks for a person
+// (held, a failure), `neutral` explains a fallback nobody can click away.
+const WARNING_TONE: Record<OutcomeWarningCode, BadgeTone> = {
+  held: "caution",
+  eval_failed: "caution",
+  sourcing_failed: "caution",
+  candidates_skipped: "neutral",
+  scenario_template_only: "neutral",
+  seed_skeleton_only: "neutral",
+  baseline_unavailable: "neutral",
+  // Explain-only (no button: the fix is a re-evaluation with a model, per submission), but
+  // caution: a person should look at the withheld rows before the cohort is final.
+  mixed_currency: "caution",
+};
+const ACTION_BTN =
+  "focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50";
 
 export function LifecycleRow({
   lc,
   submissionCount = 0,
+  inFlight = null,
   onApprove,
   onChanged,
+  focus = null,
 }: {
   lc: Lifecycle;
   // d8a0c4cf — submissions across this lifecycle's postings, for the stall check.
   submissionCount?: number;
+  /** Attempts mid-case across this lifecycle's postings right now (counts only), so the
+   *  close confirm can name who the close cuts off (challenge-r06 devcase-session-api/B). */
+  inFlight?: PostingInFlight | null;
   onApprove: () => void;
   onChanged?: () => void;
+  /** An address pointed at this row (?lifecycle=, challenge-r03 devcase-workspace/B):
+   *  bring it into view and, when the link came for the approval gate, open the
+   *  review. `nonce` makes a repeat link to the same row an arrival again. */
+  focus?: { openReview: boolean; nonce: number } | null;
 }) {
   const t = useTranslations("devcase");
   // Resolve API failures from the machine `code`, never from the server's
@@ -36,7 +68,6 @@ export function LifecycleRow({
   const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";
-  const done = lc.stage === "promoted";
   // W5-3 — human-gated close-out. Offered once the case is live (collecting or
   // beyond): wraps up non-promoted submitters with a courteous comm, closes the
   // postings (apply page + webhook answer honestly) and flips the lifecycle to
@@ -47,7 +78,28 @@ export function LifecycleRow({
   // Themed confirm (shared stacked Modal, not window.confirm — see JobPostingModal):
   // closing fires unrecoverable wrap-up comms to every non-promoted submitter.
   const [confirmingClose, setConfirmingClose] = useState(false);
+  // The moment the confirm opened: the "longest N min" is measured then, not at mount.
+  const [closeOpenedAt, setCloseOpenedAt] = useState(0);
+  const inFlightWarning = confirmingClose ? closeWarning(inFlight, closeOpenedAt) : null;
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Adopt a focus ARRIVAL during render (the useUrlInboxState pattern): opening the
+  // panel in an effect would paint the closed row first and flash it open a frame later.
+  // Only a row still awaiting approval opens; the resolver already told the reader
+  // when the gate was decided since the link was minted.
+  const [seenFocus, setSeenFocus] = useState<number | null>(null);
+  if (focus && focus.nonce !== seenFocus) {
+    setSeenFocus(focus.nonce);
+    if (focus.openReview && awaiting) setReviewOpen(true);
+  }
+  const rowRef = useRef<HTMLDivElement>(null);
+  const focusNonce = focus?.nonce ?? null;
+  useEffect(() => {
+    if (focusNonce == null) return;
+    // The side effect only: scroll the row in and move focus to it, so a keyboard or
+    // screen-reader user lands where the link pointed rather than at the top of the tab.
+    rowRef.current?.scrollIntoView({ block: "center" });
+    rowRef.current?.focus({ preventScroll: true });
+  }, [focusNonce]);
   // d8a0c4cf — flag a lifecycle that's been open and empty past the SLA (client
   // read of the pure rule; no cron). A stalled row offers a one-click re-source.
   // `now` is snapshotted once at mount (Date.now() is impure in render).
@@ -56,25 +108,42 @@ export function LifecycleRow({
     { stage: lc.stage, updatedAt: lc.updatedAt, createdAt: lc.createdAt, submissionCount },
     nowMs
   );
-  const [sourcing, setSourcing] = useState(false);
-  const [sourceError, setSourceError] = useState<string | null>(null);
-  const reSource = async () => {
-    if (sourcing || !lc.caseId) return;
-    setSourcing(true);
-    setSourceError(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const reSource = () => {
+    if (!lc.caseId) return;
+    setPreviewOpen((o) => !o);
+  };
+  // The coded run outcome (challenge-r07 devcase-orchestration/B): the runner's last step
+  // in the reader's language, each warning with the door that fixes it. A row with no
+  // outcome (pre-migration, a human door's prose, a stage the outcome no longer
+  // describes) keeps rendering `detail` exactly as before.
+  const detailView = lifecycleDetailView({ stage: lc.stage, outcome: lc.outcome ?? null, detail: lc.detail });
+  const actions = detailView.kind === "coded" ? outcomeActions({ code: detailView.code, warnings: detailView.warnings }, { caseId: lc.caseId }) : [];
+  const actionFor = (code: OutcomeWarningCode) => actions.find((a) => "warning" in a && a.warning === code);
+  const canResume = actions.some((a) => a.action === "resume");
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  // Resume is the control room's reconcile, scoped to this team: it re-enqueues every
+  // non-terminal lifecycle with no runner, this one included. The kill switch itself
+  // stays in the control room (org authority); while it is still thrown the run halts
+  // again and says so.
+  const resume = async () => {
+    if (resuming) return;
+    setResuming(true);
+    setResumeError(null);
     try {
-      const r = await fetch("/api/devcase/source", {
+      const r = await fetch("/api/devcase/control", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId: lc.caseId }),
+        body: JSON.stringify({ action: "reconcile" }),
       });
       const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.reSourceFailed")));
+      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.outcomeAction.resumeFailed")));
       onChanged?.();
     } catch (caught) {
-      setSourceError(caught instanceof Error ? caught.message : t("lifecycle.reSourceFailed"));
+      setResumeError(caught instanceof Error ? caught.message : t("lifecycle.outcomeAction.resumeFailed"));
     } finally {
-      setSourcing(false);
+      setResuming(false);
     }
   };
   const closeCase = async () => {
@@ -103,7 +172,14 @@ export function LifecycleRow({
     ).join(", "),
   });
   return (
-    <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
+    <div
+      ref={rowRef}
+      tabIndex={focus ? -1 : undefined}
+      data-focused={focus ? "true" : undefined}
+      className={`animate-fade-in rounded-lg border bg-white p-3 shadow-panel outline-none transition-shadow motion-reduce:animate-none hover:shadow-lg ${
+        focus ? "border-coral/60 ring-2 ring-coral/30" : "border-stone-200"
+      }`}
+    >
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || t("lifecycle.untitledRole")}</span>
         {/* ONE THREAD (gap 8) — this chip used to derive its own three-way tint
@@ -116,7 +192,7 @@ export function LifecycleRow({
         {stall.stalled ? (
           <span
             title={t("lifecycle.stalledTitle", { days: stall.ageDays ?? 0 })}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral-ink"
           >
             <AlarmClock size={11} aria-hidden /> {t("lifecycle.stalledBadge", { days: stall.ageDays ?? 0 })}
           </span>
@@ -125,11 +201,11 @@ export function LifecycleRow({
           <button
             type="button"
             onClick={reSource}
-            disabled={sourcing}
+            aria-expanded={previewOpen}
             title={t("lifecycle.reSourceTitle")}
-            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
           >
-            <RefreshCw size={12} /> {sourcing ? t("lifecycle.reSourcing") : t("lifecycle.reSource")}
+            <RefreshCw size={12} /> {t("lifecycle.reSource")}
           </button>
         ) : null}
         {awaiting ? (
@@ -148,7 +224,10 @@ export function LifecycleRow({
         {closable ? (
           <button
             type="button"
-            onClick={() => setConfirmingClose(true)}
+            onClick={() => {
+              setCloseOpenedAt(Date.now());
+              setConfirmingClose(true);
+            }}
             disabled={closing}
             title={t("lifecycle.closeTitle")}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
@@ -157,9 +236,9 @@ export function LifecycleRow({
           </button>
         ) : null}
       </div>
-      {closeError || sourceError ? (
+      {closeError || resumeError ? (
         <p role="alert" className="mt-1 text-micro text-red-700">
-          {closeError ?? sourceError}
+          {closeError ?? resumeError}
         </p>
       ) : null}
       {awaiting && reviewOpen ? (
@@ -179,7 +258,53 @@ export function LifecycleRow({
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-micro text-steel">{lc.detail}</p>
+      {detailView.kind === "coded" ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {/* The English prose stays one hover away: it is the audit wording. */}
+          <p className="text-micro text-steel" title={lc.detail ?? undefined}>
+            {t(`lifecycle.outcome.${detailView.code}` as Parameters<typeof t>[0], detailView.values)}
+          </p>
+          {detailView.warnings.map((w) => {
+            const act = actionFor(w.code);
+            return (
+              <span key={w.code} className="inline-flex items-center gap-1">
+                <Badge
+                  tone={WARNING_TONE[w.code]}
+                  label={t(`lifecycle.outcome.${w.code}` as Parameters<typeof t>[0], { count: w.count })}
+                />
+                {act?.action === "open_decisions" ? (
+                  <Link href={act.href} className={ACTION_BTN}>
+                    {t("lifecycle.outcomeAction.open_decisions")} <ArrowRight size={11} aria-hidden />
+                  </Link>
+                ) : act?.action === "re_source" ? (
+                  // Live the moment sourcing crashed, not after the 7-day stall rule.
+                  <button type="button" onClick={reSource} aria-expanded={previewOpen} className={ACTION_BTN}>
+                    <RefreshCw size={11} aria-hidden /> {t("lifecycle.outcomeAction.re_source")}
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+          {canResume ? (
+            <button type="button" onClick={resume} disabled={resuming} className={ACTION_BTN}>
+              <Play size={11} aria-hidden /> {resuming ? t("lifecycle.outcomeAction.resuming") : t("lifecycle.outcomeAction.resume")}
+            </button>
+          ) : null}
+        </div>
+      ) : detailView.kind === "prose" ? (
+        <p className="mt-1.5 text-micro text-steel">{detailView.text}</p>
+      ) : null}
+      {previewOpen && lc.caseId ? (
+        <div className="mt-3">
+          <DevSourcePreview
+            caseId={lc.caseId}
+            onClose={() => setPreviewOpen(false)}
+            onFiled={() => {
+              onChanged?.();
+            }}
+          />
+        </div>
+      ) : null}
       {confirmingClose ? (
         <Modal
           title={t("lifecycle.closeModalTitle")}
@@ -200,7 +325,7 @@ export function LifecycleRow({
                   setConfirmingClose(false);
                   void closeCase();
                 }}
-                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
+                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90"
               >
                 {t("lifecycle.close")}
               </button>
@@ -210,6 +335,11 @@ export function LifecycleRow({
           <p className="text-base text-steel">
             {t("lifecycle.closeConfirm")} {t("lifecycle.closeIrreversible")}
           </p>
+          {inFlightWarning ? (
+            <p className={`mt-3 ${NOTICE()} px-3 py-2 text-sm`} role="status">
+              {t(inFlightWarning.key, inFlightWarning.values)}
+            </p>
+          ) : null}
         </Modal>
       ) : null}
     </div>

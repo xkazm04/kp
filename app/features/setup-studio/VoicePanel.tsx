@@ -72,7 +72,7 @@ function ProviderCard({
         <p className="mt-1 text-sm text-moss">{COPY.voiceCurrent}</p>
       ) : null}
       {isChosen ? <p className="mt-1 text-sm font-semibold text-moss">{COPY.voiceChosen}</p> : null}
-      {problem ? <p className="mt-1 text-sm text-coral">{problem}</p> : null}
+      {problem ? <p className="mt-1 text-sm text-coral-ink">{problem}</p> : null}
 
       {provider.ready ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -211,7 +211,7 @@ export function VoicePanel({
   return (
     <section className={`${PANEL} ${CARD_PAD}`}>
       <h2 className="flex items-center gap-2 font-serif text-h2 text-ink">
-        <Volume2 size={18} aria-hidden className="text-coral" />
+        <Volume2 size={18} aria-hidden className="text-coral-ink" />
         {COPY.voiceTitle}
       </h2>
 

@@ -8,6 +8,8 @@ lifecycle: DevNeed -> NeedAnalysis -> (CaseScenario + RoleSpec) -> Submission ->
 
 from __future__ import annotations
 
+import math
+
 from pydantic import AliasChoices, Field, field_validator, model_validator
 
 from ..models import _Base
@@ -179,6 +181,68 @@ RUBRIC_DIMENSIONS: list[dict] = [
     {"name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's tools and responsibilities."},
 ]
 
+# A case rubric whose weights sum outside 1 +- this is normalised AND flagged, never used as-is.
+RUBRIC_WEIGHT_TOLERANCE = 0.02
+
+
+def _half_up(x: float) -> int:
+    # Half-up, like the UI's Math.round — Python's round() is banker's (64.5 -> 64).
+    return int(math.floor(x + 0.5))
+
+
+def rubric_composite(dimension_scores: dict, rubric: list | None = None) -> dict:
+    """THE case score: the rubric-weighted sum of the scored dimensions, with the
+    per-dimension contributions that sum to it (registry: component-sum-is-authoritative).
+
+    Every reader of an "overall" (evaluate's stamp, the keyless transfer score, the
+    submission_eval gate) calls this one rule, so the headline a reviewer reads is, by
+    construction, the sum of the bars beneath it.
+
+      * Weights: the case's own ``rubric`` weight for a dimension first, the canonical
+        RUBRIC_DIMENSIONS weight when the case omits it (the precedence
+        evaluate._ordered_dimensions applies to label/weight). Order is always canonical.
+      * Weights summing outside 1 +- RUBRIC_WEIGHT_TOLERANCE are normalised to 1 and
+        ``normalised`` is set; within tolerance they are rescaled silently (float drift).
+      * A dimension ABSENT from ``dimension_scores`` is EXCLUDED, never imputed: it is named
+        in ``missing``, the composite is renormalised over ``scoredWeight`` (the share of the
+        rubric actually scored), and callers lower confidence by that share. Nothing scored
+        -> ``overall`` None.
+
+    Returns ``{overall, contributions, scoredWeight, missing, normalised}``; contributions
+    are rounded to 2 decimals and ``overall`` is the half-up round of their sum.
+    """
+    by_name = {d.get("name"): d for d in (rubric or []) if isinstance(d, dict) and d.get("name")}
+    weights: dict[str, float] = {}
+    for meta in RUBRIC_DIMENSIONS:
+        w = (by_name.get(meta["name"]) or {}).get("weight")
+        ok = isinstance(w, (int, float)) and not isinstance(w, bool) and w == w and 0 <= w < float("inf")
+        weights[meta["name"]] = float(w) if ok else float(meta["weight"])
+    total = sum(weights.values())
+    normalised = abs(total - 1.0) > RUBRIC_WEIGHT_TOLERANCE
+    if total <= 0:  # a degenerate all-zero case rubric: the canonical weights, flagged
+        weights = {m["name"]: float(m["weight"]) for m in RUBRIC_DIMENSIONS}
+        total, normalised = sum(weights.values()), True
+    weights = {k: v / total for k, v in weights.items()}
+
+    scores: dict[str, float] = {}
+    for name in weights:
+        v = (dimension_scores or {}).get(name)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v:
+            scores[name] = max(0.0, min(100.0, float(v)))
+    missing = [n for n in weights if n not in scores]
+    scored_weight = round(sum(weights[n] for n in scores), 6)
+    if not scores or scored_weight <= 0:
+        return {"overall": None, "contributions": {}, "scoredWeight": 0.0, "missing": missing, "normalised": normalised}
+    contributions = {n: round(weights[n] / scored_weight * scores[n], 2) for n in scores}
+    overall = _half_up(round(sum(contributions.values()), 6))
+    return {
+        "overall": overall,
+        "contributions": contributions,
+        "scoredWeight": scored_weight,
+        "missing": missing,
+        "normalised": normalised,
+    }
+
 
 # The cap on the candidate's UNPAID work, in hours (UAT M8). This is a policy number,
 # not a design detail: a half-day take-home drives a 40–60% drop-off among strong
@@ -322,6 +386,10 @@ class DimensionScore(_Base):
     weight: float = 0.0  # rubric weight 0..1
     score: int = 0  # achieved score 0..100
     description: str = ""
+    # This row's share of CaseEvaluation.overall_score (rubric_composite): weight / scoredWeight
+    # x score. The rows' contributions sum to the headline. None = the dimension was not scored
+    # (excluded, never imputed) or the bundle predates the composite.
+    contribution: float | None = None
 
 
 class CaseEvaluation(_Base):
@@ -329,9 +397,9 @@ class CaseEvaluation(_Base):
 
     CANONICAL SCORE CONTRACT — the single authoritative representation is ``dimension_scores``.
       * ``dimension_scores`` (dict name -> 0..100) is THE source of truth for every capability
-        number. Everything that needs a score reads it from here: ``evaluate.score_transfer``
-        averages it, ``submission_eval`` validates/ranks on it, and the UI's legacy fallback
-        reads it. There are deliberately NO per-capability scalar fields — the old
+        number. Everything that needs a score reads it from here: ``rubric_composite`` weighs it
+        into ``overall_score`` (the case score the keyless transfer and ``submission_eval``'s
+        margins read), and the UI's legacy fallback reads it. There are deliberately NO per-capability scalar fields — the old
         ``structure_score`` / ``judgment_score`` / ``architecture_score`` scalars were dropped
         because they duplicated this dict and could silently diverge from it (e.g. a reviewer
         reading ``judgment_score`` vs ``dimension_scores['judgment']`` getting two numbers).
@@ -369,6 +437,18 @@ class CaseEvaluation(_Base):
     # evidence never looks as authoritative as one from high-confidence LLM signals. devcase_cli
     # surfaces it beside the provenance badge (and flags it when at/below LOW_CONFIDENCE).
     confidence: float = 0.0
+    # THE case score — models.rubric_composite over dimension_scores with the case's rubric
+    # weights: the sum of the rows' ``contribution``s, stamped by evaluate.evaluate_submission on
+    # both paths. None on a bundle persisted before the composite existed (the UI labels that
+    # "weights not applied" rather than showing weights as if they had been).
+    overall_score: int | None = None
+    # The share of the rubric weight actually scored (1.0 = every dimension). A dimension absent
+    # from dimension_scores is excluded from overall_score and named in missing_dimensions, and the
+    # propagated confidence is scaled by scored_weight — never a silent 50.
+    scored_weight: float | None = None
+    missing_dimensions: list[str] = Field(default_factory=list)
+    # True when the case rubric's weights did not sum to 1 +- RUBRIC_WEIGHT_TOLERANCE and were normalised.
+    weights_normalised: bool = False
     commit_reflection: CommitReflection | None = None
     tooling_signal: ToolingSignal | None = None
     prompt_version: str = ""

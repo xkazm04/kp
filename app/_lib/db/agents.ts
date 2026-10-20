@@ -356,7 +356,7 @@ export function recordAgentReportReceipt(id: string, workspaceId: string, at: st
   return at;
 }
 
-/** Stamp the Personas request id after a successful dispatch (status → pending_approval). */
+/** Stamp the Personas request id (status → pending_approval). Test setup; dispatch uses transitionHiredAgent. */
 export function setHiredAgentRequest(id: string, requestId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   const db = agentsDb();
   db.prepare(
@@ -364,6 +364,118 @@ export function setHiredAgentRequest(id: string, requestId: string, workspaceId:
   ).run(requestId, new Date().toISOString(), id, workspaceId);
 }
 
+// ---- The transition door ----------------------------------------------------
+// Exhaustive over AgentStatus (a new status is a tsc error until it declares its
+// exits). Owned here, not in agent-hire/lifecycle.ts, so the store enforces it
+// without importing the board module. Terminal states have no exits (a late
+// signal cannot revive a dead hire); nothing moves backwards; a self-move is
+// legal on live states (Personas re-sends; probation `extended` stays onboarding).
+export const AGENT_TRANSITIONS: Readonly<Record<AgentStatus, readonly AgentStatus[]>> = {
+  dispatched: ["pending_approval", "onboarding", "active", "rejected", "failed", "retired"],
+  pending_approval: ["pending_approval", "onboarding", "active", "rejected", "failed", "retired"],
+  onboarding: ["onboarding", "active", "failed", "retired"],
+  active: ["active", "retired"],
+  rejected: [],
+  failed: [],
+  retired: [],
+};
+
+export function canTransition(from: AgentStatus, to: AgentStatus): boolean {
+  return AGENT_TRANSITIONS[from].includes(to);
+}
+
+export type HiredAgentTransition = {
+  /** The status the caller READ and decided from — the CAS precondition. */
+  from: AgentStatus;
+  to: AgentStatus;
+  /** Ledger event name (`activated`, `probation_review:extended`, `poll:active`). */
+  event: string;
+  reason?: string | null;
+  raw?: unknown;
+  personaId?: string | null;
+  personaName?: string | null;
+  /** Identity stamp; fill-only on a refused move so the hire can still be polled. */
+  requestId?: string | null;
+};
+
+export type HiredAgentTransitionResult = { applied: boolean; current: AgentStatus | null; agent: HiredAgentRecord | null };
+
+/**
+ * THE hired-agent status writer, one IMMEDIATE transaction: refuse an illegal
+ * move, `UPDATE ... WHERE status = <from>` (a CAS — a decision made before an
+ * await is dropped if the row moved; `changes === 0` → refused), and append ONE
+ * lifecycle row either way: the event with `raw.transition = {from, to}` (the
+ * "entered <to> at" stamp an approval clock reads) or `refused:<event>: <why>`.
+ */
+export function transitionHiredAgent(
+  id: string,
+  t: HiredAgentTransition,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): HiredAgentTransitionResult {
+  const db = agentsDb();
+  const insertLedger = db.prepare(
+    `INSERT INTO agent_activity (id, workspace_id, hired_agent_id, kind, ts, status, raw_json)
+     VALUES (?, ?, ?, 'lifecycle', ?, ?, ?)`
+  );
+  const run = db.transaction((): { applied: boolean; current: AgentStatus | null } => {
+    const row = db.prepare(`SELECT status FROM hired_agents WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as
+      | { status: string }
+      | undefined;
+    if (!row) return { applied: false, current: null };
+    const now = new Date().toISOString();
+    const current = isAgentStatus(row.status) ? row.status : "failed";
+    const legal = canTransition(t.from, t.to);
+    let applied = false;
+    if (legal && current === t.from) {
+      const res = db
+        .prepare(
+          `UPDATE hired_agents
+              SET status = ?,
+                  persona_id = COALESCE(?, persona_id),
+                  persona_name = COALESCE(?, persona_name),
+                  request_id = COALESCE(?, request_id),
+                  updated_at = ?
+            WHERE id = ? AND workspace_id = ? AND status = ?`
+        )
+        .run(t.to, t.personaId ?? null, t.personaName ?? null, t.requestId ?? null, now, id, workspaceId, t.from);
+      applied = res.changes > 0;
+    }
+    const base = typeof t.raw === "object" && t.raw !== null ? (t.raw as Record<string, unknown>) : {};
+    if (applied) {
+      insertLedger.run(
+        randomId("aact"),
+        workspaceId,
+        id,
+        now,
+        t.event + (t.reason ? `: ${t.reason}` : ""),
+        JSON.stringify({ ...base, transition: { from: t.from, to: t.to } })
+      );
+      return { applied: true, current: t.to };
+    }
+    if (t.requestId) {
+      db.prepare(`UPDATE hired_agents SET request_id = COALESCE(request_id, ?) WHERE id = ? AND workspace_id = ?`).run(
+        t.requestId,
+        id,
+        workspaceId
+      );
+    }
+    const why = !legal ? `${t.from} -> ${t.to} is not a legal move` : `status moved (expected ${t.from}, found ${current})`;
+    insertLedger.run(
+      randomId("aact"),
+      workspaceId,
+      id,
+      now,
+      `refused:${t.event}: ${why}`,
+      JSON.stringify({ ...base, refused: { from: t.from, to: t.to, current } })
+    );
+    return { applied: false, current };
+  });
+  const out = run.immediate();
+  return { ...out, agent: getHiredAgent(id, workspaceId) };
+}
+
+/** LEGACY unconditional write (no CAS, no ledger row), kept one release for test
+ *  setup. Production status writes go through `transitionHiredAgent`. */
 export function updateHiredAgentStatus(
   id: string,
   status: AgentStatus,
@@ -616,6 +728,50 @@ export function listAgentActivity(
     )
     .all(hiredAgentId, workspaceId, limit) as AgentActivityRow[];
   return rows.map(rowToActivity);
+}
+
+/** The two lifecycle facts the roster derives each hire's next move from, read
+ *  off the ledger the transition door writes:
+ *
+ *  * `lastDecision` — the newest APPLIED lifecycle row, as its event name and
+ *    time. The event only: the `: <reason>` suffix is Personas' free text and
+ *    `raw_json` is the payload, neither is roster data. A `refused:` row is the
+ *    door saying no, not a decision, so it is skipped.
+ *  * `pendingApprovalSince` — when the hire ENTERED pending_approval: the newest
+ *    row whose `raw.transition` moved INTO it from another status. A poll that
+ *    re-reads "pending" is an applied self-move and does not restart the 24h
+ *    consent clock; neither does anything else that bumps `updated_at`. Null for
+ *    a hire that never entered the state through the door (dispatched before the
+ *    door wrote the row): the roster then shows no clock rather than invent one. */
+export function getAgentLifecycleMarks(
+  hiredAgentId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { lastDecision: { event: string; at: string } | null; pendingApprovalSince: string | null } {
+  const db = agentsDb();
+  const last = db
+    .prepare(
+      `SELECT ts, status FROM agent_activity
+        WHERE hired_agent_id = ? AND workspace_id = ? AND kind = 'lifecycle'
+          AND status IS NOT NULL AND status NOT LIKE 'refused:%'
+        ORDER BY ts DESC, rowid DESC LIMIT 1`
+    )
+    .get(hiredAgentId, workspaceId) as { ts: string; status: string } | undefined;
+  // json_valid guards each CASE: SQLite does not promise AND short-circuits, and
+  // json_extract on a malformed legacy row would throw instead of skipping it.
+  const entered = db
+    .prepare(
+      `SELECT ts FROM agent_activity
+        WHERE hired_agent_id = ? AND workspace_id = ? AND kind = 'lifecycle'
+          AND (CASE WHEN json_valid(raw_json) THEN json_extract(raw_json, '$.transition.to') END) = 'pending_approval'
+          AND (CASE WHEN json_valid(raw_json) THEN COALESCE(json_extract(raw_json, '$.transition.from'), '') END) != 'pending_approval'
+        ORDER BY ts DESC, rowid DESC LIMIT 1`
+    )
+    .get(hiredAgentId, workspaceId) as { ts: string } | undefined;
+  const sep = last ? last.status.indexOf(": ") : -1;
+  return {
+    lastDecision: last ? { event: sep >= 0 ? last.status.slice(0, sep) : last.status, at: last.ts } : null,
+    pendingApprovalSince: entered?.ts ?? null,
+  };
 }
 
 // ---- Aggregates -------------------------------------------------------------

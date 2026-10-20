@@ -49,10 +49,9 @@ from .._cli import CliError, _classify as _classify_failure, configure_stdio, em
 from ..llm import emit_deterministic, provider_availability, resolve_provider
 from . import analyze as _analyze
 from . import design as _design
-from . import evaluate as _evaluate
-from . import reflect as _reflect
+from .evaluation_pipeline import EvaluationInputs, run_evaluation, step_confidences
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
-from .provenance import collect_fallback_reasons, combine_source
+from .provenance import FallbackReasons, collect_fallback_reasons, combine_source
 
 # devcase_cli command → LLM-registry use case (capabilities.py catalog), so the
 # Models config can pin a provider/model per step. design-artifacts covers both
@@ -70,6 +69,49 @@ _USE_CASE_BY_COMMAND = {
     "session-chat": "devcase_evaluate",
     "baseline-solve": "devcase_seed",
 }
+
+# The doors that never had an LLM to fall back from: pure deterministic gates that
+# return before a provider is resolved, and so stay unmetered.
+PURE_COMMANDS: frozenset[str] = frozenset({"source", "observed-interview", "observed-skills"})
+
+# THE command vocabulary. The parser's choices ARE this tuple, and every entry is
+# either routed (a ``_USE_CASE_BY_COMMAND`` row, which decides the provider seat and
+# the ledger attribution) or declared pure. A twelfth door therefore needs a map row
+# or a pure declaration, or this module refuses to import; and it needs a fixture row
+# in test_devcase_cli_matrix.py, whose sweep is derived from this table. The map stays
+# a module-level dict literal under its own name: test_byom_coverage harvests it from
+# the AST as the call-site inventory.
+COMMANDS: tuple[str, ...] = (
+    "analyze-need",
+    "design-artifacts",
+    "reflect-commits",
+    "evaluate-submission",
+    "source",
+    "interview-scenario",
+    "observed-interview",
+    "observed-skills",
+    "materialize-seed",
+    "session-chat",
+    "baseline-solve",
+)
+
+if set(COMMANDS) != set(_USE_CASE_BY_COMMAND) | PURE_COMMANDS or set(_USE_CASE_BY_COMMAND) & PURE_COMMANDS:
+    # Not an ``assert``: ``python -O`` strips those, and this is the closure the
+    # routing below relies on.
+    raise RuntimeError(
+        "devcase_cli command table drifted: COMMANDS must equal the routed map plus PURE_COMMANDS, disjointly"
+    )
+
+
+def _use_case_for(command: str) -> str:
+    """The use case a provider-backed door routes and meters under. Fail CLOSED: a
+    door with no map row used to be routed (and model-pinned, and ledger-attributed)
+    as ``devcase_case_design`` without a trace. Now it is an engine fault the caller
+    sees, before any provider is built."""
+    try:
+        return _USE_CASE_BY_COMMAND[command]
+    except KeyError:
+        raise CliError(f"devcase command {command!r} has no use-case route (_USE_CASE_BY_COMMAND)") from None
 
 # The failure vocabulary is NOT redeclared here. It lives once in .._cli
 # (ERROR_CODES + CliError + the not_found/invalid_input raise-site helpers), which is
@@ -112,23 +154,12 @@ def _require_object(value: object, flag: str) -> dict:
 
 
 def _confidences(**named: object) -> dict[str, float]:
-    """Map step -> its artifact's ``confidence`` (0..1), skipping artifacts without one.
-
-    NeedAnalysis, CommitReflection and ToolingSignal carry a confidence SELF-RATING, while
-    CaseEvaluation and TransferAssessment carry a PROPAGATED one (the min of their upstream
-    signals — see the confidence scale in models.py + evaluate._propagated_confidence). All five
-    surface here so a reviewer can see the decision artifact is only as trustworthy as the evidence
-    it was built from. Artifacts with no ``confidence`` (role/case) are silently omitted rather
-    than reported as 0.0.
-    """
-    out: dict[str, float] = {}
-    for step, art in named.items():
-        if isinstance(art, dict) and isinstance(art.get("confidence"), (int, float)):
-            out[step] = float(art["confidence"])
-    return out
+    """Map step -> its artifact's ``confidence`` — one definition, shared with
+    evaluation_pipeline (see :func:`evaluation_pipeline.step_confidences`)."""
+    return step_confidences(**named)
 
 
-def _fallback_reasons(**named: object) -> dict[str, str]:
+def _fallback_reasons(**named: object) -> FallbackReasons:
     """Map step -> the reason its LLM call fell back to its deterministic template.
 
     The reason is stashed on each artifact by ``provenance.generate_with_fallback`` when the
@@ -137,6 +168,9 @@ def _fallback_reasons(**named: object) -> dict[str, str]:
     steps whose LLM call actually raised carry one — a clean LLM run or a ``--no-llm`` /
     provider-unavailable run records none — so the map (and the envelope key) is empty/omitted
     in the common case. ``named`` keys MUST match the ``per_step`` keys so the two line up.
+
+    The step's CODE (``fallbackCode``) is popped with it and rides on the returned map's
+    ``.codes`` — never in the envelope — for :func:`_emit` to hand to the ledger.
     """
     # pop=True: lift the reason OFF the artifact so it rides in the envelope, not
     # the model round-trip (shared with both eval harnesses via provenance).
@@ -183,10 +217,17 @@ def _emit(
     # ``use_case`` is passed only by the provider-backed commands; the
     # pure-deterministic ones (source, observed-*) never had an LLM to fall back
     # from, so they stay unmetered. No-op without KP_LLM_USAGE_LOG.
+    #
+    # WHICH reason each line carries: the availability gate's descent when there was
+    # no provider (``descent_reason``), otherwise the step's own MID-CALL code. The
+    # gate's descent is None whenever the provider was available, and a step that then
+    # timed out or answered with prose used to reach the ledger as that None — the
+    # anonymity fault_eval exists to refuse (challenge-r04 tests-llm-eval/A).
     if use_case:
-        for step_source in per_step.values():
+        codes = getattr(fallback_reasons, "codes", None) or {}
+        for step, step_source in per_step.items():
             if step_source == "deterministic":
-                emit_deterministic(use_case, reason=descent_reason)
+                emit_deterministic(use_case, reason=descent_reason or codes.get(step))
     envelope: dict[str, object] = {
         "result": result,
         "source": combine_source(*per_step.values()),
@@ -207,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_stdio()
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed", "session-chat", "baseline-solve"])
+    parser.add_argument("command", choices=list(COMMANDS))
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
@@ -332,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
         # Per-command use case so the Models config can route (and the usage
         # ledger attribute) each dev-case step independently. Commands that
         # return before this line never construct a provider.
-        use_case = _USE_CASE_BY_COMMAND.get(args.command, "devcase_case_design")
+        use_case = _use_case_for(args.command)
         provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
         descent = "disabled" if args.no_llm else None
         if provider is not None:
@@ -408,82 +449,44 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
+            # A thin argv -> EvaluationInputs adapter: the chain itself lives ONCE in
+            # evaluation_pipeline.run_evaluation, which the fairness/discrimination gate
+            # (submission_eval) runs too — so the gate certifies this exact path.
             if not args.commits_json:
                 raise invalid_input(f"{args.command} requires --commits-json")
             # Require the rubric + role for evaluation: defaulting them to {} runs the scorer on
             # an empty rubric and a titleless role and exits 0 with a confident-looking but
             # ungrounded evaluation (success theater). Fail loudly (400 invalid_input) instead.
-            if args.command == "evaluate-submission" and (not args.case_json or not args.role_json):
+            evaluating = args.command == "evaluate-submission"
+            if evaluating and (not args.case_json or not args.role_json):
                 raise invalid_input("evaluate-submission requires --case-json and --role-json")
-            commits = _require_list_of_dicts(json.loads(args.commits_json.read_text(encoding="utf-8")), "--commits-json")
-            probes = (
-                _require_list_of_dicts(json.loads(args.probes_json.read_text(encoding="utf-8")), "--probes-json")
-                if args.probes_json
-                else []
-            )
-            repo = _require_object(json.loads(args.repo_json.read_text(encoding="utf-8")), "--repo-json") if args.repo_json else None
-            # Live Work Surface (moonshot E): observed process events, present when the
-            # candidate worked the case in-product. Present → assess_tooling uses the
-            # observed path; absent → the existing commit-metadata inference.
-            events = _require_list_of_dicts(json.loads(args.events_json.read_text(encoding="utf-8")), "--events-json") if args.events_json else None
-            # Seed loads EARLY so the observed tooling pass can scope read-before-write
-            # to files that existed in the seed (newly created files are exempt).
-            seed_obj = (
-                _require_object(json.loads(args.seed_json.read_text(encoding="utf-8")), "--seed-json")
-                if (args.command == "evaluate-submission" and args.seed_json)
-                else None
-            )
-            seed_paths = [str(f["path"]) for f in ((seed_obj or {}).get("files") or []) if isinstance(f, dict) and f.get("path")]
-            # The submitted tree loads HERE (before the graders) rather than beside the
-            # other LLM-era controls below: W0.2 threads the candidate's contributed
-            # lines into assess_tooling as well as evaluate_submission, so probe verdicts
-            # are read off the work instead of inferred from commit-subject shape.
-            files_list = _require_list_of_dicts(json.loads(args.files_json.read_text(encoding="utf-8")), "--files-json") if args.files_json else None
-            from . import artifact_checks as _checks
 
-            submission_work = _checks.submission_excerpts(seed_obj, files_list)
-            reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, seed_paths=seed_paths or None, submission=submission_work or None, provider=provider)
-            if args.command == "reflect-commits":
-                _emit(
-                    {"reflection": reflection, "tooling": tooling},
-                    {"reflect": rsrc, "tooling": tsrc},
-                    _confidences(reflect=reflection, tooling=tooling),
-                    _fallback_reasons(reflect=reflection, tooling=tooling),
-                    use_case=use_case,
-                    descent_reason=descent,
-                )
-                return 0
-            # evaluate-submission continues the chain — case/role are required (guarded above).
-            case = _require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json")
-            role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
-            # LLM-era controls — assemble the OBSERVED ground-truth checks (all optional;
-            # each quietly no-ops on absent inputs): the captured prompt channel, the
-            # planted-canary verdicts, and the distance from the one-shot baseline.
-            from . import prompt_signals as _psig
+            def _list(path: Path | None, flag: str) -> list | None:
+                return _require_list_of_dicts(json.loads(path.read_text(encoding="utf-8")), flag) if path else None
 
-            chat_msgs = _require_list_of_dicts(json.loads(args.chat_json.read_text(encoding="utf-8")), "--chat-json") if args.chat_json else []
-            baseline_obj = _require_object(json.loads(args.baseline_json.read_text(encoding="utf-8")), "--baseline-json") if args.baseline_json else None
-            psig = _psig.derive_prompt_signals(chat_msgs, case) if chat_msgs else None
-            canaries = _checks.canary_outcomes(seed_obj, files_list, chat_msgs) if seed_obj else []
-            basesim = _checks.baseline_similarity(baseline_obj, seed_obj, files_list) if baseline_obj else {"available": False}
-            extras: dict | None = {}
-            if psig and psig.get("observed"):
-                extras["promptSignals"] = psig
-                extras["promptEvidence"] = _psig.prompt_evidence(psig)
-            if canaries:
-                extras["canaryOutcomes"] = canaries
-            if basesim.get("available"):
-                extras["baselineSimilarity"] = basesim
-            if canaries or basesim.get("available"):
-                extras["checkEvidence"] = _checks.check_evidence(canaries, basesim)
-            extras = extras or None
-            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, submission=submission_work or None, provider=provider, lang=args.lang)
-            transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider, lang=args.lang)
-            # The interview hand-off: candidate-specific authorship questions minted from
-            # THIS submission's observed decisions — the scores above are hypotheses the
-            # live conversation verifies (the artifact alone can be wholly LLM-produced).
-            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider, lang=args.lang)
+            def _obj(path: Path | None, flag: str) -> dict | None:
+                return _require_object(json.loads(path.read_text(encoding="utf-8")), flag) if path else None
+
+            inputs = EvaluationInputs(
+                commits=_list(args.commits_json, "--commits-json") or [],
+                probes=_list(args.probes_json, "--probes-json") or [],
+                repo=_obj(args.repo_json, "--repo-json"),
+                # Live Work Surface (moonshot E): observed process events, present when the
+                # candidate worked the case in-product. Present -> assess_tooling uses the
+                # observed path; absent -> the commit-metadata inference.
+                events=_list(args.events_json, "--events-json"),
+                # The seed (incl. internal canaries) is an evaluate-submission input only.
+                seed=_obj(args.seed_json, "--seed-json") if evaluating else None,
+                files=_list(args.files_json, "--files-json"),
+                lang=args.lang,
+            )
+            if evaluating:
+                inputs.case = _obj(args.case_json, "--case-json")
+                inputs.role = _obj(args.role_json, "--role-json")
+                inputs.chat = _list(args.chat_json, "--chat-json") or []
+                inputs.baseline = _obj(args.baseline_json, "--baseline-json")
+            ran = run_evaluation(inputs, provider=provider, reflect_only=not evaluating)
+            result_payload = ran.result
             # JUDGE INDEPENDENCE (one-thread gap 5) — a CONFIGURATION fact about the
             # install, stamped onto the evaluation a reviewer will read.
             #
@@ -497,18 +500,7 @@ def main(argv: list[str] | None = None) -> int:
             # produced it deterministically, so there is no generating engine for a judge
             # to be independent OF — and asserting "judge = generator" about a run with
             # no model in it would be a fabricated warning. Absent means absent.
-            result_payload = {
-                # observedChecks rides in the result so the TS bundle persists the
-                # mechanical verdicts (canaries, prompt signals, baseline distance)
-                # beside the LLM interpretation that consumed them.
-                "reflection": reflection,
-                "tooling": tooling,
-                "evaluation": evaluation,
-                "transfer": transfer,
-                "followups": followups,
-                "observedChecks": extras or {},
-            }
-            if provider is not None:
+            if evaluating and provider is not None:
                 from .llm_judge import judge_independence, resolve_judge_provider
 
                 try:
@@ -522,12 +514,10 @@ def main(argv: list[str] | None = None) -> int:
                 result_payload["judgeIndependence"] = judge_independence(provider, judge_seat)
             _emit(
                 result_payload,
-                {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
-                # evaluate/transfer now carry a PROPAGATED confidence (min of upstream), so the
-                # decision artifact is flagged alongside the thin steps it was built from — a
-                # deterministic-fallback evaluation no longer reads as authoritative.
-                _confidences(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer),
-                _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
+                ran.per_step,
+                ran.confidences,
+                # FallbackReasons, .codes intact — the ledger reads each step's code.
+                ran.fallback_reasons,
                 use_case=use_case,
                 descent_reason=descent,
             )

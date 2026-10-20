@@ -60,15 +60,15 @@ test("the live list and the seen-ack are per team", () => {
 
 test("every task route resolves the session workspace and threads it", () => {
   const cases: [string, RegExp[]][] = [
-    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /const ws = await currentWorkspace\(\);/, /startTask\(body\.kind, body\.params \?\? \{\}, ws\)/]],
+    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /withWorkspace\(async \(ws: string/, /startTask\(body\.kind, body\.params \?\? \{\}, ws\)/]],
     ["history/route.ts", [/countTaskHistory\(before, filter, ws\)/, /listTaskHistory\(before, limit, offset, filter, ws\)/]],
-    ["seen/route.ts", [/markTasksSeen\(ids, await currentWorkspace\(\)\)/]],
-    ["[id]/route.ts", [/getTask\(id, await currentWorkspace\(\)\)/, /if \(!getTask\(id, ws\)\)/]],
+    ["seen/route.ts", [/markTasksSeen\(ids, ws\)/]],
+    ["[id]/route.ts", [/getTask\(id, ws\)/, /if \(!getTask\(id, ws\)\)/]],
     ["[id]/retry/route.ts", [/getTask\(id, ws\)/, /startTask\(task\.kind, .*, ws\)/]],
   ];
   for (const [file, patterns] of cases) {
     const src = read(...file.split("/"));
-    assert.match(src, /currentWorkspace/, `${file}: must resolve a tenant`);
+    assert.match(src, /withWorkspace/, `${file}: must resolve a tenant (via withWorkspace)`);
     for (const p of patterns) assert.match(src, p, `${file}: expected ${p}`);
   }
 });
@@ -82,13 +82,18 @@ test("every task route resolves the session workspace and threads it", () => {
 test("retry refuses a replay whose uploaded inputs were already cleaned up", () => {
   const src = read("[id]", "retry", "route.ts");
   assert.match(src, /existsSync/, "the guard must actually stat the paths, not trust the row");
-  const guard = src.indexOf("replayInputsMissing(task.kind, params)");
+  // The check lives in app/_lib/task-replay.ts now (replayBlock — the list routes stamp
+  // each row's verdict from the same function); the route must still CALL it with a
+  // real stat, before the enqueue.
+  const guard = src.indexOf("replayBlock(task.kind, params, existsSync)");
   const start = src.indexOf("startTask(task.kind");
   assert.ok(guard > 0, "expected the missing-input guard");
   assert.ok(start > 0 && guard < start, "the guard must precede startTask — no phantom run, no spawn");
+  assert.doesNotMatch(src, /function replayInputsMissing/, "no private copy of the check may return");
   // It must stay a per-run existence check, never a blanket ban: a crash-interrupted
   // row whose workdir survived is still genuinely replayable.
-  assert.match(src, /paths\.length > 0 && paths\.some/, "unknown/absent paths must not refuse");
+  const shared = readFileSync(path.join(HERE, "..", "..", "_lib", "task-replay.ts"), "utf8");
+  assert.match(shared, /paths\.length > 0 && paths\.some/, "unknown/absent paths must not refuse");
 });
 
 test("DELETE proves ownership before aborting, not after", () => {
@@ -100,6 +105,12 @@ test("DELETE proves ownership before aborting, not after", () => {
   const cancel = src.indexOf("cancelTask(id)");
   assert.ok(guard > 0 && cancel > 0, "both the guard and the cancel must be present");
   assert.ok(guard < cancel, "the ownership check must precede cancelTask");
+});
+
+test("missing task reads and cancels use the localized refusal code", () => {
+  const src = read("[id]", "route.ts");
+  assert.equal((src.match(/jsonRefusal\("TASK_NOT_FOUND", 404\)/g) ?? []).length, 2);
+  assert.doesNotMatch(src, /error: "task not found"/);
 });
 
 test("boot recovery re-enqueues each orphan under its OWN team", () => {

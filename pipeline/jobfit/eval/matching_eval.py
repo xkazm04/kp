@@ -36,8 +36,10 @@ from ..profile import CandidateProfileV2, Evidence, SkillClaim
 from ..taxonomy import resolve_term, skill_match_score
 from ..transform import build_match_candidate
 from ._style import _make_styler, should_color
+from .neutrality import PERTURBATIONS, gender_pairs
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
+from .thresholds import record_refusal, settle_live, unit_map
 
 
 # -- scenario builders ------------------------------------------------------
@@ -307,11 +309,10 @@ def _probe_gender(jobs: list[Any]) -> Probe:
         p.display_name = name
         return [(m.job_id, m.total) for m in match(build_match_candidate(p), jobs, limit=50).matches]
 
-    pairs = [
-        ("Jan Novák", "Jana Nováková"),      # the shipped Czech marking
-        ("Jan Novak", "Jana Novakova"),      # accent-stripped: a lossy extract
-        ("John Smith", "Jane Smith"),        # English control
-    ]
+    # The shipped Czech marking, its accent-stripped form (a lossy extract), a
+    # titled form and an English control — read from the ONE perturbation set the
+    # test suites and the neutrality registry share, never re-typed here.
+    pairs = gender_pairs(PERTURBATIONS)
     diffs: list[str] = []
     for masc, fem in pairs:
         a, b = ranked(masc), ranked(fem)
@@ -322,7 +323,7 @@ def _probe_gender(jobs: list[Any]) -> Probe:
 
     # Non-vacuity: if naming a candidate at all changed nothing measurable, the probe
     # could pass on a scorer that ignores every input. A ranking must exist to compare.
-    measured = bool(ranked("Jan Novák"))
+    measured = bool(ranked(pairs[0][0]))
     passed = measured and not diffs
     detail = (
         f"ranking identical across {len(pairs)} gender-marked name pairs (full top-50, exact)"
@@ -443,6 +444,40 @@ class Report:
         return metrics_ok and all(p.passed for p in self.probes)
 
 
+def live_measurements(report: Report) -> dict[str, tuple[float, int]]:
+    """This run's figures in the shape thresholds.certify_live reads: each bar's
+    rate and the count of scenarios it was taken over."""
+    agg = report.aggregate()
+    n = len(report.scenarios)
+    live = {
+        "MATCHING_THRESHOLDS.archetype_accuracy": (agg["archetype_accuracy"], n),
+        "MATCHING_THRESHOLDS.role_relevance_at5": (agg["role_relevance_at5"], n),
+    }
+    if "entry_precision" in agg:
+        entry_n = sum(1 for s in report.scenarios if s.entry_precision is not None)
+        live["MATCHING_THRESHOLDS.entry_precision"] = (agg["entry_precision"], entry_n)
+    return live
+
+
+def live_units(report: Report) -> dict[str, dict[str, float]]:
+    """The units behind each figure in live_measurements, by scenario name: one
+    per scenario for archetype routing and relevance@5 (a mean, so compensating
+    moves show up here and nowhere else), one per early-career scenario for
+    entry precision."""
+    units = {
+        "MATCHING_THRESHOLDS.archetype_accuracy": unit_map(
+            (s.name, 1.0 if s.archetype_ok else 0.0) for s in report.scenarios
+        ),
+        "MATCHING_THRESHOLDS.role_relevance_at5": unit_map(
+            (s.name, s.role_relevance_at5) for s in report.scenarios
+        ),
+    }
+    entry = [(s.name, s.entry_precision) for s in report.scenarios if s.entry_precision is not None]
+    if entry:
+        units["MATCHING_THRESHOLDS.entry_precision"] = unit_map(entry)
+    return units
+
+
 def run(jobs: list[Any] | None = None) -> Report:
     if jobs is None:
         jobs = load_corpus()
@@ -557,9 +592,23 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic v2 matching + fairness eval.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero if a metric or probe fails.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if a metric or probe fails, or the live figures no longer match "
+             "measurements.json (a stale record).",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Operator act: re-record this eval's bars in measurements.json from this run. "
+             "Refuses to run in CI.",
+    )
     args = parser.parse_args(argv)
     use_color = should_color(args)
+    if args.record and (refusal := record_refusal()):
+        sys.stderr.write(f"matching_eval: {refusal}\n")
+        return 2
 
     # Load the corpus first: with zero jobs, every scenario scores 0 matches and
     # the report is a confusing all-FAIL with no cause. Say the corpus is empty
@@ -592,7 +641,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(_format_markdown(report, color=use_color))
 
-    if args.strict and not report.passes():
+    certified = settle_live(
+        live_measurements(report), live_units(report), record=args.record, prog="matching_eval"
+    )
+    if args.strict and not (report.passes() and certified):
         return 1
     return 0
 

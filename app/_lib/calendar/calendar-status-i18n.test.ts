@@ -83,7 +83,9 @@ test("the candidate-facing calendar note exists in every locale (both states)", 
 });
 
 test("'checked' is the ONLY status that may claim a calendar was consulted", () => {
-  // A guard on the vocabulary itself: the two non-checked states exist precisely so an
-  // outage and a genuinely clear calendar stop being the same sentence.
-  assert.deepEqual([...CALENDAR_STATUSES], ["checked", "not_connected", "unavailable"]);
+  // A guard on the vocabulary itself: the non-checked states exist precisely so an
+  // outage, a dead grant and a genuinely clear calendar stop being the same sentence.
+  // `needs_reconnect` is the chronic one (revoked / undecryptable grant): a reconnect
+  // fixes it, waiting never will, so it may not share `unavailable`'s words.
+  assert.deepEqual([...CALENDAR_STATUSES], ["checked", "not_connected", "unavailable", "needs_reconnect"]);
 });

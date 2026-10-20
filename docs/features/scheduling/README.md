@@ -17,7 +17,8 @@ cannot pick an hour the interviewer is already busy for.
 - Recruiter: the Schedule tab's invite lifecycle panel —
   `app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx`,
   `ScheduleInviteAgendaRow.tsx`, `ScheduleInviteRecruiterControls.tsx`,
-  `useScheduleInviteLifecycle.ts`.
+  `useScheduleInviteLifecycle.ts`; the one agenda both it and the week grid render
+  from is owned by `useScheduleTab.ts` over the pure `scheduleAgenda.ts`.
 - Calendar connection (operator): `app/api/calendar/google/**` +
   `app/_lib/calendar/token-store.ts`.
 
@@ -59,14 +60,21 @@ the repo's unit runner has no component renderer; same idiom as
 ## Flows
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
-   `durationMin = plannedInterviewMinutes(entry)` and mails the link.
+   `durationMin = plannedInterviewMinutes(entry)` (for a job with a published interview kit, that is the kit's booked length from `interview-kit-booking.ts` `kitBookedMin`, the same number the voice-screen mint books) and mails the link.
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each
-   outcome. `partitionBulkInviteTargets` refuses an unaddressable recipient
-   (`SCHEDULE_BULK_UNADDRESSABLE`) **before** minting, so a sourced name with no
-   `contact` does not get an orphan token plus a failed send. Opt-out is not a
-   reason to skip: schedule mail is transactional. Only the first
+   outcome. `partitionBulkInviteTargets` refuses **before** minting: first a
+   candidate the send gate refuses (consent lapsed but not yet swept, or erased:
+   `COMMS_SUPPRESSED`, no token, not counted in `sent`; the gate is
+   `entryContactability` from `app/_lib/comms-contactability.ts`, which asks
+   `commsSendSuppression`), then an unaddressable recipient or an agent on the
+   slate (`SCHEDULE_BULK_UNADDRESSABLE`), so a sourced name with no `contact` does
+   not get an orphan token plus a failed send. The single route answers the same
+   send-gate refusal with a 409 `COMMS_SUPPRESSED` before `createScheduleInvite`,
+   and still mints for an unaddressable person (the copy panel is their
+   fallback). Opt-out is not a reason to skip: schedule mail is transactional,
+   and the send gate's halt applies to `outreach` only. Only the first
    `BULK_INVITE_CAP` = 100 entries are processed; the
    **overflow is returned as explicit per-entry refusals** (`ok:false`, an
    error naming the cap) plus a `capped` count, so a cohort larger than the cap
@@ -206,17 +214,45 @@ before this integration existed. Scheduling worked without Google and must keep
 working when Google is down, the grant is revoked, or nobody ever connected an
 account.
 
-`proposeFreeSlots` reports that honestly, as three states
+`proposeFreeSlots` reports that honestly, as four states
 (`CALENDAR_STATUSES` in `free-busy.ts`):
 
 | Status | Meaning | Where it comes from |
 | --- | --- | --- |
 | `checked` | A connected calendar answered; the offered times are conflict-free | `fetchBusy` returned an array |
-| `not_connected` | No calendar integration for this workspace — the recruiter can fix this | `isCalendarConnected` false (no OAuth client configured, or no connection row) |
-| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, revoked grant, per-calendar error, a stored token that no longer decrypts) | `fetchBusy` returned `null` while connected |
+| `not_connected` | No calendar integration for this workspace — the recruiter can fix this (Connect) | `isCalendarConnected` false (no OAuth client configured, or no connection row) |
+| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, throttling, per-calendar error) — a wait | `fetchBusy` returned `null` while connected and the grant is healthy |
+| `needs_reconnect` | A calendar **is** connected but its grant is dead: Google revoked it, or the stored token no longer decrypts — the recruiter can fix this (Reconnect) | `calendarNeedsReconnect` (`google-calendar.ts`): the connection's recorded `health` is not `ok` |
 
 Only `checked` ever claims a calendar was consulted. `calendarChecked` (the
-boolean) is exactly `status === "checked"`.
+boolean) is exactly `status === "checked"`. `needs_reconnect` is
+**recruiter-only**: the public token route still carries one bit.
+
+### Grant health — a dead grant is not an outage
+
+`connected` means only that a refresh token is stored, and Google revokes a grant
+on its side (access withdrawn, password change, admin policy) without our row
+changing. So the connection records what the calendar edge last **observed**
+(`health` + `health_at` on `calendar_connections`, `CALENDAR_GRANT_HEALTH` in
+`token-store.ts`, added by an idempotent `ALTER` in that store's `db()`):
+
+- `revoked` — a refresh answered with Google's `invalid_grant` (read from
+  `GoogleOAuthError.code`, never from the message). Permanent, so
+  `accessTokenFor` **stops calling Google** for this workspace: no token round
+  trip per candidate page load or booking. Writes record `failed` as before.
+- `undecryptable` — the stored token no longer decrypts (the at-rest key
+  changed). Decrypting is local, so it is re-tried each call and heals itself if
+  the key comes back.
+- Timeouts, `5xx`, throttling and `KP_OFFLINE` **never** set it.
+
+A completed authorization (`saveCalendarConnection`, i.e. the Reconnect round
+trip) resets health to `ok`. `GET /api/calendar/google` returns the health and
+`unsyncedUpcoming` — this workspace's future confirmed interviews whose event
+write is `failed` (`countUnsyncedUpcomingInvites`, `schedule-store.ts`). The
+Integrations panel (`IntegrationsCalendarPanel.tsx`) turns a non-`ok` health
+into a notice with the date, that count and a **Reconnect now** button; the
+Schedule tab status (`ScheduleCalendarStatus.tsx`) links Reconnect for
+`needs_reconnect`. Pinned by `app/_lib/calendar/grant-health.test.ts`.
 
 ### Duration, and re-checking at booking
 
@@ -233,6 +269,55 @@ definite conflict with the same 409 the picker already handles, so the candidate
 is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
+
+**An idempotent re-confirm means the SAME booking.** `confirmScheduleInvite`
+answers `ok` for a confirm that lands on an already-confirmed invite, so a
+double-submit or a retry after a lost response does not error. It used to answer
+`ok` whatever time the retry named — and the token route reads that `ok` as a
+fresh booking, then advances the pipeline entry (`approve_event`) and composes
+the confirmation from the **requested** slot rather than the invite it got back.
+A retry at a different hour therefore stamped the board and the candidate's
+letter with a time nobody ever held, while the stored invite kept the first one.
+The branch now compares identity — the ISO `slot_at` where the caller supplies
+one, the display label only for the legacy label-only callers — and answers
+`taken` on a mismatch, the same refusal (and the same remedy: pick again) a slot
+collision produces. Pinned by `app/_lib/schedule-store.test.ts` ("a re-confirm at
+a DIFFERENT slot is refused").
+
+**A booking collision is a real-duration overlap, decided inside the lock.**
+`confirmScheduleInvite` and `rescheduleScheduleInvite` used to refuse a time only
+when another confirmed invite held the *identical* `slot_at`. That held while every
+booking sat on the `KP_INTERVIEW_TIMES` grid at one length, but the pool now holds
+off-grid minutes (a `dateSlotToIso` grid pick, an accepted `proposedSlotFor` time)
+and per-invite `duration_min`. So a 14:30 booked beside a 14:00, and a 15:00 inside
+a 90-minute 14:00, on every path except the week-grid `book`, which patched it with
+an hour-bucket read of `bookedSlots()` outside the transaction. Both transactions
+now read the workspace's other confirmed rows (own row excluded) and call
+`bookingCollides` (`app/_lib/schedule-slots.ts`): a clash is a half-open overlap
+of the real intervals (a NULL duration counts as `DEFAULT_INTERVIEW_MINUTES`, never
+zero; back-to-back is not a clash) **or** the same interview-zone hour, which is
+what the grid shows as taken. The check is synchronous inside `.immediate()`, so it
+holds the write lock; the route pre-read is gone and every writer (candidate
+confirm/reschedule, `book`, `reschedule`, `accept_proposal`) answers the same
+`taken` → 409 `SCHEDULE_SLOT_TAKEN`. The proposer uses the same predicate:
+`proposeSlots` / `proposeFreeSlots` take `bookedIntervals()` (bookings with their
+length) and never offer a time an off-grid or long booking runs into, calendar
+connected or not. Pinned by `app/_lib/schedule-collision.test.ts` and the
+accept_proposal / grid cases in `app/api/schedule/schedule-book-refusals.test.ts`.
+
+**A dated pick must name a day that exists.** The recruiter's week-grid cell
+arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
+(`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
+day ≤ 31 — and cannot see that the day is absent from *that* month, while
+`Date.UTC` underneath overflows silently rather than refusing: `2026-02-30`
+resolved to 2 March, `2026-06-31` to 1 July. The booking then landed on a
+different calendar day than the one asked for, with a server-derived label
+naming the rolled day, so nothing on either side reported the shift. The
+resolved instant is now round-tripped back through `KP_INTERVIEW_TZ` and
+refused unless year/month/day survive — the same `null` a weekend, a past
+instant or an off-horizon pick already returned. Pinned by
+`app/_lib/schedule-slots.test.ts` ("refuses a calendar date that does not
+exist"). DST is untouched: only the calendar date is compared, never the hour.
 
 **All four confirm writers re-check, on the same rule.** `slotStillFree` runs on
 the candidate confirm (`app/api/schedule/[token]/route.ts`) and on every recruiter
@@ -267,10 +352,15 @@ we'll confirm by email". `calendarStatus` and `droppedForConflict` are
 statements about the *interviewer's* calendar and stay off the public token
 wire, alongside `entryId` and `reconcileReason`.
 
-Copy lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
+The Schedule tab shows that three-state verdict near its header, along with the
+number of offered times omitted for a calendar conflict when positive. Copy
+lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
 `schedule.calendarCheckedNote` / `calendarUncheckedNote` (candidate), in all
 four locales. `app/_lib/calendar/calendar-status-i18n.test.ts` set-equality
 guards the recruiter catalog against `CALENDAR_STATUSES`.
+When the verdict is `not_connected`, the status also links to the Integrations
+tab's Connect Google Calendar action; `unavailable` does not suggest connecting
+an account that is already present.
 
 ## Write-back — the interview on the real calendar
 
@@ -394,9 +484,9 @@ were disabled-only, so a slow round-trip read as a dead button.
 
 ## The agenda read is bounded, throttled, and says so
 
-`GET /api/schedule` is the ONE list two live surfaces hydrate from — the Schedule
-tab’s week grid (`useScheduleTab.load`) and the invite lifecycle panel
-(`useScheduleInviteLifecycle`) — and both reload it after every mutation. It served
+`GET /api/schedule` is the ONE list two live surfaces render from — the Schedule
+tab’s week grid and the invite lifecycle panel — read once by the tab’s owner hook
+(`useScheduleTab.load`, see *One agenda, one owner* below). It served
 a hard-coded `listScheduleInvites(200, ws)`: no cursor, no way to ask for more and,
 worse, no signal that there was more. A team past 200 live invites silently lost the
 oldest of them from the agenda, from the lifecycle buckets **and from the grid’s
@@ -419,6 +509,92 @@ route with no budget while both write verbs carried one. The `?slots=1` branch f
 out to the interviewer’s connected Google calendar per hit, exactly like the
 candidate door. Its spec lives with every other limited door’s in
 `app/api/rate-limit-contract.test.ts`.
+
+### One agenda, one owner
+
+The tab used to hold the agenda twice: `useScheduleTab` kept the invite list for the
+grid and `useScheduleInviteLifecycle` kept a second copy, from its own GET, for the
+panel the tab renders as a child. Neither copy saw the other's writes. A grid Confirm
+booked the slot on the server and dropped the card without adopting the invite the
+route answered, so the grid drew the booked hour as free and the panel's Upcoming
+list never showed it. Going the other way, accepting a candidate's proposed time in
+the panel advanced the entry on the server while the grid kept its pending card. That
+card's Confirm would then **reschedule the accepted time onto the card's guessed
+cell**, because `book` moves a confirmed invite with recruiter authority and no cap.
+
+Now `useScheduleTab` owns one `AgendaState` (pending entries + invites). The panel
+gets it as props (`agendaForPanel`: the list, `loadedAt`, `truncated`, `failed` and
+the owner's writers), so a tab mount makes exactly one `GET /api/schedule`. The panel
+no longer depends on `sharedGet`'s in-flight coalescing for that. Every recruiter
+write goes through the pure module `scheduleAgenda.ts`:
+
+- **Write-through.** `applyMutation` adopts the row the route answered, keyed by
+  token, with order and every other row's identity kept. `book`, `reject` and
+  `accept_proposal` also drop the entry's pending card. A write response has no
+  pipeline join, so the agenda read's `entryStatus`/`entryStage` are kept, because
+  the Closed-row re-invite gates on them.
+- **Declared effects.** `effectsFor(kind)` is a table that must cover every verb (tsc
+  refuses a missing one). `book` and `accept_proposal` re-read `/api/pipeline`
+  because they advance the entry server-side. Every verb except `meeting_url` calls
+  `notifyDataChanged()`, so the Pipeline board and Decisions reload.
+  `reinvite` answers a token rather than a row, so the owner re-reads the agenda.
+- **Live refresh.** The owner subscribes `useLiveRefresh`, so a change made
+  elsewhere (a drawer move, another window, the simulation driver) reloads both lists
+  once, coalesced. Before, both lists were mount-only. The owner's own notify comes
+  back through the same window event. It is skipped for `OWN_ECHO_WINDOW_MS` because
+  that write is already applied. A read that was in flight when a write landed is
+  dropped, since it predates the write, and then issued again.
+
+Pinned by `app/features/hiring/schedule/scheduleAgenda.test.ts`: the pure cases, plus
+source contracts that the panel does no agenda read of its own and that the owner
+subscribes and announces.
+
+### What a pending card offers first
+
+Every pending card used to carry one booking action, Confirm, and it booked whatever
+cell was seeded, including the flat `Tue 14:00` guess for a candidate nobody had
+asked. The `book` route mails the candidate nothing. Whether a link had gone out, how
+long it had waited, whether the candidate had proposed times or stalled on a fully
+booked horizon: all of that lived only in the lifecycle panel, keyed by invite rather
+than by the candidate on the card.
+
+Now each card resolves its candidate's **live invite** and puts the next real step
+first (`schedulePendingCardState.ts`, read by `useScheduleTab.cardStates` and rendered
+by `ScheduleTabPendingList.tsx`):
+
+| State | When | The card's first action |
+| --- | --- | --- |
+| `no_link` | no invite for the entry | **Send scheduling link** (`POST /api/schedule/invite`) |
+| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link |
+| `expired` | the pending link aged out | send a new link |
+| `closed` | the last invite was declined or a no-show | send a new link |
+| `proposals` | the candidate proposed times | one **Accept** per proposed time (`accept_proposal`) |
+| `stuck_no_slots` | `needsMoreSlots` | a pointer to the attention list above; no primary button |
+| `booked` | a confirmed invite backs the cell | **Confirm** |
+
+- **Which invite speaks for the entry.** The agenda can hold several per entry (a
+  re-invite history). `liveInviteFor` picks a confirmed booking, else a live pending
+  link, else the most recent closed one, newest first within each. The grid seed uses
+  the same pick. It used to be a `Map` over the list, which kept whichever row sorted
+  last in the read's `ORDER BY`.
+- **Booking the suggested time stays, one step down.** The card keeps ONE book
+  control in every state. Only on a `booked` card is it the primary Confirm. On every
+  other card it reads **Book suggested time**, carries a tooltip saying the candidate
+  is not asked, and is styled as secondary. It keeps `data-sim-click="confirm"`, so
+  the guided simulation's manual fallback still resolves.
+- **Truthful delivery.** The send-link toast repeats the route's `delivery` claim:
+  `sent` (success), `queued` in the Outbox (info) or `failed` (error: the link exists,
+  copy it from the card). A missing claim is read as `failed`, never as sent. Mapped by
+  `sendLinkNotice`. Copy lives under `scheduleTab.sendLink.*` and
+  `scheduleTab.cardState.*`.
+- **Through the one agenda.** `send_link` is an agenda verb with its own effects row
+  (re-read the agenda, notify the board), like `reinvite`, since the route answers a
+  token rather than a row. A card's proposal accept goes through the owner's
+  `runInviteAction`, so the card leaves the pending list and the booking lands in
+  Upcoming and on the grid in the same render. A refused send or accept renders under
+  that card, like a refused book.
+
+Pinned by `app/features/hiring/schedule/schedulePendingCardState.test.ts`.
 
 ## What the recruiter is told when a booking is refused
 
@@ -484,9 +660,10 @@ which drives the real handler for thirteen branches, asserts the four-catalog en
 for every code the route emits, and fails if any branch reverts to a bare
 `NextResponse.json({ error: … })`.
 
-The only consumers of these two handlers are `useScheduleInviteLifecycle.runAction`
-(POST) and `ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third,
-on the `book` action. All three already resolve by code.
+The only consumers of these two handlers are the owner's `runInviteAction` in
+`useScheduleTab.ts` (POST, driven by `useScheduleInviteLifecycle.runAction`) and
+`ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third, on the `book`
+action. All three already resolve by code.
 
 ### The BULK invite door
 
@@ -625,6 +802,8 @@ The reminder sweep's old bare-English `"your scheduled time"` substitution is th
 catalog key `comms.interviewReminder.slotFallback` in all four locales. Pinned
 across cs/de/fr by `app/_lib/comms-dispatch-locale.test.ts`.
 
+**Book-your-interview nudge (pending links).** The reminder sweep only serves confirmed invites, so a link nobody opened used to age out in silence. `sendDueScheduleNudges` (`interview-reminders.ts`, same heartbeat job) sends ONE `schedule_nudge` letter (`comms.interviewNudge.*`, four locales) to a still-`pending` invite once it has sat un-booked for `SCHEDULE_NUDGE_AFTER_MS` (2 days, from the link's expiry anchor) and before it expires. It has its own `nudge_sent_at` / `nudge_attempts` / `nudge_last_attempt_at` columns (a nudge must never mark the later interview reminder as sent) and reuses the reminder retry cap and backoff. No automation event is written; the Outbox row is the record.
+
 **The interviewer's calendar hold is the length of the interview.**
 `dispatchInterviewerBrief`'s inline `.ics` inlined `30` minutes while the
 candidate's own `.ics`, the free/busy window and the slot proposer all used
@@ -660,8 +839,8 @@ wiring as a source guard, like `schedule-picker-recovery.test.ts`).
 | Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz` |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
 | Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
-| Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
-| Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
+| Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, `bookingCollides`, TTL |
+| Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions (real-duration overlap via `bookingCollides`), `bookedIntervals`, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
 | Google edge | `app/_lib/calendar/google-calendar.ts` | `fetchBusy`, `isCalendarConnected`, and the event verbs `createInterviewEvent` / `updateInterviewEvent` / `deleteInterviewEvent` |
 | Event write-back | `app/_lib/calendar/event-sync.ts` | `syncInterviewEvent` (create-or-update), `removeInterviewEvent` (delete). Best-effort, never throws |
@@ -750,6 +929,30 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in
   `docs/concepts/interview-rounds.md`.
+  - **Finished AI interviews are now reachable from this tab too** (2026-09-18).
+    The ledger's awaiting/live scope above is unchanged; a separate completed list
+    (`ScheduleAiRoundCompleted.tsx`) sits beside it and opens the same transcript
+    modal, because an AI-only hiring plan renders only `ScheduleAiRound` and could
+    otherwise reach neither the prep pack nor a finished conversation.
+  - **The transcript modal carries the directed interview's record.** Turns are
+    grouped under their agenda block with mm:ss timestamps, an observations panel
+    states in its own heading that focus departures, guardrail attempts and answer
+    timing are observations and never a reason to reject, and an opt-in audio
+    recording plays per attempt. The mechanism, the event vocabulary and the
+    retention rules belong to the interview feature, not to scheduling:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Recruiter
+    evidence", §"Director engine" and §"Opt-in audio recording". Files here:
+    `ScheduleInterviewEvidenceSection.tsx`, `ScheduleInterviewObservations.tsx`,
+    `ScheduleInterviewRecordings.tsx`, `scheduleInterviewEvidence.ts`.
+  - **The prep modal edits one candidate's kit-based plan** (2026-09-18). For a
+    candidate whose interview runs on the job's kit, the recruiter can drop,
+    rewrite or add a question for THIS candidate. The edits are stored as a
+    human-owned overlay on the prep payload (`PATCH /api/interview-prep` with
+    `{ kitOverlay }`), so a regeneration reapplies them instead of discarding
+    them, and every row says whether it came from the kit, the CV or the
+    recruiter. Files: `ScheduleInterviewPrepOverlay*.tsx`,
+    `scheduleInterviewPrepOverlayModel.ts`. The rules are the interview feature's:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Authoring the kit".
   - **A `failed` session lands back in "Awaiting link".** `/api/interview/complete`
     downgrades a silent-mic call to `failed` so it is never scored, and
     `revokeOpenInterviewSessions` treats a failed row as reissuable — so
@@ -768,6 +971,18 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   those off-rubric rather than dropping them, so the form must post them back —
   and the "N of M rated" counter counts only competencies the current rubric
   actually renders.
+- **One scorecard per interviewer and round.** The panel no longer takes the prep
+  payload's `humanScorecard` (the latest save, whoever made it) as its seed: it asks
+  `GET /api/interview-prep/scorecard` for `mine`, the caller's own record for the
+  candidate's current column, and mounts the form only once that has loaded. A
+  second interviewer therefore opens an empty form, with a line saying how many
+  other scorecards exist, and their save is filed beside the first rather than over
+  it. The transcript modal (`ScheduleInterviewTranscriptModal.tsx` →
+  `HumanScorecardSection`) lists every record, each with who scored it and which
+  round, and marks a record saved before attribution existed. The store, the legacy
+  read and the headline mirror are described in
+  `docs/features/interviews/README.md` ("Human scorecards are kept per interviewer
+  and round").
 
 ## Known gaps
 
@@ -778,16 +993,18 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   fix is a stable per-topic identity (the PUT caps a key at 64 chars), minted and
   counted in one change across both render files and the hook.
 - **The human scorecard is served with no consent gate.** `GET /api/interview-prep`
-  returns the stored `humanScorecard` (recruiter evidence quoting the candidate)
-  verbatim, while `GET /api/interview/by-entry` redacts the AI half through
+  returns the stored `humanScorecard` and `humanScorecards` (recruiter evidence
+  quoting the candidate) verbatim, and so does `GET /api/interview-prep/scorecard`'s
+  `records`, while `GET /api/interview/by-entry` redacts the AI half through
   `consentWithholdsPii`. Neither `HumanScorecardSection` nor the prep modal can
   tell "withheld" from "absent" — the payload carries no flag — so a lapsed-consent
   record renders in full, and the AI half's redaction reads as an empty state.
 - **The bulk bar still counts minted links, not deliveries.** The route now
   returns a per-entry `delivery` and a `delivered` aggregate, but
   `usePipelineBulk.bulkInvite` counts `results[].ok` (minted) and
-  `PipelineBulkActionBar` picks its copy from the relay CAPABILITY
-  (`bulkInvited` vs `bulkInvitedQueued`). With a relay configured and the
+  `PipelineBulkActionBar` picked its copy from the relay CAPABILITY
+  (`bulkInvited` vs `bulkInvitedQueued`). The bar left with the pipeline board
+  view on 2026-09-25; the hook's count is what the next bulk surface inherits. With a relay configured and the
   webhook dead-lettering, the bar therefore still reads "N invited to
   schedule". The remaining edit is client-side: count `delivery === "sent"`
   and fall back to the queued copy otherwise.
@@ -811,8 +1028,8 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   three halves: the store filters, every handler passes the tenant, and the
   planned-minutes path reads a non-default team's pack.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
-  is a single global pool, so collisions are workspace-wide rather than
-  per-interviewer.
+  is a single global pool, so collisions (real-duration overlap or same hour)
+  are workspace-wide rather than per-interviewer.
 - Only Google is supported; there is no Microsoft 365 provider (the event-sync
   seam is provider-shaped so one can be added, but nothing Outlook-side exists).
 - `POST /api/schedule` (the recruiter lifecycle actions — book, cancel, no-show,
@@ -831,3 +1048,5 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
+
+**Erasure removes the interviewer's calendar event.** After an erasure commits, `POST /api/data/[token]` deletes the Google event of each of the entry's invites that still holds a `calendar_event_id`, and the consent-expiry sweep retries any that did not land (`app/_lib/calendar/erasure-events.ts`: 25 per tick, 15 minutes between attempts on one event). The delete sends `sendUpdates=none`, so the erased person gets no cancellation mail. A delete that never lands stays `orphaned` with the id kept (the recruiter chip shows it). Failed cancels of live entries are not retried. See [ADR 0021](../../architecture/decisions/0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md).

@@ -1,0 +1,213 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+ "subject": "status-vocabulary",
+ "evaluatedAt": "2026-10-17T22:55:19.183559+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "member-ui-helpers",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/memberUi.ts:72 Role presentation splits color from labels into an independent function that uses raw color utilities and a default branch instead of a unified table keyed by the union.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:72 roleTone maps MemberRole to raw Tailwind color utilities with a switch default fallback rather than semantic roles in a unified presentation table."
+    },
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/memberUi.ts:48 Compile-time conditional type check proves that the display list covers the full Locale vocabulary union at the keystroke."
+    },
+    {
+     "technique": "vocabulary-evolution-checklist",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/memberUi.ts:35 Unifies AppLanguage directly with the Locale authority so expanding supported locales automatically extends the display vocabulary without drift."
+    }
+   ]
+  },
+  {
+   "context": "org-management-api",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/repo-scan/route.ts:32 The repo-scan route serializes status-shaped fields as bare strings across the network seam, breaking the typed vocabulary chain contract.",
+   "techniques": [
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/api/repo-scan/route.ts:32 Status is serialized across the wire typed as a bare unconstrained string rather than a generated closed type derived from the status authority."
+    }
+   ]
+  },
+  {
+   "context": "workspace-member-admin",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The workspace members table hand-picks raw color utility classes for the custom permissions state rather than resolving color through semantic roles and the shared badge system.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 Call site hand-rolls custom status presentation with hardcoded color utilities rather than mapping through semantic roles or the Badge primitive."
+    },
+    {
+     "technique": "number-formatting",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceRail.tsx:82 Member count quantities are interpolated directly into UI text without routing through the locale-bound numeric display primitive."
+    },
+    {
+     "technique": "timestamp-display",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/WorkspaceDetailPanel.tsx:271 Formats invite expiration timestamp using the application's centralized locale-aware fixed-moment formatter (useDateFormat)."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:97 Untrusted member display names are rendered as escaped text nodes with truncation to protect layout geometry."
+    }
+   ]
+  },
+  {
+   "context": "feedback-status-primitives",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/Badge.tsx:215 The badge primitive degrades unrecognized scorecard recommendation verdicts to a neutral tone and displays raw unvouched tokens instead of degrading toward the least approved member.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:215 Unknown interview recommendation values degrade to a neutral tone and display raw unvouched tokens instead of degrading toward the least approved member."
+    },
+    {
+     "technique": "number-formatting",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:337 ConfidenceRange interpolates numeric bounds directly with a raw dash without locale-aware numeric formatting."
+    },
+    {
+     "technique": "timestamp-display",
+     "verdict": "deviation",
+     "evidence": "app/_components/LoadStatus.tsx:39 Elapsed time is calculated against an ambient Date instant at render time without subscribing to a shared live-updating ticker or clamping future skew."
+    },
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:143 Badge token mappers accept unconstrained bare strings instead of closed union types and fall back to hardcoded English labels."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/_components/Tooltip.tsx:109 Tooltip primitive enforces plain text rendering and escapes labels by default in a dedicated portal text node."
+    }
+   ]
+  },
+  {
+   "context": "invite-accept-flow",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/invite/[token]/AcceptForm.tsx:196 The client form unsafely casts a bare unvalidated wire string to the closed MemberRole union before looking up its localized label.",
+   "techniques": [
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:196 The form performs an unchecked type assertion on a bare wire string, bypassing the closed vocabulary chain contract."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:197 Untrusted email and org name are rendered as escaped text nodes within translated rich formatting."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T22:55:19.183559+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "status-color-mapping",
+    "vocabulary-chain-integrity",
+    "vocabulary-evolution-checklist"
+   ],
+   "deviations": 1,
+   "context": "member-ui-helpers",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T22:55:19.183559+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "org-management-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T22:55:19.183559+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "number-formatting",
+    "status-color-mapping",
+    "timestamp-display",
+    "untrusted-label-rendering"
+   ],
+   "deviations": 1,
+   "context": "workspace-member-admin",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T22:55:19.183559+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "number-formatting",
+    "status-color-mapping",
+    "timestamp-display",
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "feedback-status-primitives",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T22:55:19.183559+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "invite-accept-flow",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

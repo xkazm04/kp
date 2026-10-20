@@ -1,0 +1,181 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bc80a685-b1d7-40e8-b8b4-31a5f43a8ee8",
+ "subject": "hiring-need-as-structured-brief",
+ "evaluatedAt": "2026-10-16T02:40:43.068190+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "jd-intake-brief-logic",
+   "subject": "hiring-need-as-structured-brief",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:25 The brief model establishes a three-valued basis classification, separates minimal spine fields from importance-graded open facets, and preserves source turn citations across incremental diffs.",
+   "techniques": [
+    {
+     "technique": "per-field-provenance-stated-inferred-default",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:28 Normalises undefined or off-vocabulary basis to default while strictly separating stated requestor words from inferred agent readings."
+    },
+    {
+     "technique": "minimal-spine-with-open-facets",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:46 Ranks open facets across core, valuable, and context tiers while de-duplicating facet values against spine fields and success criteria."
+    },
+    {
+     "technique": "source-turn-traceability",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/intakeDelta.ts:32 Attaches source turn transcript indices to each section row reference during brief diffing to drive transcript highlighting."
+    },
+    {
+     "technique": "graded-requirements-two-axes",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/briefSections.ts:85 Extracts acquirability via the learnable flag on requirement lines alongside necessity kind and continuous weight ordering."
+    },
+    {
+     "technique": "merge-that-never-regresses-a-stated-value",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/intakeBriefDraft.ts:49 Discards stored brief edit drafts if the underlying intake row version has advanced, preventing silent reverts of confirmed content."
+    }
+   ]
+  },
+  {
+   "context": "jd-intake-studio",
+   "subject": "hiring-need-as-structured-brief",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:167 The edit form collapses requirement grading to a single must/nice select and automatically locks acquirability to the diagonal, omitting any control to adjust learnability or weight.",
+   "techniques": [
+    {
+     "technique": "graded-requirements-two-axes",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:135 The requirements editor exposes only a single must/nice dropdown and hardcodes hardness on the diagonal when adding rows, preventing independent grading of acquirability."
+    },
+    {
+     "technique": "per-field-provenance-stated-inferred-default",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeBriefAtoms.tsx:18 Defines visual color mappings for stated, inferred, and default provenance, rendered as indicators beside every brief row."
+    },
+    {
+     "technique": "source-turn-traceability",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeBriefAtoms.tsx:80 Renders source turn citations as clickable footnote buttons that scroll to and highlight the corresponding transcript turn."
+    },
+    {
+     "technique": "minimal-spine-with-open-facets",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:220 Permits requestors to define and add arbitrary key-value context facets with open labels rather than forcing input into fixed forms."
+    },
+    {
+     "technique": "promote-readiness-gate",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/IntakeStudioActions.tsx:78 Inspects promotion blockers and names the missing requirements on the disabled promote action button in the user's language."
+    },
+    {
+     "technique": "merge-that-never-regresses-a-stated-value",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:106 Submits edits through withEditProvenance so only newly typed or changed fields flip to stated while preserving untouched provenance."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-api",
+   "subject": "hiring-need-as-structured-brief",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/intake/[id]/promote/route.ts:34 The promotion route enforces readiness via briefReadyToPromote without verifying that dealbreaker or outcome evidence carries stated basis, permitting unreviewed inferred or default content to satisfy the floor, and provides no attributed override mechanism.",
+   "techniques": [
+    {
+     "technique": "promote-readiness-gate",
+     "verdict": "deviation",
+     "evidence": "app/api/intake/[id]/promote/route.ts:34 The readiness check checks for string values in dealbreakers and outcomes but ignores provenance basis, allowing default and unreviewed inferred content to pass."
+    },
+    {
+     "technique": "merge-that-never-regresses-a-stated-value",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/brief/route.ts:37 Sanitizes incoming edits against the stored brief on the server to prevent stated qualifications from regressing to inferred or default status."
+    },
+    {
+     "technique": "per-field-provenance-stated-inferred-default",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/message/route.ts:224 The message route boundary explicitly returns the extraction source tier (LLM versus deterministic) to preserve provenance honesty under model degradation."
+    },
+    {
+     "technique": "source-turn-traceability",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/message/route.ts:211 Appends turn history records with question, answer, timestamp, and authenticated actor ID without overwriting historical turn positions."
+    },
+    {
+     "technique": "minimal-spine-with-open-facets",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/dossier/route.ts:43 Validates technical repository metadata before merging into the open codebase_dossier facet namespace rather than expanding the universal spine schema."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "hiring-need-as-structured-brief",
+   "context": "decisions-review-ui",
+   "reason": "Context decisions-review-ui renders candidate evaluation and review workflows (scoring, screen waves, reconsideration queues) rather than role intake or hiring brief definition; the subject hiring-need-as-structured-brief governs the creation and structure of the RoleBrief artifact."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T02:40:43.068190+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-need-as-structured-brief"
+   ],
+   "techniques": [
+    "graded-requirements-two-axes",
+    "merge-that-never-regresses-a-stated-value",
+    "minimal-spine-with-open-facets",
+    "per-field-provenance-stated-inferred-default",
+    "source-turn-traceability"
+   ],
+   "deviations": 0,
+   "context": "jd-intake-brief-logic",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T02:40:43.068190+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-need-as-structured-brief"
+   ],
+   "techniques": [
+    "graded-requirements-two-axes",
+    "merge-that-never-regresses-a-stated-value",
+    "minimal-spine-with-open-facets",
+    "per-field-provenance-stated-inferred-default",
+    "promote-readiness-gate",
+    "source-turn-traceability"
+   ],
+   "deviations": 1,
+   "context": "jd-intake-studio",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T02:40:43.068190+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-need-as-structured-brief"
+   ],
+   "techniques": [
+    "merge-that-never-regresses-a-stated-value",
+    "minimal-spine-with-open-facets",
+    "per-field-provenance-stated-inferred-default",
+    "promote-readiness-gate",
+    "source-turn-traceability"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

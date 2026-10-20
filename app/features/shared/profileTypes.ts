@@ -27,18 +27,23 @@ export type ArchetypeDef = {
   archived?: boolean;
 };
 
-// The baseline (shipped) archetypes: the ids with dedicated `choice.<id>` translations
-// and detection rules. They are PROTECTED from archival — retiring them would strip the
-// fairness shield / default routing the pipeline depends on. Single-sourced here (a
-// client-safe module) so both the archetype-registry write layer and the management UI
-// agree on which archetypes are built-in. Mirrors ARCHETYPE_CHOICES (minus "auto").
-export const BUILT_IN_ARCHETYPE_IDS = ["bau", "student", "career_switcher"] as const;
+// The baseline (shipped) archetypes — protected from archival. The literal is single-sourced
+// in app/_lib/archetypes.ts (so the server write layer needs no import from app/features/);
+// re-exported here for the management UI.
+export { BUILT_IN_ARCHETYPE_IDS } from "@/app/_lib/archetypes";
 
 // A candidate row for the archetype matrix (served by /api/profile/candidates) — a
 // UNION of BOTH stores tagged with `source`: a saved CV analysis (slug → /history)
 // or a saved v2 intake profile (id → the ?edit= editor deep link). `score` is the
 // analysis total for an analysis and null for a profile (no match score — honest,
 // never fabricated).
+// One analysis of a candidate's CV, as the matrix row lists it (newest first).
+export type CandidateAnalysisRef = { slug: string; score: number | null; createdAt: string };
+
+// One CANDIDATE on the matrix — keyed on CV identity (app/_lib/candidate-population.ts),
+// not on a store row. `source` is "profile" when a saved profile exists for the person
+// (with or without analyses of the same CV folded in) and "analysis" when only analyses
+// do. `slug` is the newest analysis; `analyses` lists every analysis of the same CV.
 export type CandidateRow = {
   key: string;
   source: "profile" | "analysis";
@@ -49,6 +54,7 @@ export type CandidateRow = {
   seniority: string | null;
   score: number | null;
   archetype: string;
+  analyses: CandidateAnalysisRef[];
 };
 export type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string; _id?: string };
 
@@ -119,7 +125,6 @@ export const ARCHETYPE_CHOICES = [
 // Labels are overridden by enums.family at the render site (ProfileEditor); the
 // label here is the non-i18n fallback. Slugs come from the canonical module.
 export const ROLE_FAMILIES = ROLE_FAMILY_SLUGS.map((v) => ({ v, label: ROLE_FAMILY_LABELS[v] }));
-export const EDU_LEVELS = ["unknown", "university", "bachelor", "master", "phd"];
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // EVIDENCE_KINDS / SKILL_LEVELS / PROVENANCE are GENERATED from the Python
 // taxonomy (the single source of truth): EVIDENCE_KINDS + SKILL_LEVELS from
@@ -128,6 +133,10 @@ export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // edit the Python lists and run `python -m pipeline.jobfit.codegen`; the build
 // and `npm run schemas:check` gate fail if this file drifts from Python.
 export { EVIDENCE_KINDS, SKILL_LEVELS, PROVENANCE } from "@/app/_lib/taxonomy.generated";
+// The candidate education ladder is generated the same way, from
+// pipeline/jobfit/education.py CANDIDATE_LEVELS ("university" there means the CV
+// names a school but no degree title, so a degree floor reads it as uncertain).
+export { CANDIDATE_EDUCATION_LEVELS as EDU_LEVELS } from "@/app/_lib/taxonomy.generated";
 // No archetype-label re-export: the labels are catalog copy, resolved with
 // useEnumLabel("archetypeLong" | "archetype", archetypeDisplayKey(id)). The raw
 // ARCHETYPE_LABEL map stays internal to app/_lib/archetypes (it is the id vocabulary

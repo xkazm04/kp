@@ -82,3 +82,58 @@ test("a candidate still awaiting a slot is never listed as interviewed", () => {
 test("an entry with no status row at all is not interviewed", () => {
   assert.deepEqual(interviewedEntriesFrom([entry("x", "scorecard_review")], {}, {}), []);
 });
+
+test("acceptance 112: active interview entry with approvalKind null and unscored session IS listed and tagged unscored", () => {
+  const now = 1_000_000_000_000;
+  const tenMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
+  const entries = [
+    { id: "e1", approvalKind: null, candidateLabel: "Cand 1", status: "active", stage: "Interview" } as SchedEntry,
+  ];
+  const out = interviewedEntriesFrom(
+    entries,
+    {
+      e1: {
+        status: "completed",
+        hasTranscript: true,
+        hasScorecard: false,
+        mode: "candidate",
+        endedAt: tenMinAgo,
+      },
+    },
+    {},
+    now
+  );
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, "e1");
+  assert.equal(out[0].scoringState, "unscored");
+});
+
+test("acceptance 113: scorecard_review with scored session or human scorecard is listed and tagged scored", () => {
+  const now = 1_000_000_000_000;
+  const entries = [
+    { id: "ai-scored", approvalKind: "scorecard_review", candidateLabel: "AI" } as SchedEntry,
+    { id: "human-scored", approvalKind: "scorecard_review", candidateLabel: "Human" } as SchedEntry,
+  ];
+  const out = interviewedEntriesFrom(
+    entries,
+    {
+      "ai-scored": {
+        status: "completed",
+        hasTranscript: true,
+        hasScorecard: true,
+        mode: "candidate",
+      },
+    },
+    {
+      "human-scored": { hasHumanScorecard: true },
+    },
+    now
+  );
+  assert.deepEqual(
+    out.map((e) => ({ id: e.id, scoringState: e.scoringState })),
+    [
+      { id: "ai-scored", scoringState: "scored" },
+      { id: "human-scored", scoringState: "scored" },
+    ]
+  );
+});

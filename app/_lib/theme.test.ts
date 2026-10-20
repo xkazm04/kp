@@ -57,11 +57,17 @@ type StorageHandler = (ev: { key: string | null; newValue: string | null }) => v
 function installThemeDom(): {
   dataset: { theme?: string };
   storageHandlers: StorageHandler[];
+  mediaHandlers: Array<(ev: { matches: boolean }) => void>;
+  setSystemDark: (dark: boolean) => void;
+  setStoredTheme: (value: string | null) => void;
   storageWrites: { n: number };
   restore: () => void;
 } {
   const dataset: { theme?: string } = {};
   const storageHandlers: StorageHandler[] = [];
+  const mediaHandlers: Array<(ev: { matches: boolean }) => void> = [];
+  let systemDark = false;
+  let storedTheme: string | null = null;
   const storageWrites = { n: 0 };
   const g = globalThis as typeof globalThis & { document?: unknown; window?: unknown; localStorage?: unknown };
   const prev = { document: g.document, window: g.window, localStorage: g.localStorage };
@@ -74,15 +80,30 @@ function installThemeDom(): {
       const i = storageHandlers.indexOf(handler);
       if (i >= 0) storageHandlers.splice(i, 1);
     },
+    matchMedia() {
+      return {
+        get matches() { return systemDark; },
+        addEventListener(_type: string, handler: (ev: { matches: boolean }) => void) { mediaHandlers.push(handler); },
+        removeEventListener(_type: string, handler: (ev: { matches: boolean }) => void) {
+          const i = mediaHandlers.indexOf(handler);
+          if (i >= 0) mediaHandlers.splice(i, 1);
+        },
+      };
+    },
   } as unknown as Window & typeof globalThis;
   g.localStorage = {
-    setItem() {
+    getItem() { return storedTheme; },
+    setItem(_key: string, value: string) {
+      storedTheme = value;
       storageWrites.n += 1;
     },
   } as unknown as Storage;
   return {
     dataset,
     storageHandlers,
+    mediaHandlers,
+    setSystemDark(dark) { systemDark = dark; mediaHandlers.forEach((handler) => handler({ matches: dark })); },
+    setStoredTheme(value) { storedTheme = value; },
     storageWrites,
     restore() {
       g.document = prev.document;
@@ -120,6 +141,29 @@ test("subscribeTheme registers a storage listener and applies a foreign-tab writ
   } finally {
     unsub();
     assert.equal(dom.storageHandlers.length, 0, "last unsubscribe unbinds the storage listener");
+    dom.restore();
+  }
+});
+
+test("system theme changes follow the OS only while no explicit choice is stored", () => {
+  const dom = installThemeDom();
+  let ticks = 0;
+  const unsub = subscribeTheme(() => { ticks += 1; });
+  try {
+    assert.equal(dom.mediaHandlers.length, 1);
+    dom.setSystemDark(true);
+    assert.equal(getTheme(), "dark");
+    assert.equal(ticks, 1);
+    dom.setStoredTheme("dark");
+    dom.setSystemDark(false);
+    assert.equal(getTheme(), "dark", "stored choice wins over a live OS change");
+    assert.equal(ticks, 1);
+    dom.setStoredTheme(null);
+    dom.storageHandlers[0]({ key: THEME_STORAGE_KEY, newValue: null });
+    assert.equal(getTheme(), "light", "clearing a choice returns to the current OS preference");
+  } finally {
+    unsub();
+    assert.equal(dom.mediaHandlers.length, 0);
     dom.restore();
   }
 });

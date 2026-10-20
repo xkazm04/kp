@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Check, Copy, LogIn, Pencil, UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
-import { ASSIGNABLE_ROLES, roleLabel } from "@/app/features/shared/memberUi";
+import { ASSIGNABLE_ROLES, roleDescription, roleLabel } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
 import { WorkspaceMembersTable } from "./WorkspaceMembersTable";
 import { invitesForWorkspace, memberName, membersNotInWorkspace, membersOfWorkspace } from "./workspaceAdminHelpers";
@@ -68,6 +69,7 @@ export function WorkspaceDetailPanel({
 }) {
   const t = useTranslations("workspaceAdmin");
   const tm = useTranslations("workspaceAdmin.members");
+  const dates = useDateFormat();
 
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -236,6 +238,7 @@ export function WorkspaceDetailPanel({
               </>
             )}
           </div>
+          <p className="mt-2 text-micro text-steel">{roleDescription(role, tm)}</p>
           {addMode === "existing" && available.length === 0 && !loading ? (
             <p className="mt-2 text-micro text-steel">{t("everyoneSeated")}</p>
           ) : null}
@@ -264,6 +267,9 @@ export function WorkspaceDetailPanel({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">{inv.email}</p>
                   <p className="text-micro text-steel">{roleLabel(inv.role, tm)}</p>
+                  {inv.expiresAt ? (
+                    <p className="text-micro text-steel">{tm("inviteExpires", { date: dates.dateTime(inv.expiresAt) })}</p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => onCopyInviteLink(inv.token)} className={`${BTN_GHOST} h-8 gap-1 px-2 text-sm`}>

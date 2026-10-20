@@ -70,3 +70,17 @@ test("determinate percentage is clamped to 0..100", () => {
     pct: 100,
   });
 });
+
+// ── challenge-r05 workspace-config-api/B: the replay verdict repaints ─────────
+
+test("two otherwise-identical rows whose replay verdicts differ have different signatures", () => {
+  const dead = { status: "failed", finishedAt: "2026-07-13T12:01:00.000Z" };
+  const ok = [row({ ...dead, replay: { replayable: true } })];
+  const gone = [row({ ...dead, replay: { replayable: false, reason: "inputs-gone" } })];
+  const seat = [row({ ...dead, replay: { replayable: false, reason: "no-seat" } })];
+  const none = [row({ ...dead, replay: null })];
+  assert.notEqual(tasksSignature(ok), tasksSignature(gone));
+  assert.notEqual(tasksSignature(gone), tasksSignature(seat));
+  assert.notEqual(tasksSignature(ok), tasksSignature(none));
+  assert.equal(tasksSignature(gone), tasksSignature([row({ ...dead, replay: { replayable: false, reason: "inputs-gone" } })]));
+});

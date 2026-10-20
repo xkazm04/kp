@@ -10,6 +10,10 @@ import type { VoiceTurn } from "@/app/_lib/voice/types";
 // the transcript is the same canonical VoiceTurn[] the server persists and the
 // browser produces, so the modal's row type can't drift from what it renders.
 export type Session = {
+  /** The session id — the key of the evidence door (`/api/interview/sessions/<id>/
+   *  evidence`, WP4). Optional because the modal must still render a session row
+   *  written before the id was read here. */
+  id?: string;
   provider?: string;
   status?: string;
   endedAt?: string | null;

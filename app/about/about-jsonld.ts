@@ -27,11 +27,14 @@ export type AboutJsonLdInput = {
 
 /** Strip next-intl rich tags (`<br></br>`, `<emph>`) so JSON-LD carries plain text. */
 export function plainIcu(value: string): string {
+  // Removing a tag must not let its neighbours reassemble into a new one
+  // (`<scr<b></b>ipt>`), so every angle bracket left after the tag passes is dropped too.
   return value
     .replace(/<br\s*\/?><\/br>/gi, " ")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/?emph>/gi, "")
     .replace(/<[^>]+>/g, "")
+    .replace(/[<>]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -84,7 +87,8 @@ export function buildAboutJsonLd(input: AboutJsonLdInput): {
         inLanguage: input.inLanguage,
         sameAs: input.sameAs,
         publisher: { "@type": "Organization", name: PRODUCT_NAME, url: home },
-        // Hosted free tier is still on PricingSection (`id: "free"`). Do not
+        // Hosted free tier is still on the pricing band (app/landing/site/land/
+        // Pricing.tsx, `id: "free"`; about-jsonld.test.ts pins it). Do not
         // invent aggregateRating / review.
         offers: { "@type": "Offer", price: "0", priceCurrency: "CZK" },
       },

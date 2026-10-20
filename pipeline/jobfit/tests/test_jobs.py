@@ -6,6 +6,7 @@ from pipeline.jobfit.jobs import (
     DEFAULT_POLICY,
     Job,
     compute_entry_profile,
+    ingest_ad_deterministic,
     ingest_raw_ad,
     normalize_job,
     _EXTRACTION_PROMPT,
@@ -464,3 +465,56 @@ class IngestTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeylessIngestTest(unittest.TestCase):
+    AD = "## Senior Rust Engineer\n\nWe build databases. You will own the storage layer."
+
+    def test_deterministic_parse_invents_nothing(self) -> None:
+        job = ingest_ad_deterministic(self.AD)
+        self.assertEqual(job.title, "Senior Rust Engineer")
+        self.assertIn("storage layer", job.description)
+        self.assertEqual(list(job.requirements), [])
+        for field in ("company", "location", "work_mode", "seniority"):
+            self.assertIn(field, job.defaulted_fields)
+
+    def test_empty_ad_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            ingest_ad_deterministic("   \n ")
+
+    def _run_cli(self, provider) -> dict:
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        from pipeline.jobfit import jobs_cli
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ad = Path(tmp) / "ad.txt"
+            ad.write_text(self.AD, encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch("pipeline.jobfit.llm.resolve_provider", return_value=provider), contextlib.redirect_stdout(out):
+                rc = jobs_cli.main(["ingest", "--ad-file", str(ad)])
+        self.assertEqual(rc, 0)
+        return json.loads(out.getvalue())
+
+    def test_cli_without_a_provider_exits_zero_with_deterministic_source(self) -> None:
+        class Down:
+            def available(self) -> bool:
+                return False
+
+        payload = self._run_cli(Down())
+        self.assertEqual(payload["source"], "deterministic")
+        self.assertEqual(payload["job"]["title"], "Senior Rust Engineer")
+
+    def test_cli_with_a_provider_still_reports_llm(self) -> None:
+        class Up(FakeProvider):
+            def available(self) -> bool:
+                return True
+
+        payload = self._run_cli(Up(SE_JUNIOR))
+        self.assertEqual(payload["source"], "llm")
+        self.assertEqual(payload["job"]["title"], "Junior Frontend Developer")

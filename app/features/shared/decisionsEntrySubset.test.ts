@@ -95,12 +95,13 @@ test("decisions and schedule resolve the archetype fill through the SAME functio
 });
 
 test("the tone table agrees with the board's full presentation catalog", () => {
-  // pipelineTypes.ARCHETYPE_STYLE is the RICH catalog (label + fill + ring +
+  // pipelineTypes.ARCHETYPE_STYLE is the RICH catalog (fill + ring +
   // glyph) the board rows need; this is the fill-only one. They must not drift.
   for (const key of Object.keys(ARCHETYPE_TONE)) {
     assert.equal(ARCHETYPE_TONE[key].bg, ARCHETYPE_STYLE[key].bg, `${key} fill`);
   }
   assert.deepEqual(Object.keys(ARCHETYPE_TONE).sort(), Object.keys(ARCHETYPE_STYLE).sort());
+  assert.ok(Object.values(ARCHETYPE_STYLE).every((style) => !("label" in style)), "localized callers own archetype labels");
 });
 
 test("an unknown or null archetype falls back to the bau fill, never undefined", () => {

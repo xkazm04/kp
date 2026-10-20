@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { getJobseekerPosting, setPostingStructure, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
 import { upsertJobseekerProfile } from "../../../_lib/db/jobseeker-profiles.ts";
+import { ensureDb } from "../../../_lib/db/core.ts";
 import { defaultDeepDiveDeps } from "../../../_lib/jobseeker/deepdive.ts";
 import type { CliCall, CliRunner } from "../../../_lib/jobseeker/python-cli.ts";
 import { PipelineError } from "../../../_lib/python-runner.ts";
@@ -141,4 +142,68 @@ test("a model answered: 200 llm / fallbackReason null, and the rationale IS stor
   const stored = getJobseekerPosting(id)!.reasoning as Record<string, unknown> | null;
   assert.ok(stored, "a model rationale is persisted — that is what makes the refresh worth doing");
   assert.equal((stored.reasoning as Record<string, unknown>).verdict, "Strong overlap on the stack.");
+});
+
+// A content change that lands WHILE the dive is out at the model (a scan re-harvesting
+// the posting) nulls job/match/reasoning (upsertPosting). The dive's writes carry the
+// content hash it read as a precondition, so nothing computed from the OLD ad is
+// stamped over the new one: the row stays unstructured for the next scan to redo.
+function changedBody(id: string): void {
+  const row = getJobseekerPosting(id)!;
+  const outcome = upsertPosting("src-dd", { ...raw(), externalKey: row.externalKey, bodyText: "Completely different role. Requirements: Rust." }, T0);
+  assert.equal(outcome.outcome, "changed");
+}
+
+test("a content change during model structuring: no job, match or rationale is written over the new ad", async () => {
+  const id = structuredPosting();
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") {
+      changedBody(id);
+      return { source: "llm", job: { title: "Old ad, model-structured", requiredSkills: ["TypeScript"] } };
+    }
+    if (call.module === "match_cli") return { matches: [{ jobId: id, total: 88, fitTier: "strong" }] };
+    return { source: "llm", reasoning: { verdict: "About the old ad." } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  const res = await dive(id);
+  assert.equal(res.status, 200);
+  const row = getJobseekerPosting(id)!;
+  assert.equal(row.job, null, "a Job structured from the OLD ad must not land on the new content");
+  assert.equal(row.match, null, "nor a score computed from it");
+  assert.equal(row.reasoning, null, "nor a rationale about it");
+});
+
+test("a content change during the rationale call: the rationale is not stored on the new ad", async () => {
+  const id = structuredPosting();
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") return { source: "deterministic" };
+    changedBody(id);
+    return { source: "llm", reasoning: { verdict: "About the old ad." } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  await dive(id);
+  const row = getJobseekerPosting(id)!;
+  assert.equal(row.job, null);
+  assert.equal(row.reasoning, null, "a rationale written against a moved content hash is a rationale about another ad");
+});
+
+test("the dive reasons with the SESSION user's profile, not whichever profile in the workspace was touched last", async () => {
+  // Open mode (unit-db scrubs the password): no session, so the caller is the user-less
+  // seeker — the same resolution GET/PUT profile and the dialogs door make. A second
+  // seeker's profile in the same workspace, updated more recently, must not be used.
+  const other = upsertJobseekerProfile({ userId: "u-other-seeker", profile: { displayName: "Someone else" }, preferences: EMPTY_PREFERENCES });
+  ensureDb().prepare(`UPDATE jobseeker_profiles SET updated_at = ? WHERE id = ?`).run("2099-01-01T00:00:00.000Z", other.id);
+  const id = structuredPosting();
+  let profileSent: unknown = null;
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") return { source: "deterministic" };
+    profileSent = call.files["profile.json"];
+    return { source: "deterministic", reasoning: { verdict: "t" } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  assert.equal((await dive(id)).status, 200);
+  assert.equal((profileSent as { displayName?: string } | null)?.displayName, "Seeker", "the caller's own profile, never the workspace's newest");
 });

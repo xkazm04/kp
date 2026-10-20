@@ -28,7 +28,9 @@ async function openRulesModal(page: Page) {
   await expect(openBtn).toBeVisible();
   await expect(async () => {
     if (!(await dialog.isVisible())) {
-      await openBtn.click().catch(() => undefined);
+      // Bounded under the 1500 ms expect below: a click that cannot land fails
+      // one attempt instead of hanging the loop to its 30 s limit.
+      await openBtn.click({ timeout: 1000 }).catch(() => undefined);
     }
     await expect(dialog).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });

@@ -26,6 +26,7 @@ from pipeline.jobfit.extractors import (
     MAX_REPAIR_CHARS,
     collapse_letter_spacing,
     extract_text,
+    extract_text_with_stats,
 )
 
 
@@ -137,6 +138,149 @@ def _pdf_bytes(page_texts: list[str]) -> bytes:
     return bytes(out)
 
 
+def _positioned_pdf(runs: list[tuple[float, float, str]]) -> bytes:
+    """A one-page PDF whose content stream draws each (x, y, text) run IN THE ORDER
+    GIVEN — so a test can reproduce a sidebar template that interleaves its columns."""
+    parts = []
+    for x, y, text in runs:
+        esc = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)").encode("latin-1")
+        parts.append(b"BT /F1 11 Tf 1 0 0 1 %d %d Tm (" % (int(x), int(y)) + esc + b") Tj ET")
+    stream = b"\n".join(parts)
+    objs: list[bytes] = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for idx, body in enumerate(objs, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % idx + body + b"\nendobj\n"
+    xref_at = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    for off in offsets:
+        out += b"%010d 00000 n \n" % off
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref_at)
+    return bytes(out)
+
+
+class MojibakeTableTest(unittest.TestCase):
+    """A substitution is a repair only when the damaged bytes determine the answer.
+
+    A lossy decode can collapse several source letters onto one damaged sequence; a
+    table entry for that sequence is a guess, and the guess was resolved toward one
+    Czech capital letter (see the comment above MOJIBAKE_REPLACEMENTS).
+    """
+
+    @staticmethod
+    def _preimages(key: str) -> set[str]:
+        found: set[str] = set()
+        for codepage in ("cp1250", "cp1252"):
+            for codepoint in range(0x80, 0x3000):
+                char = chr(codepoint)
+                if char.encode("utf-8").decode(codepage, errors="replace") == key:
+                    found.add(char)
+        return found
+
+    def test_every_key_decodes_from_exactly_one_character(self) -> None:
+        for broken, fixed in E.MOJIBAKE_REPLACEMENTS.items():
+            with self.subTest(key=broken):
+                self.assertEqual(self._preimages(broken), {fixed})
+
+    def test_an_ambiguous_sequence_is_left_as_visible_damage(self) -> None:
+        damaged = "Plze\u0148, \u0141\u00f3d\u017a".encode("utf-8").decode("cp1250", errors="replace")
+        repaired = E.repair_text_encoding(damaged)
+        self.assertNotIn("\u0158", repaired)
+        self.assertIn("\u0139\ufffd", repaired)
+
+    def test_unambiguous_czech_damage_is_still_repaired(self) -> None:
+        text = "Senior v\u00fdvoj\u00e1\u0159, \u010cesk\u00e1 spo\u0159itelna, zku\u0161enosti"
+        damaged = text.encode("utf-8").decode("cp1250", errors="replace")
+        self.assertEqual(E.repair_text_encoding(damaged), text)
+
+
+class TwoColumnReadingOrderTest(unittest.TestCase):
+    """A sidebar CV template interleaves its columns in the content stream. pypdf's
+    default order put the sidebar's headings above the candidate's name and glued an
+    email onto the URL beside it (measured on a real two-column CV, 2026-09-25). The
+    repair is gated on a proven gutter; a single-column CV keeps pypdf's own order."""
+
+    # Body column at x=240, sidebar at x=40; the stream alternates between them.
+    _BODY = [
+        (240, 740, "JANE EXAMPLE"),
+        (240, 720, "Senior Platform Engineer"),
+        (240, 700, "jane@example.org"),
+        (380, 700, "github.com/example"),
+        (240, 670, "EXPERIENCE"),
+        (240, 650, "Acme Systems 2021 - 2024"),
+        (240, 630, "Built the billing platform used by forty teams across the company."),
+        (240, 610, "Cut the deploy time from forty minutes to six with a new pipeline."),
+        (240, 580, "Globex 2018 - 2021"),
+        (240, 560, "Owned the payments integration and its on-call rotation for years."),
+    ]
+    _SIDEBAR = [
+        (40, 700, "SKILLS"),
+        (40, 680, "Kotlin"),
+        (40, 660, "PostgreSQL"),
+        (40, 640, "Terraform"),
+        (40, 620, "LANGUAGES"),
+        (40, 600, "English"),
+        (40, 580, "German"),
+    ]
+
+    def _extract(self, runs: list[tuple[float, float, str]]) -> str:
+        path = Path(tempfile.mkdtemp()) / "cv.pdf"
+        path.write_bytes(_positioned_pdf(runs))
+        return extract_text(path)
+
+    def _interleaved(self) -> list[tuple[float, float, str]]:
+        out: list[tuple[float, float, str]] = []
+        side = list(self._SIDEBAR)
+        for run in self._BODY:
+            out.append(run)
+            if side:
+                out.append(side.pop(0))
+        return out + side
+
+    def test_the_body_column_reads_as_one_block_and_the_sidebar_follows(self) -> None:
+        text = self._extract(self._interleaved())
+        lines = text.splitlines()
+        self.assertEqual(lines[0], "JANE EXAMPLE", text)
+        body_end = lines.index("Owned the payments integration and its on-call rotation for years.")
+        self.assertLess(body_end, lines.index("SKILLS"), "the sidebar follows the body, it is not spliced into it")
+        self.assertEqual(lines[lines.index("SKILLS") + 1 : lines.index("SKILLS") + 4], ["Kotlin", "PostgreSQL", "Terraform"])
+
+    def test_two_runs_on_one_baseline_stay_two_tokens(self) -> None:
+        text = self._extract(self._interleaved())
+        self.assertIn("jane@example.org github.com/example", text)
+        self.assertNotIn("example.orggithub", text)
+
+    def test_a_single_column_cv_with_right_aligned_dates_keeps_pypdfs_order(self) -> None:
+        runs = [
+            (60, 740, "JOHN EXAMPLE"),
+            (60, 710, "EXPERIENCE"),
+            (60, 690, "Acme Systems"),
+            (470, 690, "2021 - 2024"),
+            (60, 670, "Built the billing platform used by forty teams across the whole company and more."),
+            (60, 650, "Globex"),
+            (470, 650, "2018 - 2021"),
+            (60, 630, "Owned the payments integration and its on-call rotation for three straight years."),
+        ]
+        path = Path(tempfile.mkdtemp()) / "cv.pdf"
+        path.write_bytes(_positioned_pdf(runs))
+        from pypdf import PdfReader
+
+        self.assertIsNone(E._find_gutter(E._page_fragments(PdfReader(str(path)).pages[0])), "no gutter: long body lines cross it")
+        default = PdfReader(str(path)).pages[0].extract_text()
+        self.assertEqual(extract_text(path), E.clean_text(E.collapse_letter_spacing(default)))
+
+    def test_a_wholly_letter_spaced_heading_fragment_is_rejoined(self) -> None:
+        self.assertEqual(E._unspace_fragment("S W  A N A L Y S I S"), "SW ANALYSIS")
+        self.assertEqual(E._unspace_fragment("J. R. R. Tolkien"), "J. R. R. Tolkien")
+
+
 class MultiPagePdfTest(unittest.TestCase):
     """The PDF page loop — the primary CV ingestion path, previously untested here.
 
@@ -163,6 +307,14 @@ class MultiPagePdfTest(unittest.TestCase):
         positions = [text.index(f"PAGEMARKER{i}") for i in range(len(self._PAGES))]
         self.assertEqual(positions, sorted(positions), "pages came back out of order")
 
+    def test_page_count_is_reported_with_the_same_extracted_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cv.pdf"
+            path.write_bytes(_pdf_bytes(self._PAGES))
+            text, pages = extract_text_with_stats(path)
+            self.assertEqual(text, extract_text(path))
+            self.assertEqual(pages, len(self._PAGES))
+
     def test_page_cap_still_bounds_a_hostile_pdf(self) -> None:
         # Non-vacuity for the test above: the cap is real, it just must not be 1.
         with mock.patch.object(E, "MAX_PDF_PAGES", 2):
@@ -183,6 +335,36 @@ class MultiPagePdfTest(unittest.TestCase):
         # a first-page-only extraction would leave later pages unrepaired.
         text = self._written(["ordinary first page", "K n o w l e d g e base"])
         self.assertIn("Knowledge base", text)
+
+    def test_image_only_pdf_returns_empty_text(self) -> None:
+        # A scanned CV has page images but no text layer. Build one pixel in a
+        # valid PDF page so this exercises pypdf rather than a blank-page shortcut.
+        from pypdf import PdfWriter
+        from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
+
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=72, height=72)
+        image = DecodedStreamObject()
+        image.set_data(b"\xff\xff\xff")
+        image.update({
+            NameObject("/Type"): NameObject("/XObject"),
+            NameObject("/Subtype"): NameObject("/Image"),
+            NameObject("/Width"): NumberObject(1),
+            NameObject("/Height"): NumberObject(1),
+            NameObject("/ColorSpace"): NameObject("/DeviceRGB"),
+            NameObject("/BitsPerComponent"): NumberObject(8),
+        })
+        content = DecodedStreamObject()
+        content.set_data(b"q 72 0 0 72 0 0 cm /Im0 Do Q")
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/XObject"): DictionaryObject({NameObject("/Im0"): writer._add_object(image)}),
+        })
+        page[NameObject("/Contents")] = writer._add_object(content)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scanned.pdf"
+            writer.write(path)
+            self.assertEqual(extract_text(path), "")
+            self.assertEqual(extract_text_with_stats(path), ("", 1))
 
 
 if __name__ == "__main__":

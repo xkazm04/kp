@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { publicBaseUrl, publicOriginConflict, resetPublicOriginConflictWarnForTests } from "./public-base-url.ts";
+import { publicBaseUrl, publicOriginConflict, publicOriginHealth, resetPublicOriginConflictWarnForTests } from "./public-base-url.ts";
 
 const ORIGINAL_APP = process.env.APP_BASE_URL;
 const ORIGINAL_PUBLIC = process.env.NEXT_PUBLIC_APP_BASE_URL;
@@ -25,6 +25,21 @@ afterEach(() => {
   setEnv("NEXT_PUBLIC_APP_BASE_URL", ORIGINAL_PUBLIC);
   setEnv("NEXT_PUBLIC_SITE_URL", ORIGINAL_SITE);
   resetPublicOriginConflictWarnForTests();
+});
+
+test("origin health names an unconfigured detached-link fallback", () => {
+  setEnv("APP_BASE_URL", undefined);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", undefined);
+  assert.match(publicOriginHealth().reason ?? "", /no usable APP_BASE_URL/);
+  assert.equal(publicOriginHealth().ok, false);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://hiring.example.com");
+  assert.deepEqual(publicOriginHealth(), { ok: true, reason: null });
+});
+
+test("origin health reports split server and browser hosts", () => {
+  setEnv("APP_BASE_URL", "https://server.example.com");
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://browser.example.com");
+  assert.match(publicOriginHealth().reason ?? "", /disagree/);
 });
 
 // ── Precedence: an explicit deploy override always wins ──────────────────────

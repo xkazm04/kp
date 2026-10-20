@@ -9,8 +9,16 @@ method here, and never copy it in).
 | `contextMap` | `context-map.json` (143 contexts, 17 groups) |
 | `memoryOutbox` | `.personas/memory-outbox.jsonl` |
 | `backlogDigest` | `.personas/backlog-digest.json` — **absent on this checkout**; the Personas triage deck is the live list. Read `.personas/contexts.txt` and the deck before proposing. |
+| `openBacklogs` | `.claude/scan-history/open-backlogs.jsonl` — §0 reads this **before** any new scan. |
 | `depth` | skill default (12 / 20 with `--one`) |
 | `neverSweep` | none declared |
+
+**Speak the open backlog first.** `/scan-sweep` (including `--coverage`) must print
+the `OPEN BACKLOG` notice from §0 before picking a context. As of 2026-09-17 a
+`--develop` coordinator wave left unworked findings at
+`.claude/scan-history/leftover-develop-2026-09-17.jsonl`, registered in
+`open-backlogs.jsonl`. Drain that (lowest-risk auto S/M) or close the row; do not
+start another 191-context scan on top of it unless the operator says so.
 
 ## Gates, in the order they should run
 
@@ -70,6 +78,67 @@ mechanical passes (EOL normalisation, restores). If you do hit the reminder afte
 having updated the doc, verify with `git log --oneline -- <doc>` and say so with
 the evidence — do not dismiss it as "no doc update needed", which is a different
 claim and an untrue one.
+
+## Challenge mode
+
+Keys for `--challenge` (skill 3.4.0, `references/challenge.md`).
+
+| Key | Value |
+| --- | --- |
+| `challenge.cohort` | 6 |
+| `challenge.waveSize` | 4 |
+| `challenge.worktrees` | `false` — a worktree + junctioned `node_modules` runs `tsc` but fails ~106 route-handler unit tests, and Turbopack refuses it for `next build`. Builders share the main checkout. |
+| `challenge.runDir` | `.claude/scan-history/challenge-<date>/` (cards, critic verdicts, builder results) |
+
+`challenge.sharedSurfaces` — edit only under the `mkdir .git/scan-sweep-challenge.lock`
+lock, append at the END, commit alone and immediately:
+
+- `messages/en.json`, `messages/cs.json`, `messages/de.json`, `messages/fr.json`
+  (one key set lands in all four in the same commit — `i18n:check`)
+- `docs/architecture/api-reference.md` (regenerate with `npm run api:docs`, never by hand)
+- `scripts/docs/feature-doc-map.json`, `ts-debt.json`, `test-quarantine.json`,
+  `perf-budget.json`
+- `app/api/rate-limit-contract.test.ts`, `app/api/error-response-contract.test.ts`
+- `app/_lib/tenancy.ts`, `app/features/shell/tabs.ts`
+
+`challenge.integrationGate` — run on the combined tree after every wave, each
+command on its own, exit code asserted:
+
+```bash
+npx tsc --noEmit -p tsconfig.json
+npm run lint
+npm run lint:ts-ratchet
+npm run i18n:check
+npm run design:check
+npm run api:check
+npm run docs:check
+npm run test:perf        # the import-graph budget (perf-budget.json) lives here
+npm run test:unit
+```
+
+`npm run build` is NOT in the per-wave gate: the operator's dev servers usually hold
+`.next` (see the prod-build note in memory); run it once at the end with
+`KP_EMPTY=1` if the run touched routing or server/client boundaries.
+
+Repo law a builder trips most (brief it in): 4-locale parity; no raw hex/rgba outside
+`app/landing/`; never `await` inside `db.transaction()`; empty catch needs a reason;
+failures answer a CODE via `safeJsonError`; a new persistent table needs the tenancy
+manifest; new routes need an auth posture and an `api-reference.md` row; the doc
+named by `scripts/docs/feature-doc-map.json` for touched source is updated in the
+same change; commit bodies need a `Doc-sync:` trailer when no doc applies.
+
+## Coverage row: every resolve round writes one
+
+Rule (dev_idea 78251b55): a `resolve`-mode round appends a row to the **recorded** tables in
+`.claude/scan-history/coverage-2026-08.md` for every context it picks, **at the moment it picks it**, with the
+same columns as the newest recorded table (context, cat, files read, one cell per lens, fixed). The
+`scan-sweep.jsonl` line is the ledger twin; a round that wrote the jsonl line and no row is incomplete. The
+table is what the lens KPIs read, so a skipped row makes the meter under-read silently.
+
+Lens-name normalisation (the jsonl `lens_keys` use the registry names, the table uses five column names):
+`bounty-hunter` -> `bug-hunter`; `ux-reviewer` / `accessibility-checker` -> `ui-perfectionist`;
+`performance-profiler` (and `code-optimizer` when it was the performance read) -> `performance`;
+`documentation-auditor` -> `ambiguity`. `performance` and `performance-profiler` count as ONE lens.
 
 ## Skill improvement log
 
@@ -184,3 +253,8 @@ claim and an untrue one.
   and whose tree contained another session's files (observed: `aac14e447`,
   `f0085c17d`, `4cfa7963a`, `461f083e3`). Worktrees, or a single serialized
   owner for catalogs/docs, are the control; the pathspec reminder is not.
+
+- **2026-09-18 — A mass `--develop` wave that cannot fit the outbox is lost
+  unless it writes `open-backlogs.jsonl`.** Session `all-findings.jsonl` is
+  gone the next checkout. The register row plus
+  `.claude/scan-history/leftover-develop-2026-09-17.jsonl` is what §0 reads.

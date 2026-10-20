@@ -41,6 +41,13 @@ type Catalog = {
     trust: { human: { body: string }; audit: { body: string } };
     pricing: { enterprise: { blurb: string; capabilities: string[] } };
   };
+  /* The prototype port (app/landing/site/, 2026-09-30) reuses the landing.* and
+   * aboutPage.* keys above verbatim and adds its new copy under these four. They
+   * are public marketing prose too, so the prose-wide bans below read them. */
+  siteChrome?: { menu?: { languages?: string } } & Record<string, unknown>;
+  siteLand?: Record<string, unknown>;
+  siteFeatures?: Record<string, unknown>;
+  siteAbout?: Record<string, unknown>;
   aboutPage: {
     hero: { title: string; subtitle: string };
     steps: Record<string, { eyebrow: string; title: string; body: string }>;
@@ -106,8 +113,29 @@ test("the human-gate copy carries its 'by default' qualifier in every locale", (
   assert.doesNotMatch(
     automation,
     /getPlanGateForRole\("(rejection|reject)"/,
-    "a rejection gate would falsify landing.trust.human.body's first sentence"
+    "a rejection gate would falsify landing.trust.human.body's rejection claim"
   );
+  // The rejection claim itself is qualified by the ONE automatic decline: the apply
+  // knockout. Pin the exception per locale so a retranslation cannot quietly restore
+  // "always a person's" while that gate is automatic.
+  const KNOCKOUT_EXCEPTION: Record<string, RegExp> = {
+    en: /apart from one automatic knockout[\s\S]*ask a person to review/i,
+    cs: /až na jedno automatické vyřazení[\s\S]*přezkoumání člověkem/i,
+    de: /bis auf ein automatisches ausschlusskriterium[\s\S]*überprüfung durch einen menschen/i,
+    fr: /hormis un seul refus automatique[\s\S]*qu’une personne réexamine/i,
+  };
+  assert.match(
+    source("app", "api", "apply", "[id]", "route.ts"),
+    /recordKnockoutDecline\(/,
+    "the automatic knockout decline is gone — re-check the exception in landing.trust.human.body"
+  );
+  for (const locale of LOCALES) {
+    assert.match(
+      CATALOGS[locale].landing.trust.human.body,
+      KNOCKOUT_EXCEPTION[locale],
+      `${locale}: landing.trust.human.body must name the automatic knockout and the review route`
+    );
+  }
 
   // The qualifier, per locale. Editing the sentence is fine; dropping the hedge
   // is not, and a translation that drops it is the failure nobody would notice.
@@ -175,8 +203,9 @@ test("no marketing copy promises the onboarding module that was retired", () => 
 
   for (const locale of LOCALES) {
     const c = CATALOGS[locale];
-    // The whole public marketing surface, not just the two keys that were caught.
-    const prose = JSON.stringify([c.landing, c.aboutPage]);
+    // The whole public marketing surface, not just the two keys that were caught:
+    // the reused namespaces AND the four the prototype port added.
+    const prose = JSON.stringify([c.landing, c.aboutPage, c.siteChrome, c.siteLand, c.siteFeatures, c.siteAbout]);
     const hits = prose.split(/(?<=[.!?"])\s+/).filter((s) => ONBOARDING[locale].test(s));
     assert.deepEqual(
       hits,
@@ -197,6 +226,26 @@ test("the marquee's language claim states the number of locales that ship", () =
       1,
       `${locale}'s marquee must carry exactly one language claim stating ${LOCALES.length}; it carries ${claims.length}`
     );
+  }
+});
+
+test("the phone menu's language line states the number of locales that ship, in words", () => {
+  // siteChrome.menu.languages ("Four languages, candidate side included:") heads the
+  // EN/CS/DE/FR chips in the site's phone menu (app/landing/site/chrome/Header.tsx).
+  // It spells the count, so numbersIn() cannot read it; a declared word per locale
+  // does, and a fifth locale fails here until the copy is updated with it.
+  const WORD_FOR_COUNT: Record<string, Record<number, RegExp>> = {
+    en: { 4: /\bfour\b/i },
+    cs: { 4: /čty[řr]/i },
+    de: { 4: /\bvier\b/i },
+    fr: { 4: /\bquatre\b/i },
+  };
+  for (const locale of LOCALES) {
+    const line = CATALOGS[locale].siteChrome?.menu?.languages;
+    assert.ok(line, `${locale} has no siteChrome.menu.languages (the phone menu's language line)`);
+    const word = WORD_FOR_COUNT[locale]?.[LOCALES.length];
+    assert.ok(word, `no word for ${LOCALES.length} in ${locale}: the menu's language line needs updating`);
+    assert.match(line, word, `${locale}'s menu language line does not say ${LOCALES.length}: "${line}"`);
   }
 });
 
@@ -241,7 +290,7 @@ test("every /about phase carries copy and art keys in all four catalogs", () => 
     assert.deepEqual(
       Object.keys(steps),
       [...ABOUT_STEP_KEYS],
-      `${locale}'s aboutPage.steps must name every phase AboutCurve draws, in the order it draws them`
+      `${locale}'s aboutPage.steps must name every phase the /about line draws, in the order it draws them`
     );
     for (const key of ABOUT_STEP_KEYS) {
       for (const field of ["eyebrow", "title", "body"] as const) {
@@ -276,16 +325,18 @@ test("each /about step's eyebrow states its own position on the curve", () => {
 });
 
 test("every /about phase yields a numbered rail label in every locale", () => {
-  /* The section rail and the phone menu label each destination "01 Design" —
-   * DERIVED from the step's own eyebrow rather than from eight more catalog
-   * keys, so the nav and the heading it jumps to cannot disagree. That makes
-   * the eyebrow's SHAPE load-bearing: drop the "·" in one locale and the rail
-   * silently falls back to the full "Krok 03 · Příjem" in a column sized for
-   * two words. The ids are checked here too — they are what a `#step-07` deep
-   * link and the scroll-spy both address. */
-  // The rail reserves 12.5rem; see SectionRail's `widthRem`, which also sets the
-  // dock pill's width AND (through gutterMinRem) the width at which /about swaps
-  // the dock for the rail — so a label that outgrows this outgrows all three.
+  /* Every short step name on /about is DERIVED from the step's own eyebrow
+   * ("Step 03 · Intake" -> "Intake") rather than from eight more catalog keys, so
+   * a nav label and the heading it jumps to cannot disagree: today the stepper's
+   * neighbour names beside its arrows ("← Design", "Intake →") and its dots
+   * (app/landing/site/about/steps.ts `stepName`, the same derivation as
+   * aboutStepRailLabel). That makes the eyebrow's SHAPE load-bearing: drop the
+   * "·" in one locale and the name silently falls back to the full
+   * "Krok 03 · Příjem". The ids are checked here too — they are what a
+   * `#step-07` deep link, the JSON-LD HowTo and the stepper all address. */
+  // The 22-character budget was set by the retired section rail (12.5rem). It is
+  // kept as the length budget for the same short name on the stepper's arrow
+  // buttons, which sit side by side on one row.
   const MAX_LABEL_CHARS = 22;
   for (const locale of LOCALES) {
     const { steps } = CATALOGS[locale].aboutPage;
@@ -305,7 +356,7 @@ test("every /about phase yields a numbered rail label in every locale", () => {
       );
       assert.ok(
         label.length <= MAX_LABEL_CHARS,
-        `${locale}'s rail label for ${key} ("${label}") is ${label.length} chars — widen SectionRail's \`widthRem\` on /about or shorten the eyebrow`
+        `${locale}'s short step name for ${key} ("${label}") is ${label.length} chars — shorten the eyebrow's phase name`
       );
     });
   }
@@ -348,12 +399,18 @@ test("the assignment phase the landing leads with is on the /about curve", () =>
     i > ABOUT_STEP_KEYS.indexOf("screen") && i < ABOUT_STEP_KEYS.indexOf("interview"),
     "the case goes out at screening and the interview is grounded in the submission: assignment sits between them"
   );
-  // The curve derives its spine from the same list, so a phase can never be drawn
-  // without a node to sit on.
+  // The line derives its steps from the same list, so a phase can never be drawn
+  // without a station to sit on. site/about/steps.ts re-exports the list as
+  // STEP_KEYS, and AboutPage/AboutLine walk that.
   assert.match(
-    source("app", "landing", "spark", "AboutCurve.tsx"),
-    /ABOUT_STEP_KEYS/,
-    "AboutCurve must derive its rows and its spine from the phase list, not from a parallel literal"
+    source("app", "landing", "site", "about", "steps.ts"),
+    /export const STEP_KEYS = ABOUT_STEP_KEYS;/,
+    "the /about line must derive its steps from ABOUT_STEP_KEYS, not from a parallel literal"
+  );
+  assert.match(
+    source("app", "landing", "site", "about", "AboutPage.tsx"),
+    /\bSTEP_KEYS\b/,
+    "AboutPage must render its steps off STEP_KEYS (the phase list)"
   );
 });
 
@@ -398,4 +455,66 @@ test("the /about HowTo graph is locked to ABOUT_STEP_KEYS and the catalog titles
     /FAQPage/,
     "do not emit a hidden FAQPage — there is no FAQ UI on /about"
   );
+});
+
+/* ── The offer figure ────────────────────────────────────────────────────────
+ *
+ * landing.features.offer.body, aboutPage.steps.offer.body and
+ * siteFeatures.items.offer.pin1 all say the figure is "role band × fit, no model
+ * in the number". The number is `recommended` in `draft_offer`
+ * (pipeline/jobfit/automation.py). The model writes the LETTER around it; it never
+ * produces the figure. The narrowest faithful pin is structural: the statements
+ * that compute `recommended` come before the model call, take only the job's band
+ * and the fit total, and the structured result carries the computed value, not
+ * anything parsed out of the model's reply. It does not prove the letter text
+ * repeats the figure unchanged — the prompt instructs the model to state it. */
+
+test("the offer figure is computed from the role band and the fit total before any model call", () => {
+  const py = source("pipeline", "jobfit", "automation.py");
+  const start = py.indexOf("\ndef draft_offer(");
+  assert.ok(start >= 0, "automation.py no longer defines draft_offer — re-trace the offer copy");
+  const next = py.indexOf("\ndef ", start + 1);
+  const fn = py.slice(start, next === -1 ? undefined : next);
+  const body = fn.slice(fn.indexOf("):\n"));
+
+  const call = body.indexOf("_generate(");
+  assert.ok(call > 0, "draft_offer no longer calls _generate — re-trace where the letter is written");
+  const beforeCall = body.slice(0, call);
+
+  const computed = beforeCall.match(/^\s*recommended = (.+)$/m);
+  assert.ok(computed, "the figure `recommended` is no longer computed before the model call");
+  assert.match(computed[1], /_round_k\(lo \+ \(hi - lo\) \* f\)/, "the figure must be band position × fit factor");
+  assert.match(beforeCall, /f = max\(0\.1, min\(0\.9, \(m\.total - 55\) \/ 40\.0\)\)/, "the fit factor must come from the fit total m.total");
+  assert.doesNotMatch(
+    beforeCall.slice(beforeCall.indexOf("recommended")),
+    /\bprovider\b|_generate\(|\.complete\(/,
+    "the figure's computation reaches a model"
+  );
+  // The result carries the computed value; the model's reply only fills subject/body.
+  assert.match(body.slice(call), /"recommended": recommended,/, "the structured figure must be the computed one");
+  assert.match(body.slice(call), /"salaryMin": lo,[\s\S]*"salaryMax": hi,/, "the band bounds must be the computed ones");
+});
+
+test("every locale's offer copy still says the figure is deterministic", () => {
+  const DETERMINISTIC: Record<string, RegExp> = {
+    en: /\bdeterministic\b/i,
+    cs: /deterministick/i,
+    de: /deterministisch/i,
+    fr: /d[ée]terministe/i,
+  };
+  assert.deepEqual(Object.keys(DETERMINISTIC).sort(), [...LOCALES].sort(), "a locale has no 'deterministic' pattern");
+  for (const locale of LOCALES) {
+    const c = CATALOGS[locale] as unknown as {
+      landing: { features: { offer: { body: string } } };
+      aboutPage: { steps: { offer: { body: string } } };
+      siteFeatures: { items: { offer: { pin1: string } } };
+    };
+    for (const [key, text] of [
+      ["landing.features.offer.body", c.landing.features.offer.body],
+      ["aboutPage.steps.offer.body", c.aboutPage.steps.offer.body],
+      ["siteFeatures.items.offer.pin1", c.siteFeatures.items.offer.pin1],
+    ] as const) {
+      assert.match(text, DETERMINISTIC[locale], `${locale}: ${key} no longer states the figure is deterministic`);
+    }
+  }
 });

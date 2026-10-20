@@ -34,10 +34,15 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "_lib/automation-run.ts": "automation / interview_scorecard",
   "_lib/devcase-run.ts": "devcase_*",
   "_lib/agent-hire/transform-run.ts": "agent_fit",
+  // The JOB-level interview kit: a second entry point into automation_cli, and a second
+  // spawn that must carry the admin's routing for the `automation` use case.
+  "_lib/interview-kit-run.ts": "automation",
   "_lib/repo-scan-run.ts": "repo_scan",
   "_lib/job-ingest.ts": "jd_ingest",
   "_lib/recruiter-run.ts": "weight_proposal",
   "_lib/group-eval-run.ts": "group_compare",
+  // The Cohort Studio comparative pass (cohort_compare_cli) reuses the group_compare use case.
+  "_lib/analyze-cohort-run.ts": "group_compare",
   "_lib/jd-build-run.ts": "grounded_salary (env inert today — direct gemini.py path)",
   // Background-mode round (2026-08-12): campaign + profile-draft spawns moved out
   // of their route bodies into shared runners so the task kinds reuse them; the
@@ -73,11 +78,11 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
 
   // Identifier presence is not enough: a comment or unused import kept every
   // site but analyze-run green while the spawn options omitted env. Each
-  // spawnPython/spawnChild call's options literal must carry env: buildLlmConfigEnv().
+  // spawnPython/spawnChild/runJobfitCli call's options literal must carry env: buildLlmConfigEnv().
   test(`${rel} pins env: buildLlmConfigEnv() on the spawn options (${useCase})`, () => {
     const stripped = withoutComments(readFileSync(path.join(APP_ROOT, rel), "utf-8"));
-    const spawns = stripped.match(/\b(?:spawnPython|spawnChild)\s*\(/g) ?? [];
-    assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild call — re-pin this contract`);
+    const spawns = stripped.match(/\b(?:spawnPython|spawnChild|runJobfitCli)\s*(?:<[^>(]*>)?\s*\(/g) ?? [];
+    assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild/runJobfitCli call — re-pin this contract`);
     const envs = stripped.match(/env:\s*buildLlmConfigEnv\(\)/g) ?? [];
     assert.equal(
       envs.length,

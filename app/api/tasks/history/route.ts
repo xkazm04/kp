@@ -1,7 +1,10 @@
+import { existsSync } from "node:fs";
 import { NextResponse } from "next/server";
-import { countTaskHistory, listTaskHistory } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { countTaskHistory, listTaskHistory, listTaskParams } from "@/app/_lib/db/tasks";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { callerCapabilities } from "@/app/_lib/auth/current-user";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
+import { attachReplayVerdicts } from "@/app/_lib/task-replay";
 
 
 const DEFAULT_LIMIT = 20;
@@ -27,7 +30,7 @@ const MAX_KIND_LENGTH = 64;
 // mirrors /api/analytics/decisions: hasMore/nextOffset chain the pages, total
 // powers the "showing X of Y" footer. Optional ?kind=/?status= narrow the page
 // server-side (an invalid value falls back to unfiltered, never an error).
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
@@ -41,13 +44,20 @@ export async function GET(request: Request) {
     const before = recentTaskCutoffIso();
     // Same tenant scope as the live poll: task labels carry candidate names, so an
     // unscoped history paged another team's roster into this one.
-    const ws = await currentWorkspace();
     const total = countTaskHistory(before, filter, ws);
-    const tasks = listTaskHistory(before, limit, offset, filter, ws);
+    const page = listTaskHistory(before, limit, offset, filter, ws);
+    // The same replay verdict the live poll stamps (app/_lib/task-replay.ts), from one
+    // bounded params read for this page's dead path-bearing rows.
+    const caps = new Set(await callerCapabilities());
+    const tasks = attachReplayVerdicts(page, {
+      loadParams: (ids) => listTaskParams(ids, ws),
+      exists: existsSync,
+      hasCapability: (cap) => caps.has(cap),
+    });
     const nextOffset = offset + tasks.length;
     return NextResponse.json({ tasks, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load task history.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -17,8 +17,12 @@ proposing to reverse one; each ends with what would change our mind.
 | Doc | Covers |
 | --- | --- |
 | [decisions/](decisions/README.md) | **Architecture decision records** — the reasoning behind the choices, and what would reopen them |
+| [reviews/2026-10-07-architecture-review.md](reviews/2026-10-07-architecture-review.md) | **The first architecture review** — six structural problems ranked by cost of waiting, each with a verdict (compete now / later), plus a "not worth it" list so those are not raised again |
+| [reviews/2026-10-08-economics-evidence.md](reviews/2026-10-08-economics-evidence.md) | **Why the council's economics row reads "unmeasured", and the smallest fix** — every call that leaves the process, per feature, with its record, rate and bound; a declared price book over the rate tables kp already has; an aggregate telemetry snapshot; and the funnel's unpriced `$0.00` |
 | [llm-provider-layer.md](llm-provider-layer.md) | The multi-provider LLM wrapper: adapters, capability matrix, key storage, local model servers, benchmarks harness |
+| [price-book.md](price-book.md) | **Every rate kp declares, and every one it does not** — a dated copy of the code rate tables (tokens, speech, voice minutes), the known zeros with their evidence, and the `unknown` meters; pinned to the code by `app/_lib/price-book.test.ts` and `pipeline/jobfit/tests/test_price_book.py` |
 | [llm-model-matrix.md](llm-model-matrix.md) | Dated judged quality grid — which model for which recruiter task |
+| [engine-and-prompt-coordination.md](engine-and-prompt-coordination.md) | **One matrix per step of the hiring thread** — engine, prompt id + version, degrade path, and what has to move when a prompt version bumps |
 | [engine-setup.md](engine-setup.md) | Setting up the default engines: Claude subscription via the CLI, the ElevenLabs agent, env notes that surprise people |
 | [candidate-data-flow.md](candidate-data-flow.md) | **Where a candidate's CV, contact details and transcript actually go** — every hop, what comes to rest, and which model adapters send it off the machine |
 | [workspace-data.md](workspace-data.md) | The single SQLite workspace file: seeding, dump & restore |
@@ -82,7 +86,24 @@ tenant and undo the rule. Every handler in the `HANDLERS` table declares `tenanc
 line; `app/_lib/tasks-pump.test.ts` fails on a kind that declares neither, and on a
 `scoped` one whose handler never actually reads the workspace. Durable, cross-restart
 queueing remains out of scope — the `tasks` row is the source of truth, and a run
-orphaned mid-flight is marked `interrupted` rather than resumed.
+orphaned mid-flight is marked `interrupted` rather than resumed. Every handler runs
+in the Python engine's *background* admission lane (`withSpawnLane`, opened by the
+runner around `spec.run`), so its spawns queue behind a recruiter's click instead of
+being refused at the interactive 20 s bound ([api-contracts](./api-contracts.md)).
+A failed row stores a catalogued code for the runtime's own failures
+(`ENGINE_TIMEOUT`, `TASK_TIME_LIMIT`, …), which the Tasks drawer and the Activity
+detail resolve in the reader's language.
+
+Three kinds are **late-bound**: `jobseeker_scan`, `interview_kit` and `interview_letter`
+call `externalRunner(kind)` (`app/_lib/task-external-runners.ts`, a leaf registry on
+`globalThis`) instead of importing their runner. `tasks.ts` sits on every route that
+starts or polls a task, and the perf budget counts every module it reaches, dynamic
+imports included. `registerLateBoundImplementations()` (`app/_lib/late-bound-boot.ts`)
+registers the implementations at boot: `instrumentation-node.ts` calls it at server
+start, and `app/_lib/testing/unit-db.ts` calls it in every unit-test process. Each
+runner module still loads lazily on first use. An unregistered kind fails its task
+with an error naming the registration, and `app/_lib/late-bound-boot.test.ts` fails on
+a kind `tasks.ts` delegates that the boot list does not register.
 
 **Task identity.** `app/_lib/task-dedupe.ts` keys each in-flight run so a retry
 coalesces and a different request does not. `batch_screen` used to be a process-wide
@@ -90,7 +111,91 @@ singleton (`"batch_screen"`); it is now the sorted `entryIds` cohort (the board
 row's AI-evaluate), or `batch_screen:<workspaceId>` for the legacy full-board sweep
 with no ids. Two roles can be evaluated at once without swapping verdicts. Lookup
 is already per-workspace (`getActiveTaskByDedupe`), so the cohort fingerprint is
-what stops same-tenant cross-role contamination.
+what stops same-tenant cross-role contamination. `gig_scan` is one per tenant, or one
+per tenant and source when the Sources screen scans a single source
+(`gig_scan:<ws>:source:<id>`), so two clicks on one source collapse and two sources
+each run.
+
+**One kind vocabulary.** The task kinds are a closed list, `TASK_KINDS` in
+`app/_lib/task-kinds.ts`, with the derived `TaskKind` union and an `isTaskKind` guard.
+The module has no imports, so both the client and the unit runner can read it. Every
+per-kind table is keyed `Record<TaskKind, …>`: the handler registry (`HANDLERS` in
+`tasks.ts`), the budget class (`TASK_BUDGET_CLASS` in `task-budget.ts`), the dedupe
+identity (`DEDUPE_BUILDERS` in `task-dedupe.ts`, where `null` means "no stable
+identity, never merge", as for `profile_draft`), and the outcome decision (`TABLE`
+and `NO_TABLE_SUMMARY` in `task-outcome-summary.ts`, typed as a partition). To add a
+kind, add one entry to `TASK_KINDS`; `tsc` then lists every table that still has to
+decide what the new kind does. The client's `startTask` accepts only a `TaskKind`, so
+a misspelled kind at a call site fails to compile instead of returning a 400 at
+runtime. The runtime guard is still there for request bodies and for rows written by
+an older build: POST `/api/tasks` refuses an unknown kind with `TASK_KIND_UNKNOWN`.
+Runners registered only on the late-bound seam, such as `intake_round`, are not
+kinds.
+
+**Door and seat per kind.** `TASK_KIND_ADMISSION` in `app/_lib/task-admission.ts` is
+another `Record<TaskKind, …>` table. For each kind it records a door and a
+capability. The door is `dock` when the client may start the kind through POST
+`/api/tasks` with its own params. It is `server` when only a dedicated route builds
+the params and enqueues the task. Nine kinds are server kinds: `analyze`,
+`lifecycle`, `jd_build`, `repo_scan`, `agent_fit`, `interview_kit`,
+`interview_letter`, `companion_digest` and `jobseeker_scan`. The dock refuses them
+with 403 `TASK_KIND_SERVER_ONLY`, after the overall IP bucket and before the
+per-class budget. `analyze` is the reason the rule exists: its params are paths into
+the workdir that `/api/analyze` built. `runAnalyze` and `cleanupWorkdir` still refuse
+any path outside a jobfit workdir on their own, whatever the door does. The
+capability is what a start, retry or cancel of the kind asks of the caller's seat.
+Today every kind asks `pipeline:write`, so a viewer can watch the dock but cannot
+start, replay or cancel a run. Retry and cancel ask the capability of the stored
+row's kind, after the tenant read. Retry does not apply the door rule, because it
+replays params that a server route wrote. POST `/api/tasks/seen` asks `read`.
+`task-admission.test.ts` reads the tree and fails when a kind that a client starts
+is not a dock kind, or when a kind that only server modules enqueue is not a server
+kind.
+
+**Fan-out outcomes and scoped retry.** The two kinds that run one automation per
+entry of a cohort, `batch_screen` and `batch_outreach`, store a per-candidate ledger
+in their result: `results: [{ id, ok, applied?, code? }]`. It holds ids and machine
+tokens only, because the `tasks` table is erasure-exempt and not entry-keyed. A
+failed item carries a code (an `AutomationRefusal` such as `entry_has_no_profile`,
+or `engine_failed`), never the thrown message, which can carry a Python traceback or
+the workdir path. An outreach item keeps its `applied` value, so a letter that was
+suppressed for consent or anonymization is not counted as sent. `app/_lib/task-fanout.ts`
+is the pure reader. It turns a row (params, result, status) into delivered,
+suppressed, failed-by-code and unreached id sets. Only a run that stopped has an
+unreached remainder: the cohort minus the recorded ids. It also holds
+`retryDecision(task, scope)`, which POST `/api/tasks/[id]/retry` calls before any
+rate-limit bucket. With no body the route replays the whole run, as before, and only
+for a failed, interrupted or canceled row. With `{ scope: "failed" | "unreached" }`
+it re-enqueues only that subset, derived from the stored row and never sent by the
+client, and it does so even for a succeeded run with failures. The subset is a
+different cohort, so it gets its own dedupe identity and never merges onto the old
+run. It spends the same per-class budget. The Background-tasks drawer
+(`TasksOutcome.tsx`) shows the failure codes, the not-reached count and one button
+per available scope. Older rows that stored counts only offer no subset retry,
+because counts cannot say which candidates to retry.
+
+**Replay verdict per dead row.** `app/_lib/task-replay.ts` decides whether a
+whole-run replay of a finished row can run. `replayVerdict(kind, status, params,
+exists, hasCapability)` returns `null` for a succeeded or active row. For a failed,
+interrupted or canceled row it returns `{ replayable: true }` or
+`{ replayable: false, reason }`, where the reason is a code: `no-seat` (the caller
+lacks the capability `task-admission.ts` declares for the kind), `kind-retired` (a
+kind this build no longer knows) or `inputs-gone`. The last one applies to
+path-bearing kinds, today only `analyze`. Its params name the upload workdir, and
+`runAnalyze` deletes that workdir on every exit, so a failed or canceled analyze row
+usually points at files that no longer exist. The check is a stat, not a ban on the
+kind: a crash leaves the row `interrupted` with the workdir still on disk, and that
+replay is valid. GET `/api/tasks` and GET `/api/tasks/history` stamp `replay` on
+every row through `attachReplayVerdicts`. It reads the stored params of the page's
+dead path-bearing rows in one query (`listTaskParams` in `app/_lib/db/tasks.ts`),
+and the list payload still carries `params: null`. POST `/api/tasks/[id]/retry`
+refuses with 409 `TASK_REPLAY_INPUTS_GONE` through `replayBlock`, the same function,
+so the row and the refusal agree. The row (`TasksRowActions.tsx`, through
+`rowRetryAction` in `tasksTabHelpers.ts`) shows Retry only when the verdict allows
+it. Otherwise it shows the reason from `tasks.replay.*` in the reader's language
+and, for `inputs-gone` on analyze, a link to the Analyze tab where the files are
+uploaded again. A row with no `replay` field, from an older server, still offers
+Retry. The verdict is part of `tasksSignature`, so a change repaints the row.
 
 ```text
 app/
@@ -156,6 +261,10 @@ Three LLM engines are wired by default, each picked for its cost/capability prof
   design/evaluation, match reasoning, and eval sweeps. The local default.
 - **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run
   first-round screening interviews in Czech or English.
+
+Which engine serves which STEP, the prompt id and version it runs, and how each
+step degrades when that engine is unavailable:
+[engine-and-prompt-coordination.md](engine-and-prompt-coordination.md).
 
 Any of them can be swapped for a provider or a local server of your choosing; none
 is load-bearing. Setup for each: [engine-setup.md](engine-setup.md). Which model is

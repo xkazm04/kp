@@ -11,7 +11,7 @@ import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
 import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
-import type { SchedEntry } from "./ScheduleTypes";
+import { ScheduleCalendarStatus } from "./ScheduleCalendarStatus";
 
 // The AI round subtab (link-out AI-first interviews as the Docket). Lazy like
 // the calendar: it only loads when the recruiter switches rounds.
@@ -23,8 +23,8 @@ const ScheduleAiRound = dynamic(() => import("./ScheduleAiRound").then((m) => ({
 // of this tab's primary content (framer-motion layout animation + the week
 // pager), and the two modals only ever mount once the recruiter clicks into
 // prep or a transcript — neither belongs in the tab's entry chunk. The invite
-// agenda is a secondary panel with its own independent fetch, deferred a frame
-// so the primary calendar/list content is what the entry chunk carries.
+// agenda panel is secondary, deferred a frame so the primary calendar/list content
+// is what the entry chunk carries; it renders THIS tab's agenda (no read of its own).
 const ScheduleCalendar = dynamic(() => import("./ScheduleCalendar").then((m) => ({ default: m.ScheduleCalendar })), {
   loading: () => <div className="reveal-quiet min-h-[26rem]" aria-hidden />,
 });
@@ -63,11 +63,17 @@ export function ScheduleTab() {
     lastDir,
     reduced,
     load,
+    agendaForPanel,
     calendarEntries,
     bookedMarkers,
     interviewedEntries,
     startInterview,
     act,
+    cardStates,
+    loadedAt,
+    sendLink,
+    acceptProposal,
+    copyLink,
     cardExit,
     slotLabel,
   } = useScheduleTab();
@@ -131,6 +137,8 @@ export function ScheduleTab() {
         <p className={`mt-1 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
+      {hasHumanRound ? <ScheduleCalendarStatus /> : null}
+
       {/* The live-status poll knows it has stopped working; say so rather than keep
           rendering an old snapshot as if it were live. Raised from the second
           consecutive failure (schedulePollBackoff.pollIsStale) — one blip is not worth
@@ -175,10 +183,10 @@ export function ScheduleTab() {
         <>
       {/* W6-3 — confirmed bookings, stalled invites and confirm/advance drift:
           the lifecycle the store tracked but no surface ever showed. Deferred a
-          frame (tier 3) and code-split: it fetches independently and is
-          secondary to the calendar/list below. */}
+          frame (tier 3) and code-split; it renders the tab's ONE agenda (the list
+          the grid below draws from) and writes through the tab's writers. */}
       <Defer strategy="next-frame">
-        <InviteLifecyclePanel />
+        <InviteLifecyclePanel agenda={agendaForPanel} />
       </Defer>
 
       {/* This wrapper is the stable tier-1 slot; the swap inside it (tier 2) is
@@ -233,6 +241,11 @@ export function ScheduleTab() {
               // Plan-aware: a human-only plan offers no AI-interview launcher.
               onStartInterview={hasAiRound ? startInterview : undefined}
               onAct={act}
+              cardStates={cardStates}
+              nowMs={loadedAt}
+              onSendLink={sendLink}
+              onCopyLink={copyLink}
+              onAcceptProposal={acceptProposal}
             />
 
             <ScheduleTabInterviewedList

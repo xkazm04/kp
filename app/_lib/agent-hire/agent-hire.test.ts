@@ -405,3 +405,35 @@ test("an oversized Personas answer is refused on every bridge read", async () =>
 
   setBridgeConfig({ apiKey: "" }); // unpair — later tests must not inherit this row
 });
+
+// A requirement-driven hire (a gig specialist, gigs/requirements.ts) carries
+// `spec.requirements` and NO `systemPromptDraft`: the key is left off the wire, never sent
+// as "". Every other hire's spec goes out exactly as the caller built it.
+test("dispatch body: a requirements spec omits systemPromptDraft; every other spec is sent byte-identical", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  const bodies: string[] = [];
+  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+    bodies.push(String(init?.body));
+    return new Response(JSON.stringify({ requestId: `pr-${bodies.length}` }), { status: 200 });
+  }) as typeof fetch;
+  const kp = { baseUrl: "http://localhost:3000", jobId: "job-1", jobTitle: "Role", workspace: "ws-a" };
+
+  const requirements = { kind: "kp.agent-requirements.v1", role: "Freelance specialist - web", constraints: ["c"] };
+  const gig = { name: "G", mission: "m", connectors: ["research"], maxBudgetUsd: 3, successMetrics: [], requirements };
+  assert.equal((await dispatchPersonaRequest(gig, kp, "agrpt-g")).ok, true);
+  const sentGig = JSON.parse(bodies[0]!) as { spec: Record<string, unknown> };
+  assert.equal("systemPromptDraft" in sentGig.spec, false, "no prompt key at all - not even an empty one");
+  assert.deepEqual(sentGig.spec.requirements, requirements);
+
+  // The recruiting hire (agent-fit spec) and the App-master projection, as they always were.
+  const recruiting = { name: "A", mission: "m", systemPromptDraft: "s", connectors: ["gmail"], maxBudgetUsd: 10, maxTurns: 40, successMetrics: [] };
+  const appMaster = { name: "App master", mission: "m", systemPromptDraft: "", connectors: [], maxBudgetUsd: 50, successMetrics: [{ key: "k" }] };
+  for (const spec of [recruiting, appMaster]) {
+    const before = bodies.length;
+    assert.equal((await dispatchPersonaRequest(spec, kp, "agrpt-r")).ok, true);
+    const sent = JSON.parse(bodies[before]!) as { spec: unknown };
+    assert.equal(JSON.stringify(sent.spec), JSON.stringify(spec), "the spec rides verbatim, key order included");
+    assert.equal("requirements" in (sent.spec as object), false);
+  }
+});

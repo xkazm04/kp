@@ -12,6 +12,7 @@ import {
   restoreDraftBlind,
   restoreDraftLocale,
   restoreDraftValue,
+  restoreJdSource,
   serializeAnalyzeDraft,
 } from "./analyzeDraft.ts";
 
@@ -65,6 +66,38 @@ test("restore of the flags only fills a field still at its mount default", () =>
   assert.equal(restoreDraftValue("", "stale"), "stale");
 });
 
+test("draft round-trip preserves jdSlug and jdEdited; restoreJdSource restores saved vs typed", () => {
+  const serialized = serializeAnalyzeDraft({
+    jd: "X",
+    jdSlug: "backend-dev",
+    jdEdited: false,
+  });
+  const parsed = parseAnalyzeDraft(serialized);
+  assert.equal(parsed?.jdSlug, "backend-dev");
+  assert.equal(parsed?.jdEdited, false);
+
+  const restored = restoreJdSource(parsed);
+  assert.equal(restored.kind, "saved");
+  if (restored.kind === "saved") {
+    assert.equal(restored.slug, "backend-dev");
+    assert.equal(restored.text, "X");
+    assert.equal(restored.edited, false);
+    assert.equal(restored.restored, true);
+  }
+
+  // Non-string or non-slug jdSlug is dropped, restores as 'typed'
+  for (const badSlug of [42 as unknown as string, "", "../x"]) {
+    const raw = JSON.stringify({ jd: "X", jdSlug: badSlug });
+    const p = parseAnalyzeDraft(raw);
+    assert.equal(p?.jdSlug, undefined);
+    const r = restoreJdSource(p);
+    assert.equal(r.kind, "typed");
+    if (r.kind === "typed") {
+      assert.equal(r.text, "X");
+    }
+  }
+});
+
 test("the form serializes and restores the flags through the shared codec", () => {
   const form = readFileSync(fileURLToPath(new URL("./useAnalyzeForm.ts", import.meta.url)), "utf8");
   assert.match(form, /restoreDraftLocale\(prev, draftedLang, localeDefault\)/);
@@ -72,3 +105,4 @@ test("the form serializes and restores the flags through the shared codec", () =
   assert.match(form, /reportLang,\s*\n\s*blind,/);
   assert.match(form, /jobDescriptionText, companyText, githubProfile, reportLang, blind/);
 });
+

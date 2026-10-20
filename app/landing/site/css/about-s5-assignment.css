@@ -1,0 +1,267 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 05 - Assignment. Everything scoped under .dio-assignment; sizes in u; text floors from tokens.css.
+   All motion sits inside prefers-reduced-motion: no-preference and starts from .dio.is-in;
+   the reduced-motion drawing is the calm, complete end state (all four ticks done, the session sealed). */
+
+/* ---------- drawing palette (svg fills, strokes, gradient stops) ---------- */
+.mk.mk-about .dio-assignment .f-ink { fill: var(--ink); }
+.mk.mk-about .dio-assignment .f-white { fill: #fffdf7; }
+.mk.mk-about .dio-assignment .f-cream { fill: var(--cream); }
+.mk.mk-about .dio-assignment .f-edge { fill: #cbbd98; }
+.mk.mk-about .dio-assignment .f-shade { fill: rgba(72, 12, 6, .26); }
+.mk.mk-about .dio-assignment .f-sheen { fill: rgba(255, 255, 255, .16); }
+.mk.mk-about .dio-assignment .f-drop { fill: #03090c; stroke: #03090c; opacity: .24; }
+.mk.mk-about .dio-assignment .f-club { fill: var(--steel-hi); }
+.mk.mk-about .dio-assignment .f-spark { fill: var(--amber-hi); }
+.mk.mk-about .dio-assignment .f-spark2 { fill: var(--cream); }
+.mk.mk-about .dio-assignment .f-brassdot { fill: var(--amber-hi); }
+.mk.mk-about .dio-assignment .f-flag { fill: var(--amber-hi); }
+.mk.mk-about .dio-assignment .f-lockbody { fill: var(--cream); }
+.mk.mk-about .dio-assignment .s-ink { stroke: var(--ink); }
+.mk.mk-about .dio-assignment .s-white,
+.mk.mk-about .dio-assignment .s-hi { stroke: #fffdf7; }
+.mk.mk-about .dio-assignment .s-leg { stroke: #345260; }
+.mk.mk-about .dio-assignment .s-brass { stroke: var(--amber-hi); }
+.mk.mk-about .dio-assignment .s-silver { stroke: var(--silver); }
+
+.mk.mk-about .dio-assignment .m-cream-0 { stop-color: #fffdf7; }
+.mk.mk-about .dio-assignment .m-cream-1 { stop-color: var(--cream); }
+.mk.mk-about .dio-assignment .m-cream-2 { stop-color: var(--putty-2); }
+.mk.mk-about .dio-assignment .m-mat-0 { stop-color: #f7edd8; }
+.mk.mk-about .dio-assignment .m-mat-1 { stop-color: var(--putty); }
+.mk.mk-about .dio-assignment .m-mat-2 { stop-color: var(--putty-3); }
+.mk.mk-about .dio-assignment .m-coral-0 { stop-color: #f9b3a4; }
+.mk.mk-about .dio-assignment .m-coral-1 { stop-color: var(--coral-hi); }
+.mk.mk-about .dio-assignment .m-coral-2 { stop-color: var(--coral); }
+.mk.mk-about .dio-assignment .m-coral-3 { stop-color: var(--oxblood); }
+.mk.mk-about .dio-assignment .m-steel-0 { stop-color: #a9c4d1; }
+.mk.mk-about .dio-assignment .m-steel-1 { stop-color: var(--steel-hi); }
+.mk.mk-about .dio-assignment .m-steel-2 { stop-color: var(--steel); }
+.mk.mk-about .dio-assignment .m-steel-3 { stop-color: #29404d; }
+.mk.mk-about .dio-assignment .m-brass-0 { stop-color: #fff2c4; }
+.mk.mk-about .dio-assignment .m-brass-1 { stop-color: var(--amber-hi); }
+.mk.mk-about .dio-assignment .m-brass-2 { stop-color: var(--amber); }
+.mk.mk-about .dio-assignment .m-brass-3 { stop-color: #8a6f26; }
+.mk.mk-about .dio-assignment .m-tape-0 { stop-color: #f6dc8e; stop-opacity: .94; }
+.mk.mk-about .dio-assignment .m-tape-1 { stop-color: var(--amber); stop-opacity: .86; }
+.mk.mk-about .dio-assignment .m-sil-0 { stop-color: #f6f8fa; }
+.mk.mk-about .dio-assignment .m-sil-1 { stop-color: var(--silver); }
+.mk.mk-about .dio-assignment .m-sil-2 { stop-color: #7c8792; }
+
+/* ---------- the window ---------- */
+.mk.mk-about .dio-assignment .as-win { position: absolute; inset: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: calc(var(--u) * .8); padding: calc(var(--u) * .95) calc(var(--u) * 1.15) calc(var(--u) * 1.1); }
+
+.mk.mk-about .dio-assignment .as-bar { position: relative; display: flex; align-items: center; gap: calc(var(--u) * .75); min-height: calc(var(--u) * 2.7); }
+.mk.mk-about .dio-assignment .as-led { flex: none; width: calc(var(--u) * .8); height: calc(var(--u) * .8); border-radius: 50%; background: radial-gradient(circle at 34% 30%, #fff6cf, var(--amber-hi) 46%, var(--amber)); box-shadow: 0 0 calc(var(--u) * .9) rgba(230, 196, 106, .85), inset 0 0 0 calc(var(--u) * .08) rgba(23, 32, 42, .3); }
+.mk.mk-about .dio-assignment .as-title { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: var(--fs-lead); line-height: 1.1; letter-spacing: -.01em; color: var(--lcd-fg); white-space: nowrap; }
+.mk.mk-about .dio-assignment .as-chain { flex: 0 1 auto; min-width: 0; position: relative; z-index: 0; margin-left: auto; margin-right: calc(var(--u) * -1.15); width: calc(var(--u) * 8.4); height: calc(var(--u) * 1.8); filter: drop-shadow(0 calc(var(--u) * .16) calc(var(--u) * .22) rgba(0, 0, 0, .45)); }
+.mk.mk-about .dio-assignment .as-chain-svg { width: 100%; height: 100%; overflow: visible; }
+.mk.mk-about .dio-assignment .as-seal { flex: none; position: relative; z-index: 1; display: inline-flex; align-items: center; gap: calc(var(--u) * .45); margin: 0; padding: calc(var(--u) * .34) calc(var(--u) * 1) calc(var(--u) * .34) calc(var(--u) * .62); border-radius: 999px;
+  background: linear-gradient(180deg, #f8e6ae 0%, var(--amber-hi) 34%, var(--amber) 100%); color: var(--ink); font-weight: 800; font-size: var(--fs-small); line-height: 1.1; white-space: nowrap;
+  box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .75), 0 calc(var(--u) * .26) 0 #8a6f22, 0 calc(var(--u) * .6) calc(var(--u) * .8) rgba(0, 0, 0, .42); }
+.mk.mk-about .dio-assignment .as-lock { flex: none; width: calc(var(--u) * 1.45); height: calc(var(--u) * 1.65); overflow: visible; }
+.mk.mk-about .dio-assignment .as-glint { position: absolute; z-index: 2; right: calc(var(--u) * -.5); top: calc(var(--u) * -.5); width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); pointer-events: none; }
+.mk.mk-about .dio-assignment .as-glint svg { width: 100%; height: 100%; overflow: visible; }
+
+.mk.mk-about .dio-assignment .as-body { display: flex; gap: calc(var(--u) * .9); min-height: 0; }
+.mk.mk-about .dio-assignment[data-side="r"] .as-body { flex-direction: row-reverse; }
+
+/* editor */
+.mk.mk-about .dio-assignment .as-ed { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border-radius: calc(var(--u) * .9); overflow: hidden;
+  background: linear-gradient(180deg, #0d1b20, #091216);
+  box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .09), inset 0 0 0 1px rgba(230, 196, 106, .34), 0 calc(var(--u) * .3) 0 rgba(0, 0, 0, .4), 0 calc(var(--u) * .7) calc(var(--u) * 1.1) rgba(0, 0, 0, .35); }
+.mk.mk-about .dio-assignment .as-tabs { flex: none; display: flex; align-items: flex-end; gap: calc(var(--u) * .35); height: calc(var(--u) * 2.2); padding: calc(var(--u) * .5) calc(var(--u) * .7) 0; background: rgba(243, 236, 217, .06); border-bottom: 1px solid var(--lcd-line); }
+.mk.mk-about .dio-assignment .as-tab { position: relative; display: block; width: calc(var(--u) * 5.8); height: calc(var(--u) * 1.5); border-radius: calc(var(--u) * .5) calc(var(--u) * .5) 0 0; background: rgba(243, 236, 217, .09); }
+.mk.mk-about .dio-assignment .as-tab::before { content: ""; position: absolute; left: calc(var(--u) * .7); top: calc(var(--u) * .55); width: calc(var(--u) * 2.6); height: calc(var(--u) * .4); border-radius: 99px; background: rgba(243, 236, 217, .38); }
+.mk.mk-about .dio-assignment .as-tab.is-on { background: #0d1b20; box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .16), inset 0 calc(var(--u) * -.16) 0 var(--amber-hi); }
+.mk.mk-about .dio-assignment .as-tab.is-on::before { background: rgba(243, 236, 217, .78); }
+
+.mk.mk-about .dio-assignment .as-code { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: calc(var(--u) * .62); padding: calc(var(--u) * 1) calc(var(--u) * .8) 0 calc(var(--u) * .7); overflow: hidden; }
+.mk.mk-about .dio-assignment .as-ln { position: relative; flex: none; display: flex; align-items: center; gap: calc(var(--u) * .35); height: calc(var(--u) * .9); }
+.mk.mk-about .dio-assignment .as-gut { position: relative; z-index: 2; flex: none; display: flex; align-items: center; justify-content: flex-end; width: calc(var(--u) * 1.5); margin-right: calc(var(--u) * (var(--in) + .15)); }
+.mk.mk-about .dio-assignment .as-gut b { display: block; width: calc(var(--u) * .5); height: calc(var(--u) * .4); border-radius: 99px; background: rgba(243, 236, 217, .2); }
+.mk.mk-about .dio-assignment .as-s { position: relative; display: block; flex: none; width: calc(var(--u) * var(--w)); height: calc(var(--u) * .56); border-radius: 99px; background: var(--c); box-shadow: inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .26); transform-origin: left center; }
+.mk.mk-about .dio-assignment .as-s.k { --c: var(--amber-hi); }
+.mk.mk-about .dio-assignment .as-s.f { --c: var(--verd); }
+.mk.mk-about .dio-assignment .as-s.s { --c: var(--coral-hi); }
+.mk.mk-about .dio-assignment .as-s.i { --c: rgba(243, 236, 217, .8); }
+.mk.mk-about .dio-assignment .as-s.p { --c: rgba(159, 179, 182, .62); }
+.mk.mk-about .dio-assignment .as-s.n { --c: var(--steel-hi); }
+
+.mk.mk-about .dio-assignment .as-ln.is-flaw::before { content: ""; position: absolute; z-index: 0; left: calc(var(--u) * -.7); right: calc(var(--u) * -.8); top: calc(var(--u) * -.4); bottom: calc(var(--u) * -.4); border-radius: 0 calc(var(--u) * .45) calc(var(--u) * .45) 0; transform-origin: left center;
+  background: linear-gradient(90deg, rgba(238, 122, 102, .56), rgba(214, 90, 74, .24) 62%, rgba(214, 90, 74, .12)); box-shadow: inset calc(var(--u) * .26) 0 0 var(--coral-hi); }
+.mk.mk-about .dio-assignment .as-flag { display: block; width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.75); overflow: visible; transform-origin: 25% 90%; filter: drop-shadow(0 calc(var(--u) * .12) calc(var(--u) * .2) rgba(0, 0, 0, .5)); }
+.mk.mk-about .dio-assignment .as-sq { position: absolute; z-index: 1; left: 0; right: 0; bottom: calc(var(--u) * -.54); width: 100%; height: calc(var(--u) * .42); overflow: visible; }
+.mk.mk-about .dio-assignment .as-sq path { fill: none; stroke: var(--coral-hi); stroke-width: max(1.6px, calc(var(--u) * .15)); stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+.mk.mk-about .dio-assignment .as-status { flex: none; display: flex; align-items: center; gap: calc(var(--u) * .5); height: calc(var(--u) * 2.5); padding: 0 calc(var(--u) * .8); background: rgba(243, 236, 217, .07); border-top: 1px solid var(--lcd-line); }
+.mk.mk-about .dio-assignment[data-side="r"] .as-status { flex-direction: row-reverse; }
+.mk.mk-about .dio-assignment .as-sb { display: block; width: calc(var(--u) * 2.8); height: calc(var(--u) * .45); border-radius: 99px; background: rgba(243, 236, 217, .26); }
+.mk.mk-about .dio-assignment .as-sb2 { width: calc(var(--u) * 1.6); background: rgba(243, 236, 217, .14); }
+.mk.mk-about .dio-assignment .as-ai.sil { margin-left: auto; display: inline-flex; align-items: center; gap: calc(var(--u) * .4); padding: calc(var(--u) * .16) calc(var(--u) * .75) calc(var(--u) * .16) calc(var(--u) * .5); border-radius: 999px; color: var(--amber-hi); background: rgba(230, 196, 106, .14); box-shadow: inset 0 0 0 1px rgba(230, 196, 106, .62); white-space: nowrap; }
+.mk.mk-about .dio-assignment[data-side="r"] .as-ai.sil { margin-left: 0; margin-right: auto; }
+.mk.mk-about .dio-assignment .as-ai svg { flex: none; width: 1.05em; height: 1.05em; }
+
+/* the side column: prompts on record, the log */
+.mk.mk-about .dio-assignment .as-side { flex: 0 0 calc(var(--u) * 18.4); min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * .8); }
+.mk.mk-about .dio-assignment .as-prompts,
+.mk.mk-about .dio-assignment .as-log { min-width: 0; padding: calc(var(--u) * .75) calc(var(--u) * .85); border-radius: calc(var(--u) * .9); background: linear-gradient(180deg, rgba(243, 236, 217, .1), rgba(243, 236, 217, .05));
+  box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .1), inset 0 0 0 1px rgba(243, 236, 217, .1), 0 calc(var(--u) * .22) 0 rgba(0, 0, 0, .3); }
+.mk.mk-about .dio-assignment .as-log { flex: 1 1 auto; }
+.mk.mk-about .dio-assignment .as-h { display: flex; align-items: center; gap: calc(var(--u) * .55); margin: 0 0 calc(var(--u) * .55); font-size: var(--fs-small); font-weight: 700; line-height: 1.2; color: var(--lcd-fg); white-space: nowrap; }
+.mk.mk-about .dio-assignment .as-rec { flex: none; width: calc(var(--u) * .7); height: calc(var(--u) * .7); border-radius: 50%; background: var(--amber-hi); box-shadow: 0 0 calc(var(--u) * .7) rgba(230, 196, 106, .9); }
+.mk.mk-about .dio-assignment .as-pills { display: grid; gap: calc(var(--u) * .4); }
+.mk.mk-about .dio-assignment .as-pill { display: flex; align-items: center; gap: calc(var(--u) * .5); width: var(--w); height: calc(var(--u) * 1.55); padding: 0 calc(var(--u) * .75) 0 calc(var(--u) * .28); border-radius: 999px;
+  background: linear-gradient(180deg, rgba(230, 196, 106, .36), rgba(202, 165, 76, .16)); box-shadow: inset 0 calc(var(--u) * .1) 0 rgba(255, 244, 200, .42), 0 calc(var(--u) * .16) 0 rgba(0, 0, 0, .32); }
+.mk.mk-about .dio-assignment .as-cv { flex: none; width: calc(var(--u) * 1.15); height: calc(var(--u) * 1.15); }
+.mk.mk-about .dio-assignment .as-pb { display: block; flex: 1 1 auto; height: calc(var(--u) * .42); border-radius: 99px; background: rgba(243, 236, 217, .66); }
+.mk.mk-about .dio-assignment .as-pb2 { flex: 0 0 calc(var(--u) * 1.6); background: rgba(243, 236, 217, .34); }
+
+/* wraps (was nowrap) so a longer locale's heading (VERSIEGELTES PROTOKOLL) stays inside the panel; English fits one line */
+.mk.mk-about .dio-assignment .as-h2.sil { margin: 0 0 calc(var(--u) * .6); color: var(--lcd-dim); white-space: normal; text-wrap: balance; }
+.mk.mk-about .dio-assignment .as-steps { display: grid; gap: calc(var(--u) * .45); }
+.mk.mk-about .dio-assignment .as-st { position: relative; display: flex; align-items: flex-start; gap: calc(var(--u) * .7); }
+.mk.mk-about .dio-assignment .as-node { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: calc(var(--u) * 1.6); height: calc(var(--u) * 1.6); border-radius: 50%; border: calc(var(--u) * .16) solid #fff3c9; background: var(--amber-hi); box-shadow: 0 0 calc(var(--u) * 1.1) rgba(230, 196, 106, .55), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .6); }
+.mk.mk-about .dio-assignment .as-tk { width: 78%; height: 78%; overflow: visible; }
+.mk.mk-about .dio-assignment .as-tk path { fill: none; stroke: var(--ink); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.mk.mk-about .dio-assignment .as-lbl { min-width: 0; font-size: var(--fs-small); font-weight: 600; line-height: calc(var(--u) * 1.6); min-height: calc(var(--u) * 1.6); color: var(--lcd-fg); }
+.mk.mk-about .dio-assignment .as-st:not(:last-child)::before,
+.mk.mk-about .dio-assignment .as-st:not(:last-child)::after { content: ""; position: absolute; left: calc(var(--u) * .8 - 1px); top: calc(var(--u) * 1.6); bottom: calc(var(--u) * -.45); width: 2px; }
+.mk.mk-about .dio-assignment .as-st:not(:last-child)::before { background: repeating-linear-gradient(180deg, rgba(243, 236, 217, .34) 0 calc(var(--u) * .3), transparent calc(var(--u) * .3) calc(var(--u) * .55)); }
+.mk.mk-about .dio-assignment .as-st:not(:last-child)::after { background: repeating-linear-gradient(180deg, var(--amber-hi) 0 calc(var(--u) * .3), transparent calc(var(--u) * .3) calc(var(--u) * .55)); transform-origin: top center; }
+
+/* ---------- the hero: a specimen card on the bezel's bottom outer corner ---------- */
+.mk.mk-about .dio-assignment .dio-hero--a { left: calc(var(--u) * -3); bottom: calc(var(--u) * -2.5); width: calc(var(--u) * 12.4); height: calc(var(--u) * 15.2); }
+.mk.mk-about .dio-assignment[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3); }
+.mk.mk-about .dio-assignment .as-hero-svg * { transform-box: view-box; }
+
+/* ---------- motion ---------- */
+@keyframes mka-as-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .9)); } }
+@keyframes mka-as-pop { from { opacity: 0; transform: scale(.35); } 60% { transform: scale(1.18); } }
+@keyframes mka-as-grow { from { transform: scaleX(0); } }
+@keyframes mka-as-slide { from { opacity: 0; transform: translateX(calc(var(--u) * 1.4)) scale(.96); } }
+@keyframes mka-as-fade { from { opacity: 0; } }
+@keyframes mka-as-node-on {
+  from { background: rgba(15, 27, 32, .92); border-color: rgba(243, 236, 217, .5); box-shadow: none; transform: scale(1); }
+  55% { transform: scale(1.22); }
+}
+@keyframes mka-as-draw { from { stroke-dashoffset: 1; } }
+@keyframes mka-as-lbl-on { from { color: var(--lcd-dim); } }
+@keyframes mka-as-fill { from { transform: scaleY(0); } }
+@keyframes mka-as-flag-drop { from { opacity: 0; transform: translateY(calc(var(--u) * -1.7)) rotate(-28deg) scale(.55); } 62% { transform: translateY(calc(var(--u) * .12)) rotate(5deg) scale(1.08); } }
+@keyframes mka-as-hl { from { opacity: 0; transform: scaleX(0); } }
+@keyframes mka-as-reveal { from { clip-path: inset(-2px 100% -2px 0); } to { clip-path: inset(-2px 0 -2px 0); } }
+@keyframes mka-as-reel { from { opacity: 0; transform: translateX(calc(var(--u) * var(--gap, -3))); } 65% { opacity: 1; } 82% { transform: translateX(calc(var(--u) * .16)); } }
+@keyframes mka-as-shut { from { transform: translateY(-4px) rotate(-14deg); } 55% { transform: translateY(1.2px) rotate(2deg); } 78% { transform: translateY(-.5px) rotate(0); } }
+@keyframes mka-as-seal-pop { from { opacity: 0; transform: translateX(calc(var(--u) * 1.2)) scale(.82); } 60% { transform: translateX(0) scale(1.06); } }
+@keyframes mka-as-ring { 0% { box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .09), inset 0 0 0 1px rgba(230, 196, 106, .34), 0 calc(var(--u) * .3) 0 rgba(0, 0, 0, .4), 0 0 0 0 rgba(230, 196, 106, 0); }
+  38% { box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .09), inset 0 0 0 calc(var(--u) * .16) rgba(230, 196, 106, .95), 0 calc(var(--u) * .3) 0 rgba(0, 0, 0, .4), 0 0 calc(var(--u) * 2.2) rgba(230, 196, 106, .55); } }
+@keyframes mka-as-glint { 0% { opacity: 0; transform: scale(0) rotate(-50deg); } 40% { opacity: 1; transform: scale(1.2) rotate(0); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+
+@keyframes mka-as-h-drop { from { opacity: 0; transform: translate(-26px, -40px) rotate(-12deg) scale(.9); } 55% { opacity: 1; transform: translate(2px, 3px) rotate(1.6deg) scale(1.01); } 78% { transform: translate(-.6px, -1px) rotate(-.4deg); } }
+@keyframes mka-as-h-thump { from { opacity: 0; transform: translateY(-34px) scale(1.1); } 55% { opacity: 1; transform: translateY(2px) scale(.985); } 78% { transform: translateY(-.8px) scale(1); } }
+@keyframes mka-as-h-unfurl { from { transform: scaleX(.04); } 62% { transform: scaleX(1.12); } }
+@keyframes mka-as-h-flag-in { from { opacity: 0; transform: translateY(8px) scale(.8); } }
+@keyframes mka-as-h-float { from { transform: translateY(0); } to { transform: translateY(-3.5px); } }
+@keyframes mka-as-h-sway { from { transform: rotate(-1.3deg); } to { transform: rotate(1.3deg); } }
+@keyframes mka-as-h-flutter { from { transform: skewY(-3.5deg) scaleX(1); } to { transform: skewY(3.5deg) scaleX(.94); } }
+@keyframes mka-as-h-twinkle { 0%, 100% { opacity: 1; transform: scale(1) rotate(0); } 50% { opacity: .35; transform: scale(.6) rotate(20deg); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* waiting for the page to add .is-in: the frame shows, the contents are held back */
+  .mk.mk-about .dio-assignment:not(.is-in) :is(.as-led, .as-title, .as-ed, .as-prompts, .as-log, .as-chain, .as-seal, .as-glint, .as-pill, .as-flag, .as-sq, .h-card, .h-flag, .h-sp) { opacity: 0; }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-s { transform: scaleX(0); }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-ln.is-flaw::before { opacity: 0; transform: scaleX(0); }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-node { background: rgba(15, 27, 32, .92); border-color: rgba(243, 236, 217, .5); box-shadow: none; }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-tk path { stroke-dashoffset: 1; }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-lbl { color: var(--lcd-dim); }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-st::after { transform: scaleY(0); }
+  .mk.mk-about .dio-assignment:not(.is-in) .as-lk { opacity: 0; }
+  .mk.mk-about .dio-assignment:not(.is-in) .h-pennant { transform: scaleX(.04); }
+
+  /* 0.0s  the window arrives */
+  .mk.mk-about .dio-assignment.is-in .as-led { animation: mka-as-pop .5s var(--spring) .05s both; }
+  .mk.mk-about .dio-assignment.is-in .as-title { animation: mka-as-rise .6s var(--ease) .1s both; }
+  .mk.mk-about .dio-assignment.is-in .as-ed { animation: mka-as-rise .7s var(--ease) .18s both, mka-as-ring 1.1s ease-out 3.3s both; }
+  .mk.mk-about .dio-assignment.is-in .as-s { animation: mka-as-grow .44s var(--ease) both; animation-delay: calc(.5s + var(--i, 0) * .055s + var(--j, 0) * .04s); }
+  .mk.mk-about .dio-assignment.is-in .as-prompts { animation: mka-as-rise .6s var(--ease) .32s both; }
+  .mk.mk-about .dio-assignment.is-in .as-pill { animation: mka-as-slide .5s var(--ease) both; animation-delay: var(--d, .6s); }
+  .mk.mk-about .dio-assignment.is-in .as-log { animation: mka-as-rise .6s var(--ease) .5s both; }
+
+  /* 1.0s - 2.4s  the log ticks off in turn */
+  .mk.mk-about .dio-assignment.is-in .as-node { animation: mka-as-node-on .5s var(--spring) both; animation-delay: calc(1.05s + var(--n) * .45s); }
+  .mk.mk-about .dio-assignment.is-in .as-tk path { animation: mka-as-draw .3s ease-out both; animation-delay: calc(1.2s + var(--n) * .45s); }
+  .mk.mk-about .dio-assignment.is-in .as-lbl { animation: mka-as-lbl-on .4s ease both; animation-delay: calc(1.05s + var(--n) * .45s); }
+  .mk.mk-about .dio-assignment.is-in .as-st::after { animation: mka-as-fill .4s linear both; animation-delay: calc(1.35s + var(--n) * .45s); }
+
+  /* 2.4s  the fourth tick: the planted flaw is flagged, on the screen and on the card */
+  .mk.mk-about .dio-assignment.is-in .as-ln.is-flaw::before { animation: mka-as-hl .55s var(--ease) 2.4s both; }
+  .mk.mk-about .dio-assignment.is-in .as-flag { animation: mka-as-flag-drop .6s var(--spring) 2.4s both; }
+  .mk.mk-about .dio-assignment.is-in .as-sq { animation: mka-as-reveal .5s ease-out 2.75s both; }
+  .mk.mk-about .dio-assignment.is-in .h-pennant { animation: mka-as-h-unfurl .6s var(--ease) 2.45s both; transform-origin: 59px -76px; }
+  .mk.mk-about .dio-assignment.is-in .h-flag { animation: mka-as-h-flag-in .35s ease 2.35s both; }
+  .mk.mk-about .dio-assignment.is-in .h-sp { animation: mka-as-fade .5s ease 2.5s both; }
+
+  /* 2.8s - 3.6s  the chain is reeled in and closes, the session seals */
+  .mk.mk-about .dio-assignment.is-in .as-chain { animation: mka-as-fade .2s ease 2.75s both; }
+  .mk.mk-about .dio-assignment.is-in .as-lk { animation: mka-as-reel .5s var(--ease) both; }
+  .mk.mk-about .dio-assignment.is-in .as-lk1 { --gap: -5.4; animation-delay: 2.78s; }
+  .mk.mk-about .dio-assignment.is-in .as-lk2 { --gap: -4.2; animation-delay: 2.84s; }
+  .mk.mk-about .dio-assignment.is-in .as-lk3 { --gap: -3; animation-delay: 2.9s; }
+  .mk.mk-about .dio-assignment.is-in .as-lk4 { --gap: -1.9; animation-delay: 2.96s; }
+  .mk.mk-about .dio-assignment.is-in .as-lk5 { --gap: -.8; animation-delay: 3.02s; }
+  .mk.mk-about .dio-assignment.is-in .as-seal { animation: mka-as-seal-pop .5s var(--spring) 3.1s both; }
+  .mk.mk-about .dio-assignment.is-in .as-shackle { animation: mka-as-shut .5s var(--ease) 3.3s both; transform-origin: 19.6px 14px; }
+  .mk.mk-about .dio-assignment.is-in .as-glint { animation: mka-as-glint .55s var(--ease) 3.45s both; }
+
+  /* the hero: drops in, the beetle thumps down, the flag comes out on the fourth tick */
+  .mk.mk-about .dio-assignment.is-in .h-card { animation: mka-as-h-drop .85s var(--ease) .3s both; transform-origin: 110px 135px; }
+  .mk.mk-about .dio-assignment.is-in .h-bug { animation: mka-as-h-thump .6s var(--ease) .78s both; transform-origin: 110px 130px; }
+
+  /* then a very gentle idle, on the hero only */
+  .mk.mk-about .dio-assignment.is-in .h-float { animation: mka-as-h-float 5.5s ease-in-out 3.6s infinite alternate; }
+  .mk.mk-about .dio-assignment.is-in .h-sway { animation: mka-as-h-sway 3.4s ease-in-out 3.2s infinite alternate; transform-origin: 16px -11px; }
+  .mk.mk-about .dio-assignment.is-in .h-flut { animation: mka-as-h-flutter 2.4s ease-in-out 3.2s infinite alternate; transform-origin: 59px -76px; }
+  .mk.mk-about .dio-assignment.is-in .h-sp1 { animation: mka-as-h-twinkle 3.6s ease-in-out 3.2s infinite; transform-origin: 210px 44px; }
+  .mk.mk-about .dio-assignment.is-in .h-sp2 { animation: mka-as-h-twinkle 4.4s ease-in-out 3.9s infinite; transform-origin: 6px 152px; }
+  .mk.mk-about .dio-assignment.is-in .h-sp3 { animation: mka-as-h-twinkle 5.2s ease-in-out 4.4s infinite; transform-origin: 186px 253px; }
+}
+
+/* ---------- phones and portrait windows: normal flow, one column, px text (tokens.css pins --u to 16px here) ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-assignment .as-win { position: relative; inset: auto; display: flex; flex-direction: column; gap: 14px; padding: 14px 14px 64px; }
+  .mk.mk-about .dio-assignment .as-bar { flex-wrap: wrap; gap: 8px 10px; min-height: 0; }
+  .mk.mk-about .dio-assignment .as-led { width: 12px; height: 12px; }
+  .mk.mk-about .dio-assignment .as-title { flex: 1 1 calc(100% - 30px); font-size: 20px; white-space: normal; }
+  .mk.mk-about .dio-assignment .as-chain { margin: 0 -22px 0 auto; width: 120px; height: 26px; }
+  .mk.mk-about .dio-assignment .as-seal { gap: 7px; padding: 6px 14px 6px 10px; }
+  .mk.mk-about .dio-assignment .as-lock { width: 20px; height: 23px; }
+  .mk.mk-about .dio-assignment .as-glint { right: -8px; top: auto; bottom: 24px; width: 24px; height: 24px; }
+  .mk.mk-about .dio-assignment .as-body,
+.mk.mk-about .dio-assignment[data-side="r"] .as-body { flex-direction: column; gap: 14px; }
+  .mk.mk-about .dio-assignment .as-ed { flex: none; border-radius: 14px; }
+  .mk.mk-about .dio-assignment .as-tabs { height: 30px; padding: 8px 10px 0; gap: 6px; }
+  .mk.mk-about .dio-assignment .as-tab { width: 92px; height: 22px; border-radius: 8px 8px 0 0; }
+  .mk.mk-about .dio-assignment .as-code { flex: none; gap: 9px; padding: 14px 12px 16px 10px; }
+  .mk.mk-about .dio-assignment .as-ln:nth-child(n+8) { display: none; }
+  .mk.mk-about .dio-assignment .as-status { height: 40px; padding: 0 12px; gap: 8px; }
+  .mk.mk-about .dio-assignment[data-side="r"] .as-status { flex-direction: row; }
+  .mk.mk-about .dio-assignment[data-side="r"] .as-ai.sil { margin-left: auto; margin-right: 0; }
+  .mk.mk-about .dio-assignment .as-side { flex: none; gap: 12px; }
+  .mk.mk-about .dio-assignment .as-prompts,
+.mk.mk-about .dio-assignment .as-log { padding: 12px 14px 14px; border-radius: 14px; }
+  .mk.mk-about .dio-assignment .as-h { margin-bottom: 10px; gap: 9px; }
+  .mk.mk-about .dio-assignment .as-pills { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .mk.mk-about .dio-assignment .as-pill { height: 27px; gap: 8px; padding: 0 12px 0 4px; }
+  .mk.mk-about .dio-assignment .as-cv { width: 19px; height: 19px; }
+  .mk.mk-about .dio-assignment .as-pb { height: 6px; } .mk.mk-about .dio-assignment .as-pb2 { flex-basis: 20px; }
+  .mk.mk-about .dio-assignment .as-h2.sil { margin-bottom: 10px; }
+  .mk.mk-about .dio-assignment .as-steps { gap: 9px; }
+  .mk.mk-about .dio-assignment .as-st { gap: 11px; }
+  .mk.mk-about .dio-assignment .as-node { width: 26px; height: 26px; border-width: 2px; }
+  .mk.mk-about .dio-assignment .as-lbl { line-height: 26px; min-height: 26px; }
+  .mk.mk-about .dio-assignment .as-st:not(:last-child)::before,
+.mk.mk-about .dio-assignment .as-st:not(:last-child)::after { left: 12px; top: 26px; bottom: -9px; }
+  .mk.mk-about .dio-assignment .dio-hero--a,
+.mk.mk-about .dio-assignment[data-side="r"] .dio-hero--a { left: auto; right: -6px; bottom: -28px; width: clamp(88px, 25vw, 112px); height: auto; aspect-ratio: 220 / 270; }
+}

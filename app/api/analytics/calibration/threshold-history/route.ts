@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { listDecisionRecords, type DecisionRecord } from "@/app/_lib/decision-record-store";
 import { computeThresholdEffect } from "@/app/_lib/calibration";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { safeRowParse } from "@/app/_lib/db/core";
 
@@ -59,13 +59,12 @@ const HISTORY_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const family = new URL(request.url).searchParams.get("roleFamily") || null;
     if (!rateLimit(`threshold-history:${clientIpFrom(request.headers)}`, HISTORY_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
 
     // The sealed threshold-adjust records for THIS workspace's chain, newest first.
     //
@@ -129,6 +128,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ history, effect });
   } catch (error) {
-    return jsonError(error, "Failed to load the threshold history.");
+    return safeJsonError(error, "api:analytics:calibration:threshold-history", "ANALYTICS_THRESHOLD_HISTORY_READ_FAILED");
   }
-}
+});

@@ -1,8 +1,10 @@
 """Use case → provider resolution.
 
 ``resolve_provider("match_reasoning")`` reads KP_LLM_CONFIG and returns a
-configured adapter; with no config (local dev) it returns ClaudeCliProvider,
-preserving today's behavior exactly. Callers keep their existing dance::
+configured adapter; with no config (local dev) it returns the Claude CLI engine —
+``adapters.claude_cli.ClaudeCliAdapter``, a ``TextProvider`` like every other
+adapter, so the default engine runs the same retry / deadline / JSON-repair /
+metering path as the metered ones. Callers keep their existing dance::
 
     provider = None if args.no_llm else resolve_provider("match_reasoning", timeout=120)
     if provider is not None and not provider.available():
@@ -22,18 +24,31 @@ and may train on its inputs, so it is refused on a production deployment unless
 a use-case row, the config-less default, the Models-panel probe — meets the same
 veto, and so a refusal arrives as an unavailable provider and degrades to the
 deterministic answer instead of raising through the caller's dance above.
+
+A call site may PIN its engine (``resolve_provider(..., pin=ProviderPin(...))``)
+when the product requires one model for a use case — see :class:`ProviderPin` for
+what a pin outranks and what outranks it.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from ..claude_cli import is_production_deployment
 from .adapters import ADAPTERS
+from .adapters.claude_cli import ClaudeCliAdapter
+from .adapters.codex_cli import CodexCliAdapter
 from .base import DEFAULT_TIMEOUT_S, LLMError
-from .capabilities import PROVIDER_CAPABILITIES, default_max_tokens, default_model, unsupported_caps
+from .capabilities import (
+    PIN_ONLY_PROVIDER_CAPABILITIES,
+    PROVIDER_CAPABILITIES,
+    default_max_tokens,
+    default_model,
+    provider_capabilities,
+    unsupported_caps,
+)
 from .config import LLMConfig, load_config
-from .monitor import MonitoredClaudeCli
 
 
 def _gemini_adapter(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any:
@@ -144,7 +159,7 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
     timeout_s = timeout or DEFAULT_TIMEOUT_S
 
     if provider_name == "claude_cli":
-        return MonitoredClaudeCli(
+        return ClaudeCliAdapter(
             model=model,
             timeout=timeout_s,
             use_case=KEY_PROBE_USE_CASE,
@@ -196,8 +211,124 @@ def provider_availability(provider: Any) -> tuple[bool, str | None]:
     return ok, (None if ok else "unavailable")
 
 
-def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
-    """Provider instance for ``use_case`` (ClaudeCliProvider-compatible)."""
+@dataclass(frozen=True)
+class ProviderPin:
+    """A CALL-SITE override of the routing decision: this use case, on this call,
+    runs on exactly ``provider`` / ``model``.
+
+    Registry technique model-routing/consumer-overrides: *the router exposes an
+    override PARAMETER; it never reads override STATE.* So a pin is never an env
+    var or a config key this module consults — it is a value the caller passes to
+    :func:`resolve_provider`, visible in the caller's code, scoped to that one
+    call, and it is the only way to force an engine past the operator's routing.
+
+    What a pin OUTRANKS: the operator's ``KP_LLM_CONFIG`` row for the use case
+    (specific or ``*`` wildcard) — its provider, model AND params (the row is not
+    read at all) — and every routing default (the production Gemini preference,
+    the per-use-case default model).
+
+    What OUTRANKS a pin — policy, then the capability floor:
+
+    * policy stays on the provider, untouched: the CLI engine's KP_OFFLINE seal
+      and its production consumer-terms refusal still answer through
+      ``availability()``, so a pinned call on a refused engine is an UNAVAILABLE
+      provider and the call site degrades — the pin never exempts it;
+    * the use case's required capabilities (``unsupported_caps``) are checked
+      against the PINNED provider, and a pin below them raises ``LLMError`` with
+      the missing capability named instead of serving a broken answer.
+
+    Only the two CLI engines can be pinned - ``claude_cli`` and the pin-only
+    ``codex_cli`` (``capabilities.PIN_ONLY_PROVIDER_CAPABILITIES``, the gig plan
+    seats' GPT 6 Astra) - and a pin to another provider raises: building a keyed
+    adapter needs the key layering, and no pin has needed one yet. The model is
+    recorded as the ledger's model label, so the usage record names the pinned id
+    rather than the CLI's configured default.
+
+    ``effort`` (optional) is the CLI's reasoning-effort level for that one call,
+    passed as ``--effort <level>`` (``claude --help``: low, medium, high, xhigh,
+    max; verified against CLI 2.1.284 on 2026-09-29) - or, on ``codex_cli``, as
+    ``-c model_reasoning_effort=<level>`` (a probe at ``max`` answered on
+    2026-09-30, codex-cli 0.157.1). ``None`` sends no flag, so the CLI runs at its
+    own default. The gig plan seats (gig_plan_cli.py) are the
+    first pins that need it: the same model at two efforts is two different seats.
+    It is a closed vocabulary rather than a free string because it lands in argv,
+    and on Windows the CLI is a ``.cmd`` shim that interprets its arguments.
+    """
+
+    provider: str
+    model: str
+    effort: str | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("provider", "model"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"ProviderPin.{name} must be a non-empty string, got {value!r}")
+        if self.effort is not None and self.effort not in PIN_EFFORTS:
+            raise ValueError(f"ProviderPin.effort must be one of {PIN_EFFORTS} or None, got {self.effort!r}")
+
+
+# The CLI's `--effort` levels (claude --help, CLI 2.1.284, 2026-09-29).
+PIN_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
+
+
+# The providers a pin can be honored on today (see ProviderPin).
+_PINNABLE_PROVIDERS: tuple[str, ...] = ("claude_cli", "codex_cli")
+
+
+def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> Any:
+    """The adapter a :class:`ProviderPin` names, after the checks that outrank it.
+
+    ``KP_LLM_CONFIG`` is not loaded at all: a pin is the call site's decision, so
+    the operator's row can neither redirect it nor, when malformed, break it."""
+    if provider_capabilities(pin.provider) is None:
+        raise LLMError(
+            f"unknown LLM provider {pin.provider!r} pinned for use case {use_case!r} "
+            f"(known: {sorted([*PROVIDER_CAPABILITIES, *PIN_ONLY_PROVIDER_CAPABILITIES])})"
+        )
+    missing = unsupported_caps(use_case, pin.provider)
+    if missing:
+        raise LLMError(
+            f"pinned provider {pin.provider!r} cannot serve {use_case!r}: missing "
+            f"capabilities {sorted(missing)} — a pin never routes below a use case's "
+            "required capabilities"
+        )
+    if pin.provider not in _PINNABLE_PROVIDERS:
+        raise LLMError(
+            f"provider pins are implemented for {', '.join(_PINNABLE_PROVIDERS)} only; "
+            f"{use_case!r} pins {pin.provider!r} — build that adapter's key layering "
+            "into the pin path before pinning it"
+        )
+    if pin.provider == "codex_cli":
+        # The operator's own Codex login on the box: no key, no lane choice. Its policy
+        # (KP_OFFLINE, the production consumer-terms refusal) answers in availability().
+        return CodexCliAdapter(
+            model=pin.model,
+            effort=pin.effort,
+            timeout=timeout or DEFAULT_TIMEOUT_S,
+            use_case=use_case,
+        )
+    return ClaudeCliAdapter(
+        model=pin.model,
+        timeout=timeout or DEFAULT_TIMEOUT_S,
+        use_case=use_case,
+        # the same lane choice every CLI route gets — a pin changes WHICH engine,
+        # never the contract that engine runs under (see _cli_strip_api_key)
+        strip_api_key=_cli_strip_api_key(),
+        # the pin's effort, when it names one; the ledger label stays pin.model
+        extra_args=("--effort", pin.effort) if pin.effort else (),
+    )
+
+
+def resolve_provider(use_case: str, *, timeout: int | None = None, pin: ProviderPin | None = None) -> Any:
+    """Provider instance for ``use_case`` (ClaudeCliProvider-compatible).
+
+    ``pin`` is the call-site override (:class:`ProviderPin`): with one, the
+    operator's routing row is not consulted and the pinned engine/model is
+    returned after the capability check — or ``LLMError``. Without one, routing is
+    exactly the config-driven resolution below."""
+    if pin is not None:
+        return _pinned_provider(use_case, pin, timeout)
     cfg = load_config()
     entry = cfg.for_use_case(use_case) if cfg else None
 
@@ -238,13 +369,14 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
         # every other seat: DEFAULT_MODELS["claude_cli"] is None, so an unoverridden
         # use case still resolves to None — the CLI's own configured default, unchanged.
         cli_model = (entry.model if entry else None) or default_model(use_case, "claude_cli")
-        # MonitoredClaudeCli IS-A ClaudeCliProvider — identical behavior plus
-        # LightTrack emission when observability is configured (monitor.py).
+        # A TextProvider over the unchanged ClaudeCliProvider: one spawn per attempt,
+        # with retries, the total deadline, the repair re-prompt and ledger emission
+        # from base.py (adapters/claude_cli.py carries the error translation).
         # strip_api_key is passed rather than inherited: see _cli_strip_api_key.
         # On a production box with no Anthropic key this provider is returned and
         # then reports itself unavailable (consumer_terms_policy) — the refusal is
         # a degrade, not a raise, so the call site's deterministic fallback serves.
-        return MonitoredClaudeCli(
+        return ClaudeCliAdapter(
             model=cli_model,
             timeout=cli_timeout,
             use_case=use_case,

@@ -1,0 +1,33 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* About: only what the shared chrome (../shared/chrome.css) cannot know. The header, buttons, footer and stepper are the landing's,
+   unchanged; this file places them on the dark world and re-uses the landing's own button look for the two step controls. */
+.mk.mk-about[data-page="about"] { padding-bottom: 0; }
+.mk.mk-about .bar.is-stuck { background: rgba(253, 248, 238, .96); }            /* the landing's light bar, always solid over the dark world */
+.mk.mk-about .bar { z-index: 70; }
+.mk.mk-about .hero-ctas { gap: calc(var(--u) * 1.2); }
+.mk.mk-about .end-ctas { gap: calc(var(--u) * 1.2); }
+
+/* the human gate and Replay are the landing's small buttons; the gate keeps its lamp and its three states */
+.mk.mk-about .txt .gate.btn { margin-top: calc(var(--u) * 1.8); white-space: normal; text-align: left; border-radius: calc(var(--p) * 12); background: var(--paper); color: var(--ink); border: var(--ol) solid var(--ink); font-size: max(15px, calc(var(--p) * 16)); gap: .6em; padding: calc(var(--p) * 8) calc(var(--p) * 16); }
+.mk.mk-about .txt .gate.btn:lang(fr), .mk.mk-about .txt .gate.btn:lang(de) { font-size: min(max(15px, calc(var(--p) * 16)), 19px); } /* at the tablet width --p made this 22px and the French wait line wrapped in the 556px column */
+.mk.mk-about .gate.btn .lamp { width: 14px; height: 14px; min-width: 14px; min-height: 14px; border-radius: 50%; background: #9aa0a5; border: 2px solid var(--ink); box-shadow: none; }
+.mk.mk-about .gate.btn[data-state="wait"] { background: var(--amber); color: var(--ink); border: var(--ol) solid var(--ink); }
+.mk.mk-about .gate.btn[data-state="wait"] .lamp { background: var(--coral-d); box-shadow: none; }
+.mk.mk-about .gate.btn[data-state="ok"] { background: var(--lime); color: var(--ink); border: var(--ol) solid var(--ink); }
+.mk.mk-about .gate.btn[data-state="ok"] .lamp { background: var(--moss); box-shadow: none; }
+.mk.mk-about .gate.btn .gk { font: 800 max(14px, calc(var(--p) * 14)) var(--f-body); letter-spacing: .1em; color: var(--ink); }
+.mk.mk-about .gate.btn[data-state="ok"] .gk { color: var(--ink); }
+.mk.mk-about .replay.btn { text-transform: none; letter-spacing: 0; font-family: var(--f-body); font-size: max(15px, calc(var(--p) * 16)); min-height: 44px; border-radius: calc(var(--p) * 12); }
+.mk.mk-about .replay.btn svg { color: var(--coral-d); }
+
+/* the footer clears the fixed stepper */
+.mk.mk-about[data-page="about"] .foot { padding-bottom: calc(var(--p) * 28 + max(72px, calc(var(--p) * 80))); }
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about[data-page="about"] { padding-bottom: 148px; }
+  .mk.mk-about[data-page="about"] .foot { padding-bottom: 40px; }
+  .mk.mk-about .step,
+.mk.mk-about .closing { scroll-margin-top: 72px; }
+}
+/* over the dark chapters the stepper needs a floor under it, so the text behind never reads through the buttons */
+.mk.mk-about .stepper { background: linear-gradient(0deg, rgba(8, 22, 26, .96) 55%, rgba(8, 22, 26, 0)); }
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) { .mk.mk-about .stepper { background: rgba(8, 22, 26, .94); border-top: 3px solid var(--cream); } }

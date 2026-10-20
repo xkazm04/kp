@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { ProfilePayload, ArchetypeDef } from "@/app/features/shared/profileTypes";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
@@ -14,6 +15,8 @@ import { useProfileEditorFields } from "./useProfileEditorFields";
 import { useProfileEditorSubmit } from "./useProfileEditorSubmit";
 import { focusProfileField, validateProfileEditorFields } from "./profileEditorHelpers";
 import { archetypeFieldVisibility } from "./ProfileForm";
+import type { RebuildSeed } from "./profileRebuildMerge";
+import { readiness, type ReadinessForm } from "./profileReadiness";
 
 export type EditorMode = "create" | "edit";
 
@@ -23,6 +26,7 @@ export function ProfileEditor({
   initialPayload,
   initialUpdatedAt,
   sourceAnalysisSlug,
+  rebuildSeed,
   archetypes,
   onCancel,
   onReload,
@@ -37,6 +41,9 @@ export function ProfileEditor({
    *  rebuild-from-latest), the slug of that analysis. Carried into the save so the
    *  route stamps source lineage; the recruiter still reviews before saving. */
   sourceAnalysisSlug?: string | null;
+  /** A rebuild from a newer CV: open ON the field-level merge with the rebuild pending
+   *  (profileRebuildMerge.rebuildEditorState), so the banner below can undo it. */
+  rebuildSeed?: RebuildSeed | null;
   /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
   archetypes: ArchetypeDef[];
   onCancel: () => void;
@@ -77,8 +84,44 @@ export function ProfileEditor({
     dismissDraftNotice,
     draftApplied,
     draftConflicts,
+    draftOrigin,
+    restoredFrom,
+    restoreOffered,
     clearBackup,
-  } = useProfileEditorFields(initialPayload, editingId);
+  } = useProfileEditorFields(initialPayload, { editingId, sourceAnalysisSlug, initialUpdatedAt }, rebuildSeed);
+  const format = useFormatter();
+  // A rebuild and a restored backup ride the same banner as an AI draft (merge, "use
+  // anyway", undo) — only the words differ, so the recruiter reads "the newer CV" or
+  // "your unsaved edits", not "the draft".
+  const rebuilt = draftOrigin === "rebuild";
+  const restoring = draftOrigin === "restore";
+  // The envelope's own timestamp; a hand-edited slot with a bad one just loses the date.
+  const restoredDate = restoredFrom ? new Date(restoredFrom) : null;
+  const restoredWhen =
+    restoredDate && !Number.isNaN(restoredDate.getTime())
+      ? format.dateTime(restoredDate, { dateStyle: "medium", timeStyle: "short" })
+      : "";
+  const bannerText = restoring
+    ? draftConflicts.length
+      ? restoreOffered
+        ? t("restoreOffer", { count: draftConflicts.length })
+        : t("restoreContested", { count: draftConflicts.length, when: restoredWhen })
+      : t("restoreAppliedNote")
+    : rebuilt
+      ? draftConflicts.length
+        ? t("rebuildKeptEdits", { count: draftConflicts.length })
+        : t("rebuildAppliedNote")
+      : draftConflicts.length
+        ? t("draftKeptEdits", { count: draftConflicts.length })
+        : t("draftAppliedNote");
+  const useAnywayLabel = restoring
+    ? restoreOffered
+      ? t("restoreApply")
+      : t("restoreUseMine")
+    : rebuilt
+      ? t("rebuildUseAnyway")
+      : t("draftUseAnyway");
+  const undoLabel = restoring ? t("restoreDiscard") : rebuilt ? t("rebuildUndo") : t("draftUndo");
 
   const { result, loading, error, stale, build: submit } = useProfileEditorSubmit({
     t,
@@ -101,10 +144,11 @@ export function ProfileEditor({
   // is saved — no hidden, retained state can leak into the payload (idea-7ac9e45f).
   const fieldVis = archetypeFieldVisibility(choice);
 
-  // persist=false → dry-run preview (always POST, never writes). persist=true →
-  // POST a new row (create/duplicate) or PUT the edited row.
-  const build = (persist: boolean) =>
-    submit(persist, {
+  // The whole form as the save reads it. One object for both readers - the save below
+  // and the live readiness - memoized on its fields, so its identity changes exactly
+  // when something the recruiter can see changed.
+  const fields: ReadinessForm = useMemo(
+    () => ({
       displayName,
       roleFamily,
       educationLevel,
@@ -122,7 +166,27 @@ export function ProfileEditor({
       expectedGraduation,
       wantsDomainChange,
       hasSubstantialExperience,
-    });
+    }),
+    [
+      displayName, roleFamily, educationLevel, educationDetail, languages, location, availability,
+      aspirations, skills, evidence, choice, yearsExperience, seniority, isEnrolled, expectedGraduation,
+      wantsDomainChange, hasSubstantialExperience,
+    ]
+  );
+
+  // Routing + completeness evaluated here, as the recruiter types, from the same
+  // archetypes.json rules profile_cli reads (profileReadiness.ts; the per-archetype
+  // checklists from the LIVE registry prop, so a custom archetype is seen). There is
+  // no "Check (preview)" round trip any more - it was a Python spawn charged to the
+  // save rate limit. The save stays the authority: its result replaces this view
+  // while the form still equals what was saved.
+  const live = useMemo(() => readiness(fields, archetypes), [fields, archetypes]);
+  const [savedFields, setSavedFields] = useState<ReadinessForm | null>(null);
+  const build = () => {
+    setSavedFields(fields);
+    return submit(true, fields);
+  };
+  const showSaved = Boolean(result?.saved?.id) && savedFields === fields;
 
   const { yearsError, gradError, hasFieldErrors } = validateProfileEditorFields(
     t,
@@ -145,7 +209,7 @@ export function ProfileEditor({
             clearBackup();
             onCancel();
           }}
-          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral"
+          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral-ink"
         >
           <ArrowLeft size={14} /> {t("back")}
         </button>
@@ -164,9 +228,7 @@ export function ProfileEditor({
           same idiom inside the editor, plus a one-click undo. */}
       {draftApplied ? (
         <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm text-amber-800">
-            {draftConflicts.length ? t("draftKeptEdits", { count: draftConflicts.length }) : t("draftAppliedNote")}
-          </p>
+          <p className="text-sm text-amber-800">{bannerText}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {draftConflicts.length ? (
               <button
@@ -174,7 +236,7 @@ export function ProfileEditor({
                 onClick={acceptDraftFully}
                 className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
               >
-                {t("draftUseAnyway")}
+                {useAnywayLabel}
               </button>
             ) : null}
             <button
@@ -182,15 +244,18 @@ export function ProfileEditor({
               onClick={undoDraft}
               className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
             >
-              {t("draftUndo")}
+              {undoLabel}
             </button>
-            <button
-              type="button"
-              onClick={dismissDraftNotice}
-              className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
-            >
-              {t("draftKeep")}
-            </button>
+            {/* An offered backup was never applied, so "keep this" would only repeat Discard. */}
+            {restoring && restoreOffered && draftConflicts.length ? null : (
+              <button
+                type="button"
+                onClick={dismissDraftNotice}
+                className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
+              >
+                {t("draftKeep")}
+              </button>
+            )}
           </div>
         </div>
       ) : null}
@@ -240,19 +305,11 @@ export function ProfileEditor({
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">
         <button
           type="button"
-          onClick={() => build(false)}
-          disabled={loading || hasFieldErrors}
-          className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-base font-semibold text-ink hover:bg-paper disabled:opacity-40"
-        >
-          {loading ? t("working") : t("checkPreview")}
-        </button>
-        <button
-          type="button"
-          onClick={() => build(true)}
+          onClick={build}
           disabled={loading || hasFieldErrors}
           className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
         >
-          {saveLabel}
+          {loading ? t("working") : saveLabel}
         </button>
       </div>
 
@@ -277,13 +334,17 @@ export function ProfileEditor({
         </div>
       ) : null}
       {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
-      {result ? (
+      {/* Completeness gates nothing - Save stays enabled - and the figure always travels
+          with its named checklist (the Add next list), live or saved. */}
+      {showSaved && result?.saved?.id ? (
         <ProfileResultPanel
           result={result}
-          onMatchNow={result.saved?.id ? () => goMatch(result.saved!.id) : undefined}
+          onMatchNow={() => goMatch(result.saved!.id)}
           onGoToField={focusProfileField}
         />
-      ) : null}
+      ) : (
+        <ProfileResultPanel result={live} onGoToField={focusProfileField} />
+      )}
     </section>
   );
 }

@@ -1,7 +1,11 @@
 """Submission scenario eval — the EVALUATION half of the Dev pipeline (Phase D7).
 
-Runs trace -> reflect_commits -> assess_tooling -> evaluate_submission -> score_transfer
-over a landscape of synthetic candidate behaviours (submission_scenarios.py) and gates:
+Runs each synthetic candidate behaviour (submission_scenarios.py) through the SAME
+evaluate-submission chain production runs (evaluation_pipeline.run_evaluation — reflect ->
+tooling -> evaluate -> transfer -> followups, with the observed evidence assembled exactly as
+devcase_cli assembles it) and gates. ``--path commit`` (default) certifies repo-link
+submissions, ``--path observed`` Live Work Surface sessions (events, chat, submitted tree,
+seed canaries, baseline), ``--path both`` the two landscapes together:
 
   RELIABILITY — every output well-formed (scores in range, one outcome per probe, transfer in
                 range, reflection hedged).
@@ -11,7 +15,10 @@ over a landscape of synthetic candidate behaviours (submission_scenarios.py) and
                 deterministic fallback hardcodes none), (2) candidates who VERIFY lead non-verifiers
                 on judgment by a meaningful margin (>= MIN_VERIFY_MARGIN, not just a tie),
                 (3) using AI is not penalised — an AI-heavy verifier scores within a small noise
-                band of (or above) a BEHAVIOUR-MATCHED peer who verified without AI.
+                band of (or above) a BEHAVIOUR-MATCHED peer who verified without AI, and (4) using
+                AI is not REWARDED either — the same verifier does not beat that peer by more than
+                the same band. (3) alone is one-sided: an evaluator that pays a bonus for verifying
+                through the assistant passes it.
   DISCRIMINATION — strong submissions out-score weak ones (and the AI-no-verify gamer) by a
                 meaningful margin (>= MIN_DISCRIMINATION_MARGIN), not merely any positive gap.
   QUALITY     — with --judge, an LLM rates the evaluation AND answers whether it unfairly
@@ -28,12 +35,14 @@ over a landscape of synthetic candidate behaviours (submission_scenarios.py) and
 Complements lifecycle_eval.py (the design half).
 
     python -m pipeline.jobfit.devcase.submission_eval --count 48 --no-llm
+    python -m pipeline.jobfit.devcase.submission_eval --path observed --count 48 --no-llm --strict
     python -m pipeline.jobfit.devcase.submission_eval --count 24 --judge --workers 6 --json
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -42,11 +51,12 @@ from typing import Any
 
 from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
-from .evaluate import evaluate_submission, score_transfer
+from .evaluate import CASE_EVAL_PROMPT_VERSION, FOLLOWUPS_PROMPT_VERSION, TRANSFER_PROMPT_VERSION
+from .evaluation_pipeline import EvaluationInputs, run_evaluation
 from .llm_judge import judge_independence, resolve_judge_provider, run_judge
-from .models import RUBRIC_DIMENSIONS
-from .provenance import SOURCE_DETERMINISTIC, collect_fallback_reasons, combine_source
-from .reflect import assess_tooling, reflect_commits
+from .models import RUBRIC_DIMENSIONS, rubric_composite
+from .provenance import SOURCE_DETERMINISTIC, combine_source
+from .reflect import COMMIT_REFLECTION_PROMPT_VERSION, TOOLING_SIGNAL_PROMPT_VERSION
 from .submission_scenarios import SubScenario, generate_submissions
 
 # Derived from the canonical rubric (models.RUBRIC_DIMENSIONS) — mirroring evaluate._DIMS —
@@ -65,12 +75,14 @@ _PATTERNS = {"exploratory", "linear", "big-bang", "test-driven", "unclear"}
 # only what it measured) but lets not_evaluable pass — no data is not a violation.
 #
 # Margins are in points on the 0-100 score scale (judgment dimension for fairness,
-# the 5-dim overall for discrimination). The deterministic landscape clears them
-# comfortably (verify lead ~18.8, strong-vs-weak ~8.9, strong-vs-gamer ~7.5),
+# the rubric-weighted case score for discrimination). The deterministic landscape clears them
+# comfortably (commit path, --count 48, 2026-09-23: verify lead 37.5, strong-vs-weak 13.5,
+# strong-vs-gamer 12.0 on the weighted case score — 12.7 / 11.3 on the old unweighted mean),
 # leaving headroom for the noisier --judge/LLM path while still rejecting a tie.
 MIN_GROUP_N = 3                  # each compared group needs >= this many rows, else inconclusive
 MIN_VERIFY_MARGIN = 5.0          # verifiers must out-score non-verifiers by >= this many judgment pts
-AI_PENALTY_TOLERANCE = 2.0       # "not penalised": AI-verifiers may sit at most this far below non-verifiers
+AI_PENALTY_TOLERANCE = 2.0       # "not penalised": AI-verifiers may sit at most this far below non-AI verifiers
+AI_REWARD_TOLERANCE = 2.0        # "not rewarded": AI-verifiers may sit at most this far ABOVE non-AI verifiers
 MIN_DISCRIMINATION_MARGIN = 5.0  # strong must out-score weak AND the gamer by >= this many overall pts
 
 
@@ -92,6 +104,15 @@ def _not_below_verdict(test: float | None, base: float | None, test_n: int, base
     if test is None or base is None or test_n < MIN_GROUP_N or base_n < MIN_GROUP_N:
         return None
     return (test - base) >= -tol
+
+
+def _not_above_verdict(test: float | None, base: float | None, test_n: int, base_n: int, tol: float) -> bool | None:
+    """Tri-state mirror of _not_below_verdict: ``test`` must not rise more than ``tol``
+    ABOVE ``base``. Together the two make the AI check two-sided — the channel a
+    candidate verified through may neither cost nor earn them points."""
+    if test is None or base is None or test_n < MIN_GROUP_N or base_n < MIN_GROUP_N:
+        return None
+    return (test - base) <= tol
 
 
 def _evaluable(*sizes: int) -> bool:
@@ -187,6 +208,9 @@ class Row:
     # these ONLY when a call RAISED (empty for a clean LLM run or an intentional
     # --no-llm run). A non-empty map = the LLM path was degraded for this row.
     fallback_reasons: dict = field(default_factory=dict)
+    # The mechanical observed checks (canary verdicts, prompt signals, baseline distance)
+    # the evaluation was fed — empty on the commit path.
+    observed_checks: dict = field(default_factory=dict)
 
     @property
     def reliable(self) -> bool:
@@ -198,32 +222,44 @@ class Row:
 
     @property
     def overall(self) -> float:
-        dims = self.evaluation.get("dimensionScores") or {}
-        vals = [v for v in dims.values() if isinstance(v, (int, float))]
-        return round(sum(vals) / len(vals), 1) if vals else 0.0
+        # The discrimination margin is measured on the SAME number the reviewer reads: the
+        # rubric-weighted case score evaluate stamps (models.rubric_composite). A row without the
+        # stamp (a hand-built fixture) gets the same composite recomputed — never a plain mean.
+        stamped = self.evaluation.get("overallScore")
+        if isinstance(stamped, (int, float)) and not isinstance(stamped, bool):
+            return float(stamped)
+        overall = rubric_composite(self.evaluation.get("dimensionScores") or {}, self.evaluation.get("dimensions") or RUBRIC_DIMENSIONS)["overall"]
+        return float(overall) if overall is not None else 0.0
 
 
 def run_one(scn: SubScenario, provider: Any | None) -> Row:
+    # The production chain, not a re-statement of it: a scenario's observed evidence
+    # (events / seed / files / chat / baseline) is assembled exactly as devcase_cli does
+    # for a Live Work Surface submission; the commit path simply carries none.
+    inputs = EvaluationInputs(
+        commits=scn.commits, case=scn.case, role=scn.role, probes=scn.case["coverProbes"],
+        events=scn.events, seed=scn.seed, files=scn.files, chat=scn.chat, baseline=scn.baseline,
+    )
     try:
-        refl, s1 = reflect_commits(scn.commits, provider=provider)
-        tool, s2 = assess_tooling(refl, scn.commits, scn.case["coverProbes"], provider=provider)
-        ev, s3 = evaluate_submission(refl, tool, scn.case, scn.role, provider=provider)
-        tr, s4 = score_transfer(ev, scn.role, provider=provider)
+        ran = run_evaluation(inputs, provider=provider)
     except Exception as exc:  # pragma: no cover
         return Row(id=scn.id, label=scn.label, planted=scn.planted, source="error", issues=[f"raised: {type(exc).__name__}: {exc}"])
+    res = ran.result
     # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
-    # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM.
-    src = combine_source(s1, s2, s3, s4)
-    # Capture WHY any step fell back: provenance stashes FALLBACK_REASON_KEY on the
-    # artifact ONLY when the LLM RAISED (a --no-llm / provider-unavailable run never
-    # carries it). Without this the harness can't tell an intentional deterministic
-    # run from one where the provider was down/garbage — so an all-error-fallback run
-    # reads as a healthy 100%-reliable green (the deterministic templates pass _check).
-    fallback_reasons = collect_fallback_reasons(
-        (("reflect", refl), ("tooling", tool), ("evaluate", ev), ("transfer", tr))
+    # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM. The
+    # followups step is the interview hand-off, not a score — kept out of the verdict.
+    src = combine_source(*(v for k, v in ran.per_step.items() if k != "followups"))
+    # WHY any step fell back: provenance stamps a reason ONLY when the LLM RAISED (a
+    # --no-llm / provider-unavailable run never carries one). Without this the harness
+    # can't tell an intentional deterministic run from one where the provider was
+    # down/garbage — an all-error-fallback run would read as a healthy 100% green.
+    fallback_reasons = dict(ran.fallback_reasons)
+    issues = _check(res["reflection"], res["tooling"], res["evaluation"], res["transfer"], scn)
+    return Row(
+        id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues,
+        reflection=res["reflection"], tooling=res["tooling"], evaluation=res["evaluation"], transfer=res["transfer"],
+        fallback_reasons=fallback_reasons, observed_checks=res.get("observedChecks") or {},
     )
-    issues = _check(refl, tool, ev, tr, scn)
-    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr, fallback_reasons=fallback_reasons)
 
 
 def run(scenarios: list[SubScenario], provider: Any | None, workers: int = 4) -> list[Row]:
@@ -288,14 +324,19 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     v_mean, nv_mean, aiv_mean = mean_j(verifiers), mean_j(non_verifiers), mean_j(ai_verifiers)
     naiv_mean = mean_j(non_ai_verifiers)
 
-    # verify_rewarded: a STRICT lead (rejects the meaningless tie). ai_not_penalised:
-    # non-inferiority within a small noise band (a tie is the desired outcome, not a fail).
+    # verify_rewarded: a STRICT lead (rejects the meaningless tie). ai_not_penalised /
+    # ai_not_rewarded: the two sides of one equivalence band around the behaviour-matched
+    # peer (a tie is the desired outcome). Non-inferiority alone let an AI BONUS through:
+    # the observed landscape read +20 for verifying via the assistant and still passed.
     verify_rewarded = _lead_verdict(v_mean, nv_mean, len(verifiers), len(non_verifiers), MIN_VERIFY_MARGIN)
     ai_not_penalised = _not_below_verdict(aiv_mean, naiv_mean, len(ai_verifiers), len(non_ai_verifiers), AI_PENALTY_TOLERANCE)
+    ai_not_rewarded = _not_above_verdict(aiv_mean, naiv_mean, len(ai_verifiers), len(non_ai_verifiers), AI_REWARD_TOLERANCE)
+    ai_evaluable = _evaluable(len(ai_verifiers), len(non_ai_verifiers))
     status = _gate_status(
         [
             (verify_rewarded, _evaluable(len(verifiers), len(non_verifiers))),
-            (ai_not_penalised, _evaluable(len(ai_verifiers), len(non_ai_verifiers))),
+            (ai_not_penalised, ai_evaluable),
+            (ai_not_rewarded, ai_evaluable),
         ],
         hard_ok=no_invented_overreliance,
     )
@@ -311,6 +352,7 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
         "overreliance_violations": [r.id for r in overreliance_violations],
         "verify_rewarded": verify_rewarded,
         "ai_not_penalised": ai_not_penalised,
+        "ai_not_rewarded": ai_not_rewarded,
         "judgment_mean": {
             "verifiers": v_mean,
             "non_verifiers": nv_mean,
@@ -322,7 +364,7 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
             "ai_gap": round(aiv_mean - naiv_mean, 1) if (aiv_mean is not None and naiv_mean is not None) else None,
         },
         "sample": sample,
-        "thresholds": {"min_group_n": MIN_GROUP_N, "verify_margin": MIN_VERIFY_MARGIN, "ai_penalty_tolerance": AI_PENALTY_TOLERANCE},
+        "thresholds": {"min_group_n": MIN_GROUP_N, "verify_margin": MIN_VERIFY_MARGIN, "ai_penalty_tolerance": AI_PENALTY_TOLERANCE, "ai_reward_tolerance": AI_REWARD_TOLERANCE},
         "cohort_warnings": _cohort_warnings(sample),
         "not_evaluable_reason": _not_evaluable_reason(sample, len(done)) if status == "not_evaluable" else None,
         "status": status,
@@ -332,11 +374,14 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
 
 def discrimination(rows: list[Row]) -> dict[str, Any]:
     """Does the evaluator separate strong submissions from weak ones, and catch the
-    'productive-looking but never verifies' AI-no-verify gamer? (overall = mean of the 5 dims)."""
+    'productive-looking but never verifies' AI-no-verify gamer? (overall = the rubric-weighted case score, Row.overall)."""
     done = [r for r in rows if r.source != "error" and r.evaluation]
     strong = [r for r in done if r.planted.get("expected") == "strong"]
     weak = [r for r in done if r.planted.get("expected") == "weak"]
     gamer = [r for r in done if r.planted.get("behavior") == "ai_no_verify"]
+    # Aggregate strong rows can all be other behaviours. Keep the named
+    # careful-verifier control in the discrimination landscape before certifying it.
+    verifier_persona = [r for r in done if r.planted.get("behavior") == "careful_verifier"]
 
     def mean_o(rs):
         return round(sum(r.overall for r in rs) / len(rs), 1) if rs else None
@@ -350,9 +395,10 @@ def discrimination(rows: list[Row]) -> dict[str, Any]:
         [
             (strong_beats_weak, _evaluable(len(strong), len(weak))),
             (gamer_below_strong, _evaluable(len(strong), len(gamer))),
+            (True if verifier_persona else None, bool(verifier_persona)),
         ]
     )
-    sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer)}
+    sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer), "verifier_persona": len(verifier_persona)}
     return {
         "strong_mean": s_mean,
         "weak_mean": w_mean,
@@ -380,6 +426,40 @@ def signals(rows: list[Row]) -> dict[str, Any]:
         "fairness": fairness(rows),
         "discrimination": discrimination(rows),
     }
+
+
+def instrument_stamp(rows: list[Row], *, llm: bool) -> dict[str, Any]:
+    """What this run judged and with what - bound to the result so a stored report cannot be
+    reused after a rubric/prompt/model change, and so a constructed-cast figure is never read
+    as a measurement over real candidates (synthetic-candidate-behaviour-landscape).
+
+    ``castFingerprint`` hashes the scenario ids + labels, so a cast that was regenerated or
+    re-enriched shows up as a different cohort rather than as an instrument change.
+    """
+    cast = "|".join(f"{r.id}" for r in rows)
+    return {
+        "synthetic": True,
+        "mode": "llm" if llm else "deterministic",
+        "promptVersions": {
+            "caseEval": CASE_EVAL_PROMPT_VERSION,
+            "transfer": TRANSFER_PROMPT_VERSION,
+            "followups": FOLLOWUPS_PROMPT_VERSION,
+            "commitReflection": COMMIT_REFLECTION_PROMPT_VERSION,
+            "toolingSignal": TOOLING_SIGNAL_PROMPT_VERSION,
+        },
+        "rubricDimensions": sorted(_DIMS),
+        "castFingerprint": hashlib.sha256(cast.encode("utf-8")).hexdigest()[:12],
+    }
+
+
+def _stamp_line(stamp: dict[str, Any]) -> str:
+    pv = ", ".join(f"{k}={v}" for k, v in stamp["promptVersions"].items())
+    return (
+        f"> **SYNTHETIC cast** (constructed behaviours, not candidates): these rates measure the instrument's "
+        f"sensitivity to constructed differences, never separation of real people or group impact. "
+        f"Instrument: {pv} · mode: {stamp['mode']} · cast: {stamp['castFingerprint']}. "
+        "A result is reusable only while all of these match."
+    )
 
 
 # --- LLM-as-judge -----------------------------------------------------------
@@ -415,13 +495,15 @@ def _quality_summary(rows: list[Row]) -> dict[str, Any]:
     }
 
 
-def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict | None = None) -> str:
+def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict | None = None, stamp: dict | None = None) -> str:
     f = sig["fairness"]
     d = sig["discrimination"]
     L = [
         "# Dev pipeline — submission evaluation eval\n",
         f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']} · error-fallbacks: {sig['error_fallbacks']}\n",
     ]
+    if stamp is not None:
+        L.append(_stamp_line(stamp) + "\n")
     if sig["error_fallbacks"]:
         L.append(
             f"> **WARNING: {sig['error_fallbacks']} row(s) ran in LLM mode but ERROR-fell-back to deterministic** — "
@@ -441,6 +523,8 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict
         f"{_verdict_str(f['verify_rewarded'])} · lead {f['margins']['verify_lead']}",
         f"- AI use not penalised (ai-verifiers within {AI_PENALTY_TOLERANCE:g} pts of NON-AI verifiers): "
         f"{_verdict_str(f['ai_not_penalised'])} · gap {f['margins']['ai_gap']}",
+        f"- AI use not rewarded (ai-verifiers at most {AI_REWARD_TOLERANCE:g} pts above NON-AI verifiers): "
+        f"{_verdict_str(f.get('ai_not_rewarded'))} · gap {f['margins']['ai_gap']}",
         f"- judgment means: {f['judgment_mean']} · samples {f['sample']}",
     ]
     if f.get("cohort_warnings"):
@@ -487,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Submission evaluation eval (Dev pipeline, eval half).")
     p.add_argument("--count", type=int, default=48)
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
+    p.add_argument("--path", default="commit", choices=["commit", "observed", "both"], help="commit = repo-link submissions (default); observed = Live Work Surface sessions; both = the two landscapes, --count each")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
     p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100%%, a gate is fail/inconclusive (a measured violation, or a thin-but-present sample the gate may not certify), OR any row error-fell-back from the LLM path (a degraded provider masquerading as a clean deterministic run). A not_evaluable gate (an empty cohort / no surviving rows — e.g. a tiny --count, or every scenario errored) does NOT exit non-zero: absence of data is not a violation.")
@@ -501,8 +586,11 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write("submission_eval: Claude CLI unavailable -> deterministic mode\n")
             provider = None
 
-    rows = run(generate_submissions(args.count, args.domain), provider, workers=args.workers)
+    paths = ["commit", "observed"] if args.path == "both" else [args.path]
+    scenarios = [s for path in paths for s in generate_submissions(args.count, args.domain, path=path)]
+    rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)
+    stamp = instrument_stamp(rows, llm=provider is not None)
     qual = None
     independence = None
     if args.judge and provider is not None:
@@ -519,9 +607,9 @@ def main(argv: list[str] | None = None) -> int:
         qual = _quality_summary(rows)
 
     if args.json:
-        print(json.dumps({"signals": sig, "quality": qual, "judgeIndependence": independence, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
+        print(json.dumps({"instrument": stamp, "signals": sig, "quality": qual, "judgeIndependence": independence, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
     else:
-        print(_report_md(rows, sig, qual, independence))
+        print(_report_md(rows, sig, qual, independence, stamp))
 
     if args.strict:
         reasons = []

@@ -77,6 +77,7 @@ const subscriptionActive = {
 test("webhook without billing configured → 503 (provider will retry once env is fixed)", async () => {
   const res = await webhookPost(signedWebhook("evt_unconfigured", subscriptionActive));
   assert.equal(res.status, 503);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_NOT_CONFIGURED");
 });
 
 // ---- the raw body read is BOUNDED -------------------------------------------------
@@ -175,7 +176,14 @@ test("webhook: a spent bucket is refused 429 with a code — and the bucket is P
     assert.equal(refused.status, 429);
     // A code, not English prose — a throttled Polar retry is machine-read, and the
     // client resolves `errors.TOO_MANY_REQUESTS` in the reader's language.
-    assert.equal(((await refused.json()) as { code: string }).code, "TOO_MANY_REQUESTS");
+    // …and it says WHEN (challenge 2026-09-22 shared-api-utilities/B): Polar re-delivers
+    // a non-2xx, and a Retry-After read off the refusing window lets it wait once
+    // instead of probing a full bucket blind. Never past the 10-minute window.
+    const retryAfter = Number(refused.headers.get("Retry-After"));
+    assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 600, `Retry-After within the window, got ${refused.headers.get("Retry-After")}`);
+    const refusedBody = (await refused.json()) as { code: string; retryAfterSeconds?: number };
+    assert.equal(refusedBody.code, "TOO_MANY_REQUESTS");
+    assert.equal(refusedBody.retryAfterSeconds, retryAfter, "the body carries the same figure as the header");
 
     // A DIFFERENT client is untouched: one caller filling their bucket must not lock
     // every other customer's money events out of the door.
@@ -192,6 +200,7 @@ test("webhook with a bad signature → 400 and NO money state written", async ()
   configurePolarEnv();
   const res = await webhookPost(signedWebhook("evt_bad_sig", subscriptionActive, { corruptSignature: true }));
   assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_WEBHOOK_SIGNATURE_INVALID");
   assert.equal(getBillingState(), null, "an unverified delivery must never touch billing_state");
 });
 
@@ -297,6 +306,7 @@ test("checkout happy path returns the provider-hosted URL (provider hop stubbed)
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/v1\/checkouts\/$/);
     assert.deepEqual((calls[0].body as { products: string[] }).products, [PRODUCT_STARTER]);
+    assert.match((calls[0].body as { success_url: string }).success_url, /billing=plan-success$/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -330,13 +340,17 @@ test("checkout: a pack top-up is still allowed for an existing subscriber (one-t
   configurePolarEnv();
   upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerSubscriptionId: "sub_live" });
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ url: "https://polar.test/checkout/co_pack", id: "co_pack" }), { status: 200 })) as typeof fetch;
+  let successUrl = "";
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    successUrl = (JSON.parse(String(init?.body)) as { success_url: string }).success_url;
+    return new Response(JSON.stringify({ url: "https://polar.test/checkout/co_pack", id: "co_pack" }), { status: 200 });
+  }) as typeof fetch;
   try {
     const res = await checkoutPost(
       new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ pack: "minutes_100" }) })
     );
     assert.equal(res.status, 200);
+    assert.match(successUrl, /billing=pack-success$/);
   } finally {
     globalThis.fetch = originalFetch;
   }

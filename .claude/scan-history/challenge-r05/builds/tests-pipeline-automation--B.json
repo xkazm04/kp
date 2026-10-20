@@ -1,0 +1,33 @@
+{
+  "card": "tests-pipeline-automation/B",
+  "title": "Skip gate by identity: a skip register that names the new skip and the stale one",
+  "status": "landed",
+  "base": "daad5df9f",
+  "shas": ["e123c6e23", "107c4db7b", "281e60c84"],
+  "tests_added": ["pipeline/jobfit/tests/test_run_gated.py"],
+  "cases_red_before": 9,
+  "cases_green_after": 9,
+  "cases_total": 9,
+  "gates": {
+    "tsc": null,
+    "eslint": null,
+    "i18n": null,
+    "design": null,
+    "docs": 0,
+    "api": null,
+    "unit": 1,
+    "test_python_gate": 0,
+    "pytest": 1,
+    "ruff_ratchet": 0,
+    "guidance": 0,
+    "security_actions": 0,
+    "ci_budget": 2,
+    "test_review": 0,
+    "test_docs": 0,
+    "test_perf": 1
+  },
+  "files_changed": 7,
+  "lines_changed": 568,
+  "deviations_from_card": "Critic revision applied: ninth case (count floor kept as a second lock, env-conditional entry count must equal ENV_CONDITIONAL_SKIPS, duplicate ids refused before the run). Case 2 is written as a substitution of an ALWAYS entry (B ran, new Y took its slot, count still 5); the card's literal wording (A ran + Y) is the same run as case 3, which is kept as written. ALLOW_SKIP=1 overrides the skip verdict only; register-integrity problems (dead/duplicate/short why/length) still fail before the run, which is stricter than before and never looser. KP_SKIP_BASELINE unchanged at 5 (= register length). tsc/eslint not applicable: no TS touched. The test file has 16 test methods covering 9 cases; 15 of 16 methods were red before (the hermeticity-runs-first half of case 8 already held).",
+  "notes": "Verified CI's shape: git archive HEAD + my 4 files into scratch (no node_modules), KP_SKIP_BASELINE=5 run_gated -> exit 0, Ran 2946, skipped=5, all 5 listed as tolerated. Local full checkout at base skipped exactly the 4 `always` entries (bridge ran) -> matches the register. In the shared checkout test:python:gate and pytest are red ONLY on slot A's uncommitted files (test_codegen_contract_constants.py, test_automation_constant_sync.py, test_devcase_probe_constant_sync.py, test_scorecard_notes_sampling.py vs its in-flight TS edits); with those present the grounded bridge also skipped locally, still registered. test:unit red only on app/_lib/erasure-full-scrub.test.ts and test:perf red only on app/api route import graphs (hire-from-need, analyze) - both from siblings' uncommitted TS; this card touched no TS. ci:budget exits 2 'NOT MEASURED' locally (needs a GitHub run id); no job/timeout was edited. ci.yml edit is comment-only (git diff shows only '#' lines changed); guidance:check, security:actions green. Integration note for slot A: test_run_gated.CommittedRegisterTest reads ci.yml for `KP_SKIP_BASELINE: \"5\"` - keep that line's shape."
+}

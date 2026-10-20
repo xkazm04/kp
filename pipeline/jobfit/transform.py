@@ -16,7 +16,8 @@ from __future__ import annotations
 from typing import Any
 
 from . import registry
-from .matching import MatchCandidate, SalaryExpectation
+from .education import FOUNDATION_WEIGHTS
+from .matching import MatchCandidate, SalaryExpectation, _is_self_declared
 from .profile import CandidateProfileV2
 from .taxonomy import FAMILY_DEGREE_TERMS, provenance_rank
 from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_transferable
@@ -24,14 +25,30 @@ from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_
 # Sourced from the shared registry (archetypes.json) so "which archetypes get the
 # potential/readiness path instead of years-of-experience" has one definition.
 _EARLY_CAREER = registry.early_career_archetypes()
+# Foundation-quality weight per candidate education level (education.py owns it).
+EDU_FOUNDATION = FOUNDATION_WEIGHTS
 
 # Surface tokens hinting a degree is relevant to the target field now live in
 # data/taxonomy.json (taxonomy.FAMILY_DEGREE_TERMS), covering all 16 role families
 # instead of only the original 3 tech ones — see _doc_family_heuristics there.
 
 
-def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
-    """Readiness score in [0,1] + human-readable signals (replaces years-of-experience)."""
+# C6b (leak c): how many bare self_declared skill claims may add to learning velocity.
+# Breadth is meant to be demonstrated; a bare claim is a keyword a CV can repeat for
+# free, so a list of them buys at most this many skills of breadth however long it is.
+# Not zero: one bare claim beside real evidence is an ordinary CV (seed students carry
+# one each), and dropping it outright cost two students their strong tier at their best
+# job, which C6b may not do. Chosen by sweeping matching_era_eval; the frontier is
+# pinned in tests/test_matching_proof_preview.py.
+BARE_CLAIM_VELOCITY_CAP = 1
+
+
+def compute_potential(profile: CandidateProfileV2, *, count_bare_claims: bool = False) -> tuple[float, list[str]]:
+    """Readiness score in [0,1] + human-readable signals (replaces years-of-experience).
+
+    ``count_bare_claims=True`` is the historical arithmetic (every bare claim is breadth),
+    kept only so the legacy scorer (``score_job(..., proof=None)``) can still be measured
+    against it."""
     signals: list[str] = []
     ev = profile.evidence
     project_like = [e for e in ev if e.kind in ("project", "thesis")]
@@ -45,18 +62,19 @@ def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
     elif project_like:
         signals.append(f"{len(project_like)} project(s) or thesis")
 
-    # 2. learning velocity — breadth of skills is a strong early-career signal.
-    distinct = {s.skill.casefold() for s in profile.skill_claims}
+    # 2. learning velocity — breadth of skills is a strong early-career signal. C6b
+    # (leak c): a claim with some provenance, or a skill named in evidence, counts; bare
+    # self_declared claims add at most BARE_CLAIM_VELOCITY_CAP between them.
+    distinct = {s.skill.casefold() for s in profile.skill_claims if not _is_self_declared(s.provenance)}
     distinct |= {sk.casefold() for e in ev for sk in e.skills}
-    n_skills = len(distinct)
+    bare_only = {s.skill.casefold() for s in profile.skill_claims} - distinct
+    n_skills = len(distinct) + (len(bare_only) if count_bare_claims else min(BARE_CLAIM_VELOCITY_CAP, len(bare_only)))
     velocity = min(1.0, n_skills / 8.0)
     if n_skills >= 6:
         signals.append(f"self-taught breadth: {n_skills} distinct skills")
 
     # 3. foundation quality — relevant, completed (or in-progress) degree.
-    foundation = {"phd": 1.0, "master": 0.85, "bachelor": 0.7, "university": 0.5}.get(
-        profile.education_level, 0.0
-    )
+    foundation = EDU_FOUNDATION.get(profile.education_level, 0.0)
     detail = profile.education_detail.casefold()
     if any(term in detail for term in FAMILY_DEGREE_TERMS.get(profile.role_family, ())):
         foundation = min(1.0, foundation + 0.1)
@@ -137,7 +155,9 @@ def apply_preferences(candidate: MatchCandidate, preferences: dict[str, Any] | N
     MatchCandidate: ``salaryFloor`` -> salary_expectation, ``locations`` ->
     preferred_locations, ``countries`` -> preferred_countries, ``workModes`` ->
     preferred_work_modes (only when non-empty — an empty list must not erase a
-    preference the profile carried), ``seniority`` overrides the profile's when set.
+    preference the profile carried), ``seniority`` overrides the profile's when set,
+    ``targetTitles``/``targetRoleFamilies`` -> target_titles/target_role_families (the
+    stated direction the career score reads; non-empty only).
     ``None``/empty preferences return the candidate unchanged."""
     if not preferences:
         return candidate
@@ -157,6 +177,15 @@ def apply_preferences(candidate: MatchCandidate, preferences: dict[str, Any] | N
     seniority = preferences.get("seniority")
     if isinstance(seniority, str) and seniority.strip():
         update["seniority"] = seniority.strip()
+    # The stated direction. Read only by the career-direction term (matching.
+    # _target_alignment): a preference fit, never skill evidence — skills stay what
+    # the profile shows. Non-empty only, like workModes above.
+    target_titles = _str_list(preferences.get("targetTitles"))
+    if target_titles:
+        update["target_titles"] = target_titles
+    target_families = _str_list(preferences.get("targetRoleFamilies"))
+    if target_families:
+        update["target_role_families"] = target_families
     if not update:
         return candidate
     return candidate.model_copy(update=update)
@@ -215,6 +244,11 @@ def build_match_candidate(profile: CandidateProfileV2, preferences: dict[str, An
     skill_provenance = {display_by_norm[k]: prov_by_norm[k] for k in prov_by_norm}
 
     potential, signals = compute_potential(profile) if is_early else (None, [])
+    # What the historical arithmetic (it counted bare claims as velocity) would give, kept
+    # only when it differs, for the legacy scorer and the proof path's reasons line.
+    bare_claim_potential = compute_potential(profile, count_bare_claims=True)[0] if is_early else None
+    if bare_claim_potential == potential:
+        bare_claim_potential = None
 
     # Compact, recent-first CV highlights + de-duped work links, so Layer C reasoning
     # can ground its rationale in concrete candidate facts (and a portfolio/repo for
@@ -255,6 +289,7 @@ def build_match_candidate(profile: CandidateProfileV2, preferences: dict[str, An
         # everyone; recorded provenance still overrides it per skill.
         provenance_default="self_declared",
         potential_score=potential,
+        bare_claim_potential_score=bare_claim_potential,
         learning_signals=signals,
         aspirations=profile.aspirations,
         transferable_skills=transferable,

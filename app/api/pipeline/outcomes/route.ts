@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { getPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { stageHasRole } from "@/app/_lib/pipeline-stages";
+import { stageHasRole, stagesWithRole } from "@/app/_lib/pipeline-stages";
 import { MIN_CALIBRATION_OUTCOMES } from "@/app/_lib/calibration";
 import {
   PERFORMANCE_MAX,
   PERFORMANCE_MIN,
-  countRatedHires,
   hireOutcomeRef,
   hirePerformanceSchema,
   latestOutcomeByRefs,
   recordHirePerformance,
 } from "@/app/_lib/dev-outcomes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { foldHireRatingQueue } from "@/app/_lib/hire-rating-queue";
+import { listWorkspaceHires } from "./hire-roster";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 
 
 // UAT KAT-L1-002 (blocker, recurrence 2) — the on-the-job outcome of a HIRE,
@@ -40,15 +42,15 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // either — the tokenized surfaces expose an explicit field allowlist and none of
 // them may learn this field.
 
-/** One hire's rating (`?entry=<id>`), or the workspace's accrual counter.
+/** One hire's rating (`?entry=<id>`), or the workspace's accrual counter and the
+ *  queue of hires still awaiting a rating.
  *
  *  `performance: null` means UNRATED and must render as such. There is no default
  *  and no zero: the studio's register is "not yet", never a fabricated value. */
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     // The axis in force for THIS workspace, not the shipped literal: "hired" is the
     // terminal ROLE, so a team that renamed or re-ordered its last column still gets
     // the right answer (pipeline-stages.ts's whole reason for roles).
@@ -74,29 +76,46 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // The accrual counter Analytics → Quality reads. `hires` is the honest
-    // denominator — the hires this workspace has actually made — so the surface can
-    // distinguish "you have six hires and rated two" from "you have not hired yet",
-    // which are different problems with different answers. `minOutcomes` is the same
-    // floor every other calibration gate on that page quotes.
-    const hires = listPipeline(ws).filter((e) => stageHasRole(e.stage, "terminal", axis)).length;
-    return NextResponse.json({ rated: countRatedHires(ws), hires, minOutcomes: MIN_CALIBRATION_OUTCOMES });
+    // The accrual counter Analytics → Quality reads, and (challenge-r07 pipeline-api/B)
+    // the unrated hires it lists so the reader can rate them in place. `hires` is the
+    // honest denominator — the hires this workspace has actually made — so the surface
+    // can distinguish "you have six hires and rated two" from "you have not hired yet".
+    // `rated` is folded over THAT roster (hire-rating-queue.ts): a rating on a ref no
+    // current hire carries (the dev-case lane, a hire since moved off the terminal
+    // column) no longer counts, so rated <= hires by construction. The roster is a
+    // projected read, not the hydrated board. `minOutcomes` is the same floor every
+    // other calibration gate on that page quotes. Queue rows carry label, role and
+    // hire date only: a list of people awaiting a judgement, never of judgements.
+    const roster = listWorkspaceHires(ws, stagesWithRole("terminal", axis));
+    const queue = foldHireRatingQueue(roster, latestOutcomeByRefs(roster.map((h) => h.ref), ws));
+    return NextResponse.json({
+      rated: queue.rated,
+      hires: queue.hires,
+      minOutcomes: MIN_CALIBRATION_OUTCOMES,
+      unrated: queue.unrated,
+      unratedTotal: queue.unratedTotal,
+    });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:outcomes", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
 /** Record (or correct) the on-the-job rating of one hire. */
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The SEAT, not just the session (challenge-r07 pipeline-api/A): a rating is a
+  // recruiter act on a named hire, so it asks pipeline:write like every other pipeline
+  // write door. A viewer may still READ the rating and the Quality counter (the GET
+  // stays operator-gated, not capability-gated).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => ({}))) as unknown;
     const parsed = hirePerformanceSchema.safeParse(body);
     if (!parsed.success) {
       return jsonRefusal("HIRE_RATING_INVALID", 400);
     }
-    const ws = await currentWorkspace();
     const entry = getPipelineEntry(parsed.data.entryId, ws);
     if (!entry) return jsonRefusal("HIRE_RATING_ENTRY_NOT_FOUND", 404);
     // A rating is only meaningful for someone who was actually hired — the store's
@@ -114,4 +133,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:outcomes", "PIPELINE_ACTION_FAILED");
   }
-}
+});

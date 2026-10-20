@@ -1,0 +1,24 @@
+{
+  "card": "followup-disposition-lock",
+  "defect": "b0a3b711c: PATCH /api/analyses/[slug] read disposition+payload, derived the ack gate, then wrote disposition+decision_basis with no .immediate() and no WHERE re-assert",
+  "status": "done",
+  "strategy": "compare-and-swap: setAnalysisDispositionGuarded re-asserts `disposition IS ? AND payload_json = ?` (the two values the gate read); changes===0 on an existing row = 'moved'; the route re-reads and re-decides (max 3 rounds), so a moved row yields the existing DISPOSITION_ACK_REQUIRED 409 when the fresh gate refuses. Chosen over one .immediate() transaction so db/analyses.ts takes no dependency on the results component module that owns decisionGate. No new error code.",
+  "commits": ["899eef6c3", "15421a3ed", "abc39c420"],
+  "cases": {
+    "red_before": [
+      "a disposition write decided against a stale disposition is refused and the row is unchanged",
+      "a basis computed from a payload that was rewritten since the read is refused",
+      "an unchanged row is saved and an unknown slug is missing, not moved"
+    ],
+    "green_after": "34/34 across analyses-routes, seed-analyses-preserve, analyses-identity, analyses-tenancy, decisionBrief"
+  },
+  "gates": {
+    "unit": "exit 0 (34/34)",
+    "tsc": "errors only under untracked kpi-sim/ (foreign)",
+    "eslint_touched": "exit 0",
+    "api_check": "exit 0",
+    "docs_check": "exit 0",
+    "test_perf": "own share +1335 bytes on db/analyses.ts -> 12 route overrides + api group raised +2 KB (15421a3ed); measured in a git-archive HEAD tree: base+fix is clean except app/page.tsx, which is over on HEAD itself. Working tree remains ~4 KB over on route graphs from another builder's uncommitted devcase files (foreign)."
+  },
+  "doc": "docs/features/candidates/README.md updated (describes save semantics) in its own commit"
+}

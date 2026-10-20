@@ -47,3 +47,33 @@ test("ambient loops start only after the entrance has fully settled", () => {
     assert.ok(ambientStartDelayS(entrance, spread) >= last + entrance.durationS);
   }
 });
+
+// "A preset needs a real consumer, not a prop" (motionPresets.ts) — enforced, not
+// just stated. A render site is a `.tsx` under app/ passing the name literally
+// (`ambient="float"`), or passing `ambientFor(...)` from glyphArrival.ts, whose one
+// answer is ARRIVAL_AMBIENT. `pulse` had no consumer at all until the Decisions
+// empty state learned to show a screening in flight (challenge-r03 glyph-system/B).
+test("every ambient preset has at least one render site in app/", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const { ARRIVAL_AMBIENT } = await import("./glyphArrival.ts");
+  const appDir = fileURLToPath(new URL("../../", import.meta.url));
+  const used = new Set<string>();
+  const walk = (dir: string) => {
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name === "node_modules" || ent.name.startsWith(".")) continue;
+      const p = join(dir, ent.name);
+      if (ent.isDirectory()) walk(p);
+      else if (ent.name.endsWith(".tsx")) {
+        const src = readFileSync(p, "utf8");
+        for (const m of src.matchAll(/ambient="([a-z-]+)"/g)) used.add(m[1]);
+        if (src.includes("ambient={ambientFor(")) used.add(ARRIVAL_AMBIENT);
+      }
+    }
+  };
+  walk(appDir);
+  for (const name of Object.keys(AMBIENT_PRESETS)) {
+    assert.ok(used.has(name), `ambient preset "${name}" has no render site in app/`);
+  }
+});

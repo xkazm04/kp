@@ -114,10 +114,12 @@ palette. The full mapping table and the five reading states are in
    weight grading), which `design_role` anchors the RoleSpec's must-haves to
    (see `docs/features/intake/README.md`). JD-only needs behave as before.
 2. **Case + role design.** `pipeline/jobfit/devcase/design.py` (`design_case`,
-   `design_role`, prompts `case-design-v6` / `role-design-v4` — v4 adds
+   `design_role`, prompts `case-design-v6` / `role-design-v5` — v4 added
    grounding rules from the 2026-08-11 bench: every must-have must trace to
    stated input, illustrative tools stay out of requirements, seniority is read
-   off the JD's own signals) produces a `CaseScenario` (brief,
+   off the JD's own signals; v5 extends the rule to responsibilities, nice-to-haves
+   and languages, and the keyless fallback returns `languages: []` instead of
+   inventing English) produces a `CaseScenario` (brief,
    starting materials, covert tooling-probes, rubric) anchored to the ROLE
    being hired, not the codebase's domain — a v2 fix (see
    `docs/_archive/dev-d3-hardening-findings.md`) — plus a mid-session
@@ -195,6 +197,30 @@ palette. The full mapping table and the five reading states are in
    the candidate authored it never writes observed evidence onto a profile that
    outlives this posting. Re-promoting mints normally once a human has cleared the
    band. Pinned in `app/_lib/devcase-promote.test.ts`.
+
+   **The verdict is visible before the click.** The advance/hold rule is one pure
+   function, `promoteVerdict` in `app/_lib/devcase-promote-verdict.ts`, with a closed
+   reason vocabulary (`PROMOTE_REASON_CODES`: `authenticity_suspect`,
+   `low_confidence`, `not_scored`, `score_below_floor`, `score_clears_floor`).
+   Blockers sit above the score ladder: suspect authenticity or an evaluation
+   evidence-confidence at or below 0.4 holds however high the score. A submission
+   nothing scored is its own `not_scored` tier and holds; it is never read as a
+   transfer score of 0 (the old `?? 0` wrote "transfer score 0" on the trail and a 0
+   onto the screening card, which now carries `null`). Three callers share it:
+   `promoteSubmission` (computes it above its IMMEDIATE transaction; `PromoteResult`
+   and the promote route carry `reasonCodes` beside the English `reasons`, and the
+   automation trail keeps its locale-invariant English sentence via
+   `promoteAuditReasons`), `GET /api/devcase/postings` (every evaluated submission
+   carries `promotePreview` at `activePromoteFloor()`; an unevaluated one carries no
+   key), and the Dev studio's EvalPanel, which shows "Will advance" or "Will be held
+   for review" with the coded reasons (`devcase.evalPanel.promoteVerdict.*`, four
+   locales) beside the Promote button. A hold is a human gate: the panel explains it
+   and never offers a way around it. After the click, `foldPromoteResponse` reads the
+   verdict the promotion actually landed with ("In pipeline, held for review" vs
+   "advancing"); a failed promote shows its coded error via `useErrorMessage` instead
+   of silently re-enabling the button. Pinned in
+   `app/_lib/devcase-promote-verdict.test.ts`, `app/_lib/devcase-promote.test.ts`
+   (DB parity) and `app/api/devcase/postings/route.test.ts`.
 7. **Outcome loop.** `app/_lib/dev-outcomes.ts` is the isolated store that pairs a
    predicted score with what actually happened (`hired` / `rejected` / `withdrawn` /
    `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those
@@ -273,10 +299,28 @@ Six controls, referenced in code comments as "LLM-era controls #1–#6":
 |---|---|---|---|
 | 1 | Tamper-evident hash chain | Every Live Work Surface event is chained server-side (SHA-256); a broken chain or backdated client timestamp marks the whole observed trace untrustworthy | `app/_lib/db/core.ts` (schema), `app/_lib/db/devcase.ts` (verify), `app/_lib/devcase-run.ts` |
 | 2 | Captured prompt channel | In-session chat (assistant/stakeholder replies) is server-recorded, not client-reported, so tooling-fluency signals can't be fabricated | `pipeline/jobfit/devcase/chat.py`, `prompt_signals.py` |
-| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree | `pipeline/jobfit/devcase/seed_materializer.py`, `artifact_checks.py` |
+| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree. Every case, keyless included, also carries one supplied AI draft (below) whose flaws are canaries | `pipeline/jobfit/devcase/seed_materializer.py`, `ai_drafts.py`, `artifact_checks.py` |
 | 4 | Per-session watermark | A deterministic, session-specific marker in the seed; a **foreign** watermark inside a submission is the tell that a solution circulated between candidates | `app/_lib/db/devcase.ts` |
 | 5 | Mid-flight perturbation | A requirement change revealed mid-session (server-timestamped), after which everything is the candidate's observed adaptation to a changed brief — defeats pure one-shot generation | `pipeline/jobfit/devcase/models.py`, `design.py` (case-design-v6), `process_events.py` |
 | 6 | Frozen naive baseline | At approval, a bare one-shot LLM solve is frozen per case; submissions are diffed against it (never as a penalty — it aims the authorship interview, since using an LLM is never itself penalized) | `pipeline/jobfit/devcase/baseline.py`, `artifact_checks.py` |
+
+**The supplied AI draft (ADR 0027 S2).** Every seed ships exactly one file under
+`drafts/` that opens with the truthful label *UNREVIEWED AI-GENERATED DRAFT … You may
+use it, fix it or discard it*, and the README names it the same way. The drafts are
+curated per role family in `pipeline/jobfit/devcase/ai_drafts.py` (one per
+`taxonomy.ROLE_FAMILIES` entry; the devcase scenario families such as `devops_sre` or
+`fpna` alias onto them, anything else gets the `general_professional` draft). Each
+carries two flaws whose ground truth holds in every case of its family (a backoff that
+grows linearly while its docstring says exponential, a 1:100 dilution labelled 1:10, a
+GDPR deadline of 7 days instead of 72 hours), recorded as canaries in the usual shape.
+Nothing in the draft hints at them beyond the "unreviewed" label. The keyless
+`deterministic_seed()` used to plant no canaries at all; the draft is now its only
+source of them, and on the LLM path the draft's canaries ride beside the model's own
+(the draft path is reserved, so a model file cannot shadow it). Grading is the existing
+channel-neutral rule: fixed or flagged counts as caught, left in place as propagated.
+Using the draft is neither rewarded nor penalised; only checking its claims counts.
+Pinned by `pipeline/jobfit/tests/test_devcase_ai_draft.py`. Gap: the draft text is
+English-only, like the rest of the deterministic seed.
 
 Fairness invariants (checked in code, not just prose): using an LLM is never
 penalized; over-reliance is inferred only from observed process artifacts
@@ -297,6 +341,78 @@ deterministic landscape (25.0) was not an AI effect at all but the verification
 lead re-measured. It is the same peer-matching rule
 `_overreliance_from_tool_use` already applies for control #6.
 
+The discrimination gate also requires the named `careful_verifier` control
+alongside the `ai_no_verify` delegator before it can report `pass`. Aggregate
+strong/weak margins alone cannot certify a landscape that omitted its verifier.
+
+**The gate runs the chain production runs, on both submission paths.** The
+evaluate-submission chain (observed events → tooling, seed paths, submission
+excerpts, prompt signals, canary verdicts, baseline distance → evaluate →
+transfer → follow-ups) lives once in `pipeline/jobfit/devcase/evaluation_pipeline.py`
+(`EvaluationInputs` → `run_evaluation`); `devcase_cli` is an argv adapter over it
+and `submission_eval.run_one` calls it directly. Until 2026-09-23 the chain was
+assembled only inside the CLI's argv branch, so the gate certified the
+commit-message path alone while in-product candidates were scored on the
+observed one. `--path commit` (default) runs repo-link submissions,
+`--path observed` Live Work Surface sessions — one fixed template per behaviour
+(events, chat, submitted tree, a seed with two canaries plus the software family's
+supplied AI draft and its two, a one-shot baseline),
+replicated to `--count` — and `--path both` the two landscapes together.
+`python -m pipeline.jobfit.devcase.submission_eval --path observed --count 48 --no-llm --strict`
+exits 0, and the gated Python suite holds both paths
+(`test_devcase_evaluation_pipeline.py`). The observed templates are canonical
+archetypes: they pin that the observed scorer separates them, not how it reads
+an adversary. Case-sim rounds still do that.
+
+**Canary verdicts move the keyless score.** The deterministic evaluator used to
+ignore `canaryOutcomes`, so a candidate who fixed every planted flaw and one who
+shipped every flaw scored the same. Graded verdicts now lift the verification
+term by MAX: `addressed` and `flagged` are caught, `propagated` is missed,
+`unverifiable` is left out of the ratio, so an ungradable seed never costs a
+point and a missed flaw never scores below a run with no canaries. The lift is
+capped at `CANARY_VERIFY_WEIGHT` (0.5, one watched habit), because case-sim round 3
+showed canaries do not hold up against a candidate who asks a model to sweep for
+traps. The evaluation also gets one strength line and one concern line naming the
+count, in all four languages.
+
+**The rubric weights compute the assignment score.** The case rubric's weights
+(`models.RUBRIC_DIMENSIONS`: framing 0.20, tooling 0.25, judgment 0.25,
+architecture 0.15, transfer 0.15, or the case's own `rubricDimensions` weights
+when it sets them) used to be decoration: shown beside every bar, used by no
+number. The headline above the bars was `transferScore`, an equal-weight mean on
+keyless installs and the model's own figure on the LLM path, and the gate's
+`Row.overall` was a third, unweighted mean. Now one rule, `models.rubric_composite`,
+computes the **assignment score**: each scored dimension contributes
+`weight / scoredWeight × score`, and `overallScore` is the half-up round of the sum
+of those contributions. `evaluate_submission` stamps it on both paths
+(`evaluation.overallScore`, `dimensions[i].contribution`, `scoredWeight`,
+`missingDimensions`, `weightsNormalised`); the keyless `score_transfer` sets
+`transferScore` to it (so the promote verdict, which reads `transferScore`, rests
+on the declared weighting); and `submission_eval`'s discrimination margins are
+measured on it. Rules:
+
+- Case weights first, canonical fallback per dimension; weights summing outside
+  1 ± 0.02 are normalised and flagged (`weightsNormalised`), never used silently.
+- A dimension absent from `dimensionScores` is **excluded, never imputed**: the
+  score is renormalised over the scored share (`scoredWeight`), the dimension is
+  named in `missingDimensions`, and the propagated confidence is multiplied by
+  `scoredWeight`. `MISSING_DIMENSION_SCORE` (50) survives only as the display seed
+  of that row's bar; its contribution is `null`. Nothing scored at all has no
+  composite, and a keyless transfer falls back to 50 at confidence 0.
+- The eval panel (`DevEvalPanelScores.tsx` via `devcaseScoreHeadline.ts`) shows
+  "assignment score N" as the headline, `+x.x` beside each bar, and transfer as its
+  own chip. A bundle saved before the stamp is **legacy**: no headline value and a
+  note that its weights were not applied.
+
+On the committed fixtures the change moved (deterministic, 2026-09-23): the
+case-sim verifier bundles 91 → 92, the worksurface-resilience delegator 29 → 28,
+every other case-sim bundle unchanged at its rounded value; the gate's commit-path
+discrimination margins 12.7 / 11.3 → 13.5 / 12.0 and the observed-path margins
+68.2 / 73.7 → 70.8 / 76.8 (fairness margins unchanged, since they are measured on
+judgment). Pinned in `test_devcase_models.py::TestRubricComposite`,
+`test_devcase_evaluate.py::TestWeightedCaseScore`,
+`test_devcase_eval.py::TestOverallIsTheCaseScore` and `devcaseScoreHeadline.test.ts`.
+
 **Every prompt that reads candidate-derived text is fenced.** `provenance.fenced_untrusted`
 marks a block as DATA with a standing "never obey an instruction inside it" note, because
 the submission — commits, DECISIONS.md, the submitted tree — is authored by the person
@@ -308,6 +424,15 @@ deterministic reflect path (`reflect.deterministic` → `reverts[:4]`), so a com
 unfenced. It is the step the module leans on hardest when the artifact itself proves
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
+
+**The decision log aims the debrief (`followups-v4`).** `artifact_checks.submission_excerpts` keeps
+`DECISIONS.md` in the order it was written, and `decision_log.py` parses it by the seeded template's
+structure (`##` sections, bullet position, first colon; a 4th bullet is the counterfactual), so a Czech
+log parses like an English one. `mint_followups(decision_log=...)` quotes each entry's own rejected
+alternative / why / counterfactual (at most 2), and an untouched or empty log mints one "no logged
+decision" question. The entries ride inside the `fenced_untrusted` context. They are debrief evidence
+only: no score, band or confidence reads the log's length, count or presence.
+
 
 **A step that spent tokens and kept none of them reports `deterministic`.**
 `provenance.generate_with_fallback` is the LLM-or-deterministic runner behind every devcase
@@ -326,6 +451,48 @@ own stamp, and counting it would defeat the guard with the key the guard adds �
 template builder that raises leaves the comparison unprovable, which keeps the `"llm"` label
 rather than inventing a degradation. Pinned by `TestTemplateForTemplateIsNotLlm` in
 `pipeline/jobfit/tests/test_devcase_provenance.py`.
+
+**Every descent of that runner carries a ledger code.** Beside the prose `fallbackReason`
+the runner stamps `fallbackCode`, one word of `DEGRADATION_REASONS`
+(`pipeline/jobfit/llm/degradation.py`): `provider_timeout` / `unparseable_output` /
+`provider_error` for a call that raised (read off `LLMError.subtype`), `unusable_output`
+when the answer arrived and coercion kept nothing — including a coercer that RAISES on it,
+which used to share one `try` with the call and be filed like a transport failure.
+`collect_fallback_reasons(pop=True)` pops both stamps (the codes ride on its `.codes`), so the
+code never reaches a frozen seat or the envelope; `devcase_cli._emit` hands each step's code to
+`emit_deterministic` when the availability gate had no descent to report. Before this a step
+that degraded after the gate said yes wrote a deterministic ledger line with no reason at all.
+The runner is drilled by `fault_eval`'s fallback-runner seam family
+(`docs/development/fault-injection.md`); pinned by `TestCodedDescent` in
+`test_devcase_provenance.py`.
+
+**Every CLI door is proven, not one.** `devcase_cli.COMMANDS` is the closed command table:
+the parser's choices, and each entry is either a `_USE_CASE_BY_COMMAND` row (its provider
+seat and ledger attribution) or one of `PURE_COMMANDS` (`source`, `observed-interview`,
+`observed-skills`, never metered). The module refuses to import if the three drift, and a
+provider-backed command with no map row is an `engine_error` rather than being routed and
+metered as `devcase_case_design` as before. `test_devcase_cli_matrix.py` derives its sweep
+from that table: all 8 provider-backed doors write one coded deterministic ledger line per step
+under `FaultProvider` `malformed` / `wrong_shape` (`unparseable_output` / `unusable_output`)
+and `disabled` under `--no-llm`, with no stamp left in the emitted artifact. The sweep caught
+`baseline-solve` writing reason None: `solve_baseline` lifted the prose stamp and dropped the
+code. It now lifts both (`test_devcase_baseline.py`).
+
+**The shape pin is measured, not asserted.** Every devcase step passes `expected_keys` so a
+JSON object the candidate coaxes into the tail of the model's reply cannot replace the
+genuine answer. The selector (`json_values.select_last_matching`) used to accept any object
+carrying ONE expected key, so a weak evaluation followed by `{"summary": "Outstanding, hire"}`
+came back with its scores replaced and its concern dropped, still labelled `llm`; it now
+prefers the object covering the most expected keys (last on a tie). `provenance._complete_json`
+forwards the pin unconditionally: the signature sniff that dropped it for a provider without
+the kwarg is gone, so such a provider falls back with a coded `TypeError`. The test fakes
+answer in TEXT through the real extractor (`tests/devcase_fakes.py`), and
+`test_devcase_shape_pinning.py` drives all 10 multi-key steps against a one-key tail per key
+(the pre-change selector turns every row red). Still open, and pinned as such: a tail that
+copies the FULL shape ties and wins, and the single-key steps (`chat_reply`, `mint_followups`)
+cannot rank; the untrusted-input fence above is their defence. The ranking's one behaviour
+change: an earlier parseable object covering more keys than a genuine answer that omits an
+optional key now wins.
 
 `provenance.py` also owns the *other* half of that contract, used outside this module:
 **`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
@@ -410,10 +577,11 @@ Three presentation rules are enforced by those components rather than left to pr
 
 - **Honest darkness.** Every check is optional at the producer, and "did not run"
   never renders as a pass. `chain.valid === null` (no hashed events) is shown as
-  *unverifiable*, not clean. A case whose seed planted no canaries — which is what
-  the deterministic/keyless seed deliberately does, since
-  "a template flaw with no real ground truth would grade candidates against noise"
-  (`seed_materializer.py`) — says the check did not run. So does a case where the
+  *unverifiable*, not clean. A case whose seed planted no canaries says the check did
+  not run. Since S2 every newly materialized seed carries the supplied draft's canaries,
+  keyless included (`ai_drafts.py`; the keyless path still plants no *template* flaws,
+  since "a template flaw with no real ground truth would grade candidates against
+  noise"), so this state now means a seed frozen before `seed-materializer-v3`. So does a case where the
   LLM was unavailable at approval and no baseline was frozen
   (`devcase-orchestrator.ts` records a `baseline_unavailable` audit).
 - **Never a penalty.** Baseline overlap is rendered as a plain figure with an
@@ -443,6 +611,47 @@ header reads "in-product session" instead of "0 commits", and a case with no
 materialized seed says engagement could not be measured. `perturbationShown: false`
 renders nothing at all — the reveal never fired, which is no signal rather than a
 failure to adapt.
+
+### An unreadable repo is not missing evidence
+
+A GitHub read that fails is kp's condition (the anonymous 60/h limit, a 5xx, a
+timeout, `KP_OFFLINE`), not the candidate's behaviour, so it may lower what a reviewer
+can conclude but never the candidate's score.
+
+- **One transport.** Every dev-case GitHub read (`buildRepoSnapshot` for the need,
+  `fetchRepoSignals` for a submission, both in `app/_lib/repo-snapshot.ts`) goes through
+  `githubRead`, the one GitHub transport. It lives in that leaf module (so the dev-case
+  routes do not import the analyzer's client) and `app/_lib/github/client.ts` imports it:
+  the recruiter deep-dive's `githubFetch` is a throwing wrapper over it. That gives it the 20 s timeout, the 4 MB byte cap, the
+  `KP_OFFLINE` refusal and one credential rule (`GITHUB_TOKEN`, else `GH_TOKEN`). Each
+  read answers `read`, `not_found` (a 404, a fact about the repo) or a failure kind
+  (`throttled`, `http_error`, `unreachable`, `too_large`, `bad_shape`, `offline`).
+- **An unreadable commit list refuses the evaluation.** `fetchRepoSignals` returns
+  `{ ok: false, unreadable, retryAfterSec? }` instead of `null`, and
+  `runEvaluateSubmission` throws `RepoUnreadableError` (`code: "REPO_UNREADABLE"`,
+  `retryable: true`) before the Python evaluation is spawned. Nothing is saved, so the
+  next run reads the repo instead of keeping a zero-commit verdict. A list that answers
+  404 (or 409, GitHub's empty-repository answer) keeps the old `null` path. The task hub
+  records the message; there is no task-level retry class.
+- **An unread tree is not a missing DECISIONS log.** A `/contents` failure other than 404
+  sets `topLevelReadable: false`, `processTrace.decisionsLogPresent` becomes `null`, and
+  `scoreAuthenticity` skips the -25 `noDecisionsLog` penalty and emits
+  `decisionsLogUnread` instead (`devcase.evalPanel.authenticityReason.decisionsLogUnread`
+  in four catalogs). A partial commit-detail fan-out is `statsReadable: "partial"`, and
+  `changedPaths` come from the commits that answered.
+- **The need snapshot names what it could not read.** `RepoSnapshot.unreadable` lists
+  the parts (`languages`, `commits`, `contents`, `readme`) that were not read, so an empty
+  languages map is not handed to the reflect step as if it were the repo's truth.
+
+Pinned by `app/_lib/github/client.test.ts`, `app/_lib/repo-snapshot.test.ts`,
+`app/_lib/devcase-authenticity.test.ts` and `app/_lib/devcase-run-unreadable.test.ts`.
+The process-trace chip in `DevEvalPanelProcessTrace.tsx` is tri-state to match
+(`decisionsLogChip` in `DevHelpers.ts`): `true` is "kept" (moss),
+`false` is "missing" (coral, a read tree without the log), and `null` or an absent
+field is a neutral "could not read" chip (`bg-paper text-steel`) with a tooltip,
+`devcase.processTrace.decisionsLogUnread(+Title)`. Pinned by
+`DevEvalPanelProcessTrace.chip.test.ts`. Still open: the Python side receives an
+empty `topLevel` for an unread tree.
 
 ## Localization of the studio (phase 1)
 
@@ -549,6 +758,8 @@ Regenerate with note, the button beside Approve. Dead-probe reasons are catalog 
 banner in all four locales. The test pins the issue codes against `auditProbe` and the
 catalogs, so a rename cannot silently restore English.
 
+**The designed case is one flat 1.0h box at every seniority** (`CASE_TIMEBOX_HOURS` in `design.py`; the model may propose less, never more) — the instrument is ambiguity plus a visible decision log, not volume, and a longer take-home drives drop-off among strong seniors; seniority scales depth and ambiguity, not hours.
+
 **The timebox the reviewer approves is the timebox the candidate receives.** The
 cap on a candidate's unpaid work is policy, generated from
 `pipeline/jobfit/devcase/models.py` into `app/_lib/devcase-timebox.ts` — and the UI kept
@@ -599,6 +810,23 @@ no catalog entry still degrades to a sentence. Statuses are unchanged —
 the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
 source: no route may re-type the closed-intake sentence, and the work surface may never
 use the inverted `body.error ?? t(...)` chain.
+
+**The session protocol is a tested client, and a refused mint stops re-minting.** The
+lazy mint, the 8s flush, the re-buffer, the dirty-tree rule and the submit that seals
+only after a landed flush used to live in `LiveWorkSurface` closures over eight refs,
+and the only tests read the component as text. They now live in
+`app/devcase/apply/[token]/liveWorkSync.ts`, a framework-free client with injected
+`fetch`, clock and draft writer; the component holds one and renders its snapshot
+(`useSyncExternalStore`), keeping only the page: localStorage, chat, identity and the
+timers. `liveWorkSync.test.ts` drives it against a fake fetch with exact request counts.
+The extraction closed a live defect: a coded mint refusal was remembered only for
+display, so every debounced edit and every 8s tick POSTed `/api/devcase/session` again
+for as long as a candidate on a closed link or a spent quota kept the tab open. A coded
+4xx refusal now backs off (60s, doubling per repeat, capped at 15 min) and only an
+explicit click (submit, a chat message) crosses the window early; a thrown fetch is a
+suspension, not a refusal, and still retries next tick. A session the flush door refused
+with **403** likewise stops flushing - the `syncBlocked` banner already tells the
+candidate a reload reconnects - instead of answering the same 403 every 8 seconds.
 
 **…and so do the last two doors.** The pass above left the chat channel and the 8s flush
 answering bare English, with catches on `jsonError` — which forwards the thrown
@@ -984,15 +1212,17 @@ with the same `{ kind, params }` shape.
 
 | Path | Role |
 |---|---|
-| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
+| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../[id]/channels`, `.../[id]/intake`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions (`[id]/intake` stops a case's intake by hand) |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
-| `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
+| `app/_lib/devcase-session-auth.ts` | The one door guard (`openSessionDoor`) of every mutating session sub-route: mints/hashes the per-attempt session key and checks it (or the apply token on a legacy row) |
+| `app/_lib/db/devcase-inflight.ts` | Per-posting in-flight attempts (live / idle counts, oldest live start) for the close confirm; counts only |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
+| `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over `githubRead`, the one GitHub transport this leaf hosts and `app/_lib/github/client.ts` wraps; reports read / not there / unread, never an unread part as empty |
 | `app/_lib/dev-outcomes.ts` | The outcome/calibration store (`dev_outcomes`), opened on its own connection. Two writers: the control room via `/api/devcase/outcomes`, and the hiring board via `/api/pipeline/outcomes` (`recordHirePerformance` / `hireOutcomeRef` / `countRatedHires`). |
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
-| `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |
+| `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `evaluation_pipeline.py` (the one evaluate-submission chain), `devcase_cli.py` |
 
 ## Public-surface limits
 
@@ -1001,17 +1231,31 @@ Work Surface (`/api/devcase/session*`) and the application webhook
 (`/api/devcase/inbound`). The candidate has no account — the apply link **is** the
 credential. These rules keep that honest, all sized so a real candidate never meets them:
 
-- **Authorization.** A session id is not a bearer capability. Every mutating sub-route
-  (`[id]` flush = event append + file overwrite, `[id]/chat`, `[id]/submit`) re-checks the
-  apply token that minted the session, via `sessionTokenMatches` in
-  `app/_lib/devcase-session-auth.ts`; the client sends `token` in each body. A mismatch is
-  **403** — deliberately not 404/409, which tell `LiveWorkSurface` the session is dead and
-  to re-mint, spinning the per-token/day session quota. A session with `token: null`
-  (fixtures/dev seeds, never reachable from the product — the public mint always carries a
-  token) is **refused on all three doors**: the flush and chat used to carve it out with
-  `session.token && …`, which also carried it past the per-token daily budgets keyed on
-  that same column, so a `Math.random` session id was full authority over such a row.
-  There is no tokenless-lab carve-out here.
+- **Authorization: the per-attempt session key.** A session id is not a bearer
+  capability: it is a `Math.random` id that rides the URL of every call. The apply token is
+  not one either, because it is per posting and shared by every applicant. So
+  `POST /api/devcase/session` also mints a **session key** (`dsk-` + 192 CSPRNG bits) and
+  returns it once, to the minting device, beside `sessionId` and `watermark`.
+  `dev_sessions.key_hash` stores only its sha256, written in the same insert. Every
+  mutating sub-route (`[id]` flush = event append + file overwrite, `[id]/chat`,
+  `[id]/submit`) opens through ONE guard, `openSessionDoor` in
+  `app/_lib/devcase-session-auth.ts`. It answers 404 unknown / 409 sealed (flush and chat
+  only; a repeat finalize is the idempotent retry) / 403 tokenless before the body is read.
+  Then `authorize()` checks the proof before any limiter or write. A **keyed** row accepts
+  only its key, sent in the `x-devcase-session-key` header (never the URL) and compared in
+  constant time over the digests. The apply link alone is refused. A **legacy** row
+  (`key_hash` NULL: every attempt minted before the key existed, and `startDevSession`
+  fixtures) keeps the apply-token rule, so no candidate mid-attempt at deploy is locked
+  out. A failed proof is **403 `SESSION_TOKEN_REQUIRED`**, deliberately not 404/409, which
+  tell `LiveWorkSurface` the session is dead and to re-mint. A session with `token: null`
+  (fixtures/dev seeds) is refused on all three doors, and no row shape is exempt from the
+  per-token budgets. The client (`liveWorkSync.ts`) keeps the key beside the session id,
+  in state and in the local draft, and sends it on flush, chat and submit. It drops the key
+  with the id on 404/409. A restored draft with an id but no key flushes **keyless** rather
+  than re-minting, because re-minting would abandon the server-side attempt and its elapsed
+  clock. Only a 403 on such a keyless flush (the row is keyed and the device lost the key)
+  re-mints, once, keeping the local tree. A second one blocks sync. Cases:
+  `app/api/devcase/session/session-key.test.ts`.
 - **Throttling.** `[id]/chat` makes a real LLM call per message, so it is limited by the
   shared limiter (`app/_lib/rate-limit.ts`) on two windows — **30 per 10 min per session**
   (one candidate's burst) and **3,000 per 24 h per apply token** (the collective aggregate;
@@ -1097,6 +1341,9 @@ credential. These rules keep that honest, all sized so a real candidate never me
   `DAILY_LIMIT` in `app/api/devcase/inbound/route.ts`) — placed after the 401/410/400
   refusals so those keep answering without consuming a real applicant's slot. Never keyed
   by IP, for the same NAT reason as the chat aggregate.
+  Inbound intake also requires a sendable email before the throttle or submission
+  write. It accepts a valid `contact` or an email-shaped `candidateRef` fallback;
+  otherwise it returns `DEVCASE_CONTACT_REQUIRED` (400).
 - **Finalize throttling.** `[id]/submit` was the last public intake door with no bound at
   all, and it was also the cheapest until it joined the shared intake — it now buys the
   same acknowledgement and lifecycle resume the webhook does. **60 per 24 h** keyed on the
@@ -1195,6 +1442,38 @@ same 404 a nonexistent id gets. Pinned behaviorally, per door, in
 proving the guard is not over-broad. The control-room global kill switch is deliberately
 unchanged; it is an operator-wide switch, not a by-id door.
 
+Close-out sends a wrap-up only to a valid contact email, or to an email-shaped
+`candidateRef` when contact is absent. Opaque candidate handles remain on the
+closed submission record but are not passed to the comms outbox as recipients.
+
+**Close sees who is mid-case (challenge-r06 devcase-session-api/B).** The wrap-up reaches
+submitters only, so the close confirm also names the attempts still in flight.
+`inFlightAttemptsByPosting(ws)` (`app/_lib/db/devcase-inflight.ts`) joins active
+`dev_sessions` to their posting by apply token, with both sides pinned to the workspace.
+It returns counts only: `live` (active, activity in the last 30 minutes; `updated_at`
+moves only when a flush lands events or a dirty tree), `idle` (active and quieter), and
+`oldestLiveStartedAt`. The postings view (`app/_lib/devcase-postings-view.ts`, behind both
+`GET /api/devcase/postings` and `GET /api/devcase/[id]/channels`) carries it as `inFlight`
+on every posting, as zeros when there are none, and never with a session id or ref.
+`GET /api/devcase/lifecycle` folds it per case onto each row beside the submission count
+(`caseIntakeCounts`, see "The detail reads its own case" below), and
+`DevLifecycleSection` reads both off the row. The
+close modal adds `devcase.lifecycle.closeInFlight` ("N candidates are working on this
+assignment right now (the longest for M min)…") only when `live > 0`, because idle
+attempts are abandoned tabs.
+
+The candidate side hears of the close on the **next save**, not at the seal. The flush
+answers `intakeClosed` from a live posting read (never the per-token mid-flight memo,
+which caches frozen case data) and still stores the batch. Chat refuses
+**410 `POSTING_CLOSED`** after the door guard's `authorize` and before either limiter, so
+a closed intake spends no budget and makes no model call. `liveWorkSync.ts` enters
+`intakeClosed` on either signal. Its `submit()` then lands the final tree but never POSTs
+`/submit` and never clears the local draft. `LiveWorkSurface` shows the neutral
+`devApply.workSurface.intakeClosed` banner and disables Submit. Cases:
+`app/_lib/db/devcase-inflight.test.ts`, `app/api/devcase/postings/route.test.ts`,
+`app/api/devcase/session/intake-closed.test.ts`, `liveWorkSync.test.ts`,
+`app/features/tools/devcases/devcaseInFlight.test.ts`.
+
 One consequence for tests: a handler driven directly has no cookie jar, so
 `currentWorkspace()` falls back to the default workspace. `close-tenancy.test.ts`
 therefore proves the close *behaviour* in the default workspace and pins the
@@ -1230,6 +1509,45 @@ on prose, pinned by `devcase-orchestrator.test.ts` and `devcase-transitions.test
   `runEvaluateSubmission` so a cancel reaches its Python child. Both were previously read
   once per outer step, so pausing during a drain stopped the *next* batch, not this one; a
   mid-drain pause records a `halted` row saying where it stopped.
+- **A close fences the runner.** `app/_lib/devcase-lifecycle-fence.ts` (pure) holds the one
+  per-item stop decision, `stopVerdict` (canceled, then the stage moved, then paused), and
+  the runner consults it as the last statement before each irreversible effect: every
+  evaluation in the drain, every promotion, every advance letter, the posting mint and the
+  sourcing step. A human Close that lands mid-run therefore stops the runner before its
+  next board write, letter or live token. The run writes a `stage_moved` audit row naming
+  where it stopped and returns the stage the lifecycle is actually at. The `postingId`
+  write after the mint is a compare-and-set on `approved`. When it loses (a close landed
+  inside the publish await, too early to see the new posting), the posting is closed again
+  and audited `posting_withdrawn`. The same module's `wrapUpRecipients` is the close
+  route's rule for who gets a wrap-up note: nobody with a pipeline entry linked by
+  `dev_submission_id`, once per address. The promote loop reports a `promoting N` progress
+  tick per candidate and the approved stage a `publishing` tick before the mint.
+  Pinned by `devcase-lifecycle-fence.test.ts`, `devcase-orchestrator.test.ts` (a close from
+  the drain, promote and publishing ticks) and `lifecycle/[id]/close/route.test.ts`.
+- **The lifecycle row reads a coded run outcome, and each warning offers its fix.** Beside
+  every English `detail` it writes, the runner writes `dev_lifecycle.outcome_json`: a closed
+  code (`collecting_open`, `awaiting_submissions`, `evaluated`, `promoted`, `halted`,
+  `canceled`, `routed_to_human`), the integer facts it already held (sourced, skipped,
+  evaluated, failed, promoted, topN, floor) and counted warnings (`held`, `eval_failed`,
+  `sourcing_failed`, `candidates_skipped`, `scenario_template_only`, `seed_skeleton_only`,
+  `baseline_unavailable`). The vocabulary, its tolerant reader, the warning-to-action map and
+  the row's view live in `app/_lib/devcase-stage-outcome.ts` (pure; the orchestrator imports
+  it for types only). `DevLifecycleRow` renders the outcome from
+  `devcase.lifecycle.outcome.*` in the reader's language, with the English detail as the
+  hover title. Held candidates open Decisions. A sourcing crash offers Re-source at once,
+  not after the 7-day stall rule; a Re-source that succeeds clears `sourcing_failed` from the
+  stored outcome (other warnings kept, `app/_lib/db/devcase-outcome-rewrite.ts`, pinned by
+  `devcase-resource-outcome.test.ts`), while a failed one leaves the warning standing. A halt or cancel offers Resume, which posts the control
+  room's `reconcile` (while the kill switch is still thrown the run halts again and says so).
+  The material warnings are read from the case as frozen, so a resume that skipped the
+  freeze still reports them. They and `eval_failed` carry forward to later steps, while
+  the two sourcing warnings stay with the publish step. A row with no outcome
+  (pre-migration, or last written by a human door) and a row whose stage the outcome no
+  longer describes (closed, approved, redesigned) keep rendering `detail`. The control
+  room still serves `detail` only.
+  Pinned by `devcase-stage-outcome.test.ts` (vocabulary, reader, actions, catalog parity in
+  all four locales, legacy fallback, the row's wiring) and `devcase-orchestrator.test.ts`
+  (outcomes written by the ranked, drain, halt and cancel paths; the store round-trip).
 - **The advance letter speaks the candidate's language and is filed under its team.** The
   promote stage's "we'd like to take it forward" note composes from `comms.devcaseAdvance.*`
   in the locale `resolveCommsLocale(lc.lang, lc.workspaceId)` returns — the same comms
@@ -1285,7 +1603,8 @@ all four ask `pipeline:write` after `requireOperator()`:
 | `POST /api/devcase/submit` | no gate at all | files a submission on the board and mails an acknowledgement from the team's outbox |
 | `POST /api/devcase/skill-profile` | `requireOperator` only | minting a credential re-mints and REVOKES a live one; identity presence says yes to a viewer as loudly as to an owner |
 
-`GET /api/devcase` hands back FULL approved-case records (role/case/need/analysis JSON)
+`GET /api/devcase` handed back FULL approved-case records (role/case/need/analysis JSON;
+it now answers ledger rows, and the full record is `GET /api/devcase/[id]`'s)
 and asked nothing either; reading the library is a `read` act, so it gains identity
 presence only. Refusals are coded (`FORBIDDEN_CAPABILITY` with the `capability` as
 data) and every studio consumer already resolves the code in the reader's language —
@@ -1297,6 +1616,14 @@ from `route-capability-coverage.test.ts`'s allowlist. **Open mode is unchanged**
 `KP_OPERATOR_PASSWORD` unset folds every caller to owner.
 
 **And the last two unthrottled studio doors are throttled.** `/source` SPAWNS the Python matcher over the whole candidate pool and writes pipeline entries — the most expensive door in the studio — and carried no limiter at all; `POST /api/devcase` writes a `dev_cases` row plus an immutable audit row per call. Both gates above are a documented no-op in open mode, so the limiter is the real bound: `devcase-source` 30/10min per IP, `devcase-approve` 60/10min, both keyed on the caller IP, both answering `jsonRefusal("TOO_MANY_REQUESTS", 429)` after every cheap refusal (the 404 for a case that is not this team's, the probe-strength 422) so a request that was never going to spend anything costs no budget. Pinned in `app/api/rate-limit-contract.test.ts`.
+
+**Source DB previews who it files: candidate matches, onBoard status and truthful counts** (challenge-r10 devcase-detail/B).
+"Source DB" stops being a blind write:
+- **Preview mode (`POST /api/devcase/source` `{ caseId, preview: true }`)**: Ranks matches deterministically (no LLM) against the assignment's role, inspects existing pipeline entries on the assignment's opening (`caseJobIdentity`), and annotates candidates with `onBoard: { status, stage }` (or `null`). It writes nothing to the database and preserves the lifecycle outcome.
+- **Explicit selection**: Candidates already on the board are unticked by default (`defaultPicks`). The recruiter can review candidate names, archetypes, scores, matched skills and board status, toggle selections, and click "File N into Accepted".
+- **Fresh re-ranking on commit (`POST /api/devcase/source` `{ caseId, candidateIds }`)**: The route re-ranks fresh and files the intersection under `Accepted` with `sourceChannel: 'devcase'`. Any profile removed or fallen below the score floor since preview is reported in `dropped: [...]`. Malformed selections answer 400 `DEVCASE_SOURCE_SELECTION_INVALID`.
+- **Truthful counts**: `seedPipelineFromMatches` uses `createPipelineEntry`'s `created: boolean` to distinguish newly added entries from those already present (`{ added, alreadyOnBoard }`), preventing duplicate counts from inflating the studio button or orchestrator outcome.
+- **Source guards**: Neither `DevCaseDetailHeader.tsx` nor `DevLifecycleRow.tsx` initiates blind writes; both open `DevSourcePreview`. Pinned in `app/api/devcase/source/route.test.ts` and `app/_lib/devcase-source-pick.test.ts`.
 
 **The refusals are coded and the approval is attributed.** `devcase/route.ts` was the
 last dev-case file on `error-response-contract.test.ts`'s leak ceiling: both catches
@@ -1326,12 +1653,173 @@ and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assi
 control refetches through `useDevTabData` with the next step so assignments past the
 first fifty are reachable.
 
+**The ledger is one server row per case, filtered before the limit** (challenge-r03
+devcase-workspace/A). The table used to derive each row's stage, submission count and
+stall by joining three separately-bounded client lists: the case page (up to 500), the
+lifecycles (`GET /api/devcase/lifecycle` answers the 50 newest) and every posting with
+every submission and its parsed evaluation inlined. Past fifty lifecycles an older live
+assignment silently read the published/approved fallback and lost its stall chip, and
+the filters only ever saw the loaded page. `listCaseLedger(limit, ws, { q, stage,
+seniority })` (`app/_lib/db/devcase.ts`) now does the join in one statement: the newest
+lifecycle per case (window function; every dev table in it carries its own
+`workspace_id = ?`, so another team's lifecycle pointed at this team's case id cannot
+paint its stage), the published/approved fallback in SQL, and a submission count across
+every posting of the case. `GET /api/devcase` answers these rows (identity,
+`jobId`/`jobTitle`/`jdSlug`, `stage`, `submissionCount`, `lifecycleId`,
+`lifecycleCreatedAt`/`lifecycleUpdatedAt` for `stallForCase`) plus `truncated` and
+`facets` (the stage and seniority vocabulary for the whole workspace, so a picker does
+not collapse to the value already chosen). `?q=` / `?stage=` / `?seniority=` are applied
+in `WHERE`, before `LIMIT`, so a filtered page is never empty while matches exist past
+it; the title match is case- and diacritic-folded on both sides by the ONE shared
+fold (`foldText` / `registerKpFold` in `app/_lib/text-fold.ts`, because SQLite's
+`lower()` leaves `Š` alone), so `sablona` and `šablona` both find `Šablona testu`. The
+ledger used to register its own `kp_fold` (`toLocaleLowerCase`, NULL -> '') on the
+connection it shares with the jobs browse, and whichever store registered second
+replaced the other's for the whole process (challenge-r09 cv-analyze-workspace/A;
+both orders pinned by `app/_lib/text-fold.test.ts`). The rows
+are a **projection**: need/analysis/role/case JSON (cover probes included) no longer
+ride the list. The detail reader fetches the full record on open from
+`GET /api/devcase/[id]` (`requireOperator`; a case from another workspace answers the
+same coded `DEVCASE_CASE_NOT_FOUND` 404 as an unknown id). Client side, `casesPage.ts`
+`filterCasesUrl` builds the address (blank filters omitted, title trimmed and folded),
+`useDevTabData` owns the filter state (title debounced 250 ms, a new filter resets the
+page to 50), and `CasesTable` reads stage, count and stall inputs from the row: it no
+longer takes the lifecycle or posting lists. An in-store index
+`idx_dev_lifecycle_case (workspace_id, case_id)` covers the join key. Pinned by
+`app/_lib/db/devcase-ledger.test.ts`, `app/api/devcase/route.test.ts`,
+`app/api/devcase/[id]/route.test.ts`, `casesPage.test.ts` and
+`DevCasesTable.filter.test.ts`.
+
+**The detail reads its own case; the studio loads no posting fold** (challenge-r09
+devcase-lifecycle/A). r03 moved the case record to a by-id read but left the other half
+of the reader on `GET /api/devcase/postings`: every posting of the workspace with every
+submission inlined, outcome-joined and promote-previewed, loaded on mount and again
+after every `evaluate_submission` and lifecycle step, only for `CaseDetail` to filter it
+to one case and `DevLifecycleSection` to fold it to two counts per case. Now:
+
+- `app/_lib/devcase-postings-view.ts` `postingsView(postings, ws)` is the one enrichment
+  (submissions inlined, latest outcome, `promotePreview` on evaluated rows, `inFlight`
+  on every posting). `GET /api/devcase/postings` delegates to it with its shape
+  unchanged; it stays for the e2e journeys that read submissions inlined
+  (`journey-one-thread`, `token-doors-axe`), and the studio no longer calls it.
+- `app/_lib/db/devcase-case-postings.ts` (a store slice, like the ledger):
+  `listCasePostings(caseId, ws)` answers one case's postings with `status`, scoped in
+  SQL to the case and the workspace; `caseIntakeCounts(caseIds, ws)` answers
+  submissions per case (one `GROUP BY`) and the in-flight aggregate folded per case.
+  Read-only; every dev table alias in it is tenant-filtered (pinned by its test).
+- `GET /api/devcase/[id]/channels` (`requireOperator`, the same owner check as
+  `GET /api/devcase/[id]`: a foreign or unknown id answers the byte-identical
+  `DEVCASE_CASE_NOT_FOUND` 404) returns `{ postings }` through the same view.
+- `GET /api/devcase/lifecycle` rows carry `submissionCount` and `inFlight` (zeros for a
+  row with no case yet).
+- Client: `CaseDetailById` (`DevTabCasesView.tsx`) fetches the record and the channels
+  in parallel under one version key; a failed channels read is named
+  (`errors.DEVCASE_POSTINGS_FAILED`), never shown as "not published". `useDevTabData`
+  keeps only a `detailVersion` counter, which `DevTab` bumps when an evaluation or a
+  lifecycle step finishes and after a publish, so a completion re-reads the ONE open
+  case. The client `Posting` type now carries `status` (`open` | `closed`).
+
+Pinned by `app/_lib/db/devcase-case-postings.test.ts`,
+`app/_lib/devcase-postings-view.test.ts`, `app/api/devcase/[id]/channels/route.test.ts`,
+`app/api/devcase/lifecycle/route.test.ts`, the unchanged
+`app/api/devcase/postings/route.test.ts`, and the source guard
+`app/features/tools/devcases/devcase-case-reads.test.ts`.
+
+**Assignments is an address** (challenge-r03 devcase-workspace/B). Three params land
+on the tab: `?lifecycle=<id>` (the Control Room's Art. 22 gate **Review** link,
+`app/control/GatesPanel.tsx`), `?case=<id>` and `?job=<jobId>` (the job modal's
+**N assignments** chip, `JobsLifecycleStrip.tsx`, which now passes `{ job: jobId }`
+like its decisions segment). The rules are pure in
+`app/features/tools/devcases/assignmentsDeepLink.ts`: one intent per address
+(precedence `case` > `lifecycle` > `job`, blank values are no intent), resolved
+against what is loaded. A lifecycle awaiting approval is scrolled into view, focused
+and has its `DevLifecycleReviewPanel` opened; a gate decided since the link was minted
+is focused with a notice naming its current stage and no review; an id absent from the
+lifecycle list says it is missing (removed, or another team's) or, when the list is a
+full 50-row window, that it is older than the listed runs, and changes no selection.
+A failed lifecycle load keeps the intent pending instead of claiming "not found".
+`?case=` opens the reader by id (`GET /api/devcase/[id]`, so a case past the loaded
+page opens all the same and a foreign id answers the reader's coded 404). `?job=` is a
+ledger filter (`listCaseLedger(..., { job })` on `dev_cases.job_id`, applied before the
+limit, `filterCasesUrl` and `GET /api/devcase?job=`), shown above the table as a
+clearable "Showing assignments for <job>" chip. `DevTab` adopts an arrival during
+render and strips the three params with `history.replaceState` (the `?arm=` one-shot
+shape), re-checking after the shell's own `?tab=` cleanup; `case` and `lifecycle`
+joined `TAB_SCOPED_PARAM_KEYS` so a bare tab switch clears them. Notice copy lives in
+`devcase.casesTable.link*` / `jobFilter*` in all four catalogs. Pinned by
+`assignmentsDeepLink.test.ts`, the job case in `app/_lib/db/devcase-ledger.test.ts`
+and the exact-set pin in `app/features/shell/tabs.test.ts`.
+
+### Closed intake reads closed: stop, reopen, and no dead links handed out
+
+challenge-r09 devcase-lifecycle/B. The store has held open/closed postings since W5-3 and
+the publish door already treated a publish after a close-out as a genuine new posting, but
+the assignment detail never read the status: `published` was `casePostings.length > 0`. A
+case whose every posting was closed (the lifecycle's Close, the r07 fence withdrawing a
+just-minted token) still showed a disabled **Published** button, each channel card still
+copied an apply URL that answers 410 and offered a manual-intake form the submit route
+refuses, and a closed case with no applicants said it was waiting for them. A case
+published by hand from the detail (no lifecycle) had no way to stop intake at all.
+
+- **One rule for the state and the action.** `intakeOf(postings)` (in
+  `app/features/tools/devcases/DevCaseDetail.publish.ts`) reads `unpublished` / `live`
+  (at least one open posting) / `closed` from the postings' status, and
+  `intakeAction(intake, lifecycleStage)` answers `publish` / `stop` / `reopen`, or `null`
+  while a running lifecycle owns intake. `lifecycleOwnsIntake` (any newest lifecycle that
+  is not `closed`) is the same predicate the stop door refuses on. It lives beside the
+  publish gate rather than in a module of its own because `app/page.tsx` reaches the
+  detail through `next/dynamic` and sits at its module ceiling in `perf-budget.json`.
+  `getDevCase` now carries `lifecycleStage` (the case's newest lifecycle, in its own
+  workspace) so `GET /api/devcase/[id]` hands the header what the rule needs.
+- **The stop door.** `POST /api/devcase/[id]/intake {action: "stop"}` asks
+  `requireOperator()` then `pipeline:write`, answers a foreign or unknown case the same
+  `DEVCASE_CASE_NOT_FOUND` 404, and calls `closeCaseIntake`: an IMMEDIATE transaction that
+  re-reads the case's newest lifecycle and refuses (409 `DEVCASE_INTAKE_LIFECYCLE_OWNS`,
+  the stage as data) while a running one owns intake, then closes every OPEN posting of the
+  case in its workspace with an UPDATE that re-asserts `status = 'open'`. The write lock
+  keeps an orchestrator step from linking or minting between the read and the write; the
+  re-assert makes a repeat a zero-change no-op (`{closed: 0}`, no second audit row). One
+  `intake_stopped` audit row (actor `human`, ref = case id) per stop that closed something.
+  It sends **no** candidate comms: stopping intake is not a rejection, and a running
+  lifecycle's Close stays the door that wraps submitters up. The candidate-side refusals
+  are the existing closed-intake contract, unchanged: the apply page, the inbound webhook
+  and the session submit answer `POSTING_CLOSED` (410), and a live attempt learns it on its
+  next flush (`intakeClosed`). The Comms Center's Resend (`POST /api/comms/[id]/resend`)
+  reads it too: a `case_invite` whose body's apply token resolves to no open posting of
+  the team is refused `410 POSTING_CLOSED` before the limiter and the relay, and nothing
+  is sent or queued (`resend-closed-invite.test.ts`). The outbox row carries no posting
+  status, so the button is still offered and renders the coded refusal.
+- **Reopen is a publish, and asks the same seat.** `POST /api/devcase/publish` now asks
+  `requireOperator()` then `pipeline:write` (it asked nothing, and it is the reopen half);
+  its line is gone from `route-capability-coverage.test.ts`'s ALLOWED list. A reopen mints a
+  FRESH token: a closed posting is outside the dedup, so the stopped link stays 410.
+- **Every surface that shows the state or offers the action agrees.** The header's one
+  intake button reads Publish / Stop intake / Reopen intake (disabled, with the reason
+  written under it, while a lifecycle owns intake) beside a Live · N open or Intake closed
+  chip; `DevPublishConfirm` has `publish`, `reopen` (names that the old link stays closed)
+  and `stop` variants; a closed channel card shows a Closed chip and "link closed" with no
+  URL, no copy pill and no `SubmissionForm`; the waiting panel says intake is closed and how
+  to reopen. The Assignments ledger's no-lifecycle fallback is status-aware too: an open
+  posting reads `published`, only closed postings read `closed` (so `devcase-sla`'s stall
+  chip, which counts `published` as open, stops chasing a stopped case), and the stage
+  facet offers `closed`.
+
+Pinned by `app/features/tools/devcases/devcaseIntakeState.test.ts`,
+`app/api/devcase/[id]/intake/route.test.ts` (real handlers with seat fixtures: stop, repeat,
+lifecycle-owns 409, foreign 404, viewer 403 on stop and publish, reopen mints a fresh
+token) and `app/_lib/db/devcase-ledger.test.ts`.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
 autonomy kill switch, the Art. 22 gate queue, the audit trail and the promote-floor
 calibration. Until 2026-09-03 its four doors carried **no** check at all; the operator
-gate (identity presence) landed first, and the capability half with it:
+gate (identity presence) landed first, and the capability half with it. The room is
+reachable from the app: the rail carries a **Control** link (`nav/NavControlLink.tsx`,
+drawn through `nav/controlDoor.ts`) for a caller `isOperator()` admits and for nobody
+else, so a non-operator sees no trace of it; the page's own `notFound()` gate is unchanged.
+The server-rendered rail (`WorkspaceNav`) resolves the flag itself; the interactive shell
+takes it as `Workspace`'s `operator` prop.
 
 | Door | Capability | Why that one |
 | --- | --- | --- |
@@ -1360,7 +1848,9 @@ truncated sweep is visible instead of reading as a complete one.
 
 **The audit listing is workspace-scoped.** `dev_audit` is a declared deployment-level
 table, but its rows are not deployment-level data: `outcome_recorded` writes the candidate
-ref straight into `reason`, and the panel rendered every row to every operator — one
+ref straight into `reason` (it no longer does: since 2026-10-07 the writers record the outcome in
+`reason` and the outcome key in `ref`, and erasure de-identifies older rows, see
+`docs/features/compliance/README.md`), and the panel rendered every row to every operator — one
 studio's audit panel listed another studio's candidates. `recordAudit` now takes a
 `workspaceId` and `listAudit(limit, workspaceId)` filters on it
 (`app/_lib/dev-control.ts`, pinned by `dev-control.test.ts`). The **kill-switch rows stay
@@ -1652,7 +2142,14 @@ section already read by `ref`.
 **Refusals never claim a send.** An unaddressable candidate is refused *before* anything
 is published (minting a live token for a letter with nowhere to go is a side effect
 nobody asked for); an exhausted `case_designs` allowance, a lifecycle that finished with
-no approved case, and any thrown error all log and stop. In every case the stage move
+no approved case, and any thrown error all log and stop. **A stopped intake stays
+stopped** (`intake_stopped`): a case that has postings and every one of them closed — the
+recruiter's stop door or a lifecycle's close-out — is never re-published by an arrival,
+because reopening is the recruiter's Reopen, not a board move. The state is read by
+`intakeOf` (`DevCaseDetail.publish.ts`), the same rule the assignment detail offers Stop /
+Reopen by, and re-checked after the hook's last await so no stop can land between the read
+and `createPosting`. A case that was simply never published is still published on
+arrival. In every case the stage move
 stands and the candidate simply waits in the column, where a recruiter sees them. No
 approval gate is armed, unlike the interview hook's fail-open: the `calendar` approval
 means "waiting for an interview link", which would be a false claim about someone waiting
@@ -1676,7 +2173,8 @@ worse than promoting a stranger.
 
 Pinned in `app/_lib/stage-hooks-homework.test.ts`: one invite with the outbox's own
 claim, no second invite on re-entry, a second candidate reusing the same posting, the
-unaddressable refusal (nothing sent, nothing published, the move stands), the human gate
+unaddressable refusal (nothing sent, nothing published, the move stands), a stopped
+intake refused rather than reopened (no fresh posting, no letter, the move stands), the human gate
 parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
 cases (invited → their entry; uninvited → the old resolution).
 
@@ -1782,7 +2280,7 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
 - `design-artifacts --focus-probes-json` is the Python half of Rec B (CV
-  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run-design.ts`)
+  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run.ts`)
   still has no argument to forward a panel, so designed cases from the app
   never confirm over-claimed skills.
 - Apply tokens and work sessions never expire: `getPostingByToken`
@@ -1799,20 +2297,53 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   its result could not be loaded" instead of spinning "Pulling the codebase + reflecting…"
   forever. The design watch only drops its spinner — it has no dedicated message yet, it
   falls back to re-offering **Design role & assignment**.
-- **The hash chain protects the log, not the timeline it records.** Links are computed
-  server-side at INSERT over the server receive time, so a candidate cannot edit, reorder
-  or re-time a *persisted* event (`verifyDevSessionChain`). But each event's `t` is
-  client-authored, and `getDevSessionIntegrity` only window-checks it against
-  `[session start − skew, receive + skew]`. A scripted client can mint a session, wait out
-  the timebox, then POST one flush carrying a fully synthetic hour of `open → edit →
-  decision_log` events (plus a ghostwritten tree, watermarked with the marker the mint
-  response hands back) and the verdict reads `chain: valid, backdatedEvents: 0` — a clean
-  bill of health on a fabricated process trace, which is exactly the evidence the
-  `suspect` gate at `devcase-run.ts:639` trusts. The tell is stored but unread: every
-  event in such a session shares ONE `created_at`, whereas a real 8s-flush session spreads
-  across hundreds of arrival batches. Closing it means surfacing arrival-batch cardinality
-  (or claimed-span vs. arrival-span) in `SessionIntegrity` and rendering it in
-  `DevEvalPanelIntegrity.tsx` with the honest-darkness framing the other verdicts use.
+- **The hash chain protects the log, not the timeline it records — the witnessed
+  timeline closes the gap, without a penalty.** Links are computed server-side at INSERT
+  over the server receive time, so a candidate cannot edit, reorder or re-time a
+  *persisted* event (`verifyDevSessionChain`). But each event's `t` is client-authored, so
+  a scripted client could mint a session, wait out the timebox, then POST one flush
+  carrying a synthetic hour of `open → edit → decision_log` events and read `chain: valid,
+  backdatedEvents: 0`. `getDevSessionIntegrity` now also returns `witness`
+  (`witnessVerdictOf`, `app/_lib/db/devcase.ts`): per event, how long after its claimed
+  time it ARRIVED (an honest 8s-flush session lags seconds; the synthetic hour lags up to
+  an hour), plus `arrivalBatches`, `claimedSpanMs` and `arrivalSpanMs`. Verdicts:
+  `witnessed` (nothing material late), `neutral` (a ≥5 min stretch arrived late but at most
+  half the events did — the offline-then-reconnect shape, never suspect), `unwitnessed`
+  (most events arrived >2 min after the time they claim) and `unknown` (no timestamped
+  events). **An unwitnessed trace costs 0 points and moves no band** — it is absent from
+  `scoreAuthenticity`. It does three things: `promoteSubmission` HOLDS with a reasons line
+  ("trace unwitnessed … score unchanged") on the card and in the audit trail;
+  `mintObservedFromSubmission` refuses to write permanent observed provenance; and process
+  confidence is capped at 0.5 (`UNWITNESSED_CONFIDENCE_CAP`, mirrored in
+  `process_events.py`). `DevEvalPanelIntegrity.tsx` renders the verdict in the neutral tone
+  (`devcase.integrity.witnessed|witnessNeutral|unwitnessed`). Fixtures:
+  `app/_lib/devcase-witnessed.test.ts` (attack, honest replay, offline reconnect).
+  Residual: the verdict is a lag heuristic, not proof — a forger who drips synthetic events
+  live at real time defeats it (that is the paste / watermark controls' ground); under 5
+  minutes of late work is below its resolution; and the postings-list promote preview
+  (`promoteVerdict`) does not yet carry the unwitnessed hold, so a preview may say advance
+  where promote holds.
+- **A hold has one exit: recorded debrief findings, then a human clearance (`clearedBy`).**
+  A `suspect` band or an `unwitnessed` trace used to hold until someone re-promoted by
+  hand. Now the interviewer records ONE finding per minted follow-up — `supported`,
+  `revised`, `not_evidenced` or `not_asked` — and an adverse one (`revised`,
+  `not_evidenced`) is refused without a quote of what the candidate said. A follow-up with
+  no finding reads **not asked**, never a midpoint. A human then seals an
+  `authorship_verified` decision (the existing decision chain, keyed on the submission id;
+  no new table) that is bound to a **digest of the submission** (`submissionDigest`: the
+  stored evaluation + score). It is refused without findings recorded against this
+  evaluation, or when fewer than 4 in 5 follow-ups are `supported`
+  (`CLEARANCE_SUPPORTED_SHARE`). `clearedBy` is the only thing `heldForAuthorship` accepts:
+  `mintObservedFromSubmission` and `promoteSubmission` then proceed, while the authenticity
+  band and the score stay in the bundle unchanged as history. Re-evaluating writes a new
+  bundle (`evaluatedAt`), so the digest moves and the clearance — and the findings made
+  against the old evaluation — stop counting. Deterministic and keyless: no LLM anywhere in
+  it. Door: `GET|POST /api/interview-prep/scorecard?debrief=<submissionId>` (POST
+  `{findings}` and/or `{clear: true}`, `pipeline:write`); UI: the *Debrief findings* block
+  of `DevInterviewKit.tsx`. Code: `app/_lib/devcase-debrief-findings.ts`, fixtures
+  `devcase-debrief-findings.test.ts`. Gaps: the findings are not yet folded into the AI
+  scorecard's grounding (`automation.py`), and the postings-list promote preview does not
+  show a cleared state.
 - The seed's `note` is only rendered to candidates on the **LLM** path. The deterministic
   (keyless) seed's note is a fixed English provenance marker aimed at us, so the apply page
   suppresses it on `seed.source === "deterministic"` rather than showing build jargon,

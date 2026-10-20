@@ -1,0 +1,65 @@
+/* ---- the header: title, the day's three figures (B/2's strip), the tools -------- */
+.gd .gd-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 2rem;
+  padding-bottom: 1rem;
+}
+.gd .gd-title { display: grid; gap: 0.25rem; }
+.gd .gd-title .eyebrow { font-size: 0.875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-coral-ink); }
+.gd .gd-title .name { display: flex; align-items: center; gap: 0.625rem; }
+.gd .gd-title h1 { font: 600 2.25rem/1 var(--gd-serif); letter-spacing: -0.01em; }
+.gd .devtag {
+  display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.125rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--gd-amber) 60%, var(--gd-rule-2)); background: color-mix(in srgb, var(--gd-amber) 16%, var(--gd-card));
+  font-size: 0.875rem; font-weight: 600; color: color-mix(in srgb, var(--gd-amber) 45%, var(--gd-ink));
+}
+.gd .strip { display: flex; flex-wrap: wrap; align-items: stretch; min-width: 0; }
+.gd .strip > * {
+  display: flex; align-items: center; gap: 0.625rem; min-height: 3.5rem; padding: 0.375rem 1.25rem;
+  border-left: 1px solid var(--gd-rule); min-width: 0;
+}
+.gd .fig-n { font: 600 1.875rem/1 var(--gd-serif); font-variant-numeric: tabular-nums lining-nums; }
+.gd .fig-n.needs { color: var(--gd-coral-ink); }
+.gd .fig-l { font-size: 0.875rem; line-height: 1.3; color: var(--gd-quiet); }
+.gd .fig-l b { color: var(--gd-ink); font-weight: 600; }
+.gd .firstbtn {
+  display: flex; gap: 0.75rem; align-items: center; border: 0; background: transparent; text-align: left; cursor: pointer;
+  padding: 0.375rem 0.625rem; margin: -0.375rem -0.625rem; border-radius: 0.375rem; min-width: 0;
+}
+.gd .firstbtn:hover { background: var(--gd-now-wash); }
+.gd .firstbtn .t { display: block; font-weight: 600; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gd .firstbtn .s { display: block; font-size: 0.875rem; color: var(--gd-coral-ink); }
+.gd .hollow {
+  width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px dashed var(--gd-stone); display: grid; place-items: center; flex: none;
+  font: 600 1.125rem/1 var(--gd-serif); color: var(--gd-quiet);
+}
+.gd .hollow.measured { border-style: solid; border-color: var(--gd-moss); color: var(--gd-moss-ink); }
+.gd .tools { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ---- the section nav (B/3) --------------------------------------------------- */
+.gd .sections {
+  display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: stretch;
+  border-top: 1px solid var(--gd-rule-2); border-bottom: 1px solid var(--gd-rule-2);
+  position: relative; margin-bottom: 1.75rem;
+}
+.gd .sections::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: var(--gd-rule); }
+.gd .sections button {
+  display: inline-flex; align-items: baseline; gap: 0.5rem; padding: 1rem 0.75rem 0.875rem; border: 0; background: transparent; cursor: pointer;
+  font-size: 0.875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-quiet);
+  border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.2s var(--gd-ease);
+}
+.gd .sections button b { font: 600 1rem/1 var(--gd-serif); letter-spacing: 0; color: var(--gd-ink); text-transform: none; }
+.gd .sections button:hover { color: var(--gd-ink); }
+.gd .sections button[aria-selected="true"] { color: var(--gd-ink); border-bottom-color: var(--gd-ink); }
+.gd .sections button.needs b { color: var(--gd-coral-ink); }
+
+/* one status line (a write's outcome, a scan's start) */
+.gd .flash {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin: -0.75rem 0 1.25rem;
+  padding: 0.625rem 0.875rem; border-radius: 0.375rem; background: var(--gd-lime); color: var(--gd-ink); font-size: 0.875rem;
+  animation: gd-flash 1.2s var(--gd-ease);
+}
+.gd .flash.critical { background: var(--gd-coral-wash); color: var(--gd-coral-ink); }
+@keyframes gd-flash { from { box-shadow: 0 0 0 3px var(--gd-lime); } to { box-shadow: 0 0 0 0 transparent; } }

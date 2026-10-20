@@ -1,0 +1,121 @@
+[
+  {
+    "context": "auth-session-rbac",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One session issuer: every sign-in door and renewal re-checks the principal",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/auth/session-issuer.ts",
+      "app/_lib/auth/session-issuer.test.ts",
+      "app/api/auth/login/route.ts",
+      "app/api/auth/login/route.test.ts",
+      "app/api/auth/register/route.ts",
+      "app/api/auth/switch-workspace/route.ts",
+      "app/api/auth/switch-workspace/route.test.ts",
+      "app/api/auth/logout/route.ts",
+      "app/api/invite/[token]/route.ts",
+      "app/api/invite/[token]/invite-accept-route.test.ts",
+      "docs/features/organization/README.md",
+      "scripts/docs/feature-doc-map.json"
+    ],
+    "new_files": [
+      "app/_lib/auth/session-issuer.ts",
+      "app/_lib/auth/session-issuer.test.ts"
+    ],
+    "shared_surfaces": [
+      "scripts/docs/feature-doc-map.json"
+    ],
+    "acceptance": [
+      "issueSession(res, {kind:'user', userId, workspaceId}) for a user whose users.status is 'disabled' -> refused {ok:false, reason:'inactive'} and the response carries NO Set-Cookie for __Host-kp_session",
+      "POST /api/auth/switch-workspace with a still-valid cookie of a user disabled AFTER sign-in (setMemberStatus(userId,'disabled'), membership rows left in place) -> 401 and the session cookie is cleared (Max-Age=0); today it answers 200 with a fresh 7-day token",
+      "issueSession for a user principal whose target workspace belongs to another org (getWorkspaceOrgId(ws) !== users.org_id) -> refused {ok:false, reason:'foreign_workspace'}, no cookie",
+      "a user-principal token minted by the issuer carries org = users.org_id and role = memberships.role read from the DB; the operator principal's token has op:true and no sub; the principal type admits no caller-supplied org/role and no op+sub combination (tsc + runtime decode of the token)",
+      "login, register and invite-accept each answer a Set-Cookie for __Host-kp_session with the identical attribute set (HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800) AND set kp_entered=1; switch-workspace sets the session cookie with the same attributes; logout clears both through the issuer with Max-Age=0",
+      "POST /api/auth/login {email,password} for an active user whose memberships were all removed and whose org is NOT org-default -> the session lands on the first workspace of the user's OWN org, never on the install's DEFAULT_WORKSPACE_ID",
+      "source ratchet in session-issuer.test.ts: no file under app/ other than app/_lib/auth/session-issuer.ts (tests excluded) contains `signSession(` or `cookies.set(SESSION_COOKIE` -> a sixth door that hand-mints fails the test"
+    ],
+    "premise": [
+      "app/_lib/auth/session.ts:70-80 - signSession(workspace, now, claims) takes org/role/op/sub as CALLER-SUPPLIED claims; nothing inside it reads the DB",
+      "grep `signSession(` over app/ (non-test): six mint sites in five route files - app/api/auth/login/route.ts:126,144,172, app/api/auth/register/route.ts:79, app/api/auth/switch-workspace/route.ts:104, app/api/invite/[token]/route.ts:103; each sets the cookie attributes by hand (login/route.ts:66-77, register/route.ts:84-91, switch-workspace/route.ts:104-110, invite/[token]/route.ts:109-122) and logout clears them by hand (app/api/auth/logout/route.ts:10-17)",
+      "four recorded defects came from a door hand-rolling what a session is: switch-workspace dropped the claims and turned a member into an owner (app/_lib/auth/current-user.ts:50-55, session.ts:40-43); the invite door signed the OLDEST membership (app/api/invite/[token]/route.ts:99-102); the invite door forgot kp_entered (route.ts:116-121); switch-workspace re-minted a public demo cookie onto the real tenant (switch-workspace/route.ts:37-49)",
+      "app/api/auth/switch-workspace/route.ts:80-89 checks only org + getMembership before re-minting a fresh 7-day token (route.ts:104, SESSION_TTL_MS at session.ts:19); it never reads users.status",
+      "app/_lib/org-service.ts:312-322 - setMemberStatus('disabled') flips users.status and revokes pending invites but leaves the memberships rows, so the switch door's membership check still passes for a disabled user; capabilitiesForUserInWorkspace (app/_lib/db/memberships.ts:104-110) is the only place that reads the status, AFTER a token was already minted",
+      "app/api/auth/login/route.ts:123-127 - a user with no membership lands on `primary?.workspaceId ?? DEFAULT_WORKSPACE_ID`, the install's home workspace, whatever the user's own org is",
+      "app/api/auth/switch-workspace/route.test.ts:76,94,106 cover demo, member and no-session cases; no case drives a disabled user's live cookie through the renewal"
+    ],
+    "rollback": "Reverts cleanly as a commit series: session-issuer.ts is additive, and each door's diff only swaps its hand-mint block for one issuer call, so reverting restores the six inline mints byte-for-byte; no schema, no cookie-format or claim-format change (tokens minted before and after verify identically), so no signed-in user is logged out by either direction.",
+    "gate": "policy-tighten",
+    "runner_up": "Bind operator sessions to the operator password: stamp an `opv` fingerprint claim at mint so rotating KP_OPERATOR_PASSWORD signs every op:true cookie out (today login/route.ts:172 mints op:true with no tie to the password, and the switch door renews it indefinitely) - second because enforcing it touches current-user.ts/require-operator.ts, which challenge-r03's platform-auth-api builder is rewriting now.",
+    "technique": "machine-credential-consumption",
+    "body": "## Summary\nReplace the six hand-rolled session mints across five sign-in doors with one `session-issuer.ts` that takes a typed principal, derives org and role from the database, re-checks the account on every mint (including the switch-workspace renewal), and owns the cookie pair. A source ratchet keeps a sixth door from minting by hand.\n\n## Description\n`signSession()` trusts whatever claims its caller hands it, and five route files hand it different things and set the cookies with their own attributes. The comments in those routes record four defects, all caused by a door rolling its own session: a re-mint that dropped claims and made a member an owner, an invite that signed the oldest team, an invite that forgot `kp_entered`, and a demo cookie re-minted onto the real tenant. One live defect of the same kind remains. `switch-workspace` is a renewal: it re-mints a fresh 7-day token from an existing cookie and checks only membership. `setMemberStatus('disabled')` leaves the membership rows in place, so an offboarded user's cookie can be renewed forever by posting to it once a week. The registry's renewal rule (machine-credential-consumption: renewal re-validates the issuer's side) is exactly what that door skips.\n\nThe issuer takes `{kind:'operator'} | {kind:'open'} | {kind:'user', userId, workspaceId}`. For a user it reads `users` (the account must exist and be active), `workspaces` (the workspace must be in the user's own org) and `memberships` (for the role). The caller never supplies org or role. It sets `__Host-kp_session` and `kp_entered` with one attribute set, and `clearSession` is the logout twin. The login fallback for a user with no team becomes the first workspace of the user's own org, not the install's home workspace.\n\n## Flow\n1. Write session-issuer.test.ts first: the seven acceptance cases, including the source ratchet.\n2. Add session-issuer.ts: principal union, `issueSession(res, principal, now)`, `clearSession(res)`, `landingWorkspaceFor(userId)`.\n3. Port the doors one at a time: login (3 paths), register, invite accept, switch-workspace (a refused renewal clears the cookie and answers 401), logout.\n4. Extend the switch-workspace and login route tests with the disabled-user and own-org-landing cases.\n5. Map session-issuer.ts in feature-doc-map.json and describe the issuer in docs/features/organization/README.md.\n\n## Expected impact\nThe offboarding hole closes: a disabled account can no longer renew its session through switch-workspace. Every door mints the same shape, so the next session feature has one seam instead of six. The unmerged per-principal revocation branch, the open 'Self-service password change that remints the session' and 'Sliding HMAC session refresh' items all need that seam. The class of defect the route comments record four times becomes a failing test instead of a review finding.\n\n## Evaluation\nClaim: every session mint goes through one issuer that re-validates the principal against the database, and a disabled account can no longer renew.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test (session-issuer.test.ts, the three door route tests), plus tsc for the principal type.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "grep -n 'signSession(' app --include=*.ts (non-test):\n  app/api/auth/login/route.ts:126  signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), { sub, org: user.orgId, role: primary?.role })\n  app/api/auth/login/route.ts:144  withSessionCookie(res, signSession())\n  app/api/auth/login/route.ts:172  signSession(undefined, Date.now(), { op: true })\n  app/api/auth/register/route.ts:79  signSession(result.workspaceId, Date.now(), {...})\n  app/api/auth/switch-workspace/route.ts:104  res.cookies.set(SESSION_COOKIE, signSession(workspaceId, Date.now(), claims), {...})\n  app/api/invite/[token]/route.ts:103  signSession(result.workspaceId, Date.now(), {...})\nswitch-workspace/route.ts:80-89:\n  const userId = currentUserId(session);\n  if (userId) { ... if (sessionOrg && getWorkspaceOrgId(workspaceId) !== sessionOrg) 404; if (!getMembership(userId, workspaceId)) 403; }\n  -> no users.status read anywhere in the file\norg-service.ts:312-322 setMemberStatus: setUserStatus(userId, status); if (status === 'disabled') revokePendingInvitesForEmail(...)  -> memberships untouched\nmemberships.ts:104-110 capabilitiesForUserInWorkspace: the ONLY status check, applied after mint\nlogin/route.ts:125-126: const primary = listMembershipsForUser(user.id)[0]; signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, ...)\nswitch-workspace/route.test.ts tests: :76 demo, :94 member, :106 no session - no disabled-user case."
+  },
+  {
+    "context": "login-flow",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A lapsing session warns, then re-signs in over the page instead of 'not permitted'",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/api/me/capabilities/route.ts",
+      "app/api/me/capabilities/route.test.ts",
+      "app/features/shell/session/sessionLapse.ts",
+      "app/features/shell/session/sessionLapse.test.ts",
+      "app/features/shell/session/useSessionLapse.ts",
+      "app/features/shell/session/SessionLapseDialog.tsx",
+      "app/features/shared/sharedGet.ts",
+      "app/features/shell/useAttention.ts",
+      "app/features/shell/Workspace.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/app-structure.md"
+    ],
+    "new_files": [
+      "app/api/me/capabilities/route.test.ts",
+      "app/features/shell/session/sessionLapse.ts",
+      "app/features/shell/session/sessionLapse.test.ts",
+      "app/features/shell/session/useSessionLapse.ts",
+      "app/features/shell/session/SessionLapseDialog.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "sessionLapse.phaseAt({passwordMode:false, session:null}, now) -> 'live' at any clock, and nextCheckAt is null (open mode never arms a timer or shows the dialog)",
+      "a user session with expiresAt = now + 9 min -> phase 'expiring' with minutesLeft 9; expiresAt = now + 2 h -> 'live' with nextCheckAt = expiresAt - 10 min; now >= expiresAt -> 'lapsed'",
+      "lapseOnStatus('live', 401) -> 'lapsed'; lapseOnStatus('live', 403) -> 'live' (under-privileged is not a lapse); lapseOnStatus('live', 500) -> 'live'",
+      "resolveReauth(lapsed, fresh): same kind + same userId + same workspaceId -> {action:'resume'} (no navigation, one notifyDataChanged); same userId but the login landed on another team -> {action:'switch', workspaceId: lapsed.workspaceId}; a different userId or kind -> {action:'reload'} (page state belonged to someone else)",
+      "resolveSwitch(status) after that switch: 200 -> 'resume'; 403 or 404 (membership gone meanwhile) -> 'reload' to '/'",
+      "GET /api/me/capabilities with KP_OPERATOR_PASSWORD set and a signed user cookie -> 200 {capabilities, session:{kind:'user', userId, email, workspaceId, expiresAt: <token exp>}}; an op:true cookie -> session.kind 'operator' with email null; KP_OPERATOR_PASSWORD unset -> session null; the payload never carries a password hash or any other member's data",
+      "sharedGetJson on a 401 rejects with an error whose `.status === 401` and whose message is still 'HTTP 401' (existing catch sites unaffected)",
+      "i18n:check passes with the dialog's new keys present in all four catalogs"
+    ],
+    "premise": [
+      "app/_lib/auth/session.ts:19 - SESSION_TTL_MS is 7 days, and the only signSession call sites are the sign-in doors (login, register, invite accept, switch-workspace); nothing re-mints an active session, so every signed-in user's session ends mid-work once a week",
+      "proxy.ts:148-157 - an expired or epoch-revoked cookie on /api/* is answered 401 {error:'Unauthorized'}; a page navigation is redirected to /login?next=, i.e. away from the page",
+      "app/features/hiring/pipeline/candidate/state/useCandidateEdits.ts:48 and :73-75, app/features/library/jds/jdsBuilderLogic.ts:167, app/features/hiring/pipeline/usePipelineBulk.ts:183-184 fold 401 together with 403 into 'notPermitted'/'bulkNotPermitted', whose copy (messages/en.json keys hiring.*.bulkNotPermitted and notPermitted - en.json ~3232 and ~3367, lines drift under concurrent catalog edits) reads 'You don't have permission ... Sign in as an operator to continue.' No control on the page offers that sign-in",
+      "app/features/shared/sharedGet.ts:30-33 - a non-ok response throws `new Error(`HTTP ${r.status}`)`, so the status is lost as a value; app/features/shell/useAttention.ts:45-48 counts it as one more failure and backs off, so the shell's one periodic read sees the lapse and says nothing",
+      "app/api/me/capabilities/route.ts:24-26 returns only {capabilities}; the client never learns when its session expires, although the verified payload carries exp (session.ts:28-31)",
+      "app/features/shell/useCapabilities.ts:18-19 - the shell treats its caller facts as fixed for the document ('cannot change without a full reload'), so the only recovery from a lapse today is leaving the page",
+      "app/login/login-result.ts:224-233 - classifyLoginResult is a pure, tested mapping of the login door's outcomes, reusable for an in-place sign-in; app/api/auth/login/route.ts:125-126 lands a user on their OLDEST team, so an in-place sign-in needs the membership-checked way back that app/api/auth/switch-workspace/route.ts:80-89 already provides"
+    ],
+    "rollback": "Reverts cleanly as a commit series: the session/ folder and the route test are new files; the route change only ADDS a `session` field (no existing consumer reads it); sharedGet's error keeps its message, so the revert is a no-op for every catch site; the catalog keys are append-only and leave with the commit.",
+    "gate": "contract",
+    "runner_up": "Invite preview that knows the invitee is already an active member and offers 'sign in and join' instead of a password form that can only end in 409 already_active (app/api/invite/[token]/route.ts:55-66 never reads user.status; org-service.ts:157) - second because POST /api/org/invites already refuses active members (invites/route.ts:47-51), so only a stale pre-activation invite reaches it.",
+    "technique": "resume-affordances",
+    "body": "## Summary\nThe workspace learns when its session expires and warns ten minutes ahead. When the session lapses (expiry, or a 401 from its own poll), it shows an in-place sign-in dialog over the page. After a successful sign-in it resumes the same page on the same team, switches back if the login landed elsewhere, or reloads if a different person signed in. Nobody is sent to /login and nobody loses the page.\n\n## Description\nA session lives exactly seven days and nothing renews it, so every signed-in user loses theirs mid-work once a week. When that happens the proxy answers the next write with a bare 401. The pipeline, JD builder and bulk surfaces fold that 401 into 'You don't have permission for this action. Sign in as an operator to continue.' The user is blamed for a permission they hold and told to do something the page offers no way to do. The only recovery is to leave the page, which drops its client state. The server already knows the answer in advance: the verified token carries `exp`. The shell's own poll hits the 401 within a minute, but it throws the status away and quietly backs off.\n\nThe card adds `session` facts to the caller's own `/api/me/capabilities` read: kind, userId, own email, workspaceId and expiresAt. A pure `sessionLapse.ts` decides live / expiring / lapsed and how to resume after re-authentication. `useSessionLapse` arms one timer and listens for a 401 from the attention poll, which works once `sharedGetJson` keeps the status. `SessionLapseDialog` posts to the existing login door and reuses `classifyLoginResult`. The email is prefilled for a user; the dialog is password-only for the operator. Open mode never lapses and never shows the dialog.\n\n## Flow\n1. Write sessionLapse.test.ts and route.test.ts first (cases 1-7).\n2. Route: add `session` to GET /api/me/capabilities from currentSession() plus the caller's own users row.\n3. sharedGet: reject with an Error carrying `.status`; useAttention reports a 401 to the lapse store.\n4. sessionLapse.ts (pure) + useSessionLapse.ts (timer, visibility re-check, 401 intake).\n5. SessionLapseDialog.tsx: warning chip at T-10 min ('Stay signed in'), modal at lapse, inline password (email prefilled), then resolveReauth, with switch-workspace or a reload when required; built from recipes, both themes.\n6. Four catalogs in one commit under the shared-surface lock; document the lapse contract in docs/architecture/app-structure.md.\n\n## Expected impact\nThe weekly forced interruption becomes a ten-minute heads-up and a one-field re-entry that keeps the page. The 'not permitted' misdiagnosis stops being the first thing a lapsed user sees. An epoch kill-switch bump (KP_SESSION_EPOCH) now shows every open tab a clear sign-in prompt within one poll, where before it failed silently.\n\n## Evaluation\nClaim: a lapsing or lapsed session is announced and recovered in place, on the same team, and open mode is unaffected.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (sessionLapse.test.ts, app/api/me/capabilities/route.test.ts, a sharedGet status case) + npm run i18n:check; the dialog is verified by hand in both themes.\nResult: pending build.\nGate: contract.",
+    "evidence": "session.ts:19  export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days\nproxy.ts:154-157  if (!session) { if (pathname.startsWith('/api/')) return withCsp(NextResponse.json({ error: 'Unauthorized' }, { status: 401 })); ... url.pathname = '/login' }\nuseCandidateEdits.ts:48  if (res.status === 401 || res.status === 403) throw new Error(t('notPermitted'));\njdsBuilderLogic.ts:167  if (r.status === 401 || r.status === 403) throw new Error(t('notPermitted'));\nusePipelineBulk.ts:184  res.status === 401 || res.status === 403 ? t('bulkNotPermitted') : t('bulkRequestFailed');\nmessages/en.json (key notPermitted, ~3367)  \"notPermitted\": \"You don't have permission for this action. Sign in as an operator to continue.\"\nsharedGet.ts:32  if (!r.ok) throw new Error(`HTTP ${r.status}`);\nuseAttention.ts:45-48  .catch(() => { failures.current += 1; /* keep the previous counts */ });\napp/api/me/capabilities/route.ts:24-26  export async function GET() { return NextResponse.json({ capabilities: await callerCapabilities() }); }\nuseCapabilities.ts:18-19  // Module-scope, not context: the answer cannot change without a full reload\ngrep 'SESSION_EXPIRED|sessionExpired|session-expired' app -> 0 hits (no lapse handling anywhere in the client)."
+  }
+]

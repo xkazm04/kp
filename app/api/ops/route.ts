@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
-import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
+import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
-import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
-import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
-import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
+import { getForeignReceiptCount, getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
+import { collectReadiness } from "@/app/_lib/readiness";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
+import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
+import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
 // the /api/health readiness signals, engine preflight (DATA4), prompt-cache
 // size + expired backlog, cache hit-rate and durations from a bounded tail of
-// analyze.log, Gemini token spend + per-stage timings from pipeline.log,
+// analyze.log, all-provider tokens from llm_usage + per-stage timings from pipeline.log,
 // comms dead-letters, and the in-process schedule counters. Read-only.
 //
 // Unlike /api/health this always answers 200 with the payload — it is a
@@ -32,18 +35,20 @@ import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 // team on the box has. So the counts stay global; the caller now has to earn
 // them. Not a tenancy fix (there is nothing here to scope) — an authz one.
 //
+// "Earn" means HOME ORG (challenge r03 platform-auth-api/A). requireOperator() alone
+// said yes to any signed-in member of ANY org, and a signup-enabled deployment makes
+// every registrant the owner of a fresh org, so the sentence above was not yet true.
+// requireHomeOrgReader() keeps the 401 for no session / demo and answers a coded 403
+// (FORBIDDEN_CAPABILITY, capability "deployment:read") to a member of another org;
+// the password operator, open dev and every home-org seat read exactly as before.
+//
 // Callers already treat a non-200 as "no telemetry" rather than an error
 // (useSpendData drops the engine lines), so a demo session loses the strip
 // instead of seeing a failure it can do nothing about.
-export async function GET() {
-  const denied = await requireOperator();
+export const GET = withSession(async () => {
+  const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
-    const degradedReasons: string[] = [];
-    const seed = getSeedHealth();
-    for (const issue of seed.issues) {
-      if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
-    }
     const tables = coreTableCounts();
     const queue = countActiveTasks();
 
@@ -55,66 +60,65 @@ export async function GET() {
     // "The catalog is empty because its SEED failed to load" is a different thing
     // entirely: a fault someone has to go and fix.
     //
-    // The honest signal for the second one already exists a few lines up, in
-    // getSeedHealth(), and /api/jobs already draws exactly this line for
-    // JOB_SEED_BROKEN (app/api/jobs/route.ts): severity "error", never "missing" —
-    // a seed file that is simply absent is a supported install (a self-hosted box
-    // that ships no demo corpus), not a break. Same rule here so the two surfaces
-    // cannot disagree about whether the same catalog is broken.
+    // The honest signal for the second one already exists in getSeedHealth(), and
+    // /api/jobs already draws exactly this line for JOB_SEED_BROKEN
+    // (app/api/jobs/route.ts): severity "error", never "missing" — a seed file that
+    // is simply absent is a supported install (a self-hosted box that ships no demo
+    // corpus), not a break. app/_lib/readiness.ts applies that rule for both this
+    // route and /api/health, so the two surfaces cannot disagree about whether the
+    // same catalog is broken.
     //
     // `catalog` carries the ordinary state instead, as a fact rather than a
     // verdict, so the strip can say "no jobs yet" without saying "degraded".
     const catalogEmpty = (tables.jobs ?? 0) === 0;
-    const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
-    if (catalogEmpty && jobsSeedFailed) {
-      degradedReasons.push("job catalog is empty because its seed data failed to load");
-    }
 
-    // Decision-config health (/perfect wave 41). /api/health carries the VERDICT for a
-    // monitor; this route is operator-gated in full, so it carries the DETAIL the System
-    // strip renders: which phase, which tier (an org baseline going dark hits every team,
-    // one team's override hits one) and which workspace. An unreadable row means that
-    // workspace's auto-reject rules are not in force while its settings panel shows the
-    // shipped defaults — a silent revert nothing else on this box would report.
+    // Every readiness check (public origin, seeds, catalog-seed, decision-config,
+    // scheduler liveness) runs ONCE, in app/_lib/readiness.ts, which /api/health
+    // calls too — the two inline copies had already drifted (only this route
+    // checked the origin). This route is home-org gated in full, so it carries the
+    // DETAIL: the legacy `degradedReasons` strings (unchanged, and still what `ok`
+    // is judged on) and the coded `findings` the System strip renders in the
+    // reader's language with a fix — which phase and tier of an unreadable decision
+    // config, which seed, how long the clock has been silent.
+    const readiness = collectReadiness({ catalogEmpty: () => catalogEmpty });
+    const degradedReasons = readiness.degradedReasons;
     const configHealth = getDecisionConfigHealth();
-    for (const issue of configHealth.issues) {
-      degradedReasons.push(`decision-config:${issue.phase} unreadable (${issue.scope} ${issue.workspaceId})`);
-    }
-
-    // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
-    // clock heartbeat, judged by age. This is the surface SystemCard's "Healthy"
-    // dot reads, so a wedged automation clock now flips that dot to Degraded and
-    // adds a named reason — the green dot can no longer lie about a dead clock.
-    const beat = ensureDb()
-      .prepare(`SELECT last_tick_at FROM scheduler_heartbeat WHERE id = 'clock'`)
-      .get() as { last_tick_at?: string } | undefined;
-    const lastTickAt = beat?.last_tick_at ?? null;
-    const clock = schedulerLiveness(Date.now(), lastTickAt ? Date.parse(lastTickAt) : null, process.uptime() * 1000);
-    const clockReason = schedulerLivenessReason(clock, lastTickAt);
-    if (clockReason) degradedReasons.push(clockReason);
 
     return NextResponse.json({
       ok: degradedReasons.length === 0,
-      seeds: seed.ok ? "ok" : "degraded",
-      config: configHealth.ok ? "ok" : "degraded",
+      seeds: readiness.seedOk ? "ok" : "degraded",
+      config: readiness.configOk ? "ok" : "degraded",
       // A STATE, not a verdict (see the note above): "empty" is what a new install
       // looks like, and the strip renders it as a neutral fact.
       catalog: catalogEmpty ? "empty" : "ok",
       // Named sub-check so the panel says WHICH thing is broken, not just "unhealthy".
-      clock,
+      clock: readiness.clock,
       degradedReasons,
+      // Coded twins of `degradedReasons` (app/_lib/readiness.ts): code, severity,
+      // params and remedy, so the strip can localize each and offer its fix.
+      findings: readiness.findings,
       configIssues: configHealth.issues,
       tables,
       queue,
       engines: engineAvailability(),
       promptCache: promptCacheStats(),
       analyze: analyzeTelemetry(),
-      engine: engineTelemetry(),
+      engine: engineTelemetry(aggregateLlmUsage(7)),
       comms: commsTelemetry(),
+      // Structured warnings were written but had no read surface. The bounded
+      // tail uses the same log directory as opsLog and stays operator-only here.
+      opsWarnings: tailJsonl("ops-warn.log"),
       schedule: {
         reconcileFailures: getScheduleReconcileCount(),
         noSlotStalls: getScheduleNoSlotsCount(),
       },
+      afterResponseFailures: getAfterResponseFailureCount(),
+      // Bounce receipts naming no ref in this install: filed into no tenant, so this
+      // per-process count is the only place a relay's wholesale ref drift shows.
+      foreignReceipts: getForeignReceiptCount(),
+      // Which door is refusing: the in-process limiter's refusals per key FAMILY (the
+      // prefix before the first ':'), never a token or client address.
+      rateLimitRefusals: rateLimitRefusalStats(),
     });
   } catch (error) {
     // The thrown message here is the WORST kind to forward: this payload is built
@@ -124,4 +128,4 @@ export async function GET() {
     // strip renders through useErrorMessage in the reader's language.
     return safeJsonError(error, "api:ops", "OPS_STATUS_FAILED");
   }
-}
+});

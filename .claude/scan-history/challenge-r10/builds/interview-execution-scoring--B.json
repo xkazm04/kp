@@ -1,0 +1,26 @@
+{
+  "card": "interview-execution-scoring/B",
+  "title": "A finished-but-unscored interview shows on Schedule with Re-score",
+  "status": "landed",
+  "base": "b0dc5155",
+  "shas": ["c4c1d320", "3b564056", "440984df"],
+  "tests_added": [
+    "app/_lib/interview-scoring-state.test.ts",
+    "app/api/interview/sessions/[id]/rescore/route.test.ts",
+    "app/features/hiring/schedule/scheduleTabDerived.test.ts",
+    "app/api/rate-limit-contract.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 11,
+  "deviations_from_card": "messages/*.json updated in working tree across 4 locales (en, cs, de, fr) for i18n parity check, kept uncommitted to protect foreign working tree edits.",
+  "notes": "Added pure interviewScoringState classifier with 5min grace window. Extended interviewStatusByEntries with hasScorecard and mode, and attachInterviewScorecard with requireUnscored CAS. Implemented operator-gated, session-rate-limited POST /api/interview/sessions/[id]/rescore calling slot A's finalizeCandidateInterviewScoring. Surface unscored and scoring states on Schedule tab Interviewed list with amber chip and Re-score action button, and in ScheduleInterviewTranscriptModal with notice banner and Re-score button. All 8 acceptance criteria met."
+}

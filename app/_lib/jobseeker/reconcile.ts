@@ -7,7 +7,9 @@
 // make a run honest: a `blocked` fetch ANYWHERE stops the source and pauses it (a
 // denial is a relationship signal, not a retry candidate); a `collapsed` shape pauses
 // it too; and postings are marked absent ONLY after a complete, successful pass — a
-// truncated or failed run says nothing about who is gone.
+// truncated or failed run says nothing about who is gone. "Truncated" includes reaching
+// maxRefs and running out of detail budget; "complete" excludes a pass where some
+// detail page could not be read (an outage, not a 404).
 
 import type { RawPosting, SourceRunOutcome, SourceRunSummary, JobseekerSource, PauseReason } from "./types";
 import { AdapterCollapsed, FetchHalt, type AdapterContext, type PostingRef, type SourceAdapter } from "./adapters/types";
@@ -33,6 +35,10 @@ export type ReconcileDeps = {
   recordSourceRun(sourceId: string, outcome: SourceRunOutcome, at: string): void;
   pauseSource(sourceId: string, reason: PauseReason): void;
   now?: () => string;
+  /** Detail progress for the caller's live line: `done` of the `total` refs this run will
+   *  read (the ref list capped by the detail budget), called once before the first detail
+   *  and after each one. Optional; a throw from it is the caller's bug, not the source's. */
+  onDetailProgress?: (done: number, total: number) => void;
 };
 
 function haltToSummary(halt: FetchHalt): { outcome: SourceRunOutcome; reason: ReconcileReason; pause: PauseReason | null } {
@@ -58,22 +64,45 @@ export async function reconcileSource(
 ): Promise<SourceRunSummary> {
   const now = deps.now ?? (() => new Date().toISOString());
   const startedAt = now();
-  const summary: SourceRunSummary = { sourceId: source.id, outcome: "succeeded", new: 0, changed: 0, unchanged: 0, absent: 0, reason: null };
+  const summary: SourceRunSummary = { sourceId: source.id, outcome: "succeeded", new: 0, changed: 0, unchanged: 0, absent: 0, reason: null, truncated: false };
   let detailFetches = 0;
   let truncated = false;
   const finish = (outcome: SourceRunOutcome, reason: ReconcileReason | null, pause: PauseReason | null): SourceRunSummary => {
     summary.outcome = outcome;
     summary.reason = reason;
+    // Said on the record, not only in the log: a capped pass read part of the source.
+    summary.truncated = truncated;
     if (pause) deps.pauseSource(source.id, pause);
     deps.recordSourceRun(source.id, outcome, now());
     return summary;
   };
+  // The run's own context: an adapter reports a posting it could not read (a detail
+  // outage) through `incomplete`, and that alone voids the absence measurement.
+  let incomplete = false;
+  const runCtx: AdapterContext = {
+    ...ctx,
+    incomplete: (reason) => {
+      if (!incomplete) ctx.log({ level: "info", code: "pass_incomplete", detail: reason });
+      incomplete = true;
+      ctx.incomplete?.(reason);
+    },
+  };
   try {
     const refs: PostingRef[] = [];
-    for await (const ref of adapter.discover(ctx)) {
+    for await (const ref of adapter.discover(runCtx)) {
       refs.push(ref);
       if (refs.length >= ctx.limits.maxRefs) break;
     }
+    // Reaching the cap is truncation whoever stopped: reconcile's break above, or an
+    // adapter that honours maxRefs itself and ends its iterator at exactly the cap.
+    // Either way refs past it were never seen, so they must not be called gone.
+    if (refs.length >= ctx.limits.maxRefs) {
+      truncated = true;
+      ctx.log({ level: "info", code: "ref_cap_reached", detail: `${ctx.limits.maxRefs} refs read; absence not measured this run` });
+    }
+    const planned = adapter.detailFetches ? Math.min(refs.length, ctx.limits.maxDetailFetches) : refs.length;
+    let read = 0;
+    deps.onDetailProgress?.(0, planned);
     for (const ref of refs) {
       if (adapter.detailFetches) {
         if (detailFetches >= ctx.limits.maxDetailFetches) {
@@ -83,13 +112,14 @@ export async function reconcileSource(
         }
         detailFetches++;
       }
-      const raw = await adapter.detail(ref, ctx);
+      const raw = await adapter.detail(ref, runCtx);
+      deps.onDetailProgress?.(++read, planned);
       if (!raw) continue;
       const seenAt = now();
       const { outcome } = deps.upsertPosting(source.id, raw, seenAt);
       summary[outcome] += 1;
     }
-    if (!truncated) {
+    if (!truncated && !incomplete) {
       summary.absent = deps.markAbsent(source.id, startedAt);
     }
     return finish("succeeded", null, null);

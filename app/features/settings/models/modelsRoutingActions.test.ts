@@ -89,16 +89,22 @@ test("a network throw resolves to the fallback rather than escaping the wrapper"
 
 test("resetRoutingPin DELETEs the use case and returns the fresh table", async () => {
   const calls = stubFetch(200, { ok: true, removed: true, rows: [] });
-  const result = await resetRoutingPin("match_reasoning", "fallback", errMsg);
+  const result = await resetRoutingPin("match_reasoning", ROW.updatedAt, "fallback", errMsg);
   assert.equal(calls[0].init.method, "DELETE");
-  assert.deepEqual(sentBody(calls[0]), { useCase: "match_reasoning" });
+  assert.deepEqual(sentBody(calls[0]), { useCase: "match_reasoning", expectedUpdatedAt: ROW.updatedAt });
   assert.equal(result.ok, true);
   assert.deepEqual(result.ok === true && result.rows, []);
 });
 
 test("a refused reset resolves by code", async () => {
   stubFetch(403, { error: "nope", code: "MODEL_ADMIN_FORBIDDEN" });
-  const result = await resetRoutingPin("match_reasoning", "fallback", errMsg);
+  const result = await resetRoutingPin("match_reasoning", ROW.updatedAt, "fallback", errMsg);
   assert.equal(result.ok, false);
   assert.equal(result.ok === false && result.message, "resolved:MODEL_ADMIN_FORBIDDEN");
+});
+
+test("a stale reset returns the current routing rows for the panel to reload", async () => {
+  stubFetch(409, { code: "MODEL_ROUTING_STALE", rows: [ROW] });
+  const result = await resetRoutingPin("match_reasoning", "old", "fallback", errMsg);
+  assert.deepEqual(result, { ok: false, message: "resolved:MODEL_ROUTING_STALE", rows: [ROW] });
 });

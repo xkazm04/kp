@@ -31,22 +31,27 @@
 // (interview-invite.ts) is the same door POST /api/interview/create goes through,
 // so the board's manual button and this hook share the live-call guard, the
 // billing reservation, the revoke-then-create reissue semantics and the truthful
-// delivery claim.
+// delivery claim. It is reached through a BOOT-REGISTERED seam
+// (stage-hooks-invite.ts, registered by late-bound-boot.ts from
+// instrumentation-node.ts) rather than a static import: db/pipeline.ts reaches this
+// module, db/pipeline.ts is on nearly every route, and a static edge put the whole
+// mint (grounding build, kit pin, agenda, director brief) on all of their compiles.
+// An unregistered door throws inside the try below, so it lands where every other
+// mint failure lands: the move stands, the candidate is parked for a human, the log
+// names the missing registration.
 
 import { afterResponse } from "./after-response";
 import { meterGate } from "./billing/enforce";
-import { candidateRecipient } from "./comms-dispatch";
-import { isDeliverableAddress } from "./comms-recipient";
-import { planStep } from "./decision-config-schema";
+import { entryContactability } from "./comms-contactability";
 import { getDecisionConfigVersion } from "./decision-config-store";
 import { getPipelineEntry, setApproval } from "./db/pipeline";
 import { latestInterviewByEntry } from "./db/interviews";
 import { listPipelineEventsForEntry } from "./db/pipeline-events";
 import { getInterviewPlan } from "./interview-plan";
 import { GROUNDED_DEFAULT_MIN } from "./interview-duration.mjs";
-import { mintAndInviteVoiceScreen } from "./interview-invite";
+import { stageHookInvite } from "./stage-hooks-invite";
 import { getPipelineAxis } from "./pipeline-axis-server";
-import { stageHasRole } from "./pipeline-stages";
+import { arrivalBranch, resolveInterviewGate } from "./pipeline-arrival-plan";
 import { runHomeworkArrival, type HomeworkArrivalOutcome } from "./stage-hooks-homework";
 import { scheduleRoleFillHook } from "./stage-hooks-role-fill";
 import { isTerminalEntryStatus } from "./pipeline-status";
@@ -97,7 +102,7 @@ const DEFAULT_PROPOSED_SLOT = "Tue 14:00";
 
 export type StageEnteredOutcome =
   /** The hook does not govern this arrival (wrong role, no AI round, stale, closed). */
-  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "stage_moved" | "not_interview_role" | "no_ai_round" }
+  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "stage_moved" | "not_interview_role" | "no_ai_round" | "agent_population" }
   /** The arrival was a `homework` column; the work-sample hook answered it. */
   | HomeworkArrivalOutcome
   /** An invite already exists for this (entry, stage) — the idempotence guard. */
@@ -107,7 +112,7 @@ export type StageEnteredOutcome =
   /** Minted and dispatched; `delivery` is the outbox's real claim. */
   | { outcome: "invited"; delivery: "sent" | "queued" | "failed"; token: string }
   /** Nothing was minted; the candidate was parked for a human and the reason logged. */
-  | { outcome: "failed"; reason: "unaddressable" | "billing" | "call_in_progress" | "error" };
+  | { outcome: "failed"; reason: "unaddressable" | "suppressed" | "billing" | "call_in_progress" | "error" };
 
 export type StageEnteredInput = {
   entryId: string;
@@ -150,7 +155,7 @@ export function scheduleStageEnteredHook(input: StageEnteredInput): void {
  * owner should decide whether to keep it:
  *
  *   The shipped default plan (`INTERVIEW_PLAN_DEFAULT`) gates its one AI interview
- *   round as "human", and the plan editor (`PipelineStepPolicy.tsx`) paints an
+ *   round as "human", and the plan editor (`policyRows` in settings/hiring/kit/hiringKitModel.ts) paints an
  *   untouched step as "human" for the same reason. But the owner's instruction for
  *   this hook is "hold when human, BY DEFAULT set as auto/AI step" — an AI step
  *   nobody has configured should run unattended.
@@ -169,8 +174,12 @@ export function effectiveInterviewGate(
   step: { gate: "auto" | "human" },
   workspaceId: string
 ): "auto" | "human" {
-  const saved = getDecisionConfigVersion("interviewPlan", workspaceId) !== null;
-  return saved ? step.gate : "auto";
+  return resolveInterviewGate(step, interviewPlanSaved(workspaceId));
+}
+
+/** Whether this workspace has EVER saved a hiring plan — the discriminator above. */
+export function interviewPlanSaved(workspaceId: string): boolean {
+  return getDecisionConfigVersion("interviewPlan", workspaceId) !== null;
 }
 
 /**
@@ -206,17 +215,25 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     // same behaviour. A `homework` column gets the candidate their assignment — see
     // stage-hooks-homework.ts, which holds the same three rules this module states and
     // likewise introduces no pipeline event kind of its own.
-    if (stageHasRole(stage, "homework", axis)) {
+    //
+    // blast-radius-computation (challenge-r06): the branch is DECIDED by
+    // `arrivalBranch` (pipeline-arrival-plan.ts), the same planner the board's bulk
+    // move previews with, so the preview can never describe a hook this is not.
+    const branch = arrivalBranch(stage, axis, getInterviewPlan(workspaceId), interviewPlanSaved(workspaceId));
+    if (branch === "homework") {
       return runHomeworkArrival(entry, stage, workspaceId, { origin: input.origin ?? null });
     }
 
-    if (!stageHasRole(stage, "interview", axis)) return { outcome: "skipped", reason: "not_interview_role" };
+    // A terminal column is not an interview column either (a hire arrives there through
+    // the offer door; the role-fill hook, scheduled beside this one, owns that arrival).
+    if (branch === "not_interview_role" || branch === "refused_terminal") {
+      return { outcome: "skipped", reason: "not_interview_role" };
+    }
 
     // …and is the round HERE run by the AI? A column with no step, or whose first
     // round is a human conversation, is somebody else's job: a person books it on
     // the Schedule tab's calendar and no link is minted.
-    const step = planStep(getInterviewPlan(workspaceId), stage);
-    if (!step || step.rounds[0]?.kind !== "ai") return { outcome: "skipped", reason: "no_ai_round" };
+    if (branch === "no_ai_round") return { outcome: "skipped", reason: "no_ai_round" };
 
     // IDEMPOTENCE, before any spend — both halves, because they catch different
     // races. The EVENT half catches an invite that already went out while the
@@ -234,15 +251,26 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
       return { outcome: "already_invited" };
     }
 
-    // Unaddressable candidates are skipped BEFORE the mint, not after: minting
+    // Uncontactable candidates are skipped BEFORE the mint, not after: minting
     // burns an LLM grounding build and reserves voice minutes for a link that has
-    // no way of reaching anybody. Same predicate the comms layer itself uses, so
-    // "unaddressable" means here exactly what it means in the Outbox.
-    if (!isDeliverableAddress(candidateRecipient(entry))) {
-      return failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");
+    // no way of reaching anybody — or that we may no longer send. The verdict asks
+    // THE send gate (commsSendSuppression) the way sendComm will, so "suppressed"
+    // (consent lapsed but not yet swept, or erased) and "unaddressable" mean here
+    // exactly what they mean in the Outbox. Both are PARKED, never silently skipped:
+    // the Schedule docket shows the candidate, and a human who then tries the single
+    // scheduling-invite door is refused with the same COMMS_SUPPRESSED code.
+    const contactable = entryContactability(entry, "interview_invite");
+    if (!contactable.ok) {
+      // An AI agent has no inbox by design: that is not a missing address a person can
+      // fix, so nothing is parked in the Schedule docket (the role-fill hook skips the
+      // same population under the same reason).
+      if (contactable.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
+      return contactable.code
+        ? failOpenToTheHumanQueue(entry, workspaceId, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
+        : failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");
     }
 
-    if (effectiveInterviewGate(step, workspaceId) === "human") {
+    if (branch === "ai_invite_held") {
       // HELD. No link, no mail, no spend — the candidate is parked on the existing
       // `calendar` gate, which IS the Schedule tab's AI-round docket: they appear
       // under "Awaiting link", beside the button that calls this very mint door.
@@ -269,7 +297,7 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
       return failOpenToTheHumanQueue(entry, workspaceId, "billing", "the interview-minutes allowance is exhausted");
     }
 
-    const minted = await mintAndInviteVoiceScreen({
+    const minted = await stageHookInvite()({
       entryId,
       workspaceId,
       origin: input.origin ?? null,
@@ -278,9 +306,16 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     });
 
     if (!minted.ok) {
-      return minted.refusal === "INTERVIEW_CALL_IN_PROGRESS"
-        ? failOpenToTheHumanQueue(entry, workspaceId, "call_in_progress", "the candidate is already on a live call")
-        : failOpenToTheHumanQueue(entry, workspaceId, "billing", `the ${minted.quota.meter} allowance is exhausted on the ${minted.quota.plan} plan`);
+      if (minted.refusal === "INTERVIEW_CALL_IN_PROGRESS") {
+        return failOpenToTheHumanQueue(entry, workspaceId, "call_in_progress", "the candidate is already on a live call");
+      }
+      // The mint door now asks the send gate itself (8b293dc05). The arrival check above
+      // already parks a suppressed candidate, so this only fires when contactability
+      // changed between the two reads — park it the same way, never as a billing miss.
+      if (minted.refusal === "COMMS_SUPPRESSED") {
+        return failOpenToTheHumanQueue(entry, workspaceId, "suppressed", "the send gate refused the invite at mint time");
+      }
+      return failOpenToTheHumanQueue(entry, workspaceId, "billing", `the ${minted.quota.meter} allowance is exhausted on the ${minted.quota.plan} plan`);
     }
 
     // The invite's own ledger row was written by `dispatchInterviewInvite`, carrying
@@ -318,7 +353,7 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
 function failOpenToTheHumanQueue(
   entry: { id: string; approvalKind: string | null },
   workspaceId: string,
-  reason: "unaddressable" | "billing" | "call_in_progress" | "error",
+  reason: "unaddressable" | "suppressed" | "billing" | "call_in_progress" | "error",
   why: string
 ): StageEnteredOutcome {
   console.warn(`[stage-hooks] ${entry.id}: AI interview link not minted (${reason}) — ${why}. Parked for a human.`);

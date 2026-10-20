@@ -95,14 +95,14 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
         type="button"
         title={t("tokenLink.copy")}
         onClick={() => void link.copy()}
-        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral-ink"
       >
         {link.copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
       <button
         type="button"
         onClick={() => setConfirmOpen(true)}
-        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral-ink"
         title={t("tokenLink.openAsCandidate")}
       >
         <ExternalLink size={14} />

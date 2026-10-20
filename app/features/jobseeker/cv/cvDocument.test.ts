@@ -1,0 +1,272 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { buildCvDocument, bulletsOf, cvLanguageOf, findContacts, formatDates, parseRoleTitle, polishTerms, type CvImprovement } from "./cvDocument";
+
+// A SYNTHETIC two-column CV as the extractor hands it over: the main column first, the
+// sidebar's own ALL-CAPS skill groups after it, shouted header, line-wrapped bullets
+// with an open hyphen, sloppy technology spellings and one misspelling. Nobody real.
+
+const TEXT = [
+  "JANA NOVÁKOVÁ",
+  "DATA ENGINEER & ANALYST",
+  "+420 777 123 456 jana.novakova@example.invalid github.com/jnovakova",
+  "PROFILE",
+  "Data engineer building batch and streaming pipelines for retail analytics.",
+  "WORK EXPERIENCE",
+  "Acme Retail, a.s. 4/2022 - 9/2025",
+  "Data Engineer",
+  "Pipeline design: nodejs services feeding postgres and mongo db through",
+  "kafka. responsible for the rest api of the reporting layer; batch-to-",
+  "stream migration. built dashboards for store managers.",
+  "",
+  "PIPELINES",
+  "Postgres (senior)",
+  "Kafka (medior)",
+  "python/js scripting",
+  "Continous delivery",
+  "EDUCATION 2014 - 2019",
+  "Czech Technical University",
+  "Informatics",
+].join("\n");
+
+const PROFILE = {
+  displayName: "JANA NOVÁKOVÁ",
+  languages: ["Czech", "English"],
+  educationDetail: "Informatics",
+  skillClaims: [{ skill: "postgres", level: "strong" }, { skill: "kafka", level: "working" }],
+  evidence: [
+    {
+      kind: "job",
+      title: "Data Engineer — Acme Retail, a.s. (4/2022 - 9/2025)",
+      text: "Pipeline design: nodejs services feeding postgres and mongo db through kafka. responsible for the rest api of the reporting layer; batch-to- stream migration. built dashboards for store managers.",
+    },
+  ],
+};
+
+const doc = buildCvDocument({ profile: PROFILE, preferences: { targetTitles: ["Platform Engineer"] }, cvSourceText: TEXT });
+
+test("the shouted header becomes a name and the CV's own headline, not the target title", () => {
+  assert.equal(doc.name, "Jana Nováková");
+  assert.equal(doc.headline, "Data Engineer & Analyst");
+  assert.equal(doc.lang, "en");
+});
+
+test("contacts are read from the header only", () => {
+  assert.deepEqual(
+    doc.contacts.map((c) => c.kind),
+    ["email", "phone", "github"]
+  );
+  assert.equal(doc.contacts.find((c) => c.kind === "github")!.href, "https://github.com/jnovakova");
+  // A date range further down is never a phone.
+  assert.deepEqual(findContacts("NAME\nEXPERIENCE\nRole 2019 - 2020 2021 - 2022"), []);
+});
+
+test("a role reads as role, organisation and typographic dates", () => {
+  assert.equal(doc.experience.length, 1);
+  const role = doc.experience[0]!;
+  assert.equal(role.role, "Data Engineer");
+  assert.equal(role.org, "Acme Retail, a.s.");
+  assert.equal(role.dates, "04/2022 – 09/2025");
+});
+
+test("bullets: lead phrase, canonical terms, rejoined hyphen, capitalised - the opener stays the seeker's", () => {
+  const [first, second] = doc.experience[0]!.bullets;
+  assert.deepEqual(first, { lead: "Pipeline design", text: "Node.js services feeding PostgreSQL and MongoDB through Kafka.", emphasis: [] });
+  assert.equal(second!.lead, null);
+  // "Responsible for" is never raised to "Owned" (a verb that raises the claim is the owner's choice).
+  assert.equal(second!.text, "Responsible for the REST API of the reporting layer; batch-to-stream migration.");
+  assert.equal(doc.experience[0]!.bullets[2]!.text, "Built dashboards for store managers.");
+});
+
+test("the CV's own skill groups survive with their level WORDS, spellings polished, evidenced first", () => {
+  assert.equal(doc.skills.length, 1);
+  assert.equal(doc.skills[0]!.title, "Pipelines");
+  assert.deepEqual(doc.skills[0]!.items, [
+    { name: "PostgreSQL", level: "senior" },
+    { name: "Kafka", level: "medior" },
+    { name: "Python/JS scripting", level: null },
+    { name: "Continuous delivery", level: null },
+  ]);
+  // Listed but used in no role: asked about, not removed.
+  assert.deepEqual(
+    doc.questions.filter((q) => q.kind === "listed_only").map((q) => q.text),
+    ["Python/JS scripting", "Continuous delivery"]
+  );
+});
+
+test("education comes from its block, with its dates", () => {
+  assert.deepEqual(doc.education, [{ title: "Czech Technical University", detail: "Informatics", dates: "2014 – 2019" }]);
+});
+
+test("every change is listed, once, and nothing is invented", () => {
+  const kinds = new Set(doc.improvements.map((i) => i.kind));
+  for (const k of ["term", "spelling", "hyphen", "capital"] as const) assert.ok(kinds.has(k), k);
+  assert.ok(doc.improvements.some((i) => i.before === "Continous" && i.after === "Continuous"));
+  const keys = doc.improvements.map((i) => `${i.kind}:${i.before}->${i.after}`);
+  assert.equal(new Set(keys).size, keys.length);
+  // No number appears in the document that is not in the source.
+  const numbers = JSON.stringify({ ...doc, improvements: [] }).match(/\d{3,}/g) ?? [];
+  for (const n of numbers) assert.ok(TEXT.replace(/\s/g, "").includes(n) || n.startsWith("420"), `invented number ${n}`);
+});
+
+test("prose words that are also acronyms stay prose", () => {
+  const log: CvImprovement[] = [];
+  assert.equal(polishTerms("the rest of the team; Qa and soap opera", log), "the rest of the team; Qa and soap opera");
+  assert.equal(polishTerms("Rest/Graph design, soap API, llms and apis", log), "REST/Graph design, SOAP API, LLMs and APIs");
+  // The ".js" of a framework's name is part of the name, not a bare "js".
+  assert.equal(polishTerms("NextJS/React, UIs in (Next.js) and python/js", log), "Next.js/React, UIs in (Next.js) and Python/JS");
+});
+
+test("no groups in the text: the profile's claims, strong first, one localised group", () => {
+  const bare = buildCvDocument({ profile: PROFILE, preferences: { targetTitles: [] }, cvSourceText: "Jana\nSome line" });
+  assert.equal(bare.skills.length, 1);
+  assert.equal(bare.skills[0]!.title, null);
+  assert.deepEqual(bare.skills[0]!.items.map((i) => i.name), ["PostgreSQL", "Kafka"]);
+});
+
+test("helpers", () => {
+  assert.deepEqual(parseRoleTitle("Analyst at Bank (2019 - 2020)"), { role: "Analyst", org: "Bank", dates: "2019 - 2020" });
+  assert.equal(formatDates("7/2026 - present"), "07/2026 – present");
+  assert.equal(cvLanguageOf("Vývoj a správa aplikací v jazyce Java pro klienty se zaměřením na bankovnictví"), "cs");
+  assert.deepEqual(bulletsOf("", []), []);
+});
+
+test("a CV with no headline gets none: a target title never stands in for a held one", () => {
+  const noHead = buildCvDocument({ profile: { displayName: "Jana" }, preferences: { targetTitles: ["AI Engineer"] }, cvSourceText: "Jana\njana@example.invalid" });
+  assert.equal(noHead.headline, null);
+});
+
+test("an AI draft's paraphrase gives way to the CV's own lines, dates included, per employer mention", () => {
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "DATA ENGINEER",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 4/2022 - 9/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics in TypeScript.",
+    "Beta Bank, a.s. 2019 - 2021",
+    "Analyst",
+    "Requirements for ATM software.",
+    "Acme Retail, a.s. 2015 - 2018",
+    "Junior Analyst",
+    "Reporting in SQL.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer at Acme Retail, a.s.", text: "Built streaming pipelines." },
+      { kind: "job", title: "Analyst at Beta Bank, a.s.", text: "Worked on ATMs." },
+      { kind: "job", title: "Junior Analyst at Acme Retail, a.s.", text: "Did reports." },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.equal(doc.headline, "Data Engineer", "the shouted name is never read back as the headline");
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.dates, r.bullets.map((b) => b.text).join(" ")]),
+    [
+      ["Data Engineer", "04/2022 – 09/2025", "Kafka streaming for store analytics in TypeScript."],
+      ["Analyst", "2019 – 2021", "Requirements for ATM software."],
+      ["Junior Analyst", "2015 – 2018", "Reporting in SQL."],
+    ]
+  );
+});
+
+test("a draft titled 'Role, Employer' in another language still gets the CV's own lines and dates", () => {
+  // A real import: the CV in English, the AI draft's titles "Role, Employer" and its text a
+  // Czech paraphrase. The sheet must print the CV's words and dates, not the paraphrase.
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "DATA ENGINEER",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 4/2022 - 9/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics in TypeScript.",
+    "Freelancer 01/2021 - 03/2022",
+    "Analytics Consultant",
+    "Dashboards for two retail chains.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer, Acme Retail, a.s.", text: "Streamování dat pro analytiku prodejen." },
+      { kind: "job", title: "Analytics Consultant, Freelancer (Beta Chain, Inc.)", text: "Přehledy pro dva řetězce." },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.org, r.dates, r.bullets.map((b) => b.text).join(" ")]),
+    [
+      ["Data Engineer", "Acme Retail, a.s.", "04/2022 – 09/2025", "Kafka streaming for store analytics in TypeScript."],
+      ["Analytics Consultant", "Freelancer (Beta Chain, Inc.)", "01/2021 – 03/2022", "Dashboards for two retail chains."],
+    ]
+  );
+});
+
+test("a CV's unpunctuated list lines stay separate bullets, and a line opening with the role's title drops it", () => {
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "WORK EXPERIENCE",
+    "2021 - 2022 Beta Labs, s.r.o.",
+    "Data Analyst (SQL/Graph API design)",
+    "Frontend development (React - reporting portals)",
+    "2020 Gamma Legal, s.r.o.",
+    "QA Engineer (SOAP, Cypress) - Legal web app",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Analyst & Frontend Developer at Beta Labs, s.r.o.", text: "x" },
+      { kind: "job", title: "QA Engineer at Gamma Legal, s.r.o.", text: "y" },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => r.bullets.map((b) => b.text)),
+    [["Data Analyst (SQL/Graph API design)", "Frontend development (React - reporting portals)"], ["Legal web app (SOAP, Cypress)"]]
+  );
+  assert.ok(doc.improvements.some((i) => i.kind === "repeat" && i.after === "Legal web app (SOAP, Cypress)"));
+  // A wrapped sentence still rejoins: a lowercase continuation is never a new item.
+  assert.deepEqual(bulletsOf("Solution design across interfaces (REST,\nKafka) and data layers.", []).map((b) => b.text), ["Solution design across interfaces (REST, Kafka) and data layers."]);
+});
+
+test("the seeker's own languages from /me win over the CV's Languages block and the profile list, levels printed", () => {
+  const text = ["JANE DOE", "WORK EXPERIENCE", "Acme Retail Ltd 2022 - 2025", "Data Engineer", "Built the data pipelines for the stores.", "LANGUAGES", "Czech (native), English (B1)"].join("\n");
+  const profile = { displayName: "Jane Doe", languages: ["Czech", "English"] };
+  // No statement of their own: the CV's block wins over the read profile list.
+  assert.deepEqual(buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text }).languages, ["Czech – native", "English – B1"]);
+  assert.deepEqual(buildCvDocument({ profile, preferences: { targetTitles: [], languages: [] }, cvSourceText: text }).languages, ["Czech – native", "English – B1"]);
+  // Their own list replaces both, in their order, with the CEFR code and the native word.
+  const own = buildCvDocument({ profile, preferences: { targetTitles: [], languages: ["English (C1)", "Czech (native)", "German (B2)", "Polish"] }, cvSourceText: text });
+  assert.deepEqual(own.languages, ["English – C1", "Czech – native", "German – B2", "Polish"]);
+});
+
+test("'Role for Employer, Inc.' names the employer whole, and dates set two lines above it are found", () => {
+  // A real draft's shape: the legal form after the comma belongs to the employer's name,
+  // and the CV sets the dates on their own line above the title.
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 04/2022 - 09/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics.",
+    "Freelancer 03/2021 - 03/2022",
+    "Automation Specialist",
+    "Beta Chain, Inc. - Process automation:",
+    "Multi-stage workflows for internal reporting.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer at Acme Retail, a.s.", text: "x" },
+      { kind: "job", title: "Automation Specialist (Freelancer) for Beta Chain, Inc.", text: "y" },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.org, r.dates]),
+    [
+      ["Data Engineer", "Acme Retail, a.s.", "04/2022 – 09/2025"],
+      ["Automation Specialist (Freelancer)", "Beta Chain, Inc.", "03/2021 – 03/2022"],
+    ]
+  );
+});

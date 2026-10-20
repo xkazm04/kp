@@ -47,3 +47,16 @@ test("a missing scorecardAt stays non-stale on that axis", () => {
   assert.equal(isScoreStale("2026-01-01T00:00:00Z", null, null), false);
   assert.equal(isScoreStale("2026-01-01T00:00:00Z", null, undefined), false);
 });
+
+test("offsets and fractional seconds compare as instants, not strings", () => {
+  assert.equal(isScoreStale("2026-01-01T01:30:00+02:00", "2026-01-01T00:00:00Z"), true);
+  assert.equal(isScoreStale("2026-01-01T01:30:00+02:00", "2025-12-31T23:00:00Z"), false);
+  assert.equal(isScoreStale("2026-01-01T00:00:00.500Z", null, "2026-01-01T00:00:01Z"), true);
+  assert.equal(isScoreStale("2026-01-01T00:00:00.500Z", "2026-01-01T00:00:00Z"), false);
+});
+
+test("invalid dates cannot establish a stale score", () => {
+  assert.equal(isScoreStale("bad", "2026-01-01T00:00:00Z"), false);
+  assert.equal(isScoreStale("2026-01-01T00:00:00Z", "bad"), false);
+  assert.equal(isScoreStale("2026-01-01T00:00:00Z", "bad", "2026-02-01T00:00:00Z"), true);
+});

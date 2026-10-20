@@ -100,6 +100,18 @@ class ProtectedLanguageGuardTest(unittest.TestCase):
         self.assertIsNone(automation.protected_language("We manage a multi-language team"))
         self.assertIsNone(automation.protected_language(None, "", 0))
 
+    def test_every_drafting_locale_is_guarded_including_inflected_forms(self):
+        # The nominative-only stem let "věku" through; German and French had no term at all.
+        for text in (
+            "Vzhledem k Vašemu věku", "Kandidát ve věku 55 let", "Rodinné poměry", "Kandidátka je těhotná",
+            "Zdravotní stav kandidáta", "Národnost kandidáta",
+            "Aufgrund Ihres Alters", "Sie sind schwanger", "Die Kinderbetreuung",
+            "En raison de votre âge", "Vous êtes enceinte", "Trop âgé pour l'équipe",
+        ):
+            self.assertIsNotNone(automation.protected_language(text), text)
+        # A stem that is also an English word must not turn ordinary prose into a discard.
+        self.assertIsNone(automation.protected_language("An alternative approach to the alteration of a schema"))
+
     def test_hostile_rejection_draft_is_discarded_whole(self):
         p = FaultProvider("protected_language")
         out, source = automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=p)

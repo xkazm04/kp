@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
-import { countJobseekerPostingsNewSince, listJobseekerPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
+import { countJobseekerPostingsNewSince, listJobseekerPostings, POSTINGS_PAGE_MAX, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
 import { getFeedAnchor, getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { isPostingStatus, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // GET /api/jobseeker/postings?status=&minTotal=&sourceId=&sort=total|posted|seen&cursor=&limit=
+// (`status=all` = every row, decided and gone included — what the /me sieve draws)
 // → { rows: JobseekerPostingSummary[], nextCursor, newSince } — the seeker's feed (WP4c). The
 // projection is the store's summary (no body, no JSON-LD, no full match payload);
 // paging is keyset (an opaque cursor), so a scan writing between two pages never
@@ -21,9 +22,10 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // options offered" refusal; the `field` rides beside it.
 //
 // Operator-gated by the proxy AND re-verified here; the limiter is the real bound in
-// open mode. 120/10min per IP — a feed page is a read, paged at 50.
+// open mode. 120/10min per IP — a feed page is a read, paged at 50 by default and at
+// most POSTINGS_PAGE_MAX (the flow reads its whole dataset at load in pages of that size).
 
-const POSTINGS_MAX_LIMIT = 100;
+const POSTINGS_MAX_LIMIT = POSTINGS_PAGE_MAX;
 const POSTINGS_DEFAULT_LIMIT = 50;
 
 const SORTS = ["total", "posted", "seen"] as const;
@@ -36,8 +38,9 @@ function parseListQuery(params: URLSearchParams): { opts: ListPostingsOptions } 
   const opts: ListPostingsOptions = {};
   const status = params.get("status");
   if (status !== null && status !== "") {
-    if (!isPostingStatus(status)) return { field: "status" };
-    opts.status = status;
+    if (status === "all") opts.status = "all";
+    else if (!isPostingStatus(status)) return { field: "status" };
+    else opts.status = status;
   }
   const minTotal = params.get("minTotal");
   if (minTotal !== null && minTotal !== "") {
@@ -65,7 +68,7 @@ function parseListQuery(params: URLSearchParams): { opts: ListPostingsOptions } 
   return { opts };
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-postings:${clientIpFrom(request.headers)}`, { limit: 120, windowMs: 10 * 60_000 })) {
@@ -74,7 +77,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const parsed = parseListQuery(new URL(request.url).searchParams);
     if ("field" in parsed) return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: parsed.field });
-    const ws = await currentWorkspace();
     const { rows, nextCursor } = listJobseekerPostings(parsed.opts, ws);
     // "New since your last visit" is DERIVED here from the seeker's stored anchor by one
     // comparison over the ordering tuple the pager already uses — never a counter. No
@@ -83,9 +85,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     // "we have nothing to compare against".
     const profile = getJobseekerProfile(currentUserId(await currentSession()), ws);
     const anchor = profile ? getFeedAnchor(profile.id, ws) : null;
-    const newSince: FeedNewSince = anchor ? { count: countJobseekerPostingsNewSince(anchor, ws), anchorAt: anchor.at } : null;
+    const newSince: FeedNewSince = anchor ? { count: countJobseekerPostingsNewSince(anchor, ws), anchorAt: anchor.at, anchorId: anchor.id } : null;
     return NextResponse.json({ rows, nextCursor, newSince });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

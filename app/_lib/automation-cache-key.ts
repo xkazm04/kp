@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SCREEN_VOLUME_MODERATE_MAX, SCREEN_VOLUME_SPARSE_MAX } from "./contract-constants.generated.ts";
 
 // Pure, dependency-free derivation of the automation prompt-cache key. Split out
 // of automation-run.ts (mirroring cache-key.ts) so the keying contract — above
@@ -54,13 +55,12 @@ export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set([...LETTER_LANG_TAS
 // 168h cache would never hit on an active role), and the bucket is exactly what the
 // prompt was written under — two runs in the same bucket saw the same rule.
 //
-// THESE TWO NUMBERS ARE HAND-MIRRORED from automation.POLICY's
-// `screen_volume_sparse_max` / `screen_volume_moderate_max`. The drift guard is
-// pipeline/jobfit/tests/test_automation_constant_sync.py: if TS bucketed on
-// different boundaries than Python tiers on, one bucket would span two rules and a
-// lenient verdict would be served to a strict run.
-export const SCREEN_VOLUME_SPARSE_MAX = 5;
-export const SCREEN_VOLUME_MODERATE_MAX = 30;
+// THESE TWO NUMBERS ARE GENERATED from automation.POLICY's
+// `screen_volume_sparse_max` / `screen_volume_moderate_max` (pipeline/jobfit/codegen.py
+// CONTRACT_CONSTANTS -> contract-constants.generated.ts), never typed here: if TS
+// bucketed on different boundaries than Python tiers on, one bucket would span two
+// rules and a lenient verdict would be served to a strict run.
+export { SCREEN_VOLUME_SPARSE_MAX, SCREEN_VOLUME_MODERATE_MAX };
 
 /** sparse | moderate | dense — the cache bucket AND the tier Python resolves. */
 export type ScreenVolumeTier = "sparse" | "moderate" | "dense";
@@ -132,6 +132,15 @@ export type AutomationKeyInput = {
    *  verdict is gated by. Keyed as the BUCKET (see screenVolumeTier above). Absent
    *  for every other task and for legacy callers, which key as the lenient tier. */
   pipelineSize?: number | null;
+  /** Serialized JSON of the entry's live job record. Folded into the key for single-job
+   *  tasks so JD edits re-draft instead of serving stale 168h-cached drafts. Ignored
+   *  for rematch (its corpusFingerprint already covers the corpus). */
+  jobJson?: string;
+  /** S1 — only folded into the key for the `scorecard` task, and only when TRUE: a
+   *  case-bearing entry's rubric gains the "Working with AI tools" axis, so it must
+   *  never share a cached scorecard with the same entry without one. False/absent adds
+   *  NO segment, so every pre-S1 key (and its cached scorecard) stays valid. */
+  devCase?: boolean;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -164,6 +173,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.candidateId,
       profileHash,
       input.jobId ?? "",
+      input.task !== "rematch" && input.jobJson ? shortHash(input.jobJson) : "",
       input.task === "rejection" ? input.stage : "",
       input.task === "scorecard" ? shortHash(input.notes) : "",
       input.task === "rematch" ? input.corpusFingerprint ?? "" : "",
@@ -181,6 +191,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.task === "screen" ? screenVolumeTier(input.pipelineSize) : "",
       // Degraded (template) vs LLM output never share a key — see `degraded` above.
       input.degraded ? "no-llm" : "llm",
+      ...(input.task === "scorecard" && input.devCase ? ["dev-case"] : []),
     ].join("|")
   );
 }

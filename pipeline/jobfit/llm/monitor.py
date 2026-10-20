@@ -10,21 +10,21 @@ integration seam. Local development setup, once::
 then set ``LIGHTTRACK_URL`` (plus ``LIGHTTRACK_KEY`` / ``LIGHTTRACK_PROJECT``
 as the deployment needs) in ``.env.local``. Telemetry activates only when BOTH
 the package and ``LIGHTTRACK_URL`` are present; every emit is best-effort and
-exception-swallowing — a LightTrack outage can never break an LLM call. Cost
-is priced server-side from LightTrack's price book; we attach our own
-``cost_usd`` (when the adapter knows it) as metadata for cross-checking.
+exception-swallowing — a LightTrack outage can never break an LLM call.
+LightTrack is an optional cross-check: it prices server-side from its own price
+book, and we attach our own ``cost_usd`` (when the adapter knows it) as metadata
+for comparing against it. The price book kp declares is
+``docs/architecture/price-book.md``.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import threading
-import time
 from typing import Any
 
-from ..claude_cli import ClaudeCliProvider, ClaudeResult
+from . import degradation as _degradation
 
 _UNSET = object()
 _client_cache: Any = _UNSET
@@ -37,6 +37,19 @@ _ledger_lock = threading.Lock()
 # gemini→google). The Claude CLI engine reports as anthropic — the spend is
 # Anthropic spend — with an engine tag keeping the billing path distinguishable.
 _TRACK_PROVIDER = {"claude_cli": "anthropic"}
+
+# The model label for a Claude CLI call on the CLI's OWN configured default
+# (model=None). Spelled here, beside the one place both emitters read it, rather
+# than at each call site: base.complete emits errors with the adapter's configured
+# model, which is None on a default install, and the ledger has always carried this
+# label for that case (adapters/claude_cli.CLI_DEFAULT_MODEL_LABEL is the same value).
+_CLI_DEFAULT_MODEL = "claude-cli-default"
+
+
+def _ledger_model(provider: str, model: str | None) -> str | None:
+    if provider == "claude_cli" and not model:
+        return _CLI_DEFAULT_MODEL
+    return model
 
 # Explicit opt-OUT tokens for KP_LLM_USAGE_LOG. Metering is ON BY DEFAULT (the
 # spawnPython seam sets the env to a per-call sidecar path for every child), so the
@@ -134,67 +147,27 @@ def _tags(provider: str, use_case: str | None = None) -> list[str]:
 OUTCOME_OK = "ok"
 OUTCOME_FAILED = "failed"
 
-# Why a FAILED attempt failed. Same three-word register as automation.DEGRADATION_REASONS
-# and spelled identically where they overlap, so one ledger query counts both halves of
-# the same descent — the CLI's deterministic line and the failed attempt underneath it.
-# Not imported from automation: that module imports this package, and the vocabularies
-# are maintained apart on purpose (that one names why the TEMPLATE served, this one why
-# the CALL died).
-FAILURE_REASONS: tuple[str, ...] = ("provider_timeout", "unparseable_output", "provider_error")
-
-
-def _failure_reason(error: Any) -> str:
-    """Classify a raised call into FAILURE_REASONS.
-
-    Reads ``LLMError.subtype`` and never the message: the subtype is the part
-    base.py maintains as a contract, and the message is provider-authored text that
-    has no business in a durable column (it can echo the prompt). Same reading
-    ``automation._call_failure_reason`` does, for the same reason."""
-    subtype = getattr(error, "subtype", None)
-    if subtype == "deadline_exceeded":
-        return "provider_timeout"
-    if subtype == "unparseable_json":
-        return "unparseable_output"
-    return "provider_error"
-
-
-_REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
-
-# The exception TYPE names worth keeping when a prose reason collapses to a code.
-# `describe_fallback` writes "<ExceptionType>: <message>"; the type half is ours (a
-# Python class name), the message half is the provider's. Mapping the few types that
-# name a distinct descent keeps a timeout reading as a timeout instead of flattening
-# into the catch-all, without ever storing the message.
-_PROSE_TYPE_REASON = {
-    "TimeoutError": "provider_timeout",
-    "ReadTimeout": "provider_timeout",
-    "ConnectTimeout": "provider_timeout",
-    "ReadTimeoutError": "provider_timeout",
-}
-
-
-def _reason_code(reason: str | None) -> str | None:
-    """Reduce a caller's reason to a CODE before it reaches a durable column.
-
-    Three call sites (campaign, match_reasoning, group_compare) hand their CLI a
-    ``provenance.describe_fallback`` line — ``"<ExceptionType>: <message>"`` — and the
-    CLI passes it straight to ``emit_deterministic``. That is the right shape for the
-    per-request envelope, where a human is reading one failure, and the wrong shape
-    for `llm_usage.reason`: the message half is provider-authored text that can echo
-    the prompt, and this repo answers a failure with a code, never with the thrown
-    message. A prose line collapses to ``provider_error`` — which is not a guess but
-    the exact word DEGRADATION_REASONS reserves for "anything else the call raised".
-    The finer subtypes still arrive: automation_cli sends its classified
-    ``take_degradation_reason``, and ``emit_error`` writes the failed attempt
-    underneath with its own ``_failure_reason``."""
-    if reason is None:
-        return None
-    token = reason.strip()
-    if not token:
-        return None
-    if _REASON_CODE.match(token):
-        return token
-    return _PROSE_TYPE_REASON.get(token.split(":", 1)[0].strip(), "provider_error")
+# Why a FAILED attempt failed, how a raised call is classified into it, and how a
+# caller's reason is reduced to a code before it reaches `llm_usage.reason` — all
+# three now live in llm/degradation.py beside automation's DEGRADATION_REASONS.
+#
+# This module used to keep its own copy, "not imported from automation: that module
+# imports this package, and the vocabularies are maintained apart on purpose (that
+# one names why the TEMPLATE served, this one why the CALL died)". The import
+# problem is solved by putting the vocabulary BELOW both (degradation.py imports
+# nothing from either). The distinction is kept, as a checked relation rather than
+# two literals: FAILURE_REASONS is still its own name, and degradation.py raises at
+# import unless it is a strict subset of DEGRADATION_REASONS. What the two copies
+# had cost was the third runner — devcase.provenance.generate_with_fallback, behind
+# fifteen call sites — which had no classifier to borrow, so its mid-call descents
+# reached this ledger as nothing (challenge-r04 tests-llm-eval/A).
+#
+# `_reason_code` also learned one shape: "<code>: <prose>" whose leading token is a
+# DECLARED degradation word keeps the code (provenance.UNUSABLE_OUTPUT_REASON used to
+# land as provider_error — "the call died" for a call that succeeded and was paid for).
+FAILURE_REASONS = _degradation.FAILURE_REASONS
+_failure_reason = _degradation.classify
+_reason_code = _degradation.reason_code
 
 
 def _append_ledger(
@@ -269,11 +242,13 @@ def emit_deterministic(use_case: str | None, *, reason: str | None = None) -> No
     without the spawnPython sidecar writes nothing. Ledger-only by design:
     LightTrack tracks real provider calls, not template serves.
 
-    ``reason`` names WHY the floor served when the descent happened at the
-    availability gate (registry.provider_availability: "offline_policy" /
-    "not_installed" / "unavailable", or the caller's "disabled" for --no-llm).
-    None when unknown — e.g. an LLM call that failed mid-flight — and unknown
-    stays unrecorded rather than guessed."""
+    ``reason`` names WHY the floor served: the availability gate's descent
+    (registry.provider_availability: "offline_policy" / "not_installed" /
+    "unavailable", or the caller's "disabled" for --no-llm), or — when the gate
+    said yes and the call then degraded — the runner's MID-CALL code from
+    degradation.DEGRADATION_REASONS (automation_cli's take_degradation_reason,
+    devcase_cli / agentfit_cli's per-step ``fallbackCode``). None when neither
+    knows, and unknown stays unrecorded rather than guessed."""
     _append_ledger(
         provider="deterministic",
         model=None,
@@ -301,6 +276,7 @@ def emit_result(
     """Record one SUCCESSFUL provider envelope. ``reason`` is normally None — a call
     that answered usably has nothing to explain — and is here for the caller that knows
     the answer was paid for but degraded downstream anyway."""
+    model = _ledger_model(provider, model)
     u = usage or {}
     cached = u.get("cached_tokens")
     if cached is None:
@@ -370,6 +346,7 @@ def emit_error(
     after complete() emitted a real, paid envelope, and a second row there would make
     one logical call look like two events. That descent is recorded where it belongs —
     on the CLI's deterministic line, reason "unparseable_output"."""
+    model = _ledger_model(provider, model)
     if ledger:
         _append_ledger(
             provider=provider,
@@ -400,37 +377,18 @@ def emit_error(
         pass  # telemetry must never break the host call — the ledger line above is the durable half
 
 
-class MonitoredClaudeCli(ClaudeCliProvider):
-    """ClaudeCliProvider + LightTrack emission.
+def __getattr__(name: str) -> Any:
+    """``MonitoredClaudeCli`` — DEPRECATED alias of ``adapters.claude_cli.ClaudeCliAdapter``.
 
-    The registry hands this out so the local-dev default engine shows up in
-    observability alongside the metered adapters. ``complete_json``/``map``
-    route through ``complete()``, so one logical call emits exactly one event.
-    """
+    It was a ``ClaudeCliProvider`` subclass carrying a second copy of the metering
+    path (emit on success, emit on raise) for the one engine that did not run
+    ``TextProvider.complete``. The CLI now runs the shared layer — retries inside
+    the deadline, the JSON repair re-prompt, coded failure subtypes — and meters
+    through it, so the name resolves to the adapter (same constructor kwargs) and
+    is kept for one release so no external caller breaks. Resolved lazily (PEP
+    562): ``base`` imports this module, and the adapter imports ``base``."""
+    if name == "MonitoredClaudeCli":
+        from .adapters.claude_cli import ClaudeCliAdapter
 
-    def __init__(self, *args: Any, use_case: str | None = None, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.use_case = use_case
-
-    def complete(self, prompt: str, *, system: str | None = None, timeout: int | None = None) -> ClaudeResult:
-        started = time.monotonic()
-        try:
-            result = super().complete(prompt, system=system, timeout=timeout)
-        except Exception as exc:
-            emit_error(
-                provider="claude_cli",
-                model=self.model or "claude-cli-default",
-                use_case=self.use_case,
-                error=exc,
-                duration_ms=int((time.monotonic() - started) * 1000),
-            )
-            raise
-        emit_result(
-            provider="claude_cli",
-            model=self.model or "claude-cli-default",
-            use_case=self.use_case,
-            usage=result.usage,
-            cost_usd=result.cost_usd or None,
-            duration_ms=result.duration_ms or int((time.monotonic() - started) * 1000),
-        )
-        return result
+        return ClaudeCliAdapter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

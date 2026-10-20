@@ -15,15 +15,8 @@
 // across the midnight rollover of the proposal window — and the label is
 // re-derived server-side from the validated time, never taken from the client.
 
-/** The offered interview times per business day, in the interview zone. Defaults to
- *  10:00 + 14:00 but is config-driven via KP_INTERVIEW_TIMES (comma-separated "HH:MM")
- *  so a deployment can lift the per-day interview capacity beyond two — the simplest
- *  throughput lever short of a full per-interviewer availability model (the global,
- *  host-blind slot pool otherwise caps the WHOLE org at two interviews/day). Malformed
- *  entries are dropped; an empty/all-bad config falls back to the default. Deduped +
- *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
- *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
- *  and real-calendar conflict avoidance are the deferred Phase 2. */
+import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+
 // --- Invite link lifecycle: TTL / expiry (Direction 1) -------------------------
 //
 // A self-scheduling link used to be immortal: a pending invite that was never
@@ -42,7 +35,39 @@
  *  age out on the same clock. */
 export const INVITE_LINK_TTL_DAYS = 7;
 
-const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
+export const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
+
+/** The fields the expiry clock reads: created_at plus the two stamps that restart it. */
+export type ScheduleInviteAnchorInput = {
+  createdAt: string;
+  attendanceStatus?: string | null;
+  attendanceAt?: string | null;
+  proposalsAt?: string | null;
+  proposalStatus?: string | null;
+};
+
+/** The instant the link's TTL counts from: the newest of created_at, the cancel-reopen
+ *  stamp, and proposals_at. A candidate who proposed their own times (the stuck-pending
+ *  escalation) has done their part and been told "they'll confirm one with you shortly";
+ *  the recruiter's reply must not be racing the mint clock, so a proposal restarts it —
+ *  the link still ages out, on its own clock. A recruiter's decline keeps proposals_at
+ *  (declineScheduleInviteProposals), so the stamp counts for 'pending' AND 'declined'
+ *  proposals. Returns NaN when created_at is unparseable. Shared with the stated
+ *  deadlines (candidate-next-action, candidate-timeline) so they cannot disagree with the
+ *  page's own answer. */
+export function scheduleInviteExpiryAnchor(invite: ScheduleInviteAnchorInput): number {
+  let anchor = Date.parse(invite.createdAt);
+  if (Number.isNaN(anchor)) return NaN;
+  if (invite.attendanceStatus === "cancelled" && invite.attendanceAt) {
+    const reopened = Date.parse(invite.attendanceAt);
+    if (!Number.isNaN(reopened) && reopened > anchor) anchor = reopened;
+  }
+  if ((invite.proposalStatus === "pending" || invite.proposalStatus === "declined") && invite.proposalsAt) {
+    const proposed = Date.parse(invite.proposalsAt);
+    if (!Number.isNaN(proposed) && proposed > anchor) anchor = proposed;
+  }
+  return anchor;
+}
 
 /** True when a self-scheduling invite is a dead capability: still 'pending' (never
  *  booked) and un-booked for more than INVITE_LINK_TTL_DAYS. Derived — a confirmed
@@ -63,19 +88,24 @@ const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
  *  cleared on every (re-)booking, so the marker lives exactly as long as the re-opened
  *  window does; an old row with no attendance columns falls back to created_at. */
 export function isScheduleInviteExpired(
-  invite: { status: string; createdAt: string; attendanceStatus?: string | null; attendanceAt?: string | null },
+  invite: { status: string } & ScheduleInviteAnchorInput,
   nowMs: number = Date.now()
 ): boolean {
   if (invite.status !== "pending") return false;
-  let anchor = Date.parse(invite.createdAt);
+  const anchor = scheduleInviteExpiryAnchor(invite);
   if (Number.isNaN(anchor)) return false;
-  if (invite.attendanceStatus === "cancelled" && invite.attendanceAt) {
-    const reopened = Date.parse(invite.attendanceAt);
-    if (!Number.isNaN(reopened) && reopened > anchor) anchor = reopened;
-  }
   return anchor < nowMs - INVITE_LINK_TTL_MS;
 }
 
+/** The offered interview times per business day, in the interview zone. Defaults to
+ *  10:00 + 14:00 but is config-driven via KP_INTERVIEW_TIMES (comma-separated "HH:MM")
+ *  so a deployment can lift the per-day interview capacity beyond two — the simplest
+ *  throughput lever short of a full per-interviewer availability model (the global,
+ *  host-blind slot pool otherwise caps the WHOLE org at two interviews/day). Malformed
+ *  entries are dropped; an empty/all-bad config falls back to the default. Deduped +
+ *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
+ *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
+ *  and real-calendar conflict avoidance are the deferred Phase 2. */
 export function parseInterviewTimes(raw: string | undefined): readonly string[] {
   const DEFAULT = ["10:00", "14:00"];
   if (!raw) return DEFAULT;
@@ -170,13 +200,24 @@ function slotLabel(ms: number, time: string, tz: string): string {
 }
 
 /** Propose the next few business-day interview slots, skipping ones already
- *  taken (by ISO `value`, the same identity bookedSlots() returns). `value` is
- *  the slot's ISO datetime (used for timed reminders + collision checks);
+ *  taken. `taken` accepts two shapes:
+ *   - a BookedInterval (`bookedIntervals()` in the store) — the real booking with its
+ *     length; a candidate time is skipped when `bookingCollides` says so (a real overlap
+ *     of `minutes` against the booking's own duration, or the same interview-zone hour),
+ *     so an off-grid 13:30 hour-long booking hides the 14:00 it runs into;
+ *   - a bare ISO string (legacy callers) — exact-instant equality, as before.
+ *  `value` is the slot's ISO datetime (used for timed reminders + collision checks);
  *  `label` is the human-readable time shown to the candidate. Business days and the
  *  offered times are reckoned in `tz` (the interview zone), never the server clock. */
-export function proposeSlots(taken: string[] = [], count = 6, tz: string = INTERVIEW_TZ): { value: string; label: string }[] {
+export function proposeSlots(
+  taken: readonly (string | BookedInterval)[] = [],
+  count = 6,
+  tz: string = INTERVIEW_TZ,
+  minutes: number | null = null
+): { value: string; label: string }[] {
   const out: { value: string; label: string }[] = [];
-  const takenSet = new Set(taken);
+  const takenSet = new Set(taken.filter((t): t is string => typeof t === "string"));
+  const intervals = taken.filter((t): t is BookedInterval => typeof t !== "string");
   const today = zonedParts(Date.now(), tz); // the zone's CURRENT calendar date
   for (let day = 1; day <= SLOT_HORIZON_DAYS && out.length < count; day += 1) {
     // Advance the zone calendar date by `day` (UTC date arithmetic is safe for the
@@ -192,6 +233,7 @@ export function proposeSlots(taken: string[] = [], count = 6, tz: string = INTER
       const [h, m] = t.split(":").map(Number);
       const value = new Date(zonedInstant(y, mo, dd, h, m, tz)).toISOString();
       if (takenSet.has(value)) continue;
+      if (intervals.length > 0 && bookingCollides({ slotAt: value, durationMin: minutes }, intervals, tz)) continue;
       out.push({ value, label: slotLabel(Date.parse(value), t, tz) });
       if (out.length >= count) break;
     }
@@ -334,8 +376,8 @@ export function gridSlotToIso(gridSlot: string, nowMs: number = Date.now(), tz: 
  *  "2026-07-15T14" — the identity the recruiter WEEK GRID actually speaks in (its rows
  *  are whole hours). Two bookings in the same interview-zone hour share a bucket even
  *  when their minutes differ (a 14:00 grid pick and an accepted 14:30 proposal), so the
- *  grid can treat the hour as occupied and the book handler can refuse to double-book it
- *  — the store's collision authority is the exact INSTANT, which wouldn't catch this.
+ *  grid can treat the hour as occupied — and bookingCollides (below) treats a shared
+ *  bucket as a clash, so the store's own transactions refuse to double-book the hour.
  *  Absolute (dated), not weekday-based, so two different actual Wednesdays never
  *  false-collide. Returns null for an unparsable instant. */
 export function hourBucketKey(iso: string | null | undefined, tz: string = INTERVIEW_TZ): string | null {
@@ -344,6 +386,54 @@ export function hourBucketKey(iso: string | null | undefined, tz: string = INTER
   if (Number.isNaN(ms)) return null;
   const p = zonedParts(ms, tz);
   return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}`;
+}
+
+// --- The ONE booking-collision predicate (challenge 2026-09-22, calendar-scheduling/A) ---
+//
+// The store's collision authority used to be exact-instant equality (`slot_at = ?`). That
+// held only while every booking sat on the fixed KP_INTERVIEW_TIMES grid at one length;
+// the pool now holds off-grid minutes (dateSlotToIso books any HH:MM, proposedSlotFor any
+// working minute) and per-invite lengths (duration_min: a 22-minute student screen, a
+// 90-minute panel). So a 14:30 landed beside a 14:00, and a 15:00 inside a 90-minute
+// 14:00, on every booking path except the grid `book` — which patched it with an
+// hour-bucket read OUTSIDE the store transaction. This predicate is what the store's
+// `.immediate()` transactions and the slot proposer now share.
+
+/** One booked interview: its canonical instant and planned length. A null length is a
+ *  legacy row and reads as DEFAULT_INTERVIEW_MINUTES — never zero, which would let
+ *  anything book on top of it. */
+export type BookedInterval = { slotAt: string; durationMin: number | null };
+
+/** A booking's length in ms, clamped to something sane: a null/garbage/negative length is
+ *  the default, and nothing is longer than a working day (a corrupt 10^6 would otherwise
+ *  block a month). */
+function intervalMs(durationMin: number | null | undefined): number {
+  const n = typeof durationMin === "number" && Number.isFinite(durationMin) && durationMin > 0 ? durationMin : DEFAULT_INTERVIEW_MINUTES;
+  return Math.min(n, 12 * 60) * 60_000;
+}
+
+/** How far either side of a candidate instant a clashing booking can START — the widest
+ *  interval intervalMs allows. The store narrows its SELECT to this window. */
+export const BOOKING_COLLISION_REACH_MS = 12 * 60 * 60_000;
+
+/** Whether `candidate` clashes with any of `existing`: their half-open real intervals
+ *  [start, start + length) overlap (back-to-back is NOT a clash), OR they start in the same
+ *  interview-zone hour — the grid speaks in whole hours and shows that hour as taken, so a
+ *  22-minute 14:00 and a 14:40 are refused even though the minutes do not touch. An
+ *  unparsable instant never collides (the validators own that rejection). Pure: the caller
+ *  decides which rows are "existing" (the store excludes the invite's own row). */
+export function bookingCollides(candidate: BookedInterval, existing: readonly BookedInterval[], tz: string = INTERVIEW_TZ): boolean {
+  const start = Date.parse(candidate.slotAt);
+  if (Number.isNaN(start)) return false;
+  const end = start + intervalMs(candidate.durationMin);
+  const bucket = hourBucketKey(candidate.slotAt, tz);
+  for (const row of existing) {
+    const s = Date.parse(row.slotAt);
+    if (Number.isNaN(s)) continue;
+    if (s < end && start < s + intervalMs(row.durationMin)) return true;
+    if (bucket !== null && hourBucketKey(row.slotAt, tz) === bucket) return true;
+  }
+  return false;
 }
 
 /** Place a canonical ISO instant back onto the week grid as its cell ("Tue 14:00"),
@@ -394,6 +484,13 @@ export function dateSlotToIso(
   const ms = zonedInstant(y, mo, dd, hh, mm, tz);
   if (Number.isNaN(ms)) return null;
   const p = zonedParts(ms, tz);
+  // The range check above is per-FIELD (mo <= 12, dd <= 31) and cannot see that the day
+  // is absent from THAT month — and Date.UTC, which zonedInstant is built on, overflows
+  // silently rather than refusing: "2026-02-30" became 2 March, "2026-06-31" 1 July.
+  // `date` is a raw POST field, so the invite was then booked on a different calendar
+  // day than the one asked for, with a server-derived label that named the rolled day
+  // and nothing to flag the shift. Round-tripping the resolved instant back through the
+  // interview zone is the whole check, and `p` is already in hand for the weekend test.
   if (p.year !== y || p.month !== mo || p.day !== dd || p.hour !== hh || p.minute !== mm) return null;
   if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone

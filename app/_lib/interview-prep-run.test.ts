@@ -57,3 +57,33 @@ test("mergeRegeneratedPrep: the generator OWNS its keys — a stale generated fi
   assert.deepEqual(merged.signals, [], "generated signals replaces the stale one");
   assert.deepEqual(merged.humanScorecard, { source: "human" }, "human key still preserved");
 });
+
+test("mergeRegeneratedPrep: the recruiter's per-candidate kit OVERLAY survives a regeneration", () => {
+  // spark interview-kit-template, WP-C: `kitOverlay` is the recruiter's drops, rewrites
+  // and additions on the job interview kit for THIS candidate (PATCH /api/interview-prep
+  // { kitOverlay }). The generator never writes it, so a Regenerate must carry it — and
+  // must carry it VERBATIM, since the agenda re-applies it by question id at connect.
+  const kitOverlay = {
+    version: 1,
+    dropped: ["q-first", "cv-1234abcd"],
+    edited: [{ id: "q-healthy", text: "What does a suite you trust look like?" }],
+    added: [{ id: "ov-a", competencyId: "c-collab", text: "Who do you pair with?", mustAsk: true }],
+  };
+  const prev = { scenario: "old", chronology: [{ topic: "Old", questions: ["Old probe?"] }], kitOverlay, userProgress: { notes: "n" } };
+  const merged = mergeRegeneratedPrep(prev, generated);
+  assert.deepEqual(merged.kitOverlay, kitOverlay, "the overlay is carried across the regeneration untouched");
+  assert.deepEqual(merged.chronology, [], "while the plan it rides on is replaced");
+  assert.equal("kitOverlay" in generated, false, "the generator owns no kitOverlay key to overwrite it with");
+});
+
+test("mergeRegeneratedPrep: an unstaged regeneration never carries a stale pendingPlan forward", () => {
+  // r09 schedule-interview-prep/B: a modal Regenerate stages its plan under `pendingPlan`.
+  // A later UNSTAGED regeneration (the Decisions-queue accept) commits a newer plan, so the
+  // staged candidate describes a plan that is no longer the alternative to anything.
+  const humanScorecards = [{ ratings: [], source: "human", author: "u1", authorLabel: "Amy", stage: "interview", savedAt: "2026-09-20T10:00:00.000Z" }];
+  const prev = { scenario: "old", pendingPlan: { scenario: "staged" }, humanScorecards, userProgress: { notes: "n" } };
+  const merged = mergeRegeneratedPrep(prev, generated);
+  assert.equal("pendingPlan" in merged, false, "the staged candidate is dropped");
+  assert.deepEqual(merged.humanScorecards, humanScorecards, "every human key still rides through");
+  assert.deepEqual(merged.userProgress, { notes: "n" });
+});

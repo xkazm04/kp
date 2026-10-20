@@ -12,6 +12,7 @@ import { parseResultTabHash, resolveActiveTab, resultTabHash, type ResultTab } f
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { DispositionEditor } from "./DispositionEditor";
 import { ArchetypeBanner } from "./ArchetypeBanner";
+import { ReportActions } from "./ReportActions";
 import { QualityStrip } from "./QualityStrip";
 import { VerdictBanner } from "./VerdictBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
@@ -57,6 +58,9 @@ type ResultPanelProps = {
   // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
   // exactly the old behavior.
   analysisSlug?: string;
+  // The live Analyze tab may already have a stable saved slug. The saved-report
+  // route renders actions in its own header, so only the live caller opts in.
+  liveReportActions?: boolean;
   // Human decision on a saved analysis (advance/hold/pass). Present once the
   // run has a slug — live Analyze after persist, and the saved report. Absent
   // on an unsaved run, so the editor is omitted rather than PATCHing nothing.
@@ -123,10 +127,14 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, initialDisposition, initialNote, prepEntryId, initialTab }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, liveReportActions, initialDisposition, initialNote, prepEntryId, initialTab }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
+  const [addedEntry, setAddedEntry] = useState<{ candidateId: string; jobId: string; id: string } | null>(null);
+  const addedEntryId = addedEntry && pipelineRef && addedEntry.candidateId === pipelineRef.candidateId && addedEntry.jobId === pipelineRef.jobId
+    ? addedEntry.id
+    : null;
   // A comparison only counts — for showing the Compare tab AND for defaulting
   // to it below — when it meets the minimum-variant contract. A stray 1-variant
   // payload no longer auto-opens an empty Compare tab; it falls through to
@@ -237,6 +245,14 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
           in the Extraction tab's dial. On a multi-variant run (which defaults to the
           Compare tab) it shows the winner's verdict. Both consumers — live Analyze
           and the saved report — render the same banner. */}
+      {liveReportActions && analysisSlug ? (
+        <ReportActions
+          analysis={analysis}
+          candidateLabel={analysis.persistence?.candidateLabel}
+          savedAt={analysis.persistence?.createdAt}
+          reportPath={`/history/${encodeURIComponent(analysisSlug)}`}
+        />
+      ) : null}
       <VerdictBanner analysis={analysis} />
       {analysisSlug || pipelineRef || pipelineDisabledReason ? (
         <div className="flex flex-wrap items-start justify-end gap-3">
@@ -246,14 +262,17 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
                 slug={analysisSlug}
                 initialDisposition={initialDisposition ?? null}
                 initialNote={initialNote ?? null}
+                analysis={analysis}
               />
             </div>
           ) : null}
           {pipelineRef ? (
             <AddToPipelineButton
+              key={`${pipelineRef.candidateId}:${pipelineRef.jobId}`}
               pipelineRef={pipelineRef}
               // GH2 — a done deep-dive rides the add as compact evidence.
               github={github?.status === "done" ? github.analysis : null}
+              onAdded={(id) => setAddedEntry({ candidateId: pipelineRef.candidateId, jobId: pipelineRef.jobId, id })}
             />
           ) : pipelineDisabledReason ? (
             <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
@@ -261,7 +280,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} sourceAnalysisSlug={analysisSlug} /> : null}
-      <QualityStrip checks={analysis.sanityChecks ?? []} />
+      <QualityStrip checks={analysis.sanityChecks ?? []} findings={analysis.trustFindings} />
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 
       <div className={`${PANEL} p-2`}>
@@ -290,7 +309,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
         {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
-        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId} /> : null}
+        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId ?? addedEntryId ?? undefined} /> : null}
         {activeTab === "github" && github ? (
           <GithubAnalysisPanel
             status={github.status}

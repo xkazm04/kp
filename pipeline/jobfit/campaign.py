@@ -24,6 +24,7 @@ trust boundary. See docs/features/jobs/README.md (E1).
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Callable
 
 from .devcase.provenance import describe_fallback
@@ -51,6 +52,46 @@ WARN_NO_SKILLS = "no_skills"
 # counts both engines' identical descent; not imported from there because the two
 # task modules deliberately share no code (this one inlines automation's _generate).
 DESCENT_UNUSABLE_OUTPUT = "unusable_output"
+
+# Boilerplate the prompt bans. One list, so the instruction and the boundary check
+# read the same phrases; the pattern families below are the Python port of
+# app/_lib/jd-lint.ts VAGUE_PATTERNS (`[^\W\d_]` is `\p{L}`: an inflected stem
+# must not stall at a diacritic).
+BANNED_BOILERPLATE: tuple[str, ...] = (
+    "competitive salary", "join our team", "dynamic environment", "fast-paced",
+    "konkurenceschopný plat", "dynamické prostředí", "mladý kolektiv",
+)
+_L = r"[^\W\d_]*"
+_VAGUE_RES = tuple(re.compile(p, re.IGNORECASE) for p in (
+    r"competitive\s+(?:salary|compensation|pay)", r"attractive\s+(?:salary|compensation)",
+    r"join\s+our\s+(?:team|family)", r"dynamic\s+(?:environment|team|workplace)",
+    r"fast-?paced\s+environment", r"\b(?:rockstar|ninja|guru)\b",
+    rf"konkurenceschopn{_L}\s+(?:plat{_L}|mzd{_L}|ohodnocen{_L})",
+    rf"atraktivn{_L}\s+(?:plat{_L}|mzd{_L}|ohodnocen{_L})", rf"dynamick{_L}\s+(?:prostřed{_L}|tým{_L}|kolektiv{_L})",
+    rf"mlad{_L}\s+kolektiv{_L}", rf"staň{_L}\s+se\s+součástí",
+    rf"(?:wettbewerbsfähig|konkurrenzfähig){_L}\s+(?:Gehalt|Vergütung)", rf"attraktiv{_L}\s+(?:Gehalt|Vergütung)",
+    rf"dynamisch{_L}\s+(?:Team|Umfeld|Arbeitsumfeld)", rf"werd{_L}\s+Teil\s+unser{_L}\s+Teams",
+    r"salaire\s+compétitif\w*", rf"rémunération\s+attractiv{_L}", r"équipe\s+dynamique", rf"rejoign{_L}\s+notre\s+équipe",
+))
+
+# A quotation mark in generated recruitment copy is a defect until proven
+# otherwise (sourcing-campaign-honesty / no-fabricated-testimonial): the format is
+# a person speaking, and the generator is not a person. First-person singular is
+# the same speech act without the marks. Only the pack's own language is checked.
+_QUOTE_RE = re.compile("[\"“”„‟«»‹›]")
+_FIRST_PERSON_RES: dict[str, re.Pattern[str]] = {
+    "en": re.compile(r"(?<![\w.])I(?![\w.])|\b(?:my|me|mine)\b", re.ASCII),
+    "cs": re.compile(r"\b(?:já|mě|mně|můj|moje|mé|mého)\b", re.IGNORECASE),
+    "de": re.compile(r"\b(?:ich|mich|mir|mein\w*)\b", re.IGNORECASE),
+    "fr": re.compile(r"\b(?:je|moi|mon|ma|mes)\b|\bj['’]", re.IGNORECASE),
+}
+# Digit runs, thousands-grouped ("95 000", "95,000") or plain; separators stripped
+# before comparing, so "65 000" in the facts matches "65000" in the copy.
+_NUMERAL_RE = re.compile(r"\d{1,3}(?:[ \u00a0\u202f,.]\d{3})+|\d+")
+_URL_RE = re.compile(r"https?://\S+")
+# The CTA the prompt itself dictates ("about 30 seconds"); every other figure in
+# the copy must be one the fact set carries.
+_PROMPT_NUMERALS = frozenset({"30"})
 
 def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
     """The copywriter system prompt, with the target market named from config
@@ -168,6 +209,31 @@ def _variant(hook_type: str, hook: str, ad_copy: str, script: dict[str, str]) ->
     return {"hookType": hook_type, "hook": hook, "adCopy": ad_copy, "videoScript": script}
 
 
+def _numerals(text: str) -> set[str]:
+    return {re.sub(r"\D", "", m) for m in _NUMERAL_RE.findall(_URL_RE.sub(" ", text))}
+
+
+def _boundary_violation(variant: dict[str, Any], facts: dict[str, Any], lang: str, apply_url: str) -> str | None:
+    """Why this model-written variant may not ship, or None. The gate is the control
+    (the model was only told the facts); this is the residual catch for the literal
+    class the gate and the instruction still leave open: a figure nobody stated, a
+    quoted or first-person voice, and the banned filler. It cannot see a true value
+    bound to the wrong claim, an invented perk written without a numeral, or an
+    endpoint of a stated range standing alone as the headline."""
+    parts = [variant["hook"], variant["adCopy"], *variant["videoScript"].values()]
+    text = " ".join(p.replace(apply_url, " ") if apply_url else p for p in parts)
+    if _QUOTE_RE.search(text):
+        return "quoted_speech"
+    first_person = _FIRST_PERSON_RES.get(lang)
+    if first_person and first_person.search(text):
+        return "first_person_voice"
+    if any(rx.search(text) for rx in _VAGUE_RES):
+        return "banned_boilerplate"
+    if _numerals(text) - _numerals(json.dumps(facts, ensure_ascii=False)) - _PROMPT_NUMERALS:
+        return "unstated_figure"
+    return None
+
+
 def _prompt(facts: dict[str, Any], lang: str, apply_url: str) -> str:
     link_line = (
         f"{apply_url} (a quick-apply form that takes about 30 seconds — say so in the CTA)"
@@ -188,8 +254,7 @@ def _prompt(facts: dict[str, Any], lang: str, apply_url: str) -> str:
         "- offer (1.5–6s): the role and pay in plain language. If salary is null, do NOT invent one.\n"
         "- proof (6–11s): concrete facts only (stack, location, work mode, salary). No testimonials.\n"
         "- cta (11–15s): one low-friction action referencing the ~30-second application.\n"
-        "- Ban boilerplate in every language: 'competitive salary', 'join our team', 'dynamic "
-        "environment', 'fast-paced', 'konkurenceschopný plat', 'dynamické prostředí', 'mladý kolektiv'.\n"
+        f"- Ban boilerplate in every language: {', '.join(repr(p) for p in BANNED_BOILERPLATE)}.\n"
         "- adCopy: 2–4 short feed-ready sentences ending with the CTA (include the link when supplied).\n\n"
         'Return JSON only: {"variants": [{"hookType": "number|location|problem|skills", "hook": str, '
         '"adCopy": str, "videoScript": {"hook": str, "offer": str, "proof": str, "cta": str}}]}\n'
@@ -281,7 +346,11 @@ def draft_campaign_pack(
             raw_script = item.get("videoScript") if isinstance(item.get("videoScript"), dict) else {}
             script = {k: str(raw_script.get(k) or "").strip() for k in ("hook", "offer", "proof", "cta")}
             hook_type = str(item.get("hookType") or "").strip().lower()
-            variants.append(_variant(hook_type if hook_type in HOOK_TYPES else HOOK_FALLBACK, hook, ad_copy, script))
+            variant = _variant(hook_type if hook_type in HOOK_TYPES else HOOK_FALLBACK, hook, ad_copy, script)
+            # Closed on the prose as well as the label: an off-taxonomy "testimonial"
+            # relabelled "problem" keeps its words, so the words are checked too.
+            if _boundary_violation(variant, facts, lang, apply_url) is None:
+                variants.append(variant)
         if not variants:
             return deterministic()
         return {"variants": variants}

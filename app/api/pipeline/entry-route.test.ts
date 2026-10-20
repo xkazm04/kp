@@ -15,7 +15,9 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST } from "./[id]/route.ts";
-import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "../../_lib/db/pipeline.ts";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, listReconsiderQueue, setApproval } from "../../_lib/db/pipeline.ts";
+import { setDecisionConfig } from "../../_lib/decision-config-store.ts";
+import { PIPELINE_STAGES_DEFAULT } from "../../_lib/decision-config-schema.ts";
 import { listDecisionRecords } from "../../_lib/decision-record-store.ts";
 import { HUMAN_ROLE_ACTOR } from "../../_lib/auth/operator-approver.ts";
 import { respondToOffer } from "../../_lib/offer-finalize.ts";
@@ -139,4 +141,86 @@ test("a reinstate names its actor in BOTH halves of the record (event row + seal
   const seal = listDecisionRecords({ candidateRef: entry.id }).find((r) => r.kind === "reinstated");
   assert.ok(seal, "the reversal is sealed into the chain");
   assert.equal(seal.actor, HUMAN_ROLE_ACTOR, "the seal and the event row name the SAME actor");
+});
+
+// ---- challenge-r07 pipeline-api/A: the door's declared action table ---------------
+
+test("an unknown action is refused at the door with PIPELINE_ACTION_UNKNOWN", async () => {
+  const entry = entryFixture({ stage: "Screened" });
+  const res = await post(entry.id, { action: "bogus" });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).code, "PIPELINE_ACTION_UNKNOWN");
+  assert.equal(getPipelineEntry(entry.id)!.status, "active");
+});
+
+test("an engine claim is honoured only on accept: a reject carrying actor:'sim' stays a HUMAN reject", async () => {
+  const entry = entryFixture({ stage: "Screened" });
+  const res = await post(entry.id, { action: "reject", actor: "sim" });
+  assert.equal(res.status, 200);
+  const kinds = listPipelineEventsForEntry(entry.id).map((e) => e.kind);
+  assert.ok(kinds.includes("rejected"), "the event row names the human act");
+  assert.ok(!kinds.includes("auto_rejected"), "a body-supplied actor must not file a human reject as a machine one");
+  const seal = listDecisionRecords({ candidateRef: entry.id }).find((r) => r.kind === "rejected" || r.kind === "auto_rejected");
+  assert.ok(seal, "the reject is sealed");
+  assert.equal(seal.kind, "rejected");
+  assert.match(seal.actor, /^human:/, "the sealed actor is the human seat, never auto:sim");
+  assert.ok(
+    !listReconsiderQueue(200).items.some((i) => i.entry.id === entry.id),
+    "a recruiter's reject is a decision, never a Reconsider queue item",
+  );
+
+  // The guided sim's one legitimate claim is unchanged.
+  const sim = entryFixture({ stage: "Accepted", jobTitle: "Route Test Role (SIM)" });
+  assert.equal((await post(sim.id, { action: "accept", actor: "sim" })).status, 200);
+  const simSeal = listDecisionRecords({ candidateRef: sim.id })[0];
+  assert.equal(simSeal.actor, "auto:sim");
+  assert.equal(simSeal.kind, "auto_advanced");
+});
+
+test("a reinstate seals the stage the candidate really landed on, on a renamed board", async () => {
+  setDecisionConfig(
+    "pipelineStages",
+    {
+      stages: [
+        { id: "Accepted", label: "Accepted", role: "entry" },
+        { id: "Vetted", label: "Vetted", role: "screening" },
+        { id: "Interview", label: "Interview", role: "interview" },
+        { id: "Offer", label: "Offer", role: "offer" },
+        { id: "Hired", label: "Hired", role: "terminal" },
+      ],
+      retired: [{ id: "Screened", label: "Screened", role: "screening" }],
+    },
+    undefined,
+    "team",
+  );
+  try {
+    const entry = entryFixture({ stage: "Vetted" });
+    actOnPipelineEntry(entry.id, "reject", undefined, { actor: "system", actorRef: "auto:screen-wave" });
+    const res = await post(entry.id, { action: "reinstate" });
+    assert.equal(res.status, 200);
+    const landed = (await res.json()).entry.stage as string;
+    assert.equal(landed, "Vetted", "the store lands the candidate on this board's screened column");
+    const seal = listDecisionRecords({ candidateRef: entry.id }).find((r) => r.kind === "reinstated");
+    assert.ok(seal);
+    assert.equal((JSON.parse(seal.payloadJson) as { inputs: { restoredStage?: string } }).inputs.restoredStage, landed, "the record names the stage the candidate stands on");
+  } finally {
+    setDecisionConfig("pipelineStages", PIPELINE_STAGES_DEFAULT as unknown as Record<string, unknown>, undefined, "team");
+  }
+});
+
+test("a reinstate refuses a hand reject: 'Auto-rejection reversed' is only ever written over an auto-rejection", async () => {
+  const entry = entryFixture({ stage: "Screened" });
+  assert.equal((await post(entry.id, { action: "reject" })).status, 200);
+  const before = listPipelineEventsForEntry(entry.id).length;
+
+  const res = await post(entry.id, { action: "reinstate" });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).code, "PIPELINE_NOT_REINSTATABLE");
+  assert.equal(getPipelineEntry(entry.id)!.status, "rejected", "the recruiter's decision stands");
+  assert.equal(listPipelineEventsForEntry(entry.id).length, before, "no reinstated event is written");
+  assert.equal(
+    listDecisionRecords({ candidateRef: entry.id }).filter((r) => r.kind === "reinstated").length,
+    0,
+    "no reversal is sealed",
+  );
 });

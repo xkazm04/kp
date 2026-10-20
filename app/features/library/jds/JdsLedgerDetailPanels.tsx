@@ -133,7 +133,7 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
           {links.map((l, i) => (
             <span key={l.href}>
               {i > 0 ? " · " : ""}
-              <a href={l.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">{l.hostname}</a>
+              <a href={l.href} target="_blank" rel="noreferrer" className="text-coral-ink hover:underline">{l.hostname}</a>
             </span>
           ))}
         </p>
@@ -172,7 +172,7 @@ export function RepoGroundingCard({ snapshot }: { snapshot: SnapshotArtifact }) 
           <span className={CHIP}>
             <GitBranch size={12} className="text-steel" aria-hidden />
             {link ? (
-              <a href={link.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">
+              <a href={link.href} target="_blank" rel="noreferrer" className="text-coral-ink hover:underline">
                 {snapshot.ref}
               </a>
             ) : (
@@ -201,7 +201,7 @@ export function CaseCard({ kase }: { kase: CaseArtifact }) {
   const tasks = Array.isArray(kase.tasks) ? kase.tasks : [];
   return (
     <div className={`${PANEL} p-4`}>
-      <p className="text-meta uppercase tracking-wide text-coral">{t("interviewCase")}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{t("interviewCase")}</p>
       {kase.title ? <h3 className="mt-1 font-serif text-h3 font-semibold text-ink">{kase.title}</h3> : null}
       {kase.brief ? <p className="mt-2 whitespace-pre-line text-sm text-steel">{kase.brief}</p> : null}
       {tasks.length ? (

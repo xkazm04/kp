@@ -22,6 +22,10 @@
 // logic is unit-testable in isolation (bug-ui-scan-2026-07-09 #3).
 import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
+import { isTaskKind, type TaskKind } from "./task-kinds.ts";
+
+/** A kind's identity: a stable key, or null when its identifying params are absent. */
+export type DedupeBuilder = (p: Record<string, unknown>) => string | null;
 
 /**
  * Join a dedupe key from a prefix and its REQUIRED identifying parts. Returns
@@ -71,13 +75,14 @@ function localePart(value: unknown): string {
 // identifying params are missing/empty. A key's shape only has to survive the
 // tasks that are IN FLIGHT when it changes (it is compared against active rows
 // only), and the worst case of a shape change is one un-merged duplicate run —
-// never a wrong merge. Keys MUST stay in sync with the HANDLERS kinds in tasks.ts;
-// an unlisted kind falls back to a unique key (safe: it just won't dedupe).
+// never a wrong merge. The table is keyed by TaskKind (./task-kinds), so every kind
+// must DECLARE its identity — a builder, or an explicit `null` for "no stable
+// identity, never merge" — and a kind with neither is a compile error.
 //
 // The rule for what belongs in a key: EVERY param the handler reads that changes
 // the RESULT. A localized artifact therefore folds the requesting locale
 // (localePart) — see `reasoning`, `interview_prep`, `campaign`.
-export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => string | null> = {
+export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   automation: (p) => {
     const k = stableKey("automation", p.entryId, p.task);
     return k && `${k}:${p.notes ? "n" : ""}`;
@@ -141,6 +146,15 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${localePart(p.lang)}`;
   },
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
+  // One kit draft per job in flight. Deliberately NOT keyed by language the way
+  // interview_prep is: the kit is the ROLE's shared material and a job has one kit, so a
+  // second click while a draft is generating must coalesce rather than append a second
+  // version nobody asked for — the whole table is append-only, so a duplicate run would
+  // leave a permanent stray version behind.
+  interview_kit: (p) => stableKey("interview_kit", p.jobId),
+  // One draft per letter in flight: a redraft clicked while the first draft is still being
+  // written coalesces onto it rather than racing it for the same row.
+  interview_letter: (p) => stableKey("interview_letter", p.letterId),
   // One run per TENANT + TARGET. It used to key by `scanId`, which startRepoScan
   // mints fresh on every POST — a key unique by construction is a dedupe that can
   // never fire, so a double-click cloned the repository and ran the in-repo agent
@@ -156,8 +170,9 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   // One pack per (job, language): a double-click on Generate reuses the in-flight
   // run, while switching the language toggle starts its own.
   campaign: (p) => stableKey("campaign", p.jobId, p.lang),
-  // profile_draft has NO builder on purpose: each draft is a fresh creative pass
-  // over free-text notes — no stable identity, so every run gets a unique key.
+  // profile_draft has NO identity on purpose: each draft is a fresh creative pass
+  // over free-text notes, so every run gets a unique key. Declared, not omitted.
+  profile_draft: null,
   //
   // ONE digest per tenant per DAY. The day is the identity: accepting the same
   // "write today's digest" proposal twice, or two operators on one team accepting
@@ -171,7 +186,48 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   // onto it instead of fetching the same boards twice under one politeness budget. The
   // workspace is in the key for the same reason as above — a builder sees only params.
   jobseeker_scan: (p) => stableKey("jobseeker_scan", p.workspaceId),
+  // Same rule for the gig scan: one per tenant in flight, a double-click coalesces. A
+  // single-source scan (the Sources screen's per-source button) is keyed by its source
+  // too, so two clicks on one source collapse while two different sources each run.
+  gig_scan: (p) =>
+    typeof p.sourceId === "string" && p.sourceId.trim() !== ""
+      ? stableKey("gig_scan", p.workspaceId, "source", p.sourceId)
+      : stableKey("gig_scan", p.workspaceId),
+  // One research pass per tenant + SET of gigs: a retry of the same pass coalesces, while
+  // the next scan's new gigs start their own. No gigIds (a backlog pass) keys by tenant
+  // (+ source), like the scan. The accept loop's pass (gigs/loop.ts, `thenPlans`) keys apart
+  // from a scan's pass over the same gig: folding onto the scan's would drop its plans step.
+  gig_research: (p) =>
+    Array.isArray(p.gigIds)
+      ? p.thenPlans === true
+        ? stableKey("gig_research", p.workspaceId, "loop", gigIdsIdentity(p.gigIds))
+        : stableKey("gig_research", p.workspaceId, gigIdsIdentity(p.gigIds))
+      : typeof p.sourceId === "string" && p.sourceId.trim() !== ""
+        ? stableKey("gig_research", p.workspaceId, "source", p.sourceId)
+        : stableKey("gig_research", p.workspaceId),
+  // One plan run per tenant + SET of gigs: a double-click on "Propose plans" coalesces onto
+  // the run in flight; a different selection runs on its own (the runner skips a gig whose
+  // round is already in flight, so an overlap never doubles a gig's seats).
+  gig_plans: (p) => (Array.isArray(p.gigIds) ? stableKey("gig_plans", p.workspaceId, gigIdsIdentity(p.gigIds)) : null),
+  // ONE report run per tenant + gig: a burst of moves (a plan accepted while the planned
+  // report is still writing) folds onto the run in flight, which re-reads the records and
+  // writes once more when the gig reached a later stage meanwhile (gigs/report/run.ts).
+  gig_report: (p) => stableKey("gig_report", p.workspaceId, p.gigId),
+  // ONE proposal run per tenant + gig: an accept and an operator's "write the proposal" in
+  // the same moment fold onto the run in flight (gigs/proposal/run.ts).
+  gig_proposal: (p) => stableKey("gig_proposal", p.workspaceId, p.gigId),
+  // ONE run per cohort row: the route mints a fresh cohort per POST, so a double-click is
+  // two cohorts, and a retry of the same cohort folds onto the run in flight.
+  analyze_cohort: (p) => stableKey("analyze_cohort", p.cohortId),
 };
+
+/** A set of gig ids as one identity part: the string ids, de-duplicated and sorted, so the
+ *  order a selection was made in does not split one request into two runs. Empty (no
+ *  string id at all) answers undefined, which `stableKey` rejects. */
+function gigIdsIdentity(ids: unknown[]): string | undefined {
+  const set = [...new Set(ids.filter((id): id is string => typeof id === "string" && id.trim() !== ""))].sort();
+  return set.length > 0 ? set.join(",") : undefined;
+}
 
 /**
  * Build the stable dedupe key for a task, or `null` when the identifying params
@@ -180,6 +236,6 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
  * unrelated in-flight task.
  */
 export function buildDedupeKey(kind: string, params: Record<string, unknown>): string | null {
-  const builder = DEDUPE_BUILDERS[kind];
+  const builder = isTaskKind(kind) ? DEDUPE_BUILDERS[kind] : null;
   return builder ? builder(params) : null;
 }

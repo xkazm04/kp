@@ -69,10 +69,10 @@ test("leading/trailing whitespace in text fields is normalized (trim is part of 
   );
 });
 
-test("PROMPT_VERSION is bumped to retire the old (pre-i18n) keys", () => {
-  // Adding `lang` to the key must invalidate prior cache entries; the version is
-  // how lookupPromptCache rejects them.
-  assert.ok(PROMPT_VERSION.startsWith("v6-"), `expected a v6 prompt version, got ${PROMPT_VERSION}`);
+test("PROMPT_VERSION is bumped to retire analyses cached before checked strengths (v8)", () => {
+  // 8c424ff41 checks strengths and the explanation against the CV; the version is
+  // how lookupPromptCache rejects a payload cached before that.
+  assert.ok(PROMPT_VERSION.startsWith("v8-"), `expected a v8 prompt version, got ${PROMPT_VERSION}`);
 });
 
 test("structured job context distinguishes the key; its absence keeps the legacy key (role-intake Phase 0)", () => {
@@ -85,4 +85,99 @@ test("structured job context distinguishes the key; its absence keeps the legacy
   // Append-only contract: absent and empty behave like the pre-field key, so the
   // existing cache stays valid for runs without a structured job.
   assert.equal(without, computeCacheKey({ ...base, jobDescriptionText: "jd", jobStructureJson: "" }));
+});
+
+// The analysis Python reads pipeline/jobfit/archetypes.json on every spawn (registry.py
+// at import): the v2 profile's archetype routing (detect rules), its confidence and
+// needs-review threshold, the early-career set and the per-archetype checklist weights
+// all come from it. The file is editable at runtime (archetype manager), so a key that
+// ignores it serves an analysis scored under the pre-edit registry. These cases run the
+// REAL registry readers (archetype-registry-file.ts, archetype-live.ts) against a temp
+// copy of the registry.
+test("the live archetype-registry digest is an axis: an edited registry misses, an unchanged one hits", async () => {
+  const { mkdtempSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = (await import("node:path")).default;
+  const { fileURLToPath } = await import("node:url");
+  const { archetypeRegistryDigest, invalidateLiveRegistry, setLiveRegistryPathForTest } = await import(
+    "./archetype-live.ts"
+  );
+  // What analyze-run.ts actually keys on: the import-free leaf beside archetype-live.
+  const { archetypeRegistryFileDigest } = await import("./archetype-registry-file.ts");
+  const bundledPath = fileURLToPath(new URL("../../pipeline/jobfit/archetypes.json", import.meta.url));
+  const bundled = JSON.parse(readFileSync(bundledPath, "utf8")) as {
+    archetypes: { weights: Record<string, number> }[];
+  };
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-cache-key-registry-"));
+  const file = path.join(dir, "archetypes.json");
+  const write = (reg: unknown): void => {
+    writeFileSync(file, `${JSON.stringify(reg, null, 2)}\n`, "utf8");
+    invalidateLiveRegistry();
+  };
+  const key = (): string => {
+    const digest = archetypeRegistryFileDigest();
+    // ONE registry, one digest: the leaf the analyze key reads agrees with the live
+    // reader the matrix key reads, for any file Python can import.
+    assert.equal(digest, archetypeRegistryDigest());
+    return computeCacheKey({ ...base, archetypeRegistryDigest: digest });
+  };
+  try {
+    setLiveRegistryPathForTest(file);
+    write(bundled);
+    const before = key();
+    // Unchanged registry -> same key (the cache stays usable).
+    assert.equal(key(), before);
+    // A weight edit (swap two dimensions, so the weights still sum to 1.0 and the
+    // registry validates) -> a different key: the stale analysis must miss.
+    const edited = structuredClone(bundled);
+    const w = edited.archetypes[0].weights;
+    [w.skills, w.career] = [w.career, w.skills];
+    write(edited);
+    const after = key();
+    assert.notEqual(after, before);
+    // Reverting restores the original key.
+    write(bundled);
+    assert.equal(key(), before);
+  } finally {
+    setLiveRegistryPathForTest(null);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the registry digest is appended only when set, so a digest-less caller keeps its key", () => {
+  const k0 = computeCacheKey({ ...base });
+  assert.equal(k0, computeCacheKey({ ...base, archetypeRegistryDigest: "" }));
+  assert.notEqual(k0, computeCacheKey({ ...base, archetypeRegistryDigest: "d0" }));
+  assert.notEqual(
+    computeCacheKey({ ...base, archetypeRegistryDigest: "a" }),
+    computeCacheKey({ ...base, archetypeRegistryDigest: "b" })
+  );
+  // Framed behind its own marker: a digest cannot be confused with a structured job.
+  assert.notEqual(
+    computeCacheKey({ ...base, jobStructureJson: "x" }),
+    computeCacheKey({ ...base, archetypeRegistryDigest: "x" })
+  );
+});
+
+// The model is part of the instrument. PROMPT_VERSION pins the prompt, and the operator
+// re-routes cv_analysis at runtime (Settings -> Models), so a key without the route
+// served the previous model's reading for the whole TTL after a switch.
+test("the model route is an axis: a re-route misses, the default route keeps its key", () => {
+  const route = (model: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ provider: "openai", model, maxTokens: null, timeoutS: null, endpoint: null, apiVersion: null, baseUrl: null, ...extra });
+  const k0 = computeCacheKey({ ...base });
+  // No routing row -> "" -> byte-identical to the pre-axis key (no cache wipe).
+  assert.equal(k0, computeCacheKey({ ...base, llmRoute: "" }));
+  const a = computeCacheKey({ ...base, llmRoute: route("model-a") });
+  assert.notEqual(k0, a);
+  // Same route -> same key; a different model, token budget or endpoint -> a miss.
+  assert.equal(a, computeCacheKey({ ...base, llmRoute: route("model-a") }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-b") }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-a", { maxTokens: 4000 }) }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-a", { baseUrl: "http://localhost:11434/v1" }) }));
+  // Behind its own marker: a route cannot be confused with a registry digest.
+  assert.notEqual(
+    computeCacheKey({ ...base, archetypeRegistryDigest: "x" }),
+    computeCacheKey({ ...base, llmRoute: "x" })
+  );
 });

@@ -122,9 +122,12 @@ test("rediscoverForJob filters the pool through the consent gate BEFORE ranking 
     /\r\n/g,
     "\n"
   );
-  const gateAt = src.indexOf("suppressedCandidateIds(pool.map");
+  // The ONE eligibility gate (rediscovery-eligibility.ts: consent + erasure + opt-out),
+  // never the consent half alone and never an inline composition of the two halves.
+  const gateAt = src.indexOf("withheldCandidateIds(pool.map");
   const rankAt = src.indexOf("await rankPoolForJob");
-  assert.ok(gateAt > 0, "rediscoverForJob must resolve consent suppression over the pool");
+  assert.ok(gateAt > 0, "rediscoverForJob must resolve the eligibility gate over the pool");
+  assert.doesNotMatch(src, /suppressedCandidateIds\(pool\.map|optedOutCandidateIds\(pool\.map/, "no inline half-gate");
   assert.ok(rankAt > 0, "…and still rank");
   assert.ok(gateAt < rankAt, "the consent gate must run BEFORE the ranking spawn, not after it");
   assert.match(

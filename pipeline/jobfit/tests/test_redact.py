@@ -315,5 +315,96 @@ class MonthNameOverRedactionTest(unittest.TestCase):
         self.assertIn("Jan 2020 - Dec 2022", r.text)  # never his name, never masked
 
 
+class IdentityTwinInvarianceTest(unittest.TestCase):
+    """The same CV with only the candidate's identity varied must redact to the SAME
+    text. Every defect fixed in this file one case at a time — the feminine birth
+    participle, the Jan-as-January dates — was a mask whose output depended on who
+    was being masked; this pins the class, not the case.
+
+    Measured 2026-09-26 on nine planted twins: 8 diverged from the baseline mask.
+    "Grace Swift" / "Rust Cohle" were filed as role headlines (one skill token), so
+    the name was never detected; "Mark Price" lost "Mark-to-market". Fixed: the
+    headline test needs a vocabulary majority, and a lone name token the shared
+    vocabulary reads as evidence is kept."""
+
+    BODY = (
+        "{name}\nSenior Backend Engineer\n{email} | +420 123 456 789\n\n"
+        "May 2019 - Jan 2023: Backend Engineer at Acme (payments team, 40 engineers)\n"
+        "Built iOS apps in Swift and a Rust ingest service; mentored 6 juniors.\n"
+        "Mark-to-market risk reporting, price optimization.\n"
+        "Skills: Python, Swift, Rust, PostgreSQL.\n"
+    )
+    BASELINE = ("Petr Novak", "petr@example.com")
+    TWINS = (
+        ("Jan Novak", "jan@example.com"),
+        ("Mark Price", "mark@example.com"),
+        ("Grace Swift", "grace@example.com"),
+        ("Rust Cohle", "rust@example.com"),
+    )
+
+    def _redact(self, name: str, email: str):
+        return redact_pii(self.BODY.format(name=name, email=email))
+
+    def test_twins_redact_to_identical_text(self) -> None:
+        base = self._redact(*self.BASELINE)
+        self.assertTrue(base.name_detected)
+        for name, email in self.TWINS:
+            with self.subTest(name=name):
+                r = self._redact(name, email)
+                self.assertTrue(r.name_detected, "a surname that is also a skill must still be detected")
+                self.assertEqual(r.detected_name, name)
+                self.assertEqual(r.text, base.text)
+
+    def test_a_person_cue_still_masks_a_vocabulary_token(self) -> None:
+        # Non-vacuity: keeping "Swift" the skill must not keep "Swift" the person.
+        r = redact_pii("Grace Swift\nEngineer\n\nDear Swift, thanks. Ms Swift shipped it in Swift.\n")
+        self.assertIn("Dear [NAME], thanks", r.text)
+        self.assertNotIn("Ms Swift", r.text)
+        self.assertTrue(r.text.rstrip().endswith("in Swift."))
+
+    def test_a_skill_headline_is_still_a_headline(self) -> None:
+        r = redact_pii("Swift Developer\nJana Dvorakova\njana@example.com\n")
+        self.assertEqual(r.detected_name, "Jana Dvorakova")
+
+    @unittest.expectedFailure
+    def test_known_gap_employer_and_off_vocabulary_collisions(self) -> None:
+        """STATED GAP, not a silent one. A surname that is also an employer ("Grace
+        Ford" at Ford Motor Company, "Chase Young" at JPMorgan Chase) cannot be told
+        from a self-named firm ("Novak Consulting") by shape, so the policy masks it
+        as identity and that candidate loses the employer token. A given name the
+        taxonomy does not know as a skill ("Ruby", "Julia") is masked in the skills
+        line. Remove this decorator when either is resolved."""
+        body = (
+            "{name}\nBackend Engineer\n\n"
+            "Developer at Ford Motor Company; Engineer at JPMorgan Chase.\n"
+            "Skills: Ruby, Julia.\n"
+        )
+        base = redact_pii(body.format(name="Petr Novak")).text
+        for name in ("Grace Ford", "Chase Young", "Ruby Chen"):
+            self.assertEqual(redact_pii(body.format(name=name)).text, base)
+
+
+class RedactPreservesSubstanceTest(unittest.TestCase):
+    """Tenure ranges and grouped quantities match the phone shape but are evidence."""
+
+    def _mask(self, line: str) -> str:
+        return redact_pii("Jane Doe\n" + line).text
+
+    def test_year_ranges_survive(self) -> None:
+        for line in ("Acme 2015 - 2019 Engineer", "Acme 2015-2019", "2019 - 2023 Backend",
+                     "06/2018 - 07/2022"):
+            self.assertNotIn("[PHONE]", self._mask(line), line)
+
+    def test_grouped_quantities_survive(self) -> None:
+        for line in ("Led 12 000 000 requests per day", "Budget 1 200 000 EUR"):
+            self.assertNotIn("[PHONE]", self._mask(line), line)
+
+    def test_real_phones_still_masked(self) -> None:
+        for line in ("Call +420 777 123 456", "Tel 777 123 456", "Tel 777-123-456", "Tel (212) 555-0147"):
+            r = redact_pii("Jane Doe\n" + line)
+            self.assertIn("[PHONE]", r.text, line)
+            self.assertIn("phone", r.categories, line)
+
+
 if __name__ == "__main__":
     unittest.main()

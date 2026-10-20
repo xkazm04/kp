@@ -15,8 +15,20 @@
 // `skipped`. Store-free on purpose (the browser bundle imports it for labels): the
 // store is app/_lib/scheduler-store.ts.
 
-export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders", "jobseeker_scan"] as const;
+export const SCHEDULER_JOB_NAMES = [
+  "policy_pass",
+  "reminders",
+  "jobseeker_scan",
+  "interview_recording_retention",
+  "gig_scan",
+  "gig_sync",
+  "role_run_advance",
+] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
+
+/** The job-seeker scan's job name. Declared here, beside the registry that owns it, so
+ *  tasks.ts (a hub on ~60 route graphs) reads it without importing jobseeker/types.ts. */
+export const SCAN_JOB_NAME = "jobseeker_scan" satisfies SchedulerJobName;
 
 export function isSchedulerJobName(v: unknown): v is SchedulerJobName {
   return typeof v === "string" && (SCHEDULER_JOB_NAMES as readonly string[]).includes(v);
@@ -46,6 +58,40 @@ export const SCHEDULER_JOBS: readonly SchedulerJobDef[] = [
   // manual scan succeeded (requiresVerifiedRun) — the route refuses to arm it before
   // that with JOBSEEKER_SCAN_UNVERIFIED (409).
   { name: "jobseeker_scan", labelKey: "jobseekerScan", defaultIntervalMinutes: 720, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: true },
+  // Opt-in interview-audio retention (spark ai-interview-parity, WP3). DAILY: the two
+  // windows it enforces are measured in days (30 after the hiring decision, 180 after
+  // the call), so a tighter cadence would spend a scan to learn the same thing.
+  //
+  // ON BY DEFAULT — the one exception beside `reminders`, and for a stronger reason:
+  // this is a STATUTORY retention duty (storage limitation) over candidate audio the
+  // candidate was PROMISED would be deleted, not a discretionary automation. A job
+  // registered OFF would mean every deployment silently keeps recordings forever until
+  // someone notices a toggle. (The read-time gate in the playback door is the backstop
+  // for a clock that is nonetheless not running.) `fanOut: "none"`: one deployment-wide
+  // sweep, scoping each write to the workspace the row names — the same shape as the
+  // consent-expiry sweep.
+  {
+    name: "interview_recording_retention",
+    labelKey: "interviewRecordingRetention",
+    defaultIntervalMinutes: 1440,
+    defaultEnabled: true,
+    fanOut: "none",
+    requiresVerifiedRun: false,
+  },
+  // Gigs (app/_lib/gigs): the listing scan over the workspace's enabled gig sources
+  // (official APIs only - gigs/adapters). Same courtesy rule and cadence as the
+  // job-seeker scan: twice a day, OFF, and not armable before one manual scan succeeded.
+  { name: "gig_scan", labelKey: "gigScan", defaultIntervalMinutes: 720, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: true },
+  // Gigs: pull in-flight specialist runs from the local Personas app and land finished
+  // drafts (gigs/sync.ts). Every 15 minutes - it asks a loopback app about rows kp
+  // already holds, so there is no third party to be courteous to - but OFF by default:
+  // a created schedule is not consent, and a deployment with no Personas pairing has
+  // nothing to ask.
+  { name: "gig_sync", labelKey: "gigSync", defaultIntervalMinutes: 15, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
+  // Role runs (ADR-0011): one live pass over every running run (role-run-live.ts tickRoleRuns).
+  // Every 5 minutes - a pass is a ledger read when nothing is runnable, and parks at the human
+  // gates and each run's LLM budget - but OFF by default: a pass may call a model.
+  { name: "role_run_advance", labelKey: "roleRunAdvance", defaultIntervalMinutes: 5, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
 ];
 
 export function schedulerJob(name: SchedulerJobName): SchedulerJobDef {

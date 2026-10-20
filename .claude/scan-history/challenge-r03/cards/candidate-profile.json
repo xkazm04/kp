@@ -1,0 +1,121 @@
+[
+  {
+    "context": "candidate-profile",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Key the candidate population on CV identity, and refuse a second profile per CV",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/db/profiles.ts",
+      "app/_lib/db/analyses.ts",
+      "app/_lib/candidate-population.ts",
+      "app/_lib/candidate-population.test.ts",
+      "app/api/profile/candidates/route.ts",
+      "app/api/profile/route.ts",
+      "app/api/profile/profile-route.test.ts",
+      "app/_lib/api-response.ts",
+      "app/features/shared/profileTypes.ts",
+      "app/features/tools/profile/candidateMatrixView.ts",
+      "app/features/tools/profile/CandidateMatrix.tsx",
+      "app/features/tools/profile/CandidateChip.tsx",
+      "app/features/tools/profile/CandidateDetailModal.tsx",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/_lib/candidate-population.ts",
+      "app/_lib/candidate-population.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "collapsePopulation([profile{id:'p1', sourceCvHash:'H', archetype:'student'}], [analysis{slug:'a1', cvHash:'H', archetype:'bau', score:71}]) -> exactly ONE row: source 'profile', id 'p1', slug 'a1', archetype 'student' (the reviewed profile's routing wins), analyses.length 1",
+      "two analyses of the same CV (cvHash 'H', slugs a1 older score 60 / a2 newer score 80, different JDs) and no profile -> ONE row whose score is 80 and whose analyses list is [a2, a1] newest-first",
+      "two analyses with cv_hash NULL and the SAME candidate_label -> TWO rows (a label is never an identity key; legacy null-hash rows stay unmerged)",
+      "a hand-built profile (source_cv_hash NULL) labelled 'Jana Novak' plus an analysis labelled 'Jana Novak' with cvHash 'H' -> TWO rows",
+      "POST /api/profile {persist:true, sourceAnalysisSlug:'a2'} when this workspace already holds a profile whose source_cv_hash equals a2's cv_hash -> 409 {code:'PROFILE_EXISTS', params:{id:<existing id>}} and the profiles row count is unchanged",
+      "the same POST when the only profile with that cv_hash lives in ANOTHER workspace -> 200 and a new row (the identity join never crosses tenants)",
+      "POST /api/profile {persist:false, sourceAnalysisSlug:'a2'} (dry-run preview) with an existing same-CV profile -> 200, not refused",
+      "matrixChipAction(row) for a merged row (id 'p1', slug 'a1') -> {kind:'edit', id:'p1'}; for an analysis-only row -> {kind:'build', slug}; never 'build' when an id is present"
+    ],
+    "premise": [
+      "app/api/profile/candidates/route.ts:24-40 maps every analysis row to its own CandidateRow and :42-56 maps every profile row to its own CandidateRow; :58 returns [...profileRows, ...analysisRows] with no join between them",
+      "app/_lib/db/analyses.ts:439 listAnalysisRecords SELECTs slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at - no cv_hash, so the matrix read cannot join on identity even though AnalysisRow declares cv_hash at :28-31",
+      "app/_lib/db/profiles.ts:100 listProfileRecords SELECTs no source_cv_hash / source_analysis_slug, though saveProfile writes them at :55-57 and :70-72",
+      "app/features/tools/profile/CandidateMatrix.tsx:122-131 onSave sends an analysis-sourced chip to onBuildFromAnalysis(slug); the analysis chip for a CV already promoted to a profile is still on the board (route :58), so the build action stays offered",
+      "app/features/tools/profile/useProfileTabDeepLinks.ts:60-62 opens build-from-analysis in mode 'create' with editingId null, so useProfileEditorSubmit.ts:77-84 POSTs, and app/api/profile/route.ts:215-216 calls saveProfile, which INSERTs a new row unconditionally (app/_lib/db/profiles.ts:54-79) - a second click on the same analysis files a second profile for the same CV",
+      "app/features/tools/profile/CandidateDetailModal.tsx:55-66 gives a profile-sourced candidate only 'Open profile' - no route to the CV analysis it was built from, although the lineage slug is stored",
+      "the store already has the identity primitive: app/_lib/db/profiles.ts:265-281 profileStaleness joins profiles to analyses ON cv_hash = source_cv_hash; the matrix population simply never uses it"
+    ],
+    "rollback": "The series reverts cleanly: no schema change (source_cv_hash and cv_hash columns already exist and are only newly SELECTed), no new table, the refusal is a new REFUSAL_ERRORS code whose four catalog entries go with it, and the collapse lives in one new pure module the route calls - reverting restores the raw union.",
+    "gate": "contract",
+    "runner_up": "Serve one server-side population read (roster rows, matrix rows, and the retire dialog's per-archetype routed count) instead of three client reads - ArchetypeManager.tsx:74-79 fetches the whole /api/profile roster just to count one archetype, and counts profiles only while the matrix lane also holds analyses.",
+    "technique": "content-addressed-document-identity",
+    "body": "## Summary\nThe Profile tab's candidate population is a row-keyed union of two stores, so one person appears as one chip per analysis plus one per profile, and the matrix keeps offering to build a profile for a CV that already has one - each click inserts a duplicate. Key the population on the content-addressed CV identity the store already carries, and make a second same-CV profile a refusal the server enforces. This adopts and widens the open develop item \"Collapse a saved profile and its source analysis into one matrix chip\" (leftover-develop-2026-09-17, M, never built): that item is the view half; this card adds the server join and the duplicate-create refusal that make the collapse true rather than cosmetic.\n\n## Description\n`/api/profile/candidates` concatenates profiles and analyses with no join (route.ts:58). The join key exists on both sides - `analyses.cv_hash` and `profiles.source_cv_hash`, already joined by `profileStaleness` - but neither list read SELECTs it (analyses.ts:439, profiles.ts:100). A new pure module `app/_lib/candidate-population.ts` takes both record lists and folds them into one row per identity: rows sharing a non-null hash merge (profile routing wins the archetype, the newest analysis supplies the score, every analysis is listed); a null hash never merges, and a label is never compared. The route becomes a thin caller. `POST /api/profile` with `persist` and a `sourceAnalysisSlug` whose hash already has a profile in the workspace answers `409 PROFILE_EXISTS {id}` instead of inserting (a preview is never refused). The chip's single action and the detail modal read the merged row: a merged chip edits the existing profile and links every analysis of that CV; the source filter means 'has a profile' / 'analysis only'.\n\n## Flow\n1. Store: listProfileRecords also SELECTs source_cv_hash + source_analysis_slug; listAnalysisRecords also SELECTs cv_hash; add findProfileIdBySourceCvHash(hash, ws).\n2. Pure `collapsePopulation(profiles, analyses)` + `matrixChipAction(row)`, tests first (cases 1-4, 8).\n3. Candidates route delegates to it; CandidateRow gains `analyses: {slug, score, createdAt}[]` beside id/slug.\n4. POST guard before saveProfile: resolveLineage -> same-hash profile in ws -> jsonRefusal('PROFILE_EXISTS', 409, {id}); catalog entry errors.PROFILE_EXISTS x4.\n5. CandidateMatrix onSave / CandidateChip / CandidateDetailModal / candidateMatrixView source filter read the merged row.\n6. docs/features/candidates/README.md: the population is identity-keyed; the refusal.\n\n## Expected impact\nOne chip per person on the board, so lane counts and the distribution bar count candidates instead of rows (a CV analysed against four JDs was four chips). The duplicate-profile path closes at the server, not just in the UI. A profile finally links back to the analyses of the CV it came from - the cross-role footprint the registry calls the payoff of content addressing.\n\n## Evaluation\nClaim: the matrix population is keyed on CV identity and a second same-CV profile cannot be created.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: contract - node:test over candidate-population.test.ts (cases 1-4, 8) and profile-route.test.ts (cases 5-7), then the integration gate.\nResult: pending build.\nGate: contract",
+    "evidence": "app/api/profile/candidates/route.ts:58  `return NextResponse.json({ candidates: [...profileRows, ...analysisRows] });`\napp/_lib/db/analyses.ts:439  `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at` (no cv_hash)\napp/_lib/db/profiles.ts:100  `SELECT id, label, archetype, role_family, completeness, payload_json, created_at` (no source_cv_hash)\napp/_lib/db/profiles.ts:273-276  profileStaleness: `JOIN analyses a ON a.workspace_id = p.workspace_id AND a.cv_hash = p.source_cv_hash` - the identity join exists, only for staleness\napp/features/tools/profile/CandidateMatrix.tsx:126-127  `} else if (cand.slug) { onBuildFromAnalysis(cand.slug);`\napp/features/tools/profile/useProfileTabDeepLinks.ts:61-62  `mode: rebuildProfileId ? \"edit\" : \"create\", editingId: rebuildProfileId,`\napp/api/profile/route.ts:216  `const saved = saveProfile(persistFieldsFrom(data), ws, resolveLineage(body.sourceAnalysisSlug, ws));` - no existence check\nBacklog: leftover-develop-2026-09-17.jsonl {\"title\":\"Collapse a saved profile and its source analysis into one matrix chip\",\"context\":\"candidate-profile\",\"size\":\"M\",\"risk\":2} - absent from both low-risk-drain result files, so open; adopted and widened here."
+  },
+  {
+    "context": "candidate-profile",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Rebuild from a newer CV as a field-level merge that keeps your edits",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/profile/profileRebuildMerge.ts",
+      "app/features/tools/profile/profileRebuildMerge.test.ts",
+      "app/features/tools/profile/useProfileEditorFields.ts",
+      "app/features/tools/profile/useProfileTabDeepLinks.ts",
+      "app/features/tools/profile/ProfileTabTypes.ts",
+      "app/features/tools/profile/ProfileTab.tsx",
+      "app/features/tools/profile/ProfileTabRebuildWarnModal.tsx",
+      "app/features/tools/profile/ProfileEditor.tsx",
+      "app/api/profile/route.ts",
+      "app/api/profile/profile-route.test.ts",
+      "app/_lib/db/profiles.ts",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/profile/profileRebuildMerge.ts",
+      "app/features/tools/profile/profileRebuildMerge.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "planRebuild({current: P, source: P, newer: P with skills [Go, SQL]}) (no hand edits) -> merged.skills from newer, contested [], preserved [], needsConfirm false (proceed without a dialog)",
+      "current differs from source on displayName and availability; newer differs from source on displayName and skills -> merged.displayName = current (hand edit), merged.availability = current, merged.skills = newer; contested ['displayName'] ONLY (availability was edited but the new CV did not change it, so it is preserved, not contested); needsConfirm true",
+      "current differs from source only in skill-row `_id`s (hydrate re-mints them) -> no field counts as edited; contested []",
+      "source payload unavailable (the source analysis was deleted: source null) -> merged = current for every field, contested = every field where current differs from newer, mode 'unknown-baseline' (never silently overwrite what cannot be attributed)",
+      "rebuildEditorState(plan) -> {state: merged, pending: {before: current, draft: newer, kept: contested}} so the editor's existing draft banner offers 'use the new CV anyway' for exactly the contested fields and Undo restores the pre-rebuild form",
+      "GET /api/profile?id=<lineage profile> -> body.lineage.sourceAnalysisSlug equals the slug it was built from; GET for a hand-built profile -> lineage null",
+      "a rebuild whose plan has contested fields opens the warn dialog naming those fields (localized field labels) with three actions: merge (default), keep my version, take the new CV wholesale"
+    ],
+    "premise": [
+      "app/features/tools/profile/ProfileTabRebuildWarnModal.tsx:34-49 offers exactly two actions, Keep (onKeep) and Proceed (onProceed); there is no 'rebuild and re-apply my edits' option",
+      "app/features/tools/profile/ProfileTab.tsx:164-171 maps Keep to openEditor(profileId) (the newer CV is discarded) and Proceed to openFromAnalysis(slug, ...), which at useProfileTabDeepLinks.ts:59-63 hydrates initialPayload from the newer analysis's v2Profile WHOLESALE - every hand edit is replaced",
+      "the warning is a timestamp boolean: app/_lib/db/profiles.ts:217 `diverged = updated_at > lineage_stamped_at`, so the dialog cannot say WHICH fields were edited (messages/en.json:6186 'those edits will be overwritten') and warns even when the new CV changes none of them",
+      "the three-way merge already exists and is tested: app/features/tools/profile/profileDraftMerge.ts:102-121 mergeDraft(current, baseline, draft) keeps a field that was edited since baseline and differs from the draft, and strips client `_id`s before comparing (:70-80)",
+      "the editor already renders a merge outcome: app/features/tools/profile/ProfileEditor.tsx:165-196 shows draftKeptEdits with 'use anyway' (acceptDraftFully) and Undo (undoDraft), fed by useProfileEditorFields.ts:105 `pending` - but pending is only ever set by an AI draft (:206-216), never at open",
+      "the baseline the merge needs is recorded but not served: app/_lib/db/profiles.ts:234 stores source_analysis_slug, while getProfileRecord (:142-147) does not SELECT it and GET /api/profile?id= (app/api/profile/route.ts:161-165) returns only profile, divergence, updatedAt",
+      "useProfileEditorFields.ts:58 formStateFrom (payload -> ProfileFormState) is module-private, so no pure caller can build the three states to merge today"
+    ],
+    "rollback": "Reverts cleanly: the new module and its test are additive, the GET gains one response field that no existing reader depends on, the modal's third action is additive, and the hook's new optional initial-plan argument defaults to today's behaviour - reverting restores the two-button keep/overwrite dialog.",
+    "gate": "none",
+    "runner_up": "Archetype editor what-if: before Save, show how many existing profiles and analyses would re-route or re-rank under the edited weights - today ArchetypeManagerEditPanel.tsx:112-124 saves blind and the registry change silently re-scores everyone routed to it.",
+    "technique": "rebuild-overwrites-manual-edits-warning",
+    "body": "## Summary\nWhen a newer analysis of a candidate's CV lands, the roster offers Rebuild. Today a hand-edited profile gets a two-button dialog: keep my edits (and lose the new CV) or take the new CV (and lose every edit). The app has everything needed for the option recruiters actually want - rebuild and re-apply my edits on top: the source analysis the profile was built from (the baseline), the profile as it stands (the edits), the newer analysis (the machine update), and a tested three-way merge plus an editor banner with 'use anyway' and Undo. Wire them together.\n\n## Description\nA pure `profileRebuildMerge.ts` builds three form states from (current payload, source-analysis v2Profile, newer-analysis v2Profile) through the one payload->form mapping (formStateFrom, exported from the hook module or moved beside it) and classifies every field: untouched (take the new CV), edited-but-uncontested (the new CV did not change it: keep silently), contested (a human edit AND a machine change: keep the edit, list it). This is the technique's 'present the intersection, not the diff' - the current dialog cannot, because divergence is one timestamp comparison. `openRebuild` fetches the profile (GET now returns `lineage.sourceAnalysisSlug`), both analyses, and plans. No contested field -> open straight into the merged editor with no dialog (a warning with nothing at risk trains people to click through). Contested fields -> the dialog names them and offers merge (default), keep mine, or take the new CV. The merged editor opens with `pending` pre-seeded, so the existing banner offers the per-field override and a one-click Undo back to the pre-rebuild form. If the source analysis is gone, nothing can be attributed, so every differing field is contested and the current value is kept - never a silent overwrite.\n\n## Flow\n1. Tests first: profileRebuildMerge.test.ts (cases 1-5), profile-route.test.ts (case 6).\n2. profiles.ts: getProfileRecord (or a sibling) returns source_analysis_slug; route GET adds `lineage`.\n3. profileRebuildMerge.ts: planRebuild + rebuildEditorState; export formStateFrom.\n4. useProfileEditorFields accepts an optional initial plan -> seeds state + pending.\n5. useProfileTabDeepLinks.openRebuild: fetch three payloads, plan, then open or warn; ProfileTabTypes carries the plan.\n6. ProfileTabRebuildWarnModal: names contested fields, three actions; ProfileTab wires them; ProfileEditor banner copy for a rebuild.\n7. Catalog keys x4; docs/features/candidates/README.md rebuild section.\n\n## Expected impact\nThe rebuild stops being a choice between losing the recruiter's corrections and losing the newer evidence - the corrections the registry calls the most reliable content in the record. Most rebuilds (no contested field) become one click with no dialog; the rest show a dialog that names what is at risk instead of a generic warning.\n\n## Evaluation\nClaim: a rebuild keeps human edits, takes the new CV everywhere else, and asks only about fields where both changed.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: none - node:test over profileRebuildMerge.test.ts and profile-route.test.ts, then the integration gate.\nResult: pending build.\nGate: none",
+    "evidence": "app/features/tools/profile/ProfileTab.tsx:164-171  onKeep -> `void openEditor(profileId)`; onProceed -> `void openFromAnalysis(slug, profileId, rebuildWarn.updatedAt)`\napp/features/tools/profile/useProfileTabDeepLinks.ts:59-63  `const v2 = (p.analysis?.v2Profile ...) ?? null; setEditor({ mode: rebuildProfileId ? \"edit\" : \"create\", editingId: rebuildProfileId, initialPayload: v2,`\napp/_lib/db/profiles.ts:217  `const diverged = row.updated_at != null && row.lineage_stamped_at != null && row.updated_at > row.lineage_stamped_at;`\nmessages/en.json:6186  \"Rebuilding replaces the form with the latest analysis, so those edits will be overwritten.\"\napp/features/tools/profile/profileDraftMerge.ts:110-114  `const edited = !same(current[field], baseline[field]); const differs = !same(current[field], draft[field]); if (edited && differs) { kept.push(field); continue; }` - note: kept lists edited fields the draft merely did not echo, so the rebuild plan needs its own contested = edited AND machine-changed classification (case 2)\napp/features/tools/profile/useProfileEditorFields.ts:100-101 baseline/state from formStateFrom(initialPayload); :105 pending only set in applyDraft :206-216\napp/api/profile/route.ts:161-165  GET ?id returns `{ profile: {...rec.row, payload: rec.payload}, divergence, updatedAt }` - no lineage\nRegistry: recruiting/candidate-identity-and-staleness, technique rebuild-overwrites-manual-edits-warning, procedure step 4 'Offer the third option ... rebuild and re-apply my edits on top' and step 2 'If the intersection is empty, proceed without ceremony'."
+  }
+]

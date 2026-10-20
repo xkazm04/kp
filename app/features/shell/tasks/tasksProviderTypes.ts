@@ -1,5 +1,9 @@
 // Shared types + the ACTIVE predicate for TasksProvider.tsx, split out so the
 // provider stays under the 200-line file cap. Verbatim — same shapes.
+import type { TaskKind } from "@/app/_lib/task-kinds";
+import type { RetryScope } from "@/app/_lib/task-fanout";
+import type { ReplayVerdict } from "@/app/_lib/task-replay";
+
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
 /** Why a startTask() call never produced a task (bad kind, server error, dropped network). */
@@ -27,19 +31,31 @@ export type Task = {
   /** Read/unread ack for finished outcomes — null = unread (drives the
    *  TasksIndicator unread badge; stamped via POST /api/tasks/seen). */
   seenAt: string | null;
+  /** The whole-run replay verdict the SERVER stamped from the stored params
+   *  (app/_lib/task-replay.ts) — the same decision POST /api/tasks/[id]/retry refuses
+   *  by. null on a success or a live run; ABSENT from an older server, which the row
+   *  reads as today's always-offer Retry (tasksTabHelpers.rowRetryAction). */
+  replay?: ReplayVerdict | null;
 };
 
 export type TasksCtx = {
   tasks: Task[];
+  /** Every registered kind, including ones absent from the recent window. */
+  knownKinds: string[];
   running: Task[];
-  /** Resolves to the started Task, or null if it never started (see `startError`). */
-  startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
+  /** Resolves to the started Task, or null if it never started (see `startError`).
+   *  `kind` is the closed TaskKind vocabulary, so a misspelled literal at a call site
+   *  is a compile error rather than a runtime 400. */
+  startTask: (kind: TaskKind, params?: Record<string, unknown>) => Promise<Task | null>;
   /**
    * DATA1 — replay a failed/interrupted/canceled task from its persisted params
    * (server-side via POST /api/tasks/[id]/retry, so the blobs never round-trip).
    * Resolves to the NEW task, or null on failure (surfaced via `startError`).
+   * With a `scope`, a fan-out run (batch_screen / batch_outreach) replays only its
+   * failed items or, after a cancel, only the cohort it never reached — the server
+   * derives that subset from the stored row (app/_lib/task-fanout.ts).
    */
-  retryTask: (id: string) => Promise<Task | null>;
+  retryTask: (id: string, scope?: RetryScope) => Promise<Task | null>;
   cancelTask: (id: string) => Promise<void>;
   refresh: () => void;
   /**

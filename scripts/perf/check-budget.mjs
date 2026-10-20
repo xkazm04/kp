@@ -106,10 +106,10 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.next', '.next-empty', 'dist
  * is the same line docs/architecture/app-structure.md draws when it says
  * type-only barrel imports need no change.
  */
-const VALUE_FROM_RE =
+export const VALUE_FROM_RE =
   /^[ \t]*(?:import(?![ \t]+type[ \t])[ \t]+[{*'"A-Za-z_$]|export[ \t]+(?!type[ \t])(?:\*|\{))[\s\S]*?from[ \t]*['"]([^'"]+)['"]/gm;
 /** `import 'x'` — a side-effect import has no clause and no `from`. */
-const SIDE_EFFECT_RE = /^[ \t]*import[ \t]*['"]([^'"]+)['"]/gm;
+export const SIDE_EFFECT_RE = /^[ \t]*import[ \t]*['"]([^'"]+)['"]/gm;
 /** `import('x')` — including the `next/dynamic` tab loaders. */
 const DYNAMIC_RE = /\bimport[ \t]*\([ \t]*['"]([^'"]+)['"][ \t]*\)/g;
 /** `import type ... from 'x'` / `export type ... from 'x'` — free, never counted. */

@@ -1,0 +1,25 @@
+{
+  "card": "analyze-workspace/A",
+  "title": "One JD source: a picked role stays linked through edits, files and tab switches",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["23595bbb7", "bead7bfa7"],
+  "tests_added": [
+    "app/features/tools/analyze/analyzeJdSource.test.ts",
+    "app/features/tools/analyze/analyzeDraft.test.ts",
+    "app/features/tools/analyze/analyzeFileIntakeGate.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 10,
+  "deviations_from_card": "messages/*.json were updated in the working tree for all 4 locales (en, cs, de, fr) for i18n parity check to pass, but left uncommitted to avoid committing foreign working tree edits from the 2026-09-30 Orbit session.",
+  "notes": "One JD source (analyzeJdSource.ts) replaces three independent state atoms. Role linkage survives text edits with Revert and Unlink actions, file attaches cleanly transition to kind file, and drafts persist jdSlug and jdEdited. 8/8 acceptance criteria verified and passing."
+}

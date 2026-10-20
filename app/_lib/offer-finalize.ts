@@ -6,9 +6,9 @@ import { stageHasRole } from "./pipeline-stages";
 import { dispatchAtsEvent } from "./ats-egress";
 import { recordAudit } from "./dev-control";
 import { recordMeterUsage } from "./billing";
-import { recordPipelineOutcome } from "./dev-outcomes";
+import { hireOutcomeRef, recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
-import { offerHoursRemaining } from "./offer-policy";
+import { offerHoursRemaining, offerMinutesRemaining } from "./offer-policy";
 import { INTERVIEW_TZ } from "./schedule-slots";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
@@ -85,7 +85,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
       // returns null instead of resurrecting them to Hired.
-      const advanced = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
+      const advanced = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system", outcome: "offer_accepted" }, offer.workspaceId);
       // A non-null return means "the entry moved a stage", NOT "this candidate is
       // hired" — two different questions, and the hire-bearing side effects below
       // (the hire meter, the outcome ground truth, the candidate.hired webhook into
@@ -129,7 +129,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
         // the whole product exists to produce. Best-effort for the same reason — a
         // metering fault must not turn a successful acceptance into an error.
         try {
-          recordMeterUsage("hires", 1, new Date(), offer.workspaceId);
+          recordMeterUsage("hires", 1, new Date(), offer.workspaceId, { kind: "hire", ref: offer.id });
         } catch (meterErr) {
           console.error(
             `[offer] hired ${offer.entryId} but the hire meter did not record:`,
@@ -147,7 +147,9 @@ export async function respondToOffer(token: string, response: "accept" | "declin
             recordAudit({
               actor: "system",
               action: "outcome_auto_recorded",
-              reason: `${hired.candidateLabel}: hired (predicted ${hired.matchScore ?? "—"})`,
+              // No candidate label (see actOnPipelineEntry): the outcome key rides in `ref`.
+              reason: `hired (predicted ${hired.matchScore ?? "—"})`,
+              ref: hireOutcomeRef(hired),
             });
           }
         } catch (err) {
@@ -210,6 +212,7 @@ export function offerView(token: string) {
   const job = offer.jobId ? getJob(offer.jobId) : null;
   const company = job?.company ?? null;
   const terms = publicOfferTerms(offer.payload);
+  const countdownNow = Date.now();
   return {
     token: offer.token,
     status: offer.status,
@@ -221,7 +224,8 @@ export function offerView(token: string) {
     expiresAt: offer.expiresAt,
     // Countdown computed on the SERVER clock (offers-onboarding #5) so the candidate's
     // "X hours left" copy can't drift from server-enforced expiry under client clock skew.
-    hoursRemaining: offerHoursRemaining(offer.expiresAt),
+    hoursRemaining: offerHoursRemaining(offer.expiresAt, countdownNow),
+    minutesRemaining: offerMinutesRemaining(offer.expiresAt, countdownNow),
     // The company's named zone (KP_INTERVIEW_TZ, Europe/Prague default) — same
     // clock the slot grid uses. The offer row has no zone column yet; formatOfferDeadline
     // already accepts this as its third argument. Server-resolved, never a client guess.
@@ -245,4 +249,3 @@ function publicOfferTerms(payload: unknown): { notes: string | null; startDate: 
   const startDate = typeof p.startDate === "string" && p.startDate.trim() ? p.startDate.trim() : null;
   return { notes, startDate };
 }
-

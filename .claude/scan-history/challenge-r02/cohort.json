@@ -1,0 +1,111 @@
+{
+  "cohort": [
+    {
+      "name": "schedule-calendar-invites",
+      "group": "Interview Scheduling",
+      "files": 31,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "candidate-self-scheduling-page",
+          "files": 4
+        }
+      ]
+    },
+    {
+      "name": "about-product",
+      "group": "Workspace Shell & Onboarding",
+      "files": 29,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "shell-companion-voice",
+          "files": 9
+        },
+        {
+          "name": "shell-palette-preview",
+          "files": 9
+        }
+      ]
+    },
+    {
+      "name": "decisions-screen-wave-logic",
+      "group": "Hiring Decisions",
+      "files": 29,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "autonomy-control-room",
+          "files": 2
+        },
+        {
+          "name": "control-room-action-guard",
+          "files": 2
+        },
+        {
+          "name": "offer-response-page",
+          "files": 4
+        }
+      ]
+    },
+    {
+      "name": "devcase-eval",
+      "group": "Developer Assessment",
+      "files": 29,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "casesim-evaluator",
+          "files": 1
+        },
+        {
+          "name": "devcase-candidate-apply",
+          "files": 4
+        },
+        {
+          "name": "devcase-live-work-surface",
+          "files": 3
+        }
+      ]
+    },
+    {
+      "name": "llm-api",
+      "group": "AI & LLM Infrastructure",
+      "files": 29,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "app-master-bench-scenarios",
+          "files": 2
+        },
+        {
+          "name": "companion-appmaster",
+          "files": 7
+        }
+      ]
+    },
+    {
+      "name": "analyze-engine",
+      "group": "CV Analysis & Scoring",
+      "files": 28,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "pipeline-actions-events",
+      "group": "Hiring Pipeline",
+      "files": 28,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "db-jobs-devcase-interviews",
+      "group": "Data Access Layer",
+      "files": 27,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 204
+}

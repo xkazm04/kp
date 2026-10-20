@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { lookupPromptCache, storePromptCache } from "./db/analyses";
-import { listCorpusJobs } from "./db/jobs";
+import { getJob, listCorpusJobs } from "./db/jobs";
 import { actOnPipelineEntry, countActiveEntriesForJob, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
 import { latestInterviewByEntry } from "./db/interviews";
@@ -19,8 +19,10 @@ import {
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { getPlanGateForRole } from "./interview-plan";
+import { readLiveArchetypes } from "./archetype-live";
 import { extendDraftedOffer } from "./pipeline-entry-action";
 import { sealDecisionSafe } from "./decision-record-store";
+import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
@@ -28,7 +30,9 @@ import { getPipelineAxis } from "./pipeline-axis-server";
 import { offeredStageActions } from "./stage-ai-actions";
 import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
-import { dispatchOutreach } from "./comms-dispatch";
+import { draftOutreachLetter } from "./outreach-release";
+import { candidateOutreachSuppression } from "./rediscovery-alert-store";
+import { outreachHaltFor } from "./outreach-state-store";
 import {
   coerceInterviewRecommendation,
   coerceScreenRoute,
@@ -144,20 +148,13 @@ const LETTER_TASKS = LETTER_LANG_TASKS;
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
-// must NOT be listed here (an outreach entry was dead: outreach records
-// "outreach_sent" via dispatchOutreach, never "outreach_drafted").
+// must NOT be listed here (an outreach entry was dead: outreach holds its draft on an
+// outreach_letters row, and "outreach_sent" is recorded only when a person releases it).
 const DRAFT_EVENT: Record<string, string> = {
   rejection: "rejection_drafted",
   prep: "interview_prep_generated",
 };
 const TTL_HOURS = 168;
-
-// Per-entry in-process single-flight for outreach (mirrors automation-pass's inFlightPass).
-// The durable `outreach_sent` marker is written only AFTER sendComm, so two concurrent
-// same-process /api/automation/outreach calls for one entry both passed the hasEvent gate
-// and double-sent. The manual surfaces run in the same Next server process as the heartbeat,
-// so an in-process guard suffices; on send failure the entry is released so a retry works.
-const outreachInFlight = new Set<string>();
 
 // The refusals THIS module decides, as machine tokens. A route answers each with
 // its own `jsonRefusal` code, in the reader's language; everything else that
@@ -182,7 +179,18 @@ export class AutomationError extends Error {
   }
 }
 
-export type AutomationResult = { result: Record<string, unknown>; source: string; applied: string };
+export type AutomationResult = {
+  result: Record<string, unknown>;
+  source: string;
+  applied: string;
+  /** Present ONLY on a `deferApply` run: what the caller needs to apply the verdict
+   *  itself, in its own locked unit (interview-scorecard-commit.ts). */
+  deferred?: DeferredApply;
+};
+/** The apply half a `deferApply` run hands back instead of writing it: the verdict's
+ *  provenance, the actor its event is recorded under, and the coerced recommendation
+ *  that event carries. The SAME three values the in-module branches write with. */
+export type DeferredApply = { provenance: VerdictProvenance; actor: string; recommendation: string };
 type CliPayload = { result: Record<string, unknown>; source: string };
 
 // ---- Verdict provenance (llm vs template) -----------------------------------
@@ -277,6 +285,68 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
+export interface BuildAutomationArgvOptions {
+  task: string;
+  profilePath: string;
+  degraded?: boolean;
+  jobId?: string | null;
+  jobJsonPath?: string | null;
+  jobsPath?: string | null;
+  pipelineSize?: number | null;
+  stage?: string | null;
+  scorecardPath?: string | null;
+  notesPath?: string | null;
+  lang?: string | null;
+  githubEvidencePath?: string | null;
+  /** S1 — scorecard only: the entry carries a work sample, so the rubric gains the
+   *  optional "Working with AI tools" axis. Absent/false = the pre-S1 argv. */
+  devCase?: boolean;
+}
+
+/** The one rule for "this entry has a dev case" — the scorecard route's hasDevCase,
+ *  the argv and the cache key all read it from here. */
+export function entryHasDevCase(entry: { devCaseId?: string | null; devSubmissionId?: string | null }): boolean {
+  return Boolean(entry.devCaseId || entry.devSubmissionId);
+}
+
+export function buildAutomationArgv(options: BuildAutomationArgvOptions): string[] {
+  const args = ["-m", "pipeline.jobfit.automation_cli", options.task, "--profile-json", options.profilePath];
+  if (options.degraded) args.push("--no-llm");
+  if (options.task === "rematch") {
+    args.push("--current-job-id", options.jobId ?? "");
+    if (options.jobsPath) {
+      args.push("--jobs", options.jobsPath);
+    }
+  } else {
+    args.push("--job-id", options.jobId ?? "");
+    if (options.jobJsonPath) {
+      args.push("--job-json", options.jobJsonPath);
+    }
+  }
+  if (options.pipelineSize !== null && options.pipelineSize !== undefined) {
+    args.push("--pipeline-size", String(options.pipelineSize));
+  }
+  if (options.task === "rejection" && options.stage) {
+    args.push("--stage", options.stage);
+  }
+  if (options.scorecardPath) {
+    args.push("--scorecard-file", options.scorecardPath);
+  }
+  if (options.task === "scorecard" && options.notesPath) {
+    args.push("--notes-file", options.notesPath);
+  }
+  if (options.task === "scorecard" && options.devCase) {
+    args.push("--dev-case");
+  }
+  if (options.lang) {
+    args.push("--lang", options.lang);
+  }
+  if (options.githubEvidencePath) {
+    args.push("--github-evidence", options.githubEvidencePath);
+  }
+  return args;
+}
+
 export async function runAutomationTask(
   entryId: string,
   task: string,
@@ -284,8 +354,12 @@ export async function runAutomationTask(
   signal?: AbortSignal,
   lang?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  /** `manual`: a recruiter asked for this from the candidate modal or the API. */
-  opts: { manual?: boolean } = {},
+  /** `manual`: a recruiter asked for this from the candidate modal or the API.
+   *  `deferApply`: score only - persist NOTHING on the entry (no approval, no event)
+   *  and return the apply half as `deferred`. The voice-interview completion uses it
+   *  so the verdict is attached to the session BEFORE any gate opens, in one locked
+   *  unit (interview-scorecard-commit.ts); the cache write is the only side effect. */
+  opts: { manual?: boolean; deferApply?: boolean } = {},
 ): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404, "unknown_task");
   // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
@@ -413,12 +487,16 @@ export async function runAutomationTask(
   // One COUNT, scoped to the entry's own tenant like every other read here.
   const pipelineSize =
     task === "screen" && entry.jobId ? countActiveEntriesForJob(entry.jobId, workspaceId) : null;
+  const jobRecord = task !== "rematch" && entry.jobId ? getJob(entry.jobId, workspaceId) : null;
+  const jobJson = jobRecord ? JSON.stringify(jobRecord) : null;
+  const devCase = task === "scorecard" && entryHasDevCase(entry);
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
     candidateId: entry.candidateId,
     profileJson,
     jobId: entry.jobId ?? null,
+    jobJson: task === "rematch" ? undefined : (jobJson ?? undefined),
     stage: entry.stage,
     notes,
     // The interview evidence is a key axis of its own (mirrors the GH7 one): a
@@ -433,6 +511,7 @@ export async function runAutomationTask(
     // Tasks in neither set (rematch) ignore it.
     lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
+    devCase,
     // Bucketed inside computeAutomationCacheKey (small/medium/large), so the key is
     // stable as candidates trickle in but a verdict computed at 3 is never served at 80.
     pipelineSize,
@@ -447,54 +526,51 @@ export async function runAutomationTask(
       const profilePath = path.join(workdir, "profile.json");
       await writeFile(profilePath, profileJson, "utf-8");
 
-      const args = ["-m", "pipeline.jobfit.automation_cli", task, "--profile-json", profilePath];
-      // Billing degrade: past the AI-candidates allowance, automation drafting
-      // runs the deterministic templates (--no-llm) instead of blocking the
-      // pipeline. Part of the analyze-debited candidate bundle — no extra debit.
-      // `degraded` is the SAME boolean folded into the cache key above.
-      if (degraded) args.push("--no-llm");
+      let jobJsonPath: string | null = null;
+      if (task !== "rematch" && jobJson) {
+        jobJsonPath = path.join(workdir, "job.json");
+        await writeFile(jobJsonPath, jobJson, "utf-8");
+      }
+
+      let jobsPath: string | null = null;
       if (task === "rematch") {
-        args.push("--current-job-id", entry.jobId ?? "");
-        // Score the SAME live corpus we fingerprinted into the cache key (not Python's
-        // static seed file) so the recommendation reflects current openings and the
-        // HIT/MISS boundary stays honest. corpusJobs is non-null on the rematch path.
-        const jobsPath = path.join(workdir, "jobs.json");
+        jobsPath = path.join(workdir, "jobs.json");
         await writeFile(jobsPath, JSON.stringify(corpusJobs ?? []), "utf-8");
-        args.push("--jobs", jobsPath);
-      } else args.push("--job-id", entry.jobId ?? "");
-      // The SAME count folded (bucketed) into the cache key above — screen only.
-      if (pipelineSize !== null) args.push("--pipeline-size", String(pipelineSize));
-      if (task === "rejection") args.push("--stage", entry.stage);
-      // The interview the letter follows from (rejection/offer). Written like
-      // profile.json/github.json — the SAME bytes folded into the cache key above,
-      // so a scorecard synthesized after a first draft invalidates the cached,
-      // ungrounded letter instead of serving it for the rest of the TTL.
+      }
+
+      let scorecardPath: string | null = null;
       if (scorecardJson) {
-        const scorecardPath = path.join(workdir, "scorecard.json");
+        scorecardPath = path.join(workdir, "scorecard.json");
         await writeFile(scorecardPath, scorecardJson, "utf-8");
-        args.push("--scorecard-file", scorecardPath);
       }
+
+      let notesPath: string | null = null;
       if (task === "scorecard") {
-        const notesPath = path.join(workdir, "notes.txt");
+        notesPath = path.join(workdir, "notes.txt");
         await writeFile(notesPath, notes, "utf-8");
-        args.push("--notes-file", notesPath);
       }
-      // PREP2 — the recruiter-narrative tasks (prep/screen/scorecard) render in the
-      // resolved uiLang (the org's app language); the LETTER tasks
-      // (outreach/rejection/offer) render in the CANDIDATE'S resolved comms locale,
-      // so the Python-drafted letter and the TS-rendered chrome around it are one
-      // language authority. The two sets are disjoint — at most one --lang is pushed.
-      if (uiLang) args.push("--lang", uiLang);
-      if (letterLang) args.push("--lang", letterLang);
-      // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
-      // prompts (mirrors the --notes-file pattern). Python renders it as a
-      // compact "Public repo evidence" block; null (bare entry or a task that
-      // never reads it) keeps the prompt byte-identical to pre-GH7.
+
+      let githubEvidencePath: string | null = null;
       if (githubEvidenceJson) {
-        const githubPath = path.join(workdir, "github.json");
-        await writeFile(githubPath, githubEvidenceJson, "utf-8");
-        args.push("--github-evidence", githubPath);
+        githubEvidencePath = path.join(workdir, "github.json");
+        await writeFile(githubEvidencePath, githubEvidenceJson, "utf-8");
       }
+
+      const args = buildAutomationArgv({
+        task,
+        profilePath,
+        degraded,
+        jobId: entry.jobId ?? null,
+        jobJsonPath,
+        jobsPath,
+        pipelineSize,
+        stage: entry.stage,
+        scorecardPath,
+        notesPath,
+        lang: uiLang ?? letterLang,
+        githubEvidencePath,
+        devCase,
+      });
 
       const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
       const { stdout, stderr, exitCode } = await result;
@@ -526,6 +602,15 @@ export async function runAutomationTask(
   const approvalDetail = (): string => JSON.stringify({ ...result, ...provenance });
   let applied = "drafted";
 
+  if (opts.deferApply) {
+    return {
+      result,
+      source: payload.source,
+      applied: "deferred",
+      deferred: { provenance, actor: engineActor, recommendation: readRecommendation(result, task) },
+    };
+  }
+
   if (task === "screen") {
     // Validate the screen-route gate at the TS parse boundary (Python derives
     // route ∈ {advance, hold}; anything off-set holds, never silently advances),
@@ -534,10 +619,14 @@ export async function runAutomationTask(
     // screens them into Screened flagged for review — so the screening_review
     // always lands on a Screened entry and the Decisions→Interview path is reused
     // unchanged. From Screened: advance → Interview, hold → stays for review.
-    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(
-      entry.stage,
-      coerceScreenRoute(result.route)
-    );
+    // A TEMPLATE verdict never clears a candidate on its own. Which engine answered is
+    // decided by billing state (past the ai_candidates allowance the run is `--no-llm`),
+    // and the template's "advance" is a fixed 82 for any total >= 70 - above the bar,
+    // uncalibrated, and not the instrument the workspace chose. Letting it route
+    // "advance" made the workspace's invoice decide who moved on. It parks instead:
+    // same card, verdictSource "template" disclosed, a person decides.
+    const route = verdictSource === "llm" ? coerceScreenRoute(result.route) : "hold";
+    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(entry.stage, route, getPipelineAxis(workspaceId).stages);
     // CAS on the snapshot stage: `entry` was read before the seconds-long Python/LLM
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
@@ -559,9 +648,18 @@ export async function runAutomationTask(
       // machinery a recruiter's click uses (advance + calendar gate + auto_advanced
       // event), CAS-guarded on the approval just set. hold/reject recommendations
       // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
+      // The route cannot say WHY it held, and confidence is not the only reason:
+      // Python also holds a fairness-shielded candidate's advance (`and not early`),
+      // and the recommendation it leaves standing is the model's. So the shield is
+      // re-derived here from the entry, through the same live reader the auto-reject
+      // backstop uses (unknown/unrouted fails closed): a shielded candidate is
+      // advanced by a person, never by the plan gate.
+      // The gate trusts the MODEL's advance verdicts; a template's is never ratified.
       if (
+        verdictSource === "llm" &&
         getPlanGateForRole("screening", workspaceId) === "auto" &&
-        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance"
+        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance" &&
+        !readLiveArchetypes().isFairnessProtected(entry.archetype)
       ) {
         const ratified = actOnPipelineEntry(
           entry.id,
@@ -591,6 +689,10 @@ export async function runAutomationTask(
     }
     if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
+    const fresh = getPipelineEntry(entry.id, workspaceId);
+    if (!fresh || !scorecardGateOpen(fresh, getPipelineAxis(workspaceId).stages)) {
+      return { result, source: payload.source, applied: "skipped_gate_closed" };
+    }
     setApproval(entry.id, "scorecard_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId, engineActor);
     applied = "scorecard_ready";
@@ -688,6 +790,7 @@ export async function runAutomationTask(
         locale: entry.locale,
         // …and the target lands in the SAME team as the source (one candidate, one team).
         workspaceId,
+        actor: engineActor,
       });
       if (created) {
         // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so
@@ -707,34 +810,40 @@ export async function runAutomationTask(
       applied = "no_alternative";
     }
   } else if (task === "outreach") {
-    // Non-adverse and recruiter-initiated — deliver the generated draft through
-    // the comms channel (queued to the outbox by default; relayed if configured).
+    // Non-adverse and recruiter-initiated — but a FIRST CONTACT with a person, so it is
+    // never sent from here (comms scope C2, "approve before first outreach"). The draft is
+    // HELD as an outreach_letters row; a person approves that exact revision and releases
+    // it (app/_lib/outreach-release.ts, POST /api/outreach-letters/[id]/{approve,release}).
+    // This branch makes no relay call and writes no outbox row, for every door that runs
+    // it: the drawer's automation task, the board's batch outreach (tasks.ts
+    // batchOutreach) and the sourcing "Reach out" route.
     //
-    // The prompt cache makes the DRAFT idempotent, but dispatchOutreach is a real
-    // side effect: it queues an outbox row and, with a relay configured, POSTs the
-    // message to the candidate. A cache HIT within the 7-day TTL (double-click,
-    // refresh-retry, or the same entry re-screened then outreach'd again) would
-    // otherwise re-fire the send every time. Gate the dispatch on the durable
-    // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
-    // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent", workspaceId) || outreachInFlight.has(entry.id)) {
+    // A first touch is sent once: the durable `outreach_sent` marker (written only by a
+    // delivered release) still short-circuits, so a cache HIT or a re-screen never drafts
+    // a second first-contact for someone already reached. Re-running on a still-drafted
+    // letter re-drafts it in place (a new revision, voiding an approval nobody gave yet);
+    // once approved, the late draft is dropped by the store.
+    if (hasEvent(entry.id, "outreach_sent", workspaceId)) {
       applied = "already_sent";
     } else {
-      outreachInFlight.add(entry.id);
-      try {
-        const outcome = await dispatchOutreach(entry, result);
-        // A consent-suppressed outreach records no outreach_sent marker, so the UI
-        // surfaces "cannot contact — consent expired/anonymized" and a re-consent can
-        // still be reached later.
-        applied = outcome.sent
-          ? "sent"
-          : outcome.reason === "anonymized"
-            ? "suppressed_anonymized"
-            : "suppressed_consent_expired";
-      } finally {
-        // Release on completion AND on failure: dispatchOutreach records the durable marker
-        // only on a successful send, so clearing the in-flight slot lets a failed send retry.
-        outreachInFlight.delete(entry.id);
+      // The consent gate and the halted-sequence gate, read BEFORE anything is held — the
+      // same two predicates, in the same order, that dispatchOutreach applies at release —
+      // so a letter is not written to someone who cannot be contacted, and the refusal is
+      // audited the way a refused send always was. The release re-checks both.
+      const suppress =
+        candidateOutreachSuppression(entry.candidateId, {
+          givenAt: entry.consentGivenAt,
+          expiresAt: entry.consentExpiresAt,
+          anonymizedAt: entry.anonymizedAt,
+        }) ?? outreachHaltFor(entry.id, workspaceId);
+      if (suppress) {
+        recordAutomationEvent(entry.id, "outreach_suppressed", suppress, workspaceId);
+        // A halted sequence keeps the token it always had: the client collapses every
+        // non-anonymized refusal into one "cannot be contacted" sentence.
+        applied = suppress === "anonymized" ? "suppressed_anonymized" : "suppressed_consent_expired";
+      } else {
+        await draftOutreachLetter(entry, result, workspaceId);
+        applied = "drafted";
       }
     }
   } else {

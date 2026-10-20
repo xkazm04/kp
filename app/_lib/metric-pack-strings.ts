@@ -18,6 +18,8 @@ import { buildMetricPackStrings, type MetricPackStrings } from "./metric-pack";
 
 /** The metric pack's copy in `locale` (anything unsupported falls back to English). */
 export async function metricPackStrings(locale: string | null | undefined): Promise<MetricPackStrings> {
-  const t = await namespaceTranslator(isLocale(locale) ? locale : DEFAULT_LOCALE, "analytics.metricPack");
-  return buildMetricPackStrings(t);
+  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const t = await namespaceTranslator(loc, "analytics.metricPack");
+  // The locale also formats the accrual-horizon date in the need sentences.
+  return buildMetricPackStrings(t, loc);
 }

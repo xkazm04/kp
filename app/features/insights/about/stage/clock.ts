@@ -4,8 +4,8 @@
  * `useSceneClock` owns the subscriptions (viewport, motion preference, page
  * visibility) and this module owns what those three facts MEAN. Splitting them
  * is what makes the rule testable without a DOM: "does this scene tick right
- * now" is a boolean over three booleans, and it is the kind of predicate that
- * silently loses a term when a fourth condition is added.
+ * now" is a boolean over four booleans, and it is the kind of predicate that
+ * silently loses a term when a condition is added (the reader's stop was the fourth).
  *
  * Pure module: no React, no DOM, no imports.
  */
@@ -17,6 +17,12 @@ export type ClockConditions = {
   reduced: boolean;
   /** The DOCUMENT is being displayed at all (`document.visibilityState`). */
   visible: boolean;
+  /**
+   * The READER stopped this scene (the About transport, `transport.ts`). The
+   * other three are machine conditions that undo themselves; this one is a
+   * veto only the reader lifts. Absent means autoplay.
+   */
+  stopped?: boolean;
 };
 
 /**
@@ -33,8 +39,8 @@ export type ClockConditions = {
  * sentence and expects to find it where they left it; the rewind belongs to
  * re-entry (see `useSceneClock`).
  */
-export function shouldTick({ inView, reduced, visible }: ClockConditions): boolean {
-  return inView && !reduced && visible;
+export function shouldTick({ inView, reduced, visible, stopped = false }: ClockConditions): boolean {
+  return inView && !reduced && visible && !stopped;
 }
 
 /**

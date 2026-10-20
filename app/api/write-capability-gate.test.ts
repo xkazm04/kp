@@ -93,6 +93,10 @@ const { DELETE: agentsBridgeDisconnect } = await import("./agents/bridge/route.t
 const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
 const { POST: agentsRefresh } = await import("./agents/[id]/refresh/route.ts");
 const { POST: commsResend } = await import("./comms/[id]/resend/route.ts");
+const { DELETE: interviewRecordingDelete } = await import("./interview/sessions/[id]/recording/route.ts");
+const { POST: pipelineEntryPost } = await import("./pipeline/[id]/route.ts");
+const { POST: hireOutcomePost, GET: hireOutcomeGet } = await import("./pipeline/outcomes/route.ts");
+const { PUT: brandPut } = await import("./brand/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -103,7 +107,7 @@ after(() => cleanupUnitDb());
 
 const ORG = "org-caps";
 const team = createWorkspace("Caps team", ORG);
-const mk = (slug: string, role: "owner" | "recruiter" | "viewer") => {
+const mk = (slug: string, role: "owner" | "admin" | "recruiter" | "viewer") => {
   const u = createUser({ orgId: ORG, email: `caps.${slug}@caps.test`, name: `Caps ${slug}`, status: "active", password: `caps-pw-${slug}-1` });
   upsertMembership(u.id, team.id, role);
   return u;
@@ -111,6 +115,7 @@ const mk = (slug: string, role: "owner" | "recruiter" | "viewer") => {
 const owner = mk("owner", "owner");
 const recruiter = mk("recruiter", "recruiter");
 const viewer = mk("viewer", "viewer");
+const admin = mk("admin", "admin");
 
 function signedInAs(user: { id: string; orgId: string } | null): void {
   cookieValue = user === null ? null : signSession(team.id, Date.now(), { sub: user.id, org: user.orgId });
@@ -191,6 +196,22 @@ const DOORS: Door[] = [
   // (requireOperator) is not authority: a viewer still passed it, and comms_relay_config
   // is a single global row, so a viewer click dispatched a real candidate envelope.
   { name: "POST /api/comms/[id]/resend", capability: "pipeline:write", call: () => commsResend(req(), params({ id: "x" })) },
+  // WP4 — the recruiter's deletion of a candidate's interview audio. Irreversible, and
+  // the file is the candidate's own voice, so identity is not authority here either: a
+  // viewer seat may listen (the playback door is a read) and may not destroy.
+  {
+    name: "DELETE /api/interview/sessions/[id]/recording",
+    capability: "pipeline:write",
+    call: () => interviewRecordingDelete(req(), params({ id: "iv-1" })),
+  },
+  // challenge-r07 pipeline-api/A — the per-card door the bulk doors were written to be
+  // in lock-step with, and the hire-rating write. Each action's seat is read from the
+  // declared table (app/api/pipeline/[id]/entry-actions.ts), so every action is covered.
+  { name: "POST /api/pipeline/[id]", capability: "pipeline:write", call: () => pipelineEntryPost(req({ action: "reject" }), params({ id: "x" })) },
+  { name: "POST /api/pipeline/outcomes", capability: "pipeline:write", call: () => hireOutcomePost(req({ entryId: "x", performance: 4 })) },
+  // challenge-r07 shell-setup-wizard/A: the brand paints every member's workspace and
+  // every candidate-facing page — org settings, owner-only in roles.ts.
+  { name: "PUT /api/brand", capability: "org:manage", call: () => brandPut(req({ displayName: "Not yours", accentColor: "#0057B8" })) },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------
@@ -247,4 +268,164 @@ test("an owner is not refused by the org:manage gate", async () => {
   const r = await atsConfig(req({ config: {} }));
   assert.notEqual(r.status, 403, "an owner holds org:manage");
   assert.notEqual(r.status, 401);
+});
+
+// ---- the task doors (challenge-r05 workspace-config-api/A) ------------------------
+//
+// POST /api/tasks, its retry door and its cancel door asked no seat: a viewer could
+// spend a board-wide screen sweep, replay a colleague's run or cancel it. Each door now
+// asks the capability the KIND declares (app/_lib/task-admission.ts) — the start door of
+// the posted kind, retry and cancel of the STORED row's kind, after the tenant read.
+// They are not in DOORS: retry and cancel need a real row in the caller's own team to
+// get past the ownership 404 that (correctly) comes first.
+const { POST: tasksStart } = await import("./tasks/route.ts");
+const { DELETE: taskCancel } = await import("./tasks/[id]/route.ts");
+const { POST: taskRetry } = await import("./tasks/[id]/retry/route.ts");
+const taskStore = await import("../_lib/db/tasks.ts");
+
+const taskReq = (body?: unknown): NextRequest =>
+  new Request("http://localhost/api/tasks", {
+    method: "POST",
+    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: { "content-type": "application/json", "x-forwarded-for": "10.0.0.9" },
+  }) as unknown as NextRequest;
+
+async function assertCapabilityRefusal(r: Response, what: string): Promise<void> {
+  assert.equal(r.status, 403, `${what} let a viewer through`);
+  const body = (await r.json()) as { code?: string; capability?: string };
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "pipeline:write");
+}
+
+test("POST /api/tasks refuses a viewer's batch_screen with FORBIDDEN_CAPABILITY (pipeline:write)", async () => {
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e1"] } })), "POST /api/tasks");
+});
+
+test("POST /api/tasks does not refuse an owner, nor anyone in open mode, at the seat", async () => {
+  signedInAs(owner);
+  const r = await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e-owner-none"] } }));
+  assert.notEqual(r.status, 403, "an owner holds pipeline:write");
+  assert.notEqual(r.status, 401);
+  const saved = process.env.KP_OPERATOR_PASSWORD;
+  delete process.env.KP_OPERATOR_PASSWORD;
+  try {
+    signedInAs(null);
+    const open = await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e-open-none"] } }));
+    assert.notEqual(open.status, 403, "open mode folds to owner — the guided walk keeps its door");
+    assert.notEqual(open.status, 401);
+  } finally {
+    process.env.KP_OPERATOR_PASSWORD = saved;
+  }
+});
+
+test("POST /api/tasks/[id]/retry refuses a viewer on its own team's failed row", async () => {
+  taskStore.createTask("t-cap-retry", "batch_screen", null, "Screen", { entryIds: ["e1"] }, team.id);
+  taskStore.finishTask("t-cap-retry", "failed", { error: "boom" });
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await taskRetry(taskReq(), params({ id: "t-cap-retry" })), "retry");
+  // Tenancy still comes first: another team's id is a 404, never a capability answer.
+  assert.equal((await taskRetry(taskReq(), params({ id: "t-cap-nowhere" }))).status, 404);
+});
+
+test("DELETE /api/tasks/[id] refuses a viewer and leaves the row running", async () => {
+  taskStore.createTask("t-cap-cancel", "batch_screen", null, "Screen", { entryIds: ["e1"] }, team.id);
+  taskStore.markTaskRunning("t-cap-cancel");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await taskCancel(taskReq(), params({ id: "t-cap-cancel" })), "DELETE");
+  assert.equal(taskStore.getTask("t-cap-cancel", team.id)?.status, "running", "a refused cancel must not abort");
+  // Non-vacuity: an owner's cancel goes through.
+  signedInAs(owner);
+  const r = await taskCancel(taskReq(), params({ id: "t-cap-cancel" }));
+  assert.equal(r.status, 200);
+});
+
+test("retry of a SERVER kind is not the dock rule: an owner's analyze replay reaches the inputs check", async () => {
+  // Retry replays params a server route authored and stored — it never takes the
+  // client's. So a server kind is admitted at the seat and judged on its own merits:
+  // this row's workdir is gone, so the answer is the replay refusal, not the dock's.
+  taskStore.createTask("t-cap-analyze", "analyze", null, "Analyze", { baseDir: "/nonexistent-kp-cap/jobfit-x", variants: [] }, team.id);
+  taskStore.finishTask("t-cap-analyze", "failed", { error: "boom" });
+  signedInAs(owner);
+  const r = await taskRetry(taskReq(), params({ id: "t-cap-analyze" }));
+  assert.equal(r.status, 409);
+  assert.equal(((await r.json()) as { code?: string }).code, "TASK_REPLAY_INPUTS_GONE");
+});
+
+// ---- the single-entry door and the hire-rating door (challenge-r07 pipeline-api/A) --
+//
+// The DOORS rows above prove the refusal on a made-up id. These drive a REAL entry in
+// the caller's own team, so "refused" also means "nothing happened": the entry keeps
+// its status and gains no event, and no rating is recorded.
+const pipelineStore = await import("../_lib/db/pipeline.ts");
+const { NextRequest: ShimNextRequest } = await import("next/server");
+
+const entryIn = (label: string, stage: string) =>
+  pipelineStore.createPipelineEntry({
+    candidateId: `caps-${label}`,
+    candidateLabel: `Caps ${label}`,
+    jobId: `caps-job-${label}`,
+    jobTitle: "Caps Role",
+    stage,
+    workspaceId: team.id,
+  }).entry;
+
+test("POST /api/pipeline/[id] refuses a viewer's reject on a real entry and changes nothing; an owner's goes through", async () => {
+  const entry = entryIn("reject", "Screened");
+  const eventsBefore = pipelineStore.listPipelineEventsForEntry(entry.id, 500, team.id).length;
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id })), "reject");
+  assert.equal(pipelineStore.getPipelineEntry(entry.id, team.id)?.status, "active", "a refused reject must not reject");
+  assert.equal(pipelineStore.listPipelineEventsForEntry(entry.id, 500, team.id).length, eventsBefore, "a refused reject writes no event");
+
+  signedInAs(null);
+  assert.equal((await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id }))).status, 401);
+
+  // Non-vacuity: an owner is not refused at the seat.
+  signedInAs(owner);
+  const r = await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id }));
+  assert.equal(r.status, 200);
+  assert.equal(pipelineStore.getPipelineEntry(entry.id, team.id)?.status, "rejected");
+});
+
+test("POST /api/pipeline/[id] reads the seat from the declared table: set_notes and reinstate are refused too", async () => {
+  const noted = entryIn("notes", "Screened");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "set_notes", notes: "x" }), params({ id: noted.id })), "set_notes");
+  assert.equal(pipelineStore.getPipelineEntry(noted.id, team.id)?.notes ?? null, null, "a refused note is not written");
+
+  const rejected = entryIn("reinstate", "Screened");
+  pipelineStore.actOnPipelineEntry(rejected.id, "reject", undefined, { actor: "system", actorRef: "auto:screen-wave" }, team.id);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "reinstate" }), params({ id: rejected.id })), "reinstate");
+  assert.equal(pipelineStore.getPipelineEntry(rejected.id, team.id)?.status, "rejected", "a refused reinstate reverses nothing");
+});
+
+test("POST /api/pipeline/outcomes refuses a viewer and records no rating; the GET stays an operator read", async () => {
+  const hire = entryIn("hire", "Hired");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await hireOutcomePost(req({ entryId: hire.id, performance: 4 })), "hire rating");
+  // A viewer may READ (the Quality page's counter and the drawer's card are reads).
+  const read = await hireOutcomeGet(new ShimNextRequest(`http://localhost/api/pipeline/outcomes?entry=${hire.id}`) as unknown as NextRequest);
+  assert.equal(read.status, 200, "the outcomes GET is operator-gated, not capability-gated");
+  assert.equal(((await read.json()) as { performance?: number | null }).performance, null, "no rating was recorded");
+});
+
+// ---- PUT /api/brand refuses an ADMIN, not just a recruiter ------------------------
+//
+// admin holds members:manage and team:manage but not org:manage, and it was the admin
+// the shell kept offering the branding editor to (navCapabilities.ts) — edit, save,
+// 403. The DOORS row above covers viewer/recruiter/401; this is the seat the defect
+// was actually about, plus the owner that must still get through.
+test("PUT /api/brand refuses an admin with FORBIDDEN_CAPABILITY (org:manage); an owner is not refused", async () => {
+  signedInAs(admin);
+  const r = await brandPut(req({ displayName: "Admin brand", accentColor: "#0057B8" }));
+  assert.equal(r.status, 403, "an admin lacks org:manage and must not re-skin the org");
+  const body = (await r.json()) as { code?: string; capability?: string };
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "org:manage");
+
+  signedInAs(owner);
+  const ok = await brandPut(req({ displayName: "Owner brand", accentColor: "#0057B8" }));
+  assert.notEqual(ok.status, 403, "an owner holds org:manage");
+  assert.notEqual(ok.status, 401);
 });

@@ -82,6 +82,20 @@ export type InterviewBriefStrings = {
   debriefRunOfShow: string[];
   /** Topic heading for the recruiter's imported interview-kit questions. */
   recruiterAddedQuestions: string;
+  /** The director agenda's fixed-block titles and the warm-up question
+   *  (interview-agenda.ts). Candidate-facing: the portal sidebar lists the titles and
+   *  the interviewer asks the warm-up question aloud. */
+  agenda: {
+    warmup: string;
+    warmupQuestion: string;
+    open: string;
+    roleQuestions: string;
+    close: string;
+    /** "Decision 2" — one debrief block per minted authorship question. */
+    decision: (n: number) => string;
+    /** Title for a kit topic whose label scrubs to nothing (candidateSafeTopic). */
+    topicFallback: (n: number) => string;
+  };
 };
 
 export async function interviewBriefStrings(lang: string | null | undefined): Promise<InterviewBriefStrings> {
@@ -89,5 +103,15 @@ export async function interviewBriefStrings(lang: string | null | undefined): Pr
   return {
     debriefRunOfShow: [t("debriefApproach"), t("debriefDecisions"), t("debriefCounterfactuals"), t("debriefQuestions")],
     recruiterAddedQuestions: t("recruiterAddedQuestions"),
+    agenda: {
+      warmup: t("agendaWarmup"),
+      warmupQuestion: t("agendaWarmupQuestion"),
+      open: t("agendaOpen"),
+      roleQuestions: t("agendaRoleQuestions"),
+      close: t("agendaClose"),
+      // Raw number into the ICU message (same reason as rosStrings.topicFallback).
+      decision: (n) => t("agendaDecision", { n }),
+      topicFallback: (n) => t("agendaTopicFallback", { n }),
+    },
   };
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import type { JdSummary } from "./AnalyzeTypes";
 import type { JdLibraryState } from "./analyzeJdLibraryState";
 
@@ -16,8 +16,10 @@ export function AnalyzeSavedJdPicker({
   selectedSlug,
   loading = false,
   loadFailed = false,
+  edited = false,
   onPick,
   onClear,
+  onRevert,
 }: {
   jds: JdSummary[];
   /** Whether the LIBRARY LIST loaded — a different fact from `loadFailed`, which
@@ -34,8 +36,10 @@ export function AnalyzeSavedJdPicker({
   // The last pick's body fetch failed (stale list after a delete/rename, network
   // error) — the hook detached the slug; tell the recruiter why the pick vanished.
   loadFailed?: boolean;
+  edited?: boolean;
   onPick: (jd: JdSummary) => void;
   onClear: () => void;
+  onRevert?: () => void;
 }) {
   const t = useTranslations("analyze");
   // The route answers a store fault with a CODE (JD_LIST_FAILED), so the reason
@@ -60,7 +64,7 @@ export function AnalyzeSavedJdPicker({
         role="alert"
         className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-coral/50 bg-white p-2"
       >
-        <p className="text-sm font-medium text-coral">
+        <p className="text-sm font-medium text-coral-ink">
           {errorMessage({ code: "JD_LIST_FAILED" }, t("jdLibraryFailed"))}
         </p>
         <button type="button" onClick={onRetryLibrary} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
@@ -80,7 +84,7 @@ export function AnalyzeSavedJdPicker({
       return (
         <p
           role="alert"
-          className="rounded-md border border-dashed border-coral/50 bg-white p-2 text-sm font-medium text-coral"
+          className="rounded-md border border-dashed border-coral/50 bg-white p-2 text-sm font-medium text-coral-ink"
         >
           {t("jdLoadFailed")}
         </p>
@@ -90,7 +94,7 @@ export function AnalyzeSavedJdPicker({
       <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
         {t.rich("noJds", {
           link: (chunks) => (
-            <Link href="/?tab=intake" className="font-semibold text-coral underline-offset-2 hover:underline">
+            <Link href="/?tab=intake" className="font-semibold text-coral-ink underline-offset-2 hover:underline">
               {chunks}
             </Link>
           ),
@@ -110,15 +114,31 @@ export function AnalyzeSavedJdPicker({
         {loading ? (
           <span role="status" className="text-sm font-medium text-steel">{t("loadingJd")}</span>
         ) : selectedSlug ? (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-sm font-medium text-coral underline-offset-2 hover:underline"
-          >
-            {t("detach")}
-          </button>
+          <div className="flex items-center gap-2">
+            {edited && onRevert ? (
+              <>
+                <span className="rounded-md bg-dial-amber/20 px-1.5 py-0.5 text-micro font-semibold uppercase text-ink">
+                  {t("jdEdited")}
+                </span>
+                <button
+                  type="button"
+                  onClick={onRevert}
+                  className={`${BTN_GHOST} h-7 px-2 text-micro underline underline-offset-2`}
+                >
+                  {t("revert")}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-sm font-medium text-coral-ink underline-offset-2 hover:underline"
+            >
+              {t("detach")}
+            </button>
+          </div>
         ) : loadFailed ? (
-          <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
+          <span role="alert" className="text-right text-sm font-medium text-coral-ink">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
       {libraryTruncated ? (

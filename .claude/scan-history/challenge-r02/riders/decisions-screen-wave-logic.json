@@ -1,0 +1,17 @@
+[
+  {
+    "rider": "autonomy-control-room",
+    "files_read": 9,
+    "checked": "Read app/control/page.tsx, ControlRoom.tsx, GatesPanel.tsx, AutonomyBar.tsx, AuditPanel.tsx, CalibrationPanel.tsx, FeedbackSection.tsx, types.ts and gatesPanel.test.ts in full. Hypotheses traced: (1) whether mutations are fire-and-forget. No: act/approve/applyFloor/recordOutcome all read r.ok and answer through capabilityAwareReason/errMsg (ControlRoom.tsx:181-184, :210; CalibrationPanel.tsx:93-97, :150-154). (2) Whether authority is enforced. Yes: page.tsx:36-39 resolves org:manage and pipeline:write server-side, and the panels hide controls the seat cannot use. (3) Poll cost. The loop rides pollDelayMs with backoff and skips hidden tabs (ControlRoom.tsx:136-152). The strongest remaining ideas are already open in leftover-develop-2026-09-17 and absent from both 2026-09-22 drain result files: 'Refuse the policy-pass door while the kill switch is paused' (M), 'Record calibration outcomes from a pipeline-entry picker' (M; the free-text candidate field at CalibrationPanel.tsx:176-182 confirms it), 'List pipeline screening and offer gates beside assignment gates' (M), and 'Require a reason when approving a human gate' (S). Re-proposing any of them would void the card. The LoadStatus English-label gap (ControlRoom.tsx:260-264) is an S polish item. No card targets this rider."
+  },
+  {
+    "rider": "control-room-action-guard",
+    "files_read": 2,
+    "checked": "Read app/control/controlRoomConfirm.ts and controlRoomConfirm.test.ts in full, plus its consumers GatesPanel/AutonomyBar/CalibrationPanel/ControlRoom. Hypotheses traced: (1) whether a polled row replacement can be confirmed blind. Closed: gateKey hashes the on-screen detail (controlRoomConfirm.ts:71-83) and floorKey keys by value (:60-62), both pinned by tests. (2) Whether a parked confirm can fire late. Closed: the ARMED_TTL_MS 15s check is at :37. (3) Whether pause/resume bypass the guard. They do, deliberately, and a source-regex test pins it. The reducer is 83 lines, pure and fully tested. The one structural idea, 'Export a useArmConfirm hook so ledger reject can reuse the reducer', is already open in leftover-develop-2026-09-17 and is size S, below the challenge floor. No card targets this rider."
+  },
+  {
+    "rider": "offer-response-page",
+    "files_read": 7,
+    "checked": "Read app/offer/[token]/page.tsx, OfferClient.tsx (523 lines), error.tsx, loading.tsx, offer-deadline.ts, offer-response.ts and offer-client-logic.test.ts in full. Hypotheses traced: (1) whether a 410, a 2xx without a status, or a coded failure is misclassified. No: classifyOfferResponse (offer-response.ts) and its tests cover all three. (2) Deadline zone. Fixed: formatOfferDeadline receives offer.timeZone (OfferClient.tsx:374), shipped by drain commit 2ab9e7b44, and the final-hour minutes line shipped in ac59acb93. (3) Stale countdown on a long-open tab. Covered by the 60s refresh plus focus revalidation that stops at a terminal state (OfferClient.tsx:168-183). (4) Double-submit. Covered by offerRespondAllowed. The accept-side asymmetry (Accept fires at :406 on one click, while decline has an alertdialog at :394-400) and a decline reason are both already open in leftover-develop: 'Two-step confirm accept the way decline is confirmed' (S) and 'Capture an optional decline reason on the public offer page' (M). The M one would be a valid adoption, but it is a candidate-facing data capture with lower impact than the wave's reviewer-exclusion gap, so no card targets this rider."
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "id": "followup-reconsider-queue",
+  "status": "shipped",
+  "commits": [
+    { "sha": "7db88e568", "subject": "fix(db-pipeline-store): Reconsider lists only entries whose newest decision is an auto-reject" },
+    { "sha": "18f2cc3a4", "subject": "docs(pipeline): the Reconsider queue and the reinstate door share one newest-decision rule" }
+  ],
+  "shared_predicate": "NEWEST_DECISION_IS_AUTO_REJECTED / newestDecisionIsAutoRejection in app/_lib/db/pipeline.ts; the door (app/api/pipeline/[id]/route.ts) and listReconsiderQueue both use it; entry-actions.ts reversibleAutoRejection removed",
+  "test": "app/_lib/db/pipeline-reconsider-queue.test.ts",
+  "cases": [
+    { "case": "auto_rejected only -> listed", "red_before": false, "green_after": true },
+    { "case": "auto_rejected, reinstated, rejected -> not listed", "red_before": true, "green_after": true },
+    { "case": "auto_rejected, reinstated, auto_rejected -> listed", "red_before": false, "green_after": true },
+    { "case": "plain human reject -> not listed", "red_before": false, "green_after": true },
+    { "case": "newestDecisionIsAutoRejection classification (ported from entry-actions.test.ts) incl. tenancy", "red_before": "n/a (new export)", "green_after": true }
+  ],
+  "gates": {
+    "new_test": "exit 0 (2/2)",
+    "pipeline_db_and_api_pipeline_tests": "220/221; the 1 failure is app/api/pipeline/outcomes/outcomes-route.test.ts, modified uncommitted by another session (listWorkspaceHires), not touched here",
+    "tsc": "exit 2; no errors in touched files; all errors under kpi-sim/ or other sessions' in-flight files (hire-rating-queue, llm-quality*, interviews-compare-cohort, outcomes-route.test, etc.)",
+    "eslint_touched": "exit 0",
+    "test_perf": "exit 0 on HEAD worktree + this diff alone (tightest headroom 6 KB, +1 KB, no new module); exit 1 in the shared tree from other sessions' uncommitted modules (+1 module on every route, e.g. devcase-lifecycle-fence.ts)",
+    "docs_check": "exit 0"
+  }
+}

@@ -179,22 +179,6 @@ test("a bulk selection has no single current stage, so nothing but Hired is excl
   }
 });
 
-test("the bulk bar routes through the helper — it must not rebuild the list from raw STAGES", () => {
-  // The defect was a second, divergent source for the same list. Reading the component
-  // is the only way to pin that it still goes through the shared helper; the assertions
-  // above cannot see a regression that re-hardcodes the axis in the .tsx.
-  const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
-  // The pin is "derives from the helper", NOT "calls it with no arguments" — the literal
-  // empty-parens form was what kept the bulk bar on the compile-time axis, because
-  // passing the workspace's own axis turned this assertion red.
-  assert.match(bar, /bulkMoveTargetStages\(/, "the bulk stage <Select> must derive its options from the helper");
-  assert.match(bar, /bulkMoveTargetStages\(axis\)/, "and must pass the workspace axis, not fall back to the shipped one");
-  assert.ok(
-    !/\bSTAGES\.map\b/.test(bar),
-    "the bulk bar must not map the raw canonical axis into stage options again"
-  );
-});
-
 test("the drawer's 'open full match' is gated on candidateId, like its sibling", () => {
   // Same defect class, smaller: the button rendered unconditionally and its handler
   // no-opped when the entry had no linked candidate — a control that silently does

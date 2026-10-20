@@ -352,6 +352,11 @@ npm run db:dump > kp-dump-$(date +%F).json
    per-table plan and the exit code the real run would take, writes nothing),
    then restore the volume tarball (or `npm run db:load -- --replace <dump>`),
    start it.
+   - New JSON dumps carry a SHA-256 checksum over their contents. Both rehearsal
+     and restore refuse a changed or incomplete dump before opening the target.
+     Older v1 dumps still load with an explicit warning because they have no
+     checksum to verify. The checksum detects accidental damage; it is not a
+     signature and does not authenticate the source of a dump.
    - A dump holds every credential row the deployment has (the dumper warns on
      stderr and writes the file `0600`). Hand a dump to anyone outside the
      deployment only as `npm run db:dump -- --redact`, which blanks the

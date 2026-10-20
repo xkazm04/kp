@@ -34,13 +34,13 @@ export function IntegrationsPersonasPanel() {
   return (
     <div className={`${PANEL} ${CARD_PAD}`}>
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-        <Bot size={16} className="text-coral" aria-hidden /> {t("title")}
+        <Bot size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
 
       {error ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral">{error}</p>
+          <p className="text-base text-coral-ink">{error}</p>
           <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
             {t("retry")}
           </button>
@@ -90,7 +90,7 @@ export function IntegrationsPersonasPanel() {
 
       {pairing.state.phase === "error" ? (
         <div className="mt-3 flex flex-wrap items-center gap-3" role="alert">
-          <p className="text-sm font-medium text-coral">{pairing.state.message}</p>
+          <p className="text-sm font-medium text-coral-ink">{pairing.state.message}</p>
           <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
             {t("retryPair")}
           </button>
@@ -142,7 +142,7 @@ export function IntegrationsPersonasPanel() {
       {pairing.note ? (
         <p
           role={pairing.note.ok ? "status" : "alert"}
-          className={`mt-3 text-sm font-medium ${pairing.note.ok ? "text-moss" : "text-coral"}`}
+          className={`mt-3 text-sm font-medium ${pairing.note.ok ? "text-moss" : "text-coral-ink"}`}
         >
           {pairing.note.text}
         </p>

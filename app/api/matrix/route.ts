@@ -1,21 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJobsByIds } from "@/app/_lib/db/jobs";
+import { getJobsByIds, getRoleStatusForWorkspace } from "@/app/_lib/db/jobs";
+import { withScopedPosition } from "./matrix-positions";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
+import { archetypeRegistryDigest } from "@/app/_lib/archetype-live";
 
 
 // Wire contract the grid consumes. Extra CLI keys currently survive parsePythonJson
 // at runtime but were untyped (and could be dropped by the next typed mapper) —
 // the same hole koKeys had to be named before the grid could localize blockers.
-// fitTier/confidence/unprovenCount/provenanceMix are additive and optional so a
-// cell of only {score, blocked} still validates. respond() spreads the parsed
-// matrix unchanged; the cache key hashes the CLI JSON, so typing here does not
+// matrix_cli emits fitTier/confidence/unprovenCount on every SCORED cell (the
+// scorer's own tier and band, matching.py::score_job); a blocked cell is
+// {score: null, blocked, koKeys}. They stay optional so a cached/older
+// {score, blocked} cell still validates. Every optional key here must be one the
+// CLI actually emits — matrix-cell.test.ts reads both files (provenanceMix was
+// declared for months and sent by nothing). respond() spreads the parsed matrix
+// unchanged; the cache key hashes the CLI INPUT JSON, so typing here does not
 // move the key.
 type Cell = {
   score: number | null;
@@ -24,7 +30,6 @@ type Cell = {
   fitTier?: "strong" | "promising" | "partial";
   confidence?: { low: number; high: number; level?: string };
   unprovenCount?: number;
-  provenanceMix?: string;
 };
 type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];
@@ -59,17 +64,28 @@ type MatrixOut = {
 const matrixCache = createBoundedCache<MatrixOut>();
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   let workdir: string | null = null;
   try {
-    const ws = await currentWorkspace();
     const profiles = listMatrixProfiles(MATRIX_POOL_CAP, ws);
     // The unclamped pool size, so the grid can say "Showing 200 of N" instead of
     // silently omitting candidates past the cap (skill-matrix-coverage #1).
     const poolTotal = countMatrixProfiles(ws);
-    const positions = listOpenPositions(ws);
+    // "Rank in matrix" on a role nobody has been added to yet: its id arrives as ?job=
+    // and, if the workspace can still hire for it, it joins the scored positions.
+    // The default grid (no ?job=) is untouched. Never trust the id past this lookup:
+    // getRoleStatusForWorkspace applies the same tenant predicate as getJobsByIds.
+    const jobParam = request.nextUrl.searchParams.get("job");
+    const scopedRole = jobParam ? getRoleStatusForWorkspace(jobParam, ws) : null;
+    const positions = withScopedPosition(listOpenPositions(ws), scopedRole);
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], missingJobs: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
+      // An empty pool still carries the requested role as a column, so the tab shows
+      // its empty state rather than claiming the role is gone.
+      const scopedOnly =
+        scopedRole && positions.some((p) => p.id === scopedRole.id)
+          ? [{ id: scopedRole.id, title: scopedRole.title, seniority: "", roleFamily: scopedRole.roleFamily ?? "", salaryBand: [] }]
+          : [];
+      return NextResponse.json({ candidates: [], positions: scopedOnly, cells: [], missing: [], missingCandidates: [], missingJobs: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
     }
 
     const profilesJson = JSON.stringify(profiles);
@@ -110,7 +126,10 @@ export async function GET(request: NextRequest) {
     // The workspace is an explicit key axis: two tenants can hold identical corpus
     // JSON (a seeded demo corpus cloned per workspace), and "one tenant's grid is
     // never served as another's" belongs in the key, not in a comment.
-    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson });
+    // The archetype registry is the scorer's other input (its weights score every
+    // cell) and is editable at runtime, so its content digest is a key axis too.
+    const registryDigest = archetypeRegistryDigest();
+    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson, registryDigest });
     const hit = matrixCache.get(key);
     if (hit) return respond(hit, true);
 
@@ -148,13 +167,19 @@ export async function GET(request: NextRequest) {
     }
 
     const matrix = parsePythonJson<MatrixOut>(stdout, stderr);
-    matrixCache.set(key, matrix);
+    // Re-check before caching: a registry save that landed while matrix_cli ran may
+    // have been scored under the NEW weights, and must not be filed under the old key.
+    if (archetypeRegistryDigest() === registryDigest) matrixCache.set(key, matrix);
     return respond(matrix, false);
   } catch (error) {
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     // better-sqlite3, fs and the spawn itself all throw with internal detail in
     // `.message` (the db path, the temp workdir) — logged, never forwarded.
     return safeJsonError(error, "api:matrix", "MATRIX_BUILD_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
-}
+});

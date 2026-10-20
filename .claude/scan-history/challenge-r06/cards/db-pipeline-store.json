@@ -1,0 +1,110 @@
+[
+  {
+    "context": "db-pipeline-store",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Re-add is a transition: only a named human door reopens a closed entry",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/pipeline.ts",
+      "app/_lib/db/pipeline-store.test.ts",
+      "app/api/pipeline/route.ts",
+      "app/api/jobs/[id]/candidates/outreach/route.ts",
+      "app/_lib/automation-run.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/compliance/README.md",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/pipeline-readd-transition.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "Entry E (candidate C, job J) rejected by actOnPipelineEntry(E,'reject'); createPipelineEntry({candidateId:C, jobId:J, ...}) with NO reopen option -> {created:false, reopened:false, reopenRefused:'not_requested'}; getPipelineEntry(E).status stays 'rejected'; listPipelineEventsForEntry(E) gains no row.",
+      "Same rejected E; createPipelineEntry({... , reopen:{actorRef:'human:Petra'}}) -> {created:false, reopened:true}; status 'active', stage unchanged; exactly one new event kind 'reinstated' with actor 'human:Petra', fromStage === toStage === E.stage, detail 'reason:readdedByRecruiter'.",
+      "E with status 'role_closed' (closeEntriesByJobId) or 'rematched' (rematchSourceEntry), reopen requested -> reopened:false, reopenRefused:'terminal_status'; status unchanged; no event (role_closed reopens only through reopenEntriesByJobId, a rematched source only through a new funnel).",
+      "E rejected and then anonymizeEntry(E,'erasure'); reopen requested -> reopened:false, reopenRefused:'anonymized'; status stays 'rejected' and anonymized_at is untouched.",
+      "Atomicity: with a TEMP trigger that RAISE(ABORT)s on INSERT INTO pipeline_events, a reopen-requested re-add of a rejected E throws and E.status is still 'rejected' (flip and audit row commit together); a created:true add under the same trigger leaves no pipeline_entries row.",
+      "Rematch door: candidate C live on source job S, previously rejected on target job T; runAutomationTask rematch -> T's entry stays 'rejected' and S is not closed (the machine never reverses a merit reject, so C is never live in two funnels).",
+      "POST /api/pipeline re-add of a rejected candidate (the recruiter's reconsider door) -> 200, body.reopened === true, body.entry.status === 'active', and the 'reinstated' event names the humanActor() of the request.",
+      "The fill-only backfills (github_json, github_handle, dev_case_id, dev_submission_id) still apply on a created:false re-add whether or not a reopen was requested or refused."
+    ],
+    "premise": [
+      "app/_lib/db/pipeline.ts:1497-1506 - createPipelineEntry's re-add path flips ANY terminal status (isTerminalEntryStatus: rejected/declined/role_closed/rematched) back to 'active' with a bare UPDATE: no recordEvent, no actor, no WHERE status re-assert.",
+      "app/_lib/db/pipeline.ts:1441-1563 - createPipelineEntry opens no transaction: the SELECT at :1453, four separate backfill UPDATEs (:1457-1496), the status flip, the INSERT (:1517) and its recordEvent (:1552) are independent statements.",
+      "app/_lib/db/pipeline.ts:906-913 - reopenEntriesByJobId's own contract: 'a reopen must never un-do a human's merit reject', which is why it selects status='role_closed' only.",
+      "app/api/jobs/[id]/publish/route.ts:171-173 then :205-218 - a re-publish runs reopenEntriesByJobId (merit rejects deliberately left closed) and then createPipelineEntry for every sourced match on the SAME job id, which re-activates any merit-rejected candidate the matcher re-selects, silently.",
+      "app/_lib/automation-run.ts:673-697 - the rematch target is filed through createPipelineEntry and the source is closed only `if (created)`; a target entry that already exists as rejected is re-activated (created:false) while the source stays live - the two-live-funnels outcome app/_lib/db/pipeline.ts:3335-3340 (rematchSourceEntry) exists to prevent.",
+      "app/_lib/db/pipeline.ts:1317-1366 - reinstatePipelineEntry is the codebase's named reversal: IMMEDIATE tx, WHERE status='rejected' re-assert, a 'reinstated' event carrying the caller's actorRef. The re-add path reverses the same status with none of that.",
+      "app/_lib/db/pipeline.ts:2418-2423 - anonymizeEntry stamps anonymized_at but leaves status; :1500 checks only isTerminalEntryStatus, so an erased entry is re-activated by a re-add like any other.",
+      "app/_lib/db/pipeline-store.test.ts:66-76 - the current silent revive is pinned by a test ('the terminal row is re-surfaced as active'), so the builder changes that assertion deliberately.",
+      "app/_lib/application-filing.ts:261-262 vs :304 - an apply repeat found by findApplicationByApplicant never re-activates a rejected entry, but the same person arriving on the raced path (created:false at :304, after createPipelineEntry at :276 already flipped it) does - one person, two outcomes depending on timing.",
+      "Registry recruiting/pipeline-stage-modelling technique entry-and-terminal-role-requirements.md:66-72: 'The correction path is a separate, named, actor-recorded action - a reversal'."
+    ],
+    "rollback": "No schema change and no new event kind (reuses the registered 'reinstated' kind, DECISION_META reinstated at decision-attribution.ts:138). The series is a store change, three caller edits, one reason code with four catalog strings and tests; reverting it restores the silent revive exactly, and the extra catalog keys are inert if left behind.",
+    "gate": "policy-tighten",
+    "runner_up": "One arrival door: pipeline.ts:37-41 says actOnPipelineEntry and setPipelineEntryStage are 'the only places in the app where a pipeline entry's stage changes', but migratePipelineStages (:1158) and reinstatePipelineEntry (:1346) move stages too and never reach notifyStageEntered, so a board edit that migrates occupants onto an AI-interview column leaves them with no link and outside the calendar-gated docket (ScheduleAiRound.tsx:47-50) - fire the hook with a cause, and park board-edit arrivals as held instead of mailing.",
+    "technique": "entry-and-terminal-role-requirements",
+    "body": "## Summary\nEvery status transition in the pipeline store goes through a guarded, audited door (actOnPipelineEntry, reinstatePipelineEntry, close/reopenEntriesByJobId, rematchSourceEntry) except one: createPipelineEntry's idempotent re-add silently flips any terminal entry back to active. Make that re-add a real transition: refused by default, allowed only when a human door names itself, restricted to merit/candidate terminals, never for an erased person, and written in one IMMEDIATE transaction with a 'reinstated' event and actor.\n\n## Description\ncreatePipelineEntry (pipeline.ts:1441) is called by fourteen sites: the recruiter add, the outreach click, the publish-time sourcing loop, the automation rematch, the devcase seed and promote, the agent doors, the sim and the apply filing. On a re-add it runs `UPDATE ... SET status='active'` for any terminal row (:1500-1506) with no event, no actor and no status re-assert, outside any transaction. That is how a re-publish un-does the merit rejects reopenEntriesByJobId deliberately preserves (:906-913), how an automated rematch re-activates a rejected target and then skips closing the source because `created` is false (automation-run.ts:673-697), and how an anonymized entry can come back to life. The store already has the right shape for a reversal - reinstatePipelineEntry - so the move is to make the re-add use it: an explicit `reopen?: { actorRef }` option, a closed rule (rejected and declined may be reopened by a human door; role_closed, rematched and anonymized never), and a result that says what happened (`reopened`, `reopenRefused`). Machine doors pass nothing and so can never reverse a human decision; the two recruiter doors (POST /api/pipeline, the outreach click) pass humanActor() and keep today's behaviour, now on the record.\n\n## Flow\n1. createPipelineEntry wraps read, backfills, reopen and insert in `db.transaction(...).immediate()` (no await inside; nesting-safe for devcase-run.ts:1141, which already calls it inside its own transaction).\n2. On an existing row: run the fill-only backfills as today, then evaluate the reopen rule. Allowed -> `UPDATE ... SET status='active' WHERE id=? AND workspace_id=? AND status=<read status> AND anonymized_at IS NULL`, `changes === 0` -> reopened:false, else record 'reinstated' with actor and `pipelineReasonDetail('readdedByRecruiter')`.\n3. Add `readdedByRecruiter` to PIPELINE_REASON_CODES and `pipeline.eventReasons.readdedByRecruiter` in all four catalogs (pipeline-event-reasons.test.ts pins both).\n4. POST /api/pipeline and the outreach route pass `reopen: { actorRef: await humanActor() }`; every other caller is unchanged and therefore refuses.\n5. Update pipeline-store.test.ts:66-76 to the new contract; add pipeline-readd-transition.test.ts for the eight cases; update the compliance and pipeline docs (the erased-entry and machine-door rules).\n\n## Expected impact\nA human's merit reject can no longer be reversed by a machine (publish sourcing, rematch, devcase seeding) or by a race in the apply door, the rematch hazard of one person live in two funnels closes on its last path, an erased candidate cannot re-enter the board, and every reversal that does happen names who did it in the decision log. Perf: no new import edge on pipeline.ts (the reason code lives in the file already).\n\n## Evaluation\nClaim: createPipelineEntry reverses a terminal status only through a named, audited, atomic human door.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over the store (unit-db) plus the POST /api/pipeline route test, under npm run test:unit; i18n:check and lint in the integration gate.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "pipeline.ts:1497-1506 (verbatim): `// re-surface a previously-closed candidate if a recruiter re-adds them ... if (isTerminalEntryStatus(existing.status)) { db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=? AND workspace_id=?`).run(...) }` - no recordEvent call between :1497 and :1508. pipeline.ts:910-912: 'a candidate a recruiter rejected/declined/rematched on merit BEFORE the close carries a different terminal status and is deliberately left closed (a reopen must never un-do a human's merit reject)'. publish/route.ts:171-173 `if (!already && gate.wasClosed) { reopened = reopenEntriesByJobId(id, ws); }` then :207-218 `createPipelineEntry({ candidateId: m.candidateId, ..., jobId: id, ..., stage: 'Accepted', workspaceId: ws })` inside `for (const m of outcome.candidates)`. automation-run.ts:673 `const { entry: target, created } = createPipelineEntry({...})` and :688 `if (created) { ... rematchSourceEntry(entry.id, target.id, ...) }`. grep `createPipelineEntry(` outside tests: 14 call sites in 11 files. pipeline-store.test.ts:66 comment 'Close it out, then re-add -> the terminal row is re-surfaced as active' and :76 `assert.equal(revived.entry.status, 'active')`. 'reinstated' is already registered: pipelineEventCatalog.ts:174 and decision-attribution.ts:138. No prior challenge card, leftover-develop row or backlog-digest title covers the re-add path (digest has 'recordEntryConsent DEFERRED read-modify-write' and the pipeline.ts split, both different seams)."
+  },
+  {
+    "context": "db-pipeline-store",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Calibration labels from the furthest stage reached, read off the ledger",
+    "size": "M",
+    "effort": 5,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/db/pipeline.ts",
+      "app/_lib/db/pipeline-calibration.test.ts",
+      "app/_lib/db/pipeline-calibration-band.test.ts",
+      "docs/features/analytics/README.md"
+    ],
+    "new_files": [
+      "app/_lib/calibration-outcome.ts",
+      "app/_lib/calibration-outcome.test.ts",
+      "app/_lib/db/pipeline-calibration-furthest.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Entry scored 80 is accepted Screened -> Interview ('advanced' event to_stage Interview), then setPipelineEntryStage back to Screened (no-show), then rejected -> pipelineCalibrationPairs(ws) contains {score:80, outcome:1} (today it is outcome 0).",
+      "The same entry is returned by pipelineCalibrationBandCandidates(80, 90, false, null, ws) with outcome 1 - the curve and its drilldown apply ONE rule (both call the shared pure calibrationOutcome).",
+      "Entry scored 40 rejected at Screened having never stood on a gate-or-later column -> outcome 0 (unchanged).",
+      "Entry that reached the interview column ONLY via a 'stage_migrated' event (Settings -> Hiring board edit), was then moved back and rejected -> outcome 0: a board-shape move is not evidence the score advanced anyone.",
+      "Active entry that reached Interview and was moved back to Screened (not rejected) -> outcome 1 on the advance axis (decided at screening: advanced), where today it is excluded as pending.",
+      "Hire axis (opts.outcome 'hired') is unchanged: an entry moved into the terminal column and back out, still active, stays excluded; a rejected-at-interview entry stays outcome 0.",
+      "Holdout filter still composes: pipelineCalibrationPairs(ws, {onlyEntryIds:{E1}}) applies the furthest-reached rule to E1 only and returns no pair for any other entry.",
+      "calibrationOutcome (pure, no DB) on {status, currentStage, reachedStages:Set} returns 1 / 0 / null for the eight combinations of (positive current stage, positive reached stage, rejected, non-merit terminal) exactly as the rule states."
+    ],
+    "premise": [
+      "app/_lib/db/pipeline.ts:659-672 - pipelineCalibrationPairs labels by CURRENT position only: `if (positive.has(r.stage)) outcome 1 else if (r.status === 'rejected') outcome 0`, where positive is calibrationAdvancedStages = columns at or past the screening gate (:618-619).",
+      "app/_lib/db/pipeline.ts:708-716 - pipelineCalibrationBandCandidates restates the same rule by hand (`if (advanced.has(r.stage)) outcome = 1; else if (r.status === 'rejected') outcome = 0`), a second copy that must agree with the first.",
+      "app/_lib/db/pipeline.ts:3259-3261 - setPipelineEntryStage exists precisely to 'move BACKWARD (Interview -> Screened after a no-show)', so a validated advance is routinely followed by a current stage below the gate.",
+      "app/_lib/db/pipeline.ts:3204, :3212, :3195 and :3307-3317 - every advance, schedule and manual move already writes a pipeline_events row with to_stage, so the furthest stage an entry ever stood on is recorded; :1177-1188 marks board-edit moves with their own kind 'stage_migrated'.",
+      "app/api/analytics/calibration/apply-threshold/route.ts:86-95 - these pairs feed recommendScreeningThreshold, which this route WRITES as the auto-reject floor; a mislabelled advance-then-no-show counts as a screen-gate reject and pushes the recommendation toward raising the floor.",
+      "app/api/analytics/calibration/route.ts:82-83 and band/route.ts:51 - the curve and the band drill are the two readers, each through one of the two hand-kept copies.",
+      "messages/en.json:7792 - the product already tells the reader a candidate counts as 'advanced (reached interview, offer, or hired)': 'reached', which the current-position rule does not implement.",
+      "Registry recruiting/selection-score-calibration technique outcome-axis-selection-advance-versus-hire.md:111-113: 'When a candidate reached a later stage and then returned to screening, use the furthest role reached, not the current one.' This is a recorded deviation today."
+    ],
+    "rollback": "Read-side only: no schema, no migration, no catalog key. The label rule moves into one pure module and one extra bounded SELECT DISTINCT over pipeline_events; reverting the series restores current-position labels byte for byte.",
+    "gate": "contract",
+    "runner_up": "Type the event vocabulary at the write door: recordEvent (core.ts:3139) and recordAutomationEvent (pipeline.ts:2931-2934) take `kind: string`, the three registries are held together by a source-regex scan (decision-attribution.test.ts:79-82) that cannot see a kind passed through a variable (automation-run.ts:741 writes `DRAFT_EVENT[task] ?? task`), so derive EVENT_KINDS and DECISION_META from one literal array and make the writers take PipelineEventKind.",
+    "technique": "outcome-axis-selection-advance-versus-hire",
+    "body": "## Summary\nThe calibration curve that recommends (and can apply) the auto-reject floor labels every scored entry by where it stands NOW. A candidate the score advanced to interview, who was then moved back after a no-show and rejected, is counted as a screen-gate reject. Derive the advance-axis label from the furthest stage the entry ever reached, read off pipeline_events, through ONE pure rule both producers call.\n\n## Description\npipelineCalibrationPairs (pipeline.ts:630) and pipelineCalibrationBandCandidates (:685) each hand-code the same current-position rule (:667-671, :714-716). The store supports backward moves on purpose (setPipelineEntryStage, :3259-3261), the reinstate path lands people on the screened column, and every one of those moves leaves the earlier forward step on the ledger with its to_stage. The registry's calibration standard states the rule outright (furthest role reached, not the current one), and the product copy already promises it ('reached interview, offer, or hired', en.json:7792). The consequence is not cosmetic: the apply-threshold route (:86-95) writes the recommended floor, and every advance-then-no-show is a false negative that biases the recommendation toward rejecting more people. The move: a pure calibrationOutcome(row, reachedStages, positive, axis) in app/_lib/calibration-outcome.ts (import-free, like calibration.ts), one bounded read per call (`SELECT DISTINCT entry_id FROM pipeline_events WHERE workspace_id = ? AND kind != 'stage_migrated' AND to_stage IN (<positive ids>)`), and both producers reduced to 'fetch rows, fetch reached set, apply the rule'. Board-edit migrations are excluded as evidence (they are not decisions - the stage-modelling standard's own rule), and the hire axis keeps its current-position rule, stated in the doc, so an undone hire is not counted as a hire.\n\n## Flow\n1. Write calibration-outcome.test.ts first: the eight-combination truth table.\n2. Add app/_lib/calibration-outcome.ts with the pure rule; no DB, no axis resolution inside.\n3. In pipeline.ts, add a private reachedPositiveEntryIds(workspaceId, positive) doing the one bounded SELECT DISTINCT; call the pure rule from both pipelineCalibrationPairs (advance axis) and pipelineCalibrationBandCandidates.\n4. Leave the orphaned app/_lib/db/pipeline-calibration.ts untouched (it is on the open 'delete the orphaned split' backlog item and nothing imports its calibration functions).\n5. Store tests for acceptance 1-7 (unit-db), extend the two existing calibration tests where they encode current-position behaviour, update docs/features/analytics/README.md's calibration section (label rule, migration exclusion, hire-axis boundary).\n\n## Expected impact\nThe reliability curve, its band drilldown and the threshold recommendation that can move the auto-reject floor all count a validated advance as a validated advance, closing a standing deviation from the registry's calibration standard. Two copies of the label rule become one, so the curve and its drill can no longer disagree. Cost: one indexed DISTINCT read per calibration call on an analytics route, no new import edge on pipeline.ts beyond a pure leaf module.\n\n## Evaluation\nClaim: calibration labels on the advance axis follow the furthest non-migration stage an entry reached, identically in the curve and the drill.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (pure truth table + unit-db store cases) under npm run test:unit; test:perf for the import-graph budget.\nResult: pending build.\nGate: contract.",
+    "evidence": "pipeline.ts:667-671 (verbatim): `if (positive.has(r.stage)) { pairs.push({ score: r.score, outcome: 1, ... }); } else if (r.status === 'rejected') { pairs.push({ score: r.score, outcome: 0, ... }); }` over `SELECT id, match_score AS score, stage, status, role_family, created_at FROM pipeline_entries WHERE match_score IS NOT NULL AND workspace_id = ?` (:654-655) - no read of pipeline_events anywhere in the calibration region (:579-727). pipeline.ts:714-716: `if (advanced.has(r.stage)) outcome = 1; else if (r.status === 'rejected') outcome = 0; else continue;`. pipeline.ts:3260: 'move BACKWARD (Interview -> Screened after a no-show), skip a stage'. apply-threshold/route.ts:86 `const allPairs = pipelineCalibrationPairs(ws);` :95 `const rec = recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold);`. en.json:7792 exclusionPipeline: 'a candidate counts once they're decided at screening: advanced (reached interview, offer, or hired) or rejected there.' Registry file knowledge/recruiting/decision-and-fairness/scoring-and-decision/selection-score-calibration/techniques/outcome-axis-selection-advance-versus-hire.md:111-113 quoted in premise. The orphan copy app/_lib/db/pipeline-calibration.ts:79-87 repeats the same rule; grep shows its functions have no importer (both calibration tests import from ./pipeline.ts). No prior challenge card, leftover-develop row or digest title touches calibration labelling (the leftover 'Persist a holdout flag ... for the calibration clean arm' is the holdout arm, a different seam)."
+  }
+]

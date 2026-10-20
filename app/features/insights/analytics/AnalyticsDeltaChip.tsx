@@ -25,7 +25,7 @@ export function DeltaChip({ delta, lowerIsBetter, unit }: { delta: Delta; lowerI
         : `${sign}${magnitude}`;
   return (
     <span
-      className={`rounded px-1 py-0.5 text-meta font-semibold ${improved ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"}`}
+      className={`rounded px-1 py-0.5 text-meta font-semibold ${improved ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral-ink"}`}
       title={t("deltaTitle")}
     >
       {text}

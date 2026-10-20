@@ -7,7 +7,7 @@
 //
 // Deliberately rules-only (no LLM): the check must be instant, deterministic,
 // and free — it runs on every edit. The phrase lists are the highest-frequency
-// offenders in EN + CS job ads, with inflection-tolerant Czech stems (\p{L}
+// offenders in EN + CS + DE + FR job ads, with inflection-tolerant stems (\p{L}
 // because JS \w excludes diacritics — /konkurenceschopn\w*/ would stall at "ý").
 
 export type JdLintFinding =
@@ -39,6 +39,16 @@ const VAGUE_PATTERNS: RegExp[] = [
   /mlad\p{L}*\s+kolektiv\p{L}*/giu,
   /rodinn\p{L}*\s+atmosf\p{L}*/giu,
   /staň\p{L}*\s+se\s+součástí/giu,
+  // German
+  /(?:wettbewerbsfähig|konkurrenzfähig)\p{L}*\s+(?:Gehalt|Vergütung)/giu,
+  /attraktiv\p{L}*\s+(?:Gehalt|Vergütung)/giu,
+  /dynamisch\p{L}*\s+(?:Team|Umfeld|Arbeitsumfeld)/giu,
+  /werd\p{L}*\s+Teil\s+unser\p{L}*\s+Teams/giu,
+  // French
+  /salaire\s+compétitif\p{L}*/giu,
+  /rémunération\s+attractiv\p{L}*/giu,
+  /équipe\s+dynamique/giu,
+  /rejoign\p{L}*\s+notre\s+équipe/giu,
 ];
 
 // Inclusive-language patterns (7469c05f) — phrases shown to shrink or skew the
@@ -74,19 +84,26 @@ const MANY_MUST_HAVES = 8;
 // A stated pay figure: digits followed by a currency token ("65 000 Kč",
 // "65,000 CZK", "3 200 EUR"), or a currency symbol followed by digits ("€3,200",
 // "$120k"). Includes NBSP/narrow-NBSP — common thousands separators in cs text.
-const MONEY_RE = /\d[\d\s  .,]*\s*(?:kč|czk|eur(?:o)?\b|usd\b)|[€$]\s?\d/iu;
+// The sign also counts AFTER the figure ("60.000 €", "45 000 € brut"), which is
+// how de and fr write euros; without it a stated salary read as a missing one.
+const MONEY_RE = /\d[\d\s  .,]*\s*(?:kč|czk|€|eur(?:o)?\b|usd\b)|[€$]\s?\d/iu;
 
-// A stated place of work: a work-mode keyword (EN or CS) or a major CZ city.
+// A stated place of work: a work-mode keyword (EN, CS, DE, FR) or a major CZ city.
 // Substring stems on purpose — "hybridní", "v kanceláři", "remotely" all count;
-// trailing ASCII \b would break after diacritics (plzeň), so none is used.
+// trailing ASCII \b would break after diacritics (plzeň), so none is used. The
+// multi-word remedies are letter-guarded instead: they are the words the
+// lintMissingPlace copy tells the writer to use ("na pracovišti", "vor Ort",
+// "sur site", "télétravail"), and advice the check does not accept nags the
+// writer who followed it. Pinned against the catalogs by jd-lint.test.ts.
 const PLACE_RE =
-  /remote|hybrid|on-?site|home\s*office|na\s+dálku|z\s+domova|kancelář|praha|prague|brno|ostrava|plzeň|plzen|olomouc|liberec|hradec/iu;
+  /remote|hybrid|on-?site|home\s*office|na\s+dálku|z\s+domova|kancelář|(?<!\p{L})na\s+pracovišt\p{L}*|(?<!\p{L})vor\s+ort(?!\p{L})|t[ée]l[ée]travail|(?<!\p{L})sur\s+site(?!\p{L})|praha|prague|brno|ostrava|plzeň|plzen|olomouc|liberec|hradec/iu;
 
 /** Every boilerplate phrase in `text`, as written, in DOCUMENT order (the
  *  recruiter reads the findings against their own text top-to-bottom), first
  *  occurrence per phrase (case-insensitively deduped so "Dynamic team" and
  *  "dynamic team" report once). */
-function collectPhrases(text: string, patterns: RegExp[]): string[] {
+function collectPhrases(raw: string, patterns: RegExp[]): string[] {
+  const text = raw.normalize("NFC");
   const hits: { index: number; phrase: string }[] = [];
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
@@ -126,8 +143,19 @@ export function locateLintPhrase(body: string, phrase: string): { start: number;
   const needle = phrase.trim();
   if (!needle) return null;
   const start = body.toLowerCase().indexOf(needle.toLowerCase());
-  if (start < 0) return null;
-  return { start, end: start + needle.length };
+  if (start >= 0) return { start, end: start + needle.length };
+  // The phrase came from the NFC form (lintJd normalizes); a decomposed body holds it
+  // at other offsets. Find it in the composed text, then map both ends back.
+  const composed = body.normalize("NFC").toLowerCase().indexOf(needle.normalize("NFC").toLowerCase());
+  if (composed < 0) return null;
+  const toRaw = (n: number) => {
+    let i = 0;
+    while (i < body.length && body.slice(0, i).normalize("NFC").length < n) i++;
+    // Absorb combining marks that compose into the character just reached.
+    while (i < body.length && /\p{M}/u.test(body[i]!)) i++;
+    return i;
+  };
+  return { start: toRaw(composed), end: toRaw(composed + needle.normalize("NFC").length) };
 }
 
 /**
@@ -153,7 +181,10 @@ export function lintJd(input: {
   salaryAvailable?: boolean;
   mustHaveCount?: number;
 }): JdLintFinding[] {
-  const body = input.body ?? "";
+  // NFC first: in decomposed text a combining mark ends every \p{L}* stem run and
+  // "Kč" is not "kč", so an unnormalized Czech posting lost its boilerplate findings
+  // and gained a false missing-salary. The lint reads what the writer sees.
+  const body = (input.body ?? "").normalize("NFC");
   const findings: JdLintFinding[] = findVaguePhrases(body).map((phrase) => ({ kind: "vague", phrase }));
   if (!input.salaryAvailable && !MONEY_RE.test(body)) findings.push({ kind: "missing", what: "salary" });
   if (!PLACE_RE.test(body)) findings.push({ kind: "missing", what: "place" });

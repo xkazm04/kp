@@ -4,6 +4,8 @@
 import { AlertTriangle, Ban, Check, Clock, Loader2 } from "lucide-react";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { RECENT_TASK_WINDOW_DAYS } from "@/app/_lib/tasks-window";
+import type { ReplayBlockReason } from "@/app/_lib/task-replay";
+import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import type { Task, TaskStatus } from "./TasksProvider";
 
 // Default window the live view shows; older runs page in via the history table.
@@ -24,10 +26,10 @@ export type StatusMeta = {
 };
 
 export const STATUS: Record<TaskStatus, StatusMeta> = {
-  running: { badge: "bg-coral/10 text-coral", Icon: Loader2, iconCls: "animate-spin text-coral" },
+  running: { badge: "bg-coral/10 text-coral-ink", Icon: Loader2, iconCls: "animate-spin text-coral-ink" },
   queued: { badge: "bg-steel/10 text-steel", Icon: Clock, iconCls: "text-steel" },
   succeeded: { badge: "bg-moss/10 text-moss", Icon: Check, iconCls: "text-moss" },
-  failed: { badge: "bg-coral/10 text-coral", Icon: AlertTriangle, iconCls: "text-coral" },
+  failed: { badge: "bg-coral/10 text-coral-ink", Icon: AlertTriangle, iconCls: "text-coral-ink" },
   canceled: { badge: "bg-stone-100 text-steel", Icon: Ban, iconCls: "text-steel" },
   interrupted: { badge: "bg-amber-100 text-amber-700", Icon: AlertTriangle, iconCls: "text-amber-600" },
 };
@@ -105,4 +107,44 @@ export function taskTime(task: Task): number {
 /** One list: running, then queued, then terminal runs newest-first. Pure. */
 export function sortTasks(tasks: readonly Task[]): Task[] {
   return [...tasks].sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || taskTime(b) - taskTime(a));
+}
+
+// ── challenge-r05 workspace-config-api/B: the row's replay affordance ──────────
+// The table used to offer Retry on EVERY failed / interrupted / canceled row, and the
+// retry door decided only after the click. The server now stamps a replay verdict on
+// each row (app/_lib/task-replay.ts — the same function the retry door refuses by),
+// and the row renders from it: Retry where the replay would run, otherwise the reason
+// it cannot and, where one exists, the tab that can re-create the inputs.
+
+/** Where a blocked row sends the recruiter — a tab that can start the work afresh. */
+export type RetryDoor = { tab: WorkspaceTabId };
+
+export type RowRetryAction =
+  | { kind: "none" }
+  | { kind: "retry" }
+  | { kind: "blocked"; reason: ReplayBlockReason; door: RetryDoor | null };
+
+/** The catalog key (`tasks.replay.<key>`) for each blocked reason — the row renders a
+ *  CODE through the reader's catalog, never a server sentence. */
+export const REPLAY_REASON_KEY: Record<ReplayBlockReason, "inputsGone" | "kindRetired" | "noSeat"> = {
+  "inputs-gone": "inputsGone",
+  "kind-retired": "kindRetired",
+  "no-seat": "noSeat",
+};
+
+/** The tab that can re-create a path-bearing kind's inputs. Only analyze today: its
+ *  upload lives on the Analyze tab. A seat or retired-kind block has no door. */
+const INPUTS_DOOR: Partial<Record<string, WorkspaceTabId>> = { analyze: "analyze" };
+
+const DEAD_STATUSES: ReadonlySet<TaskStatus> = new Set(["failed", "interrupted", "canceled"]);
+
+/** What a row's Actions cell offers once the run has ended. A row with no `replay`
+ *  field (an older server) degrades to today's Retry on a dead row — never hides a
+ *  working one. Pure. */
+export function rowRetryAction(task: Pick<Task, "kind" | "status" | "replay">): RowRetryAction {
+  if (!DEAD_STATUSES.has(task.status)) return { kind: "none" };
+  const replay = task.replay;
+  if (replay === undefined || replay === null || replay.replayable) return { kind: "retry" };
+  const tab = replay.reason === "inputs-gone" ? INPUTS_DOOR[task.kind] : undefined;
+  return { kind: "blocked", reason: replay.reason, door: tab ? { tab } : null };
 }

@@ -129,3 +129,28 @@ test("a window with no closed hire reports no per-hire figure rather than a huge
   assert.equal(a.automationRoi.hoursSavedPerHire, null);
   assert.equal(a.automationRoi.pctOfManualBaseline, null);
 });
+
+test("an agent on the terminal column moves neither hired nor hiresClosedInWindow", () => {
+  const WS2 = "hire-basis-agent-ws";
+  const { entry } = createPipelineEntry({
+    candidateId: "agent-basis-bot",
+    candidateLabel: "Bot",
+    jobId: "basis-agent-job",
+    jobTitle: "Role",
+    stage: "Hired",
+    population: "agent",
+    workspaceId: WS2,
+  });
+  ensureDb()
+    .prepare(
+      `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, kind, from_stage, to_stage, created_at, workspace_id)
+       VALUES (?, 'Bot', 'Role', 'advanced', 'Offer', 'Hired', ?, ?)`
+    )
+    .run(entry.id, iso(DAY), WS2);
+
+  for (const days of [30, undefined]) {
+    const a = pipelineAnalytics(days, undefined, WS2);
+    assert.equal(a.hired, 0, `hired (days=${days})`);
+    assert.equal(a.hiresClosedInWindow, 0, `hiresClosedInWindow (days=${days})`);
+  }
+});

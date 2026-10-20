@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { provenanceTone, type BriefRequirement, type ProvenanceTone } from "./jdsIntakeBriefModel";
 
 // The leaf pieces the live-brief body draws with, split from
-// JdsIntakeBriefBody.tsx so both stay under the 200-line cap.
+// AtelierBriefPlane.tsx so both stay under the 200-line cap.
 //
 // The colour contract is the app's own (docs/design/README.md: "coral = act,
 // moss = good, amber = maybe, steel = commentary") applied to the one axis this
@@ -76,7 +76,7 @@ export function TurnRef({ turn, onJump }: { turn?: number | null; onJump?: (turn
   return (
     <button
       type="button"
-      className="focus-ring shrink-0 rounded text-meta text-steel underline decoration-dotted underline-offset-2 transition-colors hover:text-coral nums"
+      className="focus-ring shrink-0 rounded text-meta text-steel underline decoration-dotted underline-offset-2 transition-colors hover:text-coral-ink nums"
       onClick={onJump ? () => onJump(turn) : undefined}
       title={label}
       aria-label={label}

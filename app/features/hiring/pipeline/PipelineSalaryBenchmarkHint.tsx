@@ -1,18 +1,20 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { formatBenchmarkAsOf } from "@/app/_lib/salary-benchmark";
 
 // Phase 2 (cross-company reference tier) — a market-band reference line for the offer
 // draft: "for this role family, the corpus band is p25–p75 (median X)". Reads
 // /api/benchmarks/salary (shared reference corpus, aggregate-only, min-cohort guarded).
 // The parent only mounts this when a roleFamily is known, so the fetch URL is always valid.
 
-type SalaryBenchmark = { currency: string; count: number; p25: number; median: number; p75: number };
+type SalaryBenchmark = { currency: string; count: number; p25: number; median: number; p75: number; source: string; asOf: string | null };
 
 export function SalaryBenchmarkHint({ roleFamily, seniority }: { roleFamily: string; seniority?: string | null }) {
   const t = useTranslations("pipeline.result");
+  const locale = useLocale();
   // The band reads in the READER's locale, not a hardcoded en-US: this line sits
   // inside a localized sentence (format.ts number-locale contract).
   const { grouped } = useNumberFormat();
@@ -21,9 +23,11 @@ export function SalaryBenchmarkHint({ roleFamily, seniority }: { roleFamily: str
   // No data yet, or below the min-cohort floor (too few reference roles) → show nothing.
   if (!data?.benchmark) return null;
   const b = data.benchmark;
+  const asOf = formatBenchmarkAsOf(b.asOf, locale);
   return (
-    <p className="rounded-md bg-paper px-2 py-1 text-micro text-steel">
-      {t("marketBand", { min: grouped(b.p25), max: grouped(b.p75), median: grouped(b.median), currency: b.currency, count: b.count })}
-    </p>
+    <div className="rounded-md bg-paper px-2 py-1 text-micro text-steel">
+      <p>{t("marketBand", { min: grouped(b.p25), max: grouped(b.p75), median: grouped(b.median), currency: b.currency, count: b.count })}</p>
+      <p>{asOf ? t("marketBandVintage", { source: b.source, date: asOf }) : t("marketBandVintageUndated", { source: b.source })}</p>
+    </div>
   );
 }

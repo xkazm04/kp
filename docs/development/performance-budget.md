@@ -17,6 +17,14 @@ fails it when a job exceeds its declared ceiling. See
 
 ## What is measured, and why this number
 
+The 2026-09-22 merge combined the interview director, journey analytics and
+feedback-letter routes with the backlog sweep. Against the previous green main,
+`app/page.tsx` measures 1364 modules / 8649 KB (previously 1287 / 7846), and
+the heaviest API route measures 229 modules / 3008 KB (previously 224 / 2880).
+`perf-budget.json` now records those merged measurements with narrow headroom.
+The API group keeps its 225-module ceiling; the four larger routes have named
+overrides so their added graph remains visible.
+
 This repo used to measure cost carefully and gate none of it. 783 tests, e2e,
 accessibility probes and LLM evals all read correctness; the committed
 threshold that now reads cost is `perf-budget.json`. The number with a measured
@@ -124,6 +132,13 @@ new ceiling.
 which is the point. A route may legitimately grow; that should be a decision
 somebody made and a reviewer can disagree with, not a number that drifted. A
 ceiling without a `why` fails to load, so the reason cannot be skipped.
+
+**Drift is a reason too.** A tree can cross a ceiling with no module added: on
+2026-10-15 `app/page.tsx` read 11663 KB against 11660 KB, +3 KB spread over five
+correctness fixes to modules already on the graph. That is recorded as a raise
+with a `why` that names the cause and the step taken (here 10 KB), not
+hidden by trimming an unrelated file. The module count is the tell: unchanged
+means growth, not a new dependency edge.
 
 ## When it fails
 
@@ -249,6 +264,12 @@ that only `ci.yml` blocks the loop this budget exists to protect.
   pinned by `scripts/perf/__tests__/devbench.test.mjs` (11 checks) in
   `npm run test:perf`, which also validates the committed file — a ratchet whose
   committed state is malformed is a gate that silently never fires.
+- **What the browser loads first.** This budget walks dynamic imports and server code, so a
+  lazy-loading win cannot move it. `scripts/perf/first-load.mjs` walks STATIC client imports only
+  (shell, each workspace tab chunk, the gate routes; it stops at `'use server'`, found by a linear
+  scan past leading comments rather than a backtracking pattern), and
+  `npm run perf:vitals` measures cold loads and warm tab switches in a browser. Both are report-only;
+  see [`../design/instruments.md`](../design/instruments.md).
 - **Client bundle bytes.** A worthwhile second metric, and it needs a build
   (`.next/`), which puts it in a different CI tier from this one.
 - **SQLite write throughput.** Already measured, with its result written down:

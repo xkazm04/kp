@@ -25,6 +25,9 @@ const toStageDef = (wire: PipelineStageWire): StageDef => ({
   label: wire.label,
   role: wire.role as StageRole,
   ...(wire.actions ? { actions: wire.actions } : {}),
+  // The team's aging cadence rides the axis to every reader (board, badge, automation
+  // pass); dropping it here would silently put them all back on role defaults.
+  ...(wire.slaDays !== undefined ? { slaDays: wire.slaDays } : {}),
 });
 
 /** The out-of-the-box axis as a ResolvedAxis — what a workspace with no override

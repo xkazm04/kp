@@ -39,32 +39,59 @@ export function getWorkspace(id: string): Workspace | null {
 // The tenant-level comms language default (backlog #34): what a candidate with
 // NO stored locale hears from us in. 'cs' matches the ČS seed — the deployed
 // tenant is a Czech bank, so an unknown-language candidate gets Czech, not the
-// UI's English DEFAULT_LOCALE. Stored per workspace (workspaces.default_locale,
-// ADD COLUMN ... DEFAULT 'cs' in core.ts backfills existing rows) so a future
-// non-Czech tenant flips one column, not code.
+// UI's English DEFAULT_LOCALE; every unsupported stored value degrades to it.
 export const WORKSPACE_LOCALE_FALLBACK: Locale = "cs";
 
-/** The workspace's default candidate-comms locale, validated at the read
- *  boundary (a fat-fingered column value degrades to the ČS fallback, never an
- *  unknown catalog import downstream). */
-export function getWorkspaceDefaultLocale(id: string = DEFAULT_WORKSPACE_ID): Locale {
-  const db = ensureDb();
-  const row = db.prepare(`SELECT default_locale FROM workspaces WHERE id = ?`).get(id) as
-    | { default_locale?: string | null }
-    | undefined;
-  const value = row?.default_locale;
+// ONE language authority per org (settings/inherited-default-override): the org row
+// is the source; workspaces.locale_override is a team's EXPLICIT choice and NULL means
+// "follow the org, continuously"; workspaces.default_locale is the legacy column,
+// mirrored on every write (an older image reads only it) and read only for a row
+// with no org row.
+
+function valid(value: unknown): Locale {
   return isLocale(value) ? value : WORKSPACE_LOCALE_FALLBACK;
 }
 
-/** Set the workspace's default locale — the org's configured language. Validated
- *  before write so the column can only ever hold a supported locale. This is the
- *  authority available OUTSIDE a request (background automation passes, candidate-
- *  comms fallback via getWorkspaceDefaultLocale); the NEXT_LOCALE cookie is its
- *  request-scoped counterpart. Settings → Organization writes both together. */
+/** The team's candidate-comms locale — the one door every no-cookie path reads.
+ *  Override, else org row, else legacy column; validated, never an unknown locale. */
+export function getWorkspaceDefaultLocale(id: string = DEFAULT_WORKSPACE_ID): Locale {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT w.locale_override, w.default_locale, o.id AS org_row, o.default_locale AS org_locale
+         FROM workspaces w LEFT JOIN organizations o ON o.id = w.org_id
+        WHERE w.id = ?`
+    )
+    .get(id) as
+    | { locale_override: string | null; default_locale: string | null; org_row: string | null; org_locale: string | null }
+    | undefined;
+  if (!row) return WORKSPACE_LOCALE_FALLBACK;
+  if (row.locale_override !== null) return valid(row.locale_override);
+  if (row.org_row !== null) return valid(row.org_locale);
+  return valid(row.default_locale);
+}
+
+/** Give ONE team an explicit language (detaches it from its org until
+ *  clearWorkspaceLocaleOverride). The org-wide write is setOrganizationLocale. */
 export function setWorkspaceDefaultLocale(locale: Locale, id: string = DEFAULT_WORKSPACE_ID): void {
   if (!isLocale(locale)) return;
   const db = ensureDb();
-  db.prepare(`UPDATE workspaces SET default_locale = ? WHERE id = ?`).run(locale, id);
+  db.prepare(`UPDATE workspaces SET locale_override = ?, default_locale = ? WHERE id = ?`).run(locale, locale, id);
+}
+
+/** Re-attach a team to its org's language, re-mirroring the legacy column. */
+export function clearWorkspaceLocaleOverride(id: string): void {
+  const db = ensureDb();
+  db.transaction(() => {
+    const org = db
+      .prepare(`SELECT o.default_locale FROM workspaces w JOIN organizations o ON o.id = w.org_id WHERE w.id = ?`)
+      .get(id) as { default_locale: string | null } | undefined;
+    if (org) {
+      db.prepare(`UPDATE workspaces SET locale_override = NULL, default_locale = ? WHERE id = ?`).run(valid(org.default_locale), id);
+    } else {
+      db.prepare(`UPDATE workspaces SET locale_override = NULL WHERE id = ?`).run(id);
+    }
+  }).immediate();
 }
 
 // First-run onboarding, workspace-level fallback: the authority when the session
@@ -128,7 +155,17 @@ export function createWorkspace(name: string, orgId: string = DEFAULT_ORG_ID): W
   const id = randomId("ws");
   const cleanName = name.trim().slice(0, 80) || "Untitled workspace";
   const createdAt = new Date().toISOString();
-  db.prepare(`INSERT INTO workspaces (id, name, org_id, type, created_at) VALUES (?, ?, ?, 'team', ?)`).run(id, cleanName, orgId, createdAt);
+  // No override: the team follows its org; the legacy mirror is born with the org's value.
+  const org = db.prepare(`SELECT default_locale FROM organizations WHERE id = ?`).get(orgId) as
+    | { default_locale: string | null }
+    | undefined;
+  db.prepare(`INSERT INTO workspaces (id, name, org_id, type, created_at, default_locale) VALUES (?, ?, ?, 'team', ?, ?)`).run(
+    id,
+    cleanName,
+    orgId,
+    createdAt,
+    valid(org?.default_locale),
+  );
   return { id, name: cleanName, orgId, type: "team", createdAt };
 }
 

@@ -67,24 +67,6 @@
       "panel": 2,
       "rawDate": 1
     },
-    "features/agents-workforce/AgentsWorkforceRoster.tsx": {
-      "metaLabel": 1
-    },
-    "features/hiring/channels/ChannelsCommsMessageModal.tsx": {
-      "chipQuiet": 1
-    },
-    "features/hiring/channels/ChannelsEdgeCard.tsx": {
-      "panel": 1
-    },
-    "features/hiring/channels/ChannelsEmailIntakeWizard.tsx": {
-      "noticeAmber": 1
-    },
-    "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
-      "panel": 1
-    },
-    "features/hiring/channels/ChannelsSetupGuide.tsx": {
-      "panel": 1
-    },
     "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
       "metaLabel": 1
     },
@@ -94,20 +76,11 @@
     "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
       "panel": 1
     },
-    "features/hiring/decisions/DecisionsHeader.tsx": {
-      "noticeAmber": 1
-    },
     "features/hiring/decisions/DecisionsRoleRow.tsx": {
       "panel": 1
     },
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1
-    },
-    "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
-      "noticeAmber": 1
-    },
-    "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
-      "panel": 1
     },
     "features/hiring/pipeline/PipelineCandidateResultView.tsx": {
       "panel": 1
@@ -115,17 +88,8 @@
     "features/hiring/pipeline/PipelineConsentPanel.tsx": {
       "rawDate": 1
     },
-    "features/hiring/pipeline/PipelineFilterBar.tsx": {
-      "noticeAmber": 1
-    },
-    "features/hiring/pipeline/PipelineFilterMenu.tsx": {
-      "panel": 1
-    },
     "features/hiring/pipeline/PipelineHireOutcomeCard.tsx": {
       "rawDate": 1
-    },
-    "features/hiring/pipeline/PipelineViewDialog.tsx": {
-      "noticeAmber": 1
     },
     "features/hiring/pipeline/SchedulerToolbar.tsx": {
       "noticeAmber": 1
@@ -223,22 +187,6 @@
     },
     "features/settings/billing/spend/SpendEngineFacts.tsx": {
       "noticeAmber": 1
-    },
-    "features/settings/hiring/HiringTab.tsx": {
-      "noticeAmber": 2
-    },
-    "features/settings/hiring/PipelineStepsEditor.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/hiring/impact/ImpactDecisionsCard.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/hiring/impact/ImpactScheduleCard.tsx": {
-      "metaLabel": 1,
-      "rawDate": 1
-    },
-    "features/settings/hiring/impact/PlanImpactStrip.tsx": {
-      "metaLabel": 1
     },
     "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
       "noticeAmber": 1
@@ -367,11 +315,6 @@
       "panel": 1
     },
     "jds/[slug]/page.tsx": {
-      "noticeAmber": 1
-    },
-    "skill/[token]/page.tsx": {
-      "panel": 1,
-      "metaLabel": 1,
       "noticeAmber": 1
     },
     "status/[token]/StatusClient.tsx": {

@@ -1,6 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT.
 // Source of truth: pipeline/jobfit/profile.py (EVIDENCE_KINDS, SKILL_LEVELS),
-// pipeline/jobfit/taxonomy.py (UI_PROVENANCE) and
+// pipeline/jobfit/taxonomy.py (UI_PROVENANCE),
+// pipeline/jobfit/education.py (CANDIDATE_LEVELS) and
 // pipeline/jobfit/devcase/models.py (the devcase timebox bounds).
 // Regenerate with: python -m pipeline.jobfit.codegen
 
@@ -32,6 +33,14 @@ export const PROVENANCE = [
   "professional",
   "certification",
   "extracurricular",
+];
+
+export const CANDIDATE_EDUCATION_LEVELS = [
+  "unknown",
+  "university",
+  "bachelor",
+  "master",
+  "phd",
 ];
 
 // The cap on a candidate's unpaid work, in hours, and the floor that keeps a

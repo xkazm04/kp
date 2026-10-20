@@ -172,7 +172,7 @@ test("an already-accepted offer is never rewritten into a different amount; the 
     payload: { recommended: 100_000, currency: "USD" },
     ttlDays: null,
   });
-  const claimed = markOfferResponded(first.token, "accepted");
+  const claimed = markOfferResponded(first.token!, "accepted");
   assert.ok(claimed.claimed, "the offer is accepted at 100k");
 
   // A later re-extend at a different amount must NOT reach back and mutate the
@@ -190,7 +190,7 @@ test("an already-accepted offer is never rewritten into a different amount; the 
   assert.notEqual(next.offer.token, first.token, "the new terms live on a new token");
   // The already-accepted token still resolves to its OWN recorded 100k — never the
   // new figure — so a superseded link never serves stale-vs-live-mismatched terms.
-  const accepted = offerView(first.token)!;
+  const accepted = offerView(first.token!)!;
   assert.equal(accepted.status, "accepted");
   assert.equal(accepted.salary, 100_000, "the accepted token keeps the terms it was accepted at");
 });

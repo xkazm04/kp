@@ -9,6 +9,7 @@
 // Drives the REAL db.ts against a throwaway SQLite file.
 //   npm run test:unit
 import { test, after } from "node:test";
+import { removeTempDirs } from "./testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -55,13 +56,7 @@ const { saveAnalysis } = await import("./db.ts");
 const { resolveCandidate, candidateSignature } = await import("./match-candidate.ts");
 const { DEFAULT_ROLE_FAMILY } = await import("./role-families.ts");
 
-after(() => {
-  try {
-    fs.rmSync(TMP_DIR, { recursive: true, force: true });
-  } catch {
-    /* file locked — the unique dir means a leftover can never poison a later run */
-  }
-});
+after(() => removeTempDirs(TMP_DIR));
 
 function seedUnprofiledAnalysis(): string {
   // A non-tech CV extracted with NO roleFamily / currentSeniority and NO v2Profile.

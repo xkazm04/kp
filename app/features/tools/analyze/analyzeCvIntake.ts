@@ -22,6 +22,12 @@
 
 import { isDuplicateCvVariant } from "@/app/_lib/cv-variant";
 
+/** Make pasted CV text a normal intake variant, subject to the same file gate. */
+export function pastedCvFile(text: string): File | null {
+  const content = text.trim();
+  return content ? new File([content], "pasted-cv.txt", { type: "text/plain" }) : null;
+}
+
 export const CV_INTAKE_OUTCOMES = ["added", "duplicate", "capped"] as const;
 export type CvIntakeOutcome = (typeof CV_INTAKE_OUTCOMES)[number];
 

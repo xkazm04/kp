@@ -1,4 +1,6 @@
 import type { MetadataRoute } from "next";
+import { io } from "next/cache";
+import { listLivePublicJds } from "@/app/_lib/db/jobs";
 import { siteUrl } from "@/app/_lib/site-url";
 
 // The publicly indexable surfaces only: the landing ('/'), the case write-up
@@ -8,7 +10,10 @@ import { siteUrl } from "@/app/_lib/site-url";
 // dashboard also lives at '/' but is served behind the sign-in gate, so a
 // crawler (anonymous) gets the landing. Per-token candidate pages and the API
 // are excluded here and disallowed in robots.ts.
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // The live openings are SQLite data, so read them at request time instead of
+  // capturing the empty/build-time database in a static sitemap.
+  await io();
   const base = siteUrl();
   const url = (path: string) => new URL(path, base).toString();
   return [
@@ -18,5 +23,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: url("/trust"), changeFrequency: "monthly", priority: 0.5 },
     { url: url("/privacy"), changeFrequency: "yearly", priority: 0.3 },
     { url: url("/terms"), changeFrequency: "yearly", priority: 0.3 },
+    ...listLivePublicJds().map(({ slug, createdAt }) => ({
+      url: url(`/jds/${encodeURIComponent(slug)}`),
+      lastModified: new Date(createdAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
   ];
 }

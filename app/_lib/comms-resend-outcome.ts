@@ -65,3 +65,40 @@ export function resendOutcome(ok: boolean, status: number, payload: ResendRespon
   }
   return { kind: "sent" };
 }
+
+// --- which recovery DOOR a letter offers: ONE predicate for every resend surface ---
+
+/** Channel literals, declared in this import-free module so client code can read them;
+ *  comms-dispatch.ts declares its own copies (so route graphs do not gain this module),
+ *  pinned equal by comms-dispatch-channels.test.ts. A simulation row the route refuses
+ *  (COMM_SIMULATION_ROW); a refused row has recipient "" so the route 422s. */
+export const SIM_COMMS_CHANNEL = "simulation";
+export const REFUSED_COMMS_CHANNEL = "refused";
+
+/** retry = one-click re-dispatch; correctAddress = a bounce (same address bounces again). */
+export type ResendDoor = "retry" | "correctAddress";
+
+/** The send gate (comms.ts commsSendSuppression) refuses every letter in these states. */
+const UNCONTACTABLE_CONSENT: ReadonlySet<string> = new Set(["anonymized", "expired"]);
+
+/** The door a letter offers, or null. `verdict` is commsVerdict's, never the raw status
+ *  (a recovered row already has a later delivery). `consentStatus` only from a surface
+ *  that knows the candidate; otherwise the route's gate stays the authority. */
+export function resendDoorOf(
+  m: { verdict: string; channel?: string | null },
+  consentStatus?: string | null
+): ResendDoor | null {
+  if (m.channel === SIM_COMMS_CHANNEL || m.channel === REFUSED_COMMS_CHANNEL) return null;
+  if (consentStatus && UNCONTACTABLE_CONSENT.has(consentStatus)) return null;
+  if (m.verdict === "bounced") return "correctAddress";
+  if (m.verdict === "failed") return "retry";
+  return null;
+}
+
+/** The letters that need the recruiter: exactly those with a door. */
+export function lettersNeedingYou(
+  comms: ReadonlyArray<{ verdict: string; channel?: string | null }>,
+  consentStatus?: string | null
+): number {
+  return comms.reduce((n, m) => (resendDoorOf(m, consentStatus) ? n + 1 : n), 0);
+}

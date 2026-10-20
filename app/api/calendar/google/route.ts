@@ -1,32 +1,37 @@
 import { NextResponse } from "next/server";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { googleOAuthConfig, revokeToken } from "@/app/_lib/calendar/google-oauth";
 import { deleteCalendarConnection, getCalendarConnection, getRefreshToken } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { countUnsyncedUpcomingInvites } from "@/app/_lib/schedule-store";
 
 // W1.4 — connection status and disconnect. The token never crosses this boundary; the
 // status payload carries only whether a connection exists, which calendar, and whether
 // the grant was partial.
 
-export async function GET() {
+export const GET = withWorkspace(async (workspaceId: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const base = publicBaseUrl(null);
   const configured = googleOAuthConfig(base) !== null;
+  const connection = getCalendarConnection(workspaceId);
   return NextResponse.json({
     configured,
-    connection: getCalendarConnection(await currentWorkspace()),
+    connection,
+    // How many upcoming interviews never reached the calendar (event write 'failed'),
+    // shown beside a dead grant so "reconnect" arrives with its cost. Zero without a
+    // connection: the link-only product records 'not_connected', never 'failed'.
+    unsyncedUpcoming: connection ? countUnsyncedUpcomingInvites(workspaceId) : 0,
     // Surfaced so the operator can copy it straight into the Google Cloud console instead
     // of guessing the exact string Google will demand an exact match on.
     redirectUriToRegister: `${base.replace(/\/+$/, "")}/api/calendar/google/callback`,
   });
-}
+});
 
-export async function DELETE() {
+export const DELETE = withWorkspace(async (workspaceId: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
-  const workspaceId = await currentWorkspace();
   // Revoke at Google FIRST. Deleting our row without revoking leaves a live grant that
   // nobody can see in kp and nobody can withdraw from kp — the user would have to hunt it
   // down in their Google account security settings.
@@ -47,4 +52,4 @@ export async function DELETE() {
   // Report both outcomes separately: a failed revoke with a successful delete is exactly
   // the case where the operator needs to know to go revoke it at Google themselves.
   return NextResponse.json({ ok: removed, revokedAtGoogle: revoked });
-}
+});

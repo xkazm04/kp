@@ -1,0 +1,165 @@
+{
+ "schema": "conform-run/1",
+ "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+ "subject": "i18n",
+ "evaluatedAt": "2026-10-17T01:07:19.950615+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "i18n-locale-resolution",
+   "subject": "i18n",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "i18n/request.ts:13 Request configuration loads the entire active locale as one unit, bypassing the standard's independently loadable sections.",
+   "techniques": [
+    {
+     "technique": "catalog-architecture",
+     "verdict": "deviation",
+     "evidence": "i18n/request.ts:13 The loading boundary is a whole locale JSON file rather than a locale-section pair."
+    }
+   ]
+  },
+  {
+   "context": "ci-doc-gates",
+   "subject": "i18n",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/i18n-check.mjs:164 The catalog checker accepts copied source-language values and mojibake values, allowing these defects through its structural checks.",
+   "techniques": [
+    {
+     "technique": "completeness-gates",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n-check.mjs:164 An in-memory source and German catalog both containing 'Hello {name}' produced no problems; key parity is enforced, but untranslated-value identity is not."
+    },
+    {
+     "technique": "encoding-corruption-ratchet",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n/catalog-check.mjs:232 Content validation checks control characters, syntax and dashes without the required mojibake signature; a target containing U+00C3 followed by U+00A9 produced no problems."
+    },
+    {
+     "technique": "string-extraction-enforcement",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n-check.mjs:235 The shared-primitive attribute scan targets aria-label; broader attribute checks are limited to selected marketing directories, leaving the required extraction boundary incomplete."
+    }
+   ]
+  },
+  {
+   "context": "match-score-shared-types",
+   "subject": "i18n",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/matchLabels.ts:72 Unknown match-label codes degrade to English or raw identifiers without reporting the mapping miss, hiding production vocabulary drift.",
+   "techniques": [
+    {
+     "technique": "token-label-separation",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/matchLabels.ts:72 The explicit missing-code branch returns fallback text or the token without the production miss telemetry required by the standard."
+    }
+   ]
+  },
+  {
+   "context": "comms-locale-optout",
+   "subject": "i18n",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/catalog-translator.ts:54 Candidate communications receive a translator without source-catalog merging, so a missing translation can expose a catalog address instead of readable English.",
+   "techniques": [
+    {
+     "technique": "catalog-architecture",
+     "verdict": "deviation",
+     "evidence": "app/_lib/catalog-translator.ts:54 commsTranslator delegates to this loader, which supplies only the target catalog; removing comms.team from an in-memory German catalog made this construction return 'comms.team' despite an English source value."
+    }
+   ]
+  },
+  {
+   "context": "match-presentation-components",
+   "subject": "i18n",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/MatchReasoningPanel.tsx:91 The reasoning badge appends a separately translated suffix to its translated source label, fixing message composition outside the translator's control.",
+   "techniques": [
+    {
+     "technique": "interpolation-and-plurals",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:91 This suffix follows the independently translated sourceLlm/sourceRuleBased expression, matching the standard's named fragment-plus-suffix failure."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T01:07:19.950615+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "i18n"
+   ],
+   "techniques": [
+    "catalog-architecture"
+   ],
+   "deviations": 1,
+   "context": "i18n-locale-resolution",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T01:07:19.950615+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "i18n"
+   ],
+   "techniques": [
+    "completeness-gates",
+    "encoding-corruption-ratchet",
+    "string-extraction-enforcement"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T01:07:19.950615+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "i18n"
+   ],
+   "techniques": [
+    "token-label-separation"
+   ],
+   "deviations": 1,
+   "context": "match-score-shared-types",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T01:07:19.950615+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "i18n"
+   ],
+   "techniques": [
+    "catalog-architecture"
+   ],
+   "deviations": 1,
+   "context": "comms-locale-optout",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T01:07:19.950615+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "i18n"
+   ],
+   "techniques": [
+    "interpolation-and-plurals"
+   ],
+   "deviations": 1,
+   "context": "match-presentation-components",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

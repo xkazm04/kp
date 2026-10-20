@@ -24,6 +24,14 @@
  *  catches the ~90 not-yet-migrated literal panels. */
 export const PANEL = "rounded-lg border border-stone-200 bg-white shadow-panel";
 
+/** Small bordered icon tile at the head of a settings card (h-8 square, steel glyph).
+ *  The channels cards re-typed it; new cards compose this instead. */
+export const ICON_TILE =
+  "inline-grid h-8 w-8 place-items-center rounded-lg border border-stone-200 bg-white text-steel";
+
+/** Raised coral-tinted callout for high-signal result summaries. */
+export const PANEL_ACCENT = "rounded-lg border border-coral/30 bg-coral/5 shadow-pop";
+
 /** Quiet well — empty states, placeholders, nested passive regions. A faint
  *  stone fill (not the near-invisible paper/40 tint) so it reads as genuinely
  *  recessed against a white PANEL. */
@@ -58,7 +66,11 @@ export const PAGE_HEADER =
   "flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-stone-200 pb-5";
 
 /** Section eyebrow above a display title ("PIPELINE", "INTERVIEW SIM"…). */
-export const EYEBROW = "text-meta uppercase text-coral";
+export const EYEBROW = "text-meta uppercase text-coral-ink";
+
+/** Quiet coral text link/button ending in an arrow ("Analyze a CV →"). Append the
+ *  ArrowRight icon yourself; shared by ChainEmptyState and CompletionCta. */
+export const ARROW_LINK = "focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline";
 
 /** Display title under an eyebrow. */
 export const TITLE_DISPLAY = "font-serif text-display text-ink";
@@ -80,7 +92,7 @@ export const META_LABEL = "text-meta uppercase text-steel";
 export const CHIP_TOGGLE = (isActive: boolean): string =>
   `focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors dark:transition-all ${
     isActive
-      ? "border-coral bg-coral/10 text-coral dark:shadow-sticker-xs"
+      ? "border-coral bg-coral/10 text-coral-ink dark:shadow-sticker-xs"
       : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink dark:-rotate-1 dark:hover:rotate-0"
   }`;
 
@@ -111,7 +123,7 @@ export const STAT = "flex flex-col gap-0.5 rounded-lg border border-stone-200 bg
 export const STAT_LABEL = "text-meta uppercase text-steel";
 
 /** The number itself — serif display voice brought inside. Add the tone color
- *  (text-ink / text-coral / text-amber-700 …) at the call site. */
+ *  (text-ink / text-coral-ink / text-amber-700 …) at the call site. */
 export const STAT_VALUE = "font-serif text-h2 leading-none nums";
 
 /** Bordered chip: inline fact with optional leading icon. Rests a degree
@@ -132,7 +144,7 @@ export const CHIP_QUIET = "inline-block rounded-full bg-stone-100 px-2 py-0.5 te
  *  into on hover (0.5px travel). Spark Dark presses down harder, like the
  *  landing's BTN: a full sticker shadow that shrinks as the button travels. */
 export const BTN_PRIMARY =
-  "focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral font-semibold text-white shadow-sticker-xs transition-all hover:bg-coral/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
+  "focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral-solid font-semibold text-white shadow-sticker-xs transition-all hover:bg-coral-solid/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
 /** Affirmative action — the moss twin of BTN_PRIMARY. Same pairing rule, same
  *  press-down in both registers; only the fill differs.
@@ -149,6 +161,11 @@ export const BTN_PRIMARY =
  *  so the advance button sat dead beside a reject button that pressed down. */
 export const BTN_AFFIRM =
   "focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss font-semibold text-white shadow-sticker-xs transition-all hover:bg-moss/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
+
+/** The confirm half of an IRREVERSIBLE action (erase, delete): BTN_PRIMARY's press-down on
+ *  an ink fill. Coral fill + white label is 3.87:1, under the 4.5:1 AA floor for body-size
+ *  text, so a destructive confirm that must be legible takes ink instead. */
+export const BTN_CONFIRM_INK = `${BTN_PRIMARY} bg-ink hover:bg-steel`;
 
 /** Secondary action. Same pairing rule + press-down as BTN_PRIMARY. */
 export const BTN_SECONDARY =
@@ -199,7 +216,7 @@ export const toggleBtn = (isActive: boolean): string =>
  *  with an aria-label/sr-only name: there is no visible text. */
 export const railIconBtn = (isActive: boolean): string =>
   `focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-    isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+    isActive ? "bg-coral/10 text-coral-ink" : "text-steel hover:bg-stone-100 hover:text-ink"
   }`;
 
 /** First-level (sidebar rail) TILE — the icon-over-label shape every destination
@@ -213,7 +230,7 @@ export const railIconBtn = (isActive: boolean): string =>
  *  only what is genuinely its own. */
 export const railTile = (isActive: boolean): string =>
   `focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
-    isActive ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
+    isActive ? "bg-coral/10 text-coral-ink dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
   }`;
 
 /* ── Notices ──────────────────────────────────────────────────────────────

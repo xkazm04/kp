@@ -18,7 +18,7 @@ import { candIdentity, type EvalCandidate, type GroupEvalPayload } from "@/app/f
 
 function IconList({ title, items, icon: Icon, tone }: { title: string; items: string[]; icon: LucideIcon; tone: "moss" | "coral" | "steel" }) {
   if (!items.length) return null;
-  const color = tone === "moss" ? "text-moss" : tone === "coral" ? "text-coral" : "text-steel";
+  const color = tone === "moss" ? "text-moss" : tone === "coral" ? "text-coral-ink" : "text-steel";
   return (
     <div>
       <p className={META_LABEL}>{title}</p>
@@ -86,7 +86,7 @@ function CandidateDetail({
                 <button
                   type="button"
                   onClick={() => onDecide(candIdentity(c), "reject")}
-                  className={`${BTN_SECONDARY} h-8 px-2.5 text-sm font-semibold text-coral`}
+                  className={`${BTN_SECONDARY} h-8 px-2.5 text-sm font-semibold text-coral-ink`}
                 >
                   <XCircle size={14} /> {t("reject")}
                 </button>
@@ -198,7 +198,7 @@ export function PerCandidateTabs({
               {tabDecision === "accept" ? (
                 <CheckCircle2 size={14} className="text-moss" aria-label={t("advancedAria")} />
               ) : tabDecision === "reject" ? (
-                <XCircle size={14} className="text-coral" aria-label={t("rejectedAria")} />
+                <XCircle size={14} className="text-coral-ink" aria-label={t("rejectedAria")} />
               ) : (
                 <ScoreBadge score={c.score} />
               )}

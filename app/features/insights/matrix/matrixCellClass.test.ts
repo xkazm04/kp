@@ -6,7 +6,10 @@
 // updates the expectation with the table instead of breaking a snapshot.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BLOCKED_CELL, cellClass } from "./matrixCellClass.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { announcedCellScore, BLOCKED_CELL, cellClass, cellTier } from "./matrixCellClass.ts";
+import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "../../../_lib/fit-thresholds.ts";
 import { MATRIX_BANDS, STRONG_THRESHOLD } from "./matrixStats.ts";
 
 test("a blocked cell, and an unassessed one, both paint the hatched BLOCKED_CELL", () => {
@@ -43,7 +46,6 @@ test("honesty fields on a cell do not change the band class", () => {
     fitTier: "strong" as const,
     confidence: { low: 70, high: 90, level: "tight" },
     unprovenCount: 1,
-    provenanceMix: "mixed",
   };
   assert.equal(cellClass(rich), cellClass(base));
 });
@@ -53,4 +55,81 @@ test("the strong threshold the row-star and min-fit floor use is a real band flo
   // ever drifted off a band edge the grid would star cells the heatmap paints non-strong.
   assert.ok(MATRIX_BANDS.some((b) => b.min === STRONG_THRESHOLD), "STRONG_THRESHOLD must be a band floor");
   assert.notEqual(cellClass({ score: STRONG_THRESHOLD, blocked: false }), cellClass({ score: STRONG_THRESHOLD - 1, blocked: false }));
+});
+
+// lens-sweep round 2 (ui-perfectionist / a11y, context matrix-ui-2). The paint above
+// treats "never scored" as unassessed, and the cell body renders nothing for it
+// (`{c.blocked ? "–" : c.score}` with a null score). The ACCESSIBLE NAME did not agree:
+// `t("matchVal", { score: c.score ?? 0 })` announced a concrete "match 0" for the very
+// cell the grid paints and reads as not-assessed, and the `title` did the same with a
+// bare `c.score ?? 0`. A screen-reader user was therefore told the one thing the test
+// above says the colour must never claim — a poor fit the pipeline never computed.
+//
+// `announcedCellScore` is the single predicate both halves share, so the name and the
+// paint cannot disagree again.
+test("what a cell ANNOUNCES agrees with what it PAINTS — no score is never announced as 0", () => {
+  assert.equal(announcedCellScore({ score: null, blocked: false }), null, "unassessed announces no number");
+  assert.equal(announcedCellScore({ score: null, blocked: true }), null);
+  assert.equal(announcedCellScore({ score: 91, blocked: true }), null, "blocked wins over a score, as in the paint");
+  assert.equal(announcedCellScore({ score: 0, blocked: false }), 0, "a GENUINE 0 is still announced as 0");
+  assert.equal(announcedCellScore({ score: 74, blocked: false }), 74);
+});
+
+test("the two agree by construction, across every band floor and both null cases", () => {
+  const cases = [
+    { score: null, blocked: false },
+    { score: null, blocked: true },
+    { score: 0, blocked: false },
+    { score: 100, blocked: false },
+    { score: 50, blocked: true },
+    ...MATRIX_BANDS.map((b) => ({ score: b.min, blocked: false })),
+  ];
+  for (const c of cases) {
+    assert.equal(
+      cellClass(c) === BLOCKED_CELL,
+      announcedCellScore(c) === null,
+      `paint and accessible name must agree for ${JSON.stringify(c)}`,
+    );
+  }
+});
+
+test("the grid row builds its title and accessible name from that predicate", () => {
+  // Not drivable without a React renderer, which this runner does not have; the two
+  // strings are pinned at the source in the idiom app/api/rate-limit-contract.test.ts
+  // established here.
+  const src = readFileSync(fileURLToPath(new URL("./MatrixGridRow.tsx", import.meta.url)), "utf8");
+  assert.match(src, /announcedCellScore\(/, "the row must use the shared predicate");
+  assert.doesNotMatch(
+    src,
+    /c\.score \?\? 0/,
+    "`c.score ?? 0` is the defect itself — it turns 'not assessed' into a concrete 0",
+  );
+});
+
+// challenge 2026-09-22 matrix-grid/A — the grid paints on the SAME tier scale focus
+// mode's FitTierBadge reads (fit-thresholds.ts), so a 70 is strong on both segments.
+test("a 70 paints the same band as an 84, and a 69 does not", () => {
+  assert.equal(cellClass({ score: 70, blocked: false }), cellClass({ score: 84, blocked: false }));
+  assert.notEqual(cellClass({ score: 69, blocked: false }), cellClass({ score: 70, blocked: false }));
+});
+
+test("cellTier prefers the scorer's tier and falls back to the shared floors", () => {
+  const fallback = (s: number) => (s >= FIT_STRONG_FLOOR ? "strong" : s >= FIT_PROMISING_FLOOR ? "promising" : "partial");
+  for (const s of [0, FIT_PROMISING_FLOOR - 1, FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR - 1, FIT_STRONG_FLOOR, 100]) {
+    assert.equal(cellTier({ score: s, blocked: false }), fallback(s), `bare ${s}`);
+  }
+  // A server tier wins, even where the bare number would band differently.
+  assert.equal(cellTier({ score: 69, blocked: false, fitTier: "strong" }), "strong");
+  assert.equal(cellTier({ score: 90, blocked: false, fitTier: "promising" }), "promising");
+  // No score, no tier: blocked and unassessed cells claim nothing.
+  assert.equal(cellTier({ score: null, blocked: true }), null);
+  assert.equal(cellTier({ score: null, blocked: false }), null);
+});
+
+test("the fallback cellTier bands exactly like Badge.tsx::scoreToFitTier", () => {
+  // Badge.tsx is JSX and cannot load here; pin that both read the same two constants.
+  const badge = readFileSync(fileURLToPath(new URL("../../../_components/Badge.tsx", import.meta.url)), "utf8");
+  const body = badge.slice(badge.indexOf("export function scoreToFitTier"));
+  assert.match(body, /score >= FIT_STRONG_FLOOR\) return "strong"/);
+  assert.match(body, /score >= FIT_PROMISING_FLOOR\) return "promising"/);
 });

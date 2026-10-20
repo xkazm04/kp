@@ -58,8 +58,13 @@ registerHooks({
 });
 
 const { POST } = await import("./route.ts");
+const { POST: QUICK_POST } = await import("./quick/route.ts");
+const { listOutboxFiltered } = await import("../../../_lib/db/devcase.ts");
+const { getOrCreateStatusLink } = await import("../../../_lib/application-status-store.ts");
+const { getJob } = await import("../../../_lib/db/jobs.ts");
+const { applyKoSteps } = await import("../../../_lib/apply.ts");
 const { insertJob } = await import("../../../_lib/job-ingest.ts");
-const { createPipelineEntry, listEntriesForJob, listPipelineEventsForEntry, listConsentEvents, ensureLeadEnrichToken } =
+const { createPipelineEntry, listEntriesForJob, listPipelineEventsForEntry, listConsentEvents, ensureLeadEnrichToken, recordEntryConsent } =
   await import("../../../_lib/db/pipeline.ts");
 const { DEFAULT_WORKSPACE_ID } = await import("../../../_lib/db/workspaces.ts");
 
@@ -70,7 +75,7 @@ const JOB_ID = "reapply-gate-job";
 
 /** The original application: on file, reachable at NOTHING (the contactless entry
  *  is the one a backfill can actually move) and with no GitHub handle. */
-function seedVictim(name: string): string {
+function seedVictim(name: string, contact: string | null = null, sourceChannel = "apply"): string {
   const { entry } = createPipelineEntry({
     candidateId: `profile-${name.replace(/\W+/g, "-").toLowerCase()}`,
     candidateLabel: name,
@@ -79,9 +84,9 @@ function seedVictim(name: string): string {
     jobId: JOB_ID,
     jobTitle: "Backend Engineer",
     stage: "Accepted",
-    dedupeKey: `apply-${name.toLowerCase()}`,
-    contact: null,
-    sourceChannel: "apply",
+    applicantKey: `fixture-key-${name.toLowerCase()}`,
+    contact,
+    sourceChannel,
     workspaceId: DEFAULT_WORKSPACE_ID,
   });
   return entry.id;
@@ -151,6 +156,207 @@ test("a name+email match with NO lead token changes nothing on the matched entry
 
   // And it did not fork a second row either — the dedupe policy is unchanged.
   assert.equal(listEntriesForJob(JOB_ID).filter((e) => e.id === entryId).length, 1);
+
+  // Link recovery: there is no address on file, so nothing is sent — and no refused
+  // `failed` Outbox row is minted for a recipient that does not exist. Above all, the
+  // TYPED address never receives anything.
+  await settle();
+  assert.equal(outboxFor(entryId).length, 0, "a contactless entry gets no recovery row at all");
+  assert.equal(
+    listOutboxFiltered({ limit: 500 }, DEFAULT_WORKSPACE_ID).filter((r) => (r.recipient ?? "").includes("attacker@")).length,
+    0,
+    "nothing is ever sent to the address the caller typed"
+  );
+});
+
+/** Recovery dispatches after the response (afterResponse); the shim runs it detached.
+ *  Wait for it to land (or, for a negative case, for long enough that it would have). */
+async function settle(until?: () => boolean): Promise<void> {
+  for (let i = 0; i < 40; i++) {
+    if (until?.()) return;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
+function outboxFor(entryId: string) {
+  return listOutboxFiltered({ ref: entryId, limit: 50 }, DEFAULT_WORKSPACE_ID);
+}
+
+test("an unproven repeat re-sends the entry's OWN links to the address ON FILE, once per cooldown", async () => {
+  const name = "Lena Ztracena";
+  const onFile = "lena.z@example.invalid";
+  const entryId = seedVictim(name, onFile);
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const consentBefore = listConsentEvents(entryId).length;
+
+  // Same person, same address, typed differently: the match is the normalized email.
+  const res = await POST(applyRequest({ answers: { name, email: "  LENA.Z@Example.invalid ", ko_auth: true } }), params);
+  assert.equal(res.status, 200);
+  const raw = await res.text();
+  const body = JSON.parse(raw) as Record<string, unknown>;
+  assert.equal(body.duplicate, true);
+  assert.equal(body.statusToken, undefined);
+  assert.equal(body.leadToken, undefined);
+  assert.equal(body.followupToken, undefined);
+  // The copy does not claim a renewed interest was noted: nothing was.
+  assert.notEqual(body.message, "apply.alreadyMessage");
+
+  await settle(() => outboxFor(entryId).length > 0);
+  const rows = outboxFor(entryId);
+  assert.equal(rows.length, 1, "exactly one recovery message");
+  assert.equal(rows[0].recipient, onFile, "addressed to the contact ON FILE, never the typed string");
+  const statusToken = getOrCreateStatusLink(entryId);
+  const leadToken = ensureLeadEnrichToken(entryId);
+  assert.ok(leadToken);
+  const mail = rows[0].body ?? "";
+  assert.ok(mail.includes(`/status/${statusToken}`), "the body carries the entry's own status link");
+  assert.match(mail, new RegExp(`/apply/${JOB_ID}\\?[^\\s]*lead=${leadToken}`), "…and its enrichment link");
+  // The tokens reached the inbox, never the wire.
+  assert.ok(!raw.includes(statusToken) && !raw.includes(leadToken), "no capability token in the response body");
+
+  // Nothing moved on the entry, and nothing reached the recruiter's feed: the
+  // Outbox row IS the audit for an unproven path.
+  const after = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.equal(after?.contact, onFile);
+  assert.equal(listPipelineEventsForEntry(entryId).length, eventsBefore, "no pipeline event for a recovery email");
+  assert.equal(listConsentEvents(entryId).length, consentBefore, "no consent refresh");
+
+  // The same unproven POST again, immediately: still an honest duplicate, no second mail.
+  const again = await POST(applyRequest({ answers: { name, email: onFile, ko_auth: true } }), params);
+  assert.equal(again.status, 200);
+  assert.equal(((await again.json()) as Record<string, unknown>).duplicate, true);
+  await settle();
+  assert.equal(outboxFor(entryId).length, 1, "the per-entry cooldown holds: one recovery per 24h");
+});
+
+test("the quick-apply door answers a known address the same way: no tokens, one recovery to the address on file", async () => {
+  const name = "Quinn Rychla";
+  const onFile = "quinn@example.invalid";
+  const entryId = seedVictim(name, onFile, "quick-apply");
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.9" },
+      body: JSON.stringify({ answers: { name, email: onFile, ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  const raw = await res.text();
+  const body = JSON.parse(raw) as Record<string, unknown>;
+  assert.equal(body.duplicate, true);
+  assert.equal(body.statusToken, undefined);
+  assert.equal(body.leadToken, undefined);
+
+  await settle(() => outboxFor(entryId).length > 0);
+  const rows = outboxFor(entryId);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].recipient, onFile);
+  assert.ok((rows[0].body ?? "").includes(`/status/${getOrCreateStatusLink(entryId)}`));
+  assert.ok(!raw.includes(getOrCreateStatusLink(entryId)));
+  // The recovery writes no event of its own, and an unproven repeat writes none either.
+  const added = listPipelineEventsForEntry(entryId).slice(eventsBefore).map((e) => e.kind);
+  assert.deepEqual(added, [], "no pipeline event for a recovery email");
+});
+
+test("quick-apply: a repeat on a KNOWN address renews neither consent nor retention and writes no renewal", async () => {
+  // The quick form is public, so a typed address that happens to be on file proves
+  // nothing: anyone can POST someone else's address. A repeat that re-consented would
+  // let a stranger keep that person's record (and its GDPR retention clock) alive.
+  const name = "Karel Znamy";
+  const onFile = "karel.znamy@example.invalid";
+  const entryId = seedVictim(name, onFile, "quick-apply");
+  recordEntryConsent(entryId, "quick-apply", undefined, DEFAULT_WORKSPACE_ID);
+  const before = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.ok(before?.consentGivenAt && before.consentExpiresAt, "the fixture starts with a consent window");
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const consentBefore = listConsentEvents(entryId).length;
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.6" },
+      body: JSON.stringify({ answers: { name: "Someone Else", email: onFile, ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.duplicate, true, "the candidate is still told they already applied");
+
+  const after = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.equal(after?.consentGivenAt, before.consentGivenAt, "consent_given_at must not move");
+  assert.equal(after?.consentExpiresAt, before.consentExpiresAt, "consent_expires_at must not move");
+  assert.equal(listConsentEvents(entryId).length, consentBefore, "no consent event");
+  assert.equal(listPipelineEventsForEntry(entryId).length, eventsBefore, "no re_applied renewal event");
+  await settle();
+});
+
+// This case used to pin the opposite: a contactless entry matched by name became
+// reachable at the typed address and got the core's ack. That is the unproven write
+// the test below spells out, whichever door filed the original, so it now mails nothing.
+test("quick-apply: a contactless entry matched by name gets no mail at all, core ack or recovery", async () => {
+  const name = "Rita Bezadresy";
+  const entryId = seedVictim(name, null, "quick-apply");
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.8" },
+      body: JSON.stringify({ answers: { name, email: "rita@example.invalid", ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  await settle();
+  assert.equal(outboxFor(entryId).length, 0, "no address was on file, and the typed one is not proof");
+  assert.equal(listEntriesForJob(JOB_ID).find((e) => e.id === entryId)?.contact ?? null, null);
+});
+
+test("quick-apply: a NAME match on a contactless entry is unproven — nothing moves, nothing goes to the typed address", async () => {
+  // The quick form is as public as the conversational door: anyone can POST a
+  // name plus an address they control. With no address on file the only match is
+  // the NAME, which is not a secret, so this is the conversational door's unproven
+  // repeat arriving through the other door.
+  const name = "Tereza Bezkontaktni";
+  const entryId = seedVictim(name); // filed through the conversational door, no email given
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const consentBefore = listConsentEvents(entryId).length;
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.7" },
+      body: JSON.stringify({ answers: { name, email: "impostor@example.invalid", ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.duplicate, true);
+
+  const after = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.equal(after?.contact ?? null, null, "a name match must not make the caller the applicant's contact of record");
+  assert.equal(listPipelineEventsForEntry(entryId).length, eventsBefore, "an unproven repeat writes no event");
+  assert.equal(listConsentEvents(entryId).length, consentBefore, "an unproven repeat must not re-extend the retention clock");
+  await settle();
+  assert.equal(
+    listOutboxFiltered({ limit: 500 }, DEFAULT_WORKSPACE_ID).filter((r) => (r.recipient ?? "").includes("impostor@")).length,
+    0,
+    "the entry's status link must never be mailed to the address the caller typed"
+  );
 });
 
 test("the SAME repeat, carrying the entry's lead token, merges as before", async () => {

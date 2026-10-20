@@ -88,7 +88,7 @@ test("the default capacity is small and positive", () => {
 // JSON handed to the scorer is the only edit-safe invalidation.
 
 test("the key is stable for identical inputs and changes when any part changes", () => {
-  const base = { workspaceId: "ws-a", profilesJson: '[{"id":"p1"}]', jobIds: "j1,j2", jobsJson: "[]" };
+  const base = { workspaceId: "ws-a", profilesJson: '[{"id":"p1"}]', jobIds: "j1,j2", jobsJson: "[]", registryDigest: "d0" };
   assert.equal(matrixCacheKey(base), matrixCacheKey({ ...base }));
   assert.notEqual(matrixCacheKey(base), matrixCacheKey({ ...base, profilesJson: '[{"id":"p2"}]' }));
   assert.notEqual(matrixCacheKey(base), matrixCacheKey({ ...base, jobIds: "j1,j3" }));
@@ -100,14 +100,23 @@ test("the workspace is an explicit axis of the key, not an accident of the conte
   // cloned per workspace). The grid would then be the same, so this axis is not a
   // correctness fix — it keeps one tenant's entry from being read as another's, which
   // is the invariant the old cache carried in a comment and nothing else.
-  const base = { profilesJson: "[]", jobIds: "", jobsJson: "[]" };
+  const base = { profilesJson: "[]", jobIds: "", jobsJson: "[]", registryDigest: "d0" };
   assert.notEqual(matrixCacheKey({ ...base, workspaceId: "ws-a" }), matrixCacheKey({ ...base, workspaceId: "ws-b" }));
 });
 
 test("the parts are separated so they cannot be confused for one another", () => {
   // Concatenating without a separator would make ("ab","c") and ("a","bc") one key.
   assert.notEqual(
-    matrixCacheKey({ workspaceId: "w", profilesJson: "ab", jobIds: "c", jobsJson: "" }),
-    matrixCacheKey({ workspaceId: "w", profilesJson: "a", jobIds: "bc", jobsJson: "" })
+    matrixCacheKey({ workspaceId: "w", profilesJson: "ab", jobIds: "c", jobsJson: "", registryDigest: "d0" }),
+    matrixCacheKey({ workspaceId: "w", profilesJson: "a", jobIds: "bc", jobsJson: "", registryDigest: "d0" })
   );
+});
+
+test("the archetype-registry digest is an explicit axis: a weight edit misses the grid it made stale", () => {
+  // matrix_cli scores through the registry's weights (matching.py WEIGHTS, re-read on
+  // every spawn), and those weights are editable at runtime. With no TTL, a key that
+  // ignores them kept serving the pre-edit grid until LRU eviction.
+  const base = { workspaceId: "ws-a", profilesJson: '[{"id":"p1"}]', jobIds: "j1", jobsJson: "[]" };
+  assert.notEqual(matrixCacheKey({ ...base, registryDigest: "a" }), matrixCacheKey({ ...base, registryDigest: "b" }));
+  assert.equal(matrixCacheKey({ ...base, registryDigest: "a" }), matrixCacheKey({ ...base, registryDigest: "a" }));
 });

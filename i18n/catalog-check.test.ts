@@ -106,3 +106,78 @@ test("the shipped catalogs: every string is a unit, and the list strings are amo
     assert.ok(arrays.size > 0, `${file} has no lists; this fixture no longer exercises the array path`);
   }
 });
+
+test("a C0 control character fails, naming the code point and its neighbourhood; tab and newline do not", () => {
+  const cs = clean();
+  cs.landing.voice.transcript[1] = "Stav\u0001 a state.";
+  const found = run(clean(), cs).problems;
+  assert.ok(
+    found.some((p) => p.startsWith('cs: "landing.voice.transcript[1]"') && p.includes("U+0001")),
+    found.join("\n")
+  );
+  const ok = clean();
+  ok.landing.voice.transcript[1] = "Line one\nLine two\tcolumn";
+  assert.deepEqual(run(clean(), ok).problems, []);
+});
+
+const withLiterals = (en: string, cs: string) => run({ a: { v: en } }, { a: { v: cs } }).problems;
+
+test("a carried number, URL or email must reach the translation by identity, not by count", () => {
+  assert.deepEqual(withLiterals("Closes in 48 hours", "Zavře se za 48 hodin"), []);
+  // transposed digit: same count, different value
+  assert.ok(withLiterals("Closes in 48 hours", "Zavře se za 84 hodin").some((p) => p.includes('number "48"')));
+  // edited host: same count, different value
+  assert.ok(withLiterals("Write to help@kp.example.org", "Napište na help@kp.example.com").some((p) => p.includes("email")));
+  assert.ok(withLiterals("See https://kp.io/terms", "Viz https://kp.io/term").some((p) => p.includes("URL")));
+});
+
+test("carried literals: a spelled-out number, a placeholder sample and a reserved example domain are legitimate", () => {
+  assert.deepEqual(withLiterals("Thirty-minute screens", "30minutové screeningy"), []);
+  assert.deepEqual(withLiterals("One seat", "1 místo"), []);
+  assert.deepEqual(withLiterals("Mail you@example.com", "Napište vy@priklad.example.com"), []);
+  const en = { f: { emailPlaceholder: "you@company.com" } };
+  const cs = { f: { emailPlaceholder: "vy@firma.cz" } };
+  assert.deepEqual(run(en, cs).problems, []);
+});
+
+test("a message that does not parse is one finding, not one per dependent check", () => {
+  const found = run({ a: "Hello {name}, 48 left" }, { a: "Ahoj {name, 48 zbývá" }).problems.filter((p) => p.includes('"a"'));
+  assert.equal(found.length, 1, found.join("\n"));
+});
+
+const three = (en: unknown, cs: unknown, de: unknown) =>
+  checkCatalogs(
+    [
+      { locale: "en", data: en },
+      { locale: "cs", data: cs },
+      { locale: "de", data: de }
+    ],
+    "en"
+  );
+
+test("source suspects: one string failing in two locales is raised once, citing each locale and check", () => {
+  const en = { a: "{count} interviews a month", b: "Five seats" };
+  const result = three(en, { a: "interview měsíčně", b: "Pět míst" }, { a: "Interviews pro Monat", b: "Fünf Plätze" });
+  assert.equal(result.sourceSuspects.length, 1);
+  const [s] = result.sourceSuspects;
+  assert.equal(s.address, "a");
+  assert.deepEqual(s.locales, ["cs", "de"]);
+  assert.deepEqual(s.failures, [
+    { locale: "cs", checks: ["placeholder-missing"] },
+    { locale: "de", checks: ["placeholder-missing"] }
+  ]);
+});
+
+test("source suspects: a failure in one locale only is a target finding, not a suspect", () => {
+  const en = { a: "{count} interviews a month" };
+  const result = three(en, { a: "{count} pohovorů měsíčně" }, { a: "Interviews pro Monat" });
+  assert.deepEqual(result.sourceSuspects, []);
+  assert.ok(result.problems.some((p) => p.startsWith("de:")));
+});
+
+test("source suspects: a clean catalog and a target-local em dash raise none", () => {
+  const en = { a: "Five seats" };
+  assert.deepEqual(three(en, en, en).sourceSuspects, []);
+  const dashed = { a: "Pět — míst" };
+  assert.deepEqual(three(en, dashed, dashed).sourceSuspects, []);
+});

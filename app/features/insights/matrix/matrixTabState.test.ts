@@ -1,7 +1,7 @@
 // matrix-answers-with-codes-and-retries (c). The tab's two untested decisions.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveMatrixMode, pickGridState } from "./matrixTabState.ts";
+import { deriveMatrixMode, isStaleJob, pickGridState } from "./matrixTabState.ts";
 
 // --- deriveMatrixMode --------------------------------------------------------
 
@@ -57,4 +57,19 @@ test("a pool that exists but is filtered to nothing is recoverable, not 'empty'"
   // The distinction the recruiter acts on: "source candidates" vs "clear your filters".
   assert.equal(pickGridState({ ...base, rowCount: 0 }), "filtered");
   assert.equal(pickGridState({ ...base, colCount: 0 }), "filtered");
+});
+
+// --- isStaleJob --------------------------------------------------------------
+
+test("a fresh open role is not stale once the data carries its column", () => {
+  assert.equal(isStaleJob("job-new", true, ["job-new", "job-b"]), false);
+});
+
+test("a role the data does not carry (closed, filled, foreign) is stale once data is in", () => {
+  assert.equal(isStaleJob("job-closed", true, ["job-b"]), true);
+});
+
+test("no ?job= and no data yet are never stale", () => {
+  assert.equal(isStaleJob(null, true, []), false);
+  assert.equal(isStaleJob("job-new", false, []), false);
 });

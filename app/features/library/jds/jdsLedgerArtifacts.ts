@@ -2,6 +2,8 @@
 // reader for LibrarySavedJdsLedger.tsx — extracted verbatim so that file stays
 // under the 200-line split threshold.
 
+import { DROPPED_LANGUAGE_REASONS, ROLE_TRACE_SECTIONS, type DroppedLanguage, type RoleTrace, type RoleTraceLine } from "@/app/_lib/jd-role-trace";
+
 // The structured artifacts the jd_build handler stores in jds.analysis_json — the
 // same payload runJdBuild returns, minus the markdown body (that's jds.body).
 export type CaseArtifact = { title?: string; brief?: string; tasks?: unknown[]; timeboxHours?: number };
@@ -19,6 +21,9 @@ export type SnapshotArtifact = {
 
 export type Artifacts = {
   role?: Record<string, unknown>;
+  /** Which role lines the author stated vs the build added (jd-role-trace.ts). Absent
+   *  on rows built before it existed; read it through readRoleTrace. */
+  roleTrace?: unknown;
   salary?: unknown;
   salarySources?: string[];
   salarySource?: string;
@@ -43,6 +48,35 @@ export function parseArtifacts(json: string | null | undefined): Artifacts | nul
   } catch {
     return null;
   }
+}
+
+/** The stored role trace, validated, or null for an old row / a malformed blob. The
+ *  blob is written by another process, so every line is checked rather than cast;
+ *  a bad line is dropped, a bad envelope is null. */
+export function readRoleTrace(artifacts: Artifacts | null | undefined): RoleTrace | null {
+  const raw = artifacts?.roleTrace;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (o.designedBy !== "model" && o.designedBy !== "fallback") return null;
+  if (!Array.isArray(o.lines)) return null;
+  const lines: RoleTraceLine[] = [];
+  for (const l of o.lines) {
+    if (!l || typeof l !== "object") continue;
+    const r = l as Record<string, unknown>;
+    const section = ROLE_TRACE_SECTIONS.find((x) => x === r.section);
+    if (!section || typeof r.text !== "string" || !r.text.trim()) continue;
+    if (r.origin !== "brief" && r.origin !== "added") continue;
+    lines.push({ section, text: r.text, origin: r.origin });
+  }
+  // Absent on rows built before the identity rule (overlap-v1): no dropped languages recorded.
+  const droppedLanguages: DroppedLanguage[] = [];
+  for (const d of Array.isArray(o.droppedLanguages) ? o.droppedLanguages : []) {
+    if (!d || typeof d !== "object") continue;
+    const r = d as Record<string, unknown>;
+    const reason = DROPPED_LANGUAGE_REASONS.find((x) => x === r.reason);
+    if (reason && typeof r.text === "string" && r.text.trim()) droppedLanguages.push({ text: r.text, reason });
+  }
+  return { rule: typeof o.rule === "string" ? o.rule : "", designedBy: o.designedBy, lines, droppedLanguages };
 }
 
 export function hasCaseContent(kase: CaseArtifact | null | undefined): kase is CaseArtifact {

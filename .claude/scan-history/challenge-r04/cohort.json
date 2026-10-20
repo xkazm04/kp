@@ -1,0 +1,76 @@
+{
+  "cohort": [
+    {
+      "name": "github-repo-intelligence",
+      "group": "Developer Assessment",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "profile-editor",
+      "group": "Candidate Intelligence",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "analytics-dashboard",
+      "group": "Analytics & Reporting",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "ops-observability",
+          "files": 9
+        }
+      ]
+    },
+    {
+      "name": "auth-session-rbac",
+      "group": "Authentication & Access Control",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "invite-accept-flow",
+          "files": 2
+        },
+        {
+          "name": "login-flow",
+          "files": 5
+        }
+      ]
+    },
+    {
+      "name": "db-org-users-channels",
+      "group": "Data Access Layer",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "decisions-review-ui",
+      "group": "Hiring Decisions",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "shell-simulation-engine",
+      "group": "Workspace Shell & Onboarding",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "tests-llm-eval",
+      "group": "AI & LLM Infrastructure",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 170
+}

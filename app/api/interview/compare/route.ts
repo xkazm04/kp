@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
-import { getHumanScorecard } from "@/app/_lib/interview-prep";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { getHumanScorecards } from "@/app/_lib/interview-prep";
+import { humanScorecardViews, type HumanScorecardView } from "@/app/_lib/human-scorecard-set";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import { listInterviewEvents } from "@/app/_lib/db/interview-events";
+import { axisCoverage, type AxisCoverage } from "@/app/_lib/interview-axis-coverage";
+import type { InterviewAgenda } from "@/app/_lib/voice/director-types";
 
 // The engine attaches deterministic call telemetry (talk ratio, response gaps,
 // hint uptake) to the AI scorecard object, but interviewedForJob projects only
@@ -21,15 +25,39 @@ function telemetryForEntry(entryId: string | null, workspaceId: string): Intervi
   return sc?.telemetry ?? null;
 }
 
+// What the interview DIRECTOR recorded per rubric axis for one session: covered on a
+// verified quote, only asked, never reached, or never planned, plus the kit must-asks
+// the call ended owing (challenge-r07 voice-interview-api/B). The model's own
+// "Not assessed" sentinel was the grid's only signal; this is the server's record.
+// Counts and states only — no quote, question or block title reaches this payload.
+// Best-effort like telemetry: an undirected session (no agenda) or a read failure is
+// null, never an error.
+const COVERAGE_EVENT_KINDS = ["topic_begun", "topic_covered", "end_requested", "must_ask_unasked"] as const;
+function coverageForSession(
+  sessionId: string,
+  agenda: InterviewAgenda | null,
+  scoringModel: string,
+  workspaceId: string
+): AxisCoverage | null {
+  if (!agenda) return null;
+  try {
+    const events = listInterviewEvents(sessionId, workspaceId, { kinds: COVERAGE_EVENT_KINDS });
+    const rubricAxes = (INTERVIEW_RUBRICS[scoringModel] ?? INTERVIEW_RUBRICS.experienced ?? []).map((c) => c.competency);
+    return axisCoverage({ agenda, events, rubricAxes });
+  } catch (error) {
+    console.warn("[api:interview:compare] coverage read failed; the cell renders without it", error);
+    return null;
+  }
+}
 
 // Side-by-side interview comparison for one job. Returns the rubrics keyed by
 // scoringModel + each interviewed candidate's scorecard (which carries its own
 // scoringModel), so the grid compares candidates on the axes for THEIR cohort —
 // a student's 6 potential constructs and an experienced hire's 5 axes line up
 // within their own cohort rather than being forced onto one rubric.
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (workspace: string, request: NextRequest) => {
   const jobId = request.nextUrl.searchParams.get("job");
-  if (!jobId) return NextResponse.json({ error: "job is required" }, { status: 400 });
+  if (!jobId) return jsonRefusal("INTERVIEW_JOB_REQUIRED", 400);
   try {
     // Tenancy — BOTH cohort reads below are scoped to the caller's own team. The
     // seeded jobs corpus is SHARED (workspace_id NULL), so two teams legitimately
@@ -39,15 +67,23 @@ export async function GET(request: NextRequest) {
     // opening compare on a corpus role. A gated recruiter route, so the session is
     // the authority; and pipeline_entries / interview_sessions always carry a real
     // workspace_id (never the corpus NULL), so strict equality is right here.
-    const workspace = await currentWorkspace();
-    // Attach each candidate's human scorecard (PREP1), if a recruiter filled one
-    // from the prep rubric — so the compare grid shows the human verdict + ratings
-    // alongside the AI screen, not just the voice-synthesized one. Null for the
-    // common case of no human round.
-    const voice = interviewedForJob(jobId, workspace).map((c) => ({
+    // Attach EVERY human scorecard on the candidate (PREP1) — one per (interviewer,
+    // round), read through readHumanScorecards, workspace-scoped. The grid used to
+    // read the `humanScorecard` headline mirror, the latest save overall, so a second
+    // interviewer's card hid the first one's at the surface where the hire decision is
+    // weighed (r09 follow-up). Views, not records: the author's label + the round + a
+    // legacy mark ride the wire; the signed-in user id that keys a record does not.
+    // Empty for the common case of no human round.
+    const humanCards = (entryId: string | null): HumanScorecardView[] =>
+      entryId ? humanScorecardViews(getHumanScorecards(entryId, workspace)) : [];
+    // The session id and stored agenda are the coverage read's INPUTS and stop here:
+    // the agenda carries question text and block titles, and the grid has no use for
+    // a session id.
+    const voice = interviewedForJob(jobId, workspace).map(({ sessionId, agenda, ...c }) => ({
       ...c,
-      humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
+      humanScorecards: humanCards(c.entryId),
       telemetry: telemetryForEntry(c.entryId, workspace),
+      coverage: coverageForSession(sessionId, agenda, c.scoringModel, workspace),
     }));
 
     // PREP1 (the W10/W14 deferral) — union in candidates whose round was
@@ -61,9 +97,9 @@ export async function GET(request: NextRequest) {
     const voiceEntryIds = new Set(voice.map((c) => c.entryId).filter(Boolean));
     const humanOnly = listEntriesForJob(jobId, workspace)
       .filter((e) => !voiceEntryIds.has(e.id))
-      .map((e) => ({ entry: e, sc: getHumanScorecard(e.id) }))
-      .filter((pair) => pair.sc != null)
-      .map(({ entry, sc }) => ({
+      .map((e) => ({ entry: e, cards: humanCards(e.id) }))
+      .filter((pair) => pair.cards.length > 0)
+      .map(({ entry, cards }) => ({
         entryId: entry.id,
         candidateLabel: entry.candidateLabel,
         recommendation: null,
@@ -72,11 +108,13 @@ export async function GET(request: NextRequest) {
         confidence: null,
         ratings: [],
         observedSkills: [],
-        humanScorecard: sc,
+        humanScorecards: cards,
         humanOnly: true,
         // A human-led round has no voice session, so no call telemetry — keep the
         // field present (null) so both branches share one candidate shape.
         telemetry: null as InterviewTelemetry | null,
+        // No director ran, so no record of what was reached.
+        coverage: null as AxisCoverage | null,
       }));
 
     return NextResponse.json({
@@ -89,4 +127,4 @@ export async function GET(request: NextRequest) {
     // handler, which in dev forwards internal detail (idea-ab117371).
     return safeJsonError(error, "api:interview:compare", "INTERVIEW_LOOKUP_FAILED");
   }
-}
+});

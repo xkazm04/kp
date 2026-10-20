@@ -49,7 +49,7 @@ type ScreenSession = {
 const REC_TONE: Record<string, string> = {
   advance: "bg-moss/10 text-moss",
   hold: "bg-amber-100 text-amber-700",
-  reject: "bg-coral/15 text-coral",
+  reject: "bg-coral/15 text-coral-ink",
 };
 
 // `observedMean` moved to DevHelpers.ts: the number a reviewer reads as the
@@ -128,7 +128,7 @@ export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) 
 
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-micro text-ink">
-      <p className="flex flex-wrap items-center gap-1.5 text-micro font-semibold uppercase tracking-wide text-coral">
+      <p className="flex flex-wrap items-center gap-1.5 text-micro font-semibold uppercase tracking-wide text-coral-ink">
         <MicVocal size={12} aria-hidden /> {t("title")}
         <StatusChip
           tone={interviewStatusTone(session.status)}

@@ -10,18 +10,25 @@ import { AnalyzeFileDropZone } from "./AnalyzeFileDropZone";
 import { AnalyzePasteRow } from "./AnalyzePasteRow";
 import { AnalyzeSavedJdPicker } from "./AnalyzeSavedJdPicker";
 import { shouldNoteBlindGithubSuppressed } from "./analyzeGithubRunPolicy";
+import type { DropZone } from "./analyzeDropRouting";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
-export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState }) {
+export function AnalyzeFormOptionalColumns({
+  state,
+  onIntake,
+}: {
+  state: AnalyzeFormState;
+  /** The form's intake router: a picker selection is planned exactly like a drop. */
+  onIntake: (zone: DropZone, files: File[]) => void;
+}) {
   const t = useTranslations("analyze");
   const { refs, inputs, setters, handlers, flags, statuses, library } = state;
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
-  const { setSelectedJdSlug } = library;
 
   return (
     <div className="grid gap-4 border-t border-stone-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:col-span-3 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
       <AnalyzeColumn
-        icon={<BriefcaseBusiness className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<BriefcaseBusiness className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colJob")}
         status={statuses.jobStatus}
         onClear={flags.hasJobDescription ? handlers.clearJobDescription : undefined}
@@ -30,10 +37,10 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
           inputId="job-description-file"
           inputRef={refs.jobInputRef}
           file={inputs.jobDescriptionFile}
-          onFileChange={(file) => {
-            setJobDescriptionFile(file);
-            setSelectedJdSlug(null);
-          }}
+          // A drop here (empty OR attached) and a pick both go through the form's
+          // router, whose JD commit also detaches the saved-JD slug.
+          zone="jd"
+          onIntake={(files) => onIntake("jd", files)}
           onRemove={() => setJobDescriptionFile(null)}
         />
         <AnalyzeSavedJdPicker
@@ -44,30 +51,26 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
           selectedSlug={library.selectedJdSlug}
           loading={flags.jdLoading}
           loadFailed={library.jdLoadFailed}
+          edited={flags.jdEdited}
           // The hook owns the load-full-JD-by-slug flow (fetch + textarea +
           // slug bookkeeping); the form just hands it the picked slug.
           onPick={(jd) => library.pickJd(jd.slug)}
-          onClear={() => setSelectedJdSlug(null)}
+          onClear={handlers.unlinkJd}
+          onRevert={handlers.revertJd}
         />
         <div className="mt-auto">
           <AnalyzePasteRow
             ariaLabel={t("jobTextAria")}
             inputId="job-description-paste"
             text={inputs.jobDescriptionText}
-            onChange={(value) => {
-              setJobDescriptionText(value);
-              setSelectedJdSlug(null);
-            }}
-            onClear={() => {
-              setJobDescriptionText("");
-              setSelectedJdSlug(null);
-            }}
+            onChange={(value) => setJobDescriptionText(value)}
+            onClear={() => setJobDescriptionText("")}
           />
         </div>
       </AnalyzeColumn>
 
       <AnalyzeColumn
-        icon={<Building2 className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<Building2 className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colCompany")}
         status={statuses.companyStatus}
         onClear={flags.hasCompany ? handlers.clearCompany : undefined}
@@ -76,7 +79,8 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
           inputId="company-overview-file"
           inputRef={refs.companyInputRef}
           file={inputs.companyFile}
-          onFileChange={setCompanyFile}
+          zone="company"
+          onIntake={(files) => onIntake("company", files)}
           onRemove={() => setCompanyFile(null)}
         />
         <div className="mt-auto">
@@ -91,7 +95,7 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
       </AnalyzeColumn>
 
       <AnalyzeColumn
-        icon={<GitBranch className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<GitBranch className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colGithub")}
         status={statuses.githubStatusLabel}
         // The only optional column that had no Clear: its three siblings each

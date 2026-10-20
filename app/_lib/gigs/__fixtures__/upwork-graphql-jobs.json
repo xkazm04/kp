@@ -1,0 +1,44 @@
+{
+  "data": {
+    "marketplaceJobPostingsSearch": {
+      "totalCount": 2,
+      "edges": [
+        {
+          "node": {
+            "id": "1837451290011234304",
+            "ciphertext": "~021837451290011234304",
+            "title": "Next.js dashboard for fleet telemetry",
+            "description": "Build a Next.js dashboard over our telemetry REST API. Charts, auth, tests. Fixed price.",
+            "category": "Web, Mobile & Software Dev",
+            "subcategory": "Web Development",
+            "experienceLevel": "EXPERT",
+            "duration": "WEEK",
+            "createdDateTime": "2026-09-23T14:02:11.000Z",
+            "publishedDateTime": "2026-09-23T14:05:00.000Z",
+            "amount": { "rawValue": "1200.0", "currency": "USD", "displayValue": "$1,200.00" },
+            "hourlyBudgetMin": null,
+            "hourlyBudgetMax": null,
+            "skills": [{ "name": "nextjs", "prettyName": "Next.js" }, { "name": "typescript", "prettyName": "TypeScript" }]
+          }
+        },
+        {
+          "node": {
+            "id": "1837451290011239999",
+            "ciphertext": "~021837451290011239999",
+            "title": "Data labeling QA (hourly)",
+            "description": "Review labeled images for quality.",
+            "category": "Data Science & Analytics",
+            "subcategory": "Data Entry",
+            "createdDateTime": "2026-09-23T15:00:00.000Z",
+            "publishedDateTime": null,
+            "amount": { "rawValue": "0.0", "currency": "USD", "displayValue": "$0.00" },
+            "hourlyBudgetMin": { "rawValue": "12.0", "currency": "USD", "displayValue": "$12.00" },
+            "hourlyBudgetMax": { "rawValue": "18.0", "currency": "USD", "displayValue": "$18.00" },
+            "skills": []
+          }
+        }
+      ],
+      "pageInfo": { "hasNextPage": false, "endCursor": null }
+    }
+  }
+}

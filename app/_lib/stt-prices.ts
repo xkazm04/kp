@@ -43,6 +43,19 @@ export const STT_HOUR_PRICES: Record<SttProviderId, number> = {
   assemblyai: 0.27,
 };
 
+/** Operator rate for the paid transcription provider, or the built-in estimate. */
+export function sttHourPriceUsd(provider: string): number | null {
+  const estimate = (STT_HOUR_PRICES as Record<string, number | undefined>)[provider];
+  if (estimate === undefined) return null;
+  if (provider !== "assemblyai") return estimate;
+  const raw = process.env.KP_STT_HOUR_USD_ASSEMBLYAI;
+  if (raw === undefined || raw.trim() === "") return estimate;
+  const price = Number(raw.trim());
+  if (Number.isFinite(price) && price >= 0) return price;
+  console.warn(`[stt] KP_STT_HOUR_USD_ASSEMBLYAI is not a non-negative number; using built-in estimate`);
+  return estimate;
+}
+
 const MS_PER_HOUR = 3_600_000;
 
 /** Estimated USD cost of transcribing `durationMs` of audio on `provider`,
@@ -56,8 +69,8 @@ const MS_PER_HOUR = 3_600_000;
  *  operator auditing their spend that kp does not know what the on-device
  *  engine costs. It does. */
 export function sttCostUsd(provider: string, durationMs: number | null | undefined): number | null {
-  const price = (STT_HOUR_PRICES as Record<string, number | undefined>)[provider];
-  if (price === undefined) return null;
+  const price = sttHourPriceUsd(provider);
+  if (price === null) return null;
   if (price === 0) return 0;
   if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) return null;
   return Math.round((price * durationMs) / MS_PER_HOUR * 1e6) / 1e6;

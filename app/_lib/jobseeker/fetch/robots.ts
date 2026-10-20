@@ -9,7 +9,13 @@
 /** The token this crawler announces in its user-agent and looks for in robots.txt. */
 export const CRAWLER_TOKEN = "kp-jobseeker";
 
-export type RobotsRule = { allow: boolean; pattern: string };
+export type RobotsRule = {
+  allow: boolean;
+  pattern: string;
+  /** The pattern split on `*` (a trailing `$` removed), compiled once at parse time. */
+  segments: string[];
+  anchored: boolean;
+};
 
 export type RobotsGroup = {
   agents: string[];
@@ -48,10 +54,10 @@ export function parseRobots(text: string): RobotsRules {
     if (key === "allow" || key === "disallow") {
       // An empty Disallow means "nothing is disallowed"; an empty Allow says nothing.
       if (value === "") {
-        if (key === "disallow") current.rules.push({ allow: true, pattern: "/" });
+        if (key === "disallow") current.rules.push(compileRule(true, "/"));
         continue;
       }
-      current.rules.push({ allow: key === "allow", pattern: value });
+      current.rules.push(compileRule(key === "allow", value));
     } else if (key === "crawl-delay") {
       const n = Number(value.replace(",", "."));
       if (Number.isFinite(n) && n >= 0) current.crawlDelaySeconds = n;
@@ -61,25 +67,56 @@ export function parseRobots(text: string): RobotsRules {
 }
 
 /** The group that binds `token`: the most specific user-agent match wins (a group
- *  naming our token beats `*`); no group at all = everything allowed. */
+ *  naming our token beats `*`); no group at all = everything allowed.
+ *
+ *  Several groups naming the same agent are ONE group (RFC 9309 §2.2.1): their rules
+ *  are combined, and the politest Crawl-delay among them binds. Taking only the first
+ *  read a second `User-agent: *` block that disallowed a whole API as absent. */
 export function groupFor(rules: RobotsRules, token: string = CRAWLER_TOKEN): RobotsGroup | null {
   const lower = token.toLowerCase();
-  let star: RobotsGroup | null = null;
-  for (const group of rules.groups) {
-    if (group.agents.some((a) => a !== "*" && (lower.includes(a) || a.includes(lower)))) return group;
-    if (!star && group.agents.includes("*")) star = group;
-  }
-  return star;
+  const own = rules.groups.filter((g) => g.agents.some((a) => a !== "*" && (lower.includes(a) || a.includes(lower))));
+  const bound = own.length ? own : rules.groups.filter((g) => g.agents.includes("*"));
+  if (bound.length === 0) return null;
+  if (bound.length === 1) return bound[0]!;
+  const delays = bound.map((g) => g.crawlDelaySeconds).filter((d): d is number => d !== null);
+  return {
+    agents: [...new Set(bound.flatMap((g) => g.agents))],
+    rules: bound.flatMap((g) => g.rules),
+    crawlDelaySeconds: delays.length ? Math.max(...delays) : null,
+  };
 }
 
-function patternToRegex(pattern: string): RegExp {
-  // `*` matches any run; a trailing `$` anchors the end; everything else is literal.
+/** Does `path` match a robots pattern? `*` is any run (including an empty one), a
+ *  trailing `$` anchors the end, everything else is literal (RFC 9309 §2.2.3).
+ *
+ *  Deliberately NOT a regex: `/*a*a*...*b` translated to `.*a.*a...` backtracks
+ *  exponentially (ten wildcards against forty `a`s measured 45 s), and robots.txt is
+ *  text a third party writes. Leftmost-first segment search is correct for `*`-only
+ *  globs and costs at most O(path x pattern). */
+export function matchesRobotsPattern(rule: Pick<RobotsRule, "segments" | "anchored">, path: string): boolean {
+  const { segments, anchored } = rule;
+  const first = segments[0];
+  if (segments.length === 1) return anchored ? path === first : path.startsWith(first);
+  if (!path.startsWith(first)) return false;
+  let pos = first.length;
+  const lastIndex = segments.length - 1;
+  for (let i = 1; i < lastIndex; i++) {
+    const seg = segments[i];
+    if (!seg) continue;
+    const at = path.indexOf(seg, pos);
+    if (at < 0) return false;
+    pos = at + seg.length;
+  }
+  const last = segments[lastIndex];
+  if (anchored) return path.length - last.length >= pos && path.endsWith(last);
+  return last === "" || path.indexOf(last, pos) >= 0;
+}
+
+/** A pattern split once, when the file is parsed — never per request. */
+function compileRule(allow: boolean, pattern: string): RobotsRule {
   const anchored = pattern.endsWith("$");
-  const body = (anchored ? pattern.slice(0, -1) : pattern)
-    .split("*")
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join(".*");
-  return new RegExp(`^${body}${anchored ? "$" : ""}`);
+  const body = anchored ? pattern.slice(0, -1) : pattern;
+  return { allow, pattern, segments: body.split("*"), anchored };
 }
 
 /** Longest-match evaluation over the binding group. Ties go to Allow. A path that
@@ -90,7 +127,7 @@ export function isPathAllowed(rules: RobotsRules, pathWithQuery: string, token: 
   let best: RobotsRule | null = null;
   let bestLen = -1;
   for (const rule of group.rules) {
-    if (!patternToRegex(rule.pattern).test(pathWithQuery)) continue;
+    if (!matchesRobotsPattern(rule, pathWithQuery)) continue;
     const len = rule.pattern.length;
     if (len > bestLen || (len === bestLen && rule.allow && best && !best.allow)) {
       best = rule;

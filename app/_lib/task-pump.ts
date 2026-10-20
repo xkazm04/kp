@@ -32,6 +32,10 @@
 export type PumpEntry = {
   id: string;
   workspaceId: string;
+  /** The operator asked for this run by name (the Gigs "accept" loop, gigs/loop.ts): it
+   *  goes ahead of the SAME tenant's ordinary queued work. It never preempts a running
+   *  task, never takes a slot past the ceiling, and never beats a less-loaded tenant. */
+  priority?: boolean;
 };
 
 /**
@@ -54,16 +58,22 @@ export function nextTaskToRun(
   const load = new Map<string, number>();
   for (const ws of runningWorkspaces) load.set(ws, (load.get(ws) ?? 0) + 1);
 
+  // Rank = (load, ordinary-after-priority, queue position). Fairness stays the first key,
+  // so a priority entry reorders only its own tenant's queue (and ties across tenants).
   let bestIndex = 0;
   let bestLoad = load.get(queue[0].workspaceId) ?? 0;
+  let bestLane = queue[0].priority ? 0 : 1;
   for (let i = 1; i < queue.length; i += 1) {
     // Strictly less-than, so a tie keeps the earlier entry: FIFO survives inside a
-    // workspace, and across workspaces the first-queued of the equally-idle ones wins.
+    // workspace (and inside a lane), and across workspaces the first-queued of the
+    // equally-idle ones wins.
     const l = load.get(queue[i].workspaceId) ?? 0;
-    if (l < bestLoad) {
+    const lane = queue[i].priority ? 0 : 1;
+    if (l < bestLoad || (l === bestLoad && lane < bestLane)) {
       bestIndex = i;
       bestLoad = l;
-      if (bestLoad === 0) break; // nothing can beat an idle tenant; stop scanning
+      bestLane = lane;
+      if (bestLoad === 0 && bestLane === 0) break; // nothing beats an idle tenant's priority run
     }
   }
   return bestIndex;

@@ -1,0 +1,120 @@
+[
+  {
+    "context": "ops-observability",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Durable webhook claims so a post-restart replay cannot re-decline a lead",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/webhook-idempotency.ts",
+      "app/_lib/webhook-idempotency.test.ts",
+      "app/_lib/db/core.ts",
+      "app/_lib/tenancy.ts",
+      "app/_lib/inbound-lead.ts",
+      "app/_lib/edge-drain.ts",
+      "app/api/channels/inbound/[token]/route.ts",
+      "app/api/agents/report/[token]/route.ts",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/webhook-claims.ts",
+      "app/_lib/db/webhook-claims.test.ts",
+      "app/_lib/inbound-replay-restart.test.ts"
+    ],
+    "shared_surfaces": [
+      "app/_lib/tenancy.ts"
+    ],
+    "acceptance": [
+      "claim(k) -> true; settle(k); simulate a process restart (drop every in-memory handle, reopen the same KP_DB_PATH) -> claim(k) -> false: a finished delivery stays finished across a restart",
+      "claim(k) -> true, NOT settled; restart; clock advanced past the in-flight lease -> claim(k) -> true: a crash mid-work re-runs the delivery instead of losing it (no silent drop)",
+      "claim(k) -> true; a second claim(k) inside the lease, same process -> false: the mark is a uniqueness-enforced write (INSERT ... ON CONFLICT with a changes check), not a read-then-write",
+      "claim(k) -> true; release(k) -> claim(k) -> true: the failure path still re-opens the key, byte-identical to today's contract",
+      "a settled key older than the done-horizon -> claim(k) -> true, and the lazy sweep deletes expired rows so the table is bounded",
+      "store fault (claim store throws) -> ingestInboundLeadByToken answers a 5xx-class result that inboundHandled() treats as NOT handled, so the drain holds its cursor: fail closed, never admit unchecked",
+      "the SAME knockout-failing edge lead ingested twice across a simulated restart (idempotency key edge:<pairing>:<seq>) -> exactly one ko_declined pipeline_events row and exactly one decline outbox row",
+      "two different edge pairings (different edge URLs) replaying the same seq number -> two distinct idempotency keys: a re-provisioned edge whose seq restarts at 1 is never mistaken for a replay"
+    ],
+    "premise": [
+      "app/_lib/webhook-idempotency.ts:10-13 declares the claim store 'In-process by design' and says to 'swap the store behind these two functions' when that stops holding; app/_lib/webhook-idempotency.ts:17 `const claims = new Map<string, Claim>()` is the whole store",
+      "app/_lib/edge-drain.ts:17-19 justifies ack-after-apply with 'A crash between the two replays the tail on the next tick, which is harmless (the intake core dedupes by idempotency key and again by email)' - the key dedupe it cites lives in the Map a crash erases",
+      "app/_lib/edge-drain.ts:208 keys an edge delivery on `edge:${event.seq}` alone - no pairing identity, so a durable key without a namespace would collide after an edge reset",
+      "app/_lib/pull-pass.ts:153 keys on the source's event.id and app/_lib/pull-pass.ts:170 adopts the cursor only after a clean page, so a crash mid-page re-fetches already-applied events on the next tick",
+      "app/_lib/inbound-lead.ts:122-127 is the claim every door (HTTP JSON, pull-pass, edge-drain) funnels through; app/_lib/inbound-lead.ts:179 releases on failure",
+      "app/_lib/lead-intake.ts:118-150 - the knockout branch writes recordKnockoutDecline and awaits dispatchKnockoutDecline with NO entry to dedupe against, so a replay that passes the claim records a second decline and emails the candidate a second rejection",
+      "app/_lib/webhook-idempotency.ts:3-8 names the other duplicate side effects the claim exists to stop: an inflated Channels liveness receipt, another `re_applied` event, a re-dispatched acknowledgement",
+      "app/api/channels/inbound/[token]/route.ts:140-146 (multipart path) and app/api/agents/report/[token]/route.ts:213-218 are the two other claimers",
+      "in-repo precedent for a durable idempotency row: app/_lib/db/core.ts:974 `CREATE TABLE IF NOT EXISTS billing_events`, pinned by app/_lib/db/billing-store.test.ts:174 'the ROW is the idempotency gate'"
+    ],
+    "rollback": "Three commits (store + table, door wiring, doc) revert cleanly: the public API of webhook-idempotency.ts keeps its two exports and signatures (claim/release) and only gains settle(), so reverting the door commit leaves callers compiling against the old Map. The new table is CREATE TABLE IF NOT EXISTS with no FK and no reader outside the new module; an orphaned table after revert is inert.",
+    "gate": "architecture",
+    "runner_up": "Derive the client Analytics payload type from PipelineAnalytics instead of hand-mirroring it in AnalyticsTypes.ts (three drift-repair commits so far: 335eb6ea2, e15dadf65, 9240370da).",
+    "technique": "duplicate-and-replay-dedup",
+    "body": "## Summary\nMove the webhook idempotency claim from a process-local Map into a SQLite row with two states (in-flight under a lease, done under a bounded horizon), so the replay the edge drain and pull pass are DESIGNED to produce after a crash is absorbed instead of re-filing - and a knockout-failed applicant is never sent a second rejection. Adopts the open leftover 'Persist webhook idempotency claims across process restart' (M, risk 4, gate architecture, route human, leftover-develop-2026-09-17).\n\n## Description\nThree doors reach the same intake core: the public inbound route, the pull pass and the edge drain. Two of them are at-least-once by construction - the drain acks after apply and the pull pass adopts its cursor after a clean page - and both justify that choice by pointing at the idempotency key. But the key lives in `const claims = new Map()`: the exact event that makes a replay happen (the process dying between apply and ack) is the event that empties the dedupe. The email dedupe below it covers accepted leads only; the knockout branch in lead-intake.ts has no entry to dedupe against, so a replayed KO lead records a second decline and dispatches a second rejection email to a real candidate. The fix is the registry's third posture (at-least-once + deduplicated effects): a uniqueness-enforced mark in the store that already holds the effects, with a lease so a crash MID-work re-runs rather than drops, a settle() that turns the mark into 'done', a bounded done-horizon with a lazy sweep, fail-closed on store fault, and an edge key namespaced by pairing so a re-provisioned edge whose sequence restarts is not mistaken for a replay. The table holds only token-namespaced hashes and provider ids, so it is tenancy-EXEMPT with the same reasoning billing_events carries (a globally-unique delivery identity), stated in tenancy.ts.\n\n## Flow\n1. db/webhook-claims.ts: `webhook_claims(key TEXT PRIMARY KEY, state TEXT, expires_at INTEGER)`; claim = INSERT ... ON CONFLICT(key) DO UPDATE ... WHERE expires_at <= now, success iff changes === 1; settle flips state to done with the long horizon; release deletes; sweep deletes expired rows at most once a minute.\n2. webhook-idempotency.ts keeps `claimWebhookIdempotency` / `releaseWebhookIdempotency` / `webhookIdempotencyKey`, adds `settleWebhookIdempotency`, delegates to the store; a store throw propagates so the door answers 5xx.\n3. inbound-lead.ts, the multipart route and the agent-report route call settle() after the side effects commit.\n4. edge-drain.ts derives its key as `edge:<sha256(edge url) prefix>:<seq>` and its header comment stops claiming a guarantee it did not have.\n5. core.ts creates the table; tenancy.ts lists it EXEMPT with its reason; the comms feature doc (the doc feature-doc-map.json couples to inbound-lead.ts and edge-*.ts) names the durable claim and its horizon.\n\n## Expected impact\nA crash or restart during a drain or pull page no longer duplicates candidate-facing effects: no second knockout rejection email, no second `re_applied` event, no inflated liveness receipt. The edge drain's documented guarantee becomes true. Agent-report replays stop leaning on downstream upserts alone. Whole defect class closed: 'duplicates appear only after a restart' (delivery-guarantees / guarantee-selection).\n\n## Evaluation\nClaim: webhook deduplication survives a process restart without turning a mid-work crash into a lost lead.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test cases above (store unit tests with an injected clock, a restart simulated by reopening the same KP_DB_PATH, and an intake replay test counting ko_declined rows and outbox rows), plus npm run test:unit, lint, tsc, docs:check.\nResult: pending build\nGate: architecture",
+    "evidence": "app/_lib/webhook-idempotency.ts:10  // In-process by design - same rationale as rate-limit.ts (kp is a single Next\napp/_lib/webhook-idempotency.ts:13  // the store behind these two functions if kp ever scales horizontally.\napp/_lib/webhook-idempotency.ts:17  const claims = new Map<string, Claim>();\napp/_lib/edge-drain.ts:17-19  ACK AFTER APPLY, NEVER BEFORE. A crash between the two replays the tail on the / next tick, which is harmless (the intake core dedupes by idempotency key and again / by email)\napp/_lib/edge-drain.ts:208  idempotencyKey: `edge:${event.seq}`,\napp/_lib/pull-pass.ts:153  idempotencyKey: event.id,\napp/_lib/pull-pass.ts:170  recordPullResult(source.token, { cursor: nextCursor, error: null });   (only after the whole page applied)\napp/_lib/inbound-lead.ts:122  const idemKey = `inbound:${webhook.token}:${webhookIdempotencyKey(rawBody, input.idempotencyKey)}`;\napp/_lib/inbound-lead.ts:123  if (!claimWebhookIdempotency(idemKey)) {\napp/_lib/lead-intake.ts:118  if (input.failedKoIds.length > 0) {\napp/_lib/lead-intake.ts:119    recordKnockoutDecline({ ... })\napp/_lib/lead-intake.ts:136        await dispatchKnockoutDecline({ email, name, jobTitle, locale, workspaceId })\napp/_lib/lead-intake.ts:150    return { result: \"declined\" };   (no entry, no dedupe below the claim)\ngrep claimWebhookIdempotency (non-test callers): app/api/agents/report/[token]/route.ts:217, app/api/channels/inbound/[token]/route.ts:144, app/_lib/inbound-lead.ts:123\nprecedent: app/_lib/db/core.ts:974 CREATE TABLE IF NOT EXISTS billing_events; app/_lib/db/billing-store.test.ts:174 \"the ROW is the idempotency gate - it is never deleted\"\nregistry: software-engineering/webhook-ingestion technique duplicate-and-replay-dedup ('the mark is a uniqueness-enforced write'; 'when the dedup instrument itself fails, the delivery is refused, not admitted'); delivery-guarantees technique guarantee-selection use_when 'duplicates appear only after a restart'\nopen leftover adopted: leftover-develop-2026-09-17.jsonl {\"title\":\"Persist webhook idempotency claims across process restart\",\"context\":\"ops-observability\",\"size\":\"M\",\"risk\":4,\"gate\":\"architecture\",\"route\":\"human\"} - absent from low-risk-drain-2026-09-22*-results.jsonl"
+  },
+  {
+    "context": "analytics-dashboard",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Scope the Analytics tab to one role, with every unscopable figure withheld",
+    "size": "L",
+    "effort": 7,
+    "impact": 9,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/analytics.ts",
+      "app/_lib/db/analytics-job-cohort.test.ts",
+      "app/_lib/analytics-cache.ts",
+      "app/_lib/analytics-cache.test.ts",
+      "app/api/analytics/route.ts",
+      "app/features/insights/analytics/AnalyticsTypes.ts",
+      "app/features/insights/analytics/AnalyticsTab.tsx",
+      "app/features/insights/analytics/AnalyticsHeader.tsx",
+      "app/features/insights/analytics/AnalyticsByRoleTable.tsx",
+      "app/features/insights/analytics/AnalyticsCopyViewLink.tsx",
+      "app/features/insights/analytics/analyticsViewLink.ts",
+      "app/features/insights/analytics/analyticsViewLink.test.ts",
+      "docs/features/analytics/README.md"
+    ],
+    "new_files": [
+      "app/features/insights/analytics/analyticsJobScope.ts",
+      "app/features/insights/analytics/analyticsJobScope.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "fixture: events on entries of job A and job B in one workspace -> pipelineAnalytics(null, { jobId: A }, ws).momentum, .automation and .offers count ONLY job A's events (event rows joined to pipeline_entries.job_id through entry_id), while the no-jobId call is byte-identical to today",
+      "jobId set -> costPerHireCzk === null, computeCost.costPerHireUsd === null, and payload.jobScope.withheld lists exactly those figures: workspace-wide channel spend and the account-wide LLM ledger are never divided by one role's hires",
+      "pipelineAnalyticsPrior(N, endMs, ws, { jobId: A }) counts only job A's prior cohort, so periodDeltas compares the role with itself, not with the workspace",
+      "analyticsCacheKey(ws, 30, 'A') differs from analyticsCacheKey(ws, 30, null) and from (ws, 30, 'B'); a job-scoped get never serves a workspace payload or another role's payload",
+      "GET /api/analytics?job=A&days=30 -> payload.jobId === 'A'; ?job=<a job of another workspace> -> an empty cohort (total 0), never that team's figures; ?job= blank -> workspace-wide",
+      "analyticsViewUrl({ origin, section, days: 30, job: 'A' }) contains job=A and round-trips through analyticsJobScope.parseJobParam; job null -> no job param is written",
+      "byJob rows carry jobId, and two jobs sharing one title are two rows (today they merge by job_title)"
+    ],
+    "premise": [
+      "app/_lib/db/analytics.ts:317 already accepts `opts.jobId` and app/_lib/db/analytics.ts:325-327 ANDs `job_id = ?` onto the cohort SELECT - the store half exists",
+      "app/api/analytics/route.ts:41 calls `pipelineAnalytics(windowDays, undefined, ws)` - the route never passes a job, so no reader can reach the axis",
+      "app/_lib/db/analytics.ts:956-961 pipelineAnalyticsPrior has no job parameter, while app/api/analytics/route.ts:47-49 diffs the live payload against it - a job-scoped live read would be diffed against a workspace-wide prior",
+      "app/_lib/analytics-cache.ts:28-30 keys the memo on (workspace, window) only - a job-scoped payload would be served to the workspace view and vice versa",
+      "app/_lib/db/analytics.ts:540-545 (momentum), 562-567 (kindCounts feeding automation), 594 (offers from kindCounts) filter by workspace_id only - they ignore jobId even when it is set",
+      "app/_lib/db/analytics.ts:763-764 divides TOTAL workspace channel spend by `hired`, which is job-scoped when jobId is set; app/_lib/db/analytics.ts:838-843 divides the account-wide LLM ledger by hiresClosedInWindow (job-scoped at :791) - both would publish an inflated per-hire cost for one role",
+      "app/_lib/db/analytics.ts:467 groups byJob by `r.job_title` - a role row cannot name its job, and two reqs with one title merge",
+      "app/features/insights/analytics/AnalyticsTab.tsx:87-90 fetches `/api/analytics?days=` only; app/features/insights/analytics/AnalyticsTypes.ts:66-68 mirrors `jobId` but nothing in the feature reads it (grep jobId in app/features/insights/analytics: the type line only)",
+      "app/features/insights/analytics/analyticsViewLink.ts:45 mints tab/sec/win only; app/features/shell/tabs.ts:447 already lists \"job\" in TAB_SCOPED_PARAM_KEYS, so ?job= is cleared on a tab switch with no new shell code",
+      "app/features/insights/analytics/AnalyticsByRoleTable.tsx:126 - the only per-role action today leaves the tab for the board (`boardHref({ q: j.jobTitle })`)"
+    ],
+    "rollback": "Four commits revert independently in reverse order: UI (tab/header/role table/view link + catalogs), route + cache key, store scope (event joins, withheld figures, byJob jobId, prior slice). Every store change is gated on jobId being set, so the no-jobId payload - the only one any caller produces today - is byte-identical and pinned by the existing analytics tests; reverting the UI alone leaves a harmless unused ?job= door.",
+    "gate": "contract",
+    "runner_up": "Compare mode on the role table: pick two roles and render their funnels, dwell and TTH side by side from two job-scoped reads (depends on this card's axis).",
+    "technique": "gate-each-cohort-not-only-the-headline",
+    "body": "## Summary\nGive the Analytics tab the axis a hiring manager actually asks about - one requisition - end to end: a `?job=` scope that the route, the prior window, the cache and every panel honour, entered from a role-table row and carried by the copy-view link, with the figures that cannot be honestly scoped to one role withheld and named instead of silently mis-divided. Adopts the open leftover 'Job selector that scopes the whole Analytics tab to one req' (M, impact 9, leftover-develop-2026-09-17) and grows it by the correctness work its premise hid.\n\n## Description\nThe store grew a jobId option (db/analytics.ts:317) but stopped at the cohort SELECT: momentum, automation impact and the offer leg read pipeline_events by workspace only, and two cost figures divide workspace- or account-wide numerators by the now job-scoped hire count. So simply wiring the leftover's selector would ship a role view whose cost-per-hire is inflated by every other role's spend. The route never passes the job, the prior-window slice has no job axis (deltas would compare a role with the whole team), the memo key would cross-serve scoped and unscoped payloads, and the role table cannot even name a job because byJob groups by title. Today a recruiter who wants 'how is the Backend req doing' either reads team-wide numbers or leaves for the board with a title search. After: a row action scopes the whole tab to that role; the header shows a clearable scope chip; event-derived panels join through entry_id; spend and compute per-hire read as withheld-with-reason in role view (not-measurable-versus-zero); the window switcher and deltas keep working; the view link shares exactly this role-and-window.\n\n## Flow\n1. db/analytics.ts: job-scoped event reads via `entry_id IN (SELECT id FROM pipeline_entries WHERE job_id = ? AND workspace_id = ?)`; costPerHireCzk and computeCost.costPerHireUsd null under a job with `jobScope: { jobId, jobTitle, withheld: [...] }`; byJob keyed by job_id carrying jobId; pipelineAnalyticsPrior takes jobId.\n2. analytics-cache.ts: the key gains a job field through optionalKeyField so null and every job id are distinct.\n3. api/analytics/route.ts: parse `?job=` (trimmed, length-capped), pass to both reads and the memo.\n4. analyticsJobScope.ts (pure): parseJobParam, the withheld-figure labels, the scope-note choice; AnalyticsTab reads `job` beside `win` and adds it to the fetch URL.\n5. AnalyticsHeader shows the scope chip with clear; the metric-pack link is labelled workspace-wide while a role is in scope; AnalyticsByRoleTable adds 'Analyse this role' per row; analyticsViewUrl carries job.\n6. Four catalogs, analytics feature doc.\n\n## Expected impact\nThe most common analytics question (one req's funnel, TTH, momentum, deltas) becomes answerable in one click without leaving the tab, and it is shareable as a link. It closes a latent correctness trap in the store (a job-scoped call today returns inflated per-hire cost and unscoped momentum/automation/offers) before any caller can trip on it. Role rows stop merging two reqs that share a title.\n\n## Evaluation\nClaim: a job-scoped Analytics view is correct for every figure it shows and honest about the ones it cannot scope.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test over db/analytics (fixture with two jobs' entries and events), analytics-cache keying, the route handler, analyticsViewLink and analyticsJobScope; then tsc, lint, i18n:check, test:unit.\nResult: pending build\nGate: contract",
+    "evidence": "app/_lib/db/analytics.ts:317  opts?: { endMs?: number; rowCap?: number; jobId?: string },\napp/_lib/db/analytics.ts:326  const jobPred = jobId ? \" AND job_id = ?\" : \"\";\napp/api/analytics/route.ts:41  const current = pipelineAnalytics(windowDays, undefined, ws);\napp/api/analytics/route.ts:48  ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, Date.now() - windowDays * 86_400_000, ws))\napp/_lib/db/analytics.ts:956-961  export function pipelineAnalyticsPrior(windowDays, endMs, workspaceId, opts?: { rowCap?: number })   (no jobId)\napp/_lib/analytics-cache.ts:28-29  export function analyticsCacheKey(workspaceId: string, windowDays: number | null): string { return `${workspaceId}${SEP}${windowDays == null ? \"all\" : windowDays}`;\napp/_lib/db/analytics.ts:540-545  SELECT kind, to_stage, created_at FROM pipeline_events WHERE created_at >= ? AND kind IN ... AND workspace_id = ?   (no job)\napp/_lib/db/analytics.ts:562-565  SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE ... AND workspace_id = ? GROUP BY kind   (no job)\napp/_lib/db/analytics.ts:763-764  const totalSpendCzk = [...spendByChannel.values()].reduce(...); const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;\napp/_lib/db/analytics.ts:843  hiresClosedInWindow > 0 ? Math.round((compute.costUsd / hiresClosedInWindow) * 100) / 100 : null,\napp/_lib/db/analytics.ts:467  const key = r.job_title ?? \"-\";\napp/features/insights/analytics/AnalyticsTab.tsx:88  days ? `/api/analytics?days=${days}` : \"/api/analytics\",\ngrep -rn jobId app/features/insights/analytics (non-test) -> AnalyticsTypes.ts:67-68 only\napp/features/insights/analytics/analyticsViewLink.ts:45  buildUrl({ tab: \"analytics\", sec: section, win: days ? String(days) : null }, \"\")\napp/features/shell/tabs.ts:447  \"job\",   (TAB_SCOPED_PARAM_KEYS)\napp/features/insights/analytics/AnalyticsByRoleTable.tsx:126  href={boardHref({ q: j.jobTitle })}\nstore half landed in 90a95824d 'Give pipelineAnalytics an optional jobId cohort filter'; client type mirrored in 9240370da - no reader since\nopen leftover adopted: leftover-develop-2026-09-17.jsonl {\"title\":\"Job selector that scopes the whole Analytics tab to one req\",\"context\":\"analytics-dashboard\",\"size\":\"M\",\"impact\":9} - absent from low-risk-drain-2026-09-22*-results.jsonl\nregistry: recruiting/small-sample-honesty-in-hiring-analytics techniques gate-each-cohort-not-only-the-headline and not-measurable-versus-zero; software-engineering/analytics-time-windows cohort-matched-comparison (the prior slice must be the same cohort)"
+  }
+]

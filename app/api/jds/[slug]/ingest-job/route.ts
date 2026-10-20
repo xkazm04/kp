@@ -3,7 +3,7 @@ import { getJob, loadJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -24,19 +24,18 @@ export const maxDuration = 60;
 // content-hash dedup, draft lifecycle) existed one tab away. The explicit
 // jobId "jd-<slug>" makes JD and Job share identity, so the W8-2 apply CTA
 // and the analyses sidebar line up in both directions.
-export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   // Making a JD matchable runs one LLM parse — a paid write, recruiter-only. Gate
   // before resolving params or touching the DB. Open mode is a no-op.
   const denied = await requireOperator();
   if (denied) return denied;
   const { slug } = await context.params;
   try {
-    const ws = await currentWorkspace();
     const jd = loadJd(slug, ws);
     if (!jd) return jsonRefusal("JD_NOT_FOUND", 404);
 
     const jobId = jdJobId(slug);
-    if (getJob(jobId)) {
+    if (getJob(jobId, ws)) {
       return NextResponse.json({ ok: true, jobId, already: true });
     }
     // The budget is spent HERE: after the 404 AND after the already-ingested
@@ -63,4 +62,4 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   } catch (error) {
     return safeJsonError(error, "api:jds:ingest-job", "JD_SAVE_FAILED");
   }
-}
+});

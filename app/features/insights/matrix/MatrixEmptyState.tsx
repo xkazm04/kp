@@ -10,7 +10,7 @@
  * (candidates) and columns (open roles), each showing the real count that would
  * fill it.
  *
- * The glyph is the /motionize traced MATRIX_GLYPH (candidates x roles, cells
+ * The glyph is the /motionize traced "matrix" glyph (candidates x roles, cells
  * filling with signal). Every fill resolves through the brand-token snap in
  * MotionizedGlyph — no hex reaches this file.
  */
@@ -20,19 +20,23 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Columns3, Rows3 } from "lucide-react";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/matrixGlyph";
 import { PANEL, PANEL_SUNKEN, EYEBROW, TITLE_DISPLAY, INTRO, CARD_PAD } from "@/app/_components/ui/recipes";
-import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import type { WorkspaceTabId } from "@/app/features/shell/tabs";
+import { chainLinkHref, type ChainLink } from "@/app/_components/chainLinkHref";
 
 export type MatrixEmptyStateProps = {
   /** Real counts from the computed matrix — which axis is actually missing. */
   candidateCount: number;
   positionCount: number;
+  /** The job the grid is scoped to (`?job=`), when it is - the pipeline hop then
+   *  opens on that role (`?role=`) instead of the whole board. */
+  job?: string | null;
 };
 
 /** One upstream hop in the hiring chain, with the count that would fill it. */
 type Axis = {
   tab: WorkspaceTabId;
+  params?: ChainLink["params"];
   /** "Rows" / "Columns" — which side of the grid this input becomes. */
   axisLabel: string;
   noun: string;
@@ -50,16 +54,16 @@ type Axis = {
 function useChainNav() {
   const router = useRouter();
   const search = useSearchParams();
-  return (tab: WorkspaceTabId) => router.push(buildTabSwitchUrl(tab, search.toString()));
+  return (link: Pick<ChainLink, "tab" | "params">) => router.push(chainLinkHref(link, search.toString()));
 }
 
-function ChainLink({ tab, label }: { tab: WorkspaceTabId; label: string }) {
+function AxisLink({ tab, params, label }: Pick<ChainLink, "tab" | "params" | "label">) {
   const go = useChainNav();
   return (
     <button
       type="button"
-      onClick={() => go(tab)}
-      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+      onClick={() => go({ tab, params })}
+      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
     >
       {label} <ArrowRight size={13} aria-hidden />
     </button>
@@ -67,7 +71,7 @@ function ChainLink({ tab, label }: { tab: WorkspaceTabId; label: string }) {
 }
 
 /** The two inputs the grid multiplies together, in chain order. */
-function useAxes({ candidateCount, positionCount }: MatrixEmptyStateProps): Axis[] {
+function useAxes({ candidateCount, positionCount, job }: MatrixEmptyStateProps): Axis[] {
   const t = useTranslations("matrix");
   // One key per axis rather than one shared "{count} ready to plot": the counted
   // noun is a candidate on one side and a role on the other, and the inflected
@@ -77,6 +81,7 @@ function useAxes({ candidateCount, positionCount }: MatrixEmptyStateProps): Axis
   return [
     {
       tab: "pipeline",
+      params: job ? { role: job } : undefined,
       axisLabel: t("emptyAxisRows"),
       noun: t("emptyAxisCandidates"),
       count: candidateCount,
@@ -108,7 +113,7 @@ function AxisCard({ axis }: { axis: Axis }) {
       </p>
       <p className="mt-1 text-sm text-steel">{axis.countLine}</p>
       <div className="mt-3">
-        <ChainLink tab={axis.tab} label={axis.linkLabel} />
+        <AxisLink tab={axis.tab} params={axis.params} label={axis.linkLabel} />
       </div>
     </div>
   );
@@ -120,8 +125,7 @@ export function MatrixEmptyState(props: MatrixEmptyStateProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={MATRIX_GLYPH.data}
-        viewBox={MATRIX_GLYPH.viewBox}
+        glyph="matrix"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
         ambient="float"

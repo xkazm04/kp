@@ -115,9 +115,11 @@ from .companion_brain import (
     recall,
     session_tag,
     surface_recall,
+    workspace_of,
 )
 from .i18n import language_directive, normalize_lang
-from .llm.registry import resolve_provider
+from .llm.monitor import emit_deterministic
+from .llm.registry import provider_availability, resolve_provider
 
 MAX_MESSAGE_CHARS = 4000
 # Two prose ceilings, not one. A reply that carries a table or a chart has
@@ -358,7 +360,13 @@ def _complete(
     characters would routinely cut a fence in half and turn a valid table into a
     dropped one plus a paragraph of raw JSON."""
     provider = resolve_provider("assistant", timeout=LLM_TIMEOUT_S)
-    if provider is None or not provider.available():
+    ok, descent = provider_availability(provider) if provider is not None else (False, "unavailable")
+    if not ok:
+        # The template serve is recorded in the usage ledger with the availability
+        # CODE, as repo_scan_cli does - without it the Models > Routing row for
+        # `assistant` read idle while every turn fell back. The per-request
+        # fallbackReason below keeps its phrase: companionFallbackClass matches it.
+        emit_deterministic("assistant", reason=descent)
         return UNREACHABLE_REPLY[locale], "deterministic", "no provider available"
     try:
         completion = provider.complete(prompt, system=_system_prompt(locale, actions, digest, memory))
@@ -493,7 +501,7 @@ def run_turn(turn: dict) -> dict:
     locale = normalize_lang(turn.get("locale"))
     transcript = turn.get("transcript")
     turns = transcript if isinstance(transcript, list) else []
-    session = session_tag(str(turn.get("workspace_id") or ""))
+    session = session_tag(str(turn.get("workspace_id") or ""), str(turn.get("session_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
     memory = _memory_flag(turn)
 
@@ -506,7 +514,7 @@ def run_turn(turn: dict) -> dict:
         # very query, so raw recall would hand the message straight back.
         # surface_recall drops that echo and the operator's same-day commands
         # before either the prompt or the dock ever sees them.
-        hits = surface_recall(message, recall(message, RECALL_LIMIT))
+        hits = surface_recall(message, recall(message, RECALL_LIMIT, workspace_id=workspace_of(session)))
     raw, source, fallbackReason = _complete(
         _build_prompt(message, hits, turn.get("grounding"), turns), locale, catalog, memory=memory
     )
@@ -546,7 +554,7 @@ def run_digest(turn: dict) -> dict:
     operator's mouth in a store their own recall reads back.
     """
     locale = normalize_lang(turn.get("locale"))
-    session = session_tag(str(turn.get("workspace_id") or ""))
+    session = session_tag(str(turn.get("workspace_id") or ""), str(turn.get("session_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
     grounding = turn.get("grounding")
     memory = _memory_flag(turn)
@@ -555,7 +563,7 @@ def run_digest(turn: dict) -> dict:
     if memory:
         ensure_brain()
         query = _digest_query(grounding)
-        hits = surface_recall(query, recall(query, RECALL_LIMIT))
+        hits = surface_recall(query, recall(query, RECALL_LIMIT, workspace_id=workspace_of(session)))
     prompt = (
         "WHAT THE STUDIO LOOKS LIKE RIGHT NOW (the only facts you may state as facts):\n"
         f"{json.dumps(grounding, ensure_ascii=False, indent=1) if grounding else '(no grounding was provided)'}\n\n"

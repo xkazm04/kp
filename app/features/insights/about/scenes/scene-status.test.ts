@@ -41,3 +41,38 @@ test("every scene announces through SceneStatus", () => {
     assert.match(src, /<SceneStatus\b/, `${rel} must render SceneStatus so the live region exists from beat 0`);
   }
 });
+
+// The transport row (stage/transport.ts). It rides beside the status line in
+// every scene because every scene already renders SceneStatus, so no scene
+// file had to change to gain it.
+test("SceneStatus renders the transport outside the live region", () => {
+  const fn = shared.match(/export function SceneStatus\([\s\S]*?\n\}/);
+  assert.ok(fn, "could not find SceneStatus in shared.tsx");
+  const body = fn[0];
+  assert.match(body, /<SceneTransport\b/, "every scene gets stop, step and scrub through SceneStatus");
+  const p = body.slice(body.indexOf("<p"), body.indexOf("</p>"));
+  assert.doesNotMatch(p, /SceneTransport/, "a beat counter inside the live region would be read out every 900ms");
+});
+
+test("the transport is labelled from about.transport.* and is never a live region", () => {
+  const fn = shared.match(/function SceneTransport\([\s\S]*?\n\}/);
+  assert.ok(fn, "could not find SceneTransport in shared.tsx");
+  const body = fn[0];
+  assert.match(body, /useTranslations\("about\.transport"\)/);
+  const buttons = body.match(/<button\b[\s\S]*?>/g) ?? [];
+  assert.ok(buttons.length >= 3, "step back, play/stop and step forward are buttons");
+  for (const b of buttons) {
+    assert.match(b, /aria-label=\{[^}]*\bt\("/, `every transport button is named from the catalog: ${b}`);
+  }
+  assert.match(body, /type="range"[\s\S]*?aria-label=\{t\(/, "the scrubber is a named range input");
+  assert.doesNotMatch(body, /aria-live/, "the position changes every beat; it must not be announced");
+  assert.doesNotMatch(body, /onKeyDown/, "restart is a labelled act, never a key toggle");
+});
+
+test("the deck header offers one stop for every chapter", () => {
+  const tab = readFileSync(path.join(HERE, "..", "AboutTab.tsx"), "utf8");
+  assert.match(tab, /createDeckTransport\(/);
+  assert.match(tab, /t\("transport\.stopAll"\)/);
+  assert.match(tab, /t\("transport\.playAll"\)/);
+  assert.match(tab, /loadDeckStop\(/, "the remembered stop is read through the guarded loader");
+});

@@ -13,6 +13,7 @@ from pipeline.jobfit.match_reasoning import (
     reasoning_context,
 )
 from pipeline.jobfit.matching import MatchCandidate, score_job
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider, TextReply
 
 CAND = MatchCandidate(
     skills=["Python", "Django", "PostgreSQL"],
@@ -51,12 +52,9 @@ class DeterministicTest(unittest.TestCase):
         self.assertEqual(source, "deterministic")
 
 
-class FakeProvider:
-    def __init__(self, payload):
-        self.payload = payload
-
-    def complete_json(self, prompt, *, system=None):
-        return self.payload
+class FakeProvider(TextReply):
+    """Answers with ``payload`` as TEXT through the real extractor, so the shape pin
+    ``match_reasoning`` forwards actually runs (tests/devcase_fakes.py)."""
 
 
 class LlmPathTest(unittest.TestCase):
@@ -83,11 +81,9 @@ class LlmPathTest(unittest.TestCase):
         self.assertTrue(r["strengths"])
 
     def test_provider_exception_falls_back(self) -> None:
-        class Boom:
-            def complete_json(self, prompt, *, system=None):
-                raise RuntimeError("cli down")
-
-        _r, source = generate(CAND, JOB, score_job(CAND, JOB), provider=Boom())
+        _r, source = generate(
+            CAND, JOB, score_job(CAND, JOB), provider=RaisingProvider(RuntimeError("cli down"))
+        )
         self.assertEqual(source, "deterministic")
 
 
@@ -378,6 +374,67 @@ class GroundingPostCheckTest(unittest.TestCase):
             }
         )
         self.assertEqual(out["verdict"], verdict)
+
+    # A swap IS a backfill from the template, so it degrades the source exactly as an
+    # empty field does. Before 2026-09-29 both post-checks left ``degraded`` False: the
+    # payload shipped as "llm" with template words in its CORE, was cached for the full
+    # TTL (only "llm" is cacheable) and was stamped with a locale the English template
+    # was never written in.
+    def test_a_strengths_swap_degrades_the_source(self) -> None:
+        _cand, ctx = self._ctx()
+        _out, degraded = _coerce(
+            {
+                "verdict": "Promising fit.",
+                "strengths": ["Strong communicator", "Team player"],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertTrue(degraded)
+
+    def test_a_verdict_swap_degrades_the_source(self) -> None:
+        _cand, ctx = self._ctx()
+        bogus = (ctx["match"]["total"] + 11) % 100
+        _out, degraded = _coerce(
+            {
+                "verdict": f"Strong fit at {bogus}/100.",
+                "strengths": ["Covers Python, Django and PostgreSQL."],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertTrue(degraded)
+
+    def test_a_grounded_answer_stays_the_models(self) -> None:
+        _cand, ctx = self._ctx()
+        _out, degraded = _coerce(
+            {
+                "verdict": f"Promising fit at {ctx['match']['total']}/100.",
+                "strengths": ["Covers Python, Django and PostgreSQL."],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertFalse(degraded)
+
+    def test_generate_reports_a_swapped_answer_as_deterministic(self) -> None:
+        _out, source = generate(
+            CAND,
+            JOB,
+            score_job(CAND, JOB),
+            provider=FakeProvider(
+                {
+                    "verdict": "Promising fit.",
+                    "strengths": ["Strong communicator", "Team player"],
+                    "gaps": ["No Go."],
+                    "interviewProbes": ["Ask about Go."],
+                }
+            ),
+        )
+        self.assertEqual(source, "deterministic")
 
 
 class DescentReasonTest(unittest.TestCase):

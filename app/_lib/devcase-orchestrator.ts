@@ -1,4 +1,4 @@
-import { approveLifecycleCase, getDevCase, getDevCaseBaseline, getLifecycle, listSubmissions, saveDevCaseBaselineIfAbsent, saveDevCaseScenarioIfAbsent, saveDevCaseSeedIfAbsent, updateLifecycle, type LifecycleAnalysis } from "./db/devcase";
+import { approveLifecycleCase, getDevCase, getDevCaseBaseline, getLifecycle, listSubmissions, saveDevCaseBaselineIfAbsent, saveDevCaseScenarioIfAbsent, saveDevCaseSeedIfAbsent, setPostingStatus, updateLifecycle, type LifecycleAnalysis } from "./db/devcase";
 import {
   mintObservedFromSubmission,
   promoteSubmission,
@@ -16,6 +16,11 @@ import { sendComm } from "./comms";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
 import { getAutonomy, getPromoteFloor, recordAudit } from "./dev-control";
+import { stopVerdict, type StopVerdict } from "./devcase-lifecycle-fence";
+// Pure and import-free: the ONE cohort ordering (challenge-r10 devcase-detail/A).
+import { autoPromoteSlate, rankCohort, withheldFromPromotion } from "./devcase-cohort-rank";
+// Types only (erased): no module joins this runner's import graph.
+import type { OutcomeWarning, OutcomeWarningCode, StageOutcome } from "./devcase-stage-outcome";
 
 // Direction A — the lifecycle orchestrator. Drives a dev case through its stages under
 // policy, with human gates where policy requires. Each long step reuses the existing
@@ -65,6 +70,9 @@ function gateApproval(analysis: LifecycleAnalysis | null, designCase?: Record<st
 
 type Progress = (done: number, total: number, msg?: string) => void;
 
+// The lifecycle runner has no session: what it files on the board it files as the machine.
+const ORCHESTRATOR_ACTOR = "auto:devcase-orchestrator";
+
 const STAGES = ["intake", "analyzed", "designed", "awaiting_approval", "approved", "published", "collecting", "ranked", "promoted", "closed"];
 
 // The stages where a lifecycle sits at the human review gate (a designed case
@@ -89,6 +97,18 @@ const MAX_LIFECYCLE_STEPS = STAGES.length;
 // within one step rather than letting it spin. Generous — real postings see far
 // fewer late waves than this.
 const MAX_COLLECT_PASSES = 50;
+
+// The coded outcome (devcase-stage-outcome.ts) is written beside every `detail`. Later
+// steps carry the case's warnings forward; the sourcing ones stay with the publish step.
+const STEP_BOUND_WARNINGS: ReadonlySet<OutcomeWarningCode> = new Set(["sourcing_failed", "candidates_skipped"]);
+const warn = (code: OutcomeWarningCode, count: number): OutcomeWarning[] => (count > 0 ? [{ code, count }] : []);
+function carried(prior: StageOutcome | null, fresh: OutcomeWarning[]): OutcomeWarning[] {
+  const freshCodes = new Set(fresh.map((w) => w.code));
+  const kept = (prior?.warnings ?? []).filter((w) => !STEP_BOUND_WARNINGS.has(w.code) && !freshCodes.has(w.code));
+  return [...kept, ...fresh];
+}
+/** A frozen artifact that did not come from the model (absent, or a template source). */
+const notLlm = (artifact: unknown): boolean => (artifact as { source?: unknown } | null)?.source !== "llm";
 
 // Drive a lifecycle from its current stage as far as policy + readiness allow, stopping at a
 // human gate (awaiting_approval), at collecting (no submissions yet), or at promoted (done).
@@ -131,6 +151,48 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       });
       return { stage: now?.stage ?? "unknown", detail: now?.detail ?? "moved on during the step" };
     };
+    // THE FENCE (devcase-lifecycle-fence.ts). `advance` above catches a moved stage only
+    // AFTER the step's effects have fired, but a human close lands while the runner is
+    // mid-drain, mid-promote or mid-publish, and every board write, advance letter and live
+    // token after it contradicts the close. So the stage is re-read as the last statement
+    // before each irreversible effect, together with the cancel signal and the kill switch:
+    // one stop decision instead of an abort/pause pair hand-copied into every loop.
+    const fence = (): StopVerdict =>
+      stopVerdict({
+        aborted: signal?.aborted === true,
+        autonomy: getAutonomy(),
+        stageRead: lc.stage,
+        stageNow: getLifecycle(id)?.stage ?? null,
+      });
+    // Someone else now owns the lifecycle: stop, write one row saying where and before
+    // what, and report the stage it is actually at.
+    const stageMoved = (to: string, before: string): { stage: string; detail: string } => {
+      recordAudit({
+        lifecycleId: id,
+        workspaceId: lc.workspaceId,
+        actor: "system",
+        action: "stage_moved",
+        reason: `moved from '${lc.stage}' to '${to}' before ${before} — the run stopped there`,
+      });
+      return { stage: to, detail: getLifecycle(id)?.detail ?? `moved to ${to}` };
+    };
+    // The kill switch thrown mid-step (the per-stage check below only sees it between steps).
+    // A mid-step halt/cancel is persisted (the row offers Resume); a moved row is not ours.
+    const stopped = (code: "halted" | "canceled", detail: string, facts: StageOutcome["facts"], fresh: OutcomeWarning[] = []): void => {
+      updateLifecycle(id, { detail, outcome: { code, facts, warnings: carried(lc.outcome, fresh) } }, { expectedStage: lc.stage });
+    };
+    const haltedAt = (where: string): { stage: string; detail: string } => {
+      recordAudit({
+        lifecycleId: id,
+        workspaceId: lc.workspaceId,
+        actor: "system",
+        action: "halted",
+        reason: `automation paused by operator ${where}`,
+      });
+      const detail = `halted — automation paused ${where}`;
+      stopped("halted", detail, {});
+      return { stage: lc.stage, detail };
+    };
 
     // Kill switch: when paused, halt auto-advancement (human oversight requirement).
     if (getAutonomy() === "paused" && lc.stage !== "promoted") {
@@ -159,7 +221,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         const { caseId } = approveLifecycleCase(id, lc, gate.reason);
         recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "auto_approved", reason: gate.reason, ref: caseId });
       } else {
-        if (!advance({ stage: "awaiting_approval", detail: gate.reason })) return lostRace();
+        if (!advance({ stage: "awaiting_approval", detail: gate.reason, outcome: { code: "routed_to_human", facts: {}, warnings: [] } })) return lostRace();
         recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "routed_to_human", reason: gate.reason });
         return { stage: "awaiting_approval", detail: gate.reason };
       }
@@ -327,10 +389,45 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
 
         // Now — and only now, with the assignment frozen onto the case — mint the live
         // token. From here the seed/scenario are immutable (this block is skipped on resume).
+        // The freeze above awaited up to three LLM spawns, so the fence runs first: a
+        // lifecycle closed (or redesigned) meanwhile must not get a live apply token.
+        progress?.(STAGES.indexOf("approved"), STAGES.length, "publishing");
+        const beforeMint = fence();
+        if (beforeMint.stop && beforeMint.reason === "moved") return stageMoved(beforeMint.to, "minting the posting");
+        if (beforeMint.stop && beforeMint.reason === "canceled") {
+          stopped("canceled", "canceled before publishing", {});
+          return { stage: lc.stage, detail: "canceled before publishing" };
+        }
+        if (beforeMint.stop) return haltedAt("before publishing");
         const posting = await getAdapter("local").publish(devCase);
         postingId = posting.id;
-        updateLifecycle(id, { postingId });
+        // COMPARE-AND-SET on the stage this step read. A close landing inside the publish
+        // await enumerated the case's postings before this one existed, so it could not
+        // close it; when this write loses, nobody else will. Withdraw the just-minted token
+        // and say so, rather than leave an open apply link on a closed lifecycle.
+        if (!updateLifecycle(id, { postingId }, { expectedStage: "approved" })) {
+          setPostingStatus(posting.id, "closed");
+          recordAudit({
+            lifecycleId: id,
+            workspaceId: lc.workspaceId,
+            actor: "system",
+            action: "posting_withdrawn",
+            reason: `the lifecycle moved off 'approved' while posting ${posting.id} was minted — closed again before any candidate was sent the link`,
+            ref: posting.id,
+          });
+          return stageMoved(getLifecycle(id)?.stage ?? "missing", "linking the posting");
+        }
       }
+
+      // Sourcing seeds the board: the fence again, so a lifecycle closed after the mint (or
+      // on a resume that skipped it) sources nobody.
+      const beforeSourcing = fence();
+      if (beforeSourcing.stop && beforeSourcing.reason === "moved") return stageMoved(beforeSourcing.to, "sourcing");
+      if (beforeSourcing.stop && beforeSourcing.reason === "canceled") {
+        stopped("canceled", "canceled before sourcing", {});
+        return { stage: lc.stage, detail: "canceled before sourcing" };
+      }
+      if (beforeSourcing.stop) return haltedAt("before sourcing");
 
       // Proactive sourcing: rank the existing candidate DB against the role and seed the
       // pipeline at the Accepted stage — so the role finds candidates, not only waits for them.
@@ -349,6 +446,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
           caseId: lc.caseId,
           roleTitle,
           workspaceId: lc.workspaceId,
+          actor: ORCHESTRATOR_ACTOR,
         }).added;
       } catch (err) {
         // Sourcing is best-effort — never block publishing — but record the failure so a real
@@ -364,7 +462,20 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       const sourcedDetail = sourcingError
         ? `published${scenarioNote}; sourced ${sourced} candidate(s) before sourcing failed (${sourcingError}); awaiting submissions`
         : `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`;
-      if (!advance({ stage: "collecting", postingId, detail: sourcedDetail })) return lostRace();
+      // Materials as FROZEN (a resume skips the freeze); an absent artifact is a fallback too.
+      const frozenCase = getDevCase(devCase.id);
+      const collectingOutcome: StageOutcome = {
+        code: "collecting_open",
+        facts: { sourced, skipped },
+        warnings: carried(lc.outcome, [
+          ...warn("sourcing_failed", sourcingError ? 1 : 0),
+          ...warn("candidates_skipped", skipped),
+          ...warn("scenario_template_only", notLlm(frozenCase?.scenario) ? 1 : 0),
+          ...warn("seed_skeleton_only", notLlm(frozenCase?.seed) ? 1 : 0),
+          ...warn("baseline_unavailable", notLlm(getDevCaseBaseline(devCase.id)) ? 1 : 0),
+        ]),
+      };
+      if (!advance({ stage: "collecting", postingId, detail: sourcedDetail, outcome: collectingOutcome })) return lostRace();
       recordAudit({
         lifecycleId: id,
         workspaceId: lc.workspaceId,
@@ -407,9 +518,15 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
           // operator who hit the kill switch, or a cancel on the background task,
           // watched the pipeline keep evaluating candidates for the rest of the
           // batch: the switch was advisory, not a switch. Re-read both here and
-          // finish only the submission already in flight.
-          if (signal?.aborted) return { stage: "collecting", detail: `canceled after ${evaluated} evaluated` };
-          if (getAutonomy() === "paused") {
+          // finish only the submission already in flight. The fence re-reads the stage
+          // too: a lifecycle closed mid-drain evaluates nobody else.
+          const verdict = fence();
+          if (verdict.stop && verdict.reason === "canceled") {
+            stopped("canceled", `canceled after ${evaluated} evaluated`, { evaluated }, warn("eval_failed", failed));
+            return { stage: "collecting", detail: `canceled after ${evaluated} evaluated` };
+          }
+          if (verdict.stop && verdict.reason === "moved") return stageMoved(verdict.to, `the next evaluation (after ${evaluated} evaluated)`);
+          if (verdict.stop) {
             recordAudit({
               lifecycleId: id,
               workspaceId: lc.workspaceId,
@@ -417,6 +534,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
               action: "halted",
               reason: `automation paused by operator mid-drain (after ${evaluated} evaluated)`,
             });
+            stopped("halted", `halted — automation paused after ${evaluated} evaluated`, { evaluated }, warn("eval_failed", failed));
             return { stage: "collecting", detail: `halted — automation paused after ${evaluated} evaluated` };
           }
           attempted.add(s.id);
@@ -444,10 +562,17 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       }
       // Nothing has ever been submitted — stay in collecting rather than advancing to
       // an empty ranking (preserves the prior "awaiting submissions" behavior).
-      if (!sawAny) return { stage: "collecting", detail: "awaiting submissions" };
+      if (!sawAny) {
+        // Only a row with no outcome yet; the publish outcome says more.
+        if (!lc.outcome) {
+          updateLifecycle(id, { outcome: { code: "awaiting_submissions", facts: {}, warnings: [] } }, { expectedStage: lc.stage });
+        }
+        return { stage: "collecting", detail: "awaiting submissions" };
+      }
       const evalDetail =
         failed > 0 ? `evaluated ${evaluated}, ${failed} failed` : `evaluated ${evaluated} submission(s)`;
-      if (!advance({ stage: "ranked", detail: evalDetail })) return lostRace();
+      const evalOutcome: StageOutcome = { code: "evaluated", facts: { evaluated, failed }, warnings: carried(lc.outcome, warn("eval_failed", failed)) };
+      if (!advance({ stage: "ranked", detail: evalDetail, outcome: evalOutcome })) return lostRace();
       recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "evaluated", reason: evalDetail });
     } else if (lc.stage === "ranked") {
       // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
@@ -458,10 +583,17 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // non-default team ranked an empty set: the stage reported "promoted 0/3", the
       // lifecycle went terminal, and candidates who had already been scored were never
       // put on the board or told they were moving forward.
-      const ranked = (lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : [])
-        .filter((s) => (s.transferScore ?? 0) >= floor)
-        .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))
-        .slice(0, DEV_POLICY.promoteTopN);
+      //
+      // The ONE cohort ordering (devcase-cohort-rank.ts): a keyless TEMPLATE transfer is a
+      // different instrument from a graded one, so in a MIXED cohort the slate draws from
+      // the graded tier only - a template 85 is never advanced (board write + letter) over
+      // a graded 72 on a number the two do not share. A uniform cohort (every keyless
+      // install) promotes exactly as before. The withheld rows stay 'evaluated': a human
+      // can re-evaluate them with a key or promote one by hand (that door judges one
+      // submission against the floor, not a cohort order), and the outcome says how many.
+      const cohort = rankCohort(lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : []);
+      const ranked = autoPromoteSlate(cohort, floor, DEV_POLICY.promoteTopN);
+      const withheld = withheldFromPromotion(cohort, floor);
       const roleTitle = lc.role?.title ?? lc.title ?? "the role";
       let promoted = 0;
       let held = 0;
@@ -472,29 +604,34 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // default tenant's.
       const advanceLocale = resolveCommsLocale(lc.lang, lc.workspaceId);
       const t = await commsTranslator(advanceLocale);
-      for (const s of ranked) {
-        // Same per-item stop contract as the drain above: promotion writes to the
-        // board and mails candidates, so a paused/cancelled run must not keep doing
-        // either for the rest of the batch.
-        if (signal?.aborted) {
+      // Same per-item stop contract as the drain above: promotion writes to the board and
+      // mails candidates, so a paused, cancelled or CLOSED run must not keep doing either.
+      // Consulted before each promotion and again before each advance letter (the
+      // observed-skills mint between them is an await a close can land in).
+      const stopPromoting = (verdict: Exclude<StopVerdict, { stop: false }>, before: string): { stage: string; detail: string } => {
+        if (verdict.reason === "moved") return stageMoved(verdict.to, before);
+        if (verdict.reason === "canceled") {
           const detail = `canceled after promoting ${promoted}/${DEV_POLICY.promoteTopN}`;
-          updateLifecycle(id, { detail });
+          stopped("canceled", detail, { promoted }, warn("held", held));
           return { stage: "ranked", detail };
         }
-        if (getAutonomy() === "paused") {
-          recordAudit({
-            lifecycleId: id,
-            workspaceId: lc.workspaceId,
-            actor: "system",
-            action: "halted",
-            reason: `automation paused by operator mid-promote (after ${promoted})`,
-          });
-          return { stage: "ranked", detail: `halted — automation paused after promoting ${promoted}` };
-        }
+        recordAudit({
+          lifecycleId: id,
+          workspaceId: lc.workspaceId,
+          actor: "system",
+          action: "halted",
+          reason: `automation paused by operator mid-promote (after ${promoted})`,
+        });
+        stopped("halted", `halted — automation paused after promoting ${promoted}`, { promoted }, warn("held", held));
+        return { stage: "ranked", detail: `halted — automation paused after promoting ${promoted}` };
+      };
+      for (const s of ranked) {
+        const beforePromote = fence();
+        if (beforePromote.stop) return stopPromoting(beforePromote, `the next promotion (after ${promoted} promoted)`);
         // The calibrated floor rides into promoteSubmission so the reviewer-facing
         // advice and this stage's behavior share ONE threshold (case-sim round 2:
         // the advice hardcoded 70 while this stage promoted on the floor).
-        const result = promoteSubmission(s.id, floor);
+        const result = promoteSubmission(s.id, floor, ORCHESTRATOR_ACTOR);
         if (!result) continue;
         promoted += 1;
         // Take-home -> observed bridge: a promoted submission already cleared the
@@ -529,6 +666,10 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // round's brief described. The hold is audited with its reasons so a
         // reviewer can answer "why" (compliance/explainability).
         if (result.recommendation === "advance") {
+          // The candidate is on the board now, and a close from here on skips them (the
+          // pipeline owns their comms), so the letter is the last effect to fence.
+          const beforeLetter = fence();
+          if (beforeLetter.stop) return stopPromoting(beforeLetter, `the advance letter for submission ${s.id}`);
           // Non-adverse comm — safe to automate. Adverse actions (rejections) stay human-gated.
           //
           // The last hardcoded-English letter in the product, and the one the case's
@@ -572,10 +713,20 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
             ref: s.id,
           });
         }
+        // One tick per promotion, the promote loop's counterpart of the drain's
+        // `evaluating N`: the Background-tasks view sees the batch move, and it is the
+        // seam the fence's tests close the lifecycle from.
+        progress?.(STAGES.indexOf("ranked"), STAGES.length, `promoting ${promoted + held}`);
       }
       const heldNote = held > 0 ? `, ${held} held for review` : "";
-      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}`;
-      if (!advance({ stage: "promoted", detail })) return lostRace();
+      const withheldNote = withheld > 0 ? `, ${withheld} template-scored withheld (mixed cohort)` : "";
+      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}${withheldNote}`;
+      const promotedOutcome: StageOutcome = {
+        code: "promoted",
+        facts: { promoted, topN: DEV_POLICY.promoteTopN, floor },
+        warnings: carried(lc.outcome, [...warn("held", held), ...warn("mixed_currency", withheld)]),
+      };
+      if (!advance({ stage: "promoted", detail, outcome: promotedOutcome })) return lostRace();
       recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "promoted", reason: detail });
       return { stage: "promoted", detail };
     } else {

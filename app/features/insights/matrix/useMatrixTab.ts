@@ -11,12 +11,15 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./matrixCellClass";
-import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
+import { columnStats, STRONG_THRESHOLD, uncoveredRoles, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
-import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
+import { matrixCellKey, matrixReasoningKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition, popoverDims } from "./matrixPopover";
+import { matrixCsvRows } from "./matrixCsv";
+import { applySlateToSelection, proposeSlate } from "./matrixSlate";
 import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
+import { isStaleJob } from "./matrixTabState";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
 export function useMatrixTab() {
@@ -102,6 +105,7 @@ export function useMatrixTab() {
   // added, 7 failed" — even when the door had refused with a code and named the
   // permission the seat lacked. The localized sentence travels with the count.
   const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number; reason: string | null } | null>(null);
+  const [slateOpen, setSlateOpen] = useState(false);
 
   // matrix-answers-with-codes-and-retries (b). Bumping this re-runs the fetch effect;
   // it is the retry button's whole mechanism, so a failed load is recoverable without
@@ -122,7 +126,8 @@ export function useMatrixTab() {
     const ac = new AbortController();
     (async () => {
       try {
-        const r = await fetch("/api/matrix", { signal: ac.signal });
+        // ?job= rides along so a role with no pipeline entries yet still gets a column.
+        const r = await fetch(jobParam ? `/api/matrix?job=${encodeURIComponent(jobParam)}` : "/api/matrix", { signal: ac.signal });
         // The route returns a structured { error, code } body — resolve its machine
         // `code` so the real cause reaches the screen in the reader's language instead
         // of an opaque status code (or the server's English `error`).
@@ -139,7 +144,7 @@ export function useMatrixTab() {
     })();
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadAt]);
+  }, [reloadAt, jobParam]);
 
   // deec915c popover a11y + layout tracking (bug-ui-scan-2026-07-09 (skill-matrix-coverage
   // #5)). Runs once per OPENED cell (keyed by candId|posId, NOT the rect) so scroll/resize
@@ -241,7 +246,7 @@ export function useMatrixTab() {
   // filled since the link went out). Once the data is in, jobParam-with-no-match
   // means cols is empty and every reset is gated on scopedPosition — detect it so
   // we can offer a way back instead of stranding the user on a zero-column grid.
-  const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
+  const staleJob = isStaleJob(jobParam, Boolean(data), data ? data.positions.map((p) => p.id) : []);
   const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }, search.toString()));
 
   // rows: best-visible-fit sort by default, A–Z when toggled, or by a chosen column's
@@ -345,15 +350,25 @@ export function useMatrixTab() {
   // Coverage rollup (the value prop the context is named for): which OPEN roles have
   // ZERO strong fits in the pool. The per-column strong counts already exist (colScores
   // + STRONG_THRESHOLD); nothing surfaced "3 of 8 roles have no strong candidate — source
-  // for these". Pure presentation over data already on the client.
-  const coverage = useMemo(() => {
-    const uncovered: string[] = [];
-    for (const { p, i } of cols) {
-      const strong = (colScores[i] ?? []).filter((s) => s >= STRONG_THRESHOLD).length;
-      if (strong === 0) uncovered.push(p.title);
-    }
-    return { uncovered, total: cols.length };
-  }, [cols, colScores]);
+  // for these". Pure presentation over data already on the client; the rule itself is
+  // matrixStats.ts::uncoveredRoles, on the shared strong floor (70), so the banner can
+  // no longer call a role uncovered while focus mode badges its 70-71 fit "strong".
+  const coverage = useMemo(
+    () => ({ uncovered: uncoveredRoles(cols, colScores), total: cols.length }),
+    [cols, colScores],
+  );
+
+  // Per-role slate over the VISIBLE grid, only while open; never writes (matrixSlate.ts).
+  const slate = useMemo(
+    () => (slateOpen && data ? proposeSlate({ rows, cols, cells: data.cells, placements: data.placements, added, locale }) : null),
+    [slateOpen, data, rows, cols, added, locale],
+  );
+  const reviewSlate = () => {
+    if (!slate) return;
+    setSelected((prev) => applySlateToSelection(prev, slate));
+    setSelectMode(true);
+    setSlateOpen(false);
+  };
 
   // "View full match" no longer LEAVES this tab: Match became Matrix's candidate-focus
   // mode, so the same params (?profile=<candidate>&job=<position>) now switch mode in
@@ -382,7 +397,13 @@ export function useMatrixTab() {
   const requestedReasoning = useRef<Set<string>>(new Set());
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
   const fetchReasoning = useCallback((candId: string, posId: string) => {
-    const key = `${candId}|${posId}`;
+    // The key names the LANGUAGE too. The request below carries `lang: locale`, so the
+    // narrative is a different answer per locale — keyed without it, re-opening a cell
+    // after a language switch hit this de-dupe and kept showing the old language's text,
+    // while the provenance note compared that stale `narrativeLang` against the NEW
+    // locale. This callback's `locale` dependency makes the CALLBACK fresh; it does
+    // nothing to the ref the callback closes over, which is where the staleness lived.
+    const key = matrixReasoningKey(candId, posId, locale);
     if (requestedReasoning.current.has(key)) return; // already loaded / in flight
     requestedReasoning.current.add(key);
     const ac = new AbortController();
@@ -529,20 +550,17 @@ export function useMatrixTab() {
 
   // Export the grid AS SHOWN (MAT4 matrix half): the visible columns × the
   // filtered+sorted rows, so the CSV matches the recruiter's current view. Blocked
-  // / unscored cells render as "–", matching the on-screen cell. Built from data
+  // / unscored cells retain their on-screen status. Built from data
   // already on screen via the shared toCsv/downloadFile — no backend call.
   const exportCsv = () => {
     if (!data) return;
-    const header = [t("csvCandidate"), ...cols.map(({ p }) => p.title)];
-    const body = rows.map(({ cand, ri }) => [
-      cand.label,
-      ...cols.map(({ i }) => {
-        const c = data.cells[ri]?.[i];
-        return c && !c.blocked && c.score != null ? c.score : "–";
-      }),
-    ]);
+    const csvRows = matrixCsvRows(data, rows, cols, {
+      candidate: t("csvCandidate"),
+      missingJobId: t("csvMissingJobId"),
+      missingJobError: t("csvMissingJobError"),
+    }, blockedLabel);
     const name = scopedPosition ? `fit-${scopedPosition.title}` : "fit-matrix";
-    downloadFile(`${name.replace(/[^\w-]+/g, "_").slice(0, 60)}.csv`, toCsv([header, ...body]), "text/csv");
+    downloadFile(`${name.replace(/[^\w-]+/g, "_").slice(0, 60)}.csv`, toCsv(csvRows), "text/csv");
   };
 
   return {
@@ -576,6 +594,10 @@ export function useMatrixTab() {
     announce,
     lastAdd,
     setLastAdd,
+    slate,
+    slateOpen,
+    setSlateOpen,
+    reviewSlate,
     families,
     cols,
     scopedPosition,

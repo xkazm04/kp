@@ -6,7 +6,10 @@
 // questions into a copy/exportable interview-ready kit at the case level, so a
 // recruiter prepping the round doesn't have to hunt for them.
 //
-// Pure + import-free so the Markdown contract is unit-testable.
+// Pure so the Markdown contract is unit-testable. Its one import is the cohort
+// comparator (devcase-cohort-rank.ts), itself import-free: the kit orders candidates by
+// the same transfer rule every other cohort surface uses.
+import { compareByTransferScore } from "./devcase-cohort-rank";
 //
 // WHOSE LANGUAGE (F15, docs/architecture/localization.md "Two readers"): the panel.
 // The kit is assembled in the recruiter's browser from what is already on their
@@ -115,7 +118,7 @@ export function orderInterviewKitInputs<
   return [...inputs].sort((a, b) => {
     const held = Number(isHeldInterviewKit(b)) - Number(isHeldInterviewKit(a));
     if (held !== 0) return held;
-    return (b.transferScore ?? -1) - (a.transferScore ?? -1);
+    return compareByTransferScore(a, b);
   });
 }
 

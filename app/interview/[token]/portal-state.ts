@@ -2,6 +2,7 @@ import {
   isInterviewLinkExpired,
   isInterviewSessionLive,
 } from "@/app/_lib/db/interviews";
+import { isCandidateInterview } from "@/app/_lib/interview-rehearsal";
 
 // Which card the tokenized candidate portal paints. Completed / revoked /
 // expired already had honest closed cards; a LIVE in_progress session used to
@@ -26,10 +27,28 @@ export function interviewInactiveCopyKeys(session: { status: string }): Intervie
   return { title: "expiredTitle", body: "expiredBody" };
 }
 
+/** What the portal may OFFER beside the call — and what a recruiter's kit REHEARSAL
+ *  (a test-mode session, interview-rehearsal.ts) must never be offered:
+ *   - `recording`: the audio-recording opt-in. /connect stamps recording consent only
+ *     for candidate MODE, but the page used to read the workspace setting for every
+ *     session, so a rehearsal in a workspace that records was shown a checkbox that
+ *     could never take effect. Now the offer follows /connect's rule exactly (and is
+ *     still AND-ed with the workspace setting by the page).
+ *   - `statusLink`: the candidate's /status page. Only a candidate interview has one;
+ *     minting it is a WRITE against the entry (getOrCreateStatusLink), so a test session
+ *     that somehow carried an entry must not mint a candidate's status token either. */
+export function interviewPortalOffers(session: {
+  mode: "test" | "candidate";
+  entryId: string | null;
+}): { recording: boolean; statusLink: boolean } {
+  return { recording: session.mode === "candidate", statusLink: isCandidateInterview(session) };
+}
+
 export function interviewPortalView(session: {
   status: string;
   createdAt: string;
   updatedAt?: string | null;
+  lastActivityAt?: string | null;
 }): InterviewPortalView {
   if (session.status === "completed") return "completed";
   if (session.status === "revoked" || isInterviewLinkExpired(session)) return "inactive";
@@ -38,6 +57,7 @@ export function interviewPortalView(session: {
       status: session.status,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt ?? null,
+      lastActivityAt: session.lastActivityAt ?? null,
     })
   ) {
     return "live";

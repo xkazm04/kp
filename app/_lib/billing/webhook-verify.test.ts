@@ -31,7 +31,7 @@ test("a correctly signed fresh delivery verifies", () => {
 });
 
 test("a Polar-style raw secret (polar_whs_…) keys the HMAC with its UTF-8 bytes", () => {
-  const polarSecret = "polar_whs_ovyN6cPrTv56AApvzCaJno08SSmGJmgb";
+  const polarSecret = "polar_whs_" + "A".repeat(32); // deterministic, visibly inert fixture
   const sig = sign("evt_1", NOW_S, BODY, Buffer.from(polarSecret, "utf-8"));
   verifyStandardWebhook(BODY, headers({ signature: `v1,${sig}` }), polarSecret, { nowS: NOW_S });
 });

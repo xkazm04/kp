@@ -12,6 +12,8 @@ from pipeline.jobfit.claude_cli import ClaudeCliProvider
 from pipeline.jobfit.llm import LLMError, resolve_provider
 from pipeline.jobfit.llm.capabilities import USE_CASE_MAX_TOKENS, USE_CASE_REQUIREMENTS
 from pipeline.jobfit.llm.registry import KEY_PROBE_USE_CASE, probe_provider
+from pipeline.jobfit.llm.adapters.claude_cli import ClaudeCliAdapter
+from pipeline.jobfit.llm.base import TextProvider
 from pipeline.jobfit.llm.adapters import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -38,14 +40,19 @@ class DefaultPathTest(unittest.TestCase):
     def test_no_config_returns_claude_cli(self) -> None:
         with llm_config(None):
             provider = resolve_provider("match_reasoning", timeout=120)
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        # The default engine runs the shared layer (retry/deadline/repair/metering):
+        # a TextProvider named claude_cli, no longer a bare ClaudeCliProvider subclass.
+        self.assertIsInstance(provider, ClaudeCliAdapter)
+        self.assertIsInstance(provider, TextProvider)
+        self.assertNotIsInstance(provider, ClaudeCliProvider)
+        self.assertEqual(provider.name, "claude_cli")
         self.assertEqual(provider.timeout, 120)
         self.assertIsNone(provider.model)
 
     def test_unlisted_use_case_falls_back_to_cli(self) -> None:
         with llm_config({"useCases": {"automation": {"provider": "openai"}}}):
             provider = resolve_provider("match_reasoning")
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
 
     def test_explicit_claude_cli_row(self) -> None:
         cfg = {
@@ -59,7 +66,7 @@ class DefaultPathTest(unittest.TestCase):
         }
         with llm_config(cfg):
             provider = resolve_provider("match_reasoning", timeout=120)
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
         self.assertEqual(provider.model, "sonnet")
         self.assertEqual(provider.timeout, 90)
 
@@ -198,7 +205,7 @@ class ProductionDefaultTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
                 with mock.patch.object(GeminiProvider, "available", lambda self: False):
                     provider = resolve_provider("match_reasoning")
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
 
     def test_production_explicit_claude_cli_row_wins(self) -> None:
         cfg = {"useCases": {"match_reasoning": {"provider": "claude_cli"}}}
@@ -206,7 +213,7 @@ class ProductionDefaultTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
                 with mock.patch.object(GeminiProvider, "available", lambda self: True):
                     provider = resolve_provider("match_reasoning")
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
 
     def test_dev_never_consults_gemini(self) -> None:
         with llm_config(None):
@@ -214,7 +221,7 @@ class ProductionDefaultTest(unittest.TestCase):
                 os.environ.pop("NODE_ENV", None)
                 with mock.patch.object(GeminiProvider, "available", lambda self: True):
                     provider = resolve_provider("match_reasoning")
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
 
     def _production_default(self, use_case: str):
         with llm_config(None):
@@ -326,7 +333,7 @@ class ValidationTest(unittest.TestCase):
         # …while text use cases still resolve through the same wildcard.
         with llm_config({"useCases": {"*": {"provider": "claude_cli"}}}):
             provider = resolve_provider("match_reasoning")
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
 
 
 class LoadConfigTest(unittest.TestCase):
@@ -437,7 +444,7 @@ class ProbeProviderTest(unittest.TestCase):
     def test_claude_cli_probes_without_a_model(self) -> None:
         with llm_config(None):
             provider = probe_provider("claude_cli", timeout=42)
-        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertIsInstance(provider, ClaudeCliAdapter)
         self.assertEqual(provider.timeout, 42)
         self.assertEqual(provider.use_case, KEY_PROBE_USE_CASE)
 

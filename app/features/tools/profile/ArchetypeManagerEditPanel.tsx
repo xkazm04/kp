@@ -76,7 +76,7 @@ export function ArchetypeManagerEditPanel({
           <p className="text-meta uppercase tracking-wide text-steel">{t("scoringWeightsTotal")}</p>
           {/* Coloured by the SAME verdict that gates Save (sumError), never by a second
               `=== 100` test — a float-noise total that Save accepts must not read red. */}
-          <span className={`text-sm font-semibold ${sumError ? "text-coral" : "text-moss"}`}>{pctSum}%</span>
+          <span className={`text-sm font-semibold ${sumError ? "text-coral-ink" : "text-moss"}`}>{pctSum}%</span>
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (

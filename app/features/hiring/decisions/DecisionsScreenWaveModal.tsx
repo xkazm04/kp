@@ -41,17 +41,29 @@ export function ScreenWaveModal({
     bottomPercent, setBottomPercent,
     maxMatch, setMaxMatch,
     preview, loading, error, committing, committed,
+    commitBlocked, blockedMessage,
     confirmOpen, setConfirmOpen,
+    spared, toggleSpare,
     commit,
   } = useDecisionsScreenWave(jobId, onCommitted, t("previewFailed"), t("setChangedRepreview"), t("waveFailed"));
 
   const view = committed ?? preview;
   const rejects = view?.decisions.filter((d) => d.action === "reject") ?? [];
   const keeps = view?.decisions.filter((d) => d.action === "keep") ?? [];
+  // The committed banner counts the reviewer's exclusions apart from ordinary keeps.
+  const sparedCount = keeps.filter((d) => d.reasonCode === "recruiterSpared").length;
 
   // Why the commit button is disabled — surfaced in an aria-live line beside the
   // button (finding SD-5), not just a `title` invisible to screen readers / touch.
-  const commitDisabledReason = !enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : null;
+  // A refusal no re-preview can fix (no named approver) comes first: it outlives
+  // every slider move, so the button must not re-arm a commit that fails again.
+  const commitDisabledReason = commitBlocked
+    ? (blockedMessage ?? t("waveFailed"))
+    : !enabled
+      ? t("enableToCommit")
+      : rejects.length === 0
+        ? t("nothingToReject")
+        : null;
 
   // The global floor the DISPLAYED rows were computed against. While `loading` the
   // sliders have already moved but `preview` is still the previous run's, so the live
@@ -60,7 +72,7 @@ export function ScreenWaveModal({
   // summary) for the whole debounce+fetch window of every drag. Null = withhold.
   const displayedFloor = loading && !committed ? null : maxMatch;
   const lists = view ? (
-    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} globalFloor={displayedFloor} t={t} />
+    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} globalFloor={displayedFloor} spared={spared} onToggleSpare={committed ? undefined : toggleSpare} t={t} />
   ) : null;
 
   return (
@@ -91,7 +103,7 @@ export function ScreenWaveModal({
               onClick={() => setConfirmOpen(true)}
               disabled={committing || loading || commitDisabledReason !== null}
               title={commitDisabledReason ?? undefined}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
             >
               <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
             </button>
@@ -124,11 +136,12 @@ export function ScreenWaveModal({
               cohort: committed.cohort,
               b: (chunks) => <span className="font-semibold">{chunks}</span>,
             })}
+            {sparedCount > 0 ? <span className="text-steel"> {t("sparedCount", { count: sparedCount })}</span> : null}
             {committed.commsFailures > 0 ? (
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}
             {committed.sealFailures > 0 ? (
-              <span className="text-coral"> {t("reasons.sealFailed")}</span>
+              <span className="text-coral-ink"> {t("reasons.sealFailed")}</span>
             ) : null}
           </>
         ) : null}
@@ -164,20 +177,21 @@ export function ScreenWaveModal({
             </p>
           </div>
 
-          {error ? (
+          {/* The blocked reason already speaks from the footer's live line; one voice. */}
+          {error && !(commitBlocked && error === blockedMessage) ? (
             <p role="alert" className="flex items-center gap-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">
               <AlertTriangle size={14} /> {error}
             </p>
           ) : null}
 
           <p className="flex items-center gap-2 text-base text-ink" aria-live="polite">
-            {loading ? <Loader2 size={15} className="animate-spin text-coral" /> : null}
+            {loading ? <Loader2 size={15} className="animate-spin text-coral-ink" /> : null}
             {view ? (
               <span>
                 {t.rich("wouldReject", {
                   rejected: rejects.length,
                   cohort: view.cohort,
-                  b: (chunks) => <span className="font-semibold text-coral">{chunks}</span>,
+                  b: (chunks) => <span className="font-semibold text-coral-ink">{chunks}</span>,
                 })}{" "}
                 · <span className="text-steel">{t("keptCount", { count: keeps.length })}</span>
               </span>

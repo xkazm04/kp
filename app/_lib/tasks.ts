@@ -4,7 +4,8 @@ import { getPipelineAxis } from "./pipeline-axis-server";
 import { screeningStageIds } from "./pipeline-stages";
 import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskEntries, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { withLlmRequestId } from "./llm-request-context";
+import { withLlmRequestId, withSpawnLane } from "./llm-request-context";
+import { SpawnFailure, spawnFailureCode } from "./python-runner";
 import {
   TASK_MAX_RUNTIME_MS,
   TASK_RETENTION_DAYS,
@@ -12,7 +13,7 @@ import {
   tasksToReap,
   taskRetentionCutoffIso,
 } from "./task-maintenance.ts";
-import { runAutomationTask } from "./automation-run";
+import { AutomationError, runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
@@ -28,12 +29,14 @@ import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
-import { externalRunner } from "./task-external-runners";
+import { externalRunner, scanWholePhaseFailure } from "./task-external-runners";
+import { SCAN_JOB_NAME } from "./scheduler-jobs";
 import type { ScanSummary } from "./jobseeker/types";
-import { SCAN_JOB_NAME } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
+import type { FanoutCode, FanoutItem } from "./task-fanout";
+import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds";
 import { encodeTaskLabel } from "./task-label";
 import { nextTaskToRun, type PumpEntry } from "./task-pump";
 
@@ -70,7 +73,7 @@ export type TaskCtx = {
 };
 
 // The dedupe key is built by ./task-dedupe (buildDedupeKey), keyed by the same
-// kind string as HANDLERS — kept out of the Spec so the identity logic stays
+// TaskKind vocabulary (./task-kinds) as HANDLERS — kept out of the Spec so the identity logic stays
 // pure and unit-testable and can return null ("no stable identity") for
 // incomplete params.
 //
@@ -133,6 +136,8 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
     (e) => e.workspaceId === ctx.workspaceId && (wanted ? wanted.has(e.id) : preGate.has(e.stage))
   );
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
+  // Per-candidate ledger (task-fanout.ts): ids and codes only.
+  const results: FanoutItem[] = [];
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
   let done = 0;
   for (const e of entries) {
@@ -142,27 +147,39 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
       if (out.applied === "advanced") summary.advanced += 1;
       else if (out.applied === "held_for_review") summary.held += 1;
       else summary.advisory += 1;
-    } catch {
+      results.push({ id: e.id, ok: true, applied: out.applied });
+    } catch (err) {
       summary.errors += 1;
+      results.push({ id: e.id, ok: false, code: itemCode(err) });
     }
     ctx.progress(++done, entries.length, e.candidateLabel);
   }
-  return summary;
+  return { ...summary, results };
+}
+
+// A per-item failure as a CODE, never its message (task-fanout.ts). The assignment is
+// the compile-time check that every AutomationRefusal has a drawer label.
+function itemCode(err: unknown): FanoutCode {
+  if (err instanceof AutomationError && err.refusal) {
+    const code: FanoutCode = err.refusal;
+    return code;
+  }
+  return "engine_failed";
 }
 
 // Draft tailored OUTREACH for a board-selected cohort — one background job that
 // runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
-// action runs (runAutomationTask → the LLM/deterministic letter → dispatchOutreach,
-// which QUEUES the draft to the Outbox by default and only relays it when a channel
-// is configured; nothing is auto-sent in the demo default). Reaching a filtered
+// action runs (runAutomationTask → the LLM/deterministic letter → a HELD
+// outreach_letters draft; nothing is sent until a person approves and releases each
+// letter, comms scope C2 / outreach-release.ts). Reaching a filtered
 // cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
 // entry's failure (not found, no profile, consent-suppressed, LLM error) never
 // aborts the others, and each id's outcome is reported back so the board can keep
 // the failures selected for retry while successes deselect — the same batch grammar
 // the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
 // it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
-// ONLY drafting action batched from the board: its output lands in the Outbox as a
-// reviewable, releasable row, whereas a rejection draft is a drawer-only result.
+// ONLY drafting action batched from the board: its output is a reviewable,
+// releasable held letter, whereas a rejection draft is a drawer-only result.
 // Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
 // rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
 // would otherwise reap a huge run mid-flight.
@@ -174,7 +191,7 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
       ? (ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string")
       : []
   ).slice(0, OUTREACH_COHORT_CAP);
-  const results: { id: string; ok: boolean; reason?: string }[] = [];
+  const results: FanoutItem[] = [];
   ctx.progress(0, ids.length, ids.length ? "Starting…" : "Nothing to draft");
   let done = 0;
   for (const id of ids) {
@@ -187,10 +204,11 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
       // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
       // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
       // override it. Mirrors the single-entry `automation` handler above.
-      await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
-      results.push({ id, ok: true });
+      // `applied` per item: a `suppressed_*` return is not a sent letter.
+      const out = await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
+      results.push({ id, ok: true, applied: out.applied });
     } catch (e) {
-      results.push({ id, ok: false, reason: e instanceof Error ? e.message : "Unexpected error." });
+      results.push({ id, ok: false, code: itemCode(e) });
     }
     ctx.progress(++done, ids.length, entry?.candidateLabel ?? id);
   }
@@ -198,7 +216,9 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
   return { ok, total: results.length, results };
 }
 
-const HANDLERS: Record<string, Spec> = {
+// Keyed by the TaskKind vocabulary (./task-kinds): a kind added there without a spec
+// here is a compile error, and so is a spec for a kind that is not in the vocabulary.
+const HANDLERS: Record<TaskKind, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true }),
     tenancy: "scoped",
@@ -313,6 +333,31 @@ const HANDLERS: Record<string, Spec> = {
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
+  // The JOB-level interview kit (interview-kit-run.ts): one LLM call with a keyless
+  // deterministic fallback, saved as a DRAFT version of the role's kit. Backgrounded for
+  // the reason `agent_fit` is — the durable result is the `interview_kits` row, so the
+  // recruiter can leave the Interview tab and come back to a draft waiting for them.
+  // Late-bound like `jobseeker_scan` (late-bound-boot.ts reads `params.jobId`): the
+  // runner and its validator stay off this hub's path.
+  interview_kit: {
+    run: (ctx) =>
+      externalRunner("interview_kit")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewKit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // The interview FEEDBACK LETTER a candidate asked for (interview-letter-run.ts): one
+  // drafting CLI call with the keyless catalog template behind it, stored as the draft on
+  // the interview_letters row for a recruiter to edit and approve. Queued by the
+  // candidate's own request door, so its label names the ROLE and never the candidate —
+  // the tasks table outlives an erasure (ERASURE_EXEMPT["tasks"]). Late-bound like
+  // `interview_kit` (late-bound-boot.ts reads `params.letterId`): the letter's template,
+  // policy and store stay off this hub's path.
+  interview_letter: {
+    run: (ctx) =>
+      externalRunner("interview_letter")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewLetter", { job: detail(p.jobTitle, p.letterId) ?? "" }),
+  },
   // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
   // in-repo agent path is minutes, not seconds — and because the repo_scans row is
   // the durable result, so the operator can leave the intake and come back. The
@@ -368,16 +413,24 @@ const HANDLERS: Record<string, Spec> = {
   //
   // The scan's implementation is NOT imported here: it reaches the whole acquisition
   // graph (adapters, rules engine, reconciliation), and this hub sits on ~60 routes'
-  // paths, so it is registered at boot from instrumentation-node.ts and looked up
-  // through task-external-runners.ts (the perf budget counts dynamic imports too).
+  // paths, so it is registered at boot (late-bound-boot.ts, called from
+  // instrumentation-node.ts) and looked up through task-external-runners.ts (the perf
+  // budget counts dynamic imports too).
   jobseeker_scan: {
     run: async (ctx) => {
       const startedAt = new Date().toISOString();
-      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress })) as ScanSummary;
+      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as ScanSummary;
+      // A scan that could not structure or score AT ALL (every batch of the phase threw)
+      // is an `error` row carrying the failure's code — never an `ok` that verifies the
+      // clock job over a run that scored nothing. A partial failure stays `ok`; the
+      // summary's `failures` says which phase and how much.
+      const ran = summary.sources.length > 0 && !ctx.signal.aborted;
+      const whole = ran ? scanWholePhaseFailure(summary) : null;
       recordRun({
         job: SCAN_JOB_NAME,
         trigger: "manual",
-        status: summary.sources.length > 0 && !ctx.signal.aborted ? "ok" : "skipped",
+        status: !ran ? "skipped" : whole ? "error" : "ok",
+        error: whole?.code,
         summary,
         startedAt,
       });
@@ -386,9 +439,96 @@ const HANDLERS: Record<string, Spec> = {
     tenancy: "scoped",
     label: () => encodeTaskLabel("jobseekerScan"),
   },
+  // The Gig desk's manual "scan now" (WP4, the gigs scan door): the same late-bound
+  // runner the clock job uses (late-bound-boot.ts `gig_scan`: every enabled gig source,
+  // then deterministic qualification). Like jobseeker_scan it is also what VERIFIES the
+  // clock job - `ok` only when at least one source ran and the run completed; a scan with
+  // no enabled source is `skipped`, which verifies nothing. The summary type is not
+  // imported: the shape read here is the two fields the verdict needs.
+  gig_scan: {
+    run: async (ctx) => {
+      const startedAt = new Date().toISOString();
+      const summary = (await externalRunner("gig_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as {
+        sources?: unknown[];
+        aborted?: boolean;
+      };
+      recordRun({
+        job: "gig_scan",
+        trigger: "manual",
+        status: Array.isArray(summary?.sources) && summary.sources.length > 0 && !summary.aborted && !ctx.signal.aborted ? "ok" : "skipped",
+        summary,
+        startedAt,
+      });
+      return summary;
+    },
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigScan"),
+  },
+  // The gig research pass the scan enqueues (late-bound-boot.ts `gig_research`: the gigs a
+  // scan created, researched on the web by the pinned engine, at most eight per pass). Off
+  // the scan's own 8-minute budget on purpose - a web-researched brief is minutes per gig.
+  // The implementation (page reads, the Python spawn) stays off this hub's path.
+  gig_research: {
+    run: (ctx) =>
+      externalRunner("gig_research")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigResearch"),
+  },
+  // The gig plan runner (late-bound-boot.ts `gig_plans`; the Gigs module's plans.ts): three model seats
+  // per gig, in parallel, gigs one after another; a selection that does not fit one pass
+  // continues as a new task. The durable result is the gig_plans rows the Plans tab reads.
+  gig_plans: {
+    run: (ctx) =>
+      externalRunner("gig_plans")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("gigPlans", { count: Array.isArray(p.gigIds) ? p.gigIds.length : 0 }),
+  },
+  // The gig's HTML report (late-bound-boot.ts `gig_report`, the Gigs module's report runner):
+  // one pinned model call that writes the report FILE from kp's facts, or kp's own body
+  // keyless. Enqueued by the report's stage triggers and POST /api/gigs/[id]/report; the
+  // durable result is the file and the gig's report record.
+  gig_report: {
+    run: (ctx) =>
+      externalRunner("gig_report")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigReport"),
+  },
+  // A freelance gig's client proposal (late-bound-boot.ts `gig_proposal`, the Gigs module's
+  // proposal runner): one pinned model call that writes the proposal
+  // FILE and the bid message, or kp's own composition keyless; a qualified gig then carries
+  // it as its draft. Enqueued on plan accept for a proposal-track gig and by
+  // POST /api/gigs/[id]/proposal; the durable result is the file and the gig's proposal record.
+  gig_proposal: {
+    run: (ctx) =>
+      externalRunner("gig_proposal")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigProposal"),
+  },
+  // Cohort Studio (Analyze v2, analyze-cohort-run.ts): up to COHORT_CAP CV analyses against
+  // one JD, then the comparative pass. The durable result is the analysis_cohorts row the
+  // route created (params.cohortId), which the runner re-reads inside the enqueuing team.
+  // Late-bound like `interview_kit`: runAnalyze, the GitHub stage and the cohort engine stay
+  // off this hub's path.
+  analyze_cohort: {
+    run: (ctx) =>
+      externalRunner("analyze_cohort")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("analyzeCohort", { role: detail(p.jdTitle, p.jdSlug) ?? "" }),
+  },
 };
 
 let booted = false;
+// The sweep is once per PROCESS, not once per module copy. `next` loads this module
+// twice in one server process (the instrumentation bundle, which registers the
+// late-bound runners, and the route bundle), and each copy has its own `booted`. When
+// the second copy recovered on its first call it marked the first copy's LIVE tasks
+// `interrupted` - a gig scan lost its research task that way on every first scan after
+// a boot (found by e2e/gig-lifecycle.spec.ts). A process-wide mark on globalThis makes
+// the second copy skip the sweep; its own queue still pumps its own tasks.
+const RECOVERED_MARK = Symbol.for("kp.tasks.recovered");
+function processRecovered(): boolean {
+  return (globalThis as Record<symbol, unknown>)[RECOVERED_MARK] === true;
+}
 // The queue carries the WORKSPACE beside the id, because the pump's pick is a
 // fairness decision across tenants (task-pump.ts) and re-reading each row to learn
 // its tenant on every pump tick would put a SELECT in the hot path.
@@ -410,13 +550,16 @@ let lastMaintenanceMs = 0;
 //      result_json blobs can't accumulate forever.
 // Best-effort and self-contained: any failure is logged and the next submission
 // retries. Exported so tests / callers can force a sweep.
-export function runMaintenance(nowMs: number = Date.now()): void {
+function runMaintenance(nowMs: number = Date.now()): void {
   if (nowMs - lastMaintenanceMs < MAINTENANCE_INTERVAL_MS) return;
   lastMaintenanceMs = nowMs;
   try {
     for (const id of tasksToReap(listRunningTaskTimes(), nowMs)) {
       if (controllers.has(id)) continue; // an in-process watchdog owns this one
-      finishTask(id, "interrupted", { error: "reaped: running past the wall-clock budget with no live handler" });
+      // The row stores a code the reader's catalog resolves; the "no live handler"
+      // detail is the operator's, so it goes to the log.
+      console.warn(`[tasks] reaped ${id}: running past the wall-clock budget with no live handler`);
+      finishTask(id, "interrupted", { error: TASK_TIME_LIMIT });
     }
   } catch (e) {
     console.error("[tasks] stale-task reaper failed:", e);
@@ -447,6 +590,8 @@ export function runMaintenance(nowMs: number = Date.now()): void {
 export function ensureRecovered(): void {
   if (booted) return;
   booted = true;
+  if (processRecovered()) return;
+  (globalThis as Record<symbol, unknown>)[RECOVERED_MARK] = true;
   try {
     interruptStaleTasks(); // 'running' orphans → 'interrupted' (mid-flight, unrecoverable)
     // 'queued' orphans never ran a handler, so put them back on the queue in
@@ -461,22 +606,40 @@ export function ensureRecovered(): void {
   }
 }
 
-export function isKnownKind(kind: string): boolean {
-  return kind in HANDLERS;
+/** The runtime door for a kind the compiler cannot see (a request body, a row an
+ *  older build wrote). A type predicate, so a caller that checked can hand the value
+ *  straight to `startTask` without a cast. */
+export function isKnownKind(kind: unknown): kind is TaskKind {
+  return isTaskKind(kind);
+}
+
+/** The spec for a stored kind, or undefined for one this build no longer knows. */
+function specFor(kind: string): Spec | undefined {
+  return isTaskKind(kind) ? HANDLERS[kind] : undefined;
+}
+
+/** The filter vocabulary comes from the same registry that accepts starts. */
+export function knownTaskKinds(): string[] {
+  return [...TASK_KINDS].sort();
 }
 
 export function startTask(
-  kind: string,
+  kind: TaskKind,
   params: Record<string, unknown>,
   // Tenant (P2): the workspace this run belongs to. Stamped on the task row so
   // per-tenant reads (the reservation gate that counts in-flight runs, the /api/tasks
   // poll) scope to the right team instead of lumping every tenant under the default.
   // Defaults to the single workspace, so the single-tenant path is byte-identical.
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // `priority`: the run goes ahead of this tenant's ordinary queued work (task-pump.ts).
+  // In-memory only: a run re-queued after a restart is ordinary again.
+  opts: { priority?: boolean } = {}
 ): TaskRecord {
   ensureRecovered();
   runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
-  const spec = HANDLERS[kind];
+  // Typed callers cannot get here with a stranger, but a JS caller or a cast can;
+  // the guard stays so the failure is a named throw, not a TypeError on `spec.label`.
+  const spec = specFor(kind);
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
   // A stable key may reuse an in-flight run; a null key means the identifying
   // params were missing/empty, so we must NOT dedupe — merging on a collapsed
@@ -487,12 +650,17 @@ export function startTask(
   const stableKey = buildDedupeKey(kind, params);
   if (stableKey) {
     const existing = getActiveTaskByDedupe(stableKey, workspaceId);
-    if (existing) return existing;
+    if (existing) {
+      // A priority ask for a run already queued promotes it rather than being lost.
+      const waiting = opts.priority ? queue.find((q) => q.id === existing.id) : undefined;
+      if (waiting) waiting.priority = true;
+      return existing;
+    }
   }
   const id = randomId("t");
   const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
   const rec = createTask(id, kind, dedupeKey, spec.label(params), params, workspaceId);
-  queue.push({ id, workspaceId });
+  queue.push(opts.priority ? { id, workspaceId, priority: true } : { id, workspaceId });
   pump();
   return rec;
 }
@@ -534,7 +702,7 @@ export function cancelTask(id: string): boolean {
     // cancel is the one path where `run` never executes, so a handler's own
     // catch/finally cannot speak for it.
     const task = getTask(id);
-    const spec = task ? HANDLERS[task.kind] : undefined;
+    const spec = task ? specFor(task.kind) : undefined;
     if (task && spec?.onCancelQueued) {
       try {
         spec.onCancelQueued((task.params ?? {}) as Record<string, unknown>, task.workspaceId);
@@ -564,12 +732,28 @@ function pump(): void {
   }
 }
 
+// What a failed row's `error` holds. The row is read later, in the reader's language, by
+// surfaces that resolve it through the `errors` catalog (TasksTableRow, the Activity
+// detail, the profile draft, the job-seeker scan, the analyze form), so a failure the
+// RUNTIME authored is stored as its code and never as English runtime text: the task
+// runner's own outcomes below, and the engine's typed failures via spawnFailureCode
+// (ENGINE_BUSY / ENGINE_TIMEOUT / ENGINE_FAILED). A handler's own error keeps its text,
+// which the surfaces show as the fallback, as before.
+const TASK_TIME_LIMIT = "TASK_TIME_LIMIT";
+
+function storedFailure(error: unknown, canceled: boolean): string | undefined {
+  // The operator's Cancel reached the engine: the row's status already says so.
+  if (canceled && error instanceof SpawnFailure && error.kind === "aborted") return undefined;
+  return spawnFailureCode(error) ?? (error instanceof Error ? error.message : String(error));
+}
+
 async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
   const task = getTask(id);
   if (!task) return;
-  const spec = HANDLERS[task.kind];
+  const spec = specFor(task.kind);
   if (!spec) {
-    finishTask(id, "failed", { error: `unknown kind ${task.kind}` });
+    console.warn(`[tasks] ${id} has an unknown kind: ${task.kind}`);
+    finishTask(id, "failed", { error: "TASK_KIND_UNKNOWN" });
     return;
   }
   // Construct the controller before the try (its constructor cannot throw) so it
@@ -601,14 +785,21 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     // task id (see llm-request-context.ts). That's the join key the Insights →
     // Activity row-click detail uses to fetch the run whose output the row
     // produced — without it, `request_id` stays the null it has always been.
+    // The same scope puts every spawn the handler makes in the BACKGROUND admission
+    // lane (python-runner.ts, "Admission lanes"): it queues behind a recruiter's click,
+    // holds at most ceiling-1 engine slots, and waits its long bound instead of being
+    // refused at the 20 s one written for an HTTP caller. This is the one place a
+    // task's class is known, so no handler assigns a lane itself.
     const runPromise = withLlmRequestId(id, () =>
-      spec.run({
-        taskId: id,
-        workspaceId: task.workspaceId,
-        params: (task.params as Record<string, unknown>) ?? {},
-        progress: (d, t, m) => setTaskProgress(id, d, t, m),
-        signal: controller.signal,
-      })
+      withSpawnLane("background", () =>
+        spec.run({
+          taskId: id,
+          workspaceId: task.workspaceId,
+          params: (task.params as Record<string, unknown>) ?? {},
+          progress: (d, t, m) => setTaskProgress(id, d, t, m),
+          signal: controller.signal,
+        })
+      )
     );
     // A hung handler that loses this race is orphaned (a JS promise can't be
     // force-killed); swallow any late rejection so it can't surface as an
@@ -630,7 +821,7 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     });
     const outcome = await Promise.race([runPromise, timeout]);
     if (outcome === TIMED_OUT) {
-      finishTask(id, "interrupted", { error: `exceeded the ${TASK_MAX_RUNTIME_MS}ms wall-clock budget` });
+      finishTask(id, "interrupted", { error: TASK_TIME_LIMIT });
     } else {
       finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result: outcome });
     }
@@ -641,9 +832,8 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     // 'running'/'queued'. On failure we log and let interruptStaleTasks reclaim the
     // row on the next start; the finally still restores the in-memory slot.
     try {
-      finishTask(id, controller.signal.aborted ? "canceled" : "failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const canceled = controller.signal.aborted;
+      finishTask(id, canceled ? "canceled" : "failed", { error: storedFailure(error, canceled) });
     } catch (finishErr) {
       console.error(
         `[tasks] could not mark task ${id} failed after a run error:`,

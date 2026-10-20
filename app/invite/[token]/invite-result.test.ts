@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, invitePasswordCheck, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, invitePasswordCheck, inviteSubmitBlock, inviteSuccessPath, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
 
 test("2xx statuses classify as ok", () => {
   for (const status of [200, 201, 204]) {
@@ -148,4 +148,10 @@ test("AcceptForm cannot submit without an explicit privacy/terms acknowledgment"
   assert.match(src, /href="\/privacy"/, "privacy policy is linked");
   assert.match(src, /href="\/terms"/, "terms of service are linked");
   assert.match(src, /legalAck/, "submit disablement includes the ack");
+});
+
+test("a redeemed invite lands on login when the entry cookie was not set", () => {
+  assert.equal(inviteSuccessPath(""), "/login");
+  assert.equal(inviteSuccessPath("other=1; kp_entered=1"), "/");
+  assert.equal(inviteSuccessPath("not_kp_entered=1; kp_entered=2"), "/login");
 });

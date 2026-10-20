@@ -18,7 +18,15 @@ export type MicErrorCopy = {
 export function micErrorText(e: unknown, copy: MicErrorCopy): string | null {
   const name = e instanceof DOMException ? e.name : "";
   const msg = e instanceof Error ? e.message : String(e ?? "");
-  if (name === "NotAllowedError" || name === "SecurityError" || /permission|denied|dismiss/i.test(msg)) {
+  // The message fallback is for a rejection that lost its DOMException name in a relay,
+  // and it must match only what getUserMedia itself says. `/permission|denied|dismiss/`
+  // matched a bare "denied" anywhere in arbitrary text — and this classifier is reached
+  // with PROVIDER text too: the ElevenLabs path hands it the SDK's own English message
+  // (VoiceInterview.tsx), so "Agent access denied" rendered "click the microphone icon
+  // in your address bar" for an auth failure the candidate cannot fix that way, and the
+  // intake surface turned the same string into a mic verdict instead of a transport
+  // fault. Returning null is what lets each caller describe its own failure honestly.
+  if (name === "NotAllowedError" || name === "SecurityError" || /permission (denied|dismissed)/i.test(msg)) {
     return copy.denied;
   }
   if (name === "NotFoundError" || name === "OverconstrainedError" || /no .*(microphone|audio)|device not found/i.test(msg)) {

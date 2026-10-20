@@ -1,0 +1,176 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+  "subject": "agent-cli-transport",
+  "evaluatedAt": "2026-10-13T07:59:37.071052+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "billing-subscriptions",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/billing/gateway.ts:1 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/billing, confirming this context manages merchant-of-record payment subscriptions and quota enforcement rather than spawning or managing an agent CLI transport.",
+      "techniques": [
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:22 Calculates organizational SaaS tier entitlements rather than selecting local CLI credentials or stripping API billing tokens."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/enforce.ts:28 Enforces account subscription quota limits rather than configuring agent tool permission stances."
+        }
+      ],
+      "absenceTerms": [
+        "availability-probe",
+        "permission-stance",
+        "dated-capability-matrix",
+        "output-normalization"
+      ]
+    },
+    {
+      "context": "auth-session-rbac",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/auth/require-operator.ts:10 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/auth, confirming this context manages operator HTTP session authentication and RBAC rather than hosting or spawning an agent CLI transport.",
+      "techniques": [
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/roles.ts:6 Defines application operator and member role hierarchies rather than configuring agent tool permission stances."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:52 Validates operator HMAC session cookies with KP_SECRET rather than injecting or stripping LLM subscription tokens."
+        }
+      ],
+      "absenceTerms": [
+        "availability-probe",
+        "permission-stance",
+        "dated-capability-matrix",
+        "output-normalization"
+      ]
+    },
+    {
+      "context": "matrix-grid",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:5 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/features/insights/matrix, confirming this context invokes candidate matching via client HTTP fetch to /api/match/reasoning without hosting, probing, or spawning an agent CLI transport.",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:60 Parses API JSON response payload into a UI outcome type rather than normalizing an agent CLI process stdout envelope."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:19 Carries the server-supplied score source tag for UI display rather than implementing an execution fallback ladder."
+        }
+      ],
+      "absenceTerms": [
+        "availability-probe",
+        "permission-stance",
+        "dated-capability-matrix",
+        "output-normalization"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-cli-transport",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (spendUsageFold.test.ts:51) is a deterministic-fallback unit test and doesn't show the precondition is absent. SpendEngineFacts.tsx:171 surfaces the 'claude CLI resolves on PATH' readiness state in this context, which is agent-CLI availability territory, so the not-applicable is contradic"
+    },
+    {
+      "subject": "agent-cli-transport",
+      "context": "devcase-orchestration",
+      "reason": "withdrawn after review: reviewer (sonnet): devcase-run.ts and devcase-run-cli.ts spawn the Python devcase CLI with buildLlmConfigEnv() and a signal, and a comment says Python 'defaults to the Claude CLI'. The context therefore touches CLI spawn and env wiring. The claim that the Python side handles availability is not traced in the context's"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T07:59:37.071052+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "fallback-ladder",
+        "subscription-auth-selection"
+      ],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T07:59:37.071052+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "permission-stance-enforcement",
+        "subscription-auth-selection"
+      ],
+      "deviations": 0,
+      "context": "billing-subscriptions",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T07:59:37.071052+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "permission-stance-enforcement",
+        "subscription-auth-selection"
+      ],
+      "deviations": 0,
+      "context": "auth-session-rbac",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T07:59:37.071052+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "fallback-ladder",
+        "output-normalization"
+      ],
+      "deviations": 0,
+      "context": "matrix-grid",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T07:59:37.071052+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "permission-stance-enforcement",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 0,
+      "context": "devcase-orchestration",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

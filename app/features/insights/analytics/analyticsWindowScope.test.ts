@@ -45,7 +45,7 @@ test("the company benchmark is all-time in BOTH the endpoint and the claim on sc
   // app/_lib/db/org-benchmarks.ts — not an oversight to be quietly "fixed".
   const routeWindowed = /searchParams|\bdays\b/.test(route);
   assert.equal(routeWindowed, false, "/api/benchmarks read a window param — see the route's WINDOW SCOPE note before threading one");
-  assert.match(route, /export async function GET\(\s*\)/, "/api/benchmarks GET must take no request argument");
+  assert.match(route, /export const GET = withWorkspace\(async \((?:workspaceId|ws): string\)/, "/api/benchmarks GET must take no request argument (only the workspace)");
 
   // …and the panel says so where the numbers are read, the compute panel's
   // manualAllTime / manualWindowed idiom.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { boardEntryView, countRejectedByLane, createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { boardEntryView, countRejectedByLane, createPipelineEntry, listPipeline, pipelineEntryIdFor } from "@/app/_lib/db/pipeline";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { knownStageIds } from "@/app/_lib/pipeline-axis";
@@ -7,17 +7,32 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { stageHasRole } from "@/app/_lib/pipeline-stages";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { loadMatchRunFacts } from "@/app/_lib/db/match-runs";
+import {
+  coerceMatchReasonFacts,
+  MATCH_RUN_ID_RE,
+  MATCH_VERDICT_KIND,
+  MATCH_VERDICT_REASON_CODE,
+  matchVerdictRationale,
+  type MatchReasonFacts,
+} from "@/app/_lib/match-verdict";
 
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     // Canonical match-score read path (REC-01 / OO-L2-10): every entry rides
     // out with `canonicalScore` + `scoreProvenance` so board/drawer/decisions
     // surfaces render ONE number and can label where it came from.
-    const ws = await currentWorkspace();
     // Canonical scores via the per-workspace, short-TTL fit-map memo (identical
     // payload shape; only the analyses query is cached — see pipeline-score-cache.ts).
     // ONE THREAD (gap 2): the work-sample transfer score rides out BESIDE the match
@@ -51,9 +66,36 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+/** The provenance markers that mean "re-surfaced from the pool for a role this person
+ *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
+ *  panels ("sourcing"). Read twice below: the eligibility gate and the prior link. */
+const RESURFACE_SOURCES: ReadonlySet<string> = new Set(["rediscovery", "sourcing"]);
+
+// The add door writes an entry, can REOPEN a rejected one (the reconsider door below)
+// and seals a Match verdict per call — and in open mode (KP_OPERATOR_PASSWORD unset)
+// the whole API is reachable by anyone, so the limiter is the real bound on a scripted
+// flood of entries and sealed records (2026-10-07 pipeline write-doors scan). 600/10min
+// sits far above the heaviest honest caller — the Fit Matrix's bulk add files every
+// ticked cell sequentially through this door — while a loop meets it in seconds. The
+// role demo and the automation pass create entries in-process, never over HTTP, so
+// they never spend it. Keyed by WORKSPACE as well as IP: with no trusted proxy every
+// caller's IP resolves to the one shared bucket (rate-limit.ts, THE TRAP), and a demo
+// visitor filling it must not lock a real team out of adding candidates.
+const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
+
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator proves a trusted
+  // session, never authority (open mode is true for everyone). This door files
+  // candidates, reopens rejected entries and seals Match verdicts: a recruiter
+  // operation, so the seat must hold `pipeline:write` — asked FIRST, before the body is
+  // read, the throttle is spent or anything is sealed, so a viewer spends and writes
+  // nothing. GET stays a read.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json()) as {
       candidateId?: string;
@@ -67,9 +109,14 @@ export async function POST(request: NextRequest) {
       github?: unknown;
       source?: unknown;
       approvalKind?: unknown;
+      reasons?: unknown;
+      reasonsStrengths?: unknown;
+      reasonsRedFlags?: unknown;
+      matchFacts?: unknown;
+      matchRunId?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
-      return NextResponse.json({ error: "candidateId and jobId are required." }, { status: 400 });
+      return jsonRefusal("PIPELINE_ADD_IDS_REQUIRED", 400);
     }
     // GH2 — optional GitHub evidence summary riding the add. Validated by the
     // shared coercer (which also bounds every field); a present-but-malformed
@@ -79,9 +126,29 @@ export async function POST(request: NextRequest) {
     if (body.github !== undefined && body.github !== null) {
       const summary = coerceGithubEvidenceSummary(body.github);
       if (!summary) {
-        return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
+        return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
       }
       githubJson = JSON.stringify(summary);
+    }
+    // A Match add's VERDICT (ADR 0018): the facts its reasons line is rendered from —
+    // fit tier, strongest/weakest dimension slug + percent, bounded skill names, the
+    // filed score, the scorer version — checked against the closed vocabularies in
+    // app/_lib/match-verdict.ts and sealed into the decision chain BEFORE the insert
+    // (below). Every Match add must carry them, nothing else may, and they must name the
+    // score being filed. The retired prose fields (`reasons` / `reasonsStrengths` /
+    // `reasonsRedFlags`) are refused rather than stored: a locale-bound sentence in the
+    // gate slot is exactly what this replaced. Like the GH2 block, a present-but-
+    // malformed value is refused loudly, before anything is sealed or written.
+    if ([body.reasons, body.reasonsStrengths, body.reasonsRedFlags].some((v) => v !== undefined && v !== null)) {
+      return jsonRefusal("PIPELINE_ADD_REASONS_INVALID", 400);
+    }
+    const isMatchAdd = body.source === "match";
+    let matchFacts: MatchReasonFacts | null = null;
+    if (isMatchAdd || (body.matchFacts !== undefined && body.matchFacts !== null)) {
+      matchFacts = coerceMatchReasonFacts(body.matchFacts);
+      if (!matchFacts || !isMatchAdd || matchFacts.matchScore !== (body.matchScore ?? null)) {
+        return jsonRefusal("PIPELINE_ADD_REASONS_INVALID", 400);
+      }
     }
     // Reject an unknown stage at the boundary: createPipelineEntry inserts any
     // string, but the board only renders columns the workspace's axis declares, so
@@ -92,13 +159,20 @@ export async function POST(request: NextRequest) {
     // to still be standing (e.g. an ATS sync replaying an older mapping) until a
     // migration moves them, and rejecting the write would lose the application.
     if (body.stage !== undefined) {
-      const axis = getPipelineAxis(await currentWorkspace());
+      const axis = getPipelineAxis(ws);
       const known = knownStageIds(axis);
       if (!known.has(body.stage)) {
-        return NextResponse.json(
-          { error: `Unknown stage "${body.stage}". Expected one of: ${axis.stages.map((s) => s.id).join(", ")}.` },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_ADD_STAGE_UNKNOWN", 400, { stages: axis.stages.map((stage) => stage.id) });
+      }
+      // The terminal stage is reached by an accepted offer, never by filing someone
+      // onto it: set_stage refuses it for a move (PIPELINE_TERMINAL_NOT_MANUAL), and the
+      // add door — new entry or re-add onto an existing one — must not be the way round
+      // that. Resolved by ROLE on this workspace's axis, not by the literal 'Hired'; a
+      // retired stage has no role here, so a retired-stage add is unchanged. In-process
+      // callers (demo, automation, ATS sync, the offer accept) go through
+      // createPipelineEntry and are not subject to this.
+      if (stageHasRole(body.stage, "terminal", axis.stages)) {
+        return jsonRefusal("PIPELINE_TERMINAL_NOT_MANUAL", 422);
       }
     }
     // d95fed6d — optional provenance: which surface filed this candidate.
@@ -117,14 +191,73 @@ export async function POST(request: NextRequest) {
     let approvalKind: "decision" | null = null;
     if (body.approvalKind !== undefined && body.approvalKind !== null) {
       if (body.approvalKind !== "decision") {
-        return NextResponse.json(
-          { error: `Unknown approvalKind "${String(body.approvalKind)}". Only "decision" may be requested at add time.` },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_ADD_APPROVAL_KIND_UNKNOWN", 400);
       }
       approvalKind = "decision";
     }
-    const ws = await currentWorkspace();
+    // THE rediscovery eligibility gate on a RE-SURFACE add (withheldCandidateIds — the
+    // predicate the rank, the alert write wall, the feed read and the Reach-out door
+    // ask). A person who opted out, whose pool consent lapsed, or who was erased is never
+    // ranked, so a re-surface add naming them is a stale row or a direct call, and filing
+    // them would re-engage someone on a basis that is gone. Refused BEFORE the write.
+    // Scoped to the re-surface markers on purpose: a human's deliberate add (a manual
+    // board add, a re-application) stays allowed — an opt-out stops OUTREACH, it does not
+    // withdraw a person from a process — and contact is still refused at the channel
+    // (commsSendSuppression), which resolves the opt-out/consent at the person, not the
+    // fresh entry. Erasure is also refused for every caller inside createPipelineEntry.
+    if (source !== null && RESURFACE_SOURCES.has(source)) {
+      const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
+      if (withheld) return jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409, { withheld });
+    }
+    // After every cheap refusal above (a request that could never file spends none of
+    // the window), before the first write — the seal below.
+    if (!rateLimit(`pipeline-add:${ws}:${clientIpFrom(request.headers)}`, ADD_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+    // A Match add is checked against the result the SERVER holds (ADR 0018 amendment, scan
+    // finding 1): POST /api/match recorded each result under a run id, and the facts being
+    // sealed must be exactly that result's facts — tier, dimensions, skill lists, score and
+    // scorer version. Refused BEFORE the seal and the insert, so a forged or stale verdict
+    // leaves no record, no entry and no event. A missing, expired, foreign-workspace or
+    // other-candidate/job run is one answer on purpose (loadMatchRunFacts): the remedy is
+    // the same — run Match again.
+    let matchRunId: string | null = null;
+    if (matchFacts) {
+      matchRunId = typeof body.matchRunId === "string" && MATCH_RUN_ID_RE.test(body.matchRunId) ? body.matchRunId : null;
+      const held = matchRunId
+        ? loadMatchRunFacts({ workspaceId: ws, runId: matchRunId, candidateId: body.candidateId, jobId: body.jobId })
+        : null;
+      if (!held) return jsonRefusal("PIPELINE_ADD_MATCH_RUN_UNKNOWN", 409);
+      // Both sides are in the coercer's canonical form (fixed key order), so a string
+      // compare is a field-by-field compare.
+      if (JSON.stringify(held) !== JSON.stringify(matchFacts)) return jsonRefusal("PIPELINE_ADD_MATCH_RUN_MISMATCH", 409);
+    }
+    const humanRef = await humanActor();
+    // SEAL FIRST (ADR 0018, ADR 0017's rule): the Match verdict is recorded before the
+    // entry exists, and a seal that fails files nothing. One record per add — a re-add
+    // lands on the same id (pipelineEntryIdFor) and seals its own. The actor is the
+    // recruiter who filed; the facts are the ones the server itself held for the run
+    // (checked above) and `inputs.matchRunId` names that run, so the record attests a
+    // result the server produced, not only what the recruiter was shown. The workspace is passed
+    // explicitly because the store resolves an entry it cannot find yet to the default
+    // workspace. No await from here to the insert, so nothing in this process can
+    // interleave; a failed insert after the seal leaves a record of a verdict that was
+    // shown but not filed (the residue ADR 0017 also accepts).
+    if (matchFacts) {
+      const sealed = sealDecisionSafe(
+        {
+          kind: MATCH_VERDICT_KIND,
+          actor: humanRef,
+          policyVersion: matchFacts.scorerVersion,
+          candidateRef: pipelineEntryIdFor({ candidateId: body.candidateId, jobId: body.jobId, workspaceId: ws }),
+          rationale: matchVerdictRationale(matchFacts),
+          reasonCode: MATCH_VERDICT_REASON_CODE,
+          inputs: { ...matchFacts, matchRunId },
+        },
+        ws
+      );
+      if (!sealed) return jsonRefusal("PIPELINE_ADD_NOT_SEALED", 503);
+    }
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -143,6 +276,15 @@ export async function POST(request: NextRequest) {
       // default at dispatch (backlog #34 / pa-l2-null-locale).
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
+      // THE RECONSIDER DOOR. A recruiter re-adding a candidate they (or the machine)
+      // rejected, or who declined, means "let us look again": this is one of the two
+      // human doors that may reopen a closed entry, and it names who did it, so the
+      // reversal lands in the decision log as a `reinstated` event with an actor.
+      // Erased, role-closed and rematched entries still refuse (body.reopenRefused).
+      reopen: { actorRef: humanRef },
+      // The same recruiter stamped on the 'added' event, so goal 1's meter reads this intake as
+      // a hiring-side human act from the row itself rather than guessing from the kind.
+      actor: humanRef,
     });
     // Close-the-prior for SOURCING adds (mirrors the reach-out route): a
     // rediscovery/sourcing add re-engages a silver medalist under a new role, so
@@ -150,7 +292,7 @@ export async function POST(request: NextRequest) {
     // path stamps. Gated on `created` (idempotent re-adds never re-link) and on
     // the sourcing channels only — a board/manual add is not a re-engagement.
     // Best-effort: a linking hiccup must never fail the add itself.
-    if (result.created && (source === "sourcing" || source === "rediscovery")) {
+    if (result.created && source !== null && RESURFACE_SOURCES.has(source)) {
       try {
         linkTerminalPriorsToTarget(body.candidateId, result.entry.id, body.jobId, ws);
       } catch (linkErr) {
@@ -163,4 +305,4 @@ export async function POST(request: NextRequest) {
     // absolute db path) — log server-side, return the generic catalogue message.
     return safeJsonError(error, "api:pipeline", "PIPELINE_CREATE_FAILED");
   }
-}
+});

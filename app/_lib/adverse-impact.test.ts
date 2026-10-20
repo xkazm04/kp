@@ -5,7 +5,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { computeAdverseImpact, parseGroupCounts, FOUR_FIFTHS, ADVERSE_IMPACT_MIN_COHORT } from "./adverse-impact.ts";
+import {
+  adverseImpactVerdict,
+  computeAdverseImpact,
+  parseGroupCounts,
+  midPExactTwoSided,
+  detectableRatio,
+  DETECTABLE_POWER,
+  FOUR_FIFTHS,
+  ADVERSE_IMPACT_MIN_COHORT,
+  SIGNIFICANCE_ALPHA,
+} from "./adverse-impact.ts";
 
 test("classic EEOC example: 80% vs 40% selection flags the lower group", () => {
   const r = computeAdverseImpact([
@@ -96,6 +106,26 @@ test("bad data is clamped: selected > total cannot exceed a 100% rate", () => {
   assert.equal(b.selected, 0);
   assert.equal(b.impactRatio, 0);
   assert.equal(b.adverseImpact, true);
+});
+
+// A clamp is a repair, and under a data-chosen reference a repair can move the verdict: the
+// result must say which rows were repaired and what rate the others were measured against.
+test("a clamped row is surfaced, and the reference rate is stated", () => {
+  const dirty = computeAdverseImpact([
+    { group: "A", selected: 200, total: 100 }, // clamped to 100/100, becomes the reference
+    { group: "B", selected: 60, total: 100 },
+  ]);
+  assert.equal(dirty.clampedRows, 1);
+  assert.equal(dirty.groups.find((g) => g.group === "A")!.clamped, true);
+  assert.equal(dirty.groups.find((g) => g.group === "B")!.clamped, false);
+  assert.equal(dirty.referenceRate, 1);
+  const clean = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 45, total: 100 },
+  ]);
+  assert.equal(clean.clampedRows, 0);
+  assert.equal(clean.referenceRate, 0.5);
+  assert.equal(computeAdverseImpact([{ group: "A", selected: 1, total: 1 }]).referenceRate, null);
 });
 
 // bug-ui-scan 2026-07-09 (analytics-calibration-dashboards #2): the four-fifths rule had NO
@@ -261,4 +291,167 @@ test("dropping a malformed row can change the reference — so it must be visibl
   assert.deepEqual(p.malformedRows, [3]);
   assert.equal(p.groups.length, 3);
   assert.equal(p.nonBlankRows, 4, "recruiter pasted 4 rows; the verdict runs on 3");
+});
+
+// The significance companion and the shortfall (registry technique
+// selection-rate-ratio-testing). The ratio is a screen that errs both ways, so each
+// measured ratio carries a mid-P exact test and a shortfall read as a share of the group.
+
+test("mid-P: identical rates are not significant; a zero-selection group is", () => {
+  assert.ok(midPExactTwoSided(20, 40, 20, 40) > 0.9);
+  assert.ok(midPExactTwoSided(0, 100, 50, 100) < 1e-15);
+  // Symmetric in which side is the group.
+  assert.ok(Math.abs(midPExactTwoSided(11, 30, 15, 30) - midPExactTwoSided(15, 30, 11, 30)) < 1e-12);
+});
+
+test("a small-N flag below four-fifths is kept, but reads as not significant", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 15, total: 30 },
+    { group: "G", selected: 11, total: 30 }, // ratio 0.733
+  ]);
+  const g = r.groups[1];
+  assert.equal(g.adverseImpact, true, "the four-fifths screen still fires");
+  assert.equal(g.significant, false);
+  assert.ok(g.pValue! > SIGNIFICANCE_ALPHA);
+  assert.equal(r.anyAdverseImpact, true);
+  assert.equal(r.anySignificantAdverse, false, "a chance-level gap is a pattern to watch, not a finding");
+  assert.ok(Math.abs(g.shortfall! - 4) < 1e-9);
+});
+
+test("zero selected is the most severe case, never suppressed by a numerator floor", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 50, total: 100 },
+    { group: "G", selected: 0, total: 100 },
+  ]);
+  assert.equal(r.groups[1].reliable, true, "the floor is on considered, not on observed selections");
+  assert.equal(r.anySignificantAdverse, true);
+  assert.equal(r.groups[1].shortfall, 50);
+});
+
+test("a large-N gap above four-fifths is still a significant gap", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 5000, total: 10000 },
+    { group: "G", selected: 4600, total: 10000 }, // ratio 0.92
+  ]);
+  assert.equal(r.anyAdverseImpact, false, "the ratio clears 0.8");
+  assert.equal(r.anySignificantGapAboveThreshold, true, "and still hides a significant 400-person gap");
+});
+
+test("a large shortfall at very large N is not significant: shortfall is scale-bound", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 50000, total: 100000 },
+    { group: "G", selected: 49960, total: 100000 },
+  ]);
+  const g = r.groups[1];
+  assert.ok(Math.abs(g.shortfall! - 40) < 1e-6, "40 people short");
+  assert.equal(g.significant, false, "and indistinguishable from chance at this N");
+  assert.ok(g.shortfall! / g.total < 0.001, "0.04% of the group");
+  assert.equal(r.anySignificantGapAboveThreshold, false);
+});
+
+test("the reference row and sub-floor rows carry no p-value or shortfall", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 40, total: 80 },
+    { group: "G", selected: 36, total: 80 },
+    { group: "S1", selected: 1, total: 5 },
+    { group: "S2", selected: 0, total: 9 },
+  ]);
+  assert.equal(r.groups[0].pValue, null);
+  assert.equal(r.groups[0].shortfall, null);
+  assert.equal(r.groups[2].pValue, null);
+  assert.equal(r.groups[3].shortfall, null);
+  assert.equal(r.unassessedGroups, 2, "a clean headline must also say two groups were never measured");
+});
+
+test("detectableRatio: what a comparison could have seen, and nothing without a reference rate", () => {
+  assert.equal(detectableRatio(0, 50, 50), null, "no reference rate, nothing to compare against");
+  assert.equal(detectableRatio(0.3, 0, 50), null);
+  assert.equal(detectableRatio(0.3, 50, 0), null);
+  // Three selections in thirty: even a group never selected at all cannot be reliably shown.
+  assert.equal(detectableRatio(0.1, 30, 30), 0);
+  // Half selected, thirty each: only a third of the reference rate or less is reliably shown.
+  const half = detectableRatio(0.5, 30, 30)!;
+  assert.ok(Math.abs(half - 0.33) < 0.03, `expected ~0.33, got ${half}`);
+  // More people see milder gaps.
+  assert.ok(detectableRatio(0.5, 100, 100)! > half);
+  assert.ok(detectableRatio(0.5, 1000, 1000)! > detectableRatio(0.5, 100, 100)!);
+});
+
+test("the result carries the least sensitive comparison, and only when a verdict exists", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 150, total: 300 },
+    { group: "Big", selected: 140, total: 300 },
+    { group: "Small", selected: 14, total: 30 },
+  ]);
+  const big = detectableRatio(0.5, 300, 300)!;
+  const small = detectableRatio(0.5, 300, 30)!;
+  assert.ok(small < big);
+  assert.equal(r.detectableRatio, small, "the small arm bounds what a non-significant line may claim");
+  const unreliable = computeAdverseImpact([
+    { group: "R", selected: 3, total: 10 },
+    { group: "G", selected: 1, total: 12 },
+  ]);
+  assert.equal(unreliable.reliable, false);
+  assert.equal(unreliable.detectableRatio, null, "an insufficient-sample state states no sensitivity");
+});
+
+test("a stated detectable ratio is honest: a group at that true ratio is shown about 80% of the time", () => {
+  // Seeded xorshift, so the check is deterministic. Ground truth: the focal group's true
+  // rate is exactly detectableRatio x the reference rate. Real detections must land near
+  // DETECTABLE_POWER (the normal approximation may run a little conservative or generous).
+  let s = 246813579;
+  const rnd = () => {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+  const binom = (n: number, p: number) => {
+    let k = 0;
+    for (let i = 0; i < n; i++) if (rnd() < p) k++;
+    return k;
+  };
+  for (const [rate, n] of [[0.3, 60], [0.5, 100], [0.3, 300]] as const) {
+    const ratio = detectableRatio(rate, n, n)!;
+    let hits = 0;
+    const trials = 600;
+    for (let i = 0; i < trials; i++) {
+      const r = computeAdverseImpact([
+        { group: "R", selected: binom(n, rate), total: n },
+        { group: "G", selected: binom(n, rate * ratio), total: n },
+      ]);
+      if (r.anySignificantAdverse || r.anySignificantGapAboveThreshold) hits++;
+    }
+    const seen = hits / trials;
+    assert.ok(seen > DETECTABLE_POWER - 0.1 && seen < DETECTABLE_POWER + 0.1, `rate ${rate} n ${n}: shown ${seen}, stated power ${DETECTABLE_POWER}`);
+  }
+});
+
+test("a result that left groups unassessed never reads as a clean bill", () => {
+  const mixed = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 48, total: 100 },
+    { group: "C", selected: 1, total: 5 },
+    { group: "D", selected: 0, total: 8 },
+  ]);
+  // Assessed groups show nothing, two groups were never measured: not "clean".
+  assert.equal(mixed.anyAdverseImpact, false);
+  assert.equal(mixed.unassessedGroups, 2);
+  assert.equal(adverseImpactVerdict(mixed), "cleanPartial");
+  // The same assessed groups with nothing left out are the affirmative verdict.
+  const full = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 48, total: 100 },
+  ]);
+  assert.equal(adverseImpactVerdict(full), "clean");
+  // Too small to assess stays its own state, and no result at all is the same state.
+  assert.equal(adverseImpactVerdict(computeAdverseImpact([{ group: "A", selected: 1, total: 5 }, { group: "B", selected: 2, total: 6 }])), "insufficient");
+  assert.equal(adverseImpactVerdict(null), "insufficient");
+  // A real finding still outranks the unassessed note.
+  const flagged = computeAdverseImpact([
+    { group: "A", selected: 60, total: 100 },
+    { group: "B", selected: 20, total: 100 },
+    { group: "C", selected: 1, total: 5 },
+  ]);
+  assert.equal(adverseImpactVerdict(flagged), "adverse");
 });

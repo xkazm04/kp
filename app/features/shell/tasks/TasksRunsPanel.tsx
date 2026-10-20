@@ -97,7 +97,7 @@ export function TasksRunsPanel({
     // be in flight. Say what actually happened and offer the same Refresh.
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coral/40 bg-coral/5 px-4 py-3">
-        <p className="flex items-center gap-2 text-base text-coral">
+        <p className="flex items-center gap-2 text-base text-coral-ink">
           <AlertTriangle size={15} className="shrink-0" aria-hidden />
           {t("unreachable")}
         </p>
@@ -149,7 +149,7 @@ export function TasksRunsPanel({
               onClearFilters();
               setPage(0);
             }}
-            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
+            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral-ink hover:bg-coral/10"
           >
             {t("filter.clear")}
           </button>

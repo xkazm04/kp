@@ -54,16 +54,23 @@ export function isInlineCredentialError(outcome: LoginOutcome): boolean {
 // router will use and require the same origin — a prefix test can never see
 // what the parser does.
 export function safeNextPath(search: string, origin: string): string {
-  const raw = new URLSearchParams(search).get("next");
+  const params = new URLSearchParams(search);
+  const raw = params.get("next");
   // Only an in-app absolute path is ever a legitimate `next`; this also keeps the
   // check fail-closed in a document whose own origin is opaque ("null").
-  if (!raw || !raw.startsWith("/")) return "/";
+  let target = "/";
   let url: URL;
-  try {
-    url = new URL(raw, origin);
-  } catch {
-    return "/";
+  if (raw?.startsWith("/")) {
+    try {
+      url = new URL(raw, origin);
+      if (url.origin === origin) target = `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      // An invalid redirect target falls back to the workspace root.
+    }
   }
-  if (url.origin !== origin) return "/";
+  const plan = params.get("plan");
+  if (!plan || !/^[a-z0-9_-]{1,40}$/i.test(plan)) return target;
+  url = new URL(target, origin);
+  if (!url.searchParams.has("plan")) url.searchParams.set("plan", plan);
   return `${url.pathname}${url.search}${url.hash}`;
 }

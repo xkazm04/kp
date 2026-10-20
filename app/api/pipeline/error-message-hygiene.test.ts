@@ -97,7 +97,7 @@ test("no pipeline route reads a caught error's text", () => {
 });
 
 test("the stable-code catalogue covers every pipeline failure path", () => {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   for (const code of [
     "PIPELINE_LIST_FAILED",
     "PIPELINE_CREATE_FAILED",

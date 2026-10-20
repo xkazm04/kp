@@ -1,0 +1,114 @@
+[
+  {
+    "context": "pipeline-actions-commands",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One entry-action core: command-bar verbs seal, name the actor, keep guards",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/pipeline-entry-action.ts",
+      "app/_lib/pipeline-entry-action.test.ts",
+      "app/api/pipeline/command/execute.ts",
+      "app/api/pipeline/command/command-execution-counts.test.ts",
+      "app/api/pipeline/command/route.ts",
+      "app/api/pipeline/command/command-one-core.test.ts",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/api/pipeline/command/command-one-core.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "reject_below executed over 3 active entries on the default axis (real unit DB) -> 3 decision_records rows of kind 'rejected', reasonCode 'reject', policyVersion 'command-bar', inputs.fromStage = each entry's stage and inputs.threshold = the typed percentage (before: 0 rows)",
+      "reject_below executed in open mode -> the 'rejected' pipeline_events row for each target carries actor 'human:recruiter', never NULL (before: actor NULL because execute.ts passes no actorRef)",
+      "advance_top on a composed axis [Accepted/entry, Screened/screening, Offer/offer, Background/custom, Hired/terminal] with a scored entry on 'Background' -> the entry stays on 'Background', counted in heldAtOffer, and no 'Hired' stage row exists (before: bare-advanced to Hired, a phantom hire)",
+      "advance_top on an axis with NO offer-role column, target entry carrying approval_kind 'offer_review' + an approval_detail draft -> the entry is held (heldAtOffer +1), approval_kind and approval_detail unchanged, no offers row minted (before: approval_detail NULLed and the candidate advanced)",
+      "runPipelineEntryAction reject where dispatchRejection throws -> result status 200 with body.commsFailed === true, the entry is status 'rejected', a 'rejection_comms_failed' event exists, and the ATS 'candidate.rejected' dispatch + group-eval expiry still ran (before: the call throws after the committed write and both are skipped)",
+      "executeCommandTargets driven with an injected runAction double returning a mix {200, 409 PIPELINE_STAGE_CHANGED, 422 PIPELINE_TERMINAL_NOT_ADVANCE, throw, 200+commsFailed} -> count 2, failed 2, heldAtOffer 1, commsFailed 1 (every target in exactly one bucket; arithmetic contract preserved)",
+      "grep guard: app/api/pipeline/command/execute.ts imports no actOnPipelineEntry and no dispatchRejection (the bar has one write door: runPipelineEntryAction)"
+    ],
+    "premise": [
+      "app/api/pipeline/command/execute.ts:64 - the command bar's reject calls deps.actOn (actOnPipelineEntry) directly with { expectedStage, actor: \"human\" } and no actorRef",
+      "app/api/pipeline/command/execute.ts:111 - advance_top likewise calls actOnPipelineEntry directly; the only guard is execute.ts:109 stageHasRole(e.stage, \"offer\", axis)",
+      "grep of app/api/pipeline/command/execute.ts and route.ts for sealDecision|dispatchAtsEvent|invalidateGroupEval|humanActor|runPipelineEntryAction returns nothing",
+      "app/_lib/pipeline-entry-action.ts:24-31 - declares itself the ONE canonical move/decide action shared by the single and batch routes so they 'can never diverge on the guards that matter'; the command bar is the third bulk door and does not use it",
+      "app/_lib/pipeline-entry-action.ts:468 sealDecisionSafe for accept/reject, :494 dispatchAtsEvent('candidate.rejected'), :495 expireCachedGroupEvals, :292 sealActor from humanActor() - all absent on the command path",
+      "app/_lib/pipeline-entry-action.ts:355 offer_review branch and :369 acceptWouldReachTerminal guard exist only here; app/_lib/db/pipeline.ts:3207 the store's generic accept advances to nextStageOnAxis with no terminal check",
+      "app/_lib/pipeline-command.ts:123 - affected() for advance_top excludes only terminal-ROLE stages, so a pre-terminal custom column is rankable",
+      "app/_lib/pipeline-entry-action.ts:488 - `await dispatchRejection(updated)` is unguarded AFTER the committed write; app/_lib/comms-dispatch.ts:503 sendCandidateComm can throw, so :494-495 are skipped on a comms failure",
+      "app/_lib/db/pipeline.ts:3164 - the store's reject writes status only; it seals nothing and egresses nothing itself"
+    ],
+    "rollback": "Three commits (entry-action comms guard + via/threshold input; execute.ts routed through an injected runAction; tests+doc). Each reverts cleanly: runPipelineEntryAction's new input fields are optional and additive, and reverting execute.ts restores the direct actOnPipelineEntry loop with its existing counts test.",
+    "gate": "contract",
+    "runner_up": "One transition rulebook: a pure planEntryTransition(entry, action, axis) that the store's accept, the entry-action guards and the command bar all read, instead of the terminal/offer rule expressed three times (acceptWouldReachTerminal, execute.ts heldAtOffer, nextStageOnAxis).",
+    "technique": "seal-actor-policy-version-and-decisive-inputs",
+    "body": "## Summary\nThe command bar is the fastest bulk-adverse surface in the product (one typed line rejects and emails a cohort), and it is the one door that bypasses `runPipelineEntryAction`. Route its execute loop through that core so every command-bar decision is sealed, names its actor, egresses to the ATS, expires the group-eval cache, and inherits the offer/terminal guards the single and batch routes already enforce.\n\n## Description\n`pipeline-entry-action.ts` was built so the per-entry and batch routes 'can never diverge on the guards that matter'. `command/execute.ts` predates that and still calls `actOnPipelineEntry` directly. Concretely, a `reject below 40%` today writes N rejections with **no decision_records row** (the tamper-evident chain shows nothing), a **NULL actor** on the event, **no `candidate.rejected` ATS event** and a stale group-eval cache; an `advance top N` on a composed board can **bare-advance onto the terminal column** (phantom hire, onboarding fires) or **destroy a drafted offer** on an axis with no offer column - the exact two defects `runPipelineEntryAction` was fixed for. The move: (1) `EntryActionInput` gains optional `via: \"command_bar\"` + `threshold`, which set the seal's `policyVersion` and decisive inputs; (2) `runPipelineEntryAction` guards the post-commit `dispatchRejection` (records `rejection_comms_failed`, answers 200 with `commsFailed: true`, still egresses and expires) - which also stops the single route answering 500 for a reject that committed; (3) `executeCommandTargets` takes an injectable `runAction` (default `runPipelineEntryAction`) and maps its result codes into the existing buckets: 200 -> count (+commsFailed), 422 `PIPELINE_TERMINAL_NOT_ADVANCE` -> heldAtOffer, other non-200 / throw -> failed. advance_top holds any target carrying `offer_review` BEFORE calling (the bar's preview promises 'up to Offer', never an unattended offer extension).\n\n## Flow\nroute.ts resolves `origin` + `ws` -> executeCommandTargets({kind, threshold, targets, axis, ws, origin}) -> per target: runPipelineEntryAction({id, action, expectedStage: e.stage, detail, via, threshold}) -> CAS write in the store -> seal (actor from session) -> rejection comm (guarded) -> ATS egress -> cache expiry -> bucketed result.\n\n## Expected impact\nEvery bulk adverse action from the bar becomes auditable and attributable (bulk-adverse-action-governance: the approval's actor is the approver). One class of defect closes structurally: a guard added to the entry-action core now reaches all three bulk doors instead of two. Board integrity on composed axes: no phantom hires, no destroyed offer drafts from the bar.\n\n## Evaluation\nClaim: the command bar writes only through runPipelineEntryAction, and inherits its seal, actor, egress and outcome guards.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test cases in command-one-core.test.ts (real unit DB, composed axes via setDecisionConfig), command-execution-counts.test.ts (injected runAction), pipeline-entry-action.test.ts (comms-throw case).\nResult: pending build.\nGate: contract",
+    "evidence": "execute.ts:64  const updated = deps.actOn(e.id, \"reject\", `Command bar: below ${threshold}%`, { expectedStage: e.stage, actor: \"human\" }, ws);\nexecute.ts:109 if (stageHasRole(e.stage, \"offer\", axis)) {   // the only outcome guard\nexecute.ts:111 } else if (deps.actOn(e.id, \"accept\", \"Command bar: advance top\", { expectedStage: e.stage, actor: \"human\" }, ws)) {\n$ grep -n 'sealDecision|dispatchAtsEvent|invalidateGroupEval|humanActor|runPipelineEntryAction' app/api/pipeline/command/execute.ts app/api/pipeline/command/route.ts  -> (no matches)\npipeline-entry-action.ts:355 if (action === \"accept\" && current.approvalKind === \"offer_review\") {\npipeline-entry-action.ts:369 if (action === \"accept\" && (atOfferStage || acceptWouldReachTerminal(current.stage, axis))) {\npipeline-entry-action.ts:468 sealDecisionSafe({ kind: ... \"rejected\" ... actor: sealActor, policyVersion: \"manual\" ...\npipeline-entry-action.ts:488 if (action === \"reject\") await dispatchRejection(updated);   // unguarded, post-commit\npipeline-entry-action.ts:494 if (action === \"reject\") void dispatchAtsEvent(\"candidate.rejected\", updated.id, workspaceId);\ndb/pipeline.ts:3207 const next = nextStageOnAxis(row.stage, axis);   // generic accept, no terminal check\npipeline-command.ts:123 .filter((e) => e.matchScore != null && !stageHasRole(e.stage, \"terminal\", axis))\nWrite-door census for actOnPipelineEntry (non-test): pipeline-entry-action.ts, command/execute.ts, screen-wave.ts, automation-pass.ts, automation-run.ts, offer-finalize.ts, schedule routes x3 - execute.ts is the only HUMAN bulk door outside the core."
+  },
+  {
+    "context": "pipeline-actions-commands",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Undo a command-bar reject wave: restore the exact set where they stood",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/pipeline-command.ts",
+      "app/_lib/pipeline-command.test.ts",
+      "app/_lib/db/pipeline.ts",
+      "app/api/pipeline/command/execute.ts",
+      "app/api/pipeline/command/reverse.ts",
+      "app/api/pipeline/command/reverse.test.ts",
+      "app/api/pipeline/command/reverse/route.ts",
+      "app/features/hiring/pipeline/CommandBar.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md",
+      "docs/architecture/api-reference.md"
+    ],
+    "new_files": [
+      "app/api/pipeline/command/reverse.ts",
+      "app/api/pipeline/command/reverse.test.ts",
+      "app/api/pipeline/command/reverse/route.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "planWaveReversal({status:'rejected', eventsNewestFirst:[{kind:'rejected', detail:'Command bar: below 40%'}]}, 40) -> { restorable: true, notified: false }",
+      "planWaveReversal({status:'rejected', eventsNewestFirst:[{kind:'rejection_sent'}, {kind:'rejected', detail:'Command bar: below 40%'}]}, 40) -> { restorable: true, notified: true } (the letter event after the reject does not block the undo, it is reported)",
+      "planWaveReversal({status:'rejected', eventsNewestFirst:[{kind:'rejected', detail:'Recruiter note'}]}, 40) -> { restorable: false, reason: 'not_this_wave' } (a hand reject or another wave is never undone by this door)",
+      "planWaveReversal({status:'active', eventsNewestFirst:[{kind:'reinstated'}, {kind:'rejected', detail:'Command bar: below 40%'}]}, 40) -> { restorable: false, reason: 'not_rejected' }",
+      "restoreCommandRejection on a real unit-DB entry command-rejected at 'Interview' -> status 'active', stage STILL 'Interview' (not the screened landing column), a 'reinstated' pipeline_events row with non-null actor, and a decision_records row kind 'reinstated', reasonCode 'command_wave_reversed', inputs.threshold 40",
+      "reverseCommandWave(ids=[a,b,c,x], threshold 40) where a,b wave-rejected (b notified), c since moved by a human, x belongs to another workspace -> { restored: 2, notified: 1, skipped: 2 }; c and x rows byte-identical after the call",
+      "a second reverseCommandWave with the same ids -> { restored: 0, skipped: 4 } (idempotent: the undo cannot churn or double-seal)",
+      "execute.ts builds its reject detail with commandRejectDetail(threshold) from pipeline-command.ts, the same function planWaveReversal matches against (one literal, cannot drift)"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/CommandBar.tsx:68-79 - after a confirmed command the bar enters phase 'done' and only paints counts; app/features/hiring/pipeline/CommandBar.tsx:195-202 are count lines with no action on any of them",
+      "app/features/hiring/pipeline/CommandBar.tsx:56-58 - the client already holds the full reviewed id set (result.matchedIds) at confirm time, so the wave's members are known without a new server read",
+      "app/api/pipeline/command/execute.ts:64 - every command-bar reject writes the detail `Command bar: below ${threshold}%`, a stable marker an undo can match on",
+      "app/_lib/db/pipeline.ts:3164 - a reject sets status='rejected' and leaves `stage` untouched, so the stage a candidate stood on survives the rejection and can be restored exactly",
+      "app/_lib/db/pipeline.ts:1332 - the only existing reversal, reinstatePipelineEntry, lands the candidate on screenedLandingStage, i.e. an Interview-stage reject comes back two columns earlier",
+      "app/api/pipeline/[id]/route.ts:112 - reinstate is per-entry only, and its seal at app/api/pipeline/[id]/route.ts:127-128 hardcodes 'Auto-rejection reversed' / restoredStage 'Screened' - wrong for a human command wave",
+      "app/_lib/comms-status.ts:35 - OUTBOX_STATUSES has no withdrawn state, so a sent rejection letter cannot be recalled; the undo must say who was already told rather than imply it was unsent"
+    ],
+    "rollback": "Additive: a new route, a new store function beside reinstatePipelineEntry, a pure planner and a done-panel button. Reverting the series removes the door; no existing row shape, status value or event kind changes ('reinstated' already exists).",
+    "gate": "contract",
+    "runner_up": "The preview states who the cutoff left out: the count of unscored active candidates reject_below silently skips, and the tie straddling the advance-top-N boundary resolved toward the candidate.",
+    "technique": "reversal-queue-that-reads-the-sealed-reason",
+    "body": "## Summary\nA typed `reject below 40%` rejects and emails a whole cohort in one confirm, and today the only way back is one candidate at a time through a door built for auto-rejections that also drops them to the Screened column. Put an **Undo this wave** action on the command bar's done panel that restores exactly the wave's still-untouched members to the stage they stood on, seals each reversal to the person undoing it, and says plainly how many had already been sent the letter.\n\n## Description\nThe governing standard (bulk-adverse-action-governance) holds that a bulk adverse action is defensible only if it is reversible by a cheap standing mechanism, and that a reversal is a NEW decision sealed to the reversing human, never an overwrite. kp has the reverse half for single auto-rejections only. This card adds the bulk human half:\n- `pipeline-command.ts` (pure): `commandRejectDetail(threshold)` (the one literal execute.ts writes) and `planWaveReversal(snapshot, threshold)` -> `{restorable, notified, reason}` over the entry's status + newest-first events: restorable only when status is `rejected` and the newest non-comms event is this wave's `rejected` row; `notified` when a `rejection_sent` follows it.\n- `db/pipeline.ts`: `restoreCommandRejection(id, ws, {threshold, actorRef})` - IMMEDIATE tx, re-reads status + events inside the lock, runs the planner, `UPDATE ... SET status='active' WHERE status='rejected'` (changes===0 -> skip), stage untouched, records `reinstated` with the actor.\n- `command/reverse.ts`: `reverseCommandWave(ids, threshold, ws, actor, deps)` - per-id isolation, seals `reinstated` / `command_wave_reversed`, buckets restored / notified / skipped.\n- `command/reverse/route.ts`: operator + `pipeline:write` gated like the command route; body `{ids, threshold}` (cap 200).\n- `CommandBar.tsx`: the done panel of a reject_below keeps the confirmed id set and offers **Undo this wave**; the result line reads 'Restored 11 · 9 had already been sent the rejection letter - follow up with them · 1 had moved since and was left alone'.\n\n## Flow\nconfirm reject_below -> done panel (counts + Undo) -> POST /api/pipeline/command/reverse {ids, threshold} -> per id: restoreCommandRejection (lock, plan, CAS write, event) -> seal reinstated -> response {restored, notified, skipped} -> bar paints the truthful outcome and refreshes the board via onExecuted().\n\n## Expected impact\nThe single most destructive recruiter action gets a one-click, audited way back while the recruiter is still looking at it: a mistyped threshold (40 for 60) stops being a manual 30-candidate repair that also regresses everyone to Screened. The undo never claims the letter was recalled - it names who needs a human follow-up.\n\n## Evaluation\nClaim: a command-bar reject wave is reversible from the bar, exactly, attributably and idempotently.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over planWaveReversal (pure), restoreCommandRejection + reverseCommandWave on the unit DB (cross-workspace + idempotency cases), plus the literal-sharing check.\nResult: pending build.\nGate: contract",
+    "evidence": "CommandBar.tsx:68  } else if (confirm || p.executed) {  setResult({ phase: \"done\", ... counts only ... }); onExecuted();\nCommandBar.tsx:195-202 doneFailed / doneCommsFailed / doneHeldAtOffer / doneDroppedOut - paragraphs, no button\nCommandBar.tsx:56-58 const confirmIds = confirm && result?.phase === \"preview\" && result.kind === \"reject_below\" ? result.matchedIds : undefined;\nexecute.ts:64 deps.actOn(e.id, \"reject\", `Command bar: below ${threshold}%`, ...)\ndb/pipeline.ts:3164 UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=? ...   (stage untouched)\ndb/pipeline.ts:1332 const landingStage = screenedLandingStage(getPipelineAxis(workspaceId).stages) || \"Screened\";\n[id]/route.ts:127-128 rationale: \"Auto-rejection reversed for re-review.\" ... inputs: { previousStatus: \"rejected\", restoredStage: \"Screened\" }\ncomms-status.ts:35 export const OUTBOX_STATUSES = [\"queued\", \"sent\", \"failed\", \"bounced\"] as const;   (no withdraw)\nCollision check: r04 decisions-review-ui/B (8-second undo) writes only app/features/hiring/decisions/* - a pre-commit window on single Decisions clicks; this card is a post-commit reversal of a command-bar cohort and shares no file with it."
+  }
+]

@@ -1,7 +1,7 @@
 // Pure, render-free logic for the AnalysisProgress panel. Split out of the
 // .tsx so it can be unit-tested under Node's built-in runner (which strips .ts
-// types but cannot load JSX). AnalysisProgress.tsx re-exports every symbol here,
-// so existing `@/app/_components/AnalysisProgress` imports keep working.
+// types but cannot load JSX). AnalysisProgress.tsx does not re-export it: import this
+// module directly.
 //
 // Direction 3 — HONEST stages. The strip used to animate six Python-INTERNAL
 // stages (extract→gemini→profile→scoring→salary→insights) on a fixed cosmetic
@@ -96,4 +96,21 @@ export function deriveProgressDisplay(args: {
 export function headlineStageOf(stages: StageState, complete: boolean): StageId | null {
   if (complete) return null;
   return STAGE_ORDER.find((id) => stages[id] === "active") ?? null;
+}
+
+/**
+ * Whole seconds a run has been going. `startedAt` is the run's real start (epoch ms);
+ * a missing/invalid/future value falls back to `now`, so the clock starts at 0 rather
+ * than showing a negative or NaN number.
+ */
+export function elapsedSecondsSince(startedAt: number | undefined, now: number): number {
+  const start = typeof startedAt === "number" && Number.isFinite(startedAt) && startedAt <= now ? startedAt : now;
+  return Math.floor((now - start) / 1000);
+}
+
+/** Parse the persisted run-start crumb (sessionStorage string); null when absent or garbage. */
+export function parseStoredRunStart(raw: string | null | undefined, now: number): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= now ? n : null;
 }

@@ -78,6 +78,18 @@ export function billingOrgForProviderRefs(subscriptionId: string | null, custome
   return null;
 }
 
+/** Every stored provider subscription, stalest first, for the daily subscription
+ *  reconcile (billing/subscription-reconcile.ts). READ-ONLY and DEPLOYMENT-WIDE by
+ *  design (a lost webhook is a fact about the deployment; the result feeds an
+ *  operator-only alert) — named in billing-tenancy.test.ts so it cannot widen. */
+export function listProviderSubscriptionsForReconcile(limit: number): BillingStateRow[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT * FROM billing_state WHERE provider_subscription_id IS NOT NULL ORDER BY updated_at, org_id LIMIT ?`)
+    .all(Math.max(1, Math.trunc(limit) || 1)) as Array<Record<string, unknown>>;
+  return rows.map(rowToState);
+}
+
 /** Write the org's money state.
  *
  *  COMPARE-AND-SWAP, opt-in via `expectedUpdatedAt` (the read→compute→write rule in
@@ -234,7 +246,29 @@ export type BillingAlert = {
   providerRef: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  /** HOW the alert ended — 'fixed' | 'dismissed' (app/_lib/billing/alerts.ts owns the
+   *  vocabulary). NULL while open, and on every row closed before the column existed:
+   *  "not recorded" is the honest reading there, never a guessed 'fixed'. */
+  resolution: string | null;
 };
+
+function rowToAlert(r: Record<string, unknown>): BillingAlert {
+  return {
+    id: Number(r.id),
+    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
+    kind: String(r.kind),
+    detail: String(r.detail),
+    providerRef: (r.provider_ref as string) ?? null,
+    createdAt: String(r.created_at),
+    resolvedAt: (r.resolved_at as string) ?? null,
+    resolution: (r.resolution as string) ?? null,
+  };
+}
+
+function clampAlertLimit(limit: number | undefined): number {
+  const requested = typeof limit === "number" && Number.isFinite(limit) ? Math.trunc(limit) : BILLING_ALERT_LIST_DEFAULT_LIMIT;
+  return Math.min(BILLING_ALERT_LIST_MAX_LIMIT, Math.max(1, requested));
+}
 
 /** Record a durable "needs attention" billing signal (e.g. a paid-but-unmapped
  *  subscription). `providerRef` (when given) de-duplicates redeliveries so the same
@@ -274,33 +308,55 @@ export const BILLING_ALERT_LIST_MAX_LIMIT = 500;
  *  for the whole table. */
 export function listBillingAlerts(opts: { includeResolved?: boolean; limit?: number } = {}): BillingAlert[] {
   const db = ensureDb();
-  const requested = typeof opts.limit === "number" && Number.isFinite(opts.limit) ? Math.trunc(opts.limit) : BILLING_ALERT_LIST_DEFAULT_LIMIT;
-  const limit = Math.min(BILLING_ALERT_LIST_MAX_LIMIT, Math.max(1, requested));
+  const limit = clampAlertLimit(opts.limit);
   const where = opts.includeResolved ? "" : "WHERE resolved_at IS NULL";
   const rows = db
     .prepare(
-      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC LIMIT ?`
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts ${where} ORDER BY id DESC LIMIT ?`
     )
     .all(limit) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
-    id: Number(r.id),
-    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
-    kind: String(r.kind),
-    detail: String(r.detail),
-    providerRef: (r.provider_ref as string) ?? null,
-    createdAt: String(r.created_at),
-    resolvedAt: (r.resolved_at as string) ?? null,
-  }));
+  return rows.map(rowToAlert);
+}
+
+/** ONE org's billing alerts, newest first — the org owner's reader (GET /api/billing).
+ *  Beside, not instead of, the deployment-wide list above: an owner must never be
+ *  handed another customer's rows, so this is the org-BOUND accessor the tenancy
+ *  guard pins (billing-tenancy.test.ts). Open only unless `includeResolved`; bounded
+ *  by the same clamp. */
+export function listBillingAlertsForOrg(orgId: string, opts: { includeResolved?: boolean; limit?: number } = {}): BillingAlert[] {
+  const db = ensureDb();
+  const open = opts.includeResolved ? "" : "AND resolved_at IS NULL";
+  const rows = db
+    .prepare(
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts WHERE org_id = ? ${open} ORDER BY id DESC LIMIT ?`
+    )
+    .all(orgId, clampAlertLimit(opts.limit)) as Array<Record<string, unknown>>;
+  return rows.map(rowToAlert);
+}
+
+/** One alert, only if it belongs to `orgId` (open or not). A row of another org reads
+ *  exactly like a missing id, so the resolve door can answer both with one 404. */
+export function getBillingAlert(id: number, orgId: string): BillingAlert | null {
+  const db = ensureDb();
+  const r = db
+    .prepare(
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts WHERE id = ? AND org_id = ?`
+    )
+    .get(id, orgId) as Record<string, unknown> | undefined;
+  return r ? rowToAlert(r) : null;
 }
 
 /** Stamp `resolved_at` so a paid-but-unmapped Polar signal can leave the open
  *  worklist. Compensating WHERE: only an unresolved row for this org matches, so
- *  a second call (or a missing id) is a no-op that returns false. `expectedUnresolved`
- *  defaults true — the documented call; passing false is not a restamp, it is the
- *  same gate (already-resolved stays a skip). */
+ *  a second call (or a missing id) is a no-op that returns false — and a second call
+ *  can never re-kind an alert that is already closed. `resolution` records HOW it
+ *  ended ('fixed' | 'dismissed'); omitted, it stays NULL (the pre-column behaviour).
+ *  `expectedUnresolved` defaults true — the documented call; passing false is not a
+ *  restamp, it is the same gate (already-resolved stays a skip). */
 export function resolveBillingAlert(input: {
   id: number;
   orgId?: string;
+  resolution?: string | null;
   expectedUnresolved?: boolean;
 }): boolean {
   const db = ensureDb();
@@ -309,8 +365,8 @@ export function resolveBillingAlert(input: {
   // Compensating predicate: never overwrite a stamp that already exists. The
   // documented call passes `expectedUnresolved: true`; already-resolved is a skip.
   const info = db
-    .prepare(`UPDATE billing_alerts SET resolved_at = ? WHERE id = ? AND org_id = ? AND resolved_at IS NULL`)
-    .run(at, input.id, orgId);
+    .prepare(`UPDATE billing_alerts SET resolved_at = ?, resolution = ? WHERE id = ? AND org_id = ? AND resolved_at IS NULL`)
+    .run(at, input.resolution ?? null, input.id, orgId);
   return Number(info.changes) > 0;
 }
 
@@ -336,4 +392,91 @@ export function billingUsageFor(meter: string, period: string, orgId: string = D
     | { qty: number }
     | undefined;
   return row?.qty ?? 0;
+}
+
+/** Allowance already debited under the old CALENDAR key ('YYYY-MM') inside [from, to):
+ *  the carry-over into the first anchored window (ADR 0023). Read from the journal's
+ *  `from_included`, so a credit-pack debit is never counted as allowance. Debits made
+ *  before the journal existed carry no timestamp and cannot be placed in a window, so
+ *  they are not carried. After the switch every debit lands under an anchored key, so
+ *  later windows find nothing here. */
+export function calendarUsageCarried(meter: string, fromIso: string, toIso: string, orgId: string = DEFAULT_ORG_ID): number {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COALESCE(SUM(from_included), 0) AS n FROM billing_usage_journal
+       WHERE org_id = ? AND meter = ? AND period GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+         AND occurred_at >= ? AND occurred_at < ?`
+    )
+    .get(orgId, meter, fromIso, toIso) as { n: number };
+  return row.n;
+}
+
+// ---- Usage journal (docs/features/billing/README.md) --------------------------------------
+// One row per meter debit beside the billing_usage counter, written by recordMeterUsage in
+// the counter's transaction. Write-only evidence: no gate or charge reads it.
+
+export type UsageJournalRow = {
+  id: number;
+  orgId: string;
+  meter: string;
+  period: string;
+  qty: number;
+  fromIncluded: number;
+  fromCredits: number;
+  sourceKind: string;
+  sourceRef: string | null;
+  occurredAt: string;
+};
+
+export function appendUsageJournal(r: Omit<UsageJournalRow, "id">): void {
+  ensureDb()
+    .prepare(
+      `INSERT INTO billing_usage_journal (org_id, meter, period, qty, from_included, from_credits, source_kind, source_ref, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(r.orgId, r.meter, r.period, r.qty, r.fromIncluded, r.fromCredits, r.sourceKind, r.sourceRef, r.occurredAt);
+}
+
+/** One org's debits in a period, newest first (at most 1000). */
+export function listUsageJournalForOrg(orgId: string, period: string): UsageJournalRow[] {
+  const rows = ensureDb()
+    .prepare(`SELECT * FROM billing_usage_journal WHERE org_id = ? AND period = ? ORDER BY id DESC LIMIT 1000`)
+    .all(orgId, period) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as number,
+    orgId: r.org_id as string,
+    meter: r.meter as string,
+    period: r.period as string,
+    qty: r.qty as number,
+    fromIncluded: r.from_included as number,
+    fromCredits: r.from_credits as number,
+    sourceKind: r.source_kind as string,
+    sourceRef: (r.source_ref as string | null) ?? null,
+    occurredAt: r.occurred_at as string,
+  }));
+}
+
+/** The (meter, period) pairs where the counter and SUM(journal.qty) disagree; [] when the
+ *  invariant holds. A pre-journal counter reports here — evidence, never a correction. */
+export function journalIntegrity(orgId: string): Array<{ meter: string; period: string; counter: number; journaled: number }> {
+  return ensureDb()
+    .prepare(
+      `SELECT u.meter AS meter, u.period AS period, u.qty AS counter, COALESCE(j.n, 0) AS journaled
+       FROM billing_usage u
+       LEFT JOIN (SELECT meter, period, SUM(qty) AS n FROM billing_usage_journal WHERE org_id = ? GROUP BY meter, period) j
+         ON j.meter = u.meter AND j.period = u.period
+       WHERE u.org_id = ? AND u.qty != COALESCE(j.n, 0) ORDER BY u.meter, u.period`
+    )
+    .all(orgId, orgId) as Array<{ meter: string; period: string; counter: number; journaled: number }>;
+}
+
+/** Sources debited more than once in a period. DETECTION only: both debits stand. */
+export function duplicateUsageSources(orgId: string, period: string): Array<{ meter: string; source_kind: string; source_ref: string; count: number }> {
+  return ensureDb()
+    .prepare(
+      `SELECT meter, source_kind, source_ref, COUNT(*) AS count FROM billing_usage_journal
+       WHERE org_id = ? AND period = ? AND source_ref IS NOT NULL
+       GROUP BY meter, source_kind, source_ref HAVING COUNT(*) > 1 ORDER BY meter, source_kind, source_ref`
+    )
+    .all(orgId, period) as Array<{ meter: string; source_kind: string; source_ref: string; count: number }>;
 }

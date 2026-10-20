@@ -17,6 +17,118 @@
 // (optional chaining + type guards) so a shape change upstream degrades to
 // "drift"/"cannot read", never a crash.
 
+// ── The interview director's CLIENT tools (spark ai-interview-parity) ─────────────
+// ElevenLabs no longer accepts tools inline on the agent: `conversation_config.agent
+// .prompt.tools` was deprecated in July 2025 and requests carrying it are rejected.
+// A tool is now a WORKSPACE resource — POST /v1/convai/tools with a `tool_config` —
+// and the agent references it by id in `conversation_config.agent.prompt.tool_ids`.
+// So the deploy creates (or reuses) one client tool per DIRECTOR_TOOL_DEFS entry and lists their ids, and
+// --check follows those ids back to each tool's config and diffs it here.
+//
+// A client tool's parameter properties must each carry exactly one of description /
+// dynamic_variable / constant_value / is_system_provided, and the schema knows no
+// `additionalProperties` — so the shared JSON-schema definitions
+// (director-tools.mjs) are REBUILT into that shape rather than passed through.
+
+/** How long the agent waits for the browser to answer a director tool call. The
+ *  browser answers by POSTing /api/interview/director, a local SQLite round trip —
+ *  10s is generous; the platform default (20s) would hold a stalled turn for longer
+ *  than a candidate should sit in silence. Must be 1..120 (API constraint). */
+export const DIRECTOR_TOOL_RESPONSE_TIMEOUT_SECS = 10;
+
+/** One provider-neutral tool definition ({ name, description, parameters }) as an
+ *  ElevenLabs client `tool_config`. `expects_response: true` — the model waits for
+ *  the director's answer (a rejected evidence quote tells it to ask again). Pure. */
+export function toElevenClientTool(def) {
+  const properties = {};
+  for (const [key, prop] of Object.entries(def?.parameters?.properties ?? {})) {
+    const enumValues = Array.isArray(prop?.enum) ? [...prop.enum] : null;
+    properties[key] = {
+      type: prop?.type ?? "string",
+      description:
+        typeof prop?.description === "string" && prop.description.trim()
+          ? prop.description
+          : enumValues
+            ? `One of: ${enumValues.join(", ")}.`
+            : key,
+      ...(enumValues ? { enum: enumValues } : {}),
+    };
+  }
+  return {
+    type: "client",
+    name: def.name,
+    description: def.description,
+    expects_response: true,
+    response_timeout_secs: DIRECTOR_TOOL_RESPONSE_TIMEOUT_SECS,
+    parameters: { type: "object", required: [...(def?.parameters?.required ?? [])], properties },
+  };
+}
+
+/** The comparable projection of a client tool_config: only the fields the deploy
+ *  sets, with order-insensitive `required`. A live config carries defaulted extras
+ *  (execution_mode, pre_tool_speech, …) that are not drift. Null for anything that
+ *  is not a client tool. Pure. */
+export function normalizeClientTool(cfg) {
+  if (!cfg || typeof cfg !== "object" || cfg.type !== "client" || typeof cfg.name !== "string") return null;
+  const props = cfg?.parameters?.properties && typeof cfg.parameters.properties === "object" ? cfg.parameters.properties : {};
+  const properties = {};
+  for (const key of Object.keys(props).sort()) {
+    const p = props[key] ?? {};
+    properties[key] = {
+      type: p.type ?? null,
+      description: typeof p.description === "string" ? p.description : null,
+      enum: Array.isArray(p.enum) ? [...p.enum] : null,
+    };
+  }
+  return {
+    name: cfg.name,
+    description: typeof cfg.description === "string" ? cfg.description : null,
+    expects_response: cfg.expects_response === true,
+    response_timeout_secs: typeof cfg.response_timeout_secs === "number" ? cfg.response_timeout_secs : null,
+    parameters: {
+      required: Array.isArray(cfg?.parameters?.required) ? [...cfg.parameters.required].sort() : [],
+      properties,
+    },
+  };
+}
+
+const CLIENT_TOOL_FIELDS = ["description", "expects_response", "response_timeout_secs", "parameters"];
+
+/** Which comparable fields of two client tool configs differ ([] = same tool). Pure. */
+export function clientToolDrift(intended, live) {
+  const a = normalizeClientTool(intended);
+  const b = normalizeClientTool(live);
+  if (!a || !b) return [...CLIENT_TOOL_FIELDS];
+  return CLIENT_TOOL_FIELDS.filter((f) => JSON.stringify(a[f]) !== JSON.stringify(b[f]));
+}
+
+/** The tool ids the live agent references (conversation_config.agent.prompt.tool_ids). */
+export function extractLiveToolIds(agent) {
+  const ids = agent?.conversation_config?.agent?.prompt?.tool_ids;
+  return Array.isArray(ids) ? ids.filter((x) => typeof x === "string" && x) : [];
+}
+
+/**
+ * Compare the intended client tools against the tool configs the agent's tool_ids
+ * resolve to, by name. Pure.
+ * @param {any[]} intended  tool_config objects (toElevenClientTool output)
+ * @param {any[]} live      tool_config objects fetched for the agent's tool_ids
+ */
+export function diffClientTools(intended, live) {
+  const liveByName = new Map();
+  for (const cfg of live ?? []) {
+    if (cfg && typeof cfg.name === "string") liveByName.set(cfg.name, cfg);
+  }
+  const intendedNames = new Set(intended.map((t) => t.name));
+  const missing = intended.filter((t) => !liveByName.has(t.name)).map((t) => t.name);
+  const extra = [...liveByName.keys()].filter((n) => !intendedNames.has(n));
+  const drifted = intended
+    .filter((t) => liveByName.has(t.name))
+    .map((t) => ({ name: t.name, fields: clientToolDrift(t, liveByName.get(t.name)) }))
+    .filter((d) => d.fields.length > 0);
+  return { match: missing.length === 0 && extra.length === 0 && drifted.length === 0, missing, extra, drifted };
+}
+
 /**
  * @typedef {Object} IntendedAgentConfig
  * @property {string} prompt            The fallback interviewer prompt the agent should run.
@@ -30,6 +142,8 @@
  * @property {number} maxDurationSeconds The provider hard cap on call length.
  * @property {string} ttsModel           The TTS model_id the agent should speak with.
  * @property {boolean} textOnly          Whether the agent runs text-only (voice → false).
+ * @property {any[]} [clientTools]       The client tool_configs the agent must reference
+ *           (toElevenClientTool output). Absent → tools are not checked.
  */
 
 const PROMPT_CONTEXT = 48;
@@ -109,8 +223,10 @@ export function extractLiveScalars(agent) {
  * exit code (ok → 0, drift → 1).
  * @param {IntendedAgentConfig} intended
  * @param {any} agent  Parsed body of GET /v1/convai/agents/{agent_id}.
+ * @param {any[]} [liveTools]  The tool_configs the agent's tool_ids resolve to
+ *           (GET /v1/convai/tools/{id} each) — read only when intended.clientTools is set.
  */
-export function diffAgentConfig(intended, agent) {
+export function diffAgentConfig(intended, agent, liveTools) {
   const livePrompt = extractLivePrompt(agent);
   const promptMatch = livePrompt === intended.prompt;
   const prompt = {
@@ -144,12 +260,19 @@ export function diffAgentConfig(intended, agent) {
   });
   const scalars = { match: scalarFlags.every((s) => s.match), flags: scalarFlags };
 
+  // Director client tools: checked only when the caller states an intent, so a
+  // config without tools is not suddenly "drift" for every older caller.
+  const tools = Array.isArray(intended.clientTools)
+    ? { checked: true, ...diffClientTools(intended.clientTools, liveTools ?? []) }
+    : { checked: false, match: true, missing: [], extra: [], drifted: [] };
+
   return {
-    ok: prompt.match && asrKeywords.match && overrides.match && scalars.match,
+    ok: prompt.match && asrKeywords.match && overrides.match && scalars.match && tools.match,
     prompt,
     asrKeywords,
     overrides,
     scalars,
+    tools,
   };
 }
 
@@ -209,6 +332,17 @@ export function formatDriftReport(report) {
     }
     if (report.asrKeywords.extra.length) {
       lines.push(`      extra (live, not intended):   ${report.asrKeywords.extra.join(", ")}`);
+    }
+  }
+
+  if (report.tools?.checked) {
+    if (report.tools.match) {
+      lines.push("  client tools      ✓ match");
+    } else {
+      lines.push("  client tools      ✗ DRIFT");
+      if (report.tools.missing.length) lines.push(`      missing (intended, not on the agent): ${report.tools.missing.join(", ")}`);
+      if (report.tools.extra.length) lines.push(`      extra (on the agent, not intended):   ${report.tools.extra.join(", ")}`);
+      for (const d of report.tools.drifted) lines.push(`      ✗ ${d.name}: ${d.fields.join(", ")} differ`);
     }
   }
 

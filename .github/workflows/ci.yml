@@ -49,7 +49,7 @@ jobs:
       - name: Install pipeline dependencies (needed by schemas:gen)
         run: pip install -r requirements.txt
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24 # matches the verified local toolchain (v24.14, LTS)
           cache: npm
@@ -265,6 +265,20 @@ jobs:
       # to the committed scenarios.
       - run: npm run test:bench-driver
 
+      # Fixtures for the KPI instruments (scripts/kpi/__tests__). Same gap as the
+      # steps above: they are .mjs under scripts/, so `npm run test:unit`'s
+      # app|packages|edge|i18n globs never collected them, and nothing ran them.
+      # What they pin is not cosmetic — the goal-1 demo run plays a simulated
+      # interview, which WRITES candidate rows (a session, a transcript, a sealed
+      # scorecard) against a copy of the operator's database. Its three safety
+      # invariants (a declared-throwaway database, comms egress sealed, no
+      # transcript or scorecard text in the reading, including on the error paths)
+      # live in this file and nowhere else.
+      #
+      # Run through the launcher rather than `node --test` so it gets the same
+      # scrubbed environment and per-test timeout as the main suite.
+      - run: node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"
+
       # Fixtures for the flake policy (scripts/test/). `npm run test:unit` below
       # now re-runs the files that failed and labels each BROKEN / FLAKE /
       # QUARANTINE, and holds test-quarantine.json to a ceiling, a reason and an
@@ -303,7 +317,7 @@ jobs:
           # base" and the gate would pass vacuously.
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -343,7 +357,7 @@ jobs:
           # in the range, and a shallow clone would narrow it to nothing.
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -402,42 +416,22 @@ jobs:
       - name: Run gated Python suite
         run: npm run test:python:gate
         env:
-          # Expected skips in keyless CI. This is a CEILING and, one
-          # environment-conditional slot below it, a FLOOR: run_gated.py fails on
-          # skips > 5 (a new silent skip) AND on skips < 4 (a tolerated skip that
-          # started running again, leaving room a new silent one could take
-          # unnoticed). Both are fixed by editing this number, never by the gate.
+          # Expected skips in keyless CI. WHICH tests may skip is not written
+          # here: it is pipeline/jobfit/tests/skip-register.json, one entry per
+          # unittest id with its `why`, its `when` (always | env-conditional) and
+          # the condition that makes it skip. run_gated.py refuses a skip the
+          # register does not name BY NAME, names an `always` entry that ran as
+          # stale with the edit that retires it, and requires the register's
+          # length to EQUAL this number - so tolerating a new skip takes a
+          # register entry AND raising this value, which review:constitution
+          # blocks (skip-baseline-raised). The count band is kept as a second
+          # lock: skips > 4 fail, and so do skips < 4 (no env-conditional slot is
+          # left: the interview eval reads a committed brief snapshot now, so its
+          # grounded test runs here without node_modules).
           #
-          # THE SITES THAT FIRE HERE (this is the derivation of the 5):
-          #   +1 test_claude_cli.py:407 LiveSmokeTest.test_real_cli_pong
-          #      (skipUnless KP_CLAUDE_CLI_LIVE=1, which CI never sets). Its inner
-          #      `claude CLI not on PATH` skip at :414 is unreachable behind it.
-          #   +2 test_pdf_parsing_quality.py:32,:50 — the pypdf tests on the
-          #      personal CV fixtures (linkedin-profile.pdf / technical-cv.pdf are
-          #      intentionally not in the repo)
-          #   +1 test_pdf_parsing_quality.py:56 test_gemini_pdf_extraction_...
-          #      (needs that fixture AND a GEMINI_API_KEY — CI has neither)
-          #   +1 test_interview_eval.py:574 the grounded DB-fixture bridge
-          #      (spawns node + better-sqlite3; this Python-only job installs no
-          #      node_modules). THE ONE environment-conditional entry: it RUNS in
-          #      a full checkout, which is why the floor is 4 and not 5.
-          #   = 5
-          #
-          # THE SITES THAT DO NOT FIRE, listed so "the count changed" can be
-          # answered without re-deriving the whole tree:
-          #   test_llm_base.py:409,:475      google-genai IS installed by requirements.txt
-          #   test_llm_self_host.py:124      the openai SDK IS installed likewise
-          #   test_interview_eval.py:423,:425 node is preinstalled on the runner and
-          #                                  the brief bridge needs no node_modules
-          #   test_market_config.py:402      same — node is on PATH
-          #   test_repo_scan.py:243,:526     git is available
-          #   test_repo_scan.py:398          context-map.json is committed
-          #   test_repo_scan.py:538          the fixture commit takes here
-          #   test_repo_scan.py:825          symlink creation works on the runner
-          #
-          # Change either bound deliberately, with a derivation edit in the same
-          # commit; run_gated.py's message names the number to record.
-          KP_SKIP_BASELINE: "5"
+          # Lower this number in the same commit that deletes a register entry;
+          # run_gated.py's message names the number to record.
+          KP_SKIP_BASELINE: "4"
           # Print the ten slowest MODULES after the run (run_gated.py --timings by
           # another name — set here rather than on the `run:` line so the gate
           # command CI executes stays byte-identical to the one AGENTS.md documents
@@ -523,7 +517,7 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -563,9 +557,16 @@ jobs:
       # KP_ALLOW_OPEN=1 is REQUIRED here: a production build FAILS CLOSED
       # without KP_OPERATOR_PASSWORD (proxy.ts), and the boot curl below
       # would read the refusal redirect as ready.
+      #
+      # KEEP_ALIVE_TIMEOUT (ms, read by .next/standalone/server.js) is set because
+      # the server otherwise closes idle sockets after Node's 5 s, and a spec's
+      # API request context reuses its socket across a long UI step: the next
+      # call races the close (ECONNRESET), and a POST is not retried. 130 s
+      # outlasts the longest idle gap a test can leave (the 120 s test timeout).
+      # A socket idle past 130 s can still race.
       - name: Start production server (port 3101)
         run: |
-          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 node .next/standalone/server.js > server.log 2>&1 &)
+          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
@@ -610,6 +611,7 @@ jobs:
           quality-tables
           shell-tab-state
           locale-smoke
+          journey-board
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101
@@ -665,7 +667,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 

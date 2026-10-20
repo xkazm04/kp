@@ -1,0 +1,252 @@
+// Gig specialist composition and hire (specialist.ts). The hire runs the REAL shared
+// hire tail (mintAndDispatch) against a stubbed Personas fetch. unit-db.ts first.
+import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { test, after, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import { GIG_ARENAS } from "./types.ts";
+import { gigRecipeSlugs, type ResolvedGigRecipe, type ResolvedGigRecipes } from "./recipes.ts";
+import { GIG_REQUIREMENTS_KIND, composeGigRequirements, type GigRequirementsResearch } from "./requirements.ts";
+import {
+  GIG_ARENA_CONNECTORS,
+  GIG_DEFAULT_BUDGET_USD,
+  GIG_SPECIALIST_JOB_TITLE_PREFIX,
+  cleanNiche,
+  composeGigSpecialistSpec,
+  gigSpecialistName,
+  hireGigSpecialist,
+  gigSpecialistLinkJobId,
+  narrowConnectors,
+  specialistDispatchSpec,
+  gigPersonaLinkJobId,
+  gigPersonaName,
+  gigPersonaNiche,
+} from "./specialist.ts";
+import { getHiredAgent, getActiveHiredAgentForJob, listHiredAgents } from "../db/agents.ts";
+import { listGigSpecialists } from "../db/gigs-specialists.ts";
+
+after(() => cleanupUnitDb());
+
+const realFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = realFetch;
+  delete process.env.PERSONAS_BRIDGE_URL;
+  delete process.env.PERSONAS_BRIDGE_KEY;
+});
+
+function seeded(arena: (typeof GIG_ARENAS)[number]): ResolvedGigRecipes {
+  const recipes: ResolvedGigRecipe[] = gigRecipeSlugs(arena).map((slug, i) => ({
+    ref: { slug, version: "0.1.0" },
+    origin: i === 0 ? "registry" : "seed",
+    title: `Title ${slug}`,
+    need: `Need ${slug}.`,
+    coreAction: i === 0 ? `Core ${slug}.` : null,
+    guidance: i === 0 ? `Guidance ${slug}.` : null,
+    successCriteria: i === 0 ? [`Criterion A of ${slug}`, `Criterion B of ${slug}`] : [],
+    activities: i === 0 ? [`Activity of ${slug}`] : [],
+    folder: null,
+  }));
+  return { recipes, registry: "unavailable", registryDir: null };
+}
+
+test("compose: arena defaults for connectors, family, budget; recipes pinned from the resolution", () => {
+  for (const arena of GIG_ARENAS) {
+    const spec = composeGigSpecialistSpec({ arena, niche: "  web-app\nauth  " }, seeded(arena));
+    assert.equal(spec.arena, arena);
+    assert.equal(spec.niche, "web-app auth", "one line, trimmed");
+    assert.deepEqual(spec.connectors, [...GIG_ARENA_CONNECTORS[arena]]);
+    assert.equal(spec.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD[arena]);
+    assert.deepEqual(spec.recipes.map((r) => r.slug), gigRecipeSlugs(arena));
+    assert.deepEqual(spec.exemplars, []);
+    assert.equal(spec.promptVersion, "gig-requirements.v1", "the stored field keeps its name; the value is the requirements version");
+  }
+  // A tool only when a deliverable needs it: only the bounty's deliverable is a change to a
+  // repository (source_control on freelance made Personas design a GitHub-commit phase).
+  assert.deepEqual(GIG_ARENA_CONNECTORS.freelance, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.security, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.competition, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.oss_bounty, ["source_control", "research"]);
+});
+
+test("compose: a valid family and budget override are kept, invalid ones fall back", () => {
+  const ok = composeGigSpecialistSpec({ arena: "freelance", niche: "copy", taxonomyFamily: "creative_design", budgetUsdPerAttempt: 7.5 }, seeded("freelance"));
+  assert.equal(ok.taxonomyFamily, "creative_design");
+  assert.equal(ok.budgetUsdPerAttempt, 7.5);
+  const bad = composeGigSpecialistSpec({ arena: "freelance", niche: "copy", taxonomyFamily: "wizardry", budgetUsdPerAttempt: -1 }, seeded("freelance"));
+  assert.equal(bad.taxonomyFamily, "general_professional");
+  assert.equal(bad.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD.freelance);
+  assert.equal(composeGigSpecialistSpec({ arena: "competition", niche: "" }, seeded("competition")).taxonomyFamily, "data_ai");
+});
+
+test("name is '<Arena> specialist - <niche>' and the niche is bounded", () => {
+  assert.equal(gigSpecialistName({ arena: "security", niche: "web-app auth" }), "Security specialist - web-app auth");
+  assert.equal(gigSpecialistName({ arena: "oss_bounty", niche: "" }), "Open-source bounty specialist - general");
+  assert.equal(cleanNiche("x".repeat(500)).length, 80);
+});
+
+const NO_RESEARCH: GigRequirementsResearch = {
+  gigsResearched: 0,
+  scope: "arena",
+  categories: [],
+  commonAsks: [],
+  commonChallenges: [],
+  typicalEffortHours: null,
+  asOf: "2026-09-25",
+};
+
+test("dispatch spec: mission from the arena recipe, the requirements ride as-is, and there is no prompt", () => {
+  const resolved = seeded("oss_bounty");
+  const spec = composeGigSpecialistSpec({ arena: "oss_bounty", niche: "rust cli" }, resolved);
+  const requirements = composeGigRequirements(spec, resolved, NO_RESEARCH, { lessons: {} });
+  const d = specialistDispatchSpec(spec, requirements);
+  assert.equal(d.name, "Open-source bounty specialist - rust cli");
+  assert.equal(d.mission, "Need open-source-bounty-contribution. Core open-source-bounty-contribution.");
+  assert.deepEqual(d.connectors, ["source_control", "research"]);
+  assert.equal(d.maxBudgetUsd, GIG_DEFAULT_BUDGET_USD.oss_bounty);
+  assert.deepEqual(d.successMetrics, []);
+  assert.equal("systemPromptDraft" in d, false, "kp writes no prompt for a gig specialist - absent, not empty");
+  assert.equal(d.requirements, requirements);
+});
+
+test("the requirements are built from trusted parts only: no gig of the specialist's own to leak", () => {
+  // composeGigSpecialistSpec takes no gig at all; the listing reaches the persona only
+  // as `bodyUntrusted` in a per-attempt assignment (dispatch.ts). This pins the input
+  // surface so a future "personalize the hire with the gig" change has to come here.
+  assert.equal(composeGigSpecialistSpec.length, 2);
+  assert.equal(specialistDispatchSpec.length, 2);
+});
+
+test("hire: mints through mintAndDispatch with jobId '' stored, a gig handle on the wire, then records the specialist", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  const bodies: unknown[] = [];
+  const workspaceCalls: unknown[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/api/dev/workspaces")) {
+      workspaceCalls.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ success: true, data: { id: "pws-comp", name: "Competitions", groupTeamId: "gt-1", created: true } }), { status: 200 });
+    }
+    bodies.push(JSON.parse(String(init.body)));
+    return new Response(JSON.stringify({ requestId: "pr-gig-1" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  const ws = "ws-gig-hire";
+  const r = await hireGigSpecialist(ws, { arena: "competition", niche: "tabular" });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.reused, false);
+  assert.equal(r.requestId, "pr-gig-1");
+  assert.equal(r.specialist.hiredAgentId, r.hiredAgentId);
+  assert.equal(r.specialist.name, "Competition specialist - tabular");
+  assert.equal(r.specialist.spec.arena, "competition");
+
+  const agent = getHiredAgent(r.hiredAgentId, ws)!;
+  assert.equal(agent.jobId, "", "no pseudo job id: the hire owns no posting");
+  assert.ok(agent.jobTitle.startsWith(`${GIG_SPECIALIST_JOB_TITLE_PREFIX} - `));
+  assert.equal(agent.intakeId, null);
+  assert.equal(agent.appMaster, null, "not mistaken for an App-master hire");
+  assert.equal(agent.status, "pending_approval");
+  assert.equal(getActiveHiredAgentForJob("", ws), null, "an empty job id never matches the job idempotency read");
+
+  const sent = bodies[0] as {
+    kp: { jobId: string };
+    spec: { name: string; systemPromptDraft?: string; requirements?: { kind: string; research: GigRequirementsResearch; tools: unknown } };
+    appMaster?: unknown;
+    placement?: { workspaceId: string };
+  };
+  // Personas refuses an empty kp.jobId outside the intake shape (validate_kp_persona_request),
+  // so the wire carries a stable gig handle while the stored row keeps "" (no posting).
+  assert.equal(sent.kp.jobId, "gig-specialist:competition:tabular");
+  assert.equal(sent.spec.name, "Competition specialist - tabular");
+  // Requirements, not a prompt; a workspace with no researched gigs says so (0 + nulls).
+  assert.equal("systemPromptDraft" in sent.spec, false);
+  assert.equal(sent.spec.requirements?.kind, GIG_REQUIREMENTS_KIND);
+  assert.equal(sent.spec.requirements?.research.gigsResearched, 0);
+  assert.equal(sent.spec.requirements?.research.typicalEffortHours, null);
+  assert.deepEqual(sent.spec.requirements?.tools, [{ connector: "research", why: "read the competition's rules, data description and evaluation metric" }]);
+  assert.deepEqual((agent.spec as { requirements?: { kind?: string } }).requirements?.kind, GIG_REQUIREMENTS_KIND, "the roster row keeps what was sent");
+  assert.equal(sent.appMaster, undefined);
+  // Filed into the arena's Personas workspace, ensured first.
+  assert.deepEqual(workspaceCalls[0], { name: "Competitions", description: (workspaceCalls[0] as { description: string }).description });
+  assert.match((workspaceCalls[0] as { description: string }).description, /Gigs module/);
+  assert.deepEqual(sent.placement, { workspaceId: "pws-comp" });
+  assert.deepEqual(r.placement, { workspaceId: "pws-comp" });
+  assert.equal(r.placementSkipped, null);
+
+  // Same arena + niche while the hire is live: reused, Personas not asked again.
+  const again = await hireGigSpecialist(ws, { arena: "competition", niche: "Tabular" });
+  assert.ok(again.ok && again.reused && again.specialist.id === r.specialist.id);
+  assert.equal(bodies.length, 1);
+  assert.equal(listGigSpecialists(ws).length, 1);
+});
+
+test("hire: an older Personas without the workspace route hires WITHOUT a placement and says so", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  const bodies: Record<string, unknown>[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/api/dev/workspaces")) return new Response("Not Found", { status: 404 });
+    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+    return new Response(JSON.stringify({ requestId: "pr-gig-old" }), { status: 200 });
+  }) as typeof fetch;
+  const r = await hireGigSpecialist("ws-gig-hire-old", { arena: "freelance", niche: "copywriting" });
+  assert.ok(r.ok, "the hire is never blocked on the workspace");
+  if (!r.ok) return;
+  assert.equal(r.placement, null);
+  assert.equal(r.placementSkipped, "personas_route_missing");
+  assert.equal(bodies.length, 1);
+  assert.equal("placement" in bodies[0]!, false, "no placement key on the wire");
+});
+
+test("hire: an injected workspace step that throws still hires, unplaced", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  globalThis.fetch = (async () => new Response(JSON.stringify({ requestId: "pr-gig-throw" }), { status: 200 })) as typeof fetch;
+  const r = await hireGigSpecialist("ws-gig-hire-throw", { arena: "security", niche: "api" }, undefined, {
+    ensureWorkspace: async () => {
+      throw new Error("boom");
+    },
+  });
+  assert.ok(r.ok && r.placement === null && r.placementSkipped === "personas_unreachable");
+});
+
+test("hire: a failed dispatch records no specialist and reports the bridge's code", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  globalThis.fetch = (async () => new Response("{}", { status: 401 })) as typeof fetch;
+  const ws = "ws-gig-hire-fail";
+  const r = await hireGigSpecialist(ws, { arena: "security", niche: "web" });
+  assert.equal(r.ok, false);
+  if (r.ok) return;
+  assert.equal(r.status, 502);
+  assert.equal(r.code, "AGENT_BRIDGE_KEY_INVALID");
+  assert.ok(r.hiredAgentId);
+  assert.equal(getHiredAgent(r.hiredAgentId!, ws)!.status, "failed");
+  assert.equal(listGigSpecialists(ws).length, 0);
+  assert.equal(listHiredAgents(ws).length, 1);
+});
+
+test("gigSpecialistLinkJobId: stable ASCII handle per arena + niche, bounded to Personas' 128 chars", () => {
+  assert.equal(gigSpecialistLinkJobId({ arena: "freelance", niche: "AI consulting and technical reports" }), "gig-specialist:freelance:ai-consulting-and-technical-reports");
+  assert.equal(gigSpecialistLinkJobId({ arena: "freelance", niche: "  Web · Development!! " }), "gig-specialist:freelance:web-development");
+  assert.equal(gigSpecialistLinkJobId({ arena: "security", niche: "" }), "gig-specialist:security:general");
+  assert.ok(gigSpecialistLinkJobId({ arena: "freelance", niche: "x".repeat(300) }).length <= 128);
+});
+
+test("narrowConnectors: an override only narrows the arena's tools, never adds one", () => {
+  assert.deepEqual(narrowConnectors("freelance", null), ["research"]);
+  assert.deepEqual(narrowConnectors("freelance", []), [], "a niche whose work needs no tool declares none");
+  assert.deepEqual(narrowConnectors("freelance", ["research", "source_control"]), ["research"], "source_control is not a freelance tool");
+  assert.deepEqual(narrowConnectors("oss_bounty", ["research"]), ["research"]);
+  const spec = composeGigSpecialistSpec({ arena: "freelance", niche: "data", connectors: [] }, seeded("freelance"));
+  assert.deepEqual(spec.connectors, []);
+});
+
+test("gig persona naming: '<short title> · <id6>', a stable per-gig handle, the niche from the category head", () => {
+  assert.equal(gigPersonaName({ id: "gig-l9x2k1-A8F3QZ", title: "Listing", brief: null }), "Listing · a8f3qz");
+  assert.equal(gigPersonaName({ id: "gig-1", title: "Listing", brief: { title: "Web security · Stored XSS in profile bio" } as never }), "Web security · Stored XSS in profile bio · gig1");
+  const long = gigPersonaName({ id: "gig-abcdef", title: `${"word ".repeat(20)}end`, brief: null });
+  assert.ok(long.endsWith(" · abcdef") && long.length <= 48 + " · abcdef".length && !/\s·/.test(long.replace(" · abcdef", "").slice(-1)), long);
+  assert.equal(gigPersonaLinkJobId("gig-1"), "gig-persona:gig-1");
+  assert.equal(gigPersonaNiche({ arena: "security", brief: { category: "Web security · XSS" } as never }), "Web security");
+  assert.equal(gigPersonaNiche({ arena: "competition", brief: null }), "Data & ML", "no brief: the type's label");
+});

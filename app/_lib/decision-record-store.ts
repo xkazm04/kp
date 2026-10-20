@@ -4,6 +4,7 @@ import { safeRowParse } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash, decisionContentMac } from "./decision-hash";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
+import { addColumns } from "./db/add-columns";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
 // consequential hiring decisions, stored in SQLite (a hash chain, NOT a
@@ -200,10 +201,34 @@ type ChainCheckpoint = {
 };
 const chainCheckpoints = new Map<string, ChainCheckpoint>();
 
+// --- Head witness (deletions under a head this process verified) -----------------------
+//
+// The chain holds no commitment to its own HEAD or LENGTH (compliance README, "TRUNCATION
+// IS NOT DETECTED"): delete the newest rows and what is left re-hashes clean. And the
+// checkpoint above makes an INTERIOR delete invisible too until the next full re-hash,
+// because the incremental run starts above the anchor and the anchor row is untouched.
+// resetSim does both to the real workspace chain (it deletes the demo's sealed rows).
+//
+// The witness is the smallest commitment that closes that for a deletion this process can
+// see: the highest seq it has verified and how many rows sat at or below it. Rows at or
+// below a verified head only ever stay put (seq is AUTOINCREMENT, erasure skips this
+// table), so a changed count or a missing head row means records were removed under a
+// head this process already vouched for. Held in process memory for the checkpoint's
+// reason (a DB row would be writable by the deleter it guards against), and it is NOT
+// cleared by a failure, so every later read in this process keeps saying so, { full: true }
+// included: re-hashing what is left cannot prove what was removed.
+//
+// The limit, stated: per process and gone on restart, so a deletion made while no process
+// had verified the chain is not detected. That needs a head anchored outside the row set.
+type HeadWitness = { seq: number; count: number };
+const chainHeadWitness = new Map<string, HeadWitness>();
+
 /** Test seam: node --test isolates each file in its own process, not each test inside it,
- *  and a tamper test must be able to establish "no checkpoint yet". */
+ *  and a tamper test must be able to establish "no checkpoint yet". Clears the head
+ *  witness too: together they are what a process restart forgets. */
 export function resetDecisionChainCheckpointsForTests(): void {
   chainCheckpoints.clear();
+  chainHeadWitness.clear();
 }
 
 let _db: Database.Database | null = null;
@@ -232,19 +257,11 @@ function db(): Database.Database {
   // Existing rows backfill to the default workspace, so their (globally-built) chain
   // becomes that workspace's chain and still verifies. An index on the per-tenant chain
   // head read (workspace_id, seq) keeps the seal's head lookup fast.
-  try {
-    d.exec(`ALTER TABLE decision_records ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "decision_records", ["workspace_id TEXT NOT NULL DEFAULT 'workspace'"]);
   // Chain keying (finding SD-1): key_id records which HMAC key sealed each row. Existing
   // rows backfill to '' (legacy keyless) via the DEFAULT, so the pre-key chain verifies
   // unchanged; new rows seal under the active key. Idempotent, same pattern as above.
-  try {
-    d.exec(`ALTER TABLE decision_records ADD COLUMN key_id TEXT NOT NULL DEFAULT ''`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "decision_records", ["key_id TEXT NOT NULL DEFAULT ''"]);
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_seq ON decision_records(workspace_id, seq)`);
   // Clean-arm read (heldOutEntryIds) filters by (kind, workspace_id).
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_kind ON decision_records(workspace_id, kind)`);
@@ -364,15 +381,22 @@ export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride
   return tx();
 }
 
-/** Best-effort seal: never throws. Sealing a decision record is an audit side
- *  effect that must NEVER abort or fail the decision it records (a hire, a
- *  scorecard, an offer). Logs + returns null on failure (e.g. KP-less env, DB
- *  lock). Use this at every decision call site instead of a hand-rolled try/catch. */
+/** Never throws: logs + returns null on failure (e.g. missing key, DB lock), so the
+ *  caller decides what a failed seal means. For the decisions whose record is a side
+ *  effect of an action already committed (a hire, a scorecard, an offer, a reinstate)
+ *  the caller ignores null: the seal is best-effort there and must not fail the action.
+ *  It is NOT the rule at the recruiter's accept/reject commit door: that door seals
+ *  BEFORE it writes and refuses (503 PIPELINE_DECISION_NOT_SEALED) when this returns
+ *  null. See docs/architecture/decisions/0017-a-human-adverse-decision-is-sealed-before-it-commits.md.
+ *  Nor at the Match add door (POST /api/pipeline): the `match_verdict` record is sealed
+ *  before the entry is inserted, and a null here refuses the add (503
+ *  PIPELINE_ADD_NOT_SEALED) — docs/architecture/decisions/0018-a-match-verdict-is-sealed-in-the-decision-chain.md.
+ *  Use this at every decision call site instead of a hand-rolled try/catch. */
 export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord | null {
   try {
     return sealDecisionRecord(input, workspaceOverride);
   } catch (error) {
-    console.warn(`[decision-record] seal failed for kind="${input.kind}" ref="${input.candidateRef}":`, error);
+    console.warn('[decision-record] seal failed for kind="%s" ref="%s":', input.kind, input.candidateRef, error);
     return null;
   }
 }
@@ -478,6 +502,22 @@ export function verifyDecisionChain(
     keyed: Number(agg.n ?? 0) > 0 && keylessCount === 0,
     firstKeyedSeq: agg.first_keyed ?? null,
   };
+  // HEAD WITNESS — were rows removed at or below a head this process verified? If so the
+  // verified prefix is not the prefix it was: drop the checkpoint so the run below re-hashes
+  // from genesis (an interior delete then breaks at its exact seq), and fail the verdict
+  // even if what is left re-hashes clean (a tail delete leaves nothing else to break).
+  const witness = chainHeadWitness.get(workspaceId);
+  let witnessBroken = false;
+  if (witness) {
+    const w = d
+      .prepare(
+        `SELECT COUNT(*) AS n, SUM(CASE WHEN seq = ? THEN 1 ELSE 0 END) AS head
+           FROM decision_records WHERE workspace_id = ? AND seq <= ?`
+      )
+      .get(witness.seq, workspaceId, witness.seq) as { n: number; head: number | null };
+    witnessBroken = Number(w.n) !== witness.count || !Number(w.head ?? 0);
+    if (witnessBroken) chainCheckpoints.delete(workspaceId);
+  }
   // Should this run start from the checkpoint, or re-hash everything? Three ways to say no:
   // the caller demanded the full proof, no checkpoint exists yet, or the last full re-hash
   // has aged out (the scheduled re-verify).
@@ -559,6 +599,15 @@ export function verifyDecisionChain(
     // periodic full re-hash still lands on time however often the panel is opened.
     fullAt: fromSeq === 0 ? now : (start?.fullAt ?? now),
   });
+  // What is left re-hashed clean, but rows under the witnessed head are gone: the break is
+  // at that head, and the witness stays so the next read says the same.
+  if (witness && witnessBroken) return { ok: false, brokenAtSeq: witness.seq, ...census, ...scope };
+  if (lastSeq > 0 && lastSeq >= (witness?.seq ?? 0)) {
+    const atOrBelow = d
+      .prepare(`SELECT COUNT(*) AS n FROM decision_records WHERE workspace_id = ? AND seq <= ?`)
+      .get(workspaceId, lastSeq) as { n: number };
+    chainHeadWitness.set(workspaceId, { seq: lastSeq, count: Number(atOrBelow.n) });
+  }
   return { ok: true, brokenAtSeq: null, ...census, ...scope };
 }
 

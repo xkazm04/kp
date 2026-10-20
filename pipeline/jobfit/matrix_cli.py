@@ -6,7 +6,9 @@ Input  --profiles-json: JSON array of { "id", "label", "archetype", "payload": <
        --jobs-json: optional JSON array of Job records used in addition to the corpus — lets
        newly-ingested DB jobs (absent from the static corpus) be scored. Mirrors recruiter_cli --job-json.
 Output one JSON object:
-  { candidates:[...], positions:[...], cells:[[ {score|null, blocked} ]],
+  { candidates:[...], positions:[...],
+    cells:[[ {score, blocked:false, fitTier, confidence:{low,high,level}, unprovenCount}
+             | {score:null, blocked:true, koKeys} ]],
     missing:[...], missingCandidates:[ {id, label, error} ] }.
 Any requested --job-ids absent from both the corpus and --jobs-json land in `missing` (surfaced, not
 silently dropped) so callers know which requested columns could not be produced. Symmetrically, any
@@ -110,7 +112,27 @@ def main(argv: list[str] | None = None) -> int:
                     ko_keys = list(dict.fromkeys(r.key for r in reasons))
                     row.append({"score": None, "blocked": True, "koKeys": ko_keys})
                 else:
-                    row.append({"score": score_job(cand, job).total, "blocked": False})
+                    # Keep the scorer's own read of the pair, not just its total:
+                    # fit_tier is the band every other match surface renders (the
+                    # grid used to re-band the bare number on a private scale), and
+                    # the confidence band + unproven count are the honesty fields
+                    # the route's Cell type declares. Drivers and the unproven skill
+                    # NAMES stay server-side — the popover fetches those per cell,
+                    # and a 200 x N grid should not carry them on every cell.
+                    res = score_job(cand, job)
+                    row.append(
+                        {
+                            "score": res.total,
+                            "blocked": False,
+                            "fitTier": res.fit_tier,
+                            "confidence": {
+                                "low": res.confidence.low,
+                                "high": res.confidence.high,
+                                "level": res.confidence.level,
+                            },
+                            "unprovenCount": len(res.unproven_skills),
+                        }
+                    )
             # Same id fallback as the missing_candidates path above (idea-d4bd3d30):
             # a profile without an "id" must still get a unique, stable row key —
             # a null id collapses the grid's React keys so rows silently merge or

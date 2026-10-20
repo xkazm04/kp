@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { authenticityBand, splitSanityChecks } from "@/app/_lib/sanity-checks";
+import { authenticityBand, trustLedger, type TrustFinding } from "@/app/_lib/sanity-checks";
 import { NOTICE } from "@/app/_components/ui/recipes";
 import { EngineNote } from "./shared";
 
@@ -15,14 +15,20 @@ import { EngineNote } from "./shared";
 // clean one. Warn-shaped checks get a loud amber callout above the tabs; clean
 // checks stay collapsed behind a toggle. The check sentences themselves are
 // deterministic engine English (not --lang localized) and are shown verbatim;
-// only the chrome is translated.
-export function QualityStrip({ checks }: { checks: string[] }) {
+// only the chrome is translated. The split is the engine's coded severity
+// (`findings`); legacy payloads without it fall back to the old regex.
+export function QualityStrip({
+  checks,
+  findings,
+}: {
+  checks: string[];
+  findings?: readonly TrustFinding[] | null;
+}) {
   const t = useTranslations("results.quality");
   const [open, setOpen] = useState(false);
-  const { warns, oks } = splitSanityChecks(checks);
-  // idea-cae71d45 — the CV-authenticity trust band, derived from the
-  // `Authenticity:` findings the engine folded into the trust ledger.
-  const band = authenticityBand(checks);
+  const { warns, oks } = trustLedger({ sanityChecks: checks, trustFindings: findings });
+  // idea-cae71d45 — the CV-authenticity trust band.
+  const band = authenticityBand(checks, findings);
   if (checks.length === 0) return null;
 
   const toggle = (
@@ -57,7 +63,7 @@ export function QualityStrip({ checks }: { checks: string[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle size={16} className="text-amber-600" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-amber-800">{t("title")}</span>
-        <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-sm font-semibold text-white">
+        <span className="rounded-full bg-amber-700 px-2.5 py-0.5 text-sm font-semibold text-white">
           {t("flagged", { count: warns.length })}
         </span>
         {band ? <TrustBand band={band} /> : null}
@@ -73,7 +79,7 @@ export function QualityStrip({ checks }: { checks: string[] }) {
 // low = coral; the title points the recruiter at the Authenticity lines below.
 function TrustBand({ band }: { band: "high" | "medium" | "low" }) {
   const t = useTranslations("results.quality");
-  const tone = band === "high" ? "bg-moss/10 text-moss" : band === "medium" ? "bg-amber-100 text-amber-800" : "bg-coral/10 text-coral";
+  const tone = band === "high" ? "bg-moss/10 text-moss" : band === "medium" ? "bg-amber-100 text-amber-800" : "bg-coral/10 text-coral-ink";
   const label = band === "high" ? t("trustHigh") : band === "medium" ? t("trustMedium") : t("trustLow");
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${tone}`} title={t("trustTitle")}>

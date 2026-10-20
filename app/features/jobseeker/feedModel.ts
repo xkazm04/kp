@@ -1,52 +1,12 @@
-// Pure decisions the /me/jobs, /me/jobs/[id] and /me/scans surfaces make — no React,
-// no fetch, so `node --test` pins them (feedModel.test.ts).
-//
-// CHAIN-AWARE EMPTY STATES. An empty feed has four different causes and each one has
-// a different next step; painting one "No jobs yet" over all of them sends the seeker
-// to the wrong page. The chain is profile → enabled source → a scan that ran → rows
-// above the minimum fit, and the FIRST missing link is the state the page shows.
+// Pure decisions the /me flow and /me/scans make — no React, no fetch, so `node --test`
+// pins them (feedModel.test.ts).
 //
 // SALARY COMPARISON. A posting's pay is compared with the seeker's floor ONLY when
 // both carry the same currency (salary-band.ts contract: no FX anywhere); a mismatch
 // is rendered as "not comparable (X vs Y)", never as a converted number.
 
 import { isSameCurrency, salaryBandPosition, type SalaryBandPosition } from "@/app/_lib/salary-band";
-import { DISMISS_REASONS, type DismissReason, type SalaryFloor, type SalaryPeriod } from "@/app/_lib/jobseeker/types";
-
-export type FeedChainFacts = {
-  hasProfile: boolean;
-  enabledSources: number;
-  /** A scan has completed at least once for this workspace (any outcome). */
-  hasScanned: boolean;
-  /** Rows the current filter returned. */
-  rows: number;
-  /** Rows the LIVE feed holds regardless of the min-fit filter (what the filter dropped). */
-  liveTotal: number;
-};
-
-export const FEED_EMPTY_STATES = ["no_profile", "no_sources", "no_scan", "below_min", "nothing_live", "ok"] as const;
-export type FeedEmptyState = (typeof FEED_EMPTY_STATES)[number];
-
-export function resolveFeedEmptyState(f: FeedChainFacts): FeedEmptyState {
-  if (f.rows > 0) return "ok";
-  if (!f.hasProfile) return "no_profile";
-  if (f.enabledSources === 0) return "no_sources";
-  if (!f.hasScanned) return "no_scan";
-  // Scanned, nothing shown: either the filter dropped everything (say how many), or
-  // the live feed is genuinely empty (the scan found nothing, or all was dismissed).
-  return f.liveTotal > 0 ? "below_min" : "nothing_live";
-}
-
-/** Whether the feed should ask the route for rows at all.
- *
- *  A broken chain is not a failed read: with no profile, or with no enabled source,
- *  the page ALREADY knows what it will show (the chain-aware empty state), and the
- *  list route cannot know why it is empty. Fetching anyway spends a request whose
- *  only possible outcomes are an empty page the reader must not be shown as "empty"
- *  and a failure the reader must not be shown at all. */
-export function shouldFetchRows(chain: Pick<FeedChainFacts, "hasProfile" | "enabledSources">): boolean {
-  return chain.hasProfile && chain.enabledSources > 0;
-}
+import type { SalaryFloor, SalaryPeriod } from "@/app/_lib/jobseeker/types";
 
 /** The markets EURES is asked for, from the seeker's preferences.
  *
@@ -60,10 +20,6 @@ export function euresCountries(countries: readonly string[] | null | undefined):
   const named = (countries ?? []).map((c) => c.trim().toLowerCase()).filter(Boolean);
   return named.length > 0 ? [...new Set(named)] : [DEFAULT_EURES_COUNTRY];
 }
-
-/** The dismiss picker's vocabulary IS the wire vocabulary — one list, re-exported so
- *  the component cannot drift from the route's `isDismissReason`. */
-export const DISMISS_PICKER_REASONS: readonly DismissReason[] = DISMISS_REASONS;
 
 export type PostingPay = {
   min: number | null;

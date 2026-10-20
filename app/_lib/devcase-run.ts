@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { clearedByFor, heldForAuthorship, getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, UNWITNESSED_CONFIDENCE_CAP, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
 import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { getJob } from "./db/jobs";
 import { ensureDb } from "./db/core";
@@ -13,9 +13,10 @@ import { invitedCandidateIdForSubmission } from "./devcase-invite-binding";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import type { JudgeIndependence } from "./devcase-judge-independence";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { promoteAuditReasons, promoteVerdict, promoteVerdictInputOf, type PromoteReason } from "./devcase-promote-verdict";
+import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
-import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
+import { buildRepoSnapshot, fetchRepoSignals, RepoUnreadableError, type RepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import {
   caseJobIdentity,
   devCaseIdForEntry,
@@ -96,7 +97,7 @@ export type NeedAnalysisResult = {
 // analysis is internal, so callers that don't care can omit it).
 export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal, lang?: string | null): Promise<NeedAnalysisResult> {
   const ghRefs = (need.codebaseRefs ?? [])
-    .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
+    .filter((r) => r.kind === "github" || /^(?:https?:\/\/|ssh:\/\/git@|git@)?(?:www\.)?github\.com[/:]/i.test(r.ref))
     .slice(0, MAX_CODEBASES);
   const snapshots = (await Promise.all(ghRefs.map((r) => buildRepoSnapshot(r.ref)))).filter(
     (s): s is RepoSnapshot => s !== null,
@@ -270,10 +271,10 @@ export async function runSessionChat(
         await write("case.json", kase),
         "--role-json",
         await write("role.json", role),
-        "--channel",
-        channel,
-        "--message",
-        message,
+        // The candidate's own text: = form, so a message that starts with "-" is the
+        // message and not an option (flagArg in python-runner.ts).
+        flagArg("--channel", channel),
+        flagArg("--message", message),
         "--lang",
         lang || "en",
       ];
@@ -469,7 +470,13 @@ export async function mintObservedFromSubmission(
   // (devcase-authenticity.ts) and apply_live_case only ever sees the transfer score
   // and its propagated confidence. Held, not lost — re-promoting mints normally
   // once a human has verified authorship and cleared the band.
-  if (bundle.authenticity?.band === "suspect") return { credited: [], applied: false };
+  // C2 — the same hold for a trace nobody witnessed. It costs the candidate no score,
+  // but observed provenance is permanent and global, so it is minted only from a
+  // timeline that was seen as it happened.
+  // C4 — held, not lost: the ONLY exit from either hold is `clearedBy`, a sealed human
+  // authorship_verified decision bound to this evaluation's digest. It leaves the band
+  // and the score untouched, and a re-evaluation retires it.
+  if (heldForAuthorship(sub)) return { credited: [], applied: false };
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
   if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
@@ -561,7 +568,8 @@ export type SubmissionEvaluation = {
   processTrace: {
     commitCount: number;
     cadence: { count: number; spanHours: number | null; bursty: boolean | null } | null;
-    decisionsLogPresent: boolean;
+    // null = the repo tree could not be read (not "the log is missing").
+    decisionsLogPresent: boolean | null;
   };
   // ce28da40 — process-authenticity (is this genuine incremental work or a
   // paste-from-LLM?), derived from the processTrace + reflection. Persisted so the
@@ -588,6 +596,8 @@ export type SubmissionEvaluation = {
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
   commitCount: number;
+  /** C4 — when this evaluation ran; the digest a clearance is bound to changes with it. */
+  evaluatedAt?: string;
 };
 
 // D6 core: the full incoming-evaluation chain for one submission — trace -> reflect +
@@ -612,7 +622,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // commits stay empty (the commit-derived reflection degrades gracefully — the
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
-  let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
+  let signals: RepoSignals | null = null;
   let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
   // LLM-era controls #1 — tamper-evidence verdict on the observed log itself,
   // computed server-side (hash chain + client-clock consistency + watermark scan)
@@ -631,7 +641,15 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     const chat = getDevSessionChat(sessionId);
     chatTranscript = chat.length > 0 ? chat.map((m) => ({ channel: m.channel, role: m.role, text: m.text })) : null;
   } else {
-    signals = await fetchRepoSignals(sub.repoRef);
+    const read = await fetchRepoSignals(sub.repoRef);
+    // The commit list could not be READ (throttle / 5xx / timeout / offline). Refuse
+    // here, BEFORE the Python/LLM evaluation is spent and before anything is saved:
+    // evaluating on zero commits would score kp's own rate limit as the candidate's
+    // "no commit history" and persist it into the promote gate. A coded, retryable
+    // throw; the next run reads the repo for real. (null = the ref does not resolve,
+    // a fact about the link, and keeps today's path.)
+    if (read && !read.ok) throw new RepoUnreadableError(read.unreadable, read.retryAfterSec);
+    signals = read;
   }
   const caseBaseline = devCase ? getDevCaseBaseline(devCase.id) : null;
   // The language the CANDIDATE was given this case in — captured at intake on the
@@ -715,9 +733,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const processTrace = {
     commitCount: commits.length,
     cadence: signals?.cadence ?? null,
+    // A repo tree that could not be read is null ("unread"), never false: the
+    // authenticity score then skips the no-DECISIONS-log penalty it did not observe.
     decisionsLogPresent: observed
       ? events!.some((e) => e.kind === "decision_log" || (e.path != null && /decision/i.test(e.path)))
-      : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+      : signals && !signals.topLevelReadable
+        ? null
+        : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
@@ -734,6 +756,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const integrityCompromised =
     integrity != null &&
     (integrity.chain.valid === false || integrity.backdatedEvents > 0 || integrity.watermark.foreign.length > 0);
+  // C2 — an unwitnessed trace CAPS process confidence (never a score or a band: it is
+  // absent from scoreAuthenticity's input on purpose). Mirrors process_events.py's
+  // UNWITNESSED_CONFIDENCE_CAP, which the CLI cannot receive without a new flag.
+  if (integrity?.witness.verdict === "unwitnessed") {
+    const tooling = payload.result.tooling as { confidence?: unknown } | null | undefined;
+    if (tooling && typeof tooling.confidence === "number") tooling.confidence = Math.min(tooling.confidence, UNWITNESSED_CONFIDENCE_CAP);
+  }
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -773,6 +802,9 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     perStepSources: payload.perStepSources ?? {},
     fallbackReason: payload.fallbackReason ?? {},
     commitCount: commits.length,
+    // C4 — stamps every evaluation as its own event, so a re-run is never byte-identical
+    // to the one a clearance was sealed against (the digest the clearance binds to).
+    evaluatedAt: new Date().toISOString(),
   };
   const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
   saveSubmissionEvaluation(submissionId, out, transferScore);
@@ -802,6 +834,8 @@ export async function runSourceForRole(
   // so the signature stays compatible with the store default everywhere else.
   { topN = 8, floor = 45, signal, workspaceId }: { topN?: number; floor?: number; signal?: AbortSignal; workspaceId?: string } = {},
 ): Promise<SourceOutcome> {
+  const stub = (globalThis as { __kpStubSourceForRole?: typeof runSourceForRole }).__kpStubSourceForRole;
+  if (stub) return stub(role, { topN, floor, signal, workspaceId });
   const profiles = listMatrixProfiles(undefined, workspaceId);
   if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
   const payload = await runDevcaseCli<{ result: SourceOutcome }>(
@@ -841,8 +875,16 @@ export function seedPipelineFromMatches(
   // `workspaceId` must be the SAME team runSourceForRole ranked. Passing one here
   // while omitting it there is the dangerous half-fix: the entries land correctly
   // but the people in them belong to another tenant.
-  opts: { caseId: string | null; roleTitle: string; workspaceId?: string },
-): { added: number } {
+  opts: {
+    caseId: string | null;
+    roleTitle: string;
+    workspaceId?: string;
+    candidateIds?: readonly string[];
+    /** Who sourced them ('human:<name>' from the recruiter door, 'auto:<engine>' from the
+     *  orchestrator), stamped on each 'added' event. Omitted = not identified. */
+    actor?: string | null;
+  },
+): { added: number; alreadyOnBoard: number } {
   // ONE THREAD: file these candidates under the assignment's REAL opening when it has
   // one, so a person sourced for the work sample and a person who applied to the JD
   // are the same row on the same job — not two rows on two job ids that no query
@@ -862,9 +904,12 @@ export function seedPipelineFromMatches(
     caseNeedRoleFamily(kase)
   );
   let added = 0;
+  let alreadyOnBoard = 0;
+  const allowed = opts.candidateIds ? new Set(opts.candidateIds) : null;
   for (const m of matches) {
     if (!m.candidateId) continue;
-    createPipelineEntry({
+    if (allowed && !allowed.has(m.candidateId)) continue;
+    const entry = createPipelineEntry({
       candidateId: m.candidateId,
       candidateLabel: m.label,
       // Already the sourced PROFILE's own archetype (runSourceForRole ranks real
@@ -884,10 +929,15 @@ export function seedPipelineFromMatches(
       // other team and every entry is stamped locale:null.
       locale: inferProfileLocale(m.candidateId, opts.workspaceId),
       workspaceId: opts.workspaceId,
+      actor: opts.actor ?? null,
     });
-    added += 1;
+    if (entry.created) {
+      added += 1;
+    } else {
+      alreadyOnBoard += 1;
+    }
   }
-  return { added };
+  return { added, alreadyOnBoard };
 }
 
 /** The role family the NEED states, when it states one. `dev_cases.need_json` is the
@@ -1008,10 +1058,9 @@ function promoteProvenance(identity: CaseJobIdentity, candidate: PromotedCandida
   return `${job}; candidate ${candidate.candidateId} (${candidate.origin})`;
 }
 
-// The evidence-confidence floor for auto-advance advice — mirrors the Python
-// confidence scale's LOW_CONFIDENCE (pipeline/jobfit/devcase/models.py): at or
-// below this the evaluation rests on thin/deterministic-fallback evidence.
-const LOW_EVAL_CONFIDENCE = 0.4;
+// The advance/hold RULE (blockers above the score ladder, the 0.4 evidence-confidence
+// floor, the absent-score tier) lives in devcase-promote-verdict.ts so the postings
+// preview and the EvalPanel show the verdict a promotion will land with, from one truth.
 
 export type PromoteResult = {
   entryId: string;
@@ -1025,6 +1074,9 @@ export type PromoteResult = {
   // the verdict, persisted on the automation trail so a reviewer can answer
   // "why did this advance / hold?" later.
   reasons: string[];
+  // The same reasons as CODES (devcase-promote-verdict.ts), blockers first — what the
+  // UI resolves in the reader's language. `reasons` above stays the trail's English.
+  reasonCodes: PromoteReason[];
 };
 
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
@@ -1033,7 +1085,9 @@ export type PromoteResult = {
 // the old hardcoded `score >= 70` here diverged from the calibration-adjustable floor
 // the orchestrator actually promoted on (case-sim round 2 canary c1). Returns null if
 // the submission isn't evaluated yet.
-export function promoteSubmission(submissionId: string, floor: number): PromoteResult | null {
+// `actor` is who promoted ('human:<name>' from the recruiter door, 'auto:<engine>' from the
+// orchestrator); it lands on the 'added' event of a NEW entry. Omitted = not identified.
+export function promoteSubmission(submissionId: string, floor: number, actor?: string | null): PromoteResult | null {
   const sub = getSubmission(submissionId);
   if (!sub || !sub.evaluation) return null;
   const bundle = sub.evaluation as {
@@ -1043,7 +1097,6 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   };
   const evaluation = bundle.evaluation ?? {};
   const transfer = bundle.transfer ?? {};
-  const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   // The case's candidate-facing language (DEVP5) rides the lifecycle — promote
   // carries it onto the entry so post-promotion comms render in the candidate's
@@ -1054,16 +1107,28 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   // never auto-advanced on transfer score alone: it's held for the live interview
   // that verifies ownership of the decisions (the minted followups), with the
   // authenticity concern surfaced to the reviewer.
-  const suspectAuth = bundle.authenticity?.band === "suspect";
+  //
   // Case-sim round 2 canary c2: the evaluation's PROPAGATED evidence-confidence
   // (min of its upstream signals — see models.py's confidence scale) was silently
   // dropped here, so a deterministic-fallback evaluation advised "advance" as
   // confidently as a fully-grounded one. Low evidence never auto-advances.
-  const evalConfidence =
-    typeof (evaluation as { confidence?: unknown }).confidence === "number"
-      ? ((evaluation as { confidence: number }).confidence)
-      : null;
-  const lowConfidence = evalConfidence != null && evalConfidence <= LOW_EVAL_CONFIDENCE;
+  //
+  // Both blockers, the floor and the absent-score tier are ONE pure rule, computed
+  // here — ABOVE the transaction — and shared with the postings preview.
+  // C4 — a clearance (clearedBy) lifts the authorship holds below; the band and the
+  // score stay in the bundle as history, only the BLOCKER is removed from the verdict.
+  // The preview (devcase-postings-view.ts) builds its input the same way: the C2 unwitnessed
+  // hold and the C4 clearance are INPUTS of the one rule, not a second pass over its answer.
+  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor, () => clearedByFor(sub) !== null);
+  const verdict = promoteVerdict(verdictInput);
+  // null when nothing scored the submission — never the fabricated 0 it used to be.
+  const score = verdictInput.transferScore;
+  const suspectAuth = verdict.reasons.some((r) => r.code === "authenticity_suspect");
+  const evalConfidence = verdictInput.confidence ?? null;
+  const lowConfidence = verdict.reasons.some((r) => r.code === "low_confidence");
+  // C2 — an unwitnessed timeline holds auto-promote; it never changes the score. The
+  // reasons line is written here, beside the verdict's own, so a hold always says why.
+  const unwitnessed = verdict.reasons.some((r) => r.code === "trace_unwitnessed");
 
   // TENANT: the SUBMISSION's own team owns everything this function writes — the
   // pipeline entry, the screening card and the audit event. There is no session
@@ -1128,6 +1193,7 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     jobTitle: identity.jobTitle,
     devCaseId: posting?.caseId ?? null,
     devSubmissionId: sub.id,
+    actor: actor ?? null,
     // ONE THREAD (gap 2) — NOT `matchScore: score`. `score` is the work-sample
     // TRANSFER score: how well the skills this person demonstrated on the
     // assignment carry to the role. `match_score` answers a different question —
@@ -1156,17 +1222,16 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     sourceChannel: "devcase",
     workspaceId,
   });
-  const recommendation: PromoteResult["recommendation"] =
-    score >= floor && !suspectAuth && !lowConfidence ? "advance" : "hold";
-  const reasons = [
-    `transfer score ${score} vs calibrated floor ${floor}`,
-    ...(suspectAuth ? [`process authenticity is suspect (${bundle.authenticity?.score ?? 0}/100)`] : []),
-    ...(lowConfidence ? [`evaluation evidence-confidence is low (${evalConfidence})`] : []),
-  ];
+  const recommendation: PromoteResult["recommendation"] = verdict.recommendation;
+  const reasons = promoteAuditReasons(verdict, floor);
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
+  if (unwitnessed) {
+    redFlags.unshift("Trace unwitnessed — the work timeline arrived in bulk rather than as it happened. The score is unchanged; verify the work live before advancing.");
+  }
   if (suspectAuth) {
+    const authScore = verdictInput.authenticityScore;
     redFlags.unshift(
-      `Process-authenticity is suspect (${bundle.authenticity?.score ?? 0}/100) — verify the candidate authored this before advancing.`
+      `Process-authenticity is suspect${authScore != null ? ` (${authScore}/100)` : ""} — verify the candidate authored this before advancing.`
     );
   }
   if (lowConfidence) {
@@ -1181,7 +1246,8 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
       recommendation,
       // NOTE: this field carries the transfer SCORE (the card UI's existing
       // contract), not the 0..1 evidence-confidence — which now gates the
-      // recommendation above instead of being silently dropped.
+      // recommendation above instead of being silently dropped. null when unscored:
+      // the card reader (decisionsAiReviewCardLogic) shows no score for a non-number.
       confidence: score,
       rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
       strengths: (evaluation.strengths as string[]) ?? [],
@@ -1190,6 +1256,6 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     workspaceId
   );
   recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")} | ${promoteProvenance(identity, candidate)}`, workspaceId);
-  return { entryId: entry.id, recommendation, reasons };
+  return { entryId: entry.id, recommendation, reasons, reasonCodes: verdict.reasons };
   }).immediate();
 }

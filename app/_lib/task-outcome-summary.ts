@@ -19,9 +19,12 @@
 //     every handler shares (source / applied / ok+total / cached). A raw key or a
 //     blob can no longer reach the drawer by default.
 //
-// `task-outcome-summary.test.ts` reads the HANDLERS table out of tasks.ts and fails
-// when a kind is neither mapped here nor listed in NO_TABLE_SUMMARY with a reason —
-// so a new task kind cannot ship with a nameless outcome.
+// TABLE and NO_TABLE_SUMMARY are typed as a partition of TaskKind (task-kinds.ts):
+// a kind neither mapped here nor listed in NO_TABLE_SUMMARY with a reason is a
+// compile error — so a new task kind cannot ship with a nameless outcome.
+
+import type { TaskKind } from "./task-kinds";
+import { fanoutOutcome } from "./task-fanout";
 
 /** The label vocabulary. A closed union, not a string: next-intl keys are TYPED,
  *  so `t(`outcome.field.${labelKey}`)` only compiles while every member has a
@@ -42,7 +45,9 @@ export type OutcomeFieldKey =
   | "caseIncluded"
   | "followups"
   | "proposals"
-  | "failures";
+  | "failures"
+  | "sent"
+  | "notContacted";
 
 /** The closed VALUE vocabulary — the internal tokens a result carries that a
  *  recruiter must never be shown raw (`deterministic`, `held_for_review`). Same
@@ -115,6 +120,10 @@ export const APPLIED_VALUES = [
   "no_alternative",
   "skipped_hired",
   "skipped_stage_changed",
+  // Scorecard attached but the Interview→Offer gate was closed (a474100ec): no approval opened.
+  "skipped_gate_closed",
+  // A `deferApply` run: scored, nothing written; the caller applies it.
+  "deferred",
 ] as const;
 function isApplied(v: string): v is (typeof APPLIED_VALUES)[number] {
   return (APPLIED_VALUES as readonly string[]).includes(v);
@@ -155,15 +164,34 @@ function caseLine(v: unknown): OutcomeLine[] {
   return kase ? choice("caseIncluded", Object.keys(kase).length > 0 ? "yes" : "no") : [];
 }
 
-const TABLE: Record<string, Mapper> = {
+/** The kinds that get a table mapper: the whole vocabulary minus the excused ones.
+ *  Together the two tables are a type-checked PARTITION of TaskKind — a kind missing
+ *  from both, or present in both, is a compile error at the edit. */
+type MappedKind = Exclude<TaskKind, keyof typeof NO_TABLE_SUMMARY>;
+
+const TABLE: Record<MappedKind, Mapper> = {
   // { result, source, applied } — the drawer's one useful fact is WHAT the run did.
   automation: (r) => [...appliedLine(r.applied), ...sourceLine(r.source)],
   // The reasoning payload plus { cached, narrativeLang }. `narrativeLang` is the
   // language the text was actually produced in — the panel's honest "shown in
   // English" note is derived from it, so it belongs on the outcome too.
   reasoning: (r) => [...freshnessLine(r.cached), ...fact("language", str(r.narrativeLang))],
-  // { ok, total, results } — how many letters were actually drafted.
+  // { ok, total, results } — what actually happened to each letter. A row whose items
+  // carry `applied` (task-fanout.ts) says how many were SENT and how many were
+  // deliberately not contacted (consent expired / anonymized): both return without
+  // throwing, so the old `ok / total` counted a suppressed letter as drafted. An
+  // older row without per-item outcomes keeps that line — it is all it can say.
   batch_outreach: (r) => {
+    const ledger = fanoutOutcome("batch_outreach", null, r, "succeeded");
+    const items = Array.isArray(r.results) ? r.results : [];
+    if (ledger && items.some((i) => typeof obj(i)?.applied === "string")) {
+      const { deliveredIds, suppressedIds, failedIds } = ledger;
+      return [
+        ...fact("sent", deliveredIds.length),
+        ...(suppressedIds.length ? fact("notContacted", suppressedIds.length) : []),
+        ...(failedIds.length ? fact("failures", failedIds.length) : []),
+      ];
+    }
     const ok = num(r.ok);
     const total = num(r.total);
     if (ok == null || total == null) return [];
@@ -198,16 +226,50 @@ const TABLE: Record<string, Mapper> = {
   jd_build: (r) => caseLine(r.case),
   interview_prep: (r) => [...sourceLine(r.source), ...fact("language", str(r.lang))],
   agent_fit: (r) => sourceLine(r.source),
+  // The kit itself is the durable artifact (a new interview_kits DRAFT the editor opens),
+  // so the one fact worth a line here is which engine wrote it — a deterministic kit is a
+  // template the recruiter must rewrite, and a keyless install deserves to be told.
+  interview_kit: (r) => sourceLine(r.source),
+  // The letter itself is never on the result (the tasks table outlives an erasure), so the
+  // facts are which engine wrote the draft and the language it was written in.
+  interview_letter: (r) => [...sourceLine(r.source), ...fact("language", str(r.lang))],
   repo_scan: (r) => sourceLine(r.source),
   campaign: (r) => sourceLine(obj(r.pack)?.source),
   profile_draft: (r) => sourceLine(r.source),
   companion_digest: (r) => [...fact("proposals", num(r.proposals)), ...sourceLine(r.source)],
+  // The briefs themselves are on each gig; the pass's facts are how many the model wrote
+  // out of those attempted, and how many could not be stored.
+  gig_research: (r) => {
+    const attempted = num(r.attempted);
+    const llm = num(r.llm);
+    const failed = num(r.failed);
+    return [...(attempted != null && llm != null ? fact("drafted", `${llm} / ${attempted}`) : []), ...(failed ? fact("failures", failed) : [])];
+  },
+  // The plans themselves are on each gig's Plans tab; the run's facts are the seats that
+  // answered with a plan out of those that ran, and the ones that failed.
+  gig_plans: (r) => {
+    const ready = num(r.ready);
+    const failed = num(r.failed);
+    return [...(ready != null && failed != null ? fact("drafted", `${ready} / ${ready + failed}`) : []), ...(failed ? fact("failures", failed) : [])];
+  },
+  // The report itself is a file (the gig's Summary links it); the run's facts are the stage
+  // it was written at and who wrote the body.
+  gig_report: (r) => [...fact("stage", str(r.stage)), ...sourceLine(r.source)],
+  // The proposal is a file (the gig's Summary links it) and, for a qualified gig, its draft;
+  // the run's fact is who wrote it.
+  gig_proposal: (r) => sourceLine(r.source),
+  // The comparison itself is the cohort view (/api/analyze/cohort/[id]); the run's facts
+  // are how many candidates it compared, how many failed, and who wrote the comments.
+  analyze_cohort: (r) => {
+    const failed = num(r.failed);
+    return [...fact("candidates", num(r.members)), ...(failed ? fact("failures", failed) : []), ...sourceLine(r.source)];
+  },
 };
 
-/** Kinds deliberately WITHOUT a table mapper, each with the reason. The test reads
- *  this beside TABLE, so "nobody got round to it" is not a state this file can be
- *  in — a kind is either mapped or explained. */
-export const NO_TABLE_SUMMARY: Record<string, string> = {
+/** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed
+ *  by what this leaves out, so "nobody got round to it" is not a state this file can
+ *  be in — a kind is either mapped or explained. */
+export const NO_TABLE_SUMMARY = {
   // The one kind that already had a real renderer (advanced / held / advisory / of
   // total, as a sentence with ICU plurals). It stays bespoke in TasksOutcome —
   // a five-row label/value list would be a downgrade of a sentence that reads well.
@@ -216,7 +278,11 @@ export const NO_TABLE_SUMMARY: Record<string, string> = {
   // table the /me/scans page renders from the scheduler_runs row the task also writes,
   // not a label/value list — and the closed OutcomeFieldKey vocabulary has no key for it.
   jobseeker_scan: "rendered as the per-source scan table on /me/scans from the scheduler_runs row",
-};
+  // A GigScanSummary is a per-source outcome table (found/created/suspect/qualified per
+  // source) the Gig desk renders from the scheduler_runs row the task also writes; the
+  // closed OutcomeFieldKey vocabulary has no key for a per-source row.
+  gig_scan: "rendered as the per-source scan table on the Gig desk from the scheduler_runs row",
+} as const satisfies Partial<Record<TaskKind, string>>;
 
 /** The generic fallback: the four shapes EVERY handler envelope shares. Used only
  *  for a kind with no mapper (an older row whose kind this build has dropped), and
@@ -238,7 +304,9 @@ export function genericOutcomeLines(result: unknown): OutcomeLine[] {
 export function taskOutcomeSummary(kind: string, result: unknown): OutcomeLine[] {
   const r = obj(result);
   if (!r) return [];
-  const mapper = TABLE[kind];
+  // Own-property lookup: a stored kind is any string, and `TABLE["constructor"]` is
+  // Object's constructor, not a mapper.
+  const mapper = Object.hasOwn(TABLE, kind) ? TABLE[kind as MappedKind] : undefined;
   return mapper ? mapper(r) : genericOutcomeLines(r);
 }
 

@@ -176,7 +176,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                       key={index}
                       scope="col"
                       className={`px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide ${
-                        index === winnerIndex ? "text-coral" : "text-steel"
+                        index === winnerIndex ? "text-coral-ink" : "text-steel"
                       }`}
                     >
                       <div className="flex items-center gap-1">
@@ -194,7 +194,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                             {columnBadges[index]}
                           </span>
                         ) : null}
-                        {/* #5: convey "winner" beyond color-only (text-coral +
+                        {/* #5: convey "winner" beyond color-only (text-coral-ink +
                             bg) — WCAG 1.4.1 — so SR/color-blind users get it too. */}
                         {index === winnerIndex ? <span className="sr-only">{t("compare.winnerLabel")}</span> : null}
                       </div>
@@ -270,7 +270,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
               <li key={pick.key ?? pick.section} className="rounded-md bg-paper p-3">
                 <span className="font-semibold text-ink">{sectionLabel(pick)}</span>{" "}
                 <span className="text-steel">{t("compare.fromLabel")}</span>{" "}
-                <span className="font-medium text-coral">{pick.sourceLabel}</span>
+                <span className="font-medium text-coral-ink">{pick.sourceLabel}</span>
                 <p className="mt-1 text-sm text-steel">{sectionReason(pick)}</p>
               </li>
             ))}

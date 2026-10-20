@@ -7,9 +7,10 @@ import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
 import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
+import { buildRoleTrace, droppedLanguages, statedLanguages, type AuthorInput } from "./jd-role-trace";
 import { briefMustSkills, briefStatedRequirements, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
-import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
+import { ingestStructuredJob } from "@/app/_lib/jd-ingest";
 import { renderTemplate, type TemplateTokens } from "@/app/features/shared/renderTemplate";
 import { jdTemplateTokens } from "./jd-template-tokens";
 
@@ -189,7 +190,7 @@ export async function runMarketSalary(input: {
   }
 }
 
-// The structured role this builder produces and ingest-job.ts consumes — now
+// The structured role this builder produces and jd-ingest.ts consumes — now
 // single-sourced from the generated schema (app/_lib/rolespec.ts ← codegen ←
 // pipeline/jobfit/devcase/models.py), so the Python producer and every TS
 // consumer share one declaration (idea-dcf2460d). Re-exported for the existing
@@ -293,7 +294,9 @@ export async function runJdBuild(
   params: Record<string, unknown>,
   progress?: Progress,
   signal?: AbortSignal,
-  workspaceId?: string
+  workspaceId?: string,
+  /** Test seam: stand-ins for the two spawned design steps. Production never passes it. */
+  steps: { analyze?: typeof runNeedAnalysis; role?: typeof runDesignArtifacts } = {}
 ): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
   // JDL5 — the JD output language (validated to en|cs; anything else → en).
@@ -304,6 +307,9 @@ export async function runJdBuild(
   // whether or not the client is still open. Absent ⇒ return-only (legacy callers).
   const jdSlug = typeof input.jdSlug === "string" && input.jdSlug.trim() ? input.jdSlug.trim() : null;
 
+  // The code the placeholder row carries if this build fails; refined below when the
+  // failure is the min-need contract (an accepted request can still reach it).
+  let failureCode = "JD_GENERATE_FAILED";
   try {
     if (!options.description && !options.marketResearch && !options.caseDesign) {
       throw new Error("Select at least one thing to generate.");
@@ -317,10 +323,14 @@ export async function runJdBuild(
     let needText = (input.needText ?? "").trim();
     if (needRole) {
       const valid = validateJdBuildInput(input.title, input.needText);
-      if (!valid.ok) throw new Error(valid.error);
+      if (!valid.ok) {
+        failureCode = valid.code;
+        throw new Error(valid.error);
+      }
       title = valid.title;
       needText = valid.needText;
     } else if (title.length < 2) {
+      failureCode = "JD_BUILD_TITLE_TOO_SHORT";
       throw new Error("A role title is required.");
     }
 
@@ -352,15 +362,20 @@ export async function runJdBuild(
     // The design chain (analyze → design role/case) and the grounded salary lookup
     // are independent, so run the SELECTED ones concurrently. An unticked step never
     // spawns — the case-design call in particular is skipped unless requested.
-    const designP: Promise<{ role: RoleSpec | null; kase: Record<string, unknown> | null; snapshot: RepoSnapshot | null }> = needRole
+    const designP: Promise<{
+      role: RoleSpec | null;
+      kase: Record<string, unknown> | null;
+      snapshot: RepoSnapshot | null;
+      provenance: { source?: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> };
+    }> = needRole
       ? (async () => {
-          const { analysis, snapshot } = await runNeedAnalysis(need, signal, lang);
+          const { analysis, snapshot } = await (steps.analyze ?? runNeedAnalysis)(need, signal, lang);
           progress?.(1, 2, options.description ? "Designing the role from the need…" : "Designing the interview case…");
-          const { role, case: kase } = await runDesignArtifacts(need, analysis, signal, undefined, lang, options.caseDesign);
+          const { role, case: kase, source, perStepSources, fallbackReason } = await (steps.role ?? runDesignArtifacts)(need, analysis, signal, undefined, lang, options.caseDesign);
           // Validated at the Python→TS trust boundary (was an unchecked cast).
-          return { role: parseRoleSpec(role), kase: options.caseDesign ? kase : null, snapshot };
+          return { role: parseRoleSpec(role), kase: options.caseDesign ? kase : null, snapshot, provenance: { source, perStepSources, fallbackReason } };
         })()
-      : Promise.resolve({ role: null, kase: null, snapshot: null });
+      : Promise.resolve({ role: null, kase: null, snapshot: null, provenance: {} });
     const salaryP: Promise<{ result: MarketSalary; sources: string[]; source: string } | null> = options.marketResearch
       ? runMarketSalary({
           title,
@@ -373,7 +388,13 @@ export async function runJdBuild(
       : Promise.resolve(null);
 
     const [design, salary] = await Promise.all([designP, salaryP]);
-    const spec = design.role;
+    // Languages are only what the AUTHOR stated. A language the model (or the keyless
+    // fallback) supplied on its own would otherwise print as a Languages section and,
+    // through ingest, become a ko_lang knockout for every applicant.
+    const authorInput: AuthorInput = { title, needText, brief };
+    const spec: RoleSpec | null = design.role
+      ? { ...design.role, languages: statedLanguages(design.role.languages, authorInput) }
+      : null;
     const snapshot = design.snapshot;
     progress?.(2, 2, "Formatting the job description…");
 
@@ -402,6 +423,10 @@ export async function runJdBuild(
     // returned to legacy in-memory consumers.
     const artifacts = {
       role: spec,
+      // Which role lines the author stated and which the build added, and how the role
+      // was designed. fallbackReason is raw exception text: kept for diagnosis, never rendered.
+      roleTrace: spec ? buildRoleTrace(spec, authorInput, design.provenance, droppedLanguages(design.role?.languages, authorInput)) : null,
+      fallbackReason: design.provenance.fallbackReason ?? {},
       salary: salary?.result ?? null,
       salarySources: salary?.sources ?? [],
       salarySource: salary?.source ?? null,
@@ -458,7 +483,9 @@ export async function runJdBuild(
     // records failed (its status is independent of the JD row).
     if (jdSlug) {
       try {
-        failJdAnalysis(jdSlug, err instanceof Error ? err.message : String(err));
+        // The task retains the original failure for operator diagnosis. The JD
+        // row reaches the browser, so persist only a stable localization code.
+        failJdAnalysis(jdSlug, failureCode);
       } catch {
         /* don't mask the original error if the fail-write itself throws */
       }

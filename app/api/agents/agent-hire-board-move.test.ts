@@ -19,7 +19,8 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as reportPost } from "./report/[token]/route.ts";
 import { POST as refreshPost } from "./[id]/refresh/route.ts";
-import { createHiredAgent, setHiredAgentRequest } from "../../_lib/db/agents.ts";
+import { createHiredAgent, getHiredAgent, setHiredAgentRequest, updateHiredAgentStatus } from "../../_lib/db/agents.ts";
+import { placeAgentOnBoard } from "../../_lib/agent-hire/lifecycle.ts";
 import { createPipelineEntry, getPipelineEntry, listPipeline, listPipelineEventsForEntry, setPipelineEntryStage } from "../../_lib/db/pipeline.ts";
 import { setDecisionConfig } from "../../_lib/decision-config-store.ts";
 
@@ -160,4 +161,83 @@ test("refresh route: the pull path resolves the same terminal ROLE and carries t
   assert.equal(entry.stage, "Signed", "the pull path reads the same axis the push path does");
   const moved = listPipelineEventsForEntry(entry.id, 50, ws).filter((e) => e.kind === "moved" && e.toStage === "Signed");
   assert.equal(moved[0]?.actor, "auto:agent-bridge");
+});
+
+// ---- One board move (challenge-r06 agents-api/A) ---------------------------
+// Dispatch filed its card at the literal "Offer" while both activation doors had
+// learned to resolve the stage BY ROLE; and the pull door recorded no
+// `agent_activated` marker the push door did. placeAgentOnBoard is the one
+// implementation all three now call.
+
+test("placeAgentOnBoard('offer'): files the dispatch card at the workspace's OFFER ROLE, not the literal 'Offer'", () => {
+  const ws = "ws-offer-renamed";
+  setDecisionConfig(
+    "pipelineStages",
+    {
+      stages: [
+        { id: "Inbox", label: "Inbox", role: "entry" },
+        { id: "Screen", label: "Screen", role: "screening" },
+        { id: "Talks", label: "Talks", role: "interview" },
+        { id: "Final round", label: "Final round", role: "offer" },
+        { id: "Signed", label: "Signed", role: "terminal" },
+      ],
+      retired: [],
+    },
+    ws
+  );
+  const agent = createHiredAgent({ jobId: "job-offer-rn", jobTitle: "Ledger Role", spec: SPEC }, ws);
+
+  const placed = placeAgentOnBoard(agent, "offer", ws, { label: SPEC.name, requestId: "req-o1" });
+  assert.ok(placed, "a job hire gets a card");
+
+  const entry = listPipeline(ws).find((e) => e.jobId === "job-offer-rn");
+  assert.ok(entry);
+  assert.equal(entry.stage, "Final round");
+  const events = listPipelineEventsForEntry(entry.id, 50, ws);
+  assert.ok(events.some((e) => e.kind === "agent_dispatched"), "the dispatch marker rides the same move");
+});
+
+test("refresh route: an activation over the POLL records the same 'agent_activated' marker the push path does", async () => {
+  const ws = "workspace";
+  const agent = createHiredAgent({ jobId: "job-poll-parity", jobTitle: "Ledger Role", spec: SPEC }, ws);
+  setHiredAgentRequest(agent.id, "req-parity", ws);
+
+  process.env.PERSONAS_BRIDGE_URL = "http://personas.test";
+  process.env.PERSONAS_BRIDGE_KEY = "k";
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ status: "activated", personaId: "p-par", personaName: "Parity" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })) as typeof fetch;
+
+  const res = await refresh(agent.id);
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { refreshed: boolean }).refreshed, true);
+
+  const entry = listPipeline(ws).find((e) => e.jobId === "job-poll-parity");
+  assert.ok(entry, "the poll filed a board card");
+  const marks = listPipelineEventsForEntry(entry.id, 50, ws).filter((e) => e.kind === "agent_activated");
+  assert.equal(marks.length, 1, "pull/push parity: one activation marker");
+});
+
+test("refresh route: a poll whose row moved during the network call writes nothing (status CAS)", async () => {
+  const ws = "workspace";
+  const agent = createHiredAgent({ jobId: "job-poll-race", jobTitle: "Ledger Role", spec: SPEC }, ws);
+  setHiredAgentRequest(agent.id, "req-race", ws);
+
+  process.env.PERSONAS_BRIDGE_URL = "http://personas.test";
+  process.env.PERSONAS_BRIDGE_KEY = "k";
+  // The push path lands a rejection WHILE the poll is on the wire; the poll's
+  // stale 'approved' reading must not overwrite it.
+  globalThis.fetch = (async () => {
+    updateHiredAgentStatus(agent.id, "rejected", {}, ws);
+    return new Response(JSON.stringify({ status: "approved" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  const res = await refresh(agent.id);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { refreshed: boolean; agent: { status: string } };
+  assert.equal(body.refreshed, false);
+  assert.equal(body.agent.status, "rejected");
+  assert.equal(getHiredAgent(agent.id, ws)?.status, "rejected");
 });

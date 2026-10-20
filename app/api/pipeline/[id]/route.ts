@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
+import { appendEntryNoteFromBody, MAX_NOTES_LENGTH } from "@/app/_lib/db/entry-notes";
+import { clearIntakeDegraded, getPipelineEntry, newestDecisionIsAutoRejection, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { listDecisionRecordsForRefs, sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { sealedMatchVerdictOf, type SealedMatchVerdict } from "@/app/_lib/decision-attribution";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 
 
 // AUTH (single-entry-authz-parity): the per-card single-entry surface is gated in
@@ -24,10 +29,20 @@ import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 // under a real operator) are unaffected; a valid operator session passes; the
 // anonymous demo-workspace session the proxy waves through is refused (401).
 
-// Upper bound for the persistent recruiter note (set_notes). Generous enough for
-// pasted call notes, tight enough that the column can't become a blob dump. The
-// drawer's textarea enforces the same cap client-side (maxLength).
-const MAX_NOTES_LENGTH = 4000;
+// The board move/decide actions (set_stage / accept / reject / approve_event) can each
+// queue candidate email — a rejection letter, an extended offer, the AI-interview invite
+// or work-sample assignment a stage arrival sets off — and this door had no throttle
+// while the bulk doors beside it (batch, command) did. One card per call, but open mode
+// leaves the operator gate a no-op, and paired with the add door's reopen a loop of
+// reject → re-add → reject could mail one candidate without bound (2026-10-07 pipeline
+// write-doors scan). 300/10min per IP is far above a recruiter dragging cards and the
+// guided sim's walk; the note, evidence, reinstate and intake branches send nothing
+// and stay unthrottled (the drawer's notes autosave through them).
+const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };
+
+// MAX_NOTES_LENGTH (db/entry-notes.ts) bounds the persistent recruiter note (set_notes)
+// and every thread note (add_note) from one number. The drawer's textarea enforces the
+// same cap client-side (maxLength).
 
 // One canonical-scored pipeline entry by id (drawer-flow-friction / rematch-story-
 // navigable). The board opens the drawer from a full Entry it already holds; this
@@ -37,27 +52,59 @@ const MAX_NOTES_LENGTH = 4000;
 // provenance stamped so the reopened header matches the board and decisions surfaces.
 // Workspace-scoped (getPipelineEntry) — a deleted or other-tenant id answers 404,
 // which the caller treats as "no navigation", never a broken drawer.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+//
+// `matchVerdict` (ADR 0018): the entry's newest SEALED Match verdict — its facts, read
+// through listDecisionRecordsForRefs on this workspace's chain and re-validated by
+// sealedMatchVerdictOf — or null (not a Match add, or filed before the seal). The
+// Decisions cohort's analysis modal renders it in the reader's language; codes and
+// numbers only, so nothing here is locale-bound.
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const entry = getPipelineEntry(id, ws);
     if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
-    return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0] });
+    return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0], matchVerdict: matchVerdictFor(id, ws) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
   }
+});
+
+/** The entry's sealed Match verdict, or null. The chain is a separate store: a read that
+ *  fails there must not take the entry (and the drawer that refreshes through this GET)
+ *  down with it, so it degrades to null — logged, because an unreadable chain is
+ *  something an operator would act on. */
+function matchVerdictFor(id: string, ws: string): SealedMatchVerdict | null {
+  try {
+    return sealedMatchVerdictOf(listDecisionRecordsForRefs([id], { workspaceId: ws }).get(id) ?? []);
+  } catch (error) {
+    console.error(`[api:pipeline:entry] sealed match verdict unavailable for entry ${id}`, error);
+    return null;
+  }
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown; actor?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown };
+
+    // The door's DECLARED actions (entry-actions.ts). An action the table does not name
+    // is refused here, before any branch runs, and the seat each action requires is read
+    // from its row — so every action this door dispatches asks the seat, not only the
+    // board moves. The bulk doors (batch, command, reverse, stage-migration, stage-sla)
+    // have asked pipeline:write since they landed; this per-card door, written to be in
+    // lock-step with them, asked only requireOperator (identity, not authority), so a
+    // viewer seat could reject, advance, extend an offer or reverse a rejection one card
+    // at a time (challenge-r07 pipeline-api/A).
+    const action = entryActionOf(body.action);
+    if (!action) {
+      return jsonRefusal("PIPELINE_ACTION_UNKNOWN", 400, typeof body.action === "string" ? { action: body.action } : undefined);
+    }
+    const under = await requireCapabilityCoded(ENTRY_ACTIONS[action].capability, requireCapability);
+    if (under) return under;
 
     // Attach a GitHub deep-dive summary to this entry — the drawer's on-demand
     // run for an inbound applicant who shared a handle at apply. Validated by
@@ -65,7 +112,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // POST: the only producer is our own client, so a shape mismatch is drift,
     // not input) and FILL-ONLY in the db layer, so evidence already attached is
     // never silently overwritten.
-    if (body.action === "set_github") {
+    if (action === "set_github") {
       const summary = coerceGithubEvidenceSummary(body.github);
       if (!summary) {
         return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
@@ -80,7 +127,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // text, trimmed, capped at MAX_NOTES_LENGTH, stored as NULL when emptied so
     // a cleared note reads as "no note" everywhere. Last write wins (a note is
     // recruiter-owned prose, not AI-attached evidence — no fill-only guard).
-    if (body.action === "set_notes") {
+    if (action === "set_notes") {
       if (typeof body.notes !== "string") {
         return jsonRefusal("PIPELINE_NOTES_INVALID", 400);
       }
@@ -95,10 +142,34 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ entry: updated });
     }
 
+    // Append one authored note to the entry's thread (beside the scratchpad above, which
+    // stays as it is). The AUTHOR is the session's user, read here and passed in — the body
+    // carries the text and nothing else, so no field of it can name an author. A null user
+    // (open / local mode) is stored NULL. Validation, the tenant derivation from the entry
+    // and the refusal codes live in the store slice (entry-notes.ts).
+    if (action === "add_note") {
+      const author = (await currentUser()).userId;
+      const res = appendEntryNoteFromBody(id, ws, body.note, author);
+      if (!res.ok) return jsonRefusal(res.code as RefusalErrorCode, res.status, res.data);
+      return NextResponse.json({ note: res.note }, { status: 201 });
+    }
+
     // Reinstate an auto-rejected candidate for re-review (idea-e43fa801): put them
     // back to active at Screened, audited. Guarded server-side to a still-rejected
     // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
-    if (body.action === "reinstate") {
+    if (action === "reinstate") {
+      // What this door may reverse is DECLARED (ENTRY_ACTIONS.reinstate.reverses): an
+      // auto-rejection, and only while it is the entry's newest decision. The store's
+      // guard reads status alone, which a recruiter's hand reject satisfies too — and
+      // the record sealed below says "Auto-rejection reversed", so writing it over a
+      // human decision would put a false sentence into the tamper-evident chain. A
+      // hand reject is reopened through the human re-add door (POST /api/pipeline),
+      // which records it as that. The rule lives in the store beside
+      // listReconsiderQueue, which lists by the same SQL, so Reconsider never offers
+      // a reinstate this door refuses.
+      if (!newestDecisionIsAutoRejection(id, ws)) {
+        return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
+      }
       // UAT LUC-ANA-4 — a reversal is the most accountability-bearing act on this
       // surface (a person overruling the machine), so it must name that person in
       // BOTH halves of the record. Resolved ONCE, from the SESSION (never the body),
@@ -125,14 +196,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         candidateRef: id,
         rationale: "Auto-rejection reversed for re-review.",
         reasonCode: "reinstate",
-        inputs: { previousStatus: "rejected", restoredStage: "Screened" },
+        // The stage the store ACTUALLY landed the candidate on (this workspace's
+        // screened column), not the shipped literal — a renamed board used to get a
+        // sealed record naming a stage the candidate never stood on.
+        inputs: { previousStatus: "rejected", restoredStage: restored.stage },
       });
       return NextResponse.json({ entry: restored });
     }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the
     // candidate's profile, so clear the flag (not a stage move) and keep the entry.
-    if (body.action === "resolve_intake") {
+    if (action === "resolve_intake") {
       const cleared = clearIntakeDegraded(id, ws);
       if (!cleared) {
         return jsonRefusal("PIPELINE_INTAKE_NOT_DEGRADED", 404);
@@ -140,18 +214,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ entry: cleared });
     }
 
+    if (!rateLimit(`pipeline-entry-move:${clientIpFrom(request.headers)}`, MOVE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // The three board move/decide actions (set_stage / accept / reject / approve_event)
     // run through the shared runPipelineEntryAction so the single route and the batch
     // route (/api/pipeline/batch) can never diverge on the expectedStage CAS, the
     // Hired-is-outcome-bearing 422, the offer_review → EXTEND branch, or the seal.
     const result = await runPipelineEntryAction({
       id,
-      action: typeof body.action === "string" ? body.action : "",
+      action,
       toStage: body.toStage,
       expectedStage: typeof body.expectedStage === "string" ? body.expectedStage : undefined,
       detail: typeof body.detail === "string" ? body.detail : undefined,
       ttlDays: body.ttlDays,
-      actor: body.actor,
+      // The engine claim survives only where the action declares one (accept — the
+      // guided sim's only use). Forwarded on every action, a body `actor: "sim"` let
+      // any operator file a human reject as a machine auto-rejection.
+      actor: engineClaimOf(action, body.actor),
       origin: new URL(request.url).origin,
       workspaceId: ws,
     });
@@ -159,4 +239,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:pipeline:action", "PIPELINE_ACTION_FAILED");
   }
-}
+});

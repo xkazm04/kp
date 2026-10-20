@@ -46,7 +46,7 @@ test("createOffer/rowToOffer carries the entry's workspace onto the offer row", 
 
 test("an accept on a non-default-workspace offer advances the entry to Hired", async () => {
   const { entry, offer } = seedOfferedEntry("off-accept");
-  const res = await respondToOffer(offer.token, "accept");
+  const res = await respondToOffer(offer.token!, "accept");
   assert.equal(res.ok, true, "the accept is claimed");
   // Pre-fix: actOnPipelineEntry ran against the default workspace, found no row, and
   // the entry never advanced. Post-fix it advances Offer → Hired in WS.
@@ -55,7 +55,7 @@ test("an accept on a non-default-workspace offer advances the entry to Hired", a
 
 test("a decline on a non-default-workspace offer closes the entry", async () => {
   const { entry, offer } = seedOfferedEntry("off-decline");
-  const res = await respondToOffer(offer.token, "decline");
+  const res = await respondToOffer(offer.token!, "decline");
   assert.equal(res.ok, true, "the decline is recorded");
   assert.equal(getPipelineEntry(entry.id, WS)!.status, "declined", "the entry status actually flipped to declined");
 });

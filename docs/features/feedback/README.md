@@ -17,7 +17,10 @@ the local SQLite store, and operators read it (read-only) on `/control`.
   sign-out, which are chrome rather than destinations.)
 - **Dialog** — `app/features/shell/nav/FeedbackDialog.tsx` on the shared
   `Modal` primitive at `size="lg"`: one message (required, ≤ 2000 chars) and
-  the current route captured automatically. It asks for nothing else — the
+  the current route captured automatically. It prefills the active tab's
+  localized name because `?tab=` is consumed by the shell and would otherwise
+  be absent from that route; the tab name alone cannot be submitted as feedback.
+  It asks for nothing else — the
   reply address is resolved from the signed-in user by the route, so there is
   no email field to fill in or to spoof.
 - **Route crash** — `app/_components/RouteError.tsx` (every segment `error.tsx`)

@@ -133,26 +133,33 @@ function routeSource(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 }
 
-test("both recommender call sites feed it the clean arm, derived the same way", () => {
+test("every recommender call site feeds it the clean arm, derived the same way", () => {
+  // challenge-r08 cv-analysis-archetypes/B: the derivation is ONE function now
+  // (calibration-recommendation.ts), called by the display route, the apply write and
+  // the floor preview. So the clean-arm pins move onto that function, and each route
+  // is pinned to call it and to carry no inline copy that could drift from it.
+  const helper = routeSource("./calibration-recommendation.ts");
+  assert.match(
+    helper,
+    /recommendScreeningThreshold\(pairs, holdoutPairs, currentThreshold\)/,
+    "the shared derivation must pass the holdout arm as the below-floor band"
+  );
+  assert.match(
+    helper,
+    // The display route hands in its per-request `heldOut()` memo; the other two let the
+    // helper read the store. Either way the arm is the SPARED entries on the ADVANCE axis.
+    /pipelineCalibrationPairs\(workspaceId, \{ onlyEntryIds: heldOut, outcome: "advance" \}\)/,
+    "the shared derivation must build that arm from the spared entries on the advance axis"
+  );
+  assert.match(helper, /deps\?\.heldOut \? deps\.heldOut\(\) : heldOutEntryIds\(workspaceId\)/);
   for (const [name, rel] of [
     ["display", "../api/analytics/calibration/route.ts"],
     ["apply", "../api/analytics/calibration/apply-threshold/route.ts"],
+    ["preview", "../api/analytics/calibration/floor-preview/route.ts"],
   ] as const) {
     const src = routeSource(rel);
-    assert.match(
-      src,
-      /recommendScreeningThreshold\(pairs, holdoutPairs, currentThreshold\)/,
-      `the ${name} route must pass the holdout arm as the below-floor band`
-    );
-    assert.match(
-      src,
-      // The display route reads the arm ONCE per request behind a `heldOut()` memo (it
-      // needs the same set twice); apply-threshold calls the store directly. Either
-      // spelling satisfies the guard — what it pins is that both build the below-floor
-      // band from the SPARED entries on the ADVANCE axis, not how the set is obtained.
-      /pipelineCalibrationPairs\(ws, \{ onlyEntryIds: (heldOutEntryIds\(ws\)|heldOut\(\)), outcome: "advance" \}\)/,
-      `the ${name} route must build that arm from the spared entries on the advance axis`
-    );
+    assert.match(src, /liveScreeningRecommendation\(ws, /, `the ${name} route must derive through the shared helper`);
+    assert.doesNotMatch(src, /recommendScreeningThreshold\(/, `the ${name} route must carry no inline copy of the derivation`);
   }
 });
 

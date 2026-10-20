@@ -2,18 +2,23 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 // ArchetypeChecklistItem is a leaf type with no node:fs dependency, so it is
 // single-sourced from the client-safe ProfileTypes (a type-only import, erased at
-// compile time — it does not pull this server module into the client bundle). The
+// compile time — it does not pull app/features/ into this server module's graph). The
 // full ArchetypeDef stays declared separately on each side: the client/server
 // split is intentional (this module imports node:fs) and the weight/dimension
-// maps differ (Record<Slot,...> here vs the literal object client-side).
-import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
+// maps differ (Record<Slot,...> here vs the literal object client-side). The
+// built-in ids are a VALUE, so they come from the _lib leaf, not from features/.
+import type { ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
+import { BUILT_IN_ARCHETYPE_IDS } from "./archetypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an
 // edit here is picked up by the next ranking/intake run immediately. The TS app
 // also imports this JSON statically (app/_lib/archetypes.ts) for app-wide labels;
-// that copy refreshes on a dev rebuild, but the Profile management UI reads
-// through THESE live endpoints so edits are always visible there at once.
+// that copy refreshes on a dev rebuild only. The Profile management UI reads through
+// THESE live endpoints, and every server DECISION that keys on the registry (the
+// auto-reject shield in screen-wave.ts / automation-fairness.ts, the scored-grid cache
+// key in app/api/matrix) reads through app/_lib/archetype-live.ts, which follows this
+// file and is invalidated by every write below (registryWriteGeneration).
 
 // Module-internal: no external importer (the two archetype routes use only
 // create/list/updateArchetype). validateArchetype and slotsOnly stay exported as the
@@ -140,14 +145,11 @@ function validateRegistry(parsed: unknown): Registry {
   return reg;
 }
 
-async function readRegistry(): Promise<Registry> {
-  let raw: string;
-  try {
-    raw = await readFile(registryPath(), "utf-8");
-  } catch {
-    // Replaced, not rethrown: the fs error carries the deployment's ABSOLUTE path.
-    throw new ArchetypeRegistryError("registry_unreadable", "pipeline/jobfit/archetypes.json could not be read.");
-  }
+/** Parse + validate the registry file's text — the ONE read contract, shared by this
+ *  module's async doors and the synchronous live reader (archetype-live.ts), so what the
+ *  fairness gate trusts is exactly what the manager serves and Python imports. Throws
+ *  ArchetypeRegistryError. */
+export function parseRegistryDocument(raw: string): Registry {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -157,6 +159,27 @@ async function readRegistry(): Promise<Registry> {
     throw new ArchetypeRegistryError("registry_invalid", "pipeline/jobfit/archetypes.json is not valid JSON.");
   }
   return validateRegistry(parsed);
+}
+
+async function readRegistry(): Promise<Registry> {
+  let raw: string;
+  try {
+    raw = await readFile(registryPath(), "utf-8");
+  } catch {
+    // Replaced, not rethrown: the fs error carries the deployment's ABSOLUTE path.
+    throw new ArchetypeRegistryError("registry_unreadable", "pipeline/jobfit/archetypes.json could not be read.");
+  }
+  return parseRegistryDocument(raw);
+}
+
+// Bumped after every completed write. The live reader (archetype-live.ts) folds it into
+// its memo key, so a save invalidates the reader in THIS process even when the rewrite
+// lands inside the filesystem's mtime granularity with an unchanged byte size. A
+// counter rather than a call into archetype-live: that module imports
+// parseRegistryDocument from here, and the reverse import would be a cycle.
+let _writeGeneration = 0;
+export function registryWriteGeneration(): number {
+  return _writeGeneration;
 }
 
 // Every exported entry point funnels its registry read through here, so a broken file
@@ -185,6 +208,7 @@ async function writeRegistry(reg: Registry): Promise<void> {
   const tmp = `${target}.tmp-${process.pid}`;
   await writeFile(tmp, `${JSON.stringify(reg, null, 2)}\n`, "utf-8");
   await rename(tmp, target);
+  _writeGeneration += 1;
 }
 
 // Serialize read-modify-write cycles so two near-simultaneous saves (two browser

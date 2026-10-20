@@ -1,11 +1,12 @@
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import { saveAgentFitSpec, type AgentFitSpecRecord } from "../db/agents";
 import { getJob } from "../db/jobs";
+import { ensureDb } from "../db/core";
+import { createPipelineEntry } from "../db/pipeline";
+import { getRoleRubric } from "../db/role-rubrics";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "../db/workspaces";
 import type { Locale } from "@/i18n/locales";
 import { buildLlmConfigEnv } from "../llm-config";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "../python-runner";
+import { runJobfitCli } from "../python-runner";
 import { fetchConnectorCatalog } from "./bridge-client";
 
 // Job → AgentFitSpec transform runner (WP1). The runDevcaseCli envelope, one
@@ -26,6 +27,8 @@ export type AgentFitPayload = {
 
 export type AgentFitResult = {
   record: AgentFitSpecRecord;
+  /** The agent's entry on the role board (one per job: `m-agent-fit-<jobId>`). */
+  entryId: string;
   result: AgentFitPayload;
   source: string;
   perStepSources: Record<string, string>;
@@ -73,33 +76,21 @@ export function agentFitArgs(jobPath: string, catalogPath: string, lang: Locale)
   return ["-m", "pipeline.jobfit.agentfit_cli", "--job-json", jobPath, "--catalog-json", catalogPath, "--lang", lang];
 }
 
-export async function runAgentFit(
+/** Persist one transform result AND file the agent on the role board, in one
+ *  transaction (createPipelineEntry nests as a savepoint), so a failure leaves
+ *  neither row. The entry is per JOB (`agent-fit-<jobId>`): a re-transform adds a
+ *  new versioned spec but lands on the same entry. No stage is named, so the
+ *  default screened landing applies. The rubric version is stamped only when the
+ *  role's rubric is frozen — a draft is not yet a standard. */
+export function persistAgentFit(
   jobId: string,
-  signal?: AbortSignal,
-  workspaceId: string = DEFAULT_WORKSPACE_ID,
-  // Resolved from the workspace rather than required, so the background task
-  // runner (tasks.ts, kind "agent_fit") keeps its three-argument call and still
-  // stops producing English specs for a Czech tenant.
-  lang: Locale = getWorkspaceDefaultLocale(workspaceId)
-): Promise<AgentFitResult> {
-  const job = getJob(jobId);
-  if (!job) throw new Error(`job not found: ${jobId}`);
-  // The catalog degrades to the built-in list when Personas is unpaired/down —
-  // the transform itself must never depend on the bridge being alive.
-  const catalog = await fetchConnectorCatalog();
-
-  const workdir = await createWorkdir();
-  try {
-    const jobPath = path.join(workdir, "job.json");
-    const catalogPath = path.join(workdir, "catalog.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
-    await writeFile(catalogPath, JSON.stringify(catalog.connectors), "utf-8");
-    // KP_LLM_CONFIG so the agent_fit use case resolves BYOM keys / model routing.
-    const { result } = spawnPython(agentFitArgs(jobPath, catalogPath, lang), { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const envelope = toAgentFitEnvelope(parsePythonJson<unknown>(stdout, stderr));
-
+  envelope: CliEnvelope,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { record: AgentFitSpecRecord; entryId: string } {
+  const jobTitle = getJob(jobId, workspaceId)?.title ?? "";
+  const rubric = getRoleRubric(jobId, workspaceId);
+  const rubricVersion = rubric?.frozenAt ? rubric.version : null;
+  return ensureDb().transaction(() => {
     const record = saveAgentFitSpec(
       {
         jobId,
@@ -111,15 +102,61 @@ export async function runAgentFit(
       },
       workspaceId
     );
-    return {
-      record,
-      result: envelope.result,
-      source: envelope.source,
-      perStepSources: envelope.perStepSources ?? {},
-      fallbackReason: envelope.fallbackReason ?? {},
-      catalogSource: catalog.source,
-    };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+    const { entry } = createPipelineEntry({
+      candidateId: `agent-fit-${jobId}`,
+      candidateLabel: envelope.result.spec.name?.trim() || jobTitle,
+      jobId,
+      jobTitle,
+      sourceChannel: "agent-fit",
+      actor: "auto:agent-fit",
+      workspaceId,
+      population: "agent",
+      ...(rubricVersion != null ? { rubricVersion } : {}),
+    });
+    return { record, entryId: entry.id };
+  })();
+}
+
+/** Wall-clock deadline for one agent_fit spawn. The transform chains several LLM steps
+ *  (fit, spec, budget, metrics), so it gets more headroom than a single analyze run
+ *  (ANALYZE_TIMEOUT_MS = 300s) but a real deadline, not the 10-minute hang backstop. */
+export const AGENT_FIT_TIMEOUT_MS = 420_000;
+
+export async function runAgentFit(
+  jobId: string,
+  signal?: AbortSignal,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // Resolved from the workspace rather than required, so the background task
+  // runner (tasks.ts, kind "agent_fit") keeps its three-argument call and still
+  // stops producing English specs for a Czech tenant.
+  lang: Locale = getWorkspaceDefaultLocale(workspaceId)
+): Promise<AgentFitResult> {
+  const job = getJob(jobId, workspaceId);
+  if (!job) throw new Error(`job not found: ${jobId}`);
+  // The catalog degrades to the built-in list when Personas is unpaired/down —
+  // the transform itself must never depend on the bridge being alive.
+  const catalog = await fetchConnectorCatalog();
+
+  // KP_LLM_CONFIG so the agent_fit use case resolves BYOM keys / model routing.
+  const raw = await runJobfitCli<unknown>(
+    (paths) => agentFitArgs(paths.job, paths.catalog, lang),
+    {
+      inputs: { job, catalog: catalog.connectors },
+      timeoutMs: AGENT_FIT_TIMEOUT_MS,
+      signal,
+      env: buildLlmConfigEnv(),
+    }
+  );
+  const envelope = toAgentFitEnvelope(raw);
+
+  const { record, entryId } = persistAgentFit(jobId, envelope, workspaceId);
+  return {
+    record,
+    entryId,
+    result: envelope.result,
+    source: envelope.source,
+    perStepSources: envelope.perStepSources ?? {},
+    fallbackReason: envelope.fallbackReason ?? {},
+    catalogSource: catalog.source,
+  };
 }

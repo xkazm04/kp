@@ -45,9 +45,9 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
     <div className="border-t border-stone-200 px-3 py-3">
       {startError && (
         <div role="alert" className="mb-2 flex items-start gap-1.5 rounded-md border border-coral/40 bg-coral/5 p-2">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0 text-coral" />
+          <AlertTriangle size={13} className="mt-0.5 shrink-0 text-coral-ink" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-coral">
+            <p className="text-sm font-semibold text-coral-ink">
               {startError.kind === "cancel" ? t("cancelErrorTitle") : t("startErrorTitle")}
             </p>
             <p className="break-words text-sm text-steel">{startError.message}</p>
@@ -56,7 +56,7 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
             type="button"
             onClick={clearStartError}
             title={t("dismiss")}
-            className="focus-ring rounded p-0.5 text-steel hover:bg-stone-100 hover:text-coral"
+            className="focus-ring rounded p-0.5 text-steel hover:bg-stone-100 hover:text-coral-ink"
           >
             <X size={12} />
           </button>
@@ -90,7 +90,7 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
             <span
               aria-live="polite"
               aria-label={t("failedSince", { count: unseenFailed })}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/10 px-1.5 text-sm font-semibold text-coral"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/10 px-1.5 text-sm font-semibold text-coral-ink"
             >
               <AlertTriangle size={10} aria-hidden /> {unseenFailed}
             </span>
@@ -110,7 +110,7 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
             <span
               aria-live="polite"
               aria-label={t("running", { count: running.length })}
-              className="shrink-0 rounded-full bg-coral px-1.5 text-sm font-semibold text-white"
+              className="shrink-0 rounded-full bg-coral-solid px-1.5 text-sm font-semibold text-white"
             >
               {running.length}
             </span>

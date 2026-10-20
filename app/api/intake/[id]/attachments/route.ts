@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIntake, updateIntakeAttachments, type IntakeAttachment } from "@/app/_lib/db/intakes";
 import { loadJd } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // The caps live in a sibling module: Next's generated route types reject any
@@ -23,12 +23,11 @@ import { ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX } from "./attachment-limits";
 
 type Body = { action?: unknown; kind?: unknown; title?: unknown; text?: unknown; jdSlug?: unknown; index?: unknown };
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Five distinct refusals on this route, and the pane painted one red
     // "attachment failed" for every one of them: full, gone, no such JD, empty
@@ -90,4 +89,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:intake/attachments", "INTAKE_ATTACHMENT_FAILED");
   }
-}
+});

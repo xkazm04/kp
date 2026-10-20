@@ -3,7 +3,7 @@
 ``submission_eval.judge``, ``lifecycle_audits.judge`` and
 ``lifecycle_audits.audit_role_fit`` each reimplemented the same fragile scaffold:
 build a list of prompts, ``provider.map`` them, zip the results back to the items,
-swallow ``ClaudeCliError``, parse ``res.json()`` inside a bare try/except, and skip
+swallow the call's error, parse ``res.json()`` inside a bare try/except, and skip
 malformed payloads. That core now lives here once, so hardening the error handling
 or the parse guard happens in a single place instead of in triplicate.
 
@@ -13,8 +13,8 @@ Callers supply only their two custom pieces:
                                         into a closure). Called ONLY for a successful,
                                         dict-shaped JSON payload.
 
-An item whose call errors (``ClaudeCliError``), whose body fails to parse, or whose
-payload is not a dict is silently skipped — ``parse_fn`` is never invoked for it, so
+An item whose call errors (``ClaudeCliError`` or ``LLMError``), whose body fails to
+parse, or whose payload is not a dict is silently skipped — ``parse_fn`` is never invoked for it, so
 callers can treat "parse_fn ran" as "we have a valid judgment".
 
 JUDGE ≠ GENERATOR (the invariant this module now owns)
@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
-from ..claude_cli import ClaudeCliError, ClaudeCliProvider
+from ..claude_cli import ClaudeCliProvider
 
 # Timeout for the judge seat. Judges read a truncated artifact dump and answer with a
 # small JSON verdict, so they are cheaper than the generation calls they grade.
@@ -49,8 +49,8 @@ def resolve_judge_provider(*, timeout: int = JUDGE_TIMEOUT_S) -> Any:
     Imported lazily: ``..llm`` pulls in the adapter registry + config loader, and the
     eval harnesses must stay importable (for ``--no-llm`` runs and unit tests) without
     that chain. Returns a ClaudeCliProvider-compatible object, so ``run_judge`` is
-    unchanged; with no ``KP_LLM_CONFIG`` it is a MonitoredClaudeCli on the CLI default —
-    same behavior as the bare provider it replaces, but metered.
+    unchanged; with no ``KP_LLM_CONFIG`` it is the ClaudeCliAdapter on the CLI default —
+    the bare provider it replaces, on the shared metered layer.
     """
     from ..llm import resolve_provider
 
@@ -100,7 +100,12 @@ def run_judge(
     prompts = [prompt_fn(item) for item in items]
     results = provider.map(prompts, max_workers=workers)
     for item, res in zip(items, results):
-        if isinstance(res, ClaudeCliError):
+        # ANY failed item, explicitly: a bare ClaudeCliProvider's map yields a
+        # ClaudeCliError, every TextProvider's (the registry's CLI adapter included)
+        # an LLMError — which used to be skipped only because res.json() then raised
+        # AttributeError into the guard below. Tested on the common base rather than
+        # by importing LLMError, so this module stays importable without ..llm.
+        if isinstance(res, Exception):
             continue
         try:
             payload = res.json()

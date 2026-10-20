@@ -87,13 +87,50 @@ export const coverageCount = (c: EvalCandidate, mustRows: string[]): number | nu
  *  So: project the headline onto the matrix's OWN field and compare there. When the
  *  projection can't cover the matrix (a ranked label the headline never names), the
  *  comparison is unanswerable and this returns null — the panel then says nothing rather
- *  than claiming agreement it cannot establish. */
-export function robustOrderVerdict(ranking: string[], headlineOrder: string[]): "agrees" | "diverges" | null {
+ *  than claiming agreement it cannot establish.
+ *
+ *  `ids` (fairness.rankingIds + payload.recommendedIds) switches the comparison to
+ *  identity — the same projection, over ids instead of display names. */
+export function robustOrderVerdict(
+  ranking: string[],
+  headlineOrder: string[],
+  ids?: { rankingIds?: string[] | null; headlineIds?: string[] | null },
+): "agrees" | "diverges" | null {
+  // IDENTITY when both sides carry it: two candidates named alike in the opposite
+  // order compare equal as labels, so a swapped namesake order read as "agrees". A
+  // legacy payload missing either side's ids keeps the label comparison.
+  const rankingIds = ids?.rankingIds;
+  const headlineIds = ids?.headlineIds;
+  if (Array.isArray(rankingIds) && rankingIds.length && Array.isArray(headlineIds) && headlineIds.length) {
+    return projectedVerdict(rankingIds, headlineIds);
+  }
+  return projectedVerdict(ranking, headlineOrder);
+}
+
+function projectedVerdict(ranking: string[], headlineOrder: string[]): "agrees" | "diverges" | null {
   if (!ranking.length) return null;
   const inMatrix = new Set(ranking);
   const projected = headlineOrder.filter((l) => inMatrix.has(l));
   if (projected.length !== ranking.length) return null;
   return ranking.some((l, i) => l !== projected[i]) ? "diverges" : "agrees";
+}
+
+/** The robust order as renderable entries: a stable React `key` (the candidate id when
+ *  the blob carries `rankingIds`) and the display label resolved BY ID, so two namesakes
+ *  are two distinct pills. A legacy blob without ids renders its label ranking, keyed by
+ *  rank position — never by the label, which is not unique. */
+export function robustOrderEntries(fairness: {
+  labels: string[];
+  candidateIds: string[];
+  ranking: string[];
+  rankingIds?: string[] | null;
+}): { key: string; label: string }[] {
+  const { rankingIds } = fairness;
+  if (Array.isArray(rankingIds)) {
+    const indexOf = new Map(fairness.candidateIds.map((id, i) => [id, i] as const));
+    return rankingIds.map((id) => ({ key: id, label: fairness.labels[indexOf.get(id) ?? -1] ?? id }));
+  }
+  return fairness.ranking.map((label, i) => ({ key: `rank-${i}`, label }));
 }
 
 /** One score-breakdown row of the comparison table. `weight` is null when the compared

@@ -7,8 +7,8 @@ archetype/confidence/reasons/completeness/missing. Pure logic — no LLM — so 
 intake stays fast. Invoked by /api/profile.
 
 On failure an {"error","status","code"} envelope goes to stderr with an HONEST
-status — 400/invalid_input for a malformed draft or bad JSON (the editor can show
-a field-level hint), 500/engine_error for an unexpected fault — plus a matching
+status — 400/invalid_input for a malformed draft or bad JSON (the server logs
+the detail; the editor receives a localized failure code), 500/engine_error for an unexpected fault — plus a matching
 exit code (2 for 400, 1 otherwise), so the TS seam (python-runner.parseStderrError)
 and /api/profile can tell user-fixable bad input from a real engine outage instead
 of seeing every failure as a 500. Mirrors automation_cli.py / devcase_cli.py.

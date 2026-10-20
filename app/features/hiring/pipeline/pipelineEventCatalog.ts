@@ -88,6 +88,8 @@ export const EVENT_KINDS = [
   // d95fed6d — a recruiter's analysis disposition (advance/hold/pass on the
   // saved report) echoed onto the candidate's pipeline record.
   "disposition_set",
+  // The approval gate on an entry was raised or changed by an operator.
+  "approval_set",
   // d95fed6d — a practice (simulator) interview noted on the record.
   "sim_attached",
   // rematch-story-navigable — the two sides of a re-engagement link (silver-medalist
@@ -116,6 +118,9 @@ export const EVENT_KINDS = [
   // screen-wave.ts — spared, but the holdout record could not be sealed: the event
   // names the failure, never the arm membership that does not exist (lot D2).
   "screen_wave_holdout_unsealed",
+  // screen-wave.ts — the REVIEWER spared this person from the wave in its preview; the
+  // approval signed the set without them. A person's act, written on commit.
+  "screen_wave_recruiter_spared",
   // pipeline-entry-action.ts — the AI round passed and the hiring plan handed the
   // candidate to a human round. The human-oversight hand-off itself.
   "human_round_queued",
@@ -212,20 +217,22 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   advanced: { Icon: ArrowUpCircle, tone: "text-moss" },
   moved: { Icon: ArrowLeftRight, tone: "text-steel" },
   scheduled: { Icon: CalendarCheck, tone: "text-moss" },
-  rejected: { Icon: XCircle, tone: "text-coral" },
+  rejected: { Icon: XCircle, tone: "text-coral-ink" },
   intake_degraded: { Icon: AlertTriangle, tone: "text-red-600" },
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
   stage_migrated: { Icon: Shuffle, tone: "text-amber-600" },
   disposition_set: { Icon: CheckSquare, tone: "text-steel" },
+  approval_set: { Icon: Lock, tone: "text-ink" },
   sim_attached: { Icon: Phone, tone: "text-steel" },
   rematched: { Icon: Shuffle, tone: "text-steel" },
   rematched_from: { Icon: Repeat, tone: "text-steel" },
   group_eval: { Icon: Sparkles, tone: "text-steel" },
   auto_advanced: { Icon: ArrowUpCircle, tone: "text-moss" },
-  auto_rejected: { Icon: XCircle, tone: "text-coral" },
+  auto_rejected: { Icon: XCircle, tone: "text-coral-ink" },
   screening_hold: { Icon: PauseCircle, tone: "text-amber-600" },
   screen_wave_holdout: { Icon: Scale, tone: "text-steel" },
   screen_wave_holdout_unsealed: { Icon: Scale, tone: "text-amber-600" },
+  screen_wave_recruiter_spared: { Icon: UserCheck, tone: "text-moss" },
   human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },
@@ -236,7 +243,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   outreach_suppressed: { Icon: Ban, tone: "text-amber-600" },
   outreach_opted_out: { Icon: MailX, tone: "text-amber-600" },
   acknowledgement_sent: { Icon: Mail, tone: "text-steel" },
-  rejection_sent: { Icon: Mail, tone: "text-coral" },
+  rejection_sent: { Icon: Mail, tone: "text-coral-ink" },
   interview_invite_sent: { Icon: Mail, tone: "text-steel" },
   schedule_invite_sent: { Icon: Mail, tone: "text-steel" },
   interview_reminder_sent: { Icon: Mail, tone: "text-steel" },
@@ -248,17 +255,17 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   comm_resent: { Icon: Send, tone: "text-steel" },
   interview_scheduled: { Icon: CalendarCheck, tone: "text-moss" },
   offer_accepted: { Icon: Handshake, tone: "text-moss" },
-  offer_declined: { Icon: XCircle, tone: "text-coral" },
+  offer_declined: { Icon: XCircle, tone: "text-coral-ink" },
   offer_expired: { Icon: Hourglass, tone: "text-amber-600" },
   offer_auto_extended: { Icon: Handshake, tone: "text-amber-600" },
   offer_accept_blocked: { Icon: Ban, tone: "text-amber-600" },
-  rejection_comms_failed: { Icon: MailWarning, tone: "text-coral" },
-  offer_comms_failed: { Icon: MailWarning, tone: "text-coral" },
-  fairness_gate_unknown_archetype: { Icon: Scale, tone: "text-coral" },
-  fairness_gate_blocked_reject: { Icon: Scale, tone: "text-coral" },
+  rejection_comms_failed: { Icon: MailWarning, tone: "text-coral-ink" },
+  offer_comms_failed: { Icon: MailWarning, tone: "text-coral-ink" },
+  fairness_gate_unknown_archetype: { Icon: Scale, tone: "text-coral-ink" },
+  fairness_gate_blocked_reject: { Icon: Scale, tone: "text-coral-ink" },
   aging_alert: { Icon: Timer, tone: "text-amber-600" },
   stale_alert: { Icon: Timer, tone: "text-amber-600" },
-  ko_declined: { Icon: Ban, tone: "text-coral" },
+  ko_declined: { Icon: Ban, tone: "text-coral-ink" },
   role_closed: { Icon: Lock, tone: "text-steel" },
   role_reopened: { Icon: Unlock, tone: "text-moss" },
   reinstated: { Icon: Undo2, tone: "text-moss" },

@@ -25,6 +25,7 @@
 
 import { commsVerdict, deriveCommsView, type CommsVerdict } from "@/app/_lib/comms-view";
 import type { OutboxItem } from "./DevTypes";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 
 export type OutboxFilters = {
   /** Free text over recipient and subject. */
@@ -48,12 +49,15 @@ export type OutboxFacets = { kinds: Facet[]; statuses: Facet[]; refs: Facet[] };
 // letter whose resend landed is audit, not an alarm.
 const VERDICT_ORDER = ["orphaned", "bounced", "failed", "recovered", "sent", "queued"] as const;
 
-/** A message that needs a human: the relay refused it, reported it undeliverable, or
- *  reported one for a send we never made — and nothing later put it right.
+/** A message that needs a human: a relay receipt for a send we never made, or a letter
+ *  that offers a recovery door (resendDoorOf — the ONE rule every resend surface reads:
+ *  a dead letter or a bounce nothing later put right).
  *  `queued` is NOT actionable — it's the terminal local-dev state, not a failure;
- *  `recovered` is NOT actionable either — a later resend of it reached the relay. */
-export function isDeadLetter(m: { verdict: CommsVerdict }): boolean {
-  return m.verdict === "failed" || m.verdict === "bounced" || m.verdict === "orphaned";
+ *  `recovered` is NOT actionable either — a later resend of it reached the relay;
+ *  and a `failed` row on the refused channel is not — no inbox exists by design, so the
+ *  door offers it nothing and the chip must not count it. */
+export function isDeadLetter(m: { verdict: CommsVerdict; channel?: string | null }): boolean {
+  return m.verdict === "orphaned" || resendDoorOf(m) !== null;
 }
 
 /** Raw append-only rows → the derived delivery view, one verdict per row, with each

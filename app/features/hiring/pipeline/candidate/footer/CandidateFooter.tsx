@@ -111,10 +111,10 @@ export function CandidateFooter({
                   disabled={st.busy !== null}
                   aria-busy={running}
                   className={`focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${
-                    last ? "border-coral bg-coral/5 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+                    last ? "border-coral bg-coral/5 text-coral-ink" : "border-stone-200 bg-white text-ink hover:border-coral/40"
                   }`}
                 >
-                  <Icon size={14} className="shrink-0 text-coral" aria-hidden />
+                  <Icon size={14} className="shrink-0 text-coral-ink" aria-hidden />
                   {running ? tDrawer("working") : tActions(id)}
                 </button>
               );
@@ -125,10 +125,10 @@ export function CandidateFooter({
         {st.showLinks ? (
           <>
             <button type="button" aria-expanded={tray === "voice"} onClick={() => toggle("voice")} className={LINK_BTN}>
-              <Mic size={14} className="text-coral" aria-hidden /> {t("voiceLink")}
+              <Mic size={14} className="text-coral-ink" aria-hidden /> {t("voiceLink")}
             </button>
             <button type="button" aria-expanded={tray === "schedule"} onClick={() => toggle("schedule")} className={LINK_BTN}>
-              <CalendarClock size={14} className="text-coral" aria-hidden /> {t("scheduleLink")}
+              <CalendarClock size={14} className="text-coral-ink" aria-hidden /> {t("scheduleLink")}
             </button>
           </>
         ) : null}

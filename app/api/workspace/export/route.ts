@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { dumpOrg, PortabilityError } from "@/app/_lib/db-portability";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { dumpOrg } from "@/app/_lib/db-portability";
+import { answerFailure, jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Download THE CALLER'S ORGANIZATION as one portable kp-org-dump JSON file:
 // every team's data, the org's identity (users, memberships, invites) and its
@@ -35,7 +36,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 // so an unauthenticated or under-privileged probe can never spend an admin's window.
 const EXPORT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
-export async function GET(request: NextRequest) {
+export const GET = withSession(async (request: NextRequest) => {
   // 401 for unauthenticated and for the anonymous demo session (which the proxy
   // would otherwise accept).
   const denied = await requireOperator();
@@ -63,9 +64,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    // "There is no database yet" is a DECISION with its own code and status; anything
-    // else is an accident whose message carries table names and the absolute db path.
-    if (error instanceof PortabilityError) return jsonRefusal(error.code, error.status);
-    return safeJsonError(error, "api:workspace/export", "WORKSPACE_EXPORT_FAILED");
+    // "There is no database yet" is a DECISION: PortabilityError is a Refusal carrying
+    // its own code and status. Anything else is an accident whose message carries table
+    // names and the absolute db path.
+    return answerFailure(error, "api:workspace/export", "WORKSPACE_EXPORT_FAILED");
   }
-}
+});

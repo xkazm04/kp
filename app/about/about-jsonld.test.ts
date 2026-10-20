@@ -96,9 +96,11 @@ test("SoftwareApplication names the product, not a rating, and points at the sou
   assert.equal(offers.priceCurrency, "CZK");
 });
 
-test("the free-tier Offer is claimed only while PricingSection still sells free", () => {
-  const src = readFileSync(path.join(HERE, "..", "landing", "spark", "PricingSection.tsx"), "utf8");
-  assert.match(src, /id:\s*"free"/, "PricingSection dropped the free tier — drop offers.price 0 from the graph");
+test("the free-tier Offer is claimed only while the pricing band still sells free", () => {
+  // The band on /#pricing (app/landing/site/land/Pricing.tsx; it replaced
+  // spark/PricingSection.tsx, same TIER_STYLES table, on 2026-09-30).
+  const src = readFileSync(path.join(HERE, "..", "landing", "site", "land", "Pricing.tsx"), "utf8");
+  assert.match(src, /id:\s*"free"/, "the pricing band dropped the free tier — drop offers.price 0 from the graph");
 });
 
 test("serializeJsonLd cannot close a script element", () => {
@@ -112,6 +114,14 @@ test("plainIcu strips hero ICU tags to a single sentence", () => {
     plainIcu("Walk one hire down<br></br>the <emph>whole pipeline</emph>."),
     "Walk one hire down the whole pipeline."
   );
+});
+
+test("plainIcu output is a fixed point: stripping again changes nothing", () => {
+  for (const hostile of ["a<scr<emph>ipt>b", "<<emph>emph>x", "<scr<br></br>ipt>alert(1)", "1 < 2 and <b>bold</b>"]) {
+    const once = plainIcu(hostile);
+    assert.equal(plainIcu(once), once, hostile);
+    assert.equal(/<[^>]*>/.test(once), false, hostile);
+  }
 });
 
 test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", () => {

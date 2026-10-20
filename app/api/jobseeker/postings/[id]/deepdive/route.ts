@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerPosting, getPostingSummary } from "@/app/_lib/db/jobseeker-postings";
-import { getWorkspaceJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { deepDivePosting } from "@/app/_lib/jobseeker/deepdive";
+import { withGithubEvidence } from "@/app/_lib/jobseeker/withGithub";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
 
@@ -38,7 +40,7 @@ import { isLocale } from "@/i18n/locales";
 
 export const maxDuration = 120;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -50,11 +52,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
+    const session = await currentSession();
     const posting = getJobseekerPosting(id, ws);
     if (!posting) return jsonRefusal("POSTING_NOT_FOUND", 404);
-    const profile = getWorkspaceJobseekerProfile(ws);
-    if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
+    // The CALLER's profile — the same resolution GET/PUT profile and the dialogs door make.
+    // getWorkspaceJobseekerProfile (the newest in the workspace) is the scan's answer, for
+    // a clock job with no session; on a request it reasoned with another seeker's CV.
+    const own = getJobseekerProfile(currentUserId(session), ws);
+    if (!own) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
+    // Scored on the same inputs as the scan: plus the GitHub evidence the seeker chose.
+    const profile = withGithubEvidence(own, ws);
     const langParam = new URL(request.url).searchParams.get("lang");
     const lang = isLocale(langParam) ? langParam : "en";
     const outcome = await deepDivePosting(posting, profile, { lang, signal: request.signal, workspaceId: ws });
@@ -70,4 +77,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings/[id]/deepdive", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

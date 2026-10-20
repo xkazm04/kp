@@ -1,0 +1,243 @@
+// The ONE list of late-bound implementations, registered at boot.
+//
+// Two hub modules sit on nearly every route's import graph — tasks.ts (every route
+// that starts or polls a task) and db/pipeline.ts (through its lazy stage-hooks edge)
+// — and the perf budget counts every module they reach, dynamic imports included. A
+// heavy implementation behind either of them is therefore held in a leaf registry
+// (task-external-runners.ts, stage-hooks-invite.ts) and registered HERE, from
+// instrumentation-node.ts, which no route imports. Each implementation is still loaded
+// lazily, on its first use, so boot pays for nothing it does not run.
+//
+// Callers:
+//   - instrumentation-node.ts, at server boot (idempotent: re-registering replaces);
+//   - app/_lib/testing/unit-db.ts, so a unit-test process boots the same seams the
+//     server does and a store test that moves an entry into an AI interview column, or
+//     queues a task, exercises the real wiring rather than a test double.
+//
+// Adding a kind to tasks.ts that delegates to `externalRunner(kind)` means adding its
+// registration here in the same change: late-bound-boot.test.ts parses tasks.ts and
+// fails on a delegated kind this function does not register.
+//
+// The converse is NOT required, and `intake_round` below is the first case: a kind may be
+// registered here and called straight from a route through the same leaf registry, with
+// no spec in tasks.ts at all. That is the right shape when there is no durable task row
+// to poll — no progress, no cancel, no result to fetch later — and it keeps the
+// implementation off the hub's graph for the same reason the other three are here.
+
+import { registerTaskRunner } from "./task-external-runners";
+import { registerStageHookInvite } from "./stage-hooks-invite";
+import { registerGigReportEnqueuer } from "./gigs/report/trigger";
+import { registerGigProposalEnqueuer } from "./gigs/proposal/trigger";
+
+/** True in a `node --test` process (the runner's child sets NODE_TEST_CONTEXT and carries
+ *  --test* in execArgv) - the same signal db-path.ts's test-isolation guard reads. */
+function inNodeTestRun(): boolean {
+  return Boolean(process.env.NODE_TEST_CONTEXT) || process.execArgv.some((a) => a === "--test" || a.startsWith("--test-"));
+}
+
+export function registerLateBoundImplementations(): void {
+  // The seeker's manual scan: the whole acquisition graph (adapters, rules engine,
+  // reconciliation).
+  registerTaskRunner("jobseeker_scan", async (ctx) => {
+    const { runJobseekerScan } = await import("./jobseeker/scan");
+    return runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
+  });
+  // The job's interview kit draft (tasks.ts `interview_kit`). The job id is
+  // client-supplied through POST /api/tasks; the runner re-checks ownership itself.
+  registerTaskRunner("interview_kit", async (ctx) => {
+    const { runInterviewKit } = await import("./interview-kit-run");
+    return runInterviewKit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId);
+  });
+  // The candidate's feedback-letter draft (tasks.ts `interview_letter`). Same rule: the
+  // letter id resolves inside the enqueuing team or not at all (interview-letter-run.ts).
+  registerTaskRunner("interview_letter", async (ctx) => {
+    const { runInterviewLetter } = await import("./interview-letter-run");
+    return runInterviewLetter(String(ctx.params.letterId), ctx.signal, ctx.workspaceId);
+  });
+  // The role-intake round's HISTORY row (Journey Analytics, db/intake-events.ts).
+  //
+  // NOT a tasks.ts kind, and deliberately so. The other three entries here back a spec in
+  // that hub; this one is called straight from POST /api/intake/[id]/message through the
+  // same leaf registry. A tasks.ts kind would put the classifier and the store on the hub
+  // ~60 routes import — which is the exact cost this seam exists to avoid — and would buy
+  // nothing: there is no durable task row to poll, no progress to report and no cancel to
+  // honour. A round either gets its row or it does not.
+  //
+  // CLASSIFY, THEN WRITE — in that order, because `intake_events` is append-only and has
+  // no UPDATE path to add a topic afterwards. The classifier is deterministic and keyless
+  // (app/_lib/journey/intake-topics.ts): it reaches no model, no network and no
+  // subprocess, and it REFUSES rather than guesses, leaving `topic_code` NULL for a round
+  // it cannot place. Both imports are lazy, so nothing here is paid for until a round is
+  // actually recorded.
+  registerTaskRunner("intake_round", async (ctx) => {
+    const { classifyIntakeRound } = await import("./journey/intake-topics");
+    const { INTAKE_ROUND_FACT_CHARS, recordIntakeEvent } = await import("./db/intake-events");
+    const question = typeof ctx.params.question === "string" ? ctx.params.question : "";
+    const answer = typeof ctx.params.answer === "string" ? ctx.params.answer : "";
+    const topicCode = classifyIntakeRound({ question, answer });
+    recordIntakeEvent({
+      intakeId: String(ctx.params.intakeId),
+      // The enqueuing tenant, exactly as the three runners above take it — never the
+      // deployment default, and never re-derived from the params the caller supplied.
+      workspaceId: ctx.workspaceId,
+      kind: "intake_round",
+      occurredAt: String(ctx.params.occurredAt),
+      topicCode,
+      // Bounded here as well as at the route: the runner is the chokepoint's caller and
+      // must not depend on one caller having trimmed its input.
+      facts: { question: question.slice(0, INTAKE_ROUND_FACT_CHARS), answer: answer.slice(0, INTAKE_ROUND_FACT_CHARS) },
+      actor: typeof ctx.params.actor === "string" ? ctx.params.actor : null,
+    });
+    return { topicCode };
+  });
+  // The analyze task's GitHub deep-dive stage (analyze-run.ts `ANALYZE_GITHUB_RUNNER`).
+  // analyze-run is on tasks.ts's graph and reaches the stage by name, so the harvest stays
+  // off the ~60 routes that import that hub. Registered here, not by /api/analyze, so a
+  // task replayed after a restart finds it before any route has loaded.
+  registerTaskRunner("analyze_github", async (ctx) => {
+    const { runGithubStageTask } = await import("./analyze-github-stage");
+    return runGithubStageTask(ctx);
+  });
+  // Gigs (app/_lib/gigs). Like `intake_round`, NO spec in tasks.ts: the Gig desk's
+  // "scan now" / "sync now" doors and the clock (instrumentation-node.ts) reach them
+  // through this leaf registry, which keeps the adapter graph (the scan) and the
+  // Personas bridge + deliverable parser (the sync) off every importer's path until
+  // one actually runs. Both scope every read and write to `ctx.workspaceId`.
+  //
+  // `gig_scan` runs `runGigScan(workspaceId, deps, signal)` (gigs/scan.ts) with its
+  // default deps (the expiry sweep included) PLUS the qualifier (gigs/qualify.ts), which
+  // the scan's defaults leave unplugged: every listing still `new` is scored and matched to
+  // a specialist as it lands. The manual run is what verifies the clock job
+  // (requiresVerifiedRun). The research ENQUEUER is plugged the same way: the gigs the scan
+  // created (and the links their listing HTML named, read now - the task cannot see that
+  // HTML) are handed to a `gig_research` task, and the scan returns without waiting for
+  // it. `params.sourceId` (POST /api/gigs/scan {sourceId}) narrows the run to one source.
+  registerTaskRunner("gig_scan", async (ctx) => {
+    const { runGigScan, defaultGigScanDeps } = await import("./gigs/scan");
+    const { qualifyGigHook } = await import("./gigs/qualify");
+    const sourceId = typeof ctx.params.sourceId === "string" && ctx.params.sourceId ? ctx.params.sourceId : null;
+    return runGigScan(
+      ctx.workspaceId,
+      {
+        ...defaultGigScanDeps(),
+        qualify: qualifyGigHook,
+        enqueueResearch: async (ws, req) => {
+          const { gigResearchTaskParams } = await import("./gigs/research");
+          const { startTask } = await import("./tasks");
+          return startTask("gig_research", gigResearchTaskParams(ws, req), ws).id;
+        },
+      },
+      ctx.signal,
+      { sourceId }
+    );
+  });
+  // `gig_research` (tasks.ts spec): the research pass the scan enqueues - at most eight of
+  // the gigs it was handed, each read and briefed by the web-researching engine
+  // (gigs/research.ts researchGigBatch), inside a pass budget under the task wall clock.
+  // Params are re-validated here (a retry replays them from the row). The accept loop's pass
+  // (gigs/loop.ts: `refresh`, `thenPlans`) re-researches a stale brief and then continues as a
+  // `gig_plans` task for the gigs research left `qualified` with no round; `plansTask` names it.
+  registerTaskRunner("gig_research", async (ctx) => {
+    const { GIG_RESEARCH_MAX_PER_SCAN, parseGigResearchTaskParams, researchGigBatch } = await import("./gigs/research");
+    const { parseGigLoopTaskParams } = await import("./gigs/loop");
+    const p = parseGigResearchTaskParams(ctx.params);
+    const loop = parseGigLoopTaskParams(ctx.params);
+    const summary = await researchGigBatch(ctx.workspaceId, {
+      signal: ctx.signal,
+      limit: GIG_RESEARCH_MAX_PER_SCAN,
+      sourceId: p.sourceId,
+      gigIds: p.gigIds,
+      linksByGigId: p.linksByGigId,
+      refresh: loop.refresh,
+    });
+    if (!loop.thenPlans || !p.gigIds || ctx.signal.aborted) return summary;
+    const { continueGigLoopAfterResearch } = await import("./gigs/loop-run");
+    return { ...summary, plansTask: continueGigLoopAfterResearch(ctx.workspaceId, p.gigIds) };
+  });
+  // `gig_loop` (NO spec in tasks.ts, the `intake_round` shape): the accept loop's enqueue,
+  // called by PATCH /api/gigs/[id] (accept / process) through this leaf registry so the route
+  // gains neither the task hub nor the stores it binds. Answers what it queued (loop.ts).
+  registerTaskRunner("gig_loop", async (ctx) => {
+    const { runGigLoop } = await import("./gigs/loop-run");
+    return runGigLoop(ctx.workspaceId, String(ctx.params.gigId));
+  });
+  // `gig_plans` (tasks.ts spec): the plan runner (gigs/plans.ts) - for each gig in turn,
+  // the three seats (plan-seats.ts) in parallel through gig_plan_cli.py. A selection that
+  // does not fit the pass budget continues as a NEW `gig_plans` task with the rest, so a
+  // 50-gig request is never cut off by the task wall clock; the summary names that task.
+  registerTaskRunner("gig_plans", async (ctx) => {
+    const { parseGigPlansTaskParams, runGigPlans } = await import("./gigs/plans");
+    const gigIds = parseGigPlansTaskParams(ctx.params);
+    const summary = await runGigPlans(ctx.workspaceId, gigIds, { signal: ctx.signal });
+    let continuedAs: string | null = null;
+    if (summary.deferred.length > 0 && !ctx.signal.aborted) {
+      const { startTask } = await import("./tasks");
+      continuedAs = startTask("gig_plans", { workspaceId: ctx.workspaceId, gigIds: summary.deferred }, ctx.workspaceId).id;
+    }
+    return { ...summary, continuedAs };
+  });
+  // `gig_report` (tasks.ts spec): the gig's HTML report FILE (gigs/report/run.ts) - the
+  // facts, one pinned model call (gig_report_cli.py) or kp's own body keyless, the atomic
+  // write, the record. `force` is the operator's "regenerate now" (POST /api/gigs/[id]/report).
+  registerTaskRunner("gig_report", async (ctx) => {
+    const { parseGigReportTaskParams, runGigReport } = await import("./gigs/report/run");
+    const p = parseGigReportTaskParams(ctx.params);
+    if (!p) return { status: "skipped", reason: "no_gig" };
+    return runGigReport(ctx.workspaceId, p.gigId, { force: p.force, signal: ctx.signal });
+  });
+  // The report's stage triggers (gigs/report/trigger.ts): the moves that change what a
+  // report says ask for a `gig_report` task through this enqueuer. NOT in a node:test
+  // process - a unit test that moves a gig must never start a model call; a test that
+  // observes the triggers registers its own enqueuer.
+  registerGigReportEnqueuer(
+    inNodeTestRun()
+      ? null
+      : async (ws, gigId, stage) => {
+          const { startTask } = await import("./tasks");
+          return startTask("gig_report", { workspaceId: ws, gigId, stage }, ws).id;
+        }
+  );
+  // `gig_proposal` (tasks.ts spec): a freelance gig's client proposal (gigs/proposal/run.ts) -
+  // one pinned model call (gig_proposal_cli.py) or kp's own composition keyless, the file,
+  // the record, and for a qualified gig the draft attempt kp writes itself.
+  registerTaskRunner("gig_proposal", async (ctx) => {
+    const { parseGigProposalTaskParams, runGigProposal } = await import("./gigs/proposal/run");
+    const p = parseGigProposalTaskParams(ctx.params);
+    if (!p) return { status: "skipped", reason: "no_gig" };
+    return runGigProposal(ctx.workspaceId, p.gigId, { signal: ctx.signal });
+  });
+  // The plan-accept trigger (gigs/proposal/trigger.ts), the same shape as the report's: NOT
+  // in a node:test process, so a unit test that accepts a plan never starts a model call.
+  registerGigProposalEnqueuer(
+    inNodeTestRun()
+      ? null
+      : async (ws, gigId) => {
+          const { startTask } = await import("./tasks");
+          return startTask("gig_proposal", { workspaceId: ws, gigId }, ws).id;
+        }
+  );
+  // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),
+  // then asks the outcome pollers (gigs/pollers.ts, WP4) about the workspace's SENT work:
+  // a merged pull request or a scored Kaggle entry resolves without the operator typing
+  // it in. The pollers run after the sync and their summary rides beside its counts.
+  registerTaskRunner("gig_sync", async (ctx) => {
+    const { syncGigAttempts } = await import("./gigs/sync");
+    const { pollGigOutcomes } = await import("./gigs/pollers");
+    const sync = await syncGigAttempts(ctx.workspaceId);
+    const outcomes = await pollGigOutcomes(ctx.workspaceId);
+    return { ...sync, outcomes };
+  });
+  // Cohort Studio (tasks.ts `analyze_cohort`, analyze-cohort-run.ts): the cohort id names a
+  // row the route created; the runner re-reads it inside ctx.workspaceId, so a replayed or
+  // foreign id resolves to nothing.
+  registerTaskRunner("analyze_cohort", async (ctx) => {
+    const { runAnalyzeCohortTask } = await import("./analyze-cohort-run");
+    return runAnalyzeCohortTask(ctx);
+  });
+  // The stage hook's AI-interview mint (stage-hooks.ts): the same door
+  // POST /api/interview/create calls, unchanged.
+  registerStageHookInvite(async (input) => {
+    const { mintAndInviteVoiceScreen } = await import("./interview-invite");
+    return mintAndInviteVoiceScreen(input);
+  });
+}

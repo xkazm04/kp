@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
-import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-approval";
+import { SCREEN_WAVE_APPROVAL_CODES } from "@/app/_lib/screen-wave-refusal-codes";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { normalizeSpareList } from "@/app/_lib/screen-wave-spare";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-
-const SCREEN_WAVE_APPROVAL_CODES = {
-  required: "SCREEN_WAVE_APPROVAL_REQUIRED",
-  expired: "SCREEN_WAVE_APPROVAL_EXPIRED",
-  mismatch: "SCREEN_WAVE_APPROVAL_MISMATCH",
-  spent: "SCREEN_WAVE_APPROVAL_SPENT",
-  unattributed: "SCREEN_WAVE_APPROVAL_UNATTRIBUTED",
-} as const satisfies Record<ScreenWaveRefusalReason, RefusalErrorCode>;
 
 export const maxDuration = 60;
 
@@ -38,7 +31,7 @@ const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // chain — so the handler re-verifies the operator session (rejecting the anonymous
 // demo-workspace session) exactly like /api/automation/[task]. The dry-run
 // preview reads the same cohort PII, so it is gated too.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -52,13 +45,13 @@ export async function POST(request: NextRequest) {
     // Tenant (P1): scope the whole wave — cohort read, approval token, commits, and
     // seals — to the caller's team. Without this the wave would rank and reject the
     // DEFAULT team's Screened cohort regardless of who is signed in.
-    const ws = await currentWorkspace();
     const body = (await request.json()) as {
       jobId?: string;
       override?: unknown;
       dryRun?: unknown;
       approvalToken?: unknown;
       approvedBy?: unknown;
+      spare?: unknown;
     };
     if (!body.jobId) return jsonRefusal("SCREEN_WAVE_JOB_REQUIRED", 400);
     // Validate the optional per-run override at the trust boundary: auto-reject is
@@ -67,6 +60,13 @@ export async function POST(request: NextRequest) {
     // body, is what reaches runScreenWave's bottom-% math (idea-1852b219).
     const checked = validateScreeningOverride(body.override);
     if (!checked.ok) return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: checked.error });
+    // The reviewer's per-person exclusions (screen-wave-spare.ts). Normalised here, at
+    // the trust boundary, like the override: a malformed list is a 400, never a 500 and
+    // never a silently shortened list. The preview and the commit must carry the SAME
+    // list: the approval token signs the set AFTER these are taken out, so a commit that
+    // drops or changes them re-derives a different set and is refused "mismatch".
+    const spare = normalizeSpareList(body.spare);
+    if (!spare.ok) return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: spare.error });
     // dryRun (DEC2): preview the cohort the wave WOULD reject — full math, zero
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
@@ -107,14 +107,16 @@ export async function POST(request: NextRequest) {
             token: approvalToken,
             approvedBy: await resolveApprover(),
           };
-    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval }, ws);
+    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval, spare: spare.ids }, ws);
     return NextResponse.json(result);
   } catch (error) {
-    // No human approval (or a token that no longer matches the live set) → 409 so
-    // the client re-previews and re-approves the current set before committing.
+    // No usable human approval → 409 with its reason, so the client can re-preview a
+    // changed or aged set, reload after a spent one, or block a commit no approver
+    // can be named for (REFUSAL_EFFECT in decisionsScreenWaveMachine.ts).
     if (error instanceof ScreenWaveApprovalError) {
       // `reason` is the machine-readable half of the same refusal (see
-      // SCREEN_WAVE_REFUSAL_REASONS). The five refusals ask the recruiter for five
+      // SCREEN_WAVE_REFUSAL_REASONS in screen-wave-contract.ts; the client reads it with
+      // readWaveRefusal). The five refusals ask the recruiter for five
       // different things — approve the set / re-preview a changed set / re-preview an
       // aged review / stop re-committing a review already spent / sign in or set
       // KP_OPERATOR_NAME — and a client with only the sentence cannot branch on them.
@@ -129,4 +131,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:decisions/screen-wave", "SCREEN_WAVE_FAILED");
   }
-}
+});

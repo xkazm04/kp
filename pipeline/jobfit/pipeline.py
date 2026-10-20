@@ -7,15 +7,22 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from .ats import evaluate_keyword_coverage, verify_gaps_against_cv, verify_skills_in_cv
+from .ats import (
+    evaluate_keyword_coverage,
+    untraced_skills_in_text,
+    verify_gaps_against_cv,
+    verify_skills_in_cv,
+)
 from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
+from .education import CANDIDATE_LEVELS
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
 from .i18n import normalize_lang
 from .llm.registry import resolve_provider
 from .llm.base import price_usd
 from .redact import redact_pii
+from .trust import Finding, to_trust_findings
 from .insights import (
     apply_company_salary_context,
     build_company_context,
@@ -53,6 +60,7 @@ from .taxonomy import (
     has_seniority_lead_signal,
     has_seniority_medior_signal,
     has_seniority_senior_signal,
+    resolve_term,
     role_band,
 )
 
@@ -72,6 +80,9 @@ if TYPE_CHECKING:
 
 ProgressCallback = Callable[[str, str], None]
 
+# The candidate education levels an LLM payload may name (education.py owns the ladder).
+_CANDIDATE_EDU_CHOICES = frozenset(CANDIDATE_LEVELS)
+
 _T = TypeVar("_T")
 
 # Cap on the deterministic skill list fed into the Gemini prompt as a hint.
@@ -87,7 +98,8 @@ def _softly(label: str, fn: Callable[[], _T | None], notes: list[str]) -> _T | N
     Each post-Gemini insight is cheap and deterministic; a bug in one must NOT
     discard an analysis whose expensive Gemini call already succeeded. On ANY
     exception this degrades the add-on to ``None`` and records a uniform
-    ``"<label> unavailable — insight skipped (manual review)"`` note, so the
+    ``"<label> unavailable — insight skipped (manual review)"`` finding (code
+    ``insight_skipped``, the label as its value), so the
     fail-soft policy is one construct instead of a hand-copied try/except island
     a future add-on could forget to wrap. A clean ``None`` return (e.g. an input
     is absent) is NOT a degradation and records no note.
@@ -95,7 +107,15 @@ def _softly(label: str, fn: Callable[[], _T | None], notes: list[str]) -> _T | N
     try:
         return fn()
     except Exception:
-        notes.append(f"{label} unavailable — insight skipped (manual review)")
+        notes.append(
+            Finding(
+                f"{label} unavailable — insight skipped (manual review)",
+                code="insight_skipped",
+                severity="warn",
+                scope="insight",
+                value=label,
+            )
+        )
         return None
 
 
@@ -143,8 +163,14 @@ def analyze_cv(
             job = Job.model_validate(json.loads(job_json))
         except Exception as exc:
             repairs.append(
-                "Structured job context was unreadable and was ignored "
-                f"({type(exc).__name__}) — requirement grading fell back to JD text."
+                Finding(
+                    "Structured job context was unreadable and was ignored "
+                    f"({type(exc).__name__}) — requirement grading fell back to JD text.",
+                    code="job_context_unreadable",
+                    severity="warn",
+                    scope="input",
+                    value=type(exc).__name__,
+                )
             )
 
     # The model that served (or would serve) cv_analysis — resolved through the
@@ -169,7 +195,15 @@ def analyze_cv(
                 note = "Blind screening active — identity redacted before scoring"
                 if redaction.categories:
                     note += f" ({', '.join(redaction.categories)})"
-                repairs.append(note + ".")
+                repairs.append(
+                    Finding(
+                        note + ".",
+                        code="blind_redaction_applied",
+                        severity="ok",
+                        scope="identity",
+                        value=", ".join(redaction.categories) or None,
+                    )
+                )
             elif (redaction.text or "").strip():
                 # Text redacted, but NO candidate name was detected (a single-token,
                 # very long, lowercase, non-Latin, or below-the-fold name slips past
@@ -180,14 +214,25 @@ def analyze_cv(
                 # name below as "anonymous candidate" rather than "redaction miss".
                 cats = ", ".join(redaction.categories) if redaction.categories else "none"
                 repairs.append(
-                    "Blind screening PARTIAL — no candidate name detected to redact "
-                    f"(redacted: {cats}); the name may have reached the model. Verify manually."
+                    Finding(
+                        "Blind screening PARTIAL — no candidate name detected to redact "
+                        f"(redacted: {cats}); the name may have reached the model. Verify manually.",
+                        code="blind_redaction_partial",
+                        severity="warn",
+                        scope="identity",
+                        value=cats,
+                    )
                 )
             else:
                 repairs.append(
-                    "Blind screening could not run: no extractable text to redact "
-                    "(encrypted/scanned/unsupported PDF). Analysis halted to avoid "
-                    "sending the original file to the model."
+                    Finding(
+                        "Blind screening could not run: no extractable text to redact "
+                        "(encrypted/scanned/unsupported PDF). Analysis halted to avoid "
+                        "sending the original file to the model.",
+                        code="blind_redaction_unavailable",
+                        severity="blocker",
+                        scope="identity",
+                    )
                 )
         _emit(progress, "extract", "done")
 
@@ -223,7 +268,14 @@ def analyze_cv(
             if not raw_text:
                 raise RuntimeError("Gemini analysis returned an empty profile.")
             if len(raw_text) < 120:
-                repairs.append("Profile text was short — assessment may be less reliable (manual review)")
+                repairs.append(
+                    Finding(
+                        "Profile text was short — assessment may be less reliable (manual review)",
+                        code="profile_text_thin",
+                        severity="warn",
+                        scope="input",
+                    )
+                )
             profile = _profile_from_payload(profile_payload, raw_text)
             # Re-attach the real name (idea-b8d711c4): the blind LLM pass returned a
             # null/redacted name by instruction, so restore the deterministically
@@ -269,8 +321,14 @@ def analyze_cv(
                 job_fit.matching_skills = verified_skills
                 withheld_list = ", ".join(withheld_skills)
                 repairs.append(
-                    f"Withheld {len(withheld_skills)} AI-suggested matching skill(s) "
-                    f"not found in the CV (shown only when verifiable): {withheld_list}."
+                    Finding(
+                        f"Withheld {len(withheld_skills)} AI-suggested matching skill(s) "
+                        f"not found in the CV (shown only when verifiable): {withheld_list}.",
+                        code="matching_skills_withheld",
+                        severity="ok",
+                        scope="skills",
+                        value=withheld_list,
+                    )
                 )
 
         # The symmetric half of the same gate (M4): a claimed GAP is a stated
@@ -292,8 +350,14 @@ def analyze_cv(
                 job_fit.missing_skills = real_gaps
                 contradicted_list = ", ".join(contradicted_gaps)
                 repairs.append(
-                    f"Dropped {len(contradicted_gaps)} AI-suggested gap(s) the CV "
-                    f"contradicts (the skill is evidenced there): {contradicted_list}."
+                    Finding(
+                        f"Dropped {len(contradicted_gaps)} AI-suggested gap(s) the CV "
+                        f"contradicts (the skill is evidenced there): {contradicted_list}.",
+                        code="gaps_contradicted_dropped",
+                        severity="ok",
+                        scope="skills",
+                        value=contradicted_list,
+                    )
                 )
 
         market_evidence = _market_evidence_from_payload(payload.get("market_evidence"), sources)
@@ -302,9 +366,66 @@ def analyze_cv(
             strengths = _string_list(payload.get("strengths"))
             gaps = _string_list(payload.get("gaps"))
             recommendations = _string_list(payload.get("recommendations"))
-            explanation = str(payload.get("explanation") or "").strip() or _explanation_fallback(
-                profile, score, salary, strengths, gaps, recommendations
-            )
+            explanation = str(payload.get("explanation") or "").strip()
+            # Trust gate (council value-1): strengths and the explanation are model
+            # prose, and the reasons block a recruiter repeats to a candidate must not
+            # carry a skill the CV never evidences. A strengths line naming one is
+            # withheld; the explanation keeps its text and carries a coded finding.
+            kept_strengths: list[str] = []
+            withheld_strengths: list[str] = []
+            for line in strengths:
+                (withheld_strengths if untraced_skills_in_text(line, raw_text) else kept_strengths).append(line)
+            if withheld_strengths:
+                strengths = kept_strengths
+                repairs.append(
+                    Finding(
+                        f"Withheld {len(withheld_strengths)} AI-written strength(s) naming a skill "
+                        f"not found in the CV: {'; '.join(withheld_strengths)}.",
+                        code=STRENGTHS_WITHHELD_CODE,
+                        severity="ok",
+                        scope="insight",
+                        value="; ".join(withheld_strengths),
+                    )
+                )
+            if explanation:
+                # A skill the model itself lists as a gap is named on purpose as absent.
+                gap_text = " ".join(
+                    [*gaps, *(job_fit.missing_skills if job_fit is not None else [])]
+                )
+                stated_gaps = {resolve_term(s) for s in detected_skills(gap_text, limit=1000)}
+                unverified = [
+                    s
+                    for s in untraced_skills_in_text(explanation, raw_text)
+                    if resolve_term(s) not in stated_gaps
+                ]
+                if unverified:
+                    unverified_list = ", ".join(unverified)
+                    repairs.append(
+                        Finding(
+                            "The explanation names skill(s) not found in the CV "
+                            f"(text kept as the model wrote it): {unverified_list}.",
+                            code=EXPLANATION_UNVERIFIED_SKILL_CODE,
+                            severity="warn",
+                            scope="insight",
+                            value=unverified_list,
+                        )
+                    )
+            if not explanation:
+                # The model wrote no explanation: the template below is NOT a reasons
+                # block. Mark it where it is made so the write path and the reasons
+                # meter can tell it from prose the model wrote.
+                explanation = _explanation_fallback(
+                    profile,
+                    score,
+                    salary,
+                    strengths,
+                    gaps,
+                    recommendations,
+                    score_computed=not any(
+                        getattr(r, "code", None) == "score_section_missing" for r in repairs
+                    ),
+                )
+                repairs.append(explanation_fallback_finding())
 
             extraction_quality = compare_extraction_quality(pypdf_text, raw_text, len(profile.skills))
             extraction_comparison = ExtractionComparison(
@@ -368,7 +489,15 @@ def analyze_cv(
             # JD-required regulated licence the candidate doesn't hold, or a held
             # regulated licence with a past date — a hard, compliance-relevant blocker
             # that a single missed LLM flag must not silently drop. A SCREEN (verify).
-            sanity_checks += credential_checks(job_description_text, profile.credentials)
+            # "Held" is checked against the document, not the model's list alone: the
+            # local extraction cannot invent a licence, so it is the text of record;
+            # the model's transcript stands in only when nothing was read locally.
+            local_text = clean_text(pypdf_text)
+            sanity_checks += credential_checks(
+                job_description_text,
+                profile.credentials,
+                cv_text=local_text if local_text.strip() else raw_text,
+            )
 
             # Trust-boundary screens (bug-hunter #1): the response schema constrains
             # SHAPE and ranges but not TRUTHFULNESS, and only job_fit.matching_skills is
@@ -481,6 +610,9 @@ def analyze_cv(
             recommendations=recommendations,
             explanation=explanation,
             sanity_checks=sanity_checks,
+            # The structured twin of sanity_checks: same order, same sentences, plus
+            # the code/severity/scope each producer stated (trust.py).
+            trust_findings=to_trust_findings(sanity_checks),
             job_fit=job_fit,
             company_context=company_context,
             evidence_trace=evidence_trace,
@@ -605,7 +737,7 @@ def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidatePr
     role_family_value = _choice_or_none(payload.get("role_family"), ROLE_FAMILY_SET)
     education_value = _choice_or_none(
         payload.get("education_level"),
-        {"phd", "master", "bachelor", "university", "unknown"},
+        _CANDIDATE_EDU_CHOICES,
     )
 
     needs_fallback = (
@@ -678,7 +810,7 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         SkillClaim,
         normalize_profile,
     )
-    from .taxonomy import PROVENANCE_WEIGHTS
+    from .taxonomy import DEFAULT_PROVENANCE, PROVENANCE_WEIGHTS
 
     years = profile.years_experience
     archetype, confidence, reasons = detect_archetype(
@@ -691,7 +823,11 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         has_substantial_experience=_as_bool(payload.get("has_substantial_experience")),
     )
     early = archetype in registry.early_career_archetypes()
-    default_prov = "self_declared" if early else "professional"
+    # One floor for every archetype. This used to be "professional" unless the CV
+    # read as early-career: the segmented discount the UAT 2026-07-20 fix removed
+    # from build_match_candidate survived here, baked into the stored v2 profile
+    # where that fix could not see it (test_cv_path_default_provenance).
+    default_prov = DEFAULT_PROVENANCE
     prov_ok = set(PROVENANCE_WEIGHTS)
 
     raw_claims = payload.get("skill_claims")
@@ -745,6 +881,10 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         evidence=evidence,
     )
     normalize_profile(v2)
+    if early:
+        from .transform import compute_potential
+
+        v2.potential_score, v2.learning_signals = compute_potential(v2)
     return v2
 
 
@@ -810,7 +950,17 @@ def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBrea
     """
     if not isinstance(raw, dict):
         if repairs is not None:
-            repairs.append("Score section missing — defaulted to 0 (manual review)")
+            # A BLOCKER on the score scope: the components below default to 0,
+            # so the total is a number nobody computed - consumers render the
+            # analysis unscored rather than as a measured 0 (a Weak verdict).
+            repairs.append(
+                Finding(
+                    "Score section missing — defaulted to 0 (manual review)",
+                    code="score_section_missing",
+                    severity="blocker",
+                    scope="score",
+                )
+            )
         raw = {}
     experience = _clamp_int(raw.get("experience"), 0, 25, 0)
     skills = _clamp_int(raw.get("skills"), 0, 30, 0)
@@ -940,7 +1090,14 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
     had_section = isinstance(raw, dict)
     if not had_section:
         if repairs is not None:
-            repairs.append("Salary section missing — estimate unavailable (manual review)")
+            repairs.append(
+                Finding(
+                    "Salary section missing — estimate unavailable (manual review)",
+                    code="salary_section_missing",
+                    severity="warn",
+                    scope="salary",
+                )
+            )
         raw = {}
     minimum = _optional_int(raw.get("minimum")) or 0
     maximum = _optional_int(raw.get("maximum")) or 0
@@ -948,11 +1105,25 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
     if minimum > 0 and maximum > 0 and maximum < minimum:
         minimum, maximum = maximum, minimum
         if repairs is not None:
-            repairs.append("Salary range was reversed — corrected (manual review)")
+            repairs.append(
+                Finding(
+                    "Salary range was reversed — corrected (manual review)",
+                    code="salary_range_reversed",
+                    severity="warn",
+                    scope="salary",
+                )
+            )
     if minimum <= 0 and maximum > 0:
         minimum = maximum
         if repairs is not None:
-            repairs.append("Salary minimum missing — set to maximum (manual review)")
+            repairs.append(
+                Finding(
+                    "Salary minimum missing — set to maximum (manual review)",
+                    code="salary_minimum_derived",
+                    severity="warn",
+                    scope="salary",
+                )
+            )
     elif maximum <= 0 and minimum > 0:
         maximum = minimum
         # Symmetric with the missing-minimum note above. Without it a one-sided
@@ -961,9 +1132,23 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         # the band the recruiter negotiates against was derived, not estimated,
         # with nothing saying so.
         if repairs is not None:
-            repairs.append("Salary maximum missing — set to minimum (manual review)")
+            repairs.append(
+                Finding(
+                    "Salary maximum missing — set to minimum (manual review)",
+                    code="salary_maximum_derived",
+                    severity="warn",
+                    scope="salary",
+                )
+            )
     elif minimum <= 0 and maximum <= 0 and had_section and repairs is not None:
-        repairs.append("Salary range missing — estimate unavailable (manual review)")
+        repairs.append(
+            Finding(
+                "Salary range missing — estimate unavailable (manual review)",
+                code="salary_range_missing",
+                severity="warn",
+                scope="salary",
+            )
+        )
     # A model-supplied midpoint can be inconsistent with its own min/max (e.g. an
     # annual figure among monthly bounds). Trust it only when it falls inside the
     # repaired band; otherwise derive it — so the displayed headline figure is
@@ -982,8 +1167,14 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         and (currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL)
     ):
         repairs.append(
-            f"Salary currency/period unrecognized ({currency}/{period}) — "
-            "verify the figure (manual review)"
+            Finding(
+                f"Salary currency/period unrecognized ({currency}/{period}) — "
+                "verify the figure (manual review)",
+                code="salary_currency_unrecognized",
+                severity="warn",
+                scope="salary",
+                value=f"{currency}/{period}",
+            )
         )
     return SalaryEstimate(
         currency=currency,
@@ -1118,14 +1309,33 @@ def _explanation_fallback(
     strengths: list[str],
     gaps: list[str],
     recommendations: list[str],
+    *,
+    score_computed: bool = True,
 ) -> str:
     candidate = profile.name or "Candidate"
+    # A score the engine never computed is a defaulted 0: say so, quote no number.
+    score_line = f"Score {score.total}/100" if score_computed else "Score not computed"
     return (
         f"{candidate} was assessed as {profile.current_seniority} in {profile.role_family}. "
-        f"Score {score.total}/100; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/{salary.period} "
+        f"{score_line}; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/{salary.period} "
         f"({salary.confidence} confidence). Strengths: {'; '.join(strengths) or 'n/a'}. "
         f"Gaps: {'; '.join(gaps) or 'no critical gaps detected'}. "
         f"Next steps: {'; '.join(recommendations) or 'tighten the CV against the target role'}."
+    )
+
+
+EXPLANATION_FALLBACK_CODE = "explanation_fallback"
+EXPLANATION_UNVERIFIED_SKILL_CODE = "explanation_unverified_skill"
+STRENGTHS_WITHHELD_CODE = "strengths_withheld"
+
+
+def explanation_fallback_finding() -> Finding:
+    """The coded marker for a template explanation (not model-written)."""
+    return Finding(
+        "Explanation missing from the model response — a template summary was substituted (not a written rationale)",
+        code=EXPLANATION_FALLBACK_CODE,
+        severity="warn",
+        scope="insight",
     )
 
 
@@ -1281,16 +1491,28 @@ def _extract_pre_pass(
         pypdf_text = extract_text(path)
     except Exception as exc:
         notes.append(
-            f"Local text extraction failed ({_short_error(exc)}) — deterministic "
-            "pre-pass skipped; relying on Gemini's own read of the document (manual review)"
+            Finding(
+                f"Local text extraction failed ({_short_error(exc)}) — deterministic "
+                "pre-pass skipped; relying on Gemini's own read of the document (manual review)",
+                code="local_extraction_failed",
+                severity="warn",
+                scope="input",
+                value=type(exc).__name__,
+            )
         )
         return "", _empty_deterministic_evidence()
     try:
         evidence = _build_deterministic_evidence(pypdf_text, company_text)
     except Exception as exc:
         notes.append(
-            f"Deterministic pre-pass failed ({_short_error(exc)}) — evidence findings "
-            "skipped; Gemini analysis proceeds unprimed (manual review)"
+            Finding(
+                f"Deterministic pre-pass failed ({_short_error(exc)}) — evidence findings "
+                "skipped; Gemini analysis proceeds unprimed (manual review)",
+                code="prepass_failed",
+                severity="warn",
+                scope="input",
+                value=type(exc).__name__,
+            )
         )
         evidence = _empty_deterministic_evidence()
     return pypdf_text, evidence
@@ -1379,7 +1601,11 @@ def _sanity_checks(
     score_reported_total: int | None = None,
 ) -> list[str]:
     checks = []
-    checks.append("Profile text length OK" if len(text) >= 120 else "Profile text is short")
+    checks.append(
+        Finding("Profile text length OK", code="profile_text_ok", severity="ok", scope="input")
+        if len(text) >= 120
+        else Finding("Profile text is short", code="profile_text_short", severity="warn", scope="input")
+    )
     checks.extend(_score_sanity_checks(score, score_reported_total))
     checks.extend(_salary_sanity_checks(salary))
     return checks
@@ -1413,13 +1639,23 @@ def _score_sanity_checks(
     )
     divergence = abs(reported - component_sum)
     return [
-        "Score is inside 0-100" if 0 <= score.total <= 100 else "Score outside expected range",
-        "Score total matches its breakdown"
+        Finding("Score is inside 0-100", code="score_range_ok", severity="ok", scope="score")
+        if 0 <= score.total <= 100
+        else Finding(
+            "Score outside expected range", code="score_out_of_range", severity="warn", scope="score"
+        ),
+        Finding(
+            "Score total matches its breakdown", code="score_total_consistent", severity="ok", scope="score"
+        )
         if divergence <= SCORE_TOTAL_TOLERANCE
-        else (
+        else Finding(
             f"Score total ({reported}) disagrees with its breakdown "
             f"(components sum to {component_sum}, off by {divergence}) — "
-            "verify the score before trusting it"
+            "verify the score before trusting it",
+            code="score_total_divergent",
+            severity="warn",
+            scope="score",
+            value=str(divergence),
         ),
     ]
 
@@ -1445,10 +1681,16 @@ def _grounding_sanity_checks(
     grounded_nothing = not evidence.detected_skills and not evidence.detected_signals
     if score.total >= 95 and grounded_nothing and (raw_text or "").strip():
         return [
-            f"Score grounding: a near-perfect score ({score.total}/100) is not "
-            "corroborated by any skill or salary signal the deterministic pass found in "
-            "the CV text — the payload may be model-inflated (e.g. via CV-embedded "
-            "instructions); verify the score before trusting it (manual review)."
+            Finding(
+                f"Score grounding: a near-perfect score ({score.total}/100) is not "
+                "corroborated by any skill or salary signal the deterministic pass found in "
+                "the CV text — the payload may be model-inflated (e.g. via CV-embedded "
+                "instructions); verify the score before trusting it (manual review).",
+                code="score_ungrounded",
+                severity="warn",
+                scope="score",
+                value=str(score.total),
+            )
         ]
     return []
 
@@ -1479,10 +1721,24 @@ def _archetype_sanity_checks(
     if absent or low:
         why = "no detection signals fired" if absent else "weak signals"
         return [
-            f"Archetype routing is low-confidence — {label} at {pct}% ({why}); "
-            "verify the candidate's archetype before trusting the score"
+            Finding(
+                f"Archetype routing is low-confidence — {label} at {pct}% ({why}); "
+                "verify the candidate's archetype before trusting the score",
+                code="archetype_low_confidence",
+                severity="warn",
+                scope="archetype",
+                value=archetype,
+            )
         ]
-    return [f"Archetype routing OK — {label} at {pct}% confidence"]
+    return [
+        Finding(
+            f"Archetype routing OK — {label} at {pct}% confidence",
+            code="archetype_routed",
+            severity="ok",
+            scope="archetype",
+            value=archetype,
+        )
+    ]
 
 
 def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
@@ -1502,9 +1758,16 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
     calling a non-existent band "plausible" would be misleading.
     """
     if salary.minimum <= 0 and salary.maximum <= 0:
-        return ["No salary estimate produced"]
+        # Informational, not a warn: "no comp data" is a legitimate outcome.
+        return [Finding("No salary estimate produced", code="salary_absent", severity="ok", scope="salary")]
     order_ok = 0 < salary.minimum <= salary.midpoint <= salary.maximum
-    checks = ["Salary range order OK" if order_ok else "Salary range is inconsistent"]
+    checks: list[str] = [
+        Finding("Salary range order OK", code="salary_order_ok", severity="ok", scope="salary")
+        if order_ok
+        else Finding(
+            "Salary range is inconsistent", code="salary_range_inconsistent", severity="warn", scope="salary"
+        )
+    ]
     # bug-ui-scan-2026-07-09 (cv-extraction-pipeline-services #4): magnitude sanity for
     # EVERY market, not just CZK/month. Previously the ceiling only fired for CZK/month,
     # so an absurd non-CZK figure (US $5,000,000/yr) — or a garbage currency/period that
@@ -1515,10 +1778,24 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
     # review rather than passing unchecked.
     currency, period = _normalize_currency_period(salary.currency, salary.period)
     if currency not in _KNOWN_CURRENCIES or period not in _PERIOD_TO_ANNUAL:
-        checks.append("Salary currency/period unrecognized — needs manual review")
+        checks.append(
+            Finding(
+                "Salary currency/period unrecognized — needs manual review",
+                code="salary_currency_unbounded",
+                severity="warn",
+                scope="salary",
+                value=f"{currency}/{period}",
+            )
+        )
         return checks
     annual_max = salary.maximum * _PERIOD_TO_ANNUAL[period]
     ceiling = _annual_ceiling_for(currency)
     plausible = annual_max <= ceiling
-    checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
+    checks.append(
+        Finding("Salary range seems plausible", code="salary_plausible", severity="ok", scope="salary")
+        if plausible
+        else Finding(
+            "Salary range needs manual review", code="salary_implausible", severity="warn", scope="salary"
+        )
+    )
     return checks

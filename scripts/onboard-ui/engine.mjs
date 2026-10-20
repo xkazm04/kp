@@ -117,7 +117,9 @@ const FORBIDDEN_ARG_TOKENS = [
  */
 function enforcementSettingsPath() {
   const file = path.join(tmpdir(), `kp-onboard-enforce-${randomBytes(6).toString("hex")}.json`);
-  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), "utf8");
+  // `wx` refuses a pre-planted file or symlink at this name in the shared temp dir; 0600
+  // keeps the hook settings readable by this user only.
+  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
   return file;
 }
 
@@ -142,7 +144,11 @@ export function buildArgs(settingsPath = enforcementSettingsPath()) {
  * splits in half is exactly the kind of failure that fails OPEN.
  */
 function quoteForShell(arg) {
-  return /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg;
+  // CommandLineToArgvW rules: backslashes only matter before a quote (the closing
+  // one included), where each must be doubled; elsewhere a Windows path stays as is.
+  return /[\s"]/.test(arg)
+    ? `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`
+    : arg;
 }
 
 /**
@@ -683,7 +689,7 @@ function exactKey(toolName, input) {
  * typed SSE event, so the operator never sees the syntax.
  * ------------------------------------------------------------------ */
 
-const MARKER_RE = /^\s*\[\[wizard:([a-z]+)((?:\s+[a-z]+=(?:"[^"]*"|[^\s\]]+))*)\s*\]\]\s*$/;
+const MARKER_RE = /^\s*\[\[wizard:([a-z]+)((?:\s+[a-z]+=(?:"[^"]*"|[^\s\]"][^\s\]]*))*)\s*\]\]\s*$/;
 /**
  * Phase ids used to be a closed set (welcome, mode, checks, capabilities, boot,
  * voice, done). Since v0.3 the recon-first run DECLARES its own steps with a
@@ -997,9 +1003,12 @@ export function mergeEnv(name, value, { overwrite = false } = {}) {
   const existing = envValueOf(name);
   if (existing !== undefined && existing.trim() !== "" && !overwrite) return "exists";
   const serialized = `${name}=${value}`;
-  if (!existsSync(ENV_FILE)) {
-    writeFileSync(ENV_FILE, `${serialized}\n`, { encoding: "utf8", mode: 0o600 });
+  try {
+    // Exclusive create: no check-then-write window (js/file-system-race).
+    writeFileSync(ENV_FILE, `${serialized}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     return "created";
+  } catch (e) {
+    if (e?.code !== "EEXIST") throw e;
   }
   const lines = readEnvLines();
   const idx = lines.findIndex((l) => {

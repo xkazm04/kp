@@ -11,13 +11,17 @@ import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
 import { useCapabilities } from "./useCapabilities";
+import { lockedCapability } from "./navCapabilities";
+import { primeShellPrincipal, ShellPrincipalContext, type ShellPrincipal } from "./shellPrincipal";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
 import { CompanionDockProvider } from "./companion/CompanionDockProvider";
 import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
+import { WorkspaceDocumentTitle } from "./WorkspaceDocumentTitle";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import { useOnboardingReopen } from "./setup/onboardingReopen";
+import { SessionLapseDialog } from "./session/SessionLapseDialog";
 import {
   AGENTS_TAB_IN_NAV,
   buildUrl,
@@ -30,7 +34,24 @@ import {
 
 export type { WorkspaceTabId } from "./tabs";
 
-export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?: boolean }) {
+export function Workspace({
+  firstRunOnboarding = false,
+  hasSession = false,
+  operator = false,
+  principal = null,
+}: {
+  firstRunOnboarding?: boolean;
+  hasSession?: boolean;
+  /** isOperator() as resolved by the server render of '/'; gates the /control door in the rail. */
+  operator?: boolean;
+  /** Who is looking — the tenant + capabilities '/' resolved server-side
+   *  (shellPrincipal.ts). null = unknown: every consumer falls back to its fetch. */
+  principal?: ShellPrincipal | null;
+}) {
+  // Seed the shell principal into the client module BEFORE any child renders, so
+  // the non-React stores (recents, palette preview, board storage) read the tenant
+  // synchronously. A no-op on the server (shared module scope — see shellPrincipal).
+  useState(() => primeShellPrincipal(principal));
   // Same-document URL patching, not router.push: a `?tab=` switch changes nothing
   // the SERVER render of '/' depends on, so making it a server navigation only
   // bought a ~358 KB RSC round-trip per click. See nav/shallow-nav.ts.
@@ -53,11 +74,13 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   const search = params.toString();
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
-  // What this caller may actually do here. Resolved ONCE per document
-  // (useCapabilities.ts) and handed to the nav so the rail stops offering doors
-  // wave 18a's server gates already refuse — `null` while unknown, which locks
-  // nothing. See navCapabilities.ts for the table and why it fails open.
-  const capabilities = useCapabilities();
+  // What this caller may actually do here. Seeded from '/' (useCapabilities.ts) and
+  // handed to the nav so the rail stops offering doors wave 18a's server gates
+  // already refuse — on the FIRST render, server and client alike. `null` only when
+  // unseeded and unknown, which locks nothing. See navCapabilities.ts for the table
+  // and why it fails open. Passed explicitly: this component provides the context
+  // below and cannot read its own provider.
+  const capabilities = useCapabilities(principal);
   // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
@@ -86,22 +109,37 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   //
   // `parse` owns the whole vocabulary so the hook stays generic: legacy ids
   // (?tab=profile, ?tab=dev) resolve to their renamed tab via LEGACY_TAB_ALIASES,
-  // and a gated tab (Agents, experimental via AGENTS_TAB_IN_NAV) is REJECTED
+  // and a gated tab (Agents and Gigs, experimental via AGENTS_TAB_IN_NAV) is REJECTED
   // here rather than adopted-then-corrected. Returning null leaves the current
   // tab alone, so a link to a gated view is inert instead of bouncing the
-  // reader to the default.
+  // reader to the default. A CAPABILITY-locked arrival (a viewer following the
+  // checkout return to ?tab=billing) is different and deliberately adopted: the
+  // tab exists for this seat, it is just locked, so the arrival lands on the
+  // locked-door panel (WorkspaceTabPanel -> panelFor) naming who can grant it.
   const [active, setActive] = useUrlInboxState<WorkspaceTabId>(
     "tab",
     (raw) => {
       const requested = resolveTabParam(raw);
       if (requested == null) return null;
-      if (requested === "agents" && !AGENTS_TAB_IN_NAV) return null;
+      if ((requested === "agents" || requested === "gigs") && !AGENTS_TAB_IN_NAV) return null;
       return requested;
     },
     DEFAULT_TAB
   );
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
+
+  // The Journeys board is the one tab whose surface is a full-viewport OVERLAY
+  // above the workspace rather than a panel inside the content frame. Closing it
+  // must therefore restore the tab the reader was on, not leave them staring at
+  // an empty frame — so we remember the last non-overlay tab and go back to it.
+  const lastFramedTab = useRef<WorkspaceTabId>(DEFAULT_TAB);
+  useEffect(() => {
+    if (active !== "journeys") lastFramedTab.current = active;
+  }, [active]);
+  const closeOverlayTab = useCallback(() => {
+    setActive(lastFramedTab.current === "journeys" ? DEFAULT_TAB : lastFramedTab.current);
+  }, [setActive]);
 
   // Switching tabs from the sidebar clears every tab-scoped deep-link param
   // (the allowlist lives in tabs.ts, not in this call site) so the destination
@@ -110,8 +148,10 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
     (id: WorkspaceTabId): void => {
       setMobileNavOpen(false); // a tab pick on mobile closes the drawer
       // Start the destination's code-split chunk before the swap, so the fetch
-      // overlaps it instead of following it. A no-op once warm.
-      prefetchTabChunk(id);
+      // overlaps it instead of following it. A no-op once warm. Not for a tab this
+      // seat cannot open: every door (this one, a g-chord, a ?tab= arrival) lands
+      // on the locked-door panel instead (panelFor), and that chunk never renders.
+      if (!lockedCapability(id, capabilities)) prefetchTabChunk(id);
       setActive(id);
       // The switch itself writes nothing to the URL. The ONE thing that still
       // must: tab-scoped deep-link params (?profile=, ?job=, ?edit=, ?jd*) are
@@ -124,7 +164,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
     },
     // setMobileNavOpen is identity-stable, but React Compiler's memoization
     // check requires the declared deps to match what the body references.
-    [nav, params, search, setActive, setMobileNavOpen]
+    [capabilities, nav, params, search, setActive, setMobileNavOpen]
   );
 
   // a11y — on a tab switch, move focus to the <main> landmark (reusing the
@@ -173,7 +213,9 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // shared useDialogA11y).
 
   return (
+    <ShellPrincipalContext.Provider value={principal}>
     <TasksProvider>
+    <WorkspaceDocumentTitle active={navActive} />
     <SimulationProvider>
     {/* Candi's dock mounts as a SIBLING of this div (fixed-positioned), inside every
         provider and outside the keyed tab panel — so a conversation survives tab
@@ -182,7 +224,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral-solid focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
       >
         {t("skipToContent")}
       </a>
@@ -194,6 +236,8 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
       </div>
 
       <WorkspaceNavDrawer
+        hasSession={hasSession}
+        operator={operator}
         t={t}
         drawerRef={drawerRef}
         isMobile={isMobile}
@@ -222,14 +266,18 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
             survive) and clears itself when resetKey/navActive changes on a tab
             switch. The inner key replays the fade-in entrance on each switch. */}
         <div className="mx-auto max-w-[108rem] px-4 py-8 pb-24 sm:px-6 lg:px-8">
-          <WorkspaceTabPanel navActive={navActive} active={active} />
+          <WorkspaceTabPanel navActive={navActive} active={active} capabilities={capabilities} onCloseOverlay={closeOverlayTab} />
         </div>
       </main>
       <SimSurfaces />
       {onboardingOpen && <FirstRunOnboarding mode="live" onClose={() => setOnboardingOpen(false)} />}
+      {/* A lapsing session warns ten minutes ahead, then re-signs in over the page
+          (session/sessionLapse.ts). Renders nothing in open mode or while live. */}
+      <SessionLapseDialog />
     </div>
     </CompanionDockProvider>
     </SimulationProvider>
     </TasksProvider>
+    </ShellPrincipalContext.Provider>
   );
 }

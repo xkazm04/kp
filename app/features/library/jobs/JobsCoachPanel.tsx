@@ -48,7 +48,7 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
 
   if (error) {
     return (
-      <div className="text-base text-coral">
+      <div className="text-base text-coral-ink">
         {error}{" "}
         <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
           {t("retry")}
@@ -85,7 +85,7 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
       ) : null}
 
       {saveError ? (
-        <p role="status" className="rounded-lg border border-coral/40 bg-coral/5 px-3 py-2 text-base text-coral">
+        <p role="status" className="rounded-lg border border-coral/40 bg-coral/5 px-3 py-2 text-base text-coral-ink">
           {saveError}
         </p>
       ) : null}

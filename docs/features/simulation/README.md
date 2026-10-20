@@ -31,6 +31,10 @@ of minting a session the walk cannot use:
 | **Gated**, `KP_DEMO_ENABLED` on | `302 → /?demo=unavailable&code=DEMO_NOT_PROVISIONED` |
 | **Gated**, demo off | `302 → /?demo=unavailable&code=DEMO_DISABLED` |
 
+After a public walk finishes, the dock's Get Started control calls
+`enterWorkspace()`: open deployments enter the workspace, while gated ones reach
+the login page.
+
 Both gated answers are refusals because a `demo`-workspace session is
 `{ authed: false, caps: EMPTY_CAPS }` in `app/_lib/auth/current-user.ts`: the walk's
 first write (`POST /api/jds/save`, `jd:write`) answers 401, and so do
@@ -41,10 +45,13 @@ role that was never created.
 
 `DemoUnavailableNotice.tsx` resolves the `code` through `errors.<CODE>` in the
 reader's language — the same vocabulary every coded API refusal uses — and falls back
-to the generic body for an older link with no code. The banner stays dismissible
+to the generic body for an older link with no code. Dismissing the banner removes
+the `demo` and `code` query parameters from the current history entry, so a reload
+does not show the notice again. The banner stays dismissible
 and does not auto-redirect; it also links to `/about` (the public pipeline story,
 labelled with the existing `landing.nav.about`) so a gated deploy is not a dead
-end. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
+end. When self-serve sign-up is open, it also links to `/signup` using the same
+landing CTA label. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
 per-IP limit) and `app/landing/spark/DemoUnavailableNotice.test.ts` (the fallback
 href).
 
@@ -71,6 +78,24 @@ the deck onto the console, which then carries Pause/Next, Stop, Reset, Step and
 Explain while the run navigates tabs, spotlights elements and opens the offer
 frame. The run is interruptible at every beat (`SimStop`), and `reset()` waits
 for the in-flight mutation before deleting the SIM rows.
+
+**Resuming a walk after a reload.** A reload, a crashed tab or a presenter who
+navigated away mid-demo leaves the walk's rows on the board. When the console has
+residue to explain and no OTHER tab holds a live lease, `SimulationProvider` reads
+the board once and `resumePointOf(board)` (`simWalkResume.ts`) derives where the
+walk stands: the (SIM) job (only rows whose job title carries the marker; a real
+candidate is never a resume target), the candidate it was following (the furthest
+along, best match first) and the first chapter whose postcondition the board does
+not show yet, every stage resolved by ROLE from the live axis. The console's primary
+action becomes **Resume at <phase>** (the followed candidate in its title), beside
+Reset. `run(from)` claims with `POST /api/sim/reset { hold: true, keep: true }`,
+which takes the lease and purges nothing, seeds the job and candidate, logs
+`log.resuming`, and walks `chaptersFrom(phase)`. Entering at Hired first asks
+`/api/sim/offer-link` for the offer token; no open offer means the offer was never
+sent (the board cannot tell those apart), so the walk enters at Offer instead.
+Entering at Interview after the slot was already confirmed skips the scheduling. A
+finished walk (the target on the terminal column) offers Reset, not Resume; an
+empty board offers Start. Keyless like the rest of the walk.
 
 **What the walk writes to the address bar: a tab, and nothing else.** Each
 chapter navigates with `nav({ tab, ...clearedTabScopedParams() })` — a bare tab
@@ -110,7 +135,9 @@ dock, in `dock` an action that toggles the left companion window. See
 | `SimControlDockOrb.tsx` / `SimControlDockRail.tsx` | The rest state, and the two elements outside the panel's borders |
 | `simControlCenterKit.ts` | `useControlMode()`, `useAutomationPass()`, `usePublishBarHeight()` |
 | `SimulationProvider.tsx` + `useSimulationEngine.ts` + `useSimulationWalk.ts` | The run: state, the per-phase engine, the tab walk |
-| `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, the halt conditions (`matchHalt` / `offerHalt`) and `clickRoute`. Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
+| `simWalkResume.ts` | The PURE resume derivation: `readResume` / `resumePointOf` (board entries + axis -> the chapter to enter at, the job and the followed candidate, or why there is none: `empty` / `complete`) and `chaptersFrom`. Unit-tested beside it |
+| `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, and the halt conditions (`matchHalt` / `offerHalt`). Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
+| `simMove.ts` | The PURE scripted MOVES: `SIM_MOVES` (per move, the anchors clicked in order and the product file that must render each), `moveSelector`, `moveOutcome` (dom / api, the fallback reason, the halt), `simSubject` (the fallback's (SIM) gate) and `hiredEffect`. The engine's `move()` runs them. Unit-tested beside it, including source scans that every declared anchor exists and that the walk makes no unchecked POST |
 | `simRunControl.ts` | The PURE run-control ordering: `runControlFlags` (start/pause/resume/stop) and `performReset` (stop -> settle -> purge, reporting whether the purge succeeded). Unit-tested beside it |
 | `simDrafts.ts` | The two DETERMINISTIC drafts (screening recommendation, offer letter), composed from the `simulation.draft.*` catalog keys. Unit-tested per locale beside it |
 | `constants.ts` (`SIM_PHASES`) | The seven-phase chronology — design · source · match · screen · interview · offer · hired — each pinned to the tab it walks to |
@@ -121,7 +148,10 @@ it on `<html>`; the sim overlays and the companion window
 (`bottom-[calc(var(--sim-bar-h)_+_8px)]`) anchor above it. It tracks BOTH deck
 states — the raised footer row and the collapsed orb — so the companion never
 lands on top of the orb. The fallback in `app/globals.css` applies only before the
-first measurement.
+first measurement. The collapsed operations orb keeps its caption visible on
+touch devices; hover-capable pointers reveal it on hover.
+The guided demo panel can copy its run log as a plain-text transcript. If the
+browser blocks clipboard access, it exposes selectable text instead.
 
 ## Data model
 
@@ -157,7 +187,12 @@ None. Nothing in this directory owns a table.
   and the walk's own `finally` sends nothing at all when its start was refused
   (`releaseInit(null)` is `null`). Until that pair landed the release was
   unconditional on both sides: a second tab refused with `SIM_RUN_ACTIVE` freed the
-  first tab's lease anyway, and the next press wiped a live run. The walk also
+  first tab's lease anyway, and the next press wiped a live run. A RESUME claims with
+  `{ hold: true, keep: true }`: the same lease, and no purge. It stays unstealable:
+  the caller's OWN live lease is re-taken only by presenting its token (kept per tab in
+  session storage, `storedLease` / `storeLease` in `simRunLease.ts`, so a reload whose
+  `pagehide` release was lost can take it back), and a live lease under any other
+  token refuses the resume with `SIM_RUN_ACTIVE` exactly as it refuses a Start. The walk also
   **renews** at every phase gate: `POST /api/sim/reset { renew: true }` with the same
   token pushes the expiry out a full TTL, claiming nothing and purging nothing (a
   non-owner gets `SIM_RUN_NOT_OWNER`). Step mode is the walk's default, so a run
@@ -213,7 +248,7 @@ None. Nothing in this directory owns a table.
 
 ## What the demo may never do
 
-The tour drives the REAL paths — that is its whole claim — so three of them carry
+The tour drives the REAL paths — that is its whole claim — so the ones below carry
 an explicit guard rather than a special-case fake:
 
 - **It never mails anybody.** Every sim artifact's title carries the `(SIM)` marker
@@ -228,6 +263,21 @@ an explicit guard rather than a special-case fake:
   still written: the Outbox entry is part of what the tour shows, and `queued` is the
   outbox's honest "recorded locally, nothing will deliver it" state. Pinned by
   `app/_lib/comms-dispatch-sim.test.ts`.
+- **It never touches a real candidate.** The sim doors ask no capability (the
+  capability ratchet in `app/api/route-capability-coverage.test.ts` exempts them as
+  a guided-sim sandbox), so any signed-in seat reaches them, a viewer included.
+  That exemption holds because `screen-draft`, `offer-draft` and `offer-link` read
+  an entry by id only through `resolveSimEntry` (`app/_lib/sim-entry.ts`): the
+  caller's team AND a `(SIM)`-marked job title. A real candidate's id answers
+  `SIM_ENTRY_NOT_FOUND` (404), exactly like a missing one, so a sim door can neither
+  overwrite a real pending approval with its canned draft nor hand out a real offer
+  token. The writers (`setSimApproval`, `openSimOfferToken`) take the resolved entry,
+  never a bare id. `app/api/sim/sim-door-contract.test.ts` drives the real handlers
+  and fails when any `app/api/sim/**/route.ts` imports `getPipelineEntry`,
+  `setApproval` or `getOpenOfferForEntry` directly.
+- **It checks the invite write.** The interview beat reads the schedule-invite
+  response through `okJson`, so a refused write takes the stated manual-confirm
+  fallback and records why self-scheduling was unavailable.
 - **It never lies about cleanup.** `reset()` awaits the purge and reports `reset`
   only on a 2xx; a failed purge renders the localized "cleanup failed" status in red
   (`simulation.status.resetFailed`, four locales) so the presenter retries instead of
@@ -257,15 +307,34 @@ an explicit guard rather than a special-case fake:
 - `--sim-bar-h` is published by whichever deck state is mounted, but nothing
   asserts that the two never both publish; the invariant rests on the single
   `usePublishBarHeight` call in `SimControlDock.tsx`.
-- **The API fallback is now labelled, not silent.** Every scripted "click" is a real
-  DOM click; when the control is not on screen within the wait, the walk calls the API
-  the button would have called and the run log SAYS so (`log.clickedViaApi`), so a
-  viewer can tell a working surface from one the engine papered over. The
-  self-scheduling path says the same when it falls back to the recruiter's manual
-  confirm (`log.selfScheduleUnavailable`).
+- **A scripted click is proven by its board effect** (`simMove.ts`, `move()` in
+  `useSimulationEngine.ts`). Every write the walk makes is a MOVE (publish through
+  the go-live terms dialog, the recruiter's slot confirm, Send offer through the
+  ledger's decide door and the candidate modal, the candidate's own Accept) or an
+  `okJson()` call. A move clicks its declared anchors, then waits for the board to
+  show the change; a control that never appeared (`notVisible`) or a click that
+  changed nothing (`noEffect`, `log.moveNoEffect`) falls back to the API call the
+  button would have made, and the log says which. A fallback writes only a (SIM)
+  subject, the answer the server-side sim gate gives (`SIM_ENTRY_NOT_FOUND`); a
+  refused fallback halts with the server's code, and one the board still does not
+  show halts with `error.moveNoEffect`. The run is Hired only when the followed entry
+  sits on the axis's terminal-role column (`hiredEffect`). Each move's route is kept
+  in `SimState.moves`. The fallbacks for publish, the slot confirm, Send offer and the
+  offer accept still use the product routes (`/api/jobs/<id>/publish`,
+  `/api/pipeline/<id>`, `/api/offer/<token>`): no `/api/sim/*` door exists for them,
+  so the (SIM) check runs client-side before the call. Works keyless: every move is
+  deterministic. The candidate's self-schedule confirm is checked too: a refusal
+  drops to the recruiter's manual confirm and says so (`log.selfScheduleUnavailable`)
+  instead of counting as scheduled.
 - **The guided walk only runs on an OPEN deploy.** A gated deploy refuses at the
   door (above) rather than pretending. Closing this needs the owner decision on demo
   capabilities plus a seeded demo tenant; until then the demo is a self-host/dev
   surface, not a public-SaaS one.
-- The seven `SIM_PHASES` are a fixed script. There is no way to run a subset, and
-  no way to replay one phase without a full reset.
+- The seven `SIM_PHASES` are a fixed script. A walk can be RESUMED at the chapter
+  its board shows (`simWalkResume.ts`), but there is no way to run a chosen subset,
+  or to replay a chapter the board has already passed, without a full reset.
+  `chaptersFrom` is the entry point a "start from one phase" control would reuse.
+- That a resumed walk really skips the chapters before its entry point is pinned by
+  the pure `chaptersFrom` and the route's keep claim; the walk itself (the chapter
+  table in `useSimulationWalk.ts`) has been verified by reading, not by a browser
+  run.

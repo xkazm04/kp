@@ -1,0 +1,22 @@
+{
+ "schema": "conform-run/1",
+ "worker": "32ce0760-ad57-4ee7-959a-bd6808c60d04",
+ "subject": "self-describing-model-packages",
+ "evaluatedAt": "2026-10-19T11:33:24.540549+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "self-describing-model-packages",
+   "context": "voice-stt-package",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "self-describing-model-packages",
+   "context": "voice-tts-package",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}

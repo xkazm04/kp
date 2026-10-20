@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ATS_PROVIDERS,
-  AtsConnectionError,
   AtsConnectionStaleError,
   deleteAtsConnection,
   getAtsConnection,
   listAtsConnections,
   setAtsConnection,
 } from "@/app/_lib/ats/connections-store";
-import { AtsFieldMapError } from "@/app/_lib/ats/field-map";
 import { deleteAtsLinksForProviderEverywhere } from "@/app/_lib/ats/links-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { answerFailure, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // A connection body is a provider name, two short strings and a field map. The map is the
 // only part that can grow - one dot path per mappable field plus a stage map - and 32 KB
@@ -31,13 +30,13 @@ const MAX_CONNECTION_BODY_BYTES = 32 * 1024;
 // become kp records. Authentication alone is not authorization here. Open mode (no
 // KP_OPERATOR_PASSWORD) stays open for local dev.
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ providers: ATS_PROVIDERS, connections: listAtsConnections() });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -73,16 +72,13 @@ export async function POST(request: NextRequest) {
     // The validation refusals (a bad provider, an unsafe base URL, an unstorable token, a
     // field map with no identity path) are 400s the operator can fix in the form — but
     // this used to forward the thrown MESSAGE, canonical English into a four-locale panel.
-    // The store and the field-map parser carry the code now; the message stays in the log.
-    if (error instanceof AtsConnectionError || error instanceof AtsFieldMapError) {
-      console.info(`[api/ats/connections] refused (${error.code}): ${error.message}`);
-      return jsonRefusal(error.code, 400);
-    }
-    // A thrown better-sqlite3 / crypto error carries the db path and internal detail: it
-    // goes to the server log, and the client gets the code it renders in its own language.
-    return safeJsonError(error, "api:ats/connections", "ATS_CONNECTION_SAVE_FAILED");
+    // AtsConnectionError and AtsFieldMapError are Refusals now: answerFailure answers
+    // their code and logs the English at info level. A thrown better-sqlite3 / crypto
+    // error carries the db path and internal detail: it goes to the server log, and the
+    // client gets the code it renders in its own language.
+    return answerFailure(error, "api:ats/connections", "ATS_CONNECTION_SAVE_FAILED");
   }
-}
+});
 
 /**
  * Remove a connection. `?forgetLinks=1` ALSO drops its external-id links.
@@ -99,7 +95,7 @@ export async function POST(request: NextRequest) {
  * bound to a provider whose credential no longer exists, and reported a count that only
  * covered one team. An installation-level delete owes an installation-level cleanup.
  */
-export async function DELETE(request: NextRequest) {
+export const DELETE = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -123,4 +119,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:ats/connections", "ATS_CONNECTION_REMOVE_FAILED");
   }
-}
+});

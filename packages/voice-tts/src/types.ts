@@ -36,7 +36,7 @@ export type TtsCapabilities = {
  *  repair) is not ready. Collapsing them strips the user of the fact that
  *  decides their next action. */
 export type TtsProbe =
-  | { state: "ready"; detail?: string }
+  | { state: "ready"; detail?: string; languages?: readonly string[] | "any" }
   | { state: "absent"; reason: string; setup?: string }
   | { state: "broken"; reason: string };
 
@@ -117,6 +117,8 @@ export type TtsStatus = {
   kind: TtsKind;
   capabilities: TtsCapabilities;
   probe: TtsProbe;
+  /** Probed language coverage: languages the provider has installed voices for. null when not ready. */
+  languages: readonly string[] | "any" | null;
   /** In the host's compare set (preference.allowed). */
   allowed: boolean;
   preferred: boolean;

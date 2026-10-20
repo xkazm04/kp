@@ -35,6 +35,8 @@ export function useApplySubmit({
   jobId,
   lead,
   companyUrl,
+  campaign,
+  variant,
   submitFailedMessage,
   networkFailedMessage,
   hasErrorCode,
@@ -47,6 +49,8 @@ export function useApplySubmit({
   /** Anti-bot honeypot. A real applicant never fills this; the server drops a
    *  non-empty value. Always posted (including "") so the field is on the wire. */
   companyUrl: string;
+  campaign: string;
+  variant: string;
   submitFailedMessage: string;
   networkFailedMessage: string;
   /** The `errors` catalog, unbound from React — a refusal is rendered from its
@@ -87,6 +91,8 @@ export function useApplySubmit({
         body: JSON.stringify({
           answers: finalAnswers,
           company_url: companyUrl,
+          campaign,
+          variant,
           ...(lead !== null ? { lead } : {}),
           applySessionId: readApplySession(jobId, "chat"),
         }),
@@ -99,6 +105,8 @@ export function useApplySubmit({
           duplicate: Boolean(d.duplicate),
           enriched: Boolean(d.enriched),
           statusToken: d.statusToken ?? null,
+          failedKoNames: Array.isArray(d.failedKoNames) ? d.failedKoNames.filter((n: unknown): n is string => typeof n === "string") : undefined,
+          reviewByEmail: Boolean(d.reviewByEmail),
           followupToken: typeof d.followupToken === "string" ? d.followupToken : null,
           followupGaps: Array.isArray(d.followupGaps) ? (d.followupGaps as CompletenessGap[]) : undefined,
         });

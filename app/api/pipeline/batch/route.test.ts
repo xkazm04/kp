@@ -11,6 +11,9 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
 import { createPipelineEntry, getPipelineEntry, setApproval } from "../../../_lib/db/pipeline.ts";
+import { countPipelineEvents } from "../../../_lib/db/pipeline-events.ts";
+import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
+import { migrateLegacyInterviewPlan } from "../../../_lib/decision-config-schema.ts";
 
 after(() => cleanupUnitDb());
 
@@ -136,4 +139,84 @@ test("malformed and unknown-action items fail without aborting the valid ones", 
 test("an empty or non-array items payload is a 400", async () => {
   assert.equal((await post({})).status, 400);
   assert.equal((await post({ items: [] })).status, 400);
+});
+
+// decisions-review-ui/A — the batch dropped `routedToHumanRound`, so a batch-accepted
+// AI scorecard landed on the human round with no queued-for-Schedule narration while
+// the one-by-one accept narrated it. The per-id ok outcome now carries the field
+// (additive: a plain 200 stays { id, ok: true }).
+test("an AI scorecard accept that routes to the human round says so per-id; a plain accept stays bare", async () => {
+  // A hybrid plan: a HUMAN round follows the AI round, so an AI scorecard accept routes back.
+  setDecisionConfig(
+    "interviewPlan",
+    migrateLegacyInterviewPlan({
+      screeningGate: "human",
+      rounds: [
+        { kind: "ai", gate: "human", topN: null },
+        { kind: "human", gate: "human", topN: null },
+      ],
+      offerGate: "human",
+    }) as unknown as Record<string, unknown>
+  );
+  const routed = entryFixture({ stage: "Interview" });
+  setApproval(routed.id, "scorecard_review", JSON.stringify({ recommendation: "advance" }));
+  const plain = entryFixture({ stage: "Screened" });
+
+  const res = await post({
+    items: [
+      { id: routed.id, action: "accept", expectedStage: "Interview" },
+      { id: plain.id, action: "accept", expectedStage: "Screened" },
+    ],
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(outcome(body.results, routed.id), { id: routed.id, ok: true, routedToHumanRound: true });
+  assert.deepEqual(outcome(body.results, plain.id), { id: plain.id, ok: true });
+  assert.equal(getPipelineEntry(routed.id)!.approvalKind, "calendar", "the handoff really happened server-side");
+});
+
+// challenge-r06 pipeline-move-bulk-operations/B (blast-radius-computation) — a DRY RUN
+// answers what each move WOULD set off, through the same gates and CAS read, and
+// writes nothing: no row, no event, no arrival hook.
+test("dryRun: every set_stage item answers a preview and nothing is written or scheduled", async () => {
+  const toInterview = entryFixture({ stage: "Screened", contact: "dry-run@example.com" });
+  const offerHolder = entryFixture({ stage: "Offer" });
+  setApproval(offerHolder.id, "offer_review", JSON.stringify({ subject: "Offer", body: "Hi", recommended: 140000, currency: "CZK" }));
+  const plain = entryFixture({ stage: "Accepted" });
+
+  const snapshot = () => JSON.stringify([toInterview.id, offerHolder.id, plain.id].map((id) => getPipelineEntry(id)));
+  const before = snapshot();
+  const eventsBefore = countPipelineEvents();
+
+  const res = await post({
+    dryRun: true,
+    items: [
+      { id: toInterview.id, action: "set_stage", toStage: "Interview", expectedStage: "Screened" },
+      { id: offerHolder.id, action: "set_stage", toStage: "Screened", expectedStage: "Offer" },
+      { id: plain.id, action: "set_stage", toStage: "Screened", expectedStage: "Accepted" },
+    ],
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    results: { id: string; ok: boolean; preview?: { effect: string; clears: string | null; holdBack: boolean; stage: string } }[];
+  };
+  assert.equal(body.results.length, 3);
+  for (const r of body.results) {
+    assert.equal(r.ok, true, `${r.id} previews`);
+    assert.ok(r.preview, `${r.id} carries a preview`);
+  }
+  const pv = (id: string) => body.results.find((r) => r.id === id)!.preview!;
+  assert.ok(["ai_invite", "ai_invite_held"].includes(pv(toInterview.id).effect), "an AI interview arrival is named");
+  assert.deepEqual(
+    { clears: pv(offerHolder.id).clears, holdBack: pv(offerHolder.id).holdBack },
+    { clears: "offer_review", holdBack: true },
+    "the drafted offer the move would erase is named and held back"
+  );
+  assert.equal(pv(plain.id).effect, "plain");
+  assert.equal(pv(plain.id).stage, "Accepted", "the preview carries the stage it read (the commit's expectedStage)");
+
+  // Give any (wrongly) scheduled arrival hook the chance to run before comparing.
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(snapshot(), before, "no pipeline row changed");
+  assert.equal(countPipelineEvents(), eventsBefore, "no pipeline event was recorded");
 });

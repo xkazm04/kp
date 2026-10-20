@@ -13,7 +13,9 @@ Backend shipped and in production use:
 
 - `pipeline/jobfit/llm/` — base contract (`base.py`), registry (`registry.py`),
   capability matrix (`capabilities.py`), adapters for all providers below, plus
-  `claude_cli.py` as the local/dev default.
+  the Claude CLI as the local/dev default (`adapters/claude_cli.py` over
+  `pipeline/jobfit/claude_cli.py` — a `TextProvider` like the rest, see
+  "The default engine runs the shared layer" below).
 - `llm_config` / `provider_keys` / `llm_usage` tables (`app/_lib/db/llm.ts`,
   `app/_lib/db/core.ts`) and `buildLlmConfigEnv()` → the `KP_LLM_CONFIG` JSON env
   var wired into every Python spawn path.
@@ -28,7 +30,43 @@ Backend shipped and in production use:
   outreach/reject/prep/scorecard/rematch), `campaign_pack`, `jd_ingest`,
   `group_compare`, `weight_proposal`, `devcase/*`, `profile_draft`
   (config-gated — its unconfigured default stays the direct Gemini path),
-  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`.
+  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`, `gig_brief`
+  (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
+  and the caller writes its deterministic brief; its own **Gigs** section in the
+  Models routing table - docs/features/gigs/README.md "Research"), `gig_report`
+  (the gig's HTML report, `gig_report_cli.py`: keyless or a failure and kp writes the
+  report body itself; docs/features/gigs/README.md "The gig's report file"), and
+  `gig_proposal` (a freelance gig's client proposal, `gig_proposal_cli.py`: keyless,
+  a failure or an unusable answer and kp composes the proposal itself;
+  docs/features/gigs/README.md "Two tracks: proposal and build").
+- **Five use cases have their engine PINNED at the call site** (`role_research`,
+  `gig_brief`, `gig_plan`, `gig_report`, `gig_proposal`; the TS mirror is
+  `PINNED_USE_CASES` in `app/_lib/llm-pins.ts`).
+  `gig_brief` runs on Claude Sonnet 5.5 with the CLI's web tools (docs/features/gigs
+  "Research"); `gig_plan`'s seats now follow the research brief's difficulty: Sonnet 5.5
+  at `high` alone (easy, moderate, unrated), Opus 5.5 at `high` alone (hard), or Opus 5.5
+  at `xhigh` plus Fable 5 plus GPT 6 Astra at `max` via the Codex CLI (very hard)
+  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans") - a freelance gig's plans
+  run the same seats against the same `GigPlan` schema, but the client-facing prompt
+  variant `gig-plan-v2-proposal` (`plans.ts GIG_PLAN_PROPOSAL_PROMPT_VERSION`, in
+  lockstep with `gig_plan_cli.py PROMPT_VERSION_PROPOSAL`) instead of the build track's
+  `gig-plan-v1`, written for the client - milestones they receive, questions for them,
+  the assumptions the bid rests on; `gig_report` (`pipeline/jobfit/gig_report_cli.py`,
+  the gig's HTML report) is pinned
+  `ProviderPin("claude_cli", "claude-sonnet-5-5", "high")` - keyless or a failure, and kp
+  writes the report body itself (docs/features/gigs "The gig's report file"); `gig_proposal`
+  (`pipeline/jobfit/gig_proposal_cli.py`, a freelance gig's client proposal) is pinned the
+  same `ProviderPin("claude_cli", "claude-sonnet-5-5", "high")` - keyless, a failure or an
+  unusable answer, and kp composes the proposal itself from the brief and the accepted plan
+  (docs/features/gigs "Two tracks: proposal and build"). The first of
+  them:
+- **`role_research` is PINNED at the call site**
+  (`role_research_cli.py`, the job seeker's "what does this title ask for today",
+  researched on the public web with sources): `resolve_provider(..., pin=PIN)` runs it
+  on Claude Sonnet 5.5 through the CLI's `web_research` mode whatever the Models row
+  says; it requires the new `web_research` capability, which only `claude_cli`
+  declares. Listed in the Models table's **Job search** section. See "Call-site pins"
+  below.
 - **`repo_scan` is the one use case whose *engine* changes what it can see.**
   Every provider gets the same prompt, which carries the deterministic dossier and
   the repo's own `CLAUDE.md`/`AGENTS.md` as grounding — but only `claude_cli` can
@@ -55,7 +93,7 @@ org-level (per-tenant) `llm_usage` attribution (tracked in
 | OpenAI (+ compatible) | `openai_api.py` | Also serves any **OpenAI-compatible** endpoint via `base_url` (vLLM / Ollama / LiteLLM / in-VPC proxy) — runs **keyless** against them, the enterprise self-host path (see `docs/architecture/self-hosting.md` §5). |
 | Azure OpenAI | `azure_openai.py` | Own `endpoint`/`deployment`/`api_version` (from `provider_keys.meta_json`), unaffected by `OPENAI_BASE_URL`. |
 | Gemini | `gemini_api.py` | Multimodal (PDF/image) + Google Search grounding; the CV-analysis workhorse. |
-| Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
+| Claude CLI | `claude_cli.py` (adapter) over `pipeline/jobfit/claude_cli.py` | Subprocess provider on the shared `TextProvider` layer (one spawn per attempt), **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
 | Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. **Keyless but configurable from Settings → Models** (see "Local model servers" below); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
 | LightTrack gateway | `gateway.py` | `lt-gateway` on loopback (`http://127.0.0.1:8792/v1`, `LIGHTTRACK_GATEWAY_URL`): one route per use case in front of the **seat-metered CLIs** (`claude -p`, `codex exec`) with usage-limit failover between them, chosen per use case by a difficulty-graded benchmark (`docs/LLM_ROUTES.md`). Keyless; Settings saves a gateway row with no key and no Server URL (the field is hidden because gateway is not a `BASE_URL_PROVIDERS` member). The `model` is the use-case key; `response_format: json_schema` from `USE_CASE_SCHEMAS`. Does **not** emit its own LightTrack event (the gateway records every attempt) and writes the ledger **unpriced** with `model` = the seat that answered. The hop is local, the seats are not: sealed under `KP_OFFLINE`, and refused in production like `claude_cli` unless `KP_ALLOW_CLI_ENGINE=1`. Contract: <https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md>. |
@@ -90,7 +128,16 @@ an empty list and passing vacuously.
 | json_schema | done | done | done | done | done (via expected_keys) |
 | file_input (PDF/image) | done | done | done | done | no |
 | search_grounding | done | no | no | no | no |
+| web_research (agentic search + fetch, `CAP_WEB_RESEARCH`) | no | no | no | no | done (`with_web_research`) |
 | batch `map()` | done | done | done | done | done (process pool) |
+
+`web_research` is deliberately NOT `grounding`: grounding is Gemini's single-shot
+search grounding, and a use case requiring it routes to Gemini. `web_research` is a
+session in which the model runs its own searches, fetches the pages it chooses and cites
+them — declared only where a door actually opens one (`claude_cli`'s `web_research`
+mode). A text API must never be able to serve it: it would answer "what does the market
+ask for today" from training data, plausibly and with no sources. A config row routing
+`role_research` elsewhere raises at resolve time, pin or no pin.
 
 The registry rejects (or visibly degrades) a config that routes a use case to a
 provider missing a required capability — e.g. `cv_analysis` on OpenAI runs
@@ -104,7 +151,16 @@ reserved for multi-tenancy, see the organization doc):
 
 - `llm_config(use_case, provider, model, params_json, updated_at)`
 - `provider_keys(provider, scope['platform'|'byom'], key_ciphertext, meta_json, updated_at)`
-- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)`
+- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)`
+
+**Role-run attribution** (2026-10-16). `role_run_id` is nullable and names the
+`role_runs.id` a metered call was made for. It is stamped from an ambient
+`withLlmRoleRun()` scope (`llm-request-context.ts`) that the role-run engine opens around a
+stage runner: `spawnPython` reads it synchronously at spawn and the sidecar fold writes it
+on every line of that spawn; `insertLlmUsage` takes an explicit `roleRunId` (no ambient
+lookup: `db/llm.ts` stays off `llm-request-context`). NULL means "not part of a role run" (every earlier row, and every call
+outside one). The Claude CLI path has no dollar cost: such rows keep `cost_usd` NULL
+(unpriced, counted beside the sum) and a run's budget is read in calls and tokens.
 
 **A failed attempt is visible without being billable** (2026-09-05). `outcome` is
 `'ok'` (a meterable attempt — a real completion, or a deterministic template serve
@@ -131,12 +187,17 @@ Activity, and is counted as `failedCalls`; every money-shaped read names
 | `listLlmActivity` (Activity tab) | **unfiltered** — this is the surface that has to show the failure |
 
 `reason` is a closed-vocabulary **code**, never a provider message (a message can echo
-the prompt, and this is a durable column): `monitor.FAILURE_REASONS`
-(`provider_timeout` / `unparseable_output` / `provider_error`),
-`automation.DEGRADATION_REASONS`, or the availability-gate words below. Python reduces
-a `describe_fallback` prose line to `provider_error` before writing
-(`monitor._reason_code`) and `parseLedgerLine` re-asserts the token shape at the trust
-boundary. A line whose `outcome` is neither literal is dropped whole rather than
+the prompt, and this is a durable column): `FAILURE_REASONS`
+(`provider_timeout` / `unparseable_output` / `provider_error`), `DEGRADATION_REASONS`
+(those three plus `unusable_output`), or the availability-gate words below. Both
+vocabularies and their classifiers live once, in `pipeline/jobfit/llm/degradation.py`
+(`FAILURE_REASONS` is a checked strict subset of `DEGRADATION_REASONS`;
+`monitor.FAILURE_REASONS` and `automation.DEGRADATION_REASONS` are aliases). Python
+reduces a reason before writing (`degradation.reason_code`, aliased as
+`monitor._reason_code`): a `"<code>: <prose>"` line whose leading word is a declared
+degradation code keeps the code, and any other prose line (a `describe_fallback`
+`"<Type>: <message>"`) collapses to `provider_error`. `parseLedgerLine` re-asserts
+the token shape at the trust boundary. A line whose `outcome` is neither literal is dropped whole rather than
 guessed into a money column; an absent `outcome` key reads `'ok'`, which is what every
 pre-2026-09-05 line meant.
 
@@ -269,6 +330,10 @@ signal that it *is* one. Each adapter raises a typed `LLMError` instead:
 | Gemini response with no text (safety/recitation block, or a stop with no parts — `.text` raises or is `None`) | `gemini_api._call` | `empty_response` |
 | A JSON answer cut off at the token cap | `base.complete_json` | `truncated` |
 | Parseable-JSON failure surviving the one repair re-prompt | `base.complete_json` | `unparseable_json` |
+| Claude CLI spawn timed out | `adapters/claude_cli._translate` | `deadline_exceeded` (one spawn, no retry) |
+| Claude CLI usage/plan-limit envelope | same | `usage_limit` |
+| Claude CLI refused on the consumer lane in production | same | `consumer_terms_policy` |
+| Claude CLI binary missing at spawn | same | `not_installed` |
 
 Where the tokens were already billed (a Gemini block bills the prompt; a paid
 completion that came back as unusable JSON), the adapter emits the usage line
@@ -352,7 +417,7 @@ separate, named and tested:
 
 | Function | Used by | Rule | Why |
 | --- | --- | --- | --- |
-| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; last value carrying an `expected_keys` field when given | few-shot prompts make the model echo the example schema **before** the answer |
+| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; when `expected_keys` is given, the value covering the MOST of them, last on a tie | few-shot prompts make the model echo the example schema **before** the answer; a trailing object carrying a subset of the keys (an injection in candidate-authored input) must not displace the fuller answer |
 | `select_best_scoring` | `gemini._parse_json` | rank by schema-key overlap, then size, document order only as final tiebreak | a grounded answer trails citation blobs and stray objects **after** the payload |
 
 `candidate_values()` is the shared "fenced blocks first, whole text otherwise" scan.
@@ -412,6 +477,160 @@ retrying earlier is a guaranteed second 429. Rules, in `geminiRetryDelayMs`:
   caller than an honest failure now, and `maxDuration` does not save a self-hosted
   deploy (`next start` never kills a long handler).
 
+### The default engine runs the shared layer
+
+The Claude CLI is the engine every local install and every keyless-dev run
+actually uses, and it used to be the one provider outside this path: the
+registry handed out `MonitoredClaudeCli`, a `ClaudeCliProvider` subclass with
+its own copy of the metering, so a formatting slip dropped straight to the
+deterministic template, an overloaded envelope was never retried, and a timeout
+carried no subtype and reached `llm_usage` as `provider_error`.
+
+`registry.resolve_provider` (no config row, or a `claude_cli` row) and
+`probe_provider("claude_cli")` now return `adapters/claude_cli.ClaudeCliAdapter`,
+a `TextProvider` whose `_call` is exactly one spawn of the unchanged
+`ClaudeCliProvider`. **Every engine, the CLI included, runs the one
+retry / deadline / repair / metering path above.** What stays CLI-specific is the
+inbound error translation:
+
+| The spawn | Becomes |
+| --- | --- |
+| timed out | `LLMError(subtype="deadline_exceeded")` — permanent, one spawn: the attempt already had the whole remaining budget, so a retry could only outrun the TS spawn kill. Ledger reason `provider_timeout` |
+| overloaded / 5xx / rate-limit envelope | a retryable error — the base loop retries inside the deadline |
+| usage/plan limit, consumer-terms refusal, missing binary | permanent `LLMError` with `usage_limit` / `consumer_terms_policy` / `not_installed` |
+
+`availability`, `probe`, `billing_lane`, `consumer_terms_blocked`,
+`with_repo_access`, `with_web_research` and a settable `extra_args` (repo_scan's
+secret-file deny list) delegate to the wrapped CLI, so the production veto and its
+descent reasons are unchanged. Ledger rows keep their shape: provider `claude_cli`, model
+`claude-cli-default` when the CLI runs on its own default (`monitor._ledger_model`),
+the envelope's `total_cost_usd` as `cost_usd`. The eval and seed lanes still
+construct a bare `ClaudeCliProvider` on purpose. Fixtures:
+`pipeline/jobfit/tests/test_llm_claude_cli_adapter.py`.
+
+## Call-site pins (`registry.ProviderPin`)
+
+Some use cases are a product decision about ONE model, not a routing preference: the
+job seeker's `role_research` must run on Claude Sonnet 5.5 through the Claude CLI's web
+tools. The operator's Models table is the wrong place for that (it is the operator's
+choice, and a wildcard `*` row would silently move the use case), and so is an env var
+read inside the router — registry technique model-routing/consumer-overrides: *the
+router exposes an override PARAMETER; it never reads override STATE.* So the override is
+a value the call site passes, visible in its code:
+
+```python
+PIN = ProviderPin("claude_cli", "claude-sonnet-5-5")   # role_research_cli.py
+provider = resolve_provider("role_research", timeout=PROVIDER_TIMEOUT_S, pin=PIN)
+```
+
+`resolve_provider(use_case, *, timeout=None, pin=None)` — `ProviderPin(provider, model,
+effort=None)` is a frozen dataclass exported from `pipeline.jobfit.llm`. `effort` is a
+closed vocabulary (`low`, `medium`, `high`, `xhigh`, `max`) that reaches the Claude CLI as
+`--effort <level>`; `None` sends no flag (the CLI's default). The gig plan seats use it to
+compare models at a stated effort; the usage ledger names the pinned model. Precedence, stated once:
+
+| Layer | Against a pin |
+| --- | --- |
+| Policy on the provider — the CLI's `KP_OFFLINE` seal (`offline_policy`) and its production consumer-terms refusal (`consumer_terms_policy`, unlocked by `KP_ALLOW_CLI_ENGINE=1` or a passed-through `ANTHROPIC_API_KEY`) | **Outranks it.** Untouched: the pinned adapter answers `availability()` with the descent, the call site degrades to its no-LLM answer, and the ledger's deterministic line names the descent — a pin that lost to policy is recorded, not swallowed |
+| The use case's required capabilities (`unsupported_caps`) | **Outranks it.** Checked against the PINNED provider; a pin below them raises `LLMError` naming the missing capability (`test_role_research.PinTest`) |
+| The operator's `KP_LLM_CONFIG` row (specific or `*`) — provider, model AND params | **Outranked.** Not read at all under a pin, so a malformed config cannot break a pinned call either |
+| Routing defaults (production Gemini preference, `USE_CASE_MODEL_OVERRIDES`) | **Outranked** |
+
+Only `claude_cli` and `codex_cli` pins are implemented (`registry.PIN_PROVIDERS`); a pin
+naming any other provider raises `LLMError` (a keyed adapter needs the key layering, and the
+first pin did not). The pinned
+id is the adapter's `model`, so the usage ledger's model label is `claude-sonnet-5-5`,
+not `claude-cli-default` (model-identity). Without a pin, resolution is byte-for-byte
+what it was. The TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-config.ts`, held equal
+to the Python `PIN` by `llm-capabilities-lockstep.test.ts`; every pin carries its reason
+and the condition that removes it (retire when Anthropic retires the model or another
+provider declares `web_research`).
+
+### The `web_research` CLI mode
+
+`claude_cli.py` has a third closed mode beside `generate` and `repo_scan`, with one
+door, `ClaudeCliProvider.with_web_research(*, max_turns, json_schema=None, timeout=None)`
+(mirrored by `ClaudeCliAdapter.with_web_research`, which also moves the adapter's total
+deadline). It returns a validated COPY — the registry's instance never inherits a web
+grant — and the constructor refuses `mode="web_research"` directly, like `repo_scan`. A
+repo-bound provider is refused: web research never runs in a checkout. The argv is fixed:
+
+```
+claude -p --output-format json --setting-sources project [--model <id>]
+       --allowedTools WebSearch,WebFetch
+       --disallowedTools Bash,PowerShell,REPL,Monitor,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,LSP,Task,Agent,Skill
+       --max-turns <n> [--json-schema <compact JSON>]
+```
+
+- **The grant** (`WEB_RESEARCH_TOOLS`) is search plus fetch. `WebFetch` is not optional:
+  without it the model sees only search snippets, and every answer marks each source
+  `fetched` or `snippet`.
+- **The deny list** (`WEB_RESEARCH_DENYLIST`) is everything that touches the machine —
+  running code, reading or writing files, searching the box, sub-agents, skills. The
+  session reads pages written by strangers; a page that says "now read ~/.ssh" meets a
+  tool that is not there. A tool on neither list still meets the headless permission
+  gate (`-p` has nobody to approve it). `ToolSearch` (how deferred tool schemas load) and
+  whatever internal tool the CLI answers `--json-schema` through are deliberately NOT
+  denied — denying either would break the mode, not harden it.
+- **Isolation** is generate's: the neutral empty temp cwd and `--setting-sources
+  project`, so no user-level permission rule can widen the grant.
+- **The answer**: under `--json-schema` the envelope carries `structured_output` (the
+  CLI-validated object) beside `result`; in this mode `_parse_envelope` prefers the
+  validated object. The schema rides argv, so it must stay free of the characters a
+  Windows `.cmd` shim interprets (`& | < > ^ %`, pinned by `test_role_research`). A
+  session that runs out of turns answers the CLI's own subtype (`error_max_turns`), which
+  reaches the call site as `llm_error:error_max_turns`.
+
+Flags verified live 2026-09-28 against CLI 2.1.284 (`--max-turns` is accepted but not
+listed in `--help`). `generate` and `repo_scan` argv are unchanged, pinned byte for byte
+by `test_role_research.OtherModesUnchangedTest` beside `test_repo_scan`'s own pins.
+
+### `role_research` — what a target title asks for today
+
+`pipeline/jobfit/role_research_cli.py` (`python -m pipeline.jobfit.role_research_cli
+--input-json <path>` or stdin, `--no-llm`). Input `{titles (1-5, <=80 chars), countries
+(ISO-2, <=10, may be empty = Europe/global), seniority, lang}`; only those four
+role-level fields can reach the prompt — nothing about the person. Output `{result,
+source, fallbackReason, promptVersion: "role-research-v1", model}`, where `result` is
+`{titles, markets, asOf, summary, skills[<=24]{skill, termId, tier core|common|emerging,
+share, why, sources[]}, sources[<=16]{url, title, read fetched|snippet, publisher}}`. It
+runs `resolve_provider(..., pin=PIN)`, then `provider_availability`, then the adapter's
+`with_web_research(max_turns=16, json_schema=SCHEMA)` and `complete_json` inside a 240 s
+budget. The model cites sources by id and kp re-validates everything
+(`coerce_research`): http(s)-only de-duplicated sources re-indexed onto the published
+list, skills with no surviving citation dropped, role nouns ("ML Engineer") and
+duplicates (folded name or taxonomy term — the higher tier stays) dropped, `share` kept
+only as a stated fraction in 0..1 (never clamped into one). Keyless is data, exit 0:
+`no_provider` (no, unavailable or refused provider — the ledger line names the
+descent), `llm_error:<subtype or Type>`, `llm_unusable`. Malformed input is exit 2
+`invalid_input`. Fixtures: `pipeline/jobfit/tests/test_role_research.py`.
+
+### The Codex CLI engine (pin-only)
+
+`pipeline/jobfit/llm/adapters/codex_cli.py` is a `TextProvider` over one `codex exec` spawn
+per attempt, modelled on the Claude CLI adapter (retries, the total deadline and the JSON
+repair come from `base.py`). It is **pin-only**: it has no `PROVIDER_CAPABILITIES` row and no
+`ADAPTERS` entry, so no Models routing row can name it; `capabilities.PIN_ONLY_PROVIDER_CAPABILITIES`
+declares it (`{json}`) and `registry._pinned_provider` builds it for a
+`ProviderPin("codex_cli", model, effort)`. The TS catalogue (`LLM_PROVIDERS`) is unchanged.
+
+The spawn (flags verified against `codex exec --help`, codex-cli 0.157.1, 2026-09-30):
+`codex exec --skip-git-repo-check --ephemeral --sandbox read-only --disable shell_tool
+--disable unified_exec --color never --json -C <empty temp dir> -m <model>
+[-c model_reasoning_effort=<effort>] [--output-schema <schema.json>] -o <last-message> -`.
+The prompt travels on stdin (never argv: on Windows `codex` is a `.cmd` shim); the model
+writes nothing and runs no command (read-only sandbox, shell tools disabled); it runs in an
+empty temp directory, never the repository, so no AGENTS.md is folded in. `gig_plan_cli.py`
+opens the adapter's `with_output_schema` door with the plan's strict JSON Schema. The answer
+is the last-message file (the `--json` event stream's last message as a fallback); the
+stream's `turn.completed.usage` token counts reach the usage ledger; `cost_usd` is null.
+Policy, in `availability()` order: `KP_OFFLINE` → `offline_policy`; a production deployment
+without `KP_ALLOW_CLI_ENGINE` → `consumer_terms_policy` (a ChatGPT-account seat is consumer
+terms, the same switch the Claude CLI honours); no binary → `not_installed`. Each degrades the
+seat to `no_provider`. Failures: timeout `deadline_exceeded` (one spawn), a usage limit
+`usage_limit` (not retried), overloaded/5xx retried inside the deadline, anything else
+`cli_error`, no answer `empty_output`.
+
 ## Prompt artifacts are PII, and their retention is explicit
 
 `KP_LOG_PROMPTS=1` captures the full prompt and response for each analysis to
@@ -456,7 +675,8 @@ so the model treats them as opaque instead of being told a falsehood. Pinned by
 
 LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted):
 
-- Every `TextProvider.complete()` and the registry's `MonitoredClaudeCli` emit one
+- Every `TextProvider.complete()` — the Claude CLI's included, since the fold
+  retired `MonitoredClaudeCli` into a deprecated alias of `ClaudeCliAdapter` — emits one
   event per call: provider, model, tokens (incl. cached), latency, errors, and
   computed `cost_usd` as metadata (LightTrack prices server-side from its own
   price book — the two travel side by side as a cross-check).
@@ -650,9 +870,12 @@ in the `llm_usage.reason` column (see "A failed attempt is visible without being
 billable" above), so an operator can ask why a call degraded *later* and not only in
 the request that degraded. The Python CLI seats (`reasoning`, `automation`,
 `campaign`, `agentfit`, `group_compare`, `devcase`, `repo_scan`) all thread it, and
-`automation_cli` / `campaign_cli` additionally thread the MID-CALL descent their
-engine classified (`provider_timeout`, `unparseable_output`, `unusable_output`,
-`provider_error`) — the descents that happen after the availability gate said yes.
+`automation_cli`, `campaign_cli`, `devcase_cli` and `agentfit_cli` additionally thread
+the MID-CALL descent their engine classified (`provider_timeout`,
+`unparseable_output`, `unusable_output`, `provider_error`) — the descents that happen
+after the availability gate said yes. For devcase and agentfit that code is the
+`fallbackCode` `provenance.generate_with_fallback` stamps beside its prose
+`fallbackReason`, one per step, popped off the artifact with it.
 
 Clicking a row opens `ActivityDetailModal.tsx` — the ledger facts (including
 cached tokens, which the table has no room for), then the linked run's output
@@ -697,8 +920,9 @@ Models. One section there answers it, from three sources at once:
 | Source | What it contributes |
 | --- | --- |
 | `GET /api/billing` (prop from the tab) | This period's plan meters: included allowance, remaining, pack credits |
-| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all) |
-| `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all). `failedCalls` sums failed attempts across the returned rows. |
+| `GET /api/llm/activity` | Newest 500 ledger rows by default. `?useCase=` and `?outcome=ok|failed` filter before the bound; `?cursor=<ts>|<id>` reads older rows. The response supplies `nextCursor` when a full window was returned. |
+| `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters, per-process `afterResponseFailures` and `foreignReceipts`, bounded structured warnings from `ops-warn.log` |
 
 `useSpendData.ts` owns both fetches for the whole section — one loading state,
 one failure state. The ledger read is THE failure (it is the section's subject);
@@ -717,11 +941,48 @@ question; the section is flat now, with ruled bands rather than nested cards.
 `ModelsTab.tsx` is a `SegmentedControl` over three mutually exclusive sections,
 each its own chunk with its own fetch:
 
+The selected section is reflected in `?tab=models&modelSec=...` so a direct link
+opens the same panel. Invalid values fall back to Routing, and bare tab switches
+clear `modelSec` with the other tab-scoped view parameters.
+
 - **Routing** (`ModelsRoutingPanel.tsx`) — the per-use-case pin table.
 - **Quality** (`ModelsQualityOverview.tsx`) — the baked bench matrix: per-model
   ranking + best model per case. With no baked matrix it says so (it used to
   render nothing, which reads as a broken tab once it is a whole section).
 - **API keys / BYOM** (`ModelsKeysPanel.tsx`) — the write-only key store.
+
+### A routing row says what served it, not only what is pinned
+
+`GET /api/llm/config` carries `health` beside `rows`/`providers`/`useCases`:
+per catalogued use case (never `*`, never a ledger-only id such as the keys
+canary), the `llm_usage` rows since **max(30-day window, the effective pin's
+`updatedAt`)** — its own pin, else the `*` catch-all, the fallback
+`config.for_use_case` resolves. The cut is the point: a re-pinned use case is
+never credited with the traffic of the provider it replaced. The read
+(`routingHealth` in `app/_lib/db/llm-routing-health.ts`, its own module so
+`db/llm.ts` does not grow in every route's import graph) returns counts split
+into provider serves / template serves / failed attempts, the newest row and
+the newest provider serve; a use case with nothing since its cut is absent.
+
+`classifyRoutingHealth` (`app/features/settings/models/modelsRoutingHealth.ts`,
+pure) turns that into one state from the NEWEST row, because the row answers
+"what serves this now":
+
+| State | When | Repair |
+| --- | --- | --- |
+| serving | a provider answered (an unpinned row names what Default resolved to) | none |
+| drift | a pin names a routing provider, and a different one answered | Test |
+| falling_back | the template floor answered; the hint names the ledger reason code | Open Keys for `missing_key` / `missing_endpoint` / `invalid_base_url`; none for a policy seal (`offline_policy`, `consumer_terms_policy`, `disabled`); else Test |
+| failing | the newest attempt raised | Test |
+| unproven | pinned, and nothing since the pin (or the read predates a re-pin made in place) | Test |
+| idle | not pinned, nothing in the window | none |
+
+Open Keys is the `?modelSec=keys` address, not a new route. Reasons render from
+`models.routing.health.reasons.<code>` with an "unknown" line for a code the
+catalog has not caught up with, never the raw id. Same `requireOperator` gate as
+the Activity and usage routes, over the same deployment-wide, tenancy-exempt
+ledger they already list row by row. A served provider outside the routing
+catalogue (a TS-direct voice or TTS writer) is never called drift.
 
 ### Proving a key: `POST /api/llm/keys/test`
 
@@ -872,6 +1133,10 @@ screen. The stamp is nudged forward on a same-millisecond collision so the token
 strictly increases. Omitting the field keeps the old unconditional write for the
 headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
 
+Reset carries the same `expectedUpdatedAt` from the rendered pin. A stale DELETE
+returns `MODEL_ROUTING_STALE` and the current rows instead of removing another
+operator's newer pin; omitting the version still permits a headless reset.
+
 The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
 `MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
 `MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
@@ -910,6 +1175,8 @@ locales.
   `resolve_provider` site nor a named exemption (`github_analysis` is TS-direct
   in `app/_lib/github/code-review.ts`; `devcase_role_design` is collapsed into
   `devcase_case_design` by `design-artifacts`).
+  The Models routing table marks `devcase_role_design` as a bench-only row so a
+  saved pin there is not mistaken for a production routing change.
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider
@@ -917,18 +1184,21 @@ locales.
   `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
   `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
-- `devcase_cli` records the availability-gate reason on its deterministic ledger
-  lines but **not** the per-STEP mid-call reason: those are free-form
-  `describe_fallback` strings kept for the envelope's `fallbackReason` block, and
-  `monitor._reason_code` collapses any prose to `provider_error` rather than storing
-  a provider message in a durable column. A devcase step that timed out is therefore
-  ledger-visible as `provider_error`, not as `provider_timeout`. Classifying per step
-  needs `provenance.generate_with_fallback` to carry a subtype alongside its prose,
-  which is a change to that module's contract, not to the ledger.
+- Of the `generate_with_fallback` callers, only `devcase_cli` and `agentfit_cli`
+  put the per-step mid-call code on their ledger lines. `repo_scan_cli` passes only
+  the availability descent, and the intake / jobseeker CLIs write no deterministic
+  line at all.
 - Neither `outcome` nor `reason` is RENDERED yet. The Activity tab and the Models
   usage panel read them (`LlmActivityRow.outcome`/`.reason`,
   `UseCaseTotals.failedCalls`) but show no column for either; surfacing them is new
   operator-facing copy in four locale catalogs.
+- A call-site pin is recorded in the ledger only as its model id (`claude-sonnet-5-5`
+  on `role_research` rows): nothing in `llm_usage` says a pin, rather than routing,
+  chose it. And the Models table still offers a `role_research` row that the pin makes
+  inert — `PINNED_USE_CASES` is exported for the panel to mark it (as it marks
+  `devcase_role_design`), but the panel does not read it yet.
+- `role_research`'s `read: "fetched"` is the model's own claim: the JSON envelope
+  carries no tool trace, so kp cannot verify which pages were actually fetched.
 - Per-tenant provider KEYS are not built either, deliberately (owner decision):
   `provider_keys` and `llm_config` are one deployment-wide store. The Models panel
   states the scope rather than implying a boundary that does not exist.

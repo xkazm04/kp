@@ -1,5 +1,6 @@
 import type { BadgeTone } from "@/app/_components/Badge";
 import type { BillingOverview, PlanDef } from "@/app/_lib/billing";
+import type { BillingAlertView } from "@/app/_lib/billing/alerts";
 
 // Shared billing types — split out of BillingTab.tsx so BillingPlanCatalog and
 // the other split-out billing components can import them without pulling in
@@ -13,6 +14,11 @@ export type PackInfo = { id: string; name: string; meter: string; qty: number; p
 export type BillingPayload = BillingOverview & {
   configured: boolean;
   catalog: { plans: Record<string, PlanDef>; packs: { minutes_100?: PackInfo } };
+  /** The org's open billing alerts, already projected for THIS reader
+   *  (app/_lib/billing/alerts.ts): coded, and carrying `detail` / operator-only kinds
+   *  for the home-org operator alone. Optional so a payload from an older server —
+   *  and every fixture written before the reader existed — reads as "none". */
+  alerts?: BillingAlertView[];
 };
 
 // Subscription lifecycle -> badge tone. Every status the webhook reducer can

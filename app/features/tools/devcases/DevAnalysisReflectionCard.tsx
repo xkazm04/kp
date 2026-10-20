@@ -33,10 +33,10 @@ export function DevAnalysisReflectionCard({ result, analysis }: { result: Result
       </div>
       {(analysis.statedVsRealGaps ?? []).length > 0 ? (
         <div className="mt-3">
-          <p className="text-micro font-semibold uppercase tracking-wide text-coral">{t("gaps")}</p>
+          <p className="text-micro font-semibold uppercase tracking-wide text-coral-ink">{t("gaps")}</p>
           <ul className="mt-1 space-y-0.5">
             {(analysis.statedVsRealGaps ?? []).map((g, i) => (
-              <li key={i} className="flex gap-1.5 text-sm text-ink"><span className="text-coral">•</span>{g}</li>
+              <li key={i} className="flex gap-1.5 text-sm text-ink"><span className="text-coral-ink">•</span>{g}</li>
             ))}
           </ul>
         </div>

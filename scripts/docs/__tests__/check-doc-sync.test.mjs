@@ -146,8 +146,14 @@ const editCall = (id, file) => ({
 });
 const assistantText = (text) => ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } });
 
+const transcriptDirs = [];
+process.on('exit', () => {
+  for (const dir of transcriptDirs) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
+
 function writeTranscript(events) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-docsync-'));
+  transcriptDirs.push(dir);
   const file = path.join(dir, 'transcript.jsonl');
   fs.writeFileSync(file, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
   return file;

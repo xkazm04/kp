@@ -118,6 +118,221 @@ class PolicyTest(unittest.TestCase):
     def test_recent_screening_skips(self):
         self.assertEqual(self.ev(matchScore=90, recentScreening=True)["action"], "none")
 
+    # --- one aging clock (challenge-r02 pipeline-actions-events/A) ------------------
+    # The TS pass resolves each entry's aging tier from the board's stage-role SLA on
+    # the entry's own workspace axis (app/_lib/aging-policy.ts) and hands it in as
+    # `agingTier`. The flat POLICY cut is only the fallback for a caller that sends none.
+
+    def test_hired_never_alerts_even_on_legacy_input(self):
+        # Legacy input (no agingTier): a hire used to collect an aging_alert every day
+        # from day 30 on, forever — the terminal guard ran AFTER the alerts were built.
+        d = self.ev(stage="Hired", matchScore=99, daysInStage=99)
+        self.assertEqual(d["alerts"], [])
+
+    def test_renamed_terminal_with_tier_none_never_alerts(self):
+        d = self.ev(stage="Placed", daysInStage=40, agingTier="none")
+        self.assertEqual(d["alerts"], [])
+
+    def test_ts_tier_maps_to_the_alert_kinds(self):
+        self.assertEqual(self.ev(stage="Offer", daysInStage=3, agingTier="aging")["alerts"], ["stale_alert"])
+        self.assertEqual(self.ev(stage="Offer", daysInStage=6, agingTier="stalled")["alerts"], ["aging_alert"])
+
+    def test_ts_tier_wins_over_the_flat_cut(self):
+        # 35 days would be an aging_alert on the flat fallback; the resolved tier says no.
+        self.assertEqual(self.ev(stage="Offer", daysInStage=35, agingTier="none")["alerts"], [])
+
+    def test_an_unrecognised_tier_falls_back_to_the_flat_cut(self):
+        self.assertEqual(self.ev(daysInStage=35, agingTier="bogus")["alerts"], ["aging_alert"])
+
+
+class AgingTierSyncTest(unittest.TestCase):
+    """Drift guard for the TS -> Python aging bridge (the test_fit_threshold_sync shape).
+
+    TS owns the tier: ``app/_lib/aging-policy.ts`` declares the vocabulary and which
+    alert kind each tier is written as. Python consumes the tier string and maps it
+    through ``automation.AGING_TIER_ALERTS``. Rename a tier or swap the two kinds on one
+    side alone and the feed silently stops alerting (or alerts under the wrong name) —
+    this reads the TS source and fails on any divergence, in both directions.
+    """
+
+    AGING_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "aging-policy.ts"
+    STAGES_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "pipeline-stages.ts"
+
+    @staticmethod
+    def _strip(text: str) -> str:
+        import re
+
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+        return re.sub(r"//[^\n]*", "", text)
+
+    def _ts(self) -> str:
+        self.assertTrue(self.AGING_TS.exists(), f"missing {self.AGING_TS}")
+        return self._strip(self.AGING_TS.read_text(encoding="utf-8"))
+
+    def test_the_tier_vocabulary_matches(self):
+        import re
+
+        m = re.search(r"\bAGING_TIERS\s*=\s*\[([^\]]*)\]", self._ts())
+        self.assertIsNotNone(m, "aging-policy.ts must export AGING_TIERS as a literal array")
+        ts_tiers = tuple(re.findall(r'"(\w+)"', m.group(1)))
+        self.assertEqual(ts_tiers, automation.AGING_TIERS)
+
+    def test_the_tier_to_alert_map_matches(self):
+        import re
+
+        m = re.search(r"\bAGING_TIER_ALERT\b[^=]*=\s*\{([^}]*)\}", self._ts())
+        self.assertIsNotNone(m, "aging-policy.ts must export AGING_TIER_ALERT as a literal object")
+        ts_map = dict(re.findall(r'(\w+)\s*:\s*"(\w+)"', m.group(1)))
+        self.assertEqual(ts_map, automation.AGING_TIER_ALERTS)
+        # Every non-"none" tier alerts, and "none" never does.
+        self.assertEqual(set(ts_map), set(automation.AGING_TIERS) - {"none"})
+
+    def test_the_legacy_terminal_guard_matches_the_shipped_axis(self):
+        # The fallback path has no axis, so it guards the SHIPPED terminal column by
+        # name; that name set must be the stages STAGE_ROLE marks terminal.
+        import re
+
+        src = self._strip(self.STAGES_TS.read_text(encoding="utf-8"))
+        block = re.search(r"\bSTAGE_ROLE\b[^=]*=\s*\{([^}]*)\}", src)
+        self.assertIsNotNone(block)
+        terminal = {k for k, v in re.findall(r'(\w+)\s*:\s*"(\w+)"', block.group(1)) if v == "terminal"}
+        self.assertEqual(terminal, set(automation.TERMINAL_STAGES))
+
+
+class StageRolePolicyTest(unittest.TestCase):
+    """The policy pass decides by STAGE ROLE (challenge-r10 pipeline-core/B).
+
+    The TS pass stamps every snapshot entry with ``stageRole`` and ``advanceTo`` (the
+    next column on the entry's OWN workspace axis — where actOnPipelineEntry("accept")
+    lands). evaluate_entry used to match the five shipped NAMES, so a composed board
+    (Settings -> Hiring) got "no policy for this stage" on its entry column and on any
+    renamed screening column, and the preview named a landing the commit did not use.
+    """
+
+    def ev(self, **kw):
+        base = {"stage": "Tech screen", "stageRole": "screening", "advanceTo": "Panel",
+                "archetype": "bau", "matchScore": 60, "daysInStage": 0, "approvalKind": None}
+        base.update(kw)
+        return automation.evaluate_entry(base)
+
+    def test_a_renamed_entry_column_advances_to_the_axis_next(self):
+        d = self.ev(stage="Inbox", stageRole="entry", advanceTo="Phone", matchScore=72)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Phone"))
+        self.assertIn("Phone", d["reason"])
+        self.assertNotIn("Screened", d["reason"])
+
+    def test_a_renamed_screening_column_rejects_only_on_the_legal_path(self):
+        self.assertEqual(self.ev(matchScore=30)["action"], "reject")
+        self.assertIsNone(self.ev(matchScore=30)["toStage"])
+        for archetype in automation._EARLY_CAREER:
+            self.assertEqual(self.ev(matchScore=30, archetype=archetype)["action"], "hold", archetype)
+        for missing in (None, 0):
+            self.assertEqual(self.ev(matchScore=missing)["action"], "hold", repr(missing))
+
+    def test_a_renamed_screening_column_advances_to_the_axis_next(self):
+        d = self.ev(matchScore=80, daysInStage=3)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Panel"))
+        self.assertIn("Panel", d["reason"])
+        self.assertNotIn("Interview", d["reason"])
+
+    def test_human_owned_roles_hold_with_a_role_named_reason(self):
+        for role in ("homework", "scoring", "custom", "interview", "offer"):
+            for score in (20, 95):
+                d = self.ev(stage="Column X", stageRole=role, advanceTo="Next", matchScore=score, daysInStage=9)
+                self.assertEqual((d["action"], d["toStage"]), ("hold", None), (role, score))
+                self.assertIn(role, d["reason"], (role, d["reason"]))
+
+    def test_terminal_role_is_none(self):
+        d = self.ev(stage="Signed", stageRole="terminal", advanceTo=None, matchScore=99, daysInStage=99)
+        self.assertEqual((d["action"], d["toStage"]), ("none", None))
+
+    def test_an_off_axis_stage_is_none_never_reject(self):
+        for score in (None, 10, 30, 95):
+            d = self.ev(stage="Offer", stageRole=None, advanceTo=None, matchScore=score, daysInStage=9)
+            self.assertEqual((d["action"], d["toStage"], d["reason"]), ("none", None, "off-axis stage; no policy"), score)
+
+    def test_an_unknown_role_string_is_none(self):
+        d = self.ev(stageRole="bogus", matchScore=10)
+        self.assertEqual((d["action"], d["reason"]), ("none", "off-axis stage; no policy"))
+
+    def test_the_stamped_default_board_decides_like_the_legacy_path(self):
+        nxt = dict(zip(automation.DEFAULT_STAGE_ROLE, list(automation.DEFAULT_STAGE_ROLE)[1:] + [None]))
+        for stage, role in automation.DEFAULT_STAGE_ROLE.items():
+            for arch in ("bau", "student"):
+                for score in (None, 0, 35, 40, 60, 80):
+                    for days in (0, 3, 35):
+                        for appr in (None, "screening_review"):
+                            snap = {"stage": stage, "archetype": arch, "matchScore": score,
+                                    "daysInStage": days, "approvalKind": appr}
+                            self.assertEqual(
+                                automation.evaluate_entry({**snap, "stageRole": role, "advanceTo": nxt[stage]}),
+                                automation.evaluate_entry(snap),
+                                snap,
+                            )
+
+    def test_the_legacy_path_is_byte_identical(self):
+        # No stageRole key (the bare CLI, back-compat): the decision grid over the five
+        # shipped stages + an unknown one is digested; the digest was taken on the tree
+        # BEFORE the role switch (d57d380b8), so any change of action/toStage/reason/
+        # alerts on the legacy path fails here.
+        import hashlib
+
+        rows = []
+        for stage in ("Accepted", "Screened", "Interview", "Offer", "Hired", "Placed"):
+            for arch in ("bau", "student"):
+                for score in (None, 0, 35, 39, 40, 60, 80):
+                    for days in (0, 3, 25, 35):
+                        for appr in (None, "screening_review"):
+                            d = automation.evaluate_entry({"stage": stage, "archetype": arch, "matchScore": score,
+                                                           "daysInStage": days, "approvalKind": appr})
+                            rows.append([stage, arch, score, days, appr, d["action"], d["toStage"], d["reason"], d["alerts"]])
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        self.assertEqual(len(rows), 672)
+        self.assertEqual(digest, "a6ae0f22d12a21ccf180d0672b9c61d05a37e08d97877a5291bf6e1fd418dde9")
+
+    def test_reject_is_reached_only_from_a_screening_role(self):
+        floor = automation.POLICY["bau_reject_score"]
+        seen = False
+        for role in (*automation.STAGE_ROLES, None, "bogus"):
+            for arch in ("bau", *automation._EARLY_CAREER):
+                for score in (None, 0, 1, floor - 1, floor, 95):
+                    for appr in (None, "rejection_review"):
+                        d = self.ev(stageRole=role, archetype=arch, matchScore=score, approvalKind=appr, daysInStage=5)
+                        if d["action"] != "reject":
+                            continue
+                        seen = True
+                        self.assertEqual(role, "screening")
+                        self.assertNotIn(arch, automation._EARLY_CAREER)
+                        self.assertIsNone(appr)
+                        self.assertTrue(score and score < floor)
+        self.assertTrue(seen)
+
+
+class StageRoleSyncTest(unittest.TestCase):
+    """Drift guard for the stage-role bridge (the AgingTierSyncTest shape): the legacy
+    name -> role map and the role vocabulary Python decides on must be the ones
+    app/_lib/pipeline-stages.ts declares (STAGE_ROLE, StageRole)."""
+
+    STAGES_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "pipeline-stages.ts"
+
+    def _ts(self) -> str:
+        return AgingTierSyncTest._strip(self.STAGES_TS.read_text(encoding="utf-8"))
+
+    def test_the_default_name_to_role_map_matches_in_order(self):
+        import re
+
+        block = re.search(r"\bSTAGE_ROLE\b[^=]*=\s*\{([^}]*)\}", self._ts())
+        self.assertIsNotNone(block)
+        ts_pairs = re.findall(r'(\w+)\s*:\s*"(\w+)"', block.group(1))
+        self.assertEqual(ts_pairs, list(automation.DEFAULT_STAGE_ROLE.items()))
+
+    def test_the_role_vocabulary_matches(self):
+        import re
+
+        m = re.search(r"\btype\s+StageRole\s*=\s*([^;]*);", self._ts())
+        self.assertIsNotNone(m, "pipeline-stages.ts must declare StageRole as a literal union")
+        self.assertEqual(tuple(re.findall(r'"(\w+)"', m.group(1))), automation.STAGE_ROLES)
+
 
 class ScreeningTest(unittest.TestCase):
     def test_bau_strong_advances(self):
@@ -209,6 +424,82 @@ class RecommendationContractTest(unittest.TestCase):
         cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "🤷 maybe"})
         result, _ = automation.interview_scorecard(BAU, job, "notes", provider=cap)
         self.assertEqual(result["recommendation"], "hold")
+
+
+class WorkingWithAiToolsScorecardTest(unittest.TestCase):
+    """S1 — the optional dev-case axis on the AI scorecard."""
+
+    AXIS = "Working with AI tools"
+    QUOTE = "I caught it returning a stale cache, so I diffed the output and wrote that part by hand"
+
+    def _payload(self, *, with_axis, evidence=QUOTE):
+        ratings = [
+            {"competency": c["competency"], "rating": 4, "evidence": ""}
+            for c in automation.rubric_for_candidate("bau", "software_engineering")
+        ]
+        if with_axis:
+            ratings.append({"competency": self.AXIS, "rating": 5, "evidence": evidence})
+        return {"ratings": ratings, "summary": "s", "recommendation": "hold"}
+
+    def test_no_dev_case_is_unchanged(self):
+        cap = _CaptureProvider(self._payload(with_axis=False))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), "notes", provider=cap)
+        self.assertNotIn(self.AXIS, cap.prompt)
+        self.assertNotIn("notAssessed", result)
+        self.assertNotIn(self.AXIS, result["rubricKeys"])
+        self.assertEqual(
+            result["rubricVersion"],
+            automation.rubric_version_hash(automation.rubric_for_candidate("bau", "software_engineering")),
+        )
+
+    def test_dev_case_adds_the_axis_and_stamps_a_new_version(self):
+        cap = _CaptureProvider(self._payload(with_axis=True))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), (self.QUOTE + ". ") * 3, provider=cap, dev_case=True)
+        self.assertIn(self.AXIS, cap.prompt)
+        plain = automation.rubric_for_candidate("bau", "software_engineering")
+        full = automation.rubric_for_candidate("bau", "software_engineering", True)
+        self.assertEqual(result["rubricVersion"], automation.rubric_version_hash(full))
+        self.assertNotEqual(result["rubricVersion"], automation.rubric_version_hash(plain))
+        self.assertEqual(result["rubricKeys"][-1], self.AXIS)
+        rated = {r["competency"]: r["rating"] for r in result["ratings"]}
+        self.assertEqual(rated[self.AXIS], 5)
+        self.assertEqual(result["notAssessed"], [])
+
+    def test_uncovered_axis_is_not_assessed_not_a_number(self):
+        # Model returns null / an unquoted midpoint / no row at all: all read "not assessed".
+        for axis_row in (
+            {"competency": self.AXIS, "rating": None, "evidence": ""},
+            {"competency": self.AXIS, "rating": 3, "evidence": ""},
+            None,
+        ):
+            payload = self._payload(with_axis=False)
+            if axis_row:
+                payload["ratings"].append(axis_row)
+            result, _ = automation.interview_scorecard(
+                BAU, mkjob(), "notes", provider=_CaptureProvider(payload), dev_case=True
+            )
+            self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]], repr(axis_row))
+            self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_keyless_fallback_gives_the_axis_no_number(self):
+        result, source = automation.interview_scorecard(BAU, mkjob(), "notes", provider=None, dev_case=True)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+        self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]])
+        self.assertIn(self.AXIS, result["rubricKeys"])
+
+    def test_an_ungrounded_quote_does_not_earn_a_number(self):
+        payload = self._payload(with_axis=True, evidence="a sentence the candidate never said")
+        result, _ = automation.interview_scorecard(
+            BAU, mkjob(), "notes about something else", provider=_CaptureProvider(payload), dev_case=True
+        )
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_the_axis_never_counts_toward_confidence(self):
+        notes = "word " * 500
+        base = automation.interview_scorecard(BAU, mkjob(), notes, provider=None)[0]["confidence"]
+        with_case = automation.interview_scorecard(BAU, mkjob(), notes, provider=None, dev_case=True)[0]["confidence"]
+        self.assertEqual(base, with_case)
 
 
 class MarketPersonaTest(unittest.TestCase):
@@ -582,7 +873,7 @@ class ScorecardTranscriptTrustTest(unittest.TestCase):
 
     # -- the fairness clause ----------------------------------------------
     def test_the_scoring_prompt_carries_the_briefs_no_penalty_clause(self):
-        # The interviewer brief (eval/interview_eval.NON_NEGOTIABLES) promised never to
+        # The interviewer brief (NON_NEGOTIABLES in app/_lib/student-interview.ts) promised never to
         # penalise nerves or imperfect English - to the agent RUNNING the call. Nothing
         # said it to the model producing the RATING, which is the half a hiring decision
         # reads. Same promise, now on both sides of the interview.
@@ -898,6 +1189,22 @@ class AdverseActionBoundaryTest(unittest.TestCase):
         self.assertEqual(source, "deterministic")
         self.assertEqual(result["recommendation"], "reject")
         self.assertEqual(result["route"], "hold")
+
+    def test_unreadable_verdict_never_fills_in_the_templates_advance(self):
+        # The strong BAU's template verdict IS "advance" (92 >= 70, no missing
+        # must-have). A reply whose verdict is off-set or absent but whose confidence
+        # is high must not inherit that advance under the model's name: the route the
+        # unattended screeningGate="auto" ratify reads would be advance.
+        job = mkjob()
+        m = score_job(BAU, job)
+        for verdict in ("definitely-hire", "yes", "", None, 42):
+            cap = _CaptureProvider({"recommendation": verdict, "confidence": 95, "rationale": "fine"})
+            result, _ = automation.screen_candidate(BAU, job, m, provider=cap)
+            self.assertEqual(result["recommendation"], "hold", repr(verdict))
+            self.assertEqual(result["route"], "hold", repr(verdict))
+        legal = _CaptureProvider({"recommendation": "advance", "confidence": 95, "rationale": "fine"})
+        result, _ = automation.screen_candidate(BAU, job, m, provider=legal)
+        self.assertEqual(result["route"], "advance")
 
     def test_early_career_reject_verdict_is_rewritten_after_the_model(self):
         job = mkjob()
@@ -1449,7 +1756,9 @@ class UnprovenReachesScreeningTest(unittest.TestCase):
 
     def test_unproven_facts_carries_the_skill_its_strength_and_its_reason(self):
         facts = automation.unproven_facts(self.m)
-        self.assertEqual(facts, [{"skill": "Python", "strength": 0.4, "reason": "provenance"}])
+        # 0.02, not 0.4: b6bd61a4e (C6b leak a) credits a bare self_declared claim on a
+        # prerequisite at self_declared_requirement=0.05 of its 0.4 adjacency score.
+        self.assertEqual(facts, [{"skill": "Python", "strength": 0.02, "reason": "provenance"}])
 
     def test_the_screening_prompt_shows_the_bucket_and_what_it_must_do(self):
         cap = _CaptureProvider({})

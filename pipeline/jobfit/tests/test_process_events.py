@@ -5,6 +5,18 @@ from pipeline.jobfit.devcase.reflect import assess_tooling
 
 
 class TestProcessEvents(unittest.TestCase):
+    def test_iteration_pattern_follows_edits_per_distinct_file(self):
+        one_pass = [
+            {"t": 1, "kind": "edit", "path": "a.ts"},
+            {"t": 2, "kind": "edit", "path": "b.ts"},
+        ]
+        iterative = one_pass + [
+            {"t": 3, "kind": "edit", "path": "a.ts"},
+            {"t": 4, "kind": "edit", "path": "b.ts"},
+        ]
+        self.assertEqual(derive_signals(one_pass)["iterationPattern"], "single-pass")
+        self.assertEqual(derive_signals(iterative)["iterationPattern"], "iterative")
+
     def test_empty_events_are_safe_and_high_confidence(self):
         t = tooling_from_events([])
         self.assertEqual(t["confidence"], 0.8)

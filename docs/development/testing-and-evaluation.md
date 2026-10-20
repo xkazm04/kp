@@ -184,8 +184,29 @@ those two rot on. The rules themselves are fixture-covered by `npm run test:flak
 ([`scripts/test/__tests__/flake-policy.test.mjs`](../../scripts/test/__tests__/flake-policy.test.mjs)),
 whose last case runs the policy over the committed register and the real tree.
 
-**What this does not cover.** The Python suite (`test:python:gate`) has its own
-pawl — the `KP_SKIP_BASELINE` skip count — and no flake classification; the
+**The Python suite's register.** `test:python:gate` holds skips, not flakes, and
+it keys them the same way: by identity.
+[`pipeline/jobfit/tests/skip-register.json`](../../pipeline/jobfit/tests/skip-register.json)
+names every tolerated skip by unittest id, with its `why`, its `when` (`always` or
+`env-conditional`) and the condition that makes it skip. `run_gated.py` refuses a
+skip the register does not name, by name, even when the count is unchanged; an
+`always` entry that ran is stale, and the message names the edit (delete it and
+lower `KP_SKIP_BASELINE` in `ci.yml` by one); an `env-conditional` entry that ran
+is a note. Checked before the suite starts: a dead id, a `why` under 20
+characters, a duplicate id, a length that differs from `KP_SKIP_BASELINE`, and an
+env-conditional count that differs from `ENV_CONDITIONAL_SKIPS`. The old count
+band (ceiling `KP_SKIP_BASELINE`, floor `ENV_CONDITIONAL_SKIPS` slots below) stays
+as a second lock, so growing the register still takes the baseline raise that
+`review:constitution` blocks. Today the register holds four `always` entries and
+no env-conditional one (`ENV_CONDITIONAL_SKIPS = 0`, `KP_SKIP_BASELINE` 4), so the
+band is exactly 4. The one env-conditional skip there was — the interview eval's
+grounded DB-fixture bridge, which needed `node_modules` the python-gate job does
+not install — went away when that eval started reading the committed brief
+snapshot (`pipeline/jobfit/eval/interview_briefs.json`, see
+`voice-interview-testing.md` §4.5) instead of spawning node. Cases:
+`pipeline/jobfit/tests/test_run_gated.py`.
+
+**What this does not cover.** The Python suite has no flake classification; the
 Playwright job is a single deterministic keyless subset against a production
 build, where a re-run is a whole build. Both are honest gaps rather than
 oversights: this covers the suite that is large enough for a flake to hide in.
@@ -195,6 +216,8 @@ oversights: this covers the suite that is large enough for a flake to hide in.
 `npm run test:unit` runs through `scripts/test-alias-loader.mjs`, which teaches Node's
 ESM resolver the two TS conveniences the app source uses (the `@/` alias, extensionless
 relative imports) so a route handler is loadable in a plain `node --test` process.
+`npm run test:docs` runs `scripts/__tests__/test-alias-loader.test.mjs` in fresh
+Node processes to pin alias, extensionless, JSON and missing-path resolution.
 
 One more thing happens there, and it only happens in a **linked checkout** — a git
 worktree whose `node_modules` is a junction (Windows) or symlink (POSIX) back to the
@@ -256,6 +279,15 @@ to be true before the runner boots and neither can be fixed from inside it:
   that never settles pins the gate until a CI job timeout kills it — and the output at
   that point names a dead job, not a test. With the ceiling, a hang is an ordinary red
   with the offending test named, and the rest of the suite still reports.
+- **A run that ran nothing is red.** `node --test` exits **0** when a pattern matches no
+  file, and it reads argv as a glob — so `app/api/jobs/[id]/route.test.ts` is a character
+  class that matches nothing: 0 tests, exit 0. The launcher (a) runs an argument that
+  names an existing file as exactly that file, **escaping** its glob characters (`[` →
+  `[[]`; node's glob has no backslash escape) rather than resolving it, (b) fails an
+  argument that is not a file and matches no file, naming the pattern, and (c) fails a
+  run whose machine reporter (`scripts/test/flake-reporter.mjs`, which writes a
+  `{"summary":{"tests":N}}` record) counted 0 tests — or exited 0 and left no count.
+  Node's own per-file record for a file that registers no test is not counted as a test.
 
 `npm run test:bench-driver` runs through the same launcher for the first reason: the bench
 driver is *the* documented source of an inherited `NODE_TEST_CONTEXT`, so a bare
@@ -264,7 +296,8 @@ driver is *the* documented source of an inherited `NODE_TEST_CONTEXT`, so a bare
 `app/_lib/testing/gate-exit-code.test.ts` pins all of it from the outside — it drives the
 real launcher from a deliberately polluted environment and asserts that a failing suite
 exits non-zero, a passing one exits zero, ambient backend env never reaches a test file, a
-hanging file fails instead of blocking, and `test:bench-driver` still goes through the
+hanging file fails instead of blocking, a test under a bracketed directory really runs, a
+pattern that matches nothing or a file with no tests is red, and `test:bench-driver` still goes through the
 launcher.
 
 ## `schemas:gen`: the Python step in front of typecheck and build
@@ -348,6 +381,36 @@ So the budget is a reading, not an assertion:
 - The suite's other two tripwires — the skip ceiling/floor and the hermeticity check —
   are described in `run_gated.py`'s own docstring and are unaffected by `--timings`.
 
+## Name-neutrality registry
+
+`pipeline/jobfit/eval/neutrality.py` is the one place the name-perturbation set
+lives (`PERTURBATIONS`: 7 name axes, 4 same-person gender pairs, 2 gendered-prose
+pairs, the `"Candidate"` fallback). `test_fairness.py`, `test_name_neutrality.py`
+and `matching_eval._probe_gender` read it rather than re-typing names.
+
+`pipeline/jobfit/tests/test_neutrality_registry.py` (in `test:python:gate`) holds
+the proof obligation:
+
+- **Completeness.** `discover_candidate_scorers()` walks `pipeline/jobfit/` with
+  `ast` (skipping `tests/`, `eval/`, `llm/bench/`, `*_cli.py`, `seed_*.py`) and
+  returns every public function with a `MatchCandidate` / `CandidateProfileV2` /
+  `CandidateProfile` parameter. It must equal `SCORERS | EXEMPT`, so **a new
+  function that takes a candidate fails the gate by name** until you register it.
+- **Registering.** Add a `Scorer(run, scored_key, carriers)` to `_scorers()`:
+  `run(profile)` calls the function keylessly (`provider=None`), `scored_key` is
+  a key the output must carry, and `carriers` are the dotted paths (`*` = any
+  item) allowed to echo the name, such as a display `label`. The name is removed from
+  those paths only. The payload must then be byte-identical across every
+  perturbation, and a sentinel name found anywhere else fails, naming the path.
+- **Exempting.** Only when the output cannot carry a score (today, the three
+  letter drafters that address the candidate by name). The reason must be at
+  least 20 characters, and a `covered by <module.func>` citation must name a
+  registered scorer.
+
+The whole registry runs in about two seconds. A planted `-ová` penalty on the
+`score_job` that recruiter ranking calls is a pinned case: it fails here, and
+(measured 2026-09-23) it left the three older suites green.
+
 ## Eval harness
 
 `pipeline/jobfit/eval/` ships a 14-fixture golden set of synthetic CVs covering the
@@ -392,6 +455,79 @@ A bar with no recorded run says `UNMEASURED` and its `why` must say what it woul
 take to measure it (`salary_coverage` predates the coverage/overlap split;
 `QUALITY_THRESHOLD` needs a judged run). "Nobody measured this" and "measured and
 fine" never look the same in the table.
+
+**The measurement is recorded, not typed.** The slack check is only as good as the
+figure it reads, and until 2026-09-23 that figure was a literal typed into
+`thresholds.py` that nothing re-derived. Engine work that lifted relevance@5 to 0.95
+would have left the record at 0.857, and the slack check would have kept reading
+that stale number. The measurements now live in
+[`pipeline/jobfit/eval/measurements.json`](../../pipeline/jobfit/eval/measurements.json),
+one line per bar: `measured`, `n` (the scenarios, task-runs, drill rows or checks it
+was taken over), `measured_at`, `source` and `corpus`. A bar declared
+`deterministic` in `thresholds.py` has no model in the loop, so its live figure must
+**equal** its record. Every eval `test:eval:ci` runs certifies that on its canonical
+run (`thresholds.certify_live`). A different figure or a different `n` fails
+`--strict` and prints the re-record command:
+
+| bar | eval (canonical run) | n today |
+| --- | --- | --- |
+| `MATCHING_THRESHOLDS.*` | `matching_eval` | 7 scenarios (4 for `entry_precision`) |
+| `RELIABILITY_THRESHOLD` | `automation_eval --no-llm` | 42 task-runs |
+| `FAULT_THRESHOLD` | `fault_eval` (no `--mode`) | 240 drill rows |
+| `INTAKE_THRESHOLD` | `intake_eval --no-llm` (curated bank) | 98 dialog checks |
+
+`INTAKE_THRESHOLD` (1.0, not tunable, like `FAULT_THRESHOLD`) is new. `intake_eval`
+was the one gated eval whose pass/fail lived outside this module. It gates on the
+check pass rate and records the check count, so a scenario that loses a key and
+silently drops an assertion moves `n`. The keyed extraction bars are never
+certified, because run-to-run variance is what their slack is for.
+
+```bash
+python -m pipeline.jobfit.eval.matching_eval --record          # likewise automation_eval --no-llm,
+python -m pipeline.jobfit.eval.fault_eval --record             # intake_eval --no-llm
+```
+
+`--record` is an operator act: it rewrites only that eval's lines (a run that
+matches the record changes no byte), refuses to run in CI (`CI` or
+`GITHUB_ACTIONS` set) and refuses a non-canonical run (a `--mode` subset, a live
+automation run, an intake subset). The committed `measurements.json` diff is the
+review. If the new figure falls below a bar's slack floor, `thresholds --tighten`
+and `test_thresholds.py` say so as before.
+
+**The units behind each figure are recorded too.** A (rate, `n`) pair cannot tell
+"one unit left and another joined" from "nothing changed", and relevance@5 is a
+mean, so one scenario falling while another rises by the same amount kept the
+figure. Both certified clean. Every deterministic bar now also records its units by
+identity, each with its own value, in
+[`pipeline/jobfit/eval/measurements.units.json`](../../pipeline/jobfit/eval/measurements.units.json).
+The file is sorted by bar and then by unit id, one unit per line, and the same
+`--record` writes it:
+
+| bar | unit id | unit value |
+| --- | --- | --- |
+| `MATCHING_THRESHOLDS.archetype_accuracy` / `role_relevance_at5` | `<scenario>` | 1.0 / 0.0 routed; the scenario's relevance@5 |
+| `MATCHING_THRESHOLDS.entry_precision` | `<scenario>` (early-career only) | the scenario's entry precision |
+| `RELIABILITY_THRESHOLD` | `<task>/<scenario>` | 1.0 reliable, 0.0 not |
+| `FAULT_THRESHOLD` | `<mode>/<task>/<scenario>` | 1.0 contract held, 0.0 not |
+| `INTAKE_THRESHOLD` | `<persona>/<check>` | 1.0 held, 0.0 not |
+
+`thresholds.py` refuses at import a deterministic bar with a record but no units
+(the error names its recorder command), a unit count that differs from the record's
+`n`, and a duplicate unit id. A strict run compares the units as well. A stale-record
+finding then names up to 10 changed units, then `+k more`, and ends with the
+recorder command:
+
+```text
+matching_eval: stale record — MATCHING_THRESHOLDS.role_relevance_at5: live 0.857 over n=7,
+recorded 0.857 over n=7 (2026-09-24) — the units behind it moved. Units: flipped:
+accountant_medior 1.0 -> 0.2, senior_backend 0.6 -> 1.0. ... Re-record:
+`python -m pipeline.jobfit.eval.matching_eval --record`
+```
+
+"Intended, or a regression?" is then answered by reading those ids. The `--record`
+summary prints the same per-unit diff (`units: 1 left, 1 joined, 0 flipped; ...`),
+and the committed `measurements.units.json` diff shows the reviewer exactly which
+units the new record accepts.
 
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band
 scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture
@@ -545,3 +681,18 @@ The two red rows are read for what they measure: a paraphrase-blind phrase
 matcher (next step: token overlap, with 19/34 as its baseline) and an
 unreviewed label set. The full per-role table lives in the gitignored
 `docs/harness/intake-sim-2026-09-08/` on the machine that ran it.
+
+## Before dispatching a delivery wave: `npm run preflight:delivery`
+
+A read-only reporter (`scripts/delivery-preflight.mjs [base=main]`, always exits 0, not a gate).
+It prints local-vs-origin divergence for the base, the base's latest CI conclusions (needs an
+authenticated `gh`; says "unavailable" otherwise) and the open PRs with `mergeStateStatus`,
+flagging PRs stacked on a branch other than the base. Origin is the only truth: plan against it.
+
+## Playwright from a worktree
+
+A worktree whose `node_modules` is a junction/symlink to the operator checkout cannot boot
+`next dev`: Turbopack rejects the link ("points out of the filesystem root"), and
+`--webpack` bundles `better-sqlite3` from outside the project. Run e2e specs from the
+operator checkout (or a worktree with a real `npm ci`), and set `KP_DB_BACKEND=sqlite` if the
+shell exports `DATABASE_URL`. Unit, typecheck, lint and i18n gates are unaffected.

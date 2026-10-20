@@ -1,0 +1,122 @@
+{
+ "schema": "conform-run/1",
+ "worker": "dd75a0d1-5d55-41a2-8f66-2922e25ee403",
+ "subject": "recruiting-funnel-metrics",
+ "evaluatedAt": "2026-10-17T02:24:47.606769+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "analytics-computation",
+   "subject": "recruiting-funnel-metrics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/analytics-bottleneck.ts:38 Bottleneck selection ranks median occupant age without throughput weighting and permits a single qualifying stage, contrary to the standard's comparison requirements.",
+   "techniques": [
+    {
+     "technique": "creation-cohort-versus-terminal-transition-basis",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-deltas.ts:129 The actual route supplies recent creation cohorts; this comparison gates sample counts but has no maturity horizon or maturing state."
+    },
+    {
+     "technique": "forecast-signal-floor",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-forecast.ts:158 The signal gate checks hires and active inflow weeks, but lacks floors for observed transitions per leg and the in-flight population."
+    },
+    {
+     "technique": "non-overlapping-event-to-series-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-momentum.ts:79 The first-match chain ends without a residual series; moved transitions are omitted, explicitly demonstrated in analytics-momentum.test.ts."
+    },
+    {
+     "technique": "offer-acceptance-rate-denominator",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-offer.ts:56 The caller supplies independently transition-dated event counts, so this subtraction is a floored net flow rather than outstanding offers."
+    },
+    {
+     "technique": "stage-pass-through-and-dwell-time",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-bottleneck.ts:38 Ranks median age without throughput weighting or a two-stage comparison floor; the tests explicitly accept one qualifying stage."
+    },
+    {
+     "technique": "time-to-hire-basis-and-median-not-mean",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-deltas.ts:130 The speed trend subtracts means, which the technique explicitly rejects for typical-duration improvement comparisons."
+    }
+   ]
+  },
+  {
+   "context": "db-analytics-billing-llm",
+   "subject": "recruiting-funnel-metrics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/db/analytics.ts:364 Windowed duration samples come from recently created entries, excluding older candidates hired during the window and making time-to-hire appear faster by construction.",
+   "techniques": [
+    {
+     "technique": "non-overlapping-event-to-series-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:549 A 30-day view receives five complete seven-day buckets, so the chart spans 35 days while the headline cohort spans 30."
+    },
+    {
+     "technique": "offer-acceptance-rate-denominator",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:576 Each offer event is dated independently, then passed to offerConversion's maximum denominator; this mixes offer populations rather than selecting an offer-cohort or resolved-period rate."
+    },
+    {
+     "technique": "time-to-hire-basis-and-median-not-mean",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:442 The median is calculated correctly from this sample, but the sample comes from the creation-filtered cohort rather than hires completed in the observation window."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "recruiting-funnel-metrics",
+   "context": "analytics-metrics",
+   "reason": "pair anchor refused: app/features/insights/analytics/AnalyticsStatCluster.tsx:58 does not contain the quoted text"
+  },
+  {
+   "subject": "recruiting-funnel-metrics",
+   "context": "pipeline-actions-events",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-17T02:24:47.606769+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "recruiting-funnel-metrics"
+   ],
+   "techniques": [
+    "creation-cohort-versus-terminal-transition-basis",
+    "forecast-signal-floor",
+    "non-overlapping-event-to-series-mapping",
+    "offer-acceptance-rate-denominator",
+    "stage-pass-through-and-dwell-time",
+    "time-to-hire-basis-and-median-not-mean"
+   ],
+   "deviations": 1,
+   "context": "analytics-computation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T02:24:47.606769+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "recruiting-funnel-metrics"
+   ],
+   "techniques": [
+    "non-overlapping-event-to-series-mapping",
+    "offer-acceptance-rate-denominator",
+    "time-to-hire-basis-and-median-not-mean"
+   ],
+   "deviations": 1,
+   "context": "db-analytics-billing-llm",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

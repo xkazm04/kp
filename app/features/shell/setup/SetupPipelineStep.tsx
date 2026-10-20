@@ -109,7 +109,7 @@ function SetupPipelineEditor({ ctrl, pipeline }: { ctrl: OnboardingCtrl; pipelin
             </>
           ) : (
             <>
-              <SquarePen size={14} className="text-coral" aria-hidden /> {t("editCta")}
+              <SquarePen size={14} className="text-coral-ink" aria-hidden /> {t("editCta")}
             </>
           )}
         </button>
@@ -121,7 +121,7 @@ function SetupPipelineEditor({ ctrl, pipeline }: { ctrl: OnboardingCtrl; pipelin
           sentences the Settings composer uses (usePipelineAxisCopy.ts). Continue
           is gated on this being empty (stepSatisfied). */}
       {edit.problems.length > 0 ? (
-        <ul role="alert" className="space-y-1 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+        <ul role="alert" className="space-y-1 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral-ink">
           {edit.problems.map((p, i) => (
             <li key={i}>{problemText(p)}</li>
           ))}

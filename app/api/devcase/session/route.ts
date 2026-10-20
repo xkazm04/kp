@@ -5,6 +5,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // route types reject any non-handler `export const` here (backlog item 57).
 import { MAX_SESSIONS_PER_TOKEN_DAY, SESSION_WINDOW_MS } from "./session-limits";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { hashSessionKey, mintSessionKey } from "@/app/_lib/devcase-session-auth";
 
 // Live Work Surface (moonshot E) — start an in-product work session for a dev-case
 // apply token. Validates the token maps to an OPEN posting (don't orphan sessions
@@ -37,13 +38,18 @@ export async function POST(request: Request) {
       return jsonRefusal("DEVCASE_SESSION_QUOTA", 429);
     }
     const candidateRef = typeof body.candidateRef === "string" ? body.candidateRef.trim() || null : null;
-    const session = startDevSession({ token, candidateRef });
+    // The per-attempt session key (devcase-session-auth.ts): the ONE place it exists in the
+    // clear is this response, to the device that asked. The row gets only its hash, in the
+    // same insert. Every mutating door then demands it — the apply link in the body is
+    // shared by every applicant of this posting, and the session id rides the URL.
+    const sessionKey = mintSessionKey();
+    const session = startDevSession({ token, candidateRef, keyHash: hashSessionKey(sessionKey) });
     // LLM-era controls #4 — the per-session watermark. The work surface stamps it
     // into the DECISIONS log as an innocuous session reference; evaluation scans
     // submissions for FOREIGN marks (a circulated/relayed solution). Derived, never
     // stored; disclosing the candidate's own mark to them is fine — absence is a
     // mild note, a foreign mark is the decisive tell.
-    return NextResponse.json({ sessionId: session.id, watermark: devSessionWatermark(session.id) });
+    return NextResponse.json({ sessionId: session.id, sessionKey, watermark: devSessionWatermark(session.id) });
   } catch (error) {
     // The thrown message here is better-sqlite3 detail plus the absolute db path,
     // on an unauthenticated candidate surface. Log it, answer the code.

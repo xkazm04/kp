@@ -5,18 +5,27 @@
 
 import type { IntakeChoiceSet } from "../intake-choices";
 
-export type VoiceProviderId = "openai" | "elevenlabs";
+// The provider vocabulary, written ONCE: the id union, the preference order, the id
+// guard and the availability map all derive from this literal array, and each
+// provider's behaviour lives in its row of VOICE_PROVIDER_TRAITS
+// (./provider-traits.ts). Adding a realtime provider is one id here, one trait row
+// and one adapter.
+const VOICE_PROVIDER_IDS = ["openai", "elevenlabs"] as const;
+
+export type VoiceProviderId = (typeof VOICE_PROVIDER_IDS)[number];
 
 /** Narrow an untrusted value to a VoiceProviderId — the single source of
  *  provider-id validation shared by the create/connect routes and the DB row
- *  mapper, so adding or renaming a provider is a one-line change here.
+ *  mapper, derived from VOICE_PROVIDER_IDS so it can never re-list the names.
  *  With no fallback, returns null when the value isn't a known provider (lets a
  *  caller fall through to a stored/default choice); with a fallback, always
  *  returns a VoiceProviderId. */
 export function coerceProviderId(value: unknown): VoiceProviderId | null;
 export function coerceProviderId(value: unknown, fallback: VoiceProviderId): VoiceProviderId;
 export function coerceProviderId(value: unknown, fallback: VoiceProviderId | null = null): VoiceProviderId | null {
-  return value === "openai" || value === "elevenlabs" ? value : fallback;
+  return typeof value === "string" && (VOICE_PROVIDER_IDS as readonly string[]).includes(value)
+    ? (value as VoiceProviderId)
+    : fallback;
 }
 
 /** The house preference order when no provider is explicitly requested — the
@@ -26,7 +35,7 @@ export function coerceProviderId(value: unknown, fallback: VoiceProviderId | nul
  *  the server preferred OpenAI, the picker preferred ElevenLabs). Browser-safe
  *  (pure data) so VoiceInterview can import it without pulling in the server
  *  adapters. OpenAI-first, matching what created/simulated interview links use. */
-export const VOICE_PROVIDER_ORDER: readonly VoiceProviderId[] = ["openai", "elevenlabs"];
+export const VOICE_PROVIDER_ORDER: readonly VoiceProviderId[] = VOICE_PROVIDER_IDS;
 export const DEFAULT_VOICE_PROVIDER: VoiceProviderId = VOICE_PROVIDER_ORDER[0];
 
 /** Narrow an untrusted value to a plausible BCP-47-ish language hint, or null.
@@ -59,6 +68,16 @@ export type ElevenLabsConnect = {
 export type VoiceConnect = OpenAiConnect | ElevenLabsConnect;
 
 export type VoiceAvailability = Record<VoiceProviderId, boolean>;
+
+/** A provider-neutral function-tool definition (`{ name, description, parameters }`,
+ *  JSON-schema parameters) — the shape DIRECTOR_TOOL_DEFS carries. Each adapter wraps
+ *  it in its own envelope: OpenAI mints it into the session config; ElevenLabs
+ *  declares its tools on the agent (scripts/setup-eleven-agent.mjs) and ignores it here. */
+export type VoiceToolDef = {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+};
 
 /** One line of an interview transcript — the single canonical shape shared by
  *  the browser (which appends turns live and POSTs them on hang-up), the
@@ -97,11 +116,15 @@ export interface VoiceAdapter {
   // FINGERPRINT of it is ever sent to a provider (voice/openai.ts), so a minted
   // credential is bound to one session without handing a third party the
   // credential that opens the whole interview.
+  // `tools` (optional; OpenAI honors it, ElevenLabs declares tools on the agent
+  // instead): the interview director's function tools, for a candidate session that
+  // has an agenda (spark ai-interview-parity).
   connect(opts: {
     instructions: string;
     language?: string | null;
     relay?: boolean;
     sessionToken?: string | null;
+    tools?: readonly VoiceToolDef[] | null;
   }): Promise<VoiceConnect>;
 }
 

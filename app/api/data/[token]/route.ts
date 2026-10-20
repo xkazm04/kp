@@ -3,8 +3,10 @@ import { interviewStatusByEntries } from "@/app/_lib/db/interviews";
 import { getJob } from "@/app/_lib/db/jobs";
 import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
+import { interviewLetterByEntry } from "@/app/_lib/db/interview-letters";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { removeErasedEntryEvents } from "@/app/_lib/calendar/erasure-events";
 
 // Abuse containment (2026-09-01): this was the one public token door with NO
 // throttle while status / offer / schedule / apply all have one — and its POST is
@@ -42,6 +44,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       hasContact: entry.contact != null,
       hasInterview: interviewStatusByEntries([entry.id], entry.workspaceId ?? undefined)[entry.id] != null,
       hasScore: entry.matchScore != null,
+      // A requested interview feedback letter (spark interview-feedback-letter) — present
+      // from the moment the candidate asked, whatever became of it. Read on the entry's OWN
+      // team, the same token-derived tenant the erasure below scrubs under.
+      hasFeedbackLetter: interviewLetterByEntry(entry.id, entry.workspaceId) != null,
     });
     return jsonOk({
       jobTitle: entry.jobTitle ?? null,
@@ -78,6 +84,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // recruiter's board. The workspace comes off the row the TOKEN resolved to —
     // never a session: this is a public capability-link route and has none.
     anonymizeEntry(entry.id, "erasure", entry.workspaceId);
+    // The erasure is committed. The interviewer's calendar event still lists the candidate
+    // as an attendee, so delete it now (ADR 0021 amendment). Best-effort: the answer is
+    // {erased: true} whatever Google says, and the sweep in instrumentation-node.ts owns
+    // every retry.
+    try {
+      await removeErasedEntryEvents(entry.id, entry.workspaceId);
+    } catch (calendarError) {
+      console.error("[api:data] calendar event removal after erasure failed", calendarError);
+    }
     return jsonOk({ erased: true });
   } catch (error) {
     return safeJsonError(error, "api:data", "DATA_ERASE_FAILED");

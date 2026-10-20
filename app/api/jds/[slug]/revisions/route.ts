@@ -4,7 +4,7 @@ import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // A revert re-ingests the linked job — one LLM parse, best-effort.
 export const maxDuration = 60;
@@ -12,24 +12,22 @@ export const maxDuration = 60;
 // JD edit history (idea-6a18e0fc). GET lists the pre-edit snapshots (newest first);
 // POST { revisionId } reverts the JD to that snapshot. The destructive in-place
 // PATCH used to make a typo unrecoverable; now every edit is diff-able + revertable.
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     if (!loadJd(slug, ws)) return jsonRefusal("JD_NOT_FOUND", 404);
     return NextResponse.json({ revisions: listJdRevisions(slug, 30, ws) });
   } catch (error) {
     return safeJsonError(error, "api:jds/revisions", "JD_LOAD_FAILED");
   }
-}
+});
 
-export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   // Revert mutates the live JD; it is exposed on the public page, so gate it
   // recruiter-only server-side. GET (history listing) above stays public.
   const denied = await requireOperator();
   if (denied) return denied;
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const body = (await request.json().catch(() => ({}))) as { revisionId?: unknown; baseBody?: unknown };
     const revisionId = typeof body.revisionId === "number" ? body.revisionId : NaN;
@@ -58,9 +56,14 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     // requirements parsed from the text the operator just discarded.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId)) {
+    if (getJob(jobId, ws)) {
       try {
-        const { job } = await ingestJobAd(restored.body, jobId);
+        const { job, source } = await ingestJobAd(restored.body, jobId);
+        // A keyless install parses deterministically (no requirements). Overwriting a
+        // matchable job with that would erase the requirements it already has, so a
+        // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields
+        // and jobResynced stays false (the truth).
+        if (source !== "llm") return NextResponse.json({ ok: true, restored, jobResynced: false });
         insertJob({ ...job, id: jobId }, undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
@@ -71,4 +74,4 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   } catch (error) {
     return safeJsonError(error, "api:jds/revisions", "JD_SAVE_FAILED");
   }
-}
+});

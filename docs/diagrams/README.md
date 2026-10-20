@@ -26,6 +26,14 @@ for the narrative; read these for the data flow.
 
 ## Rendering
 
+In the app's expanded diagram viewer, focus the diagram viewport and press `+` or
+`=` to zoom in, `-` to zoom out, `0` for actual size, or `F` to fit the viewport.
+The localized Actual size (1:1) control and the other zoom buttons remain
+available from the keyboard.
+While a diagram lays out, its loading status is announced to assistive technology.
+The expanded viewer can download a standalone SVG with the current theme colors
+resolved into the file.
+
 These are plain PlantUML text files. Any of:
 
 ```bash

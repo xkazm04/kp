@@ -22,11 +22,9 @@ import sys
 from pathlib import Path
 
 from . import campaign
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT
 from .llm import emit_deterministic, provider_availability, resolve_provider
 from .jobs import Job
-
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
 
 
 def main(argv: list[str] | None = None) -> int:

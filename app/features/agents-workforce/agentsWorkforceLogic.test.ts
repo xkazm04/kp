@@ -259,6 +259,8 @@ function rosterRow(partial: Partial<AgentRosterEntry> = {}): AgentRosterEntry {
     createdAt: "2026-07-21T00:00:00.000Z",
     updatedAt: null,
     lastReportAt: null,
+    lastDecision: null,
+    pendingApprovalSince: null,
     aggregates: agg(),
     backbone: null,
     kpiDeltas: null,
@@ -313,4 +315,146 @@ test("memoryChip renders live tiers only and stays silent with nothing reported"
   assert.equal(memoryChip(null), null);
   assert.equal(memoryChip({ core: 0, active: 0, working: 0, archived: 12 }), null, "archive-only is history, not a working mind");
   assert.equal(memoryChip({ core: 1, active: 4, working: 2, archived: 0 }), "1 core · 6 active");
+});
+
+// ---- Next move (challenge-r06 agents-api/B) ----------------------------------
+// Every roster row carries ONE derived next move, and the tab counts them. The
+// approval clock reads when the hire ENTERED pending_approval (the lifecycle
+// row the transition door writes, projected as `pendingApprovalSince`), never
+// `updatedAt`, which any later write can bump.
+
+const H = 60 * 60 * 1000;
+const hoursAgo = (h: number) => new Date(NOW.getTime() - h * H).toISOString();
+const PAIRED = { paired: true } as const;
+
+test("nextAction: a pending approval counts down the 24h consent window from when it ENTERED pending_approval", async () => {
+  const { nextAction } = await import("./agentsWorkforceLogic.ts");
+  const pending = (since: string | null, updatedAt: string | null = null) =>
+    rosterRow({ status: "pending_approval", pendingApprovalSince: since, updatedAt });
+  assert.deepEqual(nextAction(pending(hoursAgo(20)), PAIRED, NOW), { kind: "approve_in_personas", hoursLeft: 4 });
+  assert.deepEqual(nextAction(pending(hoursAgo(25)), PAIRED, NOW), { kind: "approval_lapsed" });
+  // updated_at is NOT the clock: a row touched an hour ago that entered the
+  // state 30h ago has lapsed all the same.
+  assert.deepEqual(nextAction(pending(hoursAgo(30), hoursAgo(1)), PAIRED, NOW), { kind: "approval_lapsed" });
+  // No entry stamp (a hire dispatched before the door wrote one) -> no clock at
+  // all, rather than one invented from updated_at.
+  assert.deepEqual(nextAction(pending(null, hoursAgo(30)), PAIRED, NOW), { kind: "approve_in_personas", hoursLeft: null });
+});
+
+test("nextAction: approval_lapsed's action is Refresh, and every move that implies a transition names a LEGAL one", async () => {
+  const { NEXT_ACTION_CONTROL, NEXT_ACTION_TRANSITION, NEXT_ACTION_KINDS } = await import("./agentsWorkforceLogic.ts");
+  const { canTransition } = await import("@/app/_lib/db/agents.ts");
+  assert.equal(NEXT_ACTION_CONTROL.approval_lapsed, "refresh");
+  assert.equal(NEXT_ACTION_CONTROL.approve_in_personas, "refresh");
+  assert.equal(NEXT_ACTION_CONTROL.redispatch, "redispatch");
+  assert.equal(NEXT_ACTION_CONTROL.repair_bridge, "integrations");
+  assert.equal(NEXT_ACTION_CONTROL.none, null);
+  for (const kind of NEXT_ACTION_KINDS) {
+    const move = NEXT_ACTION_TRANSITION[kind];
+    if (move) assert.ok(canTransition(move.from, move.to), `${kind}: ${move.from} -> ${move.to} must be in AGENT_TRANSITIONS`);
+  }
+  // A dead hire has no exits, so its move cannot be a transition of the row:
+  // re-dispatch mints a NEW hire.
+  assert.equal(NEXT_ACTION_TRANSITION.redispatch, null);
+});
+
+test("nextAction: a failed or rejected hire is re-dispatched from where it came from; a retired one needs nothing", async () => {
+  const { nextAction } = await import("./agentsWorkforceLogic.ts");
+  for (const status of ["failed", "rejected"] as const) {
+    assert.deepEqual(
+      nextAction(rosterRow({ status, jobId: "job-7", intakeId: null, appMaster: null }), PAIRED, NOW),
+      { kind: "redispatch", target: { jobId: "job-7" } },
+      `job ${status}`
+    );
+    assert.deepEqual(
+      nextAction(rosterRow({ status, jobId: "", intakeId: "intake-1" }), PAIRED, NOW),
+      { kind: "redispatch", target: { intakeId: "intake-1" } },
+      `app master ${status}`
+    );
+  }
+  assert.deepEqual(nextAction(rosterRow({ status: "retired" }), PAIRED, NOW), { kind: "none" });
+});
+
+test("nextAction: an unpaired bridge outranks every other move on a live row", async () => {
+  const { nextAction } = await import("./agentsWorkforceLogic.ts");
+  const unpaired = { paired: false };
+  for (const row of [
+    rosterRow({ status: "pending_approval", pendingApprovalSince: hoursAgo(30) }),
+    rosterRow({ status: "pending_approval", pendingApprovalSince: hoursAgo(2) }),
+    rosterRow({ status: "onboarding", createdAt: "2026-06-01T00:00:00.000Z" }),
+    rosterRow({ status: "active", lastReportAt: null }),
+    rosterRow({ status: "dispatched" }),
+  ]) {
+    assert.deepEqual(nextAction(row, unpaired, NOW), { kind: "repair_bridge" }, row.status);
+  }
+  // Retirement stays a decision, whatever the bridge says.
+  assert.deepEqual(nextAction(rosterRow({ status: "retired" }), unpaired, NOW), { kind: "none" });
+  // An unknown bridge (still loading) is not evidence of a dead one.
+  assert.deepEqual(
+    nextAction(rosterRow({ status: "active", lastReportAt: hoursAgo(1), aggregates: agg({ lastActivityAt: hoursAgo(1) }) }), null, NOW),
+    { kind: "none" }
+  );
+});
+
+test("nextAction: a due probation asks for review until a decision lands after the due day", async () => {
+  const { nextAction } = await import("./agentsWorkforceLogic.ts");
+  // Hired 2026-06-01 on a 30-day probation -> due 2026-07-01; NOW is 2026-08-04.
+  const due = { status: "onboarding" as const, createdAt: "2026-06-01T00:00:00.000Z", lastReportAt: hoursAgo(1) };
+  assert.deepEqual(nextAction(rosterRow({ ...due, lastDecision: null }), PAIRED, NOW), { kind: "review_probation" });
+  const extended = nextAction(
+    rosterRow({ ...due, lastDecision: { event: "probation_review:extended", at: "2026-07-03T00:00:00.000Z" } }),
+    PAIRED,
+    NOW
+  );
+  assert.notEqual(extended.kind, "review_probation", "a human already extended it after the window closed");
+  // A decision from BEFORE the due day does not answer this review.
+  assert.deepEqual(
+    nextAction(rosterRow({ ...due, lastDecision: { event: "probation_review:extended", at: "2026-06-20T00:00:00.000Z" } }), PAIRED, NOW),
+    { kind: "review_probation" }
+  );
+  // Not yet due -> nothing to review.
+  assert.notEqual(nextAction(rosterRow({ status: "onboarding", lastReportAt: hoursAgo(1) }), PAIRED, NOW).kind, "review_probation");
+});
+
+test("nextAction: an active agent's reporter is checked, silent vs calling-but-refused", async () => {
+  const { nextAction } = await import("./agentsWorkforceLogic.ts");
+  assert.deepEqual(nextAction(rosterRow({ status: "active", lastReportAt: null }), PAIRED, NOW), { kind: "check_reporter", reason: "silent" });
+  assert.deepEqual(
+    nextAction(rosterRow({ status: "active", lastReportAt: hoursAgo(8 * 24), aggregates: agg({ lastActivityAt: hoursAgo(8 * 24) }) }), PAIRED, NOW),
+    { kind: "check_reporter", reason: "silent" }
+  );
+  assert.deepEqual(
+    nextAction(rosterRow({ status: "active", lastReportAt: hoursAgo(2), aggregates: agg({ lastActivityAt: null }) }), PAIRED, NOW),
+    { kind: "check_reporter", reason: "reports_rejected" }
+  );
+  assert.deepEqual(
+    nextAction(rosterRow({ status: "active", lastReportAt: hoursAgo(2), aggregates: agg({ lastActivityAt: hoursAgo(2) }) }), PAIRED, NOW),
+    { kind: "none" }
+  );
+});
+
+test("needsYou: per-kind counts in declared priority, 'none' excluded, empty when nothing needs you", async () => {
+  const { needsYou, NEXT_ACTION_PRIORITY } = await import("./agentsWorkforceLogic.ts");
+  assert.deepEqual(NEXT_ACTION_PRIORITY, [
+    "repair_bridge",
+    "approval_lapsed",
+    "approve_in_personas",
+    "review_probation",
+    "check_reporter",
+    "redispatch",
+  ]);
+  assert.deepEqual(needsYou([], PAIRED, NOW), []);
+  assert.deepEqual(needsYou([rosterRow({ status: "retired" }), rosterRow({ status: "retired", id: "b" })], PAIRED, NOW), []);
+  const roster = [
+    rosterRow({ id: "a", status: "failed", jobId: "j1", intakeId: null }),
+    rosterRow({ id: "b", status: "pending_approval", pendingApprovalSince: hoursAgo(20) }),
+    rosterRow({ id: "c", status: "pending_approval", pendingApprovalSince: hoursAgo(10) }),
+    rosterRow({ id: "d", status: "pending_approval", pendingApprovalSince: hoursAgo(26) }),
+    rosterRow({ id: "e", status: "retired" }),
+  ];
+  assert.deepEqual(needsYou(roster, PAIRED, NOW), [
+    { kind: "approval_lapsed", count: 1, soonestHoursLeft: null },
+    { kind: "approve_in_personas", count: 2, soonestHoursLeft: 4 },
+    { kind: "redispatch", count: 1, soonestHoursLeft: null },
+  ]);
 });

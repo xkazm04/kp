@@ -1,0 +1,73 @@
+/* Foundation, hand-written (not a transform of the prototype). Imported FIRST by every site page.
+
+   1. The document. The prototype put page-level behaviour on <html>: smooth scrolling, scroll padding under the
+      fixed header, scroll snapping (About), a canvas colour. On a <div> those properties do nothing, so they are
+      set on <html> here, only while a site root is in the document (:has). --hdr / --u are not visible on <html>,
+      so their formulas are inlined.
+   2. The root wrapper (<MkRoot>, data-mk-root) stands in for <body>: it gets the page's background, font and
+      overflow from the scoped `body` rules; here it only becomes a block formatting context the height of the
+      viewport, like a body would be.
+   3. The prototype was drawn against the browser's default stylesheet; the app loads Tailwind's preflight
+      (layered) and a few unlayered element rules in app/globals.css. Inside the site root those are rolled back to
+      the user-agent defaults (`revert`), so the prototype renders as it did from disk. The selectors are weak on
+      purpose (one class): every scoped prototype rule is at least two classes and wins.
+      Not reverted: <img>/<video> keep preflight's `height: auto` (reverting it would drop the height attribute
+      too; the prototype sets `height: auto` on its images itself), and the `[hidden]` rule (preflight's is
+      !important; it hides, which is what `hidden` means). */
+
+/* ---------- 1. document ---------- */
+html:has(.mk.mk-land) {
+  background: #fdf8ee;
+  overflow-x: clip;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(max(64px, calc(min(1vw, 1.7778vh) / 16 * 74)) * .6);
+}
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) {
+  html:has(.mk.mk-land) { scroll-padding-top: calc(64px * .6); }
+}
+html:has(.mk.mk-about) {
+  background: #061316;
+  overflow-x: clip;
+  scroll-padding-block: calc(min(1vw, 1.6667vh) * 6.4) calc(min(1vw, 1.6667vh) * 7.6);
+}
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) and (prefers-reduced-motion: no-preference) {
+  html:has(.mk.mk-about) { scroll-snap-type: y proximity; }
+}
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  html:has(.mk.mk-about) { scroll-padding-block: 72px 84px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.mk[data-mk-root]) { scroll-behavior: auto; }
+}
+
+/* ---------- 2. the root ---------- */
+.mk[data-mk-root] { display: flow-root; min-height: 100vh; }
+
+/* ---------- 3. user-agent defaults inside the root ---------- */
+.mk *,
+.mk ::before,
+.mk ::after { box-sizing: revert; margin: revert; padding: revert; border: revert; }
+.mk :is(h1, h2, h3, h4, h5, h6) { font-size: revert; font-weight: revert; }
+.mk a { color: revert; text-decoration: revert; }
+.mk :is(ol, ul, menu) { list-style: revert; }
+.mk :is(img, svg, video, canvas, audio, iframe, embed, object) { display: revert; vertical-align: revert; }
+.mk :is(img, video) { max-width: revert; }
+.mk hr { height: revert; color: revert; }
+.mk table { text-indent: revert; border-color: revert; border-collapse: revert; }
+.mk :is(code, kbd, samp, pre) { font-family: revert; font-feature-settings: revert; font-variation-settings: revert; font-size: revert; }
+.mk summary { display: revert; }
+.mk textarea { resize: revert; }
+.mk ::placeholder { opacity: revert; color: revert; }
+.mk :is(button, input, select, optgroup, textarea) {
+  font: revert; font-feature-settings: revert; font-variation-settings: revert; letter-spacing: revert;
+  color: revert; border-radius: revert; background-color: revert; opacity: revert; appearance: revert;
+}
+/* @tailwindcss/forms paints text inputs, selects, checkboxes and radios in the base layer */
+.mk :is(input, select, textarea) {
+  background-image: revert; background-position: revert; background-size: revert; background-repeat: revert;
+  padding: revert; line-height: revert; box-shadow: revert; print-color-adjust: revert;
+}
+/* globals.css paints a coral focus ring on every focusable element; the prototype has its own focus styles */
+.mk :focus-visible { outline: revert; box-shadow: revert; }
+/* `ring` is a Tailwind utility (box-shadow) AND a prototype class (the features ring, About's gate keys) */
+.mk .ring { box-shadow: none; }

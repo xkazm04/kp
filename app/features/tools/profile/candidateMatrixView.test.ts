@@ -25,6 +25,7 @@ const C = (key: string, name: string, archetype: string, score: number | null): 
   seniority: null,
   score,
   archetype,
+  analyses: [],
 });
 
 const A = (id: string, label: string): ArchetypeDef => ({ id, label }) as ArchetypeDef;

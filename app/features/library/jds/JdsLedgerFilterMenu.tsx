@@ -99,7 +99,7 @@ export function ColumnHeaderFilter({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         title={activeLabel ? t("filterActive", { name: title, value: activeLabel }) : t("filterBy", { name: title })}
-        className={`focus-ring -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-ink ${selected ? "text-coral" : ""}`}
+        className={`focus-ring -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-ink ${selected ? "text-coral-ink" : ""}`}
       >
         <span>{title}</span>
         {selected ? <span className="h-1.5 w-1.5 rounded-full bg-coral" aria-hidden /> : null}
@@ -144,7 +144,7 @@ const FilterRow = forwardRef<HTMLButtonElement, { label: string; count?: number;
         role="menuitemradio"
         aria-checked={active}
         onClick={onClick}
-        className={`focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm normal-case tracking-normal transition-colors hover:bg-paper ${active ? "font-semibold text-coral" : "text-ink"}`}
+        className={`focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm normal-case tracking-normal transition-colors hover:bg-paper ${active ? "font-semibold text-coral-ink" : "text-ink"}`}
       >
         {Icon ? <Icon size={14} aria-hidden className="shrink-0 text-steel" /> : null}
         <span className="flex-1 truncate">{label}</span>

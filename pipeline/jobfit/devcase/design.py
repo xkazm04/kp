@@ -16,8 +16,6 @@ import threading
 from typing import Any
 
 from .models import (
-    DEFAULT_TIMEBOX_HOURS,
-    MAX_TIMEBOX_HOURS,
     RUBRIC_DIMENSIONS,
     DevNeed,
     NeedAnalysis,
@@ -27,7 +25,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
 
-ROLE_DESIGN_PROMPT_VERSION = "role-design-v4"  # v4: grounding rules — must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
+ROLE_DESIGN_PROMPT_VERSION = "role-design-v5"  # v5: grounding extends to responsibilities/niceToHaves/languages, and the keyless fallback no longer invents languages (lite r1, 2026-10-07). v4: must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
 CASE_DESIGN_PROMPT_VERSION = "case-design-v7"  # v7: the role's must-haves reach the designer as TERRAIN (the case is designed so they are unavoidably exercised) — they are what score_transfer later grades against
 
 # The cap on case length (UAT M8) is a POLICY number and now lives on the model
@@ -39,12 +37,13 @@ CASE_DESIGN_PROMPT_VERSION = "case-design-v7"  # v7: the role's must-haves reach
 # level. A half-day take-home drives a 40–60% drop-off among strong seniors, the exact
 # pool this case is for. Seniority scales DEPTH / ambiguity (see the prompt), not hours.
 
-# Seniority-scaled timebox, every value bounded by MAX_TIMEBOX_HOURS.
-_TIMEBOX = {"junior": 1.0, "medior": DEFAULT_TIMEBOX_HOURS, "senior": MAX_TIMEBOX_HOURS, "lead": MAX_TIMEBOX_HOURS}
+# One flat box for every level: seniority scales depth and ambiguity through the prompt,
+# never hours, so a senior never gets a longer unpaid case than a junior.
+CASE_TIMEBOX_HOURS = 1.0
 
 
 def _timebox(seniority: str) -> float:
-    return _TIMEBOX.get((seniority or "medior").lower(), DEFAULT_TIMEBOX_HOURS)
+    return CASE_TIMEBOX_HOURS
 
 
 _CORPUS_CACHE: list | None = None
@@ -179,7 +178,10 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
         "(≤8) rather than exhaustive. Read the seniority off the JD's own signals (education asked, "
         "experience asked, scope of duties) — do not default to the seniorityTarget when the JD "
         "plainly describes a more junior or senior role; carry the JD's explicitly named candidate "
-        "traits into the spec before adding anything of your own.\n"
+        "traits into the spec before adding anything of your own. The same rule binds the other "
+        "lists: responsibilities restate or narrow what the need or JD says, never add duties it "
+        "does not mention; niceToHaves come from the input or are phrased as 'e.g.'; a language "
+        "appears in languages ONLY when the input names it — otherwise return an empty list.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "title": str, "seniority": "junior|medior|senior|lead", "roleFamily": str, '
         '"mustHaves": [str], "niceToHaves": [str], "responsibilities": [str], "languages": [str] }. JSON only.'
@@ -203,10 +205,16 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "title": title,
             "seniority": need.seniority_target,
             "roleFamily": need.role_family,
-            "mustHaves": musts[:6] if stated_musts else real[:5],
+            # The bound is on what THIS fallback adds, never on what the requestor confirmed:
+            # slicing at six dropped every stated dealbreaker past the sixth, silently and
+            # by weight, which the model path's prompt forbids ("every kind=must_have entry
+            # must appear in mustHaves"). Intake already asks for a ranking above six.
+            "mustHaves": musts[: max(6, len(stated_musts))] if stated_musts else real[:5],
             "niceToHaves": stated_nices[:5],
             "responsibilities": analysis.core_responsibilities or need.responsibilities or [],
-            "languages": ["English"],
+            # Nothing states a language to this fallback; inventing one became a
+            # ko_lang knockout downstream for every applicant.
+            "languages": [],
         }
 
     def coerce(payload: Any) -> dict:
@@ -223,7 +231,7 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "mustHaves": _str_list(payload.get("mustHaves")) or det["mustHaves"],
             "niceToHaves": _str_list(payload.get("niceToHaves")),
             "responsibilities": _str_list(payload.get("responsibilities")) or det["responsibilities"],
-            "languages": _str_list(payload.get("languages")) or det["languages"],
+            "languages": _str_list(payload.get("languages")),
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_ROLE_KEYS)
@@ -501,7 +509,8 @@ def design_case(
         # routinely echoes a longer take-home back, and this number is shown to the
         # candidate. The bound itself is models.clamp_timebox_hours — one rule, shared
         # with the CaseScenario validator and (via codegen) with the TS approve route.
-        tb = clamp_timebox_hours(tb)
+        # The prompt calls the box a HARD cap, so the model may propose less, never more.
+        tb = min(clamp_timebox_hours(tb), timebox)
         # Mid-flight update (v6): keep only a well-formed one — a non-empty candidate-facing
         # `update` with a sane fire time (clamped inside the timebox so it can actually land).
         mfu_raw = payload.get("midFlightUpdate")

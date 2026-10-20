@@ -36,20 +36,21 @@ test("2 good + 1 bad delivers the two successes and names the failure", () => {
     ["a.pdf", "c.pdf"],
     "both good variants survive — the bad one didn't kill the batch",
   );
-  assert.deepEqual(d.partialFailures, [{ label: "b.pdf", error: "Pipeline returned non-JSON output" }]);
+  // Engine text never rides the partial note: an engine failure is a code, empty text.
+  assert.deepEqual(d.partialFailures, [{ label: "b.pdf", error: "", code: "ENGINE_FAILED" }]);
 });
 
 // ── Single-CV failure behavior unchanged: engine text still rides the throw ────
 test("a lone failing variant throws with its engine error + status (single-CV unchanged)", () => {
   const d = settleVariants([fail("only.pdf", "extraction failed", 400)]);
-  // Engine text (no code) is the client-facing `error`; `logError` mirrors it.
-  assert.deepEqual(d, { kind: "throw", error: "extraction failed", logError: "extraction failed", status: 400 });
+  // The client-facing `error` is the engine's CODE; its text stays in `logError`.
+  assert.deepEqual(d, { kind: "throw", error: "ENGINE_FAILED", logError: "extraction failed", status: 400 });
 });
 
 // ── Total wipeout (multi) throws with the FIRST failure's error ───────────────
 test("every variant failing throws (surfacing the first failure)", () => {
   const d = settleVariants([fail("a", "err-a", 502), fail("b", "err-b", 500)]);
-  assert.deepEqual(d, { kind: "throw", error: "err-a", logError: "err-a", status: 502 });
+  assert.deepEqual(d, { kind: "throw", error: "ENGINE_FAILED", logError: "err-a", status: 502 });
 });
 
 // ── A CODED wipeout (our own fallback, no engine text) throws EMPTY client text ─

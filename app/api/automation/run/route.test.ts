@@ -45,3 +45,21 @@ test("the run log is still written only by the caller that STARTED the pass", ()
   const guards = src.match(/!dryRun && !joined/g) ?? [];
   assert.equal(guards.length, 2, "both the ok and the error recordRun must be gated on !joined");
 });
+
+// --- commit the pass you previewed (challenge-r02 pipeline-actions-events/B) -------
+
+test("case 8: a malformed `approved` is refused with a code BEFORE any pass runs", () => {
+  const parseAt = src.indexOf("parseApprovedSelection(");
+  const refuseAt = src.indexOf('jsonRefusal("AUTOMATION_SELECTION_INVALID", 400)');
+  const callAt = src.indexOf("runAutomationPass(");
+  assert.ok(parseAt > 0, "the route validates the selection through the shared parser");
+  assert.ok(refuseAt > parseAt, "a malformed selection answers 400 AUTOMATION_SELECTION_INVALID");
+  assert.ok(callAt > refuseAt, "…and nothing is executed first");
+  assert.match(src, /AUTOMATION_PASS_ENTRY_CAP/, "the cap is the pass's own entry cap, not a new number");
+});
+
+test("the selection is scoped to the CALLER's workspace and reported back", () => {
+  assert.match(src, /selection = approved \? \{ approved, workspace \} : undefined/, "the selection carries the caller's team");
+  assert.match(src, /runAutomationPass\(\{ dryRun, selection \}\)/);
+  assert.match(src, /commitReport\(visible, approved, joined\)/, "drift + selectionHonored are computed from THIS caller's rows");
+});

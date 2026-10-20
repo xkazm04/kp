@@ -120,7 +120,12 @@ export function CvSheet({
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-meta text-steel">{s.why}</p>
-                    {!closed ? (
+                    {/* A question (the fidelity screen turned a rewrite that would add a
+                        number, a title or an ad's skill into one) is for the seeker to
+                        answer in their own words - it has nothing to apply. */}
+                    {s.kind === "question" ? (
+                      <span className={META_LABEL}>{t("questionLabel")}</span>
+                    ) : !closed ? (
                       <button type="button" className={`${BTN_SECONDARY} h-8 px-3 text-sm`} disabled={sending} onClick={() => onApply(s.section)}>
                         {t("apply")}
                       </button>

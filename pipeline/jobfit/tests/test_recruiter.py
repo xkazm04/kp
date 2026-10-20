@@ -138,6 +138,52 @@ class FairnessCheckTest(unittest.TestCase):
         self.assertNotIn("Student A", fm["ranking"])
         self.assertEqual(fm["ranking"], ["Senior Dev"])
         self.assertEqual(fm["candidateIds"], ["e1", "s1"], "matrix lockstep keeps the KO row")
+        # The id-keyed twin of the same exclusion.
+        self.assertEqual(fm["rankingIds"], ["e1"])
+
+
+class NamesakeFairnessCheckTest(unittest.TestCase):
+    """Fair Rank identity is the candidate id, never the display label.
+
+    The KO exclusion used to drop every label a knocked-out candidate carried, so an
+    eligible senior whose junior namesake failed the must-haves vanished from the
+    robust order — and the TS guard then read the matrix as misaligned (ranking + KO
+    != n) and the sealed record said robustness could not be assessed."""
+
+    SENIOR = MatchCandidate(
+        skills=["Python", "Django"], seniority="senior", role_family="software_engineering",
+        languages=["English"], archetype="bau", label="Jan Novák",
+    )
+    JUNIOR = MatchCandidate(
+        skills=["HTML"], seniority="junior", role_family="software_engineering",
+        languages=["English"], archetype="bau", label="Jan Novák",
+    )
+
+    def test_a_ko_failed_namesake_does_not_erase_the_eligible_candidate(self) -> None:
+        fm = fairness_check([("a", self.SENIOR), ("b", self.JUNIOR)], SENIOR_JOB)
+        self.assertEqual(fm["koFailed"], ["b"])
+        self.assertEqual(fm["rankingIds"], ["a"])
+        self.assertEqual(fm["ranking"], ["Jan Novák"])
+
+    def test_an_all_fallback_label_pool_ranks_every_eligible_id_by_mean(self) -> None:
+        # transform.build_match_candidate labels an unnamed profile 'Candidate', so a
+        # blinded pool is one big namesake set.
+        strong = self.SENIOR.model_copy(update={"label": "Candidate"})
+        medior = self.SENIOR.model_copy(update={"label": "Candidate", "skills": ["Python"], "seniority": "medior"})
+        ko = self.JUNIOR.model_copy(update={"label": "Candidate"})
+        fm = fairness_check([("s", strong), ("k", ko), ("m", medior)], SENIOR_JOB)
+        self.assertEqual(fm["koFailed"], ["k"])
+        self.assertEqual(sorted(fm["rankingIds"]), ["m", "s"])
+        idx = {cid: i for i, cid in enumerate(fm["candidateIds"])}
+        means = [fm["mean"][idx[cid]] for cid in fm["rankingIds"]]
+        self.assertEqual(means, sorted(means, reverse=True), "rankingIds is mean-descending")
+        self.assertEqual(fm["ranking"], ["Candidate", "Candidate"])
+
+    def test_ranking_ids_and_labels_stay_in_lockstep(self) -> None:
+        fm = fairness_check([("e1", EXPERIENCED), ("s1", STUDENT)], ENTRY_JOB)
+        idx = {cid: i for i, cid in enumerate(fm["candidateIds"])}
+        self.assertEqual(fm["ranking"], [fm["labels"][idx[cid]] for cid in fm["rankingIds"]])
+        self.assertEqual(len(fm["rankingIds"]) + len(fm["koFailed"]), len(fm["candidateIds"]))
 
 
 if __name__ == "__main__":

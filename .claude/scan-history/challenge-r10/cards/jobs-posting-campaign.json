@@ -1,0 +1,131 @@
+[
+  {
+    "context": "jobs-posting-campaign",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Go-live leaves a durable receipt: abandoned or failed sourcing resumes",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/golive-receipt-store.ts",
+      "app/_lib/golive-run.ts",
+      "app/_lib/golive-run.test.ts",
+      "app/_lib/golive-receipt-tenancy.test.ts",
+      "app/_lib/tenancy.ts",
+      "app/api/jobs/[id]/publish/route.ts",
+      "app/features/library/jobs/jobsPublishResult.ts",
+      "app/features/library/jobs/jobsPublishResult.test.ts",
+      "app/features/library/jobs/jobsPostingModalLogic.ts",
+      "app/features/library/jobs/JobsPostingModalFooter.tsx",
+      "app/features/library/jobs/JobsPublishNote.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/jobs/README.md",
+      "docs/architecture/api-reference.md"
+    ],
+    "new_files": [
+      "app/_lib/golive-receipt-store.ts",
+      "app/_lib/golive-run.ts",
+      "app/_lib/golive-run.test.ts",
+      "app/_lib/golive-receipt-tenancy.test.ts"
+    ],
+    "shared_surfaces": [
+      "app/_lib/tenancy.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "Store: openReceipt(jobId, ws) called inside a db.transaction -> readReceipt(jobId, ws) = { state: 'sourcing', attempt: 1 }; finishReceipt(jobId, ws, 1, { state: 'done', sourced: 2, skipped: 0, silverMedalists: 1 }) -> readReceipt returns state 'done' with those counts and a finishedAt",
+      "Stale finisher is dropped: after claimResume moved the row to attempt 2, finishReceipt(jobId, ws, 1, { state: 'done' }) changes 0 rows and readReceipt still shows attempt 2 in 'sourcing'",
+      "CAS resume: on a receipt in 'abandoned', claimResume(jobId, ws, now) returns attempt 2; an immediate second claimResume returns null (UPDATE ... WHERE attempt = ? AND state IN resumable, res.changes === 0 -> null)",
+      "Resumability window: claimResume on 'done' -> null; on 'sourcing' started 60s ago -> null (a run may still be in flight); on 'sourcing' started 30 min ago -> attempt+1 (the process died mid-run, state reads as interrupted)",
+      "runGoLive with an injected source that rejects after the signal is aborted -> receipt state 'abandoned', result { sourcingAbandoned: true }; a second runGoLive in resume mode with a source returning 2 matches -> 2 pipeline entries exist for the job, receipt 'done', result { alreadyPublished: true, resumed: true, sourced: 2 }",
+      "Honest count: runGoLive whose source returns 2 matches where one (candidate, job) entry already exists (restored by reopenEntriesByJobId) -> result.sourced === 1, because only createPipelineEntry(...).created rows count",
+      "Tenancy: a receipt opened by workspace A -> readReceipt(jobId, 'B') === null and claimResume(jobId, 'B', now) === null",
+      "Client: publishNoteSentences({ alreadyPublished: true, resumed: true, sourced: 2 }) -> ['resumed', 'sourced(2)'] tone ok; receiptNote({ state: 'abandoned' }) -> { tone: 'warn', sentences: ['sourcingIncomplete'], resumable: true }"
+    ],
+    "premise": [
+      "app/api/jobs/[id]/publish/route.ts:119-156 - the go-live transaction commits the status flip (setJobStatus :145) and the debit (:151) BEFORE any sourcing runs",
+      "app/api/jobs/[id]/publish/route.ts:123 - a role already 'published' returns { already: true } out of the transaction, and :181 and :243 gate BOTH sourcing and the rediscovery raise on !already - so once the flip committed, no later publish ever sources the role again",
+      "app/api/jobs/[id]/publish/route.ts:203 and :244 - sourcing and the raise are awaited on request.signal, so closing the modal or pressing Stop kills them after the flip committed",
+      "app/api/jobs/[id]/publish/route.ts:219 - sourced += 1 for every match, ignoring createPipelineEntry's created flag (app/_lib/db/pipeline.ts:1478-1481 CreatePipelineResult.created), so a reopen that re-selects candidates reopenEntriesByJobId (:172) already restored reports them twice",
+      "app/features/library/jobs/jobsPublishResult.ts:92 - the only record of a publish outcome is a module-scope Map (the comment at :88 says it is deliberately not storage-backed): a reload, a second tab or another recruiter sees nothing",
+      "messages/en.json:5733 - publishAbandoned tells the recruiter 'Reopen this role to check', but reopening the modal re-reads that in-memory Map (jobsPostingModalLogic.ts:112) and the sweep can never be re-run (route.ts:181)",
+      "app/features/library/jobs/JobsPublishNote.tsx:74 - the UI already admits 'the go-live transaction commits BEFORE sourcing starts'; nothing turns that half-finished state into a recoverable one",
+      "app/_lib/rediscover.ts:260-288 - raiseRediscoveryAlertsForJob is a reconciled projection (added/retracted), and createPipelineEntry is idempotent per (candidate, job) (app/_lib/db/pipeline.ts:1497-1503), so re-running both on resume is safe"
+    ],
+    "rollback": "The series reverts cleanly: the receipt table is module-owned and created lazily by golive-receipt-store.ts (the tenant-scoped store pattern of rediscovery-alert-store.ts), so reverting the route leaves an unread table that the reverted tenancy.ts entry stops listing. Nothing else reads it, the POST response only gains fields (resumed, sourcingAbandoned), and the Map in jobsPublishResult.ts is kept as the optimistic in-session seed, so JobsDraftsPanel is untouched either way.",
+    "gate": "architecture",
+    "runner_up": "JobLifecycleStrip reads one server projection (GET /api/jobs/[id]/lifecycle) instead of fetching the whole board (/api/pipeline, which canonical-scores every entry) plus every webhook and filtering for one job on the client (JobsLifecycleStrip.tsx:69-87).",
+    "technique": "best-effort-ingest-with-an-explicit-retry",
+    "body": "## Summary\nTaking a role live is two acts glued into one request: a transaction that flips the role live and bills it, then up to three minutes of sourcing and rediscovery tied to the request's lifetime. If the second act is abandoned, killed or fails, the role is live and unsourced for good, because every later publish short-circuits on `already`. The only record of what happened is an in-memory Map. This card gives go-live a durable receipt per (job, team) and a resume path, following the registry technique *best-effort ingest with an explicit retry*: the user's write is the transaction, the derived step is best-effort, and a failure is a state on the record that someone can act on.\n\n## Description\n- **`app/_lib/golive-receipt-store.ts`** (new, tenant-scoped, lazily created table `job_golive_receipts`, primary key `(job_id, workspace_id)`): `openReceipt` (a synchronous upsert that resets to attempt n+1 in state `sourcing`, called INSIDE the existing go-live transaction next to `setJobStatus`), `finishReceipt(jobId, ws, attempt, outcome)` (a CAS on `attempt`), `claimResume(jobId, ws, now)` (a CAS: `UPDATE ... SET state='sourcing', attempt=attempt+1 WHERE attempt=? AND (state IN ('abandoned','sourcing_failed','raise_failed') OR (state='sourcing' AND started_at < now - 10min))`, and `res.changes === 0` means another caller already claimed it), and `readReceipt`. The table holds counts and a failure code only, never candidate identity.\n- **`app/_lib/golive-run.ts`** (new): the post-commit half of the route moved out as `runGoLive({ jobId, ws, signal, mode: 'first'|'resume' }, deps)`, with `deps = { source, raise }` defaulting to `runSourceForRole` and `raiseRediscoveryAlertsForJob`. Only `created` entries count toward `sourced`. It sets the receipt to `abandoned` when `signal.aborted`, `sourcing_failed` or `raise_failed` on those errors, and `done` otherwise. The injected deps are what make the route testable without spawning Python.\n- **Route** (`publish/route.ts`): the transaction also opens the receipt. When `gate.already` holds, the route tries `claimResume` outside the transaction (a single synchronous UPDATE), and on a claim it runs `runGoLive(mode: 'resume')`. It never re-bills and never re-flips. A new `GET` returns the caller team's receipt. Auth posture: the route is NOT admitted by `app/_lib/auth/public-routes.ts`, and the new GET calls `requireOperator()` like `app/api/jobs/[id]/assignments/route.ts:21`. `npm run api:docs` regenerates the reference row.\n- **Client**: `jobsPostingModalLogic.ts` reads `GET .../publish` on open and seeds `publishOutcome` from the receipt, keeping the Map only as the instant in-session seed. `JobsPostingModalFooter.tsx` offers **Finish sourcing** (POST with an empty body) when the receipt is resumable and the role is live. This is the only surface that offers the resume, because a live role has already left the Drafts panel. `jobsPublishResult.ts` and `JobsPublishNote.tsx` gain the `resumed` and `sourcingIncomplete` sentences. `publishAbandoned` stops telling people to 'reopen this role to check' and names the Finish sourcing action instead.\n- Sequencing: card B of this deck also edits `publish/route.ts`, in the parse and transaction block (:79-156). This card edits the post-commit block (:160-270) plus one line inside the transaction. Build A first. No r08 or r09 card writes `publish/route.ts`, `jobsPublishResult.ts` or the modal logic. `tenancy.ts` and the catalogs are append-only shared surfaces under the challenge lock.\n\n## Flow\n1. Recruiter confirms go-live. The transaction flips the role, bills it and opens receipt attempt 1 (`sourcing`).\n2. The recruiter presses Stop (or closes the modal). The signal aborts sourcing, `runGoLive` finishes the receipt as `abandoned`, and the note says the role is live but sourcing did not finish.\n3. Later (after a reload, in another tab, or as another recruiter on the team) the modal opens. GET returns the `abandoned` receipt, and the footer shows the note plus **Finish sourcing**.\n4. The click POSTs to /publish. `already` holds, `claimResume` wins attempt 2, and sourcing and the raise re-run without billing. The response `{ alreadyPublished, resumed, sourced }` reads 'Sourcing finished: 4 candidates added'.\n5. A double click loses the CAS and answers `alreadyPublished` without a second sweep.\n\n## Expected impact\nA go-live can no longer end in the silent state 'live, billed, never sourced'. The route promises to fill the pipeline from the pool, and that promise has a recovery path. Publish outcomes survive reloads and are shared across the team. Reopen counts stop double-reporting restored candidates. The post-commit half becomes testable without Python, which the route never was (publish-atomicity.test.ts re-creates the transaction by hand rather than driving the route). No new client module joins app/page.tsx: the client edits are in files already in its graph, and the new server modules sit behind the route only.\n\n## Evaluation\n- Claim: an interrupted or failed go-live leaves a durable, team-scoped receipt that a single idempotent action resumes without re-billing, and the sourced count reports only newly filed candidates.\n- Before: 0 of 8 acceptance cases pass (no receipt store, no runGoLive seam, and the route counts every match).\n- After: 8 of 8.\n- Method: node:test over golive-run.test.ts (injected source/raise, unit DB), golive-receipt-tenancy.test.ts and jobsPublishResult.test.ts, plus the integration gate (tsc, lint, i18n:check, api:check, docs:check, test:perf, test:unit). The keyless e2e journeys that publish (journey-role-to-schedule) still get the same response fields plus two additive ones. A release-job e2e run is owed, because builders cannot boot Next.\n- Result: pending build.\n- Gate: architecture (new persistent table in the tenancy manifest, and publish gains a resume transition).",
+    "evidence": "Base sha c7690bd4a. Checked in the tree:\n- publish/route.ts:123 `if (transition.already) return { already: true, wasClosed: false, quota: null };`\n- :181 `if (!already) {` (sourcing) and :243 `if (!already) {` (raise)\n- :203 `const outcome = await runSourceForRole(role, { signal: request.signal, workspaceId: ws });`\n- :219 `sourced += 1;` (created is never read)\n- jobsPublishResult.ts:92 `const lastByJob = new Map<string, PublishResponse>();`\n- jobsPublishResult.ts:58 `if (p.alreadyPublished && !p.sourcingWarning) return { tone: \"ok\", sentences };`\n- messages/en.json:5733 publishAbandoned: \"Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.\"\n- grep for runSourceForRole callers: only devcase/source/route.ts:54, publish/route.ts:203 and devcase-orchestrator.ts:438, so nothing else can source a live job.\n- grep -rniE 'golive|publish_receipt|sourcing_state|sourced_at' app: no store hits, so no receipt exists today.\n- git log for app/api/jobs/[id]/publish/route.ts: no r08/r09 card rewrites it (the r08/r09 write sets were checked).\n- Context-map drift, recorded for the critic: the context still lists a 'campaign tab' and api_surface 'POST /api/jobs/publish'. The route actually lives at app/api/jobs/[id]/publish/route.ts. JobsCampaignTab.tsx and its logic were deleted in 7198f0c31 (docs/features/jobs/README.md:911), and only the API, the campaign-run.ts runner and the 'campaign' task kind (app/_lib/tasks.ts:384) remain."
+  },
+  {
+    "context": "jobs-posting-campaign",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Reopening a role restates its terms: prefilled seats, a floor above hires",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/features/library/jobs/jobsPublishTerms.ts",
+      "app/features/library/jobs/jobsPublishTerms.test.ts",
+      "app/features/library/jobs/JobsPublishDialog.tsx",
+      "app/features/library/jobs/JobsPostingModal.tsx",
+      "app/api/jobs/[id]/publish/route.ts",
+      "app/api/jobs/reopen-floor.test.ts",
+      "app/_lib/api-response.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [
+      "app/features/library/jobs/jobsPublishTerms.ts",
+      "app/features/library/jobs/jobsPublishTerms.test.ts",
+      "app/api/jobs/reopen-floor.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/_lib/api-response.ts"
+    ],
+    "acceptance": [
+      "initialPublishTerms({ reopen: true, targetHires: 3, postingLangs: ['cs','de'], hired: 3 }, 'en') -> { target: '4', langs: ['cs','de'], floor: 4 } (a filled role reopens for at least one more seat, and its languages are kept)",
+      "initialPublishTerms({ reopen: true, targetHires: 5, postingLangs: [], hired: 2 }, 'cs') -> { target: '5', langs: ['cs'], floor: 3 }; an unknown locale in postingLangs is dropped",
+      "initialPublishTerms({ reopen: false }, 'de') -> { target: '1', langs: ['de'], floor: 1 } (a first go-live is unchanged)",
+      "validatePublishTerms('3', { floor: 4 }) -> { ok: false, reason: 'belowHired', min: 4 }; '4' -> { ok: true }; '51' -> { ok: false, reason: 'range' }",
+      "changedTerms(initial, chosen) with nothing edited -> {} (JSON body '{}', so the route COALESCEs and keeps the stored target and languages); only the target edited -> { targetHires: 4 } with no langs key",
+      "reopenFloorRefusal({ wasClosed: true, statedTarget: null, storedTarget: 3, hired: 3 }) -> 'JOB_TARGET_BELOW_HIRED'; statedTarget 4 -> null; wasClosed false with hired 0 -> null",
+      "Route: a closed role with target 3 and 3 terminal-stage entries, POST /publish { targetHires: 2 } -> 409 { code: 'JOB_TARGET_BELOW_HIRED' }; getJobStatus stays 'closed', job_posts usage unchanged, no receipt or sourcing child (the refusal returns out of the go-live transaction before setJobStatus)",
+      "i18n:check green with errors.JOB_TARGET_BELOW_HIRED in all four catalogs and REFUSAL_ERRORS in app/_lib/api-response.ts"
+    ],
+    "premise": [
+      "app/features/library/jobs/JobsPublishDialog.tsx:49 `useState(() => \"1\")` and :54 `useState<Locale[]>(() => [appLocale])` - the dialog opens every reopen at one hire in the app language, whatever the role was opened for",
+      "app/features/library/jobs/JobsPostingModal.tsx:194-202 - the modal passes only `reopen={isClosed}`, never the job it holds, although the Job carries targetHires, postingLangs and hired (app/features/library/jobs/JobsTypes.ts:79-81, decorated server-side by app/_lib/db/jobs.ts:838-841 and GET /api/jobs withHired)",
+      "app/features/library/jobs/jobsPostingModalLogic.ts:150 - the body always carries targetHires and langs when terms exist, so the route's 'absent means do not change it' contract (app/api/jobs/[id]/publish/route.ts:34-46, setRoleOpenConfig COALESCE at :150) is never reached from the dialog: a reopen overwrites a stored target of 3 with 1 and a stored ['cs','de','fr'] with ['en']",
+      "app/_lib/stage-hooks-role-fill.ts:104-112 - a role retires when hired >= target, so a role filled at 3/3 and reopened at the dialog's default 1 goes live already 'filled' (app/features/library/jobs/jobsRoleStatus.ts:50-54 derives filled from hired >= target on a published role), and the next hire closes it at once",
+      "app/features/library/jobs/JobsPostingModalFooter.tsx:52-55 - the footer's own comment says a reopen is 'the moment to restate them - the role that was closed may be reopening for two seats', and the dialog does not show what is being restated",
+      "app/api/jobs/[id]/publish/route.ts:119-156 - the door checks only the 1..50 range (parsePublishBody :54) and knows wasClosed (:155), but never compares the target with hires, which listJobPipelineStats (app/_lib/db/pipeline.ts:1086) already counts on the desk's axis"
+    ],
+    "rollback": "The series reverts cleanly: the refusal is one early return inside the existing transaction, and the new code is appended to REFUSAL_ERRORS and the four catalogs. The dialog's new props are optional (the Drafts panel keeps calling it without a role and keeps the first-go-live defaults), and PublishTerms only loosens to optional fields, which JSON.stringify drops. Reverting brings back the old reset-to-one behaviour and loses no data.",
+    "gate": "contract",
+    "runner_up": "Go-live preview: before confirming, the dialog states the charge (first go-live bills one job post vs 'reopens are free, billed on first go-live', per classifyPublish().billable at app/_lib/job-ingest.ts:222-235) and the plan units left, so a 402 BILLING_QUOTA_EXCEEDED is foreseen instead of met.",
+    "technique": "headcount-approval-as-a-precondition",
+    "body": "## Summary\nReopening a closed role is a hiring decision taken blind. The terms dialog opens at 'one hire, app language' on every reopen, never shows how many people the role has already hired, and always posts both fields. The route's 'absent means keep it' contract is therefore unreachable. A role filled 3/3 and reopened with a click goes live already 'filled' with its advertised languages wiped, and the next hire closes it again. The app holds all of that data. This card puts it in the dialog and adds the rule to the door.\n\n## Description\n- **`jobsPublishTerms.ts`** (new, pure, and imported by both the dialog and the route in the house pattern, since the route already imports `splitRequirements` from JobsTypes):\n  - `initialPublishTerms(role, appLocale)` returns the stored target, raised to `hired + 1` when already reached, plus the stored languages filtered through `isLocale`.\n  - `validatePublishTerms(target, { floor })` returns ok, `range` or `belowHired`.\n  - `changedTerms(initial, chosen)` sends only what the recruiter changed.\n  - `reopenFloorRefusal({ wasClosed, statedTarget, storedTarget, hired })` is the one rule, shared by the dialog and the door.\n- **Dialog**: an optional `role` prop prefills both controls. A reopen shows 'N already hired. Reopen for more than N.' under the target, and the confirm is disabled below the floor. `onConfirm` emits `changedTerms`, and `PublishTerms` fields become optional, so `jobsPostingModalLogic.ts:150` needs no edit because JSON.stringify drops undefined keys. **Modal** passes `job` through.\n- **Door**: inside the existing go-live transaction, after `classifyPublish`, a reopen reads `listJobPipelineStats(ws)[id].hired` and the effective target (stated, or `getRoleOpenConfig`). It returns `JOB_TARGET_BELOW_HIRED` (409) before `setJobStatus`, so a refused reopen neither flips nor bills. Lock strategy: the read and the flip share the synchronous transaction on one handle with no await between them. The card upgrades that transaction to `.immediate()`, so a hire committing from another connection cannot land between the hired read and the flip (the deferred-snapshot lesson in the repo memory).\n- **Every surface that offers the refused action** is covered. The footer's Reopen button opens this dialog, and its failure path already resolves any `code` through `useErrorMessage` (jobsPostingModalLogic.ts:161). The Drafts panel and the guided-demo walk (useSimulationWalk.ts:315, body `{}`) only publish drafts, and `wasClosed` is false for a draft, so the rule cannot refuse them. That is pinned by acceptance case 6. The new code gets four catalog entries and a REFUSAL_ERRORS row.\n- Sequencing: build after card A of this deck, which edits the post-commit half of the same route (:160-270). This card touches the parse and transaction half (:79-156). `app/_lib/api-response.ts` is also appended to by the r09 cards devcase-lifecycle and comms-locale-optout, so the change is append-only under the challenge lock. No r08 or r09 card writes JobsPublishDialog.tsx or JobsPostingModal.tsx.\n\n## Flow\n1. A role opened for 3 hires fills. The hook closes it (3/3).\n2. Two weeks later the recruiter clicks **Reopen role**. The dialog opens at target 4 with 'cs, de' still chosen, and reads '3 already hired. Reopen for more than 3.'\n3. They type 5 and confirm. The body is `{ targetHires: 5 }`, the languages are kept by COALESCE, and the desk shows 3/5 open.\n4. A caller outside the dialog (an API client) posting `{ targetHires: 2 }` meets `JOB_TARGET_BELOW_HIRED`, localized. The role stays closed and nothing is billed or spawned.\n\n## Expected impact\nA reopen ends open, with the seats the recruiter meant and the languages the role was already advertised in, instead of silently becoming 'filled, one more hire and it closes'. The dialog now shows the headcount, and the door enforces the one rule ('a reopen must open seats'). No new module joins app/page.tsx beyond one small pure file (jobsPublishTerms.ts, about 80 lines, well inside the page's KB slack). No new route is added.\n\n## Evaluation\n- Claim: the reopen dialog prefills the role's stored terms, refuses a target at or below hires in both the dialog and the door, and sends only changed fields.\n- Before: 0 of 8 acceptance cases pass (no jobsPublishTerms module, no refusal code, and the dialog ignores the role).\n- After: 8 of 8.\n- Method: node:test over jobsPublishTerms.test.ts and reopen-floor.test.ts. The route is driven against the unit DB for a closed role, and the refusal returns before any spawn, so no Python is needed. Then i18n:check, tsc, lint, test:perf and test:unit.\n- Result: pending build.\n- Gate: contract (a new refusal code on POST /api/jobs/[id]/publish).",
+    "evidence": "Base sha c7690bd4a.\n- JobsPublishDialog.tsx:49 `const [target, setTarget] = useState(() => \"1\");`\n- JobsPublishDialog.tsx:54 `const [langs, setLangs] = useState<Locale[]>(() => [appLocale]);`\n- JobsPostingModal.tsx:196 `reopen={isClosed}` is the only data passed to the dialog.\n- jobsPostingModalLogic.ts:150 `body: JSON.stringify(terms ? { targetHires: terms.targetHires, langs: terms.langs } : {}),`\n- JobsDraftsPanel.tsx:102 has the same body shape (drafts only).\n- stage-hooks-role-fill.ts:104 `const hired = listJobPipelineStats(workspaceId)[jobId]?.hired ?? 0;`, :108 `const target = ...`, :109 `if (hired < target) return { outcome: \"open\", ... }`\n- jobsRoleStatus.ts:52-54 `const reached = hiredCountOf(job) >= targetHiresOf(job); ... return reached ? \"filled\" : \"open\";`\n- grep -rn targetHires app (non-test): the publish route is the only writer of the target (setRoleOpenConfig at route.ts:150), so the dialog's default IS the stored target after any reopen.\n- grep for publish-dialog callers: JobsPostingModal.tsx and JobsDraftsPanel.tsx only (DevCaseDetail's reopen is the devcase intake route, a different door).\n- The existing refusal registry row is at app/_lib/api-response.ts:1614 (JOB_TARGET_HIRES_INVALID), mirrored at messages/en.json:1962."
+  }
+]

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { REFUSAL_ERRORS, jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { getInterviewPlan } from "@/app/_lib/interview-plan";
+import { interviewPlanSaved } from "@/app/_lib/stage-hooks";
+import { planArrival, type ArrivalPlan } from "@/app/_lib/pipeline-arrival-plan";
 
 
 // Batch move/decide a COHORT in one recruiter action (the board's bulk move + bulk
@@ -29,7 +34,44 @@ const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject"]);
 type BatchItem = { id: string; action: string; expectedStage?: string; toStage?: string };
 // `code` is what the client renders (errors.<CODE>, in the reader's language);
 // `reason` is the canonical English beside it, for the log and API consumers.
-type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
+// `routedToHumanRound` (additive) is the single route's hybrid-handoff flag, carried
+// per id so a batch-accepted AI scorecard narrates the Schedule handoff too.
+type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string; routedToHumanRound?: boolean };
+
+// blast-radius-computation (challenge-r06 pipeline-move-bulk-operations/B). A DRY RUN
+// answers, per id, what the move WOULD set off: an AI interview invite now or held for
+// a human, a work-sample assignment, the pending approval it would erase, and whether a
+// drafted offer holds the row back. It walks set_stage's own gates in set_stage's own
+// order (unknown stage 400 → terminal 422 → missing 404 → CAS / closed 409) and reads
+// the arrival through `planArrival`, the planner the stage-entered hook executes — and
+// it WRITES NOTHING: no row, no event, no hook. `preview.stage` is the stage it read,
+// which the commit then carries as its expectedStage.
+type PreviewOutcome = BatchOutcome & { preview?: ArrivalPlan & { stage: string } };
+
+type ArrivalContext = { axis: ReturnType<typeof getPipelineAxis>["stages"]; plan: ReturnType<typeof getInterviewPlan>; saved: boolean };
+
+function previewItem(item: BatchItem, ctx: ArrivalContext, workspaceId: string): PreviewOutcome {
+  const refuse = (code: keyof typeof REFUSAL_ERRORS, preview?: PreviewOutcome["preview"]): PreviewOutcome => ({
+    id: item.id,
+    ok: false,
+    code,
+    reason: REFUSAL_ERRORS[code],
+    ...(preview ? { preview } : {}),
+  });
+  // Only a move has an arrival to preview.
+  if (item.action !== "set_stage") return refuse("PIPELINE_BATCH_ITEM_MALFORMED");
+  const to = item.toStage ?? "";
+  if (!ctx.axis.some((s) => s.id === to)) return refuse("PIPELINE_STAGE_UNKNOWN");
+  const entry = getPipelineEntry(item.id, workspaceId);
+  if (!entry) return refuse("PIPELINE_ENTRY_NOT_FOUND");
+  const plan = planArrival(entry, to, ctx.axis, ctx.plan, ctx.saved);
+  const preview = { ...plan, stage: entry.stage };
+  if (plan.effect === "refused_terminal") return refuse("PIPELINE_TERMINAL_NOT_MANUAL", preview);
+  // The same CAS the commit will run: a row that moved since the board drew it is stale.
+  if (item.expectedStage !== undefined && entry.stage !== item.expectedStage) return refuse("PIPELINE_MOVE_CONFLICT");
+  if (plan.effect === "closed") return refuse("PIPELINE_MOVE_CONFLICT", preview);
+  return { id: item.id, ok: true, preview };
+}
 
 // Coerce one raw item, or null if it's malformed (missing id / unknown action).
 function coerceItem(raw: unknown): BatchItem | null {
@@ -59,7 +101,7 @@ function coerceItem(raw: unknown): BatchItem | null {
 // drive the board through the per-card routes) are unaffected; set + valid
 // operator session → allow; the anonymous demo-workspace cookie the proxy waves
 // through → 401. The refusal is the shared { error } envelope the client renders.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -69,7 +111,6 @@ export async function POST(request: NextRequest) {
   // silently mutating the board.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of batch calls (each fans out to up to BATCH_CAP entries),
     // not each entry — this IS the one-action-many-candidates path.
@@ -79,12 +120,28 @@ export async function POST(request: NextRequest) {
     if (!rateLimit(`pipeline-batch:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => ({}))) as { items?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { items?: unknown; dryRun?: unknown };
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400);
     }
     if (body.items.length > BATCH_CAP) {
       return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400, { max: BATCH_CAP });
+    }
+
+    if (body.dryRun === true) {
+      // Read once per batch: every item previews against the same axis and plan.
+      const ctx: ArrivalContext = {
+        axis: getPipelineAxis(ws).stages,
+        plan: getInterviewPlan(ws),
+        saved: interviewPlanSaved(ws),
+      };
+      const previews: PreviewOutcome[] = body.items.map((raw) => {
+        const item = coerceItem(raw);
+        if (item) return previewItem(item, ctx, ws);
+        const id = raw && typeof raw === "object" && typeof (raw as { id?: unknown }).id === "string" ? (raw as { id: string }).id : "";
+        return { id, ok: false, code: "PIPELINE_BATCH_ITEM_MALFORMED", reason: REFUSAL_ERRORS.PIPELINE_BATCH_ITEM_MALFORMED };
+      });
+      return NextResponse.json({ ok: true, dryRun: true, total: previews.length, results: previews });
     }
 
     const origin = new URL(request.url).origin;
@@ -106,7 +163,7 @@ export async function POST(request: NextRequest) {
           workspaceId: ws,
         });
         if (r.status === 200) {
-          results.push({ id: item.id, ok: true });
+          results.push({ id: item.id, ok: true, ...(r.body.routedToHumanRound === true ? { routedToHumanRound: true } : {}) });
         } else {
           // Carry the server's OWN refusal (the 409 concurrency-loss vs the 422
           // forbidden-transition guidance) — as a CODE first, with the canonical
@@ -130,4 +187,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:batch", "PIPELINE_ACTION_FAILED");
   }
-}
+});

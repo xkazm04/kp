@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
-import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { resolveSimEntry, setSimApproval } from "@/app/_lib/sim-entry";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
@@ -14,7 +14,7 @@ import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
 // Deterministic offer draft for the simulation spine — NO LLM (salary from the
 // job-band midpoint), so the keyless run doesn't depend on the Claude CLI offer
 // task. Sets the offer_review approval the recruiter then "Send offer"-extends.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
   try {
     const { entryId } = (await request.json()) as { entryId?: string };
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
@@ -23,11 +23,14 @@ export async function POST(request: NextRequest) {
     // back null and the demo died on "Pipeline entry not found" one step from the
     // offer — and the scoping doubles as the authorization check, since a stranger's
     // entryId simply doesn't resolve.
-    const workspaceId = await currentWorkspace();
-    const entry = getPipelineEntry(entryId, workspaceId);
+    // Demo corpus only: resolveSimEntry admits an entry in the CALLER'S team whose job
+    // title carries the (SIM) marker, and nothing else. The team scoping keeps a
+    // stranger's id from resolving; the marker keeps a REAL candidate's row out of
+    // this ungated door (a real id 404s exactly like a missing one). See sim-entry.ts.
+    const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
-    const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
+    const band = (entry.jobId ? getJob(entry.jobId, workspaceId)?.salaryBand : null) ?? [];
     // Sanitize the stored band through the shared helper: it swaps a backwards
     // range and rejects a partial/non-finite/non-positive band, so we fall back to
     // the demo defaults instead of advertising garbage. The fallback is single-sourced
@@ -53,9 +56,9 @@ export async function POST(request: NextRequest) {
     // The entry we just read is the tenant authority for the write (same row, same
     // team) — an unscoped setApproval matched nothing off the default team, so the
     // offer card never appeared in Decisions and "Send offer" had nothing to extend.
-    setApproval(entryId, "offer_review", JSON.stringify(draft), entry.workspaceId);
+    setSimApproval(entry, "offer_review", JSON.stringify(draft));
     return NextResponse.json({ ok: true, draft });
   } catch (error) {
     return safeJsonError(error, "api:sim/offer-draft", "SIM_OFFER_DRAFT_FAILED");
   }
-}
+});

@@ -5,7 +5,7 @@ import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { getJob, listCorpusJobs } from "./db/jobs";
 import { buildLlmConfigEnv } from "./llm-config";
 import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from "./match-input";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning, narrativeLangFor } from "./reasoning-cache-policy";
@@ -67,7 +67,7 @@ export type ReasoningInput = MatchInputBody & { jobId?: string; lang?: string };
  * literal) is in reasoning-cache-first.test.ts.
  */
 export function reasoningCliArgs(inputArgs: string[], jobId: string, engineLang: string): string[] {
-  return ["-m", "pipeline.jobfit.reasoning_cli", ...inputArgs, "--job-id", jobId, "--lang", engineLang];
+  return ["-m", "pipeline.jobfit.reasoning_cli", ...inputArgs, flagArg("--job-id", jobId), "--lang", engineLang];
 }
 
 // Shared core for /api/match/reasoning AND the background-task runner.
@@ -78,7 +78,8 @@ export function reasoningCliArgs(inputArgs: string[], jobId: string, engineLang:
 // callers pass currentWorkspace(); the background-task runner passes ctx.workspaceId
 // (the enqueuer's tenant). getJob(jobId) stays a by-id point read (globally-unique PK,
 // jobs-tenancy exempt): it only content-addresses the cache key, and the scoped corpus
-// is what decides which record --job-id actually resolves against.
+// is what decides which record --job-id actually resolves against. It is read as the
+// same team sees it, so a corpus role's per-team lifecycle keys the cache too.
 export async function runReasoning(
   body: ReasoningInput,
   signal?: AbortSignal,
@@ -132,7 +133,7 @@ export async function runReasoning(
     promptVersion: REASONING_PROMPT_VERSION,
     candidateKeyPart: input.keyPart,
     jobId: body.jobId,
-    jobPayload: getJob(body.jobId),
+    jobPayload: getJob(body.jobId, workspaceId),
     lang: requestedLang,
     corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
     // Sixth axis: the TENANT, named rather than inferred. The comment above used to

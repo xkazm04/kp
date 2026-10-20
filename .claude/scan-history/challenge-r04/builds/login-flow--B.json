@@ -1,0 +1,20 @@
+{
+  "card": "login-flow/B",
+  "title": "A lapsing session warns, then re-signs in over the page instead of 'not permitted'",
+  "status": "landed",
+  "base": "3993c0adc",
+  "shas": ["0f35f7c5d", "c215afc21", "a004d488d", "4270d83fb"],
+  "tests_added": [
+    "app/features/shell/session/sessionLapse.test.ts",
+    "app/api/me/capabilities/route.test.ts",
+    "app/features/shared/sharedGet.test.ts"
+  ],
+  "cases_red_before": 18,
+  "cases_green_after": 18,
+  "cases_total": 18,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": 0, "unit": 1 },
+  "files_changed": 16,
+  "lines_changed": 941,
+  "deviations_from_card": "(1) Tests and code in ONE feat commit (a004d488d), not test-then-feat: the three test files cannot load before their modules exist, so a test-only commit would be red. Test-first order was kept in the working tree: 18 test cases red before any production code (sessionLapse 11 + sharedGet 3 as load failures, route 4 as assertion failures). Acceptance 0 of 8 before, 8 of 8 after (case 8 = i18n:check, exit 0). (2) Added a pure reconcileRead() (not in the card): a clock-due expiry re-reads /api/me/capabilities before prompting, so a re-sign-in in another tab is adopted rather than nagged about, and clock skew cannot produce a false lapse; a skew-contradicted expiry re-reads at most once a minute. Also parseSessionFacts() for the wire. (3) phaseAt returns live/no-timer for passwordMode with session null too (demo / anonymous), and the route returns session null for the demo workspace and for an identity-less non-operator cookie, not only for open mode. (4) The 'Stay signed in' chip action OPENS the re-auth dialog; it never calls switch-workspace or anything else that would renew a live cookie without a password. (5) resolveSwitch reloads '/' on ANY non-2xx (incl. network failure = status 0), and after a successful switch the facts are re-read and resolveReauth must say resume, otherwise reload. (6) Reload is a hard window.location.assign('/') (the leaveWorkspace idiom) - eslint warns (@next/next/no-location-assign-relative-destination, warning not error), deliberate: a client push would keep the previous person's mounted state. (7) The dialog reuses login.* catalog keys for its fields, submit and error toasts; only 11 new keys in a new sessionLapse namespace. (8) perf-budget.json raised app/page.tsx 1392 -> 1396 modules (+4: sessionLapse.ts, useSessionLapse.ts, SessionLapseDialog.tsx, the reused login/login-result.ts) under the lock; KB ceiling not raised (my share +24.5 KB fit in the 8744 ceiling at the time).",
+  "notes": "Card write set shrunk: nothing else touched beyond it + 2 test files (sharedGet.test.ts, which the card's case 7 implies) + perf-budget.json under the lock. Sign-in goes ONLY through POST /api/auth/login (which issues through session-issuer.ts); the switch-back path calls the re-validating switch-workspace door from slot A. tsc: all errors are foreign (kpi-sim/ untracked tree; sibling in-flight app/features/shell/simulation/*, GithubAnalysisPanel.tsx, analytics-cache.test.ts, analytics-job-cohort.test.ts); zero on my files. Full npm run test:unit exit 1 ONLY on app/features/insights/analytics/analyticsRenderMap.test.ts (BROKEN, 2 cases) - the analytics-dashboard sibling's uncommitted work, not a file I touch or import. test:perf: measured on git-archive trees (no sibling uncommitted files): committed 2592b71c8 = 1392 modules / 8927064 B, + my files = 1396 / 8952131 B (8742 KB) -> green after my raise. INTEGRATION NOTE: profile-editor's d022404a6/e85d13513 landed after my measurement and add +1 module / +14899 B to app/page.tsx without a budget raise; HEAD 4270d83fb measures 1397 modules / 8757 KB vs ceiling 1396 / 8744. Their share is 1 module / ~15 KB; mine is recorded. The dialog was NOT verified by hand in a browser (brief forbids dev/build); both themes rely on recipes (NOTICE, BTN_PRIMARY, BTN_GHOST, Modal, TextInput) and design:check is green."
+}

@@ -8,7 +8,7 @@
 // Runner: node --test with the repo's test:alias loader (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCohorts, mergeRubricRows, isUnrecognizedCohort, compareCsvRows } from "./jobsCompareCohorts.ts";
+import { buildCohorts, mergeRubricRows, isUnrecognizedCohort, compareCsvRows, cellFlag, coverageFor, mustAsksOwed } from "./jobsCompareCohorts.ts";
 
 const R = (competency: string, description = "") => ({ competency, description });
 
@@ -78,13 +78,13 @@ test("compareCsvRows: two candidates produce aligned columns; a missing human ra
         { competency: "Technical depth", rating: 4 },
         { competency: "Communication", rating: 3 },
       ],
-      humanScorecard: { ratings: [{ competency: "Technical depth", rating: 5 }], recommendation: "advance" },
+      humanScorecards: [{ ratings: [{ competency: "Technical depth", rating: 5 }], recommendation: "advance" }],
     },
     {
       candidateLabel: "Grace",
       recommendation: "hold",
       ratings: [{ competency: "Technical depth", rating: 2 }],
-      humanScorecard: null,
+      humanScorecards: [],
     },
   ];
   const rows = compareCsvRows(rubric, candidates);
@@ -92,4 +92,90 @@ test("compareCsvRows: two candidates produce aligned columns; a missing human ra
   assert.deepEqual(rows[0], ["Technical depth", 4, 5, "advance", 2, "", "hold"]);
   assert.deepEqual(rows[1], ["Communication", 3, "", "advance", "", "", "hold"]);
   assert.ok(!rows.flat().includes(0), "a missing rating must not fabricate 0");
+});
+
+test("compareCsvRows: a NOT-ASSESSED axis exports blank, not the synthesis's mid-scale 3", () => {
+  // The AI synthesis writes an untouched competency as a real 3 with "Not assessed…"
+  // evidence. In a spreadsheet the caveat cannot travel with the number, so the number
+  // must not travel either — a genuine observed 3 still does.
+  const rubric = [R("Technical depth"), R("Communication")];
+  const rows = compareCsvRows(rubric, [
+    {
+      candidateLabel: "Ada",
+      recommendation: "hold",
+      ratings: [
+        { competency: "Technical depth", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+        { competency: "Communication", rating: 3, evidence: "She walked through the rollback herself." },
+      ],
+      humanScorecards: [],
+    },
+  ]);
+  assert.deepEqual(rows[0], ["Technical depth", "", "", "hold"]);
+  assert.deepEqual(rows[1], ["Communication", 3, "", "hold"], "an observed 3 is still a 3");
+});
+
+test("compareCsvRows: a PANEL exports every interviewer's rating in one cell, never just the latest save", () => {
+  // Human scorecards are keyed by (interviewer, round). A spreadsheet cell holds one
+  // value, so several records join in the grid's own order (newest first) — never
+  // averaged (that would be a decision) and never reduced to whoever saved last.
+  const rubric = [R("Technical depth"), R("Communication")];
+  const rows = compareCsvRows(rubric, [
+    {
+      candidateLabel: "Ada",
+      recommendation: null,
+      ratings: [],
+      humanScorecards: [
+        { ratings: [{ competency: "Technical depth", rating: 2 }], recommendation: "hold" },
+        { ratings: [{ competency: "Technical depth", rating: 5 }, { competency: "Communication", rating: 4 }], recommendation: "advance" },
+      ],
+    },
+  ]);
+  assert.deepEqual(rows[0], ["Technical depth", "", "2 / 5", "hold / advance"]);
+  assert.deepEqual(rows[1], ["Communication", "", 4, "hold / advance"], "one rating stays a number");
+});
+
+// ---- the director's record on the grid (challenge-r07 voice-interview-api/B) -------
+
+test("cellFlag: a real AI rating on a never-reached axis, and a sentinel on a covered one, are the disagreements", () => {
+  assert.equal(cellFlag(4, "Designed the sharding plan and walked the failover.", "not_reached"), "rated_not_reached");
+  assert.equal(cellFlag(3, "Not assessed in this interview.", "covered"), "sentinel_but_covered");
+  // Agreeing pairs carry no flag.
+  assert.equal(cellFlag(4, "Owned the migration end to end.", "covered"), null);
+  assert.equal(cellFlag(3, "Not assessed in this interview.", "not_reached"), null);
+  assert.equal(cellFlag(2, "Hesitant on trade-offs.", "asked"), null);
+  assert.equal(cellFlag(4, "Real quote.", undefined), null, "no director record, no flag");
+  assert.equal(cellFlag(undefined, undefined, "not_reached"), null, "no rating, nothing to disagree with");
+});
+
+test("coverageFor: case-insensitive axis lookup; undirected (null coverage) answers undefined", () => {
+  const coverage = { byAxis: { system_design: "asked" as const }, mustAsksUnasked: null };
+  assert.equal(coverageFor(coverage, "System_Design"), "asked");
+  assert.equal(coverageFor(coverage, "ownership"), undefined);
+  assert.equal(coverageFor(null, "system_design"), undefined);
+});
+
+test("mustAsksOwed: a count > 0 is a chip; 0 and the unknown null render none", () => {
+  assert.equal(mustAsksOwed({ byAxis: {}, mustAsksUnasked: 2 }), 2);
+  assert.equal(mustAsksOwed({ byAxis: {}, mustAsksUnasked: 0 }), null);
+  assert.equal(mustAsksOwed({ byAxis: {}, mustAsksUnasked: null }), null, "no end_interview: no chip, not a 0");
+  assert.equal(mustAsksOwed(null), null);
+  assert.equal(mustAsksOwed(undefined), null);
+});
+
+test("compareCsvRows: an AI rating on a NOT-REACHED axis exports blank; a covered axis keeps its number", () => {
+  const rubric = [R("system_design"), R("ownership")];
+  const rows = compareCsvRows(rubric, [
+    {
+      candidateLabel: "Ada",
+      recommendation: "advance",
+      ratings: [
+        { competency: "system_design", rating: 4, evidence: "Sounded confident." },
+        { competency: "ownership", rating: 5, evidence: "Owned the migration." },
+      ],
+      humanScorecards: [{ ratings: [{ competency: "system_design", rating: 3 }], recommendation: "hold" }],
+      coverage: { byAxis: { system_design: "not_reached", ownership: "covered" }, mustAsksUnasked: null },
+    },
+  ]);
+  assert.deepEqual(rows[0], ["system_design", "", 3, "advance"], "the unreached AI 4 is blank; the human 3 stays");
+  assert.deepEqual(rows[1], ["ownership", 5, "", "advance"]);
 });

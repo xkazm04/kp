@@ -1,10 +1,13 @@
 """Capability matrix: which provider can serve which use case.
 
 Providers are not interchangeable for every job — search grounding is
-Gemini-only, the Claude CLI is text-only. The registry validates routing at
-resolve time, so a wildcard config entry can't silently route ``cv_analysis``
-to a text-only provider (it raises instead, and the caller's deterministic
-fallback takes over only for *runtime* failures, never for misconfiguration).
+Gemini-only, and the Claude CLI reads no files but is the one engine that can
+research the open web (its ``with_web_research`` door). The registry validates
+routing at resolve time, so a wildcard config entry can't silently route
+``cv_analysis`` to a text-only provider (it raises instead, and the caller's
+deterministic fallback takes over only for *runtime* failures, never for
+misconfiguration). A call-site pin (``registry.ProviderPin``) is checked against
+the same matrix: a pin never routes below a use case's required capabilities.
 """
 
 from __future__ import annotations
@@ -12,6 +15,14 @@ from __future__ import annotations
 CAP_JSON = "json"
 CAP_FILE_INPUT = "file_input"
 CAP_GROUNDING = "grounding"
+# An AGENTIC web session: the model runs its own searches, fetches the pages it
+# chooses and cites them (claude_cli's web_research mode — WebSearch + WebFetch,
+# claude_cli.WEB_RESEARCH_TOOLS). Deliberately NOT CAP_GROUNDING: that one is
+# Gemini's single-shot search grounding, and a use case requiring it routes to
+# Gemini. Declared only where a door exists that actually opens the session —
+# declaring it on a text API would let that API answer "what does the market ask
+# for today" from its training data, a plausible answer with no sources behind it.
+CAP_WEB_RESEARCH = "web_research"
 
 # NOTE: CAP_FILE_INPUT is intentionally NOT advertised by the anthropic/openai/
 # azure_openai rows even though those vendors support multimodal input. Their
@@ -28,7 +39,10 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "openai": frozenset({CAP_JSON}),
     "azure_openai": frozenset({CAP_JSON}),
     "gemini": frozenset({CAP_JSON, CAP_GROUNDING, CAP_FILE_INPUT}),
-    "claude_cli": frozenset({CAP_JSON}),
+    # web_research is earned by ClaudeCliAdapter.with_web_research (the CLI's own
+    # WebSearch/WebFetch tools); a call site that never binds that door gets a
+    # plain text session, which is why role_research_cli degrades when it is absent.
+    "claude_cli": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
     # OpenRouter serves the JSON/text use cases via prompt-embedded JSON; file input
     # varies per proxied model, so it is not advertised here.
     "openrouter": frozenset({CAP_JSON}),
@@ -41,6 +55,17 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     # seat-metered CLIs, with seat failover. Text/JSON only. Contract:
     # https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md
     "gateway": frozenset({CAP_JSON}),
+}
+
+# Engines reachable ONLY through a call-site pin (registry.ProviderPin), never through a
+# routing row. Deliberately a separate map: PROVIDER_CAPABILITIES is mirrored exactly by the
+# TS catalogue (llm-config.ts LLM_PROVIDERS, llm-capabilities-lockstep.test.ts) and every
+# key there is an operator-routable provider with an ADAPTERS entry. The Codex CLI is the
+# operator's own ChatGPT login on the box - there is nothing to configure and no key kp
+# holds - so it is offered to no Models row; the gig plan seats pin it for GPT 6 Astra
+# (app/_lib/gigs/plan-seats.ts, adapters/codex_cli.py). Text/JSON only.
+PIN_ONLY_PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
+    "codex_cli": frozenset({CAP_JSON}),
 }
 
 # The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
@@ -96,6 +121,37 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "cv_polish": frozenset({CAP_JSON}),
     "fit_dialog": frozenset({CAP_JSON}),
     "extraction_rules": frozenset({CAP_JSON}),
+    # Job-seeker module: the skills a target title CURRENTLY asks for in the seeker's
+    # markets, researched on the public web with sources (role_research_cli.py). The
+    # web capability is the point, so only claude_cli can serve it; the call site also
+    # pins that engine and model (ProviderPin), and without a usable one it answers
+    # no_provider rather than letting a text model recite its training data.
+    "role_research": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
+    # Gigs (app/_lib/gigs/research.ts -> gig_brief_cli.py): one listing plus the pages it
+    # links to, fenced as data, in; a structured research brief (category, difficulty,
+    # effort, challenges, summary, asks) out as JSON. kp writes the Markdown from it.
+    # Since gig-brief-v3 the call site pins Claude Sonnet 5.5 and opens the CLI's web
+    # door (with_web_research), so the model can follow the listing's own references;
+    # like role_research, only claude_cli can serve it.
+    "gig_brief": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
+    # Gigs (app/_lib/gigs/plans.ts -> gig_plan_cli.py): one gig and its research brief,
+    # fenced as data, in; a structured plan (summary, 4-9 checkable steps, decisions,
+    # risks, an effort range, questions) out as JSON. Each seat pins its own engine, model
+    # and effort at the call site (app/_lib/gigs/plan-seats.ts: Claude CLI seats, and the
+    # pin-only codex_cli seat for GPT 6 Astra); no web access - the brief already did the
+    # research.
+    "gig_plan": frozenset({CAP_JSON}),
+    # Gigs (app/_lib/gigs/report/run.ts -> gig_report_cli.py): kp's facts about one gig
+    # (the listing, the brief, the plans, the draft and its evidence, the outcomes and kp's
+    # own money arithmetic), fenced as data, in; the report's lead and designed sections
+    # (HTML in a small vocabulary kp re-sanitizes) out as JSON. Pinned at the call site to
+    # Claude Sonnet 5.5 at high effort; no web access - the facts are everything it may say.
+    "gig_report": frozenset({CAP_JSON}),
+    # Gigs, the proposal track (app/_lib/gigs/proposal/run.ts -> gig_proposal_cli.py): one
+    # freelance listing, its research brief and the accepted plan (if any), fenced as data,
+    # in; the client proposal's plain-text fields and the bid message out as JSON. Pinned at
+    # the call site to Claude Sonnet 5.5 at high effort; no web access.
+    "gig_proposal": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -164,6 +220,42 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # A rule set is ~7 rules x locator + samples; the authoring prompt also asks for
     # the reasoning per rule, which is what the reviewer reads before saving.
     "extraction_rules": 4096,
+    # A gig brief was small by contract (a summary <=900 chars, <=7 challenges, <=8 asks,
+    # each <=240) - ~900 output tokens - until gig-brief-v4 added an English translation of
+    # a non-English listing (<=6000 chars, ~1.7k tokens), an outreach message (<=1500 chars)
+    # and up to 8 missing artifacts: ~3k tokens at the structural maximum. The INPUT is up to
+    # three 20k-char pages, and a reasoning model that thinks over that much runs past a tight
+    # cap before it answers; a truncated object fails coerce_brief whole and the
+    # deterministic brief ships instead. Sized with jd_ingest (the same re-emit-the-posting
+    # shape). The pinned engine (claude_cli) passes no max-tokens flag, so today this binds
+    # nothing; it is the decision for a keyed engine.
+    "gig_brief": 6144,
+    # A plan at its structural maximum: 9 steps x (title + doneWhen, ~60 tokens) + three
+    # lists of up to 8 short sentences + a <=900-char summary is ~1.8k tokens, and the
+    # seats think before answering (Opus at xhigh). Like role_research, the engine the
+    # use case is pinned to (claude_cli) passes no max-tokens flag, so this row binds
+    # nothing today; it is the decision for the day a keyed adapter can serve a seat.
+    "gig_plan": 4096,
+    # A report at its structural maximum: up to 14 sections of designed HTML (tables, stat
+    # cards, callouts) - a closed gig's report is ~10 sections x ~800 tokens of markup and
+    # text, ~8k tokens, and a truncated object fails coerce_report whole (kp then writes the
+    # report itself). The pinned engine (claude_cli) passes no max-tokens flag, so this binds
+    # nothing today; it is the decision for a keyed engine.
+    "gig_report": 16384,
+    # A proposal at its structural maximum: ~1.5k characters of message, a 900-character
+    # understanding, 6 approach lines, 9 milestones and 8 + 8 asks of <= 300 characters is
+    # ~2.5k tokens; the pinned engine (claude_cli) passes no max-tokens flag, so this binds
+    # nothing today - it is the decision for a keyed engine.
+    "gig_proposal": 4096,
+    # A role research answer at its structural maximum: 24 skills x ~75 tokens (name,
+    # tier, share, a <=200-char why, source ids) + 16 sources x ~90 (url, title, read,
+    # publisher) + a <=400-char summary is ~3.4k tokens, past the base 2048 — and a
+    # model that overshoots the caps (the coercer trims to 24/16) must not be cut off
+    # mid-object, because a truncated answer fails coercion WHOLE and the seeker gets
+    # no research at all. NOTE the engine this use case is pinned to (claude_cli)
+    # passes no max-tokens flag, so today this row binds nothing; it is the decision
+    # for the day another provider declares CAP_WEB_RESEARCH, not a dead number.
+    "role_research": 6144,
     # agent_fit re-emits the WHOLE judgement in one object: up to
     # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
     # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer
@@ -316,7 +408,15 @@ def default_model(use_case: str, provider: str) -> str | None:
     return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or DEFAULT_MODELS.get(provider)
 
 
+def provider_capabilities(provider: str) -> frozenset[str] | None:
+    """What ``provider`` can serve - a routable provider's row or a pin-only engine's -
+    or None when it is neither."""
+    if provider in PROVIDER_CAPABILITIES:
+        return PROVIDER_CAPABILITIES[provider]
+    return PIN_ONLY_PROVIDER_CAPABILITIES.get(provider)
+
+
 def unsupported_caps(use_case: str, provider: str) -> frozenset[str]:
     """Capabilities ``use_case`` requires that ``provider`` lacks (empty = ok)."""
     required = USE_CASE_REQUIREMENTS.get(use_case, frozenset({CAP_JSON}))
-    return required - PROVIDER_CAPABILITIES.get(provider, frozenset())
+    return required - (provider_capabilities(provider) or frozenset())

@@ -1,4 +1,5 @@
 import { isPassInFlight, runAutomationPass } from "./automation-pass";
+import { withSpawnLane } from "./llm-request-context";
 import { advanceAfterForcedRun, claimDueRun, ensureSchedule, getSchedule, recordRun } from "./scheduler-store";
 
 // The clock's per-tick work: atomically claim a due run, run the SHARED policy
@@ -37,7 +38,13 @@ export async function tickScheduler(opts?: { force?: boolean; trigger?: string }
 
   const startedAt = new Date().toISOString();
   try {
-    const { summary, decisions } = await runAutomationPass();
+    // The clock's pass is background work: nobody is waiting on it, so its scoring
+    // spawns take the background admission lane (python-runner.ts, "Admission lanes")
+    // and yield to a recruiter's click. A forced "Run now" has an operator waiting and
+    // stays interactive.
+    const { summary, decisions } = await (opts?.force
+      ? runAutomationPass()
+      : withSpawnLane("background", () => runAutomationPass()));
     if (startsPass) recordRun({ status: "ok", summary, decisions, startedAt, trigger: opts?.trigger ?? "clock" });
     return { ran: true, summary };
   } catch (e) {

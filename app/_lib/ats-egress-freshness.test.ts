@@ -16,9 +16,16 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { setAtsConfig } from "./ats-config-store.ts";
-import { dispatchAtsEvent } from "./ats-egress.ts";
+import { dispatchAtsEvent, retryDueAtsDeliveries } from "./ats-egress.ts";
 import { listAtsDeliveries } from "./ats-delivery-store.ts";
-import { anonymizeEntry, createPipelineEntry, getPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
+import {
+  actOnPipelineEntry,
+  anonymizeEntry,
+  createPipelineEntry,
+  getPipelineEntry,
+  recordEntryConsent,
+  reinstatePipelineEntry,
+} from "./db/pipeline.ts";
 
 after(() => cleanupUnitDb());
 
@@ -131,4 +138,154 @@ test("consent expiring INSIDE the preparation window refuses the over-disclosing
   assert.equal(row?.status, "failed", "operator-visible");
   assert.notEqual(row?.nextAttemptAt, null, "…and RETRYABLE: the next attempt rebuilds the body masked");
   assert.match(row?.lastError ?? "", /over-discloses/, "and it says why");
+});
+
+// ---------------------------------------------------------------------------------------
+// F-3 — THE WINDOW THE FRESHNESS CHECK DID NOT COVER: the TRANSITION, not just consent.
+//
+// `retryDueAtsDeliveries` rebuilds the record from CURRENT entry state ("a mirror wants the
+// latest") and the check gated only consent and existence. So a candidate reinstated
+// between attempt 1 and attempt 2 was POSTed again as `candidate.rejected` — under the
+// first attempt's Idempotency-Key, with a body saying `pipeline.status: "active"`. A
+// receiver that had already rejected them sees the "same" delivery; one that had not is
+// told to reject somebody kp has put back in the funnel.
+//
+// NON-VACUITY for each case is stated inline. Pre-fix: (a) the retry POSTs and the row
+// goes on retrying; (b) and (c) are unchanged by the fix and are its floor.
+// ---------------------------------------------------------------------------------------
+
+/** Capture bodies AND choose the receiver's answer, so a first attempt can fail and
+ *  schedule a retry. */
+async function withFetchAnswering(ok: boolean, fn: () => Promise<void>): Promise<string[]> {
+  const bodies: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
+    bodies.push(String(init?.body ?? ""));
+    return { ok, status: ok ? 200 : 500 } as unknown as Response;
+  }) as unknown as typeof fetch;
+  try {
+    await fn();
+  } finally {
+    globalThis.fetch = real;
+  }
+  return bodies;
+}
+
+/** A really-rejected entry: the status the `candidate.rejected` event asserts. */
+function rejectedEntry(key: string) {
+  const { entry } = createPipelineEntry({
+    candidateId: `c-${key}`,
+    candidateLabel: `Reinstated Person ${key}`,
+    jobId: `job-${key}`,
+    jobTitle: "Role",
+  });
+  assert.ok(actOnPipelineEntry(entry.id, "reject", undefined, { actor: "human", actorRef: "human:Unit Recruiter" }));
+  assert.equal(getPipelineEntry(entry.id)?.status, "rejected", "fixture: the entry really is rejected");
+  return entry;
+}
+
+/** Well past the first backoff window, so the sweep picks the row up. */
+const laterThanAnyBackoff = () => new Date(Date.now() + 3600_000);
+
+// (a) THE FALSIFIER.
+test("a REINSTATED candidate is not re-mirrored as candidate.rejected on the retry — the row dies terminally", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"] });
+  const entry = rejectedEntry("reinstate");
+
+  // Attempt 1: the receiver 500s, so the row is failed-and-RETRYABLE.
+  const first = await withFetchAnswering(false, () => dispatchAtsEvent("candidate.rejected", entry.id));
+  assert.equal(first.filter((b) => b.includes(entry.id)).length, 1, "attempt 1 reached the wire (otherwise this proves nothing)");
+  const opened = listAtsDeliveries(500).find((d) => d.entryId === entry.id);
+  assert.equal(opened?.status, "failed", "mid-state: attempt 1 failed");
+  assert.notEqual(opened?.nextAttemptAt, null, "mid-state: and is queued for a retry");
+
+  // A recruiter overrules the machine between the two attempts.
+  assert.ok(reinstatePipelineEntry(entry.id, undefined, "human:Unit Recruiter"), "the reinstatement commits between attempts");
+  assert.equal(getPipelineEntry(entry.id)?.status, "active", "mid-state: the candidate is back in the funnel");
+
+  const second = await withFetchAnswering(true, async () => {
+    await retryDueAtsDeliveries(laterThanAnyBackoff());
+  });
+  assert.equal(
+    second.filter((b) => b.includes(entry.id)).length,
+    0,
+    "the retry sent NOTHING: a reject kp has withdrawn is not restated to the receiver"
+  );
+  const row = listAtsDeliveries(500).find((d) => d.entryId === entry.id);
+  assert.equal(row?.status, "failed", "the drop is still operator-VISIBLE");
+  assert.equal(row?.nextAttemptAt, null, "…and TERMINAL: a reinstatement will not become mirrorable by waiting");
+  assert.match(row?.lastError ?? "", /no longer "rejected"/, "and the reason names the status that no longer holds");
+  assert.match(row?.lastError ?? "", /reinstated or reopened/, "…and says the transition was reversed");
+  assert.ok(
+    !(row?.lastError ?? "").includes("Reinstated Person"),
+    "the ledger reason carries NO candidate PII — entry id and the closed status vocabulary only"
+  );
+});
+
+// (b) THE FLOOR. An entry whose rejection still stands retries exactly as before, and the
+// redelivery is byte-identical — the transition re-assert must not become a new door that
+// swallows legitimate retries (the companion of ats-egress-delivery.test.ts's idempotency
+// case, which pins the same promise for `candidate.hired`).
+test("an UNCHANGED rejected entry still retries, byte-identically", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"] });
+  const entry = rejectedEntry("unchanged");
+
+  const first = await withFetchAnswering(false, () => dispatchAtsEvent("candidate.rejected", entry.id));
+  const mineFirst = first.filter((b) => b.includes(entry.id));
+  assert.equal(mineFirst.length, 1, "attempt 1 reached the wire");
+  assert.equal(getPipelineEntry(entry.id)?.status, "rejected", "mid-state: nothing reversed the rejection");
+
+  const second = await withFetchAnswering(true, async () => {
+    await retryDueAtsDeliveries(laterThanAnyBackoff());
+  });
+  const mineSecond = second.filter((b) => b.includes(entry.id));
+  assert.equal(mineSecond.length, 1, "the retry still happened");
+  assert.equal(mineSecond[0], mineFirst[0], "and is byte-identical — a receiver can still dedupe on the body alone");
+  const row = listAtsDeliveries(500).find((d) => d.entryId === entry.id);
+  assert.equal(row?.status, "delivered", "the ledger says delivered");
+});
+
+// (c) THE ORDER. An erasure landing between the attempts must keep the outcome it had
+// before this fix existed: terminal, with the ANONYMIZED reason — not the transition one.
+// (An anonymized entry's status is untouched by the scrub, so both doors are open at once
+// and only the order of the checks decides which answer the operator reads.)
+test("an ERASED entry still dead-letters with the anonymized reason, not the transition one", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"] });
+  const entry = rejectedEntry("erased");
+
+  const first = await withFetchAnswering(false, () => dispatchAtsEvent("candidate.rejected", entry.id));
+  assert.equal(first.filter((b) => b.includes(entry.id)).length, 1, "attempt 1 reached the wire");
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "the erasure commits between the attempts");
+
+  const second = await withFetchAnswering(true, async () => {
+    await retryDueAtsDeliveries(laterThanAnyBackoff());
+  });
+  assert.equal(second.filter((b) => b.includes(entry.id)).length, 0, "nothing was sent");
+  const row = listAtsDeliveries(500).find((d) => d.entryId === entry.id);
+  assert.equal(row?.status, "failed", "operator-visible");
+  assert.equal(row?.nextAttemptAt, null, "…and terminal, exactly as before this fix");
+  assert.match(row?.lastError ?? "", /anonymized/, "the ERASURE is the reason the operator reads");
+});
+
+// The table itself: the rule is keyed by event, and `offer.declined` — the other merit
+// terminal a re-add can reopen (db/pipeline.ts: "only rejected, declined is reopenable") —
+// is covered by the same door. `candidate.hired` and `offer.accepted` deliberately are
+// NOT; see EVENT_REQUIRES_STATUS in ats-egress.ts and ADR 0013 for why each is left.
+test("offer.declined is held to its own status too", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["offer.declined"] });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-declined",
+    candidateLabel: "Declining Person",
+    jobId: "job-declined",
+    jobTitle: "Role",
+  });
+  // A `declined` entry whose status is then NOT declined is the only state this asserts;
+  // the entry is left `active`, which is exactly what a reopened decline looks like.
+  assert.equal(getPipelineEntry(entry.id)?.status, "active", "fixture: not declined");
+
+  const bodies = await withFetchAnswering(true, () => dispatchAtsEvent("offer.declined", entry.id));
+  assert.equal(bodies.filter((b) => b.includes(entry.id)).length, 0, "an entry that is not declined mirrors no decline");
+  const row = listAtsDeliveries(500).find((d) => d.entryId === entry.id);
+  assert.equal(row?.nextAttemptAt, null, "terminal");
+  assert.match(row?.lastError ?? "", /no longer "declined"/, "and it says which status it wanted");
 });

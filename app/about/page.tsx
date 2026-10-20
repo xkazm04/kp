@@ -74,7 +74,9 @@ export default async function AboutPage() {
     inLanguage: locale,
     siteOrigin: origin,
     sameAs: sourceRepoHref(),
-    howToName: plainIcu(tAbout("hero.title")),
+    // .raw, not t(): the title carries rich tags (<br></br>, <emph>), which plain
+    // t() refuses to format (it logs FORMATTING_ERROR and returns the key path).
+    howToName: plainIcu(tAbout.raw("hero.title") as string),
     howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
       name: tAbout(`steps.${key}.title`),
       text: tAbout(`steps.${key}.body`),

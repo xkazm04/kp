@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol, Sequence, TextIO
 
-from ..claude_cli import ClaudeCliError, ClaudeCliProvider
+from ..claude_cli import ClaudeCliProvider
 from .runner import GLYPH_NA, glyph
 from .thresholds import QUALITY_THRESHOLD
 
@@ -134,7 +134,9 @@ def apply_judgements(rows: Sequence[Scorable], results: Sequence[Any]) -> int:
     """Write parsed scores onto ``rows``; returns how many rows got a real score."""
     scored = 0
     for row, res in zip(rows, results):
-        if isinstance(res, ClaudeCliError):
+        # A bare CLI's map yields ClaudeCliError, a TextProvider's LLMError: skip any
+        # failed item explicitly rather than relying on res.json() raising on it.
+        if isinstance(res, Exception):
             continue
         try:
             payload = res.json()

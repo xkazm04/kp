@@ -22,10 +22,6 @@ import { snapToToken } from "../glyphTokens.ts";
 import type { TracedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 
 import { ANALYTICS_GLYPH } from "./analyticsGlyph.ts";
-import { CHANNEL_ADS_GLYPH } from "./channelAdsGlyph.ts";
-import { CHANNEL_CAREERS_GLYPH } from "./channelCareersGlyph.ts";
-import { CHANNEL_COMMS_GLYPH } from "./channelCommsGlyph.ts";
-import { CHANNEL_EMAIL_GLYPH } from "./channelEmailGlyph.ts";
 import { DECISIONS_GLYPH } from "./decisionsGlyph.ts";
 import { DEV_CASES_GLYPH } from "./devCasesGlyph.ts";
 import { JOBS_GLYPH } from "./jobsGlyph.ts";
@@ -37,10 +33,6 @@ import { SCHEDULE_GLYPH } from "./scheduleGlyph.ts";
 
 const GLYPHS: Record<string, TracedGlyph> = {
   analyticsGlyph: ANALYTICS_GLYPH,
-  channelAdsGlyph: CHANNEL_ADS_GLYPH,
-  channelCareersGlyph: CHANNEL_CAREERS_GLYPH,
-  channelCommsGlyph: CHANNEL_COMMS_GLYPH,
-  channelEmailGlyph: CHANNEL_EMAIL_GLYPH,
   decisionsGlyph: DECISIONS_GLYPH,
   devCasesGlyph: DEV_CASES_GLYPH,
   jobsGlyph: JOBS_GLYPH,
@@ -73,7 +65,7 @@ const DARK = names(cssBlock('[data-theme="dark"] {'));
 // A gate that quietly matches nothing is worse than no gate (same guard rail as
 // scripts/design/check-design-tokens.mjs).
 test("self-check: the fixtures this file reasons over are actually present", () => {
-  assert.equal(Object.keys(GLYPHS).length, 13);
+  assert.equal(Object.keys(GLYPHS).length, 9);
   assert.ok(LIGHT.size >= 8 && DARK.size >= 8, `parsed ${LIGHT.size} light / ${DARK.size} dark tokens`);
   assert.ok(
     Object.values(GLYPHS).every((g) => g.data.length > 0),

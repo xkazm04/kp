@@ -95,7 +95,9 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   await expect(async () => {
     if (!(await target.isVisible())) {
       if (await source.isVisible()) {
-        await button.click().catch(() => undefined);
+        // Bounded under the 2500 ms waits below: a click that cannot land fails one
+        // attempt instead of hanging the loop to its 30 s limit.
+        await button.click({ timeout: 2000 }).catch(() => undefined);
         // A WAIT, not an assertion. This used to read `await expect(source)
         // .toBeHidden().catch(() => undefined)` — an expect whose failure was
         // discarded, i.e. a guard that could not fail and therefore guarded
@@ -110,19 +112,19 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   }).toPass({ timeout: 30_000 });
 }
 
-// Open ONE candidate in the candidate modal, by name. `?q=` pre-filters the board to
-// that candidate, so the bead is never hidden behind a "+N" overflow. Same
-// dev-hydration retry as the sibling specs: click until the modal opens. The modal is
-// named by its heading (the candidate's label). Shared by the mint step (the footer's
-// scheduling link) and the confirmed-booking step (the Activity tab), which read the
+// Open ONE candidate in the candidate modal, by name. `?q=` is a board filter, and the Orbit
+// (the pipeline since 2026-09-28) lists what a filter matches in its Matches table
+// (orbit/OrbitMatches.tsx): a row there opens the candidate modal directly, named by its heading
+// (the candidate's label). Same
+// dev-hydration retry as the sibling specs: click until the modal opens. Shared by the mint step
+// (the footer's scheduling link) and the confirmed-booking step (the Activity tab), which read the
 // same candidate for different halves of the same invite.
 //
 // A CANDIDATE LABEL IS NOT AN ENTRY ID, and this helper can only address the board
-// by label. One person can hold two pipeline entries (two jobs), and both rows
-// render the SAME accessible name — `Actions for {name}` is built from
-// `entry.candidateLabel` alone (the bead's label, map/PipelineBoardSubway.tsx) and
-// the bead carries no id anchor in the DOM. So `.first()` opens whichever row the board's column
-// ordering happens to put first, which need not be the entry the caller chose from
+// by label. One person can hold two pipeline entries (two jobs), and both list rows
+// carry the SAME name (`entry.candidateLabel`, orbit/OrbitMatches.tsx) with no id in
+// their accessible text. So `.first()` would open whichever row the list's ordering
+// happens to put first, which need not be the entry the caller chose from
 // /api/pipeline. If that row's entry fails the modal's own gate
 // (`showLinks` = active + a screening/interview stage, the candidate state hook)
 // the modal opens under the RIGHT NAME with the self-scheduling panel absent — a
@@ -134,16 +136,18 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
 async function openCandidateModal(page: Page, label: string): Promise<Locator> {
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
   const modal = page.getByRole("dialog", { name: label, exact: true });
-  const rowMenus = page.getByRole("button", { name: `Actions for ${label}` });
-  const rowMenu = rowMenus.first();
-  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
+  // The Orbit page also draws an Activity table, which lists the same person once per recorded
+  // event (a booking adds rows there), so the board's rows are those of the "Matches" table only.
+  const rows = page.getByRole("table", { name: "Matches", exact: true }).getByRole("row").filter({ hasText: label });
+  const row = rows.first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(
-    rowMenus,
-    `"${label}" matches more than one board row — the row's accessible name carries no entry id, ` +
+    rows,
+    `"${label}" matches more than one board row — the row carries no entry id, ` +
       "so .first() would open an arbitrary one of this person's entries. Pick a label unique on the board."
   ).toHaveCount(1);
   await expect(async () => {
-    if (!(await modal.isVisible())) await rowMenu.click().catch(() => undefined);
+    if (!(await modal.isVisible())) await row.click({ timeout: 1000 }).catch(() => undefined);
     await expect(modal).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
   return modal;
@@ -167,7 +171,12 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
   // The heading carries the step counter ("Step 1 of 6: …"), hence the regex.
   const welcome = wizard.getByRole("heading", { name: /Let's get you started/ });
   await expect(welcome).toBeVisible();
-  await wizard.getByRole("button", { name: /^I'm hiring/ }).click();
+  // The fork is drawn only on an install that offers the seeker arm (KP_JOBSEEKER=1,
+  // app/features/shell/setup/setupSeekOffer.ts): the managed webServer sets it, the CI
+  // release server does not. Without it the run starts already answered `hire` and
+  // "Let's go" is live at once — the same walk from here on.
+  const hiring = wizard.getByRole("button", { name: /^I'm hiring/ });
+  if ((await hiring.count()) > 0) await hiring.click();
   const company = wizard.getByRole("heading", { name: "Make it your company" });
   await advanceStep(welcome, wizard.getByRole("button", { name: "Let's go" }), company);
 
@@ -252,7 +261,16 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
     // Re-clicked only while the tile is still there (the dev hydration gap can eat
     // the first click). finish() is re-entrancy guarded, so an extra click during
     // a run in flight is a no-op, never a second write.
-    if (await soloTile.isVisible().catch(() => false)) await soloTile.click().catch(() => undefined);
+    //
+    // BOUNDED. This click had no timeout, and a click inside a retry loop that can
+    // outlast its target hangs the loop, not the click: once finish() has started,
+    // the wizard re-renders and leaves, the tile is still "visible" for one more
+    // check, and Playwright waits for it to become actionable again. Measured at 8
+    // workers: the trace's last `click` on this tile is still OPEN when the test
+    // times out, the poll below made two GETs in 120 s, and the page behind it
+    // already showed the renamed axis. Two seconds is the bound the file's other
+    // retried clicks use (advanceStep, openCandidateModal).
+    if (await soloTile.isVisible().catch(() => false)) await soloTile.click({ timeout: 2_000 }).catch(() => undefined);
     const config = await page.request.get("/api/decisions/config");
     expect(config.ok(), `GET /api/decisions/config responded ${config.status()}`).toBe(true);
     const payload = (await config.json()) as {

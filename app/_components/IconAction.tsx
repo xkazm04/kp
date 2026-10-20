@@ -54,7 +54,7 @@ export function IconAction({
     tone === "muted"
       ? "text-stone-400 hover:text-steel"
       : tone === "alert"
-        ? "text-coral hover:text-coral"
+        ? "text-coral-ink hover:text-coral-ink"
         : "";
 
   return (

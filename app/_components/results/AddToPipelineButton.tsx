@@ -27,9 +27,11 @@ export type PipelineRef = PipelineAddInput & { jobId: string; jobTitle: string }
 export function AddToPipelineButton({
   pipelineRef,
   github,
+  onAdded,
 }: {
   pipelineRef: PipelineRef;
   github?: GithubAnalysis | null;
+  onAdded?: (entryId: string) => void;
 }) {
   const t = useTranslations("report");
   // The refusal is rendered from its CODE in the reader's language — the door's
@@ -50,6 +52,7 @@ export function AddToPipelineButton({
     });
     if (result.ok) {
       setState("added");
+      if (result.entryId) onAdded?.(result.entryId);
     } else {
       setState("idle");
       // A capability refusal names the permission the seat is missing; anything

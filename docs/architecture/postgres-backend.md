@@ -70,11 +70,16 @@ reason: 50 of 121 stored analyses fail `analysisResultSchema` because the CV-ana
 `keywordCoverage.hits[].status`.
 
 Two boot-path details a port inherits from `db/core.ts`: the PK-widening rebuilds
-(`channel_spend`, `analytics_targets`, `billing_usage`) exist only because SQLite
+(`channel_spend`, `analytics_targets`, `billing_usage`, and `campaign_packs` via
+`widenCampaignPacksKey`) exist only because SQLite
 cannot `ALTER` a PRIMARY KEY — Postgres can, so they become no-ops rather than
 translations — and they now run through a `rebuildTable` helper that drops the scratch
 table and wraps the swap in a transaction, since the unguarded version could wedge boot
-after an interrupted migration.
+after an interrupted migration. `campaign_packs` is guarded by the primary key's shape
+(`PRAGMA table_info` pk columns) rather than a missing column, and ships its reverse
+(`narrowCampaignPacksKey`) for an image rollback. The rule behind all four — every
+primary key and unique index of a team-scoped table carries `workspace_id` — is held by
+`app/_lib/db/tenant-keys.test.ts`; a port keeps the keys it derives.
 
 `users.last_login_at` is an ALTER-added TEXT column (NULL until the first successful
 `verifyCredentials` hit). A port keeps it nullable: a miss must not stamp it, and a

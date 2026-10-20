@@ -12,6 +12,7 @@
 // Pure on purpose: no fetch, no React, no i18n. The component supplies the two
 // translators, so the whole "did it land, and what do we tell the operator" rule
 // is unit-testable under `node --test`.
+import { copyInviteUrl } from "@/app/features/settings/workspace/workspaceAdminHelpers";
 
 /** The writes finish() performs, in the order the toast should name them. */
 export const SETUP_FINISH_PARTS = ["orgName", "language", "currency", "invites", "brand", "pipeline", "companion"] as const;
@@ -73,8 +74,22 @@ export function foldSetupOutcome(results: readonly SetupPartResult[]): SetupFini
 }
 
 /** Per-invite outcome, carried out of the batch so the toast can name the address
- *  the server refused rather than collapsing the batch to one boolean. */
-export type SetupInviteResult = { email: string; ok: boolean; code: string | null };
+ *  the server refused rather than collapsing the batch to one boolean.
+ *
+ *  `token` is the accept link's capability token the route minted on a landed
+ *  invite (null when it did not come back). kp sends no invite mail, so that link
+ *  IS the invitation: it is shown to the inviting operator on the receipt and goes
+ *  nowhere else - never logged, never into a URL query, never to telemetry.
+ *  `httpStatus` is the route's answer (null on a network fault): the invite route's
+ *  no-workspace 409 and cross-org 404 carry no code, and only the status can tell
+ *  those permanent refusals from a retryable 429/5xx (isRetryable). */
+export type SetupInviteResult = {
+  email: string;
+  ok: boolean;
+  code: string | null;
+  token?: string | null;
+  httpStatus?: number | null;
+};
 
 /** Did every staged invite land? Nobody invited lands vacuously — skipping the
  *  Team step is the documented default answer. */
@@ -115,4 +130,140 @@ export function describeSetupFailures(
       ? lineWithAddresses({ part: label(f.part), reason: reason(f.code), addresses: f.addresses.join(", ") })
       : line({ part: label(f.part), reason: reason(f.code) })
   );
+}
+
+/* ── the receipt ─────────────────────────────────────────────────────────── */
+//
+// Finish ends on a receipt when it leaves the operator something to act on, and
+// closes exactly as before when it does not (finishNext). Two things earn one:
+//   - an invite that LANDED: the route minted a capability link and sent nothing
+//     (org/invites/route.ts - no mail relay), so the link in the operator's hand
+//     is the only way the teammate ever hears of it;
+//   - a part that did NOT land: the draft and the resume door are kept until the
+//     operator has seen it, and Retry re-runs only what a retry can fix.
+
+/** Everything one persist pass produced - the fold, the per-part results it was
+ *  folded from, and the per-invite results (tokens, statuses) the fold drops. */
+export type SetupFinishRun = {
+  outcome: SetupFinishOutcome;
+  parts: SetupPartResult[];
+  invites: SetupInviteResult[];
+};
+
+export type SetupInviteLink = { email: string; url: string };
+export type SetupReceiptFailure = SetupFinishFailure & { retryable: boolean };
+export type SetupFinishReceipt = {
+  /** One accept link per landed invite, in the order the operator staged them. */
+  links: SetupInviteLink[];
+  /** Landed invites whose token did not come back: the invite exists (Settings ->
+   *  Workspaces lists it with its own Copy), but this pane cannot show its link. */
+  unshareable: number;
+  failures: SetupReceiptFailure[];
+  /** Whether Retry is offered at all - only when some failure can be fixed by one. */
+  canRetry: boolean;
+};
+
+/**
+ * Can re-running this write land where the first run did not?
+ *
+ * Yes for a fault (no code: the network dropped, or a body we could not read), a
+ * rate limit, and a store accident (every STORE_ERRORS code ends in `_FAILED`, the
+ * one the stage-migration route answers is STAGE_MIGRATION_FAILED). No for every
+ * other code: a coded refusal is a DECISION (forbidden, already a member, a role
+ * above the caller's, an illegible accent, an axis that now strands candidates),
+ * and offering Retry on one teaches the operator that the button does nothing.
+ *
+ * The invite route answers two refusals WITHOUT a code - no team to seat anyone on
+ * (409) and a cross-org team (404) - so for invites a code-less answer that came
+ * with a status is permanent unless that status is 429 or 5xx.
+ */
+export function isRetryable(failure: { part: SetupFinishPart; code: string | null; httpStatus?: number | null }): boolean {
+  const { code } = failure;
+  if (code === "TOO_MANY_REQUESTS" || (code !== null && code.endsWith("_FAILED"))) return true;
+  if (code !== null) return false;
+  const status = failure.httpStatus ?? null;
+  if (failure.part === "invites" && status !== null) return status === 429 || status >= 500;
+  return true;
+}
+
+/**
+ * The receipt this run owes the operator, or null when it owes none (every write
+ * landed or was skipped, and no invite was minted) - null is what keeps the
+ * invite-less first run closing exactly as it always has.
+ *
+ * `origin` is the runtime origin (window.location.origin); the link goes through
+ * copyInviteUrl, the rule the Workspaces console copies with, so a configured
+ * public base URL wins over a localhost one.
+ *
+ * Refused invites are grouped by (retryable, code) in staged order, so a retryable
+ * network drop and a permanent "already a member" never share one reason.
+ */
+export function finishReceipt(run: SetupFinishRun, origin: string): SetupFinishReceipt | null {
+  const links: SetupInviteLink[] = [];
+  let unshareable = 0;
+  for (const inv of run.invites) {
+    if (!inv.ok) continue;
+    if (inv.token) links.push({ email: inv.email, url: copyInviteUrl(origin, inv.token) });
+    else unshareable += 1;
+  }
+  const failures: SetupReceiptFailure[] = [];
+  for (const f of run.outcome.ok ? [] : run.outcome.failures) {
+    if (f.part !== "invites") {
+      failures.push({ ...f, retryable: isRetryable(f) });
+      continue;
+    }
+    // The invite part's failure is rebuilt from the per-invite results, which
+    // carry the status the fold dropped. A fold with no per-invite detail (never
+    // produced by persistOnboardingSetup) keeps the folded failure as it is.
+    const refused = run.invites.filter((i) => !i.ok);
+    if (refused.length === 0) {
+      failures.push({ ...f, retryable: isRetryable(f) });
+      continue;
+    }
+    const groups: SetupReceiptFailure[] = [];
+    for (const inv of refused) {
+      const retryable = isRetryable({ part: "invites", code: inv.code, httpStatus: inv.httpStatus });
+      const group = groups.find((g) => g.retryable === retryable && g.code === inv.code);
+      if (group) group.addresses.push(inv.email);
+      else groups.push({ part: "invites", code: inv.code, addresses: [inv.email], retryable });
+    }
+    failures.push(...groups);
+  }
+  if (links.length === 0 && unshareable === 0 && failures.length === 0) return null;
+  return { links, unshareable, failures, canRetry: failures.some((f) => f.retryable) };
+}
+
+/** What finish() does next: close as it always has, or stay open on the receipt.
+ *  The completed stamp and the draft clear run on whichever path CLOSES - straight
+ *  away for "close", at the receipt's Done otherwise. */
+export function finishNext(outcome: SetupFinishOutcome, receipt: SetupFinishReceipt | null): "close" | "receipt" {
+  // finishReceipt never answers null for a failed outcome; reading the outcome
+  // here too keeps a hand-built pair from closing green over a failure.
+  return receipt === null && outcome.ok ? "close" : "receipt";
+}
+
+/**
+ * Fold a retry pass into the run it retried.
+ *
+ * `retried` are the parts the retry was allowed to write; every other part keeps
+ * its FIRST answer (a retry reports those as skipped, and "skipped" must not
+ * overwrite "landed"). Invites merge per address: a retried address takes the
+ * retry's result (and its new token), everyone else - jana's landed invite and
+ * her live link included - keeps theirs. The invite part is then re-folded from
+ * the merged list, so a permanent refusal that was not retried stays named.
+ */
+export function mergeFinishRuns(
+  first: SetupFinishRun,
+  retry: SetupFinishRun,
+  retried: readonly SetupFinishPart[]
+): SetupFinishRun {
+  const again = new Set(retried);
+  const byEmail = new Map(retry.invites.map((i) => [i.email, i]));
+  const invites = again.has("invites") ? first.invites.map((i) => byEmail.get(i.email) ?? i) : first.invites;
+  const parts = first.parts.map((p) => {
+    if (!again.has(p.part)) return p;
+    if (p.part === "invites") return inviteBatchResult(invites);
+    return retry.parts.find((r) => r.part === p.part) ?? p;
+  });
+  return { outcome: foldSetupOutcome(parts), parts, invites };
 }

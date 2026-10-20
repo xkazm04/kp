@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import configure_stdio
+from ._cli import configure_stdio, emit_error
 from .gemini import GroundedAnswer, grounded_answer, load_local_env
 from .market_config import ACTIVE_MARKET, MarketConfig
 from .taxonomy import role_benchmark
@@ -198,8 +198,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     except Exception as exc:  # noqa: BLE001 — any failure degrades to a clean error envelope
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        return emit_error(exc)
 
 
 if __name__ == "__main__":

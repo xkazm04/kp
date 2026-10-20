@@ -1,6 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { BTN_GHOST } from "@/app/_components/ui/recipes";
+import { useSceneTransport } from "../stage/useSceneClock";
+import type { ClockShape, TransportState } from "../stage/transport";
 
 /*
  * Pieces every scene repeats, hoisted the moment a second chapter needed them.
@@ -36,21 +41,90 @@ export { statusPicker } from "./status";
  * is announced by nothing — the trap CompanionVoiceTicker already documents —
  * so aria-live sits here, not on the keyed inner span. `aria-atomic` makes
  * each swap read as the new identifier, not a diff. Reduced motion pins
- * stillTick, so the region speaks once.
+ * stillTick, so the region speaks once; a reader who stops the scene with the
+ * transport beside it holds the line the same way.
  */
-export function SceneStatus({ text, reduced }: { phase: number; text: string; reduced: boolean }) {
+export function SceneStatus({ phase, text, reduced }: { phase: number; text: string; reduced: boolean }) {
   return (
-    <p className="mt-4 min-h-[1.5rem] font-mono text-meta text-steel" aria-live="polite" aria-atomic="true">
-      <span
-        key={text}
-        className="inline-block"
-        style={{
-          animation: reduced ? undefined : "fade-in 320ms ease-out both",
-        }}
-      >
-        {text}
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <p className="min-h-[1.5rem] min-w-0 font-mono text-meta text-steel" aria-live="polite" aria-atomic="true">
+        <span
+          key={text}
+          className="inline-block"
+          style={{
+            animation: reduced ? undefined : "fade-in 320ms ease-out both",
+          }}
+        >
+          {text}
+        </span>
+      </p>
+      <SceneTransport phase={phase} reduced={reduced} />
+    </div>
+  );
+}
+
+const NO_SUBSCRIBE = () => () => {};
+const NO_STATE = (): TransportState | null => null;
+const NO_CLOCK = (): ClockShape | null => null;
+const TRANSPORT_BTN = `${BTN_GHOST} h-8 w-8 justify-center`;
+
+/**
+ * The reader's controls for this scene's loop (`stage/transport.ts`): step
+ * back, stop/play, step forward, and a beat scrubber.
+ *
+ * Deliberately OUTSIDE the live region: the beat counter changes every 900ms
+ * while playing, and announcing it would drown the status line it sits beside.
+ * The scrubber's `aria-valuetext` says the position when the reader asks.
+ *
+ * Under OS reduced motion there is no Play: nothing animates for those readers
+ * in any state, so a Play button would be a control that does nothing. Step and
+ * scrub stay, because holding a chosen beat is not motion.
+ *
+ * Renders nothing outside a transport (before the scene binds its clock, or a
+ * scene mounted somewhere without a deck), so SSR HTML carries no dead buttons.
+ */
+function SceneTransport({ phase, reduced }: { phase: number; reduced: boolean }) {
+  const t = useTranslations("about.transport");
+  const store = useSceneTransport();
+  const state = useSyncExternalStore(store?.subscribe ?? NO_SUBSCRIBE, store?.getSnapshot ?? NO_STATE, NO_STATE);
+  const clock = useSyncExternalStore(store?.subscribe ?? NO_SUBSCRIBE, store?.getClock ?? NO_CLOCK, NO_CLOCK);
+  if (!store || !state || !clock) return null;
+
+  const playing = state.user === "auto" && !reduced;
+  return (
+    <div role="group" aria-label={t("group")} className="flex shrink-0 items-center gap-1">
+      <button type="button" aria-label={t("back")} title={t("back")} onClick={() => store.step(-1)} className={TRANSPORT_BTN}>
+        <ChevronLeft size={15} aria-hidden />
+      </button>
+      {reduced ? null : (
+        <button
+          type="button"
+          aria-label={playing ? t("stop") : t("play")}
+          title={playing ? t("stop") : t("play")}
+          onClick={() => (playing ? store.stop() : store.play())}
+          className={TRANSPORT_BTN}
+        >
+          {playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}
+        </button>
+      )}
+      <button type="button" aria-label={t("forward")} title={t("forward")} onClick={() => store.step(1)} className={TRANSPORT_BTN}>
+        <ChevronRight size={15} aria-hidden />
+      </button>
+      <input
+        type="range"
+        aria-label={t("scrub")}
+        aria-valuetext={t("position", { n: phase + 1, total: clock.cycle })}
+        min={0}
+        max={Math.max(0, clock.cycle - 1)}
+        step={1}
+        value={phase}
+        onChange={(e) => store.seek(Number(e.currentTarget.value))}
+        className="focus-ring ml-1 w-24 accent-coral sm:w-32"
+      />
+      <span className="nums w-10 text-right font-mono text-meta text-steel" aria-hidden>
+        {phase + 1}/{clock.cycle}
       </span>
-    </p>
+    </div>
   );
 }
 

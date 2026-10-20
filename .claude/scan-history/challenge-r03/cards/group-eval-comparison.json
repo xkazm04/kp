@@ -1,0 +1,119 @@
+[
+  {
+    "context": "group-eval-comparison",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One group-eval open machine: latest-wins opens, failures that aren't empty",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.ts",
+      "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.test.ts",
+      "app/features/hiring/decisions/groupEval/useGroupEvalSession.ts",
+      "app/features/hiring/decisions/useDecisionsQueue.ts",
+      "app/features/hiring/decisions/DecisionsModals.tsx",
+      "app/features/hiring/decisions/DecisionsTab.tsx",
+      "app/features/hiring/decisions/GroupEvalModal.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.ts",
+      "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.test.ts",
+      "app/features/hiring/decisions/groupEval/useGroupEvalSession.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "open(role A) takes ticket 1, open(role B) takes ticket 2, then probeResolved(ticket 1, payloadA) arrives -> the state is still B's (probing/ready for B); payloadA is never the evaluation shown under B's title and the governance mode is not re-synced from A's payload",
+      "open(role A, no cache) -> close() -> startResolved(ticket 1, {id:'task-A'}) -> state is idle and no task is watched (a later open of role B never inherits task-A's spinner or result)",
+      "running(task-1) + watch {status:'succeeded', full:null, resultUnavailable:true} -> failed{code:'result_unavailable'}; the derived view is 'failed', never 'loading' forever",
+      "running(task-1) + watch {status:'failed'|'canceled'|'interrupted'} -> failed{code:'run_failed'}; the derived view is 'failed', never the 'noEval' empty state",
+      "startResolved(ticket, null) (startTask refused/unreachable) -> failed{code:'start_failed'}; view is 'failed', not 'noEval'",
+      "probeResolved(ticket, null) -> failed{code:'probe_failed'}; probeResolved(ticket, {evaluation:null}) on a top-N open -> failed{code:'load_failed'}; the same null payload on a SELECTION open -> transitions to 'starting' (a selection was never promised a cached run)",
+      "poolDrift({evaluatedIds:['a','b','c']}, entries [b,c,d]) -> 2; legacy payload with only evaluatedLabels ['Ann','Bob'] vs entry labels ['Bob','Cy'] -> 2; payload with neither -> 0; no group -> 0",
+      "running(task-1) + watch {status:'succeeded', full:{result:P}} on a top-N open -> ready{payload:P} AND markEvaluated(roleKey) effect emitted; the same on a selection open -> ready, no markEvaluated effect"
+    ],
+    "premise": [
+      "app/features/hiring/decisions/useDecisionsQueue.ts:657 openGroupEval is async and takes no ticket: it awaits the cache probe at :692 and startTask at :736, then writes setEvalData(payload) at :709 and setEvalTaskId(started.id) at :737 unconditionally - a probe or start that resolves after the recruiter closed the modal or opened another role writes into the NEW role's modal (and applyEvalMode at the cache-hit branch re-syncs the governance control from the wrong payload)",
+      "app/features/hiring/decisions/decisionsLatestWins.ts:33 createTicketGate already exists for exactly this hazard and is used for the evaluated-roles read at useDecisionsQueue.ts:543-548, but not for openGroupEval",
+      "app/features/hiring/decisions/useDecisionsQueue.ts:567 reads only {status, full} from useTaskResult; :568 requires evalFull to finish. app/features/shell/tasks/useTaskResult.ts:39-42 documents resultUnavailable: 'Consumers MUST resolve their busy state and surface an error instead of spinning forever' - never read here, so a succeeded task whose result fetch gives up leaves evalTaskId set and DecisionsModals.tsx:93 loading={evalTaskId !== null} spins forever",
+      "app/features/hiring/decisions/useDecisionsQueue.ts:575-576 on failed/canceled/interrupted only clears evalTaskId and sets no error, so GroupEvalModal.tsx:106-115 falls to t('noEval') = messages/en.json:4073 'No evaluation yet. Run one to compare this role's candidates.' - a failed paid run reads as an empty state",
+      "app/features/hiring/decisions/useDecisionsQueue.ts:737 `if (started)`: app/features/shell/tasks/TasksProvider.tsx:95-96 returns null on a failed POST /api/tasks, leaving the modal on the same 'noEval' copy",
+      "app/features/hiring/decisions/useDecisionsQueue.ts:766 evalDrift is an inline IIFE inside an 824-line hook - the pool-drift rule the drift notice is built on has no test reach",
+      "app/features/hiring/decisions/DecisionsModals.tsx:29-31 threads evalRole/evalData/evalCreatedAt/evalTaskId/evalError plus five setters through props, and :98-103 onClose resets five of them by hand; DecisionsTab.tsx:205-216 forwards the same eleven props"
+    ],
+    "rollback": "The series is additive-then-swap: commit 1 adds the pure machine + its tests (no caller), commit 2 adds useGroupEvalSession and rewires useDecisionsQueue/DecisionsModals/DecisionsTab to it, commit 3 the catalog keys + doc. Reverting commit 2 restores the old inline state; commits 1 and 3 are inert on their own (unused module, unused keys pass i18n parity).",
+    "gate": "none",
+    "runner_up": "Collapse GroupEvalModal's 11-prop contract into one pure groupEvalView(payload, session) view-model so the simulation (SimGroupEval) and Decisions feed the modal one shape.",
+    "technique": "state-model",
+    "body": "## Summary\nThe group-evaluation open/run lifecycle lives as ~180 lines of loose useState + an untickets async function inside the 824-line useDecisionsQueue. Lift it into a pure, tested open machine (idle -> probing -> starting -> running -> ready | failed{code}) with a latest-wins ticket, owned by a small useGroupEvalSession hook, so stale opens can't write into another role's modal and a failed or unfetchable run stops rendering as 'No evaluation yet' or an endless spinner.\n\n## Description\nToday `openGroupEval` (useDecisionsQueue.ts:657) awaits a cache probe (:692) and `startTask` (:736) with no ticket, then writes evaluation data, the governance mode and the watched task id unconditionally. The completion branch (:567-576) ignores `resultUnavailable` and `error` from useTaskResult even though that hook's contract says a consumer MUST resolve its busy state, and it maps every failure to 'no task, no error' - which GroupEvalModal renders as the `noEval` empty state. The pool-drift rule is an IIFE (:766) nothing can test. And DecisionsModals/DecisionsTab thread eleven eval props and reset five by hand on close.\n\nThe move: `groupEvalOpenMachine.ts` - a React-free reducer over events {open(role, rerun, selection, ticket), probeResolved, startResolved, taskWatch, close} with a monotonic ticket (the decisionsLatestWins gate shape), emitting effects (probe, start, markEvaluated, syncGovernance) rather than performing them; `poolDrift(payload, group)` as a pure export; failure codes probe_failed | load_failed | start_failed | run_failed | result_unavailable each mapped to a catalog sentence. `useGroupEvalSession` holds the reducer + useTaskResult and performs the effects; useDecisionsQueue and DecisionsModals consume one `session` object. Governance sync keeps calling syncGovernanceOnCacheHit - its rule does not move.\n\n## Flow\n1. Recruiter clicks 'Group eval' for role A -> open(A) takes ticket 1 -> probing.\n2. They close and open role B before A's probe lands -> close() then open(B) takes ticket 2.\n3. A's probe resolves with ticket 1 -> dropped; B's modal only ever shows B.\n4. B's run fails in the task runner -> taskWatch(failed) -> failed{run_failed} -> the modal says the run failed and offers Re-run, instead of 'No evaluation yet'.\n5. A run succeeds but its result can't be fetched -> failed{result_unavailable} -> the spinner ends with an honest sentence.\n\n## Expected impact\nCloses a class of wrong-modal writes (another role's comparison, or another role's governance mode snapped onto the control) and two dishonest states on a PAID multi-process run (failure-as-empty, spinner-that-never-ends). useDecisionsQueue sheds ~150 lines; the eval props through DecisionsModals/DecisionsTab drop from eleven to one; the drift rule gets test reach. Per the async-ui-states state-model technique: 'a slow stale response lands after a fast one' and failure-not-empty-success.\n\n## Evaluation\nClaim: the group-eval open lifecycle is latest-wins and every failure path reaches a named failed state.\nBefore: 0 of 8 acceptance cases pass (the machine does not exist; the inline code exhibits each defect).\nAfter: 8 of 8.\nMethod: node:test over groupEvalOpenMachine.test.ts (pure reducer + poolDrift), then the integration gate (tsc, lint, i18n:check, test:unit).\nResult: pending build.\nGate: none",
+    "evidence": "useDecisionsQueue.ts:567 `const { status: evalStatus, full: evalFull } = useTaskResult(evalTaskId);` :568 `if (evalTaskId && evalStatus === \"succeeded\" && evalFull) {` :575 `} else if (evalTaskId && (evalStatus === \"failed\" || evalStatus === \"canceled\" || evalStatus === \"interrupted\")) {` :576 `setEvalTaskId(null);` (no setEvalError). :657 `const openGroupEval = async (g: Group, rerun = false, selection?: string[]) => {` :692 `const probe = await fetch(...)` :709 `setEvalData(payload);` :736 `const started = await startTask(\"group_eval\", params);` :737 `if (started) setEvalTaskId(started.id);` :766 `const evalDrift = (() => {`. grep resultUnavailable in app/features: read by feedbackLetterEditorLogic.ts:105 and useCandidateTask.ts:60, NOT by useDecisionsQueue.ts. GroupEvalModal.tsx:106 `{loading && !evaluation ? (` :110 `) : error && !evaluation ? (` :115 `t(\"noEval\")`. messages/en.json:4073 noEval = 'No evaluation yet. Run one to compare this role's candidates.' TasksProvider.tsx:95-96 startTask catch -> `return null;`. wc -l useDecisionsQueue.ts = 824."
+  },
+  {
+    "context": "group-eval-comparison",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Re-run shows what moved: name the pool drift and diff the lead and ranks",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/features/hiring/decisions/groupEval/groupEvalDelta.ts",
+      "app/features/hiring/decisions/groupEval/groupEvalDelta.test.ts",
+      "app/features/hiring/decisions/groupEval/GroupEvalRerunDelta.tsx",
+      "app/features/hiring/decisions/groupEval/GroupEvalNotices.tsx",
+      "app/features/hiring/decisions/GroupEvalModal.tsx",
+      "app/features/hiring/decisions/DecisionsModals.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/decisions/groupEval/groupEvalDelta.ts",
+      "app/features/hiring/decisions/groupEval/groupEvalDelta.test.ts",
+      "app/features/hiring/decisions/groupEval/GroupEvalRerunDelta.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "poolChange({evaluatedIds:['a','b','c'], evaluatedLabels:['Ann','Bob','Cy']}, entries [{id:'b',label:'Bob'},{id:'c',label:'Cy'},{id:'d',label:'Dee'}]) -> {joined:['Dee'], left:['Ann']}",
+      "poolChange on a legacy payload with only evaluatedLabels ['Ann','Bob'] vs entry labels ['Bob','Cy'] -> {joined:['Cy'], left:['Ann']}; a payload with neither ids nor labels -> null (the notice keeps its count-only sentence, never a fabricated name)",
+      "rerunDelta(prev candidates [A,B,C] topPick A, next candidates [B,A,C] topPick B, same field) -> {fieldChanged:false, lead:{from:'A', to:'B'}, moves:[{label:'B',from:2,to:1},{label:'A',from:1,to:2}]}; C absent from moves",
+      "rerunDelta with identical order and lead -> {unchanged:true, moves:[]} (the strip renders 'ranking unchanged', not an empty box)",
+      "rerunDelta(prev field [A,B,C], next field [A,B,D]) -> {fieldChanged:true, entered:['D'], dropped:['C']}, moves computed ONLY over common members A,B, so no 'moved from 3rd' claim for anyone compared against a different field",
+      "rerunDelta where prev had topPick A and next has topPick null (committee mode / sub-floor cohort) -> lead:{from:'A', to:null, reason:'no_lead'}, and modeChanged:true when next.governanceMode differs from prev.governanceMode - never reported as 'A lost the lead'",
+      "identity is candIdentity (entryId): two candidates both labelled 'Jan Novak' with different entryIds are tracked separately across prev/next",
+      "rerunDelta(null, next) -> null (first run or a cache open shows no strip)"
+    ],
+    "premise": [
+      "app/features/hiring/decisions/groupEval/GroupEvalNotices.tsx:66-67 renders drift as a count only: t.rich('driftNotice', { count: drift, ... }) - messages/en.json:4074 'N candidates changed since this evaluation ran ... may exclude a newly added candidate or recommend one already decided. Re-run it' - it never says WHO joined or left, although the payload carries evaluatedIds/evaluatedLabels (app/features/shared/groupEvalTypes.ts:267,276) and the live group carries entry ids + labels",
+      "app/features/hiring/decisions/useDecisionsQueue.ts:766-791 reduces that identity diff to a single number (countDrift) and throws the names away",
+      "app/features/hiring/decisions/DecisionsModals.tsx:109-118 onRerun calls openGroupEval(evalGroup, true, savedSelection); app/features/hiring/decisions/useDecisionsQueue.ts:659 openGroupEval immediately setEvalData(null) - the prior comparison is discarded, so after a re-run the recruiter cannot see whether the lead or the order changed and must re-read the whole table from memory",
+      "the rank the table shows IS the candidates array order: app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 rank={i + 1}; identity is candIdentity = entryId ?? label (app/features/shared/groupEvalTypes.ts:186); the lead is topPick with entryId (groupEvalTypes.ts:209)",
+      "registry recruiting/comparative-shortlist-evaluation golden path, 'The comparison is bound to the pool it compared': 'second place in a field of four and second place in a field of seven are different facts' - so a delta across different fields must restrict position claims to the common members and say the field changed"
+    ],
+    "rollback": "Purely additive on the render side: the delta module + strip are new files, GroupEvalNotices gains optional name lists (count-only sentence is kept as the fallback), DecisionsModals gains one `previousEval` state captured in onRerun and cleared in onClose. Reverting the series removes the strip and the names with no data or API change.",
+    "gate": "none",
+    "runner_up": "Edit the compared field in place: drop or add a column from the modal and re-compare, served from the selection cache when that exact set was compared before.",
+    "technique": "confidence-band-lead-separation",
+    "body": "## Summary\nMake the two moments a recruiter re-evaluates a shortlist legible: the drift notice names who joined and who left since the comparison ran, and after a Re-run a 'what moved' strip states whether the lead changed and which common candidates moved, bound honestly to whether the field itself changed.\n\n## Description\nThe drift notice (GroupEvalNotices.tsx:66) says 'N candidates changed' and asks for a re-run, while the payload's evaluatedIds/evaluatedLabels and the live group's entries already hold exactly who. Re-run (DecisionsModals.tsx:109) then discards the previous evaluation (useDecisionsQueue.ts:659 setEvalData(null)), so the recruiter is handed a full new table with no statement of what the re-run changed - the one question they re-ran to answer.\n\nNew pure `groupEvalDelta.ts`: `poolChange(payload, entries)` -> {joined, left} labels by entry id (label fallback for legacy payloads, null when neither exists), and `rerunDelta(prev, next)` -> {fieldChanged, entered, dropped, lead:{from,to,reason?}, moves over COMMON members only, modeChanged, unchanged}. DecisionsModals captures `previousEval = evalData` inside onRerun (cleared on close) and passes it with the pool change; GroupEvalNotices renders the names (count sentence kept as the fallback); a new GroupEvalRerunDelta strip sits above the AI verdict once the fresh evaluation lands. It touches neither the server nor useDecisionsQueue.\n\n## Flow\n1. Recruiter opens a saved comparison for 'Backend Engineer'; the notice reads '2 candidates changed since this ran: Dee joined; Ann left (decided elsewhere or withdrawn)'.\n2. They click Re-run; the previous comparison is held in modal state.\n3. The fresh comparison lands; a strip reads 'Field changed: +Dee, -Ann. Lead: Bob -> Dee. Among the 3 compared both times: Cy 2nd -> 3rd.'\n4. If governance mode changed or no lead was crowned, the strip says so instead of 'Bob lost the lead'.\n5. Closing the modal drops the held comparison; the next open shows no strip.\n\n## Expected impact\nA re-run stops being 're-read the whole table and diff it in your head' and becomes a sentence the recruiter can act on (usually: the new lead, or 'unchanged, proceed'). The drift notice becomes specific enough to decide whether a re-run is even worth a paid multi-process LLM run. It follows the registry's 'comparison is bound to the pool it compared' rule by refusing position claims across different fields, and the lead-separation technique's rule that a lead claim never outruns what the record holds.\n\n## Evaluation\nClaim: the modal can state who changed in the pool and what a re-run moved, restricted to claims the two records support.\nBefore: 0 of 8 acceptance cases pass (groupEvalDelta.ts does not exist; drift is a bare count and the prior eval is discarded).\nAfter: 8 of 8.\nMethod: node:test over groupEvalDelta.test.ts (pure poolChange + rerunDelta), then the integration gate (tsc, lint, i18n:check, design:check, test:unit).\nResult: pending build.\nGate: none",
+    "evidence": "GroupEvalNotices.tsx:66 `{drift > 0 ? (` :67 `<Notice>{t.rich(\"driftNotice\", { count: drift, when: ranAt ? ` (${ranAt})` : \"\", b: ... })}</Notice>`. messages/en.json:4074 driftNotice = '<b>{count, plural, ...}</b> since this evaluation ran{when}. The ranking below may exclude a newly added candidate or recommend one already decided. Re-run it for an up-to-date comparison.' groupEvalTypes.ts:267 `evaluatedLabels?: string[];` :276 `evaluatedIds?: string[];` :186 `export const candIdentity = (c: EvalCandidate): string => c.entryId ?? c.label;` :209 topPick carries entryId. useDecisionsQueue.ts:766 `const evalDrift = (() => {` returns countDrift(...) - a number. DecisionsModals.tsx:117 `const savedSelection = evalData?.selection != null ? evalData?.comparedIds : undefined;` :118 `void openGroupEval(evalGroup, true, savedSelection);`; useDecisionsQueue.ts:659 `setEvalData(null);`. GroupEvalComparisonTable.tsx:199 `rank={i + 1}`. Prior decks (challenge-2026-09-22, challenge-r02) and leftover-develop-2026-09-17 carry no group-eval delta/drift card; the two open leftovers for this context are 'Persist group-eval governance mode per workspace' and 'Fold stored interview scorecards into the comparison table'."
+  }
+]

@@ -4,10 +4,12 @@
 // went untested while it was the single thing every cell in the grid depends on.
 // MatrixShared re-exports all three so existing importers are unaffected.
 import { MATRIX_BANDS } from "./matrixStats";
+import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "@/app/_lib/fit-thresholds";
 
-// Mirrors GET /api/matrix Cell. Honesty fields (fitTier, confidence,
-// unprovenCount, provenanceMix) are optional so a {score, blocked} cell still
-// type-checks; cellClass ignores them.
+// Mirrors GET /api/matrix Cell. matrix_cli emits fitTier/confidence/unprovenCount
+// on every scored cell (the scorer's own read); they stay optional so a cached or
+// older {score, blocked} cell still type-checks. cellClass paints from the score;
+// cellTier reads the server tier first.
 export type Cell = {
   score: number | null;
   blocked: boolean;
@@ -15,8 +17,23 @@ export type Cell = {
   fitTier?: "strong" | "promising" | "partial";
   confidence?: { low: number; high: number; level?: string };
   unprovenCount?: number;
-  provenanceMix?: string;
 };
+
+export type CellTier = "strong" | "promising" | "partial";
+
+/** The fit tier a cell stands for — the server's `fitTier` when matrix_cli sent it
+ *  (matching.py::fit_tier_for, the band focus mode's FitTierBadge renders), else the
+ *  bare score banded on the SAME shared floors Badge.tsx::scoreToFitTier uses (that
+ *  module is JSX, so the two-line fallback is restated here against the same
+ *  constants; matrixCellClass.test.ts pins both read FIT_*_FLOOR). `null` for a
+ *  blocked or unassessed cell: no score, no tier claim. */
+export function cellTier(c: Cell): CellTier | null {
+  if (c.blocked || c.score == null) return null;
+  if (c.fitTier) return c.fitTier;
+  if (c.score >= FIT_STRONG_FLOOR) return "strong";
+  if (c.score >= FIT_PROMISING_FLOOR) return "promising";
+  return "partial";
+}
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).
@@ -40,6 +57,18 @@ export const BLOCKED_CELL =
 // diverging score scale: poor -> coral, fair -> amber, good/strong -> moss.
 // Bands single-sourced in MATRIX_BANDS (matrix-stats.ts) — pick the highest band
 // whose inclusive floor the score clears.
+/** The score a cell may ANNOUNCE — `null` when there is none to announce. The same
+ *  predicate `cellClass` paints from, exported so the accessible name cannot disagree
+ *  with the colour. It did: the grid renders nothing in a null-score cell and paints it
+ *  with the unassessed hatch, while `aria-label` said `matchVal { score: c.score ?? 0 }`
+ *  and `title` said a bare `c.score ?? 0` — so a screen-reader user was told "match 0"
+ *  for a cell the grid itself reads as not assessed, which is exactly the poor fit the
+ *  pipeline never computed that the hatch exists to avoid claiming. A GENUINE 0 is a
+ *  real score and still announces as 0; only the absent one is silent. */
+export function announcedCellScore(c: Cell): number | null {
+  return c.blocked || c.score == null ? null : c.score;
+}
+
 export function cellClass(c: Cell): string {
   if (c.blocked || c.score == null) return BLOCKED_CELL;
   const s = c.score;

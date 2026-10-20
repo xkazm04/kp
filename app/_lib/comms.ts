@@ -8,7 +8,10 @@ import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webho
 import { logComms } from "./logger";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { outreachHaltFor } from "./outreach-state-store";
+import { cleanOutreachBody, outreachBodyRefusal } from "./outreach-body";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
+import { orgIdForWorkspace } from "./db/org-benchmarks";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
 // fallback pattern: a durable local OUTBOX by default (always works, also serves as the
@@ -98,6 +101,9 @@ class OutboxChannel implements CommsChannel {
       status: "queued",
       ref: msg.ref,
       workspaceId: msg.workspaceId,
+      // Minted here too: the keyless local outbox is the same message identity, so a row
+      // that is later relayed (or re-sent) is one thing, not two.
+      messageId: msg.messageId?.trim() || randomId("msg"),
     });
   }
 }
@@ -129,6 +135,14 @@ export function setRelayHostLookupForTests(fn: HostLookup | undefined): void {
   relayHostLookup = fn;
 }
 
+/** The delivery-time vet of a relay URL — https, public NAME, and every address it
+ *  resolves to public. Shared with the relay probe (POST /api/comms/relay/test) so the
+ *  probe cannot reach a host the delivery would refuse: a rebinding name used to pass
+ *  the probe's string-only check and earn a signed POST plus its HTTP status back. */
+export async function assertRelayEndpointResolved(url: string): Promise<string> {
+  return assertPublicHttpsEndpointResolved(url, "relay url", relayHostLookup);
+}
+
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
 // documented in docs/features/comms/outbound-export.md): the flat legacy fields verbatim, plus
 // candidate/job/stage context enriched from the pipeline entry the message
@@ -140,10 +154,81 @@ class WebhookChannel implements CommsChannel {
     // Optional HMAC signing secret (UI-configured relays): when set, the exact
     // serialized body is signed into the shared x-kp-signature header — same
     // scheme (and verify helper) as the ATS webhook, so one receiver can check both.
-    private readonly secret: string | null = null
+    private readonly secret: string | null = null,
+    // F-2 — the organization that SAVED this endpoint, or null for the env relay (see
+    // crossOrgRefusal). Carried, not re-read: the channel is built once per send from the
+    // one resolver, so the owner this refuses against is the owner that chose the url.
+    private readonly ownerOrgId: string | null = null,
+    /** Whether this destination belongs to ONE organization. False for the env relay. */
+    private readonly orgScoped: boolean = false
   ) {}
 
+  /** F-2 (security scan 2026-10-06) — THE DESTINATION BELONGS TO ONE ORGANIZATION.
+   *
+   *  `comms_relay_config` is a single deployment-wide row (tenancy.ts: org-level, one
+   *  endpoint) and nothing tied it to the org that configured it. So in a deployment with
+   *  more than one organization, every candidate-facing message org B sent — recipient,
+   *  subject, the whole letter body, and the enriched kp.comm.v1 envelope naming the
+   *  candidate, the role and the stage — was POSTed to the endpoint org A saved. Same
+   *  finding F-1 closed for `ats_config`, on a hotter path: the ATS mirror carries an
+   *  outcome record, this carries the letter itself.
+   *
+   *  The message's org is resolved the way its outbox row is filed (recordOutbox /
+   *  outboxWorkspaceForRef): `ref` is the primary tenant source and `workspaceId` is only
+   *  the entry-less fallback. Scoping it to `workspaceId` instead would fold nearly every
+   *  ordinary candidate comm to the DEFAULT team and quietly disarm the check.
+   *
+   *  NULL ON EITHER SIDE IS THE DEFAULT ORG, deliberately: a config written before the
+   *  column existed, and a workspace with no `org_id`, both fold to `org-default`. So the
+   *  single-tenant self-host — every shipped deployment today — behaves exactly as it did,
+   *  and the boundary only bites where there really are two organizations.
+   *
+   *  The ENV relay (COMMS_WEBHOOK_URL) is NOT checked: it is host-level configuration an
+   *  operator put in the process environment to serve the whole deployment, not an
+   *  integration one organization saved through the UI. `orgScoped` is what says so — not
+   *  a null owner, which a legacy stored row also has.
+   *
+   *  Returns the dead-letter reason, or null when the send is allowed. The reason names
+   *  two org ids and nothing else: operator vocabulary, no candidate data. */
+  private crossOrgRefusal(msg: OutboundMessage): string | null {
+    if (!this.orgScoped) return null;
+    const owner = this.ownerOrgId ?? DEFAULT_ORG_ID;
+    const tenant = msg.ref ? getEntryWorkspace(msg.ref) : (msg.workspaceId ?? undefined);
+    const messageOrg = orgIdForWorkspace(tenant ?? undefined) ?? DEFAULT_ORG_ID;
+    if (owner === messageOrg) return null;
+    return (
+      `the configured comms relay belongs to organization "${owner}", but this message belongs to ` +
+      `organization "${messageOrg}" — a candidate message is never relayed to another organization's endpoint`
+    );
+  }
+
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
+    // Minted ONCE per logical message, before ANY outcome — a refusal row carries it too,
+    // so every outbox write names the message it concerns — and persisted on the row
+    // (dev_outbox.message_id) so a relay receipt can echo it back. Every attempt of the
+    // ladder below carries the same identity. A caller re-sending an already recorded
+    // message passes its id in and the receiver sees the repeat.
+    const messageId = msg.messageId?.trim() || randomId("msg");
+    // The ORG boundary, checked before the envelope is BUILT (it enriches with the
+    // candidate's own data) and long before any fetch. A refusal is a DEAD LETTER, not a
+    // silent return: the alert fires and the reason rides the row, because "why did org
+    // B's letters stop arriving?" is a question an operator must be able to answer.
+    const crossOrg = this.crossOrgRefusal(msg);
+    if (crossOrg) {
+      await this.alertDeadLetter(msg, 0, crossOrg);
+      return recordOutbox({
+        recipient: msg.to,
+        subject: msg.subject,
+        body: msg.body,
+        kind: msg.kind,
+        channel: this.name,
+        status: "failed",
+        ref: msg.ref,
+        failureDetail: crossOrg,
+        workspaceId: msg.workspaceId,
+        messageId,
+      });
+    }
     // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
     // slot refs simply miss and ship null context (the flat fields still deliver).
     // The tenant is DERIVED FROM `ref`, exactly as recordOutbox files the row
@@ -153,10 +238,6 @@ class WebhookChannel implements CommsChannel {
     // for every ordinary candidate comm, so on any other workspace the lookup missed
     // and EVERY relayed message shipped an envelope with no candidate, role or stage —
     // leaving the receiving ATS unable to map it back to a person.
-    // Minted ONCE per logical message, before the first attempt, so every attempt of
-    // the ladder below carries the same identity. A caller re-sending an already
-    // recorded message passes its id in and the receiver sees the repeat.
-    const messageId = msg.messageId?.trim() || randomId("msg");
     const envelope = buildCommEnvelope(
       msg,
       msg.ref ? getPipelineEntry(msg.ref, getEntryWorkspace(msg.ref)) : null,
@@ -180,6 +261,7 @@ class WebhookChannel implements CommsChannel {
       ref: msg.ref,
       failureDetail: detail,
       workspaceId: msg.workspaceId,
+      messageId,
     });
   }
 
@@ -193,7 +275,7 @@ class WebhookChannel implements CommsChannel {
     // A refusal here is a dead letter, not a silent drop — `send` escalates every
     // `failed` through alertDeadLetter, and the reason rides the outbox row.
     try {
-      await assertPublicHttpsEndpointResolved(this.url, "relay url", relayHostLookup);
+      await assertRelayEndpointResolved(this.url);
     } catch (err) {
       return {
         status: "failed",
@@ -258,7 +340,9 @@ export function getCommsChannel(): CommsChannel {
   // stored config → nothing) so channel selection and every UI "sent" claim key
   // off the SAME bit.
   const relay = resolveRelay();
-  return relay ? new WebhookChannel(relay.url, relay.secret) : new OutboxChannel();
+  // F-2: a STORED relay belongs to the org that saved it and is org-checked at delivery;
+  // an env relay is host-level and is not (WebhookChannel.crossOrgRefusal).
+  return relay ? new WebhookChannel(relay.url, relay.secret, relay.ownerOrgId, relay.source === "config") : new OutboxChannel();
 }
 
 // ---- THE SEND PRECONDITION -----------------------------------------------------
@@ -322,10 +406,29 @@ export class CommsSuppressedError extends Error {
   }
 }
 
+/** An outreach body REFUSED by outreachBodyRefusal (outreach-body.ts). Distinct from
+ *  CommsSuppressedError on purpose: the resend door renders that one as "this candidate
+ *  can no longer be contacted", which is false here — the candidate can be, this letter
+ *  cannot. Carries no client code of its own; callers answer it with their generic one. */
+export class CommsBodyRejectedError extends Error {
+  constructor(readonly reason: string, readonly length: number) {
+    super(`Outreach body refused (${reason}, ${length} characters).`);
+    this.name = "CommsBodyRejectedError";
+  }
+}
+
 /** Convenience: dispatch one message through the active channel — after the ONE
- *  precondition above, which no door into this channel can skip. */
+ *  precondition above, which no door into this channel can skip. An outreach body is
+ *  also cleaned to plain text and length-capped here (outreach-body.ts), so the row the
+ *  outbox stores and the payload the relay receives are the same cleaned text. */
 export async function sendComm(msg: OutboundMessage): Promise<OutboxEntry> {
   const suppressed = commsSendSuppression(msg);
   if (suppressed) throw new CommsSuppressedError(suppressed);
+  if (msg.kind === "outreach") {
+    const body = cleanOutreachBody(msg.body);
+    const refused = outreachBodyRefusal(body);
+    if (refused) throw new CommsBodyRejectedError(refused, body.length);
+    msg = { ...msg, body };
+  }
   return getCommsChannel().send(msg);
 }

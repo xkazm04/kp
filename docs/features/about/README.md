@@ -53,7 +53,7 @@ argument survive with JavaScript still in flight.
 | 1 | Job descriptions — nothing invented | the grounding rule ("every mustHave must trace to something the inputs state") | `chapters.test.ts` — `design.py` grounding paragraph plus `about.jd.status.s3` |
 | 2 | Candidate scoring — three answers, not two | `_MATCH_THRESHOLD = 0.5` (`pipeline/jobfit/matching.py`), `_SIBLING_MATCH = 0.4` (`pipeline/jobfit/taxonomy.py`) | `chapters.test.ts` — both constants, their ordering, the en copy that prints them, and the painted line's derived position |
 | 3 | Screening — cheap filters first | `ko_filter` / `score_job` (`pipeline/jobfit/matching.py`), `match_reasoning` (its own module), `KoReasonKey` | `chapters.test.ts` — the layer names exist and every gate reason shown is a real `KoReasonKey` |
-| 4 | Archetypes — the same three slots, weighted differently | `pipeline/jobfit/archetypes.json` (rule weights, `selfDeclaredConfidence`, `defaultArchetype`, `defaultConfidence`, `lowConfidenceThreshold`) | `chapters.test.ts` — the tally board is parsed back out and compared to the registry |
+| 4 | Archetypes — the same three slots, weighted differently | `pipeline/jobfit/archetypes.json` (rule weights, `selfDeclaredConfidence`, `defaultArchetype`, `defaultConfidence`, `lowConfidenceThreshold`) | `chapters.test.ts` — the tally board (`TARGETS` / `SIGNALS`, imported from `scenes/archetypes/data.ts`) is compared to the registry |
 | 5 | Assignments — a work sample that survives delegation | the `sim >= 0.85` prompt gate (`pipeline/jobfit/devcase/artifact_checks.py`), `dev_cases.baseline_json` | `chapters.test.ts` — the gate, the scene's `AIM`, and that the worked example sits below it |
 | 6 | Human gates — the machine ranks, a person decides | `APPROVAL_KINDS` / `needsHumanDecision` (`app/_lib/approval-kinds.ts`), the approval path in `app/_lib/automation-pass.ts` | `chapters.test.ts` — every non-empty `ACTIONS.kind` is `isApprovalKind`, parks iff kind is set, and `needsHumanDecision` still exists |
 
@@ -74,26 +74,49 @@ without a DOM.
 
 | Module | Role |
 | --- | --- |
-| `stage/useSceneClock.ts` | the hook: viewport, motion preference and page visibility → a phase |
-| `stage/clock.ts` | pure — `shouldTick`, `phaseOf`, `isVisibleState` (`clock.test.ts`) |
+| `stage/useSceneClock.ts` | the hook: viewport, motion preference, page visibility and the chapter's transport store → a phase; exports `SceneTransportContext` |
+| `stage/transport.ts` | pure — the reader's transport: `runs`, `readPhase`, `play` / `stop` / `step` / `seek`, `onInViewChange`, the per-chapter and deck stores, and the guarded per-viewer `loadDeckStop` (`transport.test.ts`) |
+| `stage/clock.ts` | pure — `shouldTick` (four terms: in view, not reduced, tab visible, not stopped by the reader), `phaseOf`, `isVisibleState` (`clock.test.ts`) |
 | `stage/stages.ts` | pure — the cumulative `ghost → shell → body → detail → chosen` ladder, percent rects, the sub-beat cascade (`stages.test.ts`) |
 | `stage/threads.ts` | pure — connector anchors and curves, derived from the same rects the boxes are drawn from, with a bounded path memo (`threads.test.ts`) |
 | `stage/parts.tsx` | the dumb parts: `Field`, `Slot`, `Part`, `Wire`, `Wires` |
 | `stage/Scene.tsx` | chapter chrome: number, eyebrow, title, lede, handoff link |
+| `scenes/<chapter>/data.ts` | pure, one per scene — `CYCLE`, `STILL`, `STATUS_BEATS`, `sceneAt(phase)` (every reveal flag and module stage, by name) and the rows `chapters.test.ts` pins. The scene TSX renders from `sceneAt(phase)` and holds no `at(n)` beat literal; its `statusPicker` table `satisfies Record<StatusBeat, string>`, so a sentence on an undeclared beat is a tsc error (`scenes/beats.test.ts`) |
 | `scenes/status.ts` | pure — the status line's phase → text lookup (`status.test.ts`) |
-| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar`. `SceneStatus`'s outer `p` is a persistent `aria-live="polite"` `aria-atomic` region (`scene-status.test.ts`) so each beat's identifier is announced; the keyed inner span still crossfades for sighted readers. |
+| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar`. `SceneStatus`'s outer `p` is a persistent `aria-live="polite"` `aria-atomic` region (`scene-status.test.ts`) so each beat's identifier is announced; the keyed inner span still crossfades for sighted readers. Beside it, OUTSIDE the live region, `SceneTransport` renders step back, stop/play, step forward and a beat scrubber, every label from `about.transport.*`. |
 
 **Clock contract.** Off screen the interval is torn down. Re-entering rewinds to
 beat 0, so nobody joins a sentence half-typed. Reduced motion pins `stillTick` —
 the first beat at which every module has reached its final stage — and never
-creates a timer. `chapters.test.ts` parses `CYCLE` / `STILL` from all six scenes
-and fails if `STILL` is missing, `>= CYCLE`, not passed explicitly, or earlier
-than the last `statusPicker` key (a reduced-motion reader would miss the closing
-sentence). A **backgrounded tab pauses and keeps its tick**: `useInView`
+creates a timer. `scenes/beats.test.ts` imports each scene's `data.ts` and walks
+every phase of its cycle: `sceneAt` is total, every reveal that happens anywhere
+in the loop has happened at `STILL`, `STILL - 1` still differs from `STILL` (it
+is the *first* complete beat, not a later hold), every status beat lands in
+`[0, STILL]`, and the TSX passes `stillTick: STILL` explicitly. Five scenes sat
+one beat late until that was executable; `STILL` is now 12 / 10 / 9 / 10 / 9 / 9
+for chapters 1-6. A **backgrounded tab pauses and keeps its tick**: `useInView`
 measures geometry, which a hidden tab retains, so without the
 `visibilitychange` term every scrolled-to scene kept re-rendering its diagram
 every 900ms in a tab nobody was looking at. Pause, not rewind — returning to a
 tab is not the same gesture as scrolling a scene back into view.
+
+**Transport.** Every loop starts on its own and runs 12.6-13.5 s, so the reader
+gets a stop, a step and a scrub (`stage/transport.ts`). The reader's stop is a
+fourth term in `shouldTick`, a veto only a labelled Play lifts, and not a local
+flag: scrolling away and back rewinds autoplay only, and a held beat survives
+any amount of scrolling. Stepping or scrubbing is taking control, so it stops
+autoplay; a scrub clamps into `[0, CYCLE)` rather than wrapping. Play continues
+from the beat on screen. The header's **Stop all animations** is one-directional
+and idempotent: it pins every chapter's `STILL` frame (the one reduced-motion
+readers get) unless the reader already chose a beat there, and only **Play
+animations** or a chapter's own Play restarts it. The stop-all is remembered per
+viewer in `localStorage` (`kp.about.transport.stopped`); every read and write is
+guarded, so a private window or blocked storage just renders the deck playing.
+OS reduced motion stays the default for those readers: no timer in any state,
+no Play button and no stop-all (they would do nothing), but step and scrub stay,
+because holding a chosen beat is not motion. The tick lives in a per-chapter
+external store that `Chapter` in `AboutTab.tsx` provides, so the chapter frame
+still never re-renders per tick.
 
 ## Navigation
 

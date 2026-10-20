@@ -78,10 +78,68 @@ test("the English body still asserts the one guarantee that holds in every confi
   assert.match(body, /human review/i, "the 'ask for a human review' affordance must survive");
 });
 
+// The apply knockout gate is AUTOMATIC: a no to a stated must-have ends the application
+// with no person in front of it (recordKnockoutDecline, ko_declined, classed `auto`). The
+// owner kept it that way and chose to say so — so while the gate exists, the disclosure
+// must NOT say a rejection is always a person's without naming the exception, in every
+// locale. Anchored to the code: if the gate is ever removed this test fails loudly and
+// the absolute may harden again.
+const EXCEPTION: Record<string, RegExp> = {
+  en: /answering no to a must-have[^.]*ends an application automatically/i,
+  cs: /odpověď „ne“ u požadavku[^.]*ukončí přihlášku automaticky/i,
+  de: /mit Nein beantwortet[^.]*endet automatisch/i,
+  fr: /répondre non à une condition[^.]*met fin à la candidature automatiquement/i,
+};
+const OTHER: Record<string, RegExp> = {
+  en: /every other rejection is a person/i,
+  cs: /každé jiné zamítnutí je na člověku/i,
+  de: /jede andere ablehnung trifft ein mensch/i,
+  fr: /tout autre rejet revient à une personne/i,
+};
+
+test("while the apply knockout gate exists, the disclosure in every locale names the must-have exception", () => {
+  const gate = readFileSync(path.join(HERE, "..", "api", "apply", "[id]", "route.ts"), "utf-8");
+  assert.match(gate, /failedKoStepIds\(/, "the apply KO gate is gone — the exception may be retired from the copy");
+  assert.match(gate, /recordKnockoutDecline\(/, "the KO decline is no longer recorded here — re-check the claim");
+  assert.deepEqual(Object.keys(EXCEPTION).sort(), [...LOCALES].sort(), "a locale was added with no exception pattern");
+  for (const locale of LOCALES) {
+    const body = disclosureBody(locale);
+    assert.match(body, EXCEPTION[locale], `${locale}: the disclosure must say a no to a stated must-have ends the application automatically`);
+    assert.match(body, OTHER[locale], `${locale}: …and that every OTHER rejection is a person's`);
+    assert.doesNotMatch(
+      body,
+      /^[^.]*(rejection is always a person|zamítnutí je vždy na člověku|ablehnung trifft immer ein mensch|rejet revient toujours)/i,
+      `${locale}: the unqualified absolute is false while the knockout gate is automatic`,
+    );
+  }
+});
+
 test("every locale keeps the <highlight> tag t.rich renders", () => {
   for (const locale of LOCALES) {
     const body = disclosureBody(locale);
     assert.match(body, /<highlight>/, `${locale}: opening <highlight> is required by t.rich in AiDisclosure.tsx`);
     assert.match(body, /<\/highlight>/, `${locale}: closing </highlight> is required by t.rich in AiDisclosure.tsx`);
+  }
+});
+
+// The candidate interview portal's consent sentence (voice.consent / voice.consentRecordable)
+// must name what the candidate is actually agreeing to: an AI scorecard and a recommendation.
+test("the interview consent sentence names the AI scorecard and the recommendation, in every locale", () => {
+  const words: Record<string, RegExp[]> = {
+    en: [/scores the transcript/i, /recommendation/i],
+    cs: [/vyhodnotí přepis/i, /doporučení/i],
+    de: [/bewertet das Transkript/i, /Empfehlung/i],
+    fr: [/note la transcription/i, /recommandation/i],
+  };
+  for (const locale of LOCALES) {
+    const raw = readFileSync(path.join(HERE, "..", "..", "messages", `${locale}.json`), "utf-8");
+    const voice = (JSON.parse(raw) as { interview?: { voice?: { consent?: string; consentRecordable?: string } } }).interview?.voice;
+    for (const key of ["consent", "consentRecordable"] as const) {
+      const text = voice?.[key];
+      assert.equal(typeof text, "string", `${locale}: voice.${key} must exist`);
+      for (const re of words[locale]) assert.match(text as string, re, `${locale}: voice.${key} must match ${re}`);
+    }
+    const note = (JSON.parse(raw) as { aiDisclosure?: { interviewData?: string } }).aiDisclosure?.interviewData;
+    assert.match(note ?? "", /\{months/, `${locale}: aiDisclosure.interviewData states the retention window`);
   }
 });

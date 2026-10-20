@@ -14,13 +14,15 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { cleanupUnitDb } from "./testing/unit-db.ts";
 
 const logDirPath = mkdtempSync(path.join(os.tmpdir(), "kp-ops-log-"));
 process.env.KP_LOG_DIR = logDirPath;
 process.env.TZ = "UTC";
 
-const { tailJsonl, analyzeTelemetry, commsTelemetry } = await import("./ops-telemetry.ts");
+const { tailJsonl, analyzeTelemetry, commsTelemetry, engineTelemetry } = await import("./ops-telemetry.ts");
 const { logDir } = await import("./logger.ts");
+const { aggregateLlmUsage, insertLlmUsage } = await import("./db/llm.ts");
 
 const line = (o: Record<string, unknown>) => JSON.stringify(o) + "\n";
 
@@ -100,4 +102,18 @@ test("comms telemetry counts dead letters by status, not by mere presence", () =
   assert.deepEqual(t, { deadLetters7d: 1, sampled: 2 }, "a future success line must not inflate the drop count");
 });
 
-test.after(() => rmSync(logDirPath, { recursive: true, force: true }));
+test("engine tokens include all providers once while stages still read pipeline.log", () => {
+  insertLlmUsage({ useCase: "cv_analysis", provider: "gemini", model: "flash", source: "llm", outcome: "ok", inputTokens: 100, outputTokens: 20, cachedTokens: 10 });
+  insertLlmUsage({ useCase: "match_reasoning", provider: "openai", model: "gpt", source: "llm", outcome: "ok", inputTokens: 70, outputTokens: 30, cachedTokens: 5 });
+  const now = Date.now();
+  writeFileSync(path.join(logDirPath, "pipeline.log"), line({ ts: new Date(now).toISOString(), gemini: { total_tokens: 120, cached_tokens: 10 }, stages_ms: { extract: 40 } }));
+  const telemetry = engineTelemetry(aggregateLlmUsage(7), now);
+  assert.equal(telemetry.totalTokens7d, 220, "the Gemini log copy is not added a second time");
+  assert.equal(telemetry.cachedTokens7d, 15);
+  assert.equal(telemetry.stageAvgMs.extract, 40);
+});
+
+test.after(() => {
+  cleanupUnitDb();
+  rmSync(logDirPath, { recursive: true, force: true });
+});

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import unittest
 
+from pipeline.jobfit.devcase.ai_drafts import draft_for
 from pipeline.jobfit.devcase.models import CaseScenario, CoverProbe, RoleSpec
 from pipeline.jobfit.devcase.seed_materializer import (
     DECISIONS_FILE,
@@ -20,6 +21,7 @@ from pipeline.jobfit.devcase.seed_materializer import (
     deterministic_seed,
     materialize_seed,
 )
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 
 CASE = CaseScenario(
     id="case-1",
@@ -33,17 +35,9 @@ ROLE = RoleSpec(title="Junior Backend", role_family="software_engineering", seni
                 must_haves=["Python"])
 
 
-class _StubProvider:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def available(self) -> bool:
-        return True
-
-    def complete_json(self, prompt, system=None):
-        if isinstance(self._payload, Exception):
-            raise self._payload
-        return self._payload
+class _StubProvider(TextReply):
+    """Answers with ``payload`` as TEXT through the real extractor, or raises it when it is
+    an exception (tests/devcase_fakes.py)."""
 
 
 class DeterministicSeedTest(unittest.TestCase):
@@ -110,7 +104,8 @@ class CoercionTest(unittest.TestCase):
         # devcase-orchestrator.ts audit a skeleton as `seed_materialized` and FREEZE it
         # (saveDevCaseSeedIfAbsent). Coercion kept nothing, so the source says so.
         self.assertEqual(src, "deterministic")
-        self.assertEqual([f["path"] for f in seed["files"]], ["README.md", DECISIONS_FILE])
+        # ...plus the one labelled unreviewed AI draft every case carries (ADR 0027 S2).
+        self.assertEqual([f["path"] for f in seed["files"]], ["README.md", DECISIONS_FILE, draft_for(ROLE.role_family)["path"]])
 
     def test_provider_error_degrades_to_deterministic(self):
         seed, src = materialize_seed(CASE, ROLE, provider=_StubProvider(RuntimeError("down")))

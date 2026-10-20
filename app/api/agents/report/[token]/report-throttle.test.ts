@@ -43,6 +43,11 @@ test("a flood on one token+IP is shed at 60/60s, and an UNKNOWN token is throttl
   }
   const refused = await post(agent.reportToken, ip, "run-over");
   assert.equal(refused.status, 429);
+  // The refusal says WHEN (challenge 2026-09-22 shared-api-utilities/B): the reporter is
+  // a machine, and the wait is read off the 60 s window that refused it.
+  const retryAfter = Number(refused.headers.get("Retry-After"));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 60, `Retry-After within the 60 s window, got ${refused.headers.get("Retry-After")}`);
+  assert.equal(((await refused.json()) as { retryAfterSeconds?: number }).retryAfterSeconds, retryAfter);
 
   // The limiter runs BEFORE the token lookup: an unknown token from an
   // already-throttled IP+token pair is refused as 429, and a fresh pair still 404s

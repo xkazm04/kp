@@ -1,0 +1,84 @@
+{
+  "cohort": [
+    {
+      "name": "group-eval-comparison",
+      "group": "Hiring Decisions",
+      "files": 29,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-workspace",
+      "group": "Developer Assessment",
+      "files": 28,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "pipeline-board-ui",
+      "group": "Hiring Pipeline",
+      "files": 28,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "cv-analyze-intake",
+      "group": "CV Analysis & Scoring",
+      "files": 27,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "interview-simulator",
+      "group": "Interviews & Assessments",
+      "files": 27,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "candidate-profile",
+      "group": "Candidate Intelligence",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "saved-analysis-report",
+          "files": 3
+        },
+        {
+          "name": "skill-profile-public-page",
+          "files": 3
+        }
+      ]
+    },
+    {
+      "name": "glyph-system",
+      "group": "Design System & Shared UI",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "platform-auth-api",
+      "group": "Platform Administration",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "architecture-diagrams-explorer",
+          "files": 4
+        },
+        {
+          "name": "architecture-diagrams-tests",
+          "files": 2
+        },
+        {
+          "name": "dev-inspector",
+          "files": 3
+        }
+      ]
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 184
+}

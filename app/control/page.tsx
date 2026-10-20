@@ -19,8 +19,9 @@ export default async function ControlPage() {
   // being shown a panel that can only ever 403 at them. Same capability on both
   // sides — `members:manage`, the bar that already gates the member and invite
   // lists — so the UI and the API cannot disagree about who may read this.
-  // Director gate (2026-09-03): a demo cookie is a valid session and the room is not in
-  // the nav - answer the same 404 an unknown route does rather than reveal it.
+  // Director gate (2026-09-03): a demo cookie is a valid session, so a non-operator gets
+  // the same 404 an unknown route does rather than a sign the room exists. The rail
+  // links here ONLY for a caller this same predicate admits (nav/controlDoor.ts).
   if (!(await isOperator())) notFound();
   const canReadFeedback = await can("members:manage");
   // AUTHORITY, read once server-side (/perfect wave 21, internal-explorers) and mirrored

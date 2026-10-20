@@ -8,12 +8,13 @@ import {
   type ChannelWebhookRecord,
 } from "@/app/_lib/db/channels";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
+import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
 
 
 // E3 (Erika gap) — recruiter management of inbound channel webhooks. Each
@@ -38,18 +39,18 @@ import { isLocale } from "@/i18n/locales";
 // host at a time. 60/10min sits far above a recruiter wiring receivers by hand.
 const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   // Bounded (db/channels) — the panes filter this list BY CHANNEL, so a silent cut
   // would empty one pane and read as "nothing is wired". `truncated` says otherwise.
   // Each `ChannelWebhookRecord` already carries the recruiter-safe pull half
   // (pullUrl / hasPullSecret / lastPullAt / lastPullError) so the Channels tab can
   // show a week-old lastPullError without a per-row extra GET. PATCH `{ pull }` is
   // still the detailed read (cursor included). The bearer is never on this list.
-  const { webhooks, truncated } = listChannelWebhooks(await currentWorkspace());
+  const { webhooks, truncated } = listChannelWebhooks(ws);
   return NextResponse.json({ webhooks, truncated });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -71,9 +72,8 @@ export async function POST(request: NextRequest) {
       // the code and never renders the server's English string (api-contracts.md 1.1).
       return jsonRefusal("CHANNEL_UNKNOWN", 400, { channel: channel || null });
     }
-    const ws = await currentWorkspace();
     const jobId = String(body.jobId ?? "").trim();
-    const job = jobId ? getJob(jobId) : null;
+    const job = jobId ? getJob(jobId, ws) : null;
     // getJob is an unscoped by-id point read (jobs-tenancy.test.ts exempts it), so the
     // ROUTE owes the ownership check — same gate and same 404 as GET /api/jobs/[id]. The
     // Add-receiver modal only offers what /api/jobs listed (the shared corpus + this
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     // the Add-receiver modal painted it verbatim in every locale.
     return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_CREATE_FAILED");
   }
-}
+});
 
 /**
  * Configure the PULL half of a receiver (L0 — docs/concepts/local-first-edge.md §3.1).
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
  * Scoped to the owning team by setChannelPull: knowing a token is not enough to
  * point another team's receiver at your server.
  */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -129,23 +129,16 @@ export async function PATCH(request: NextRequest) {
     if (!token) return jsonRefusal("CHANNEL_TOKEN_REQUIRED", 400);
     const pullUrl = body.pullUrl === null || body.pullUrl === undefined || body.pullUrl === "" ? null : String(body.pullUrl);
     const secret = body.pullSecret === undefined ? undefined : String(body.pullSecret);
-    // A malformed/unsafe URL throws out of the store's validation — answer 400 with
-    // the reason rather than a 500, since it is the caller's input that is wrong.
-    const ws = await currentWorkspace();
-    let ok: boolean;
+    // Classify untrusted input BEFORE the store write. The store repeats this
+    // validation as its own boundary, but a SQLite/encryption failure from that
+    // write must reach the outer 500 catch instead of masquerading as a 400.
+    let validatedUrl: string | null = null;
     try {
-      ok = setChannelPull(token, { url: pullUrl, secret }, ws);
-    } catch (e) {
-      // The validator's own sentence names the refused host and field — but this catch
-      // also covers the encrypted STORE WRITE inside setChannelPull, whose thrown
-      // message carries SQLITE_* detail and the absolute db path. The two are
-      // indistinguishable from here, so the reason goes to the server log and the
-      // caller gets the code (api-contracts.md 1.1). Narrowing this to a 400 for a
-      // typed validation error and a 500 otherwise needs a typed error out of
-      // db/channels.ts — recorded, not guessed at here.
-      console.error("[api:channels/webhooks] CHANNEL_PULL_URL_INVALID", e);
+      validatedUrl = pullUrl ? assertPublicHttpsEndpoint(pullUrl, "pullUrl") : null;
+    } catch {
       return jsonRefusal("CHANNEL_PULL_URL_INVALID", 400);
     }
+    const ok = setChannelPull(token, { url: validatedUrl, secret }, ws);
     // Same answer as an unknown token, for the same reason the receiver gives it:
     // a caller must not be able to probe which tokens exist in another team.
     if (!ok) return jsonRefusal("CHANNEL_WEBHOOK_NOT_FOUND", 404);
@@ -153,4 +146,4 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_UPDATE_FAILED");
   }
-}
+});

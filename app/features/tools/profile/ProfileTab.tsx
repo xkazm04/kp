@@ -13,6 +13,7 @@ import { CandidateMatrix } from "./CandidateMatrix";
 import { ProfileRoster } from "./ProfileRoster";
 import { ProfileTabRebuildWarnModal } from "./ProfileTabRebuildWarnModal";
 import { useProfileTabDeepLinks } from "./useProfileTabDeepLinks";
+import { useCandidatePopulation } from "./useCandidatePopulation";
 import { editorKey, NOTE_TONE, type EditorState, type NoteTone, type RebuildWarn } from "./ProfileTabTypes";
 
 // Tier 3 (docs/design/loading-choreography.md): the editor is a click-only surface (a
@@ -39,20 +40,21 @@ export function ProfileTab() {
   // a profile yet) is a benign status, not a failure — it reads as info. Genuine
   // failures elsewhere (roster delete) keep their own red error state.
   const [note, setNote] = useState<{ text: string; tone: NoteTone } | null>(null);
-  // A rebuild whose target profile was hand-edited after it was built: hold the intent
-  // and warn (naming the edit date) BEFORE hydrating, so the recruiter chooses whether
-  // to overwrite their edits (proceed) or keep them (open as a plain edit). Never a
-  // silent clobber.
+  // A rebuild whose merge has CONTESTED fields — edited by hand after the build AND
+  // changed by the newer CV: hold the plan and ask, naming those fields, BEFORE opening.
+  // Merge (default) keeps the edits and takes the newer CV everywhere else; keep opens a
+  // plain edit; replace takes the newer CV wholesale. Never a silent clobber, and no
+  // dialog at all when nothing is contested (useProfileTabDeepLinks.openRebuild).
   const [rebuildWarn, setRebuildWarn] = useState<RebuildWarn | null>(null);
-  // Bumped when the roster changes (a delete) so the matrix, a sibling that fetches
-  // the same union, refetches instead of showing a just-deleted profile. Only one
-  // projection is mounted at a time, so a switch to Matrix always remounts and
-  // refetches fresh; the key keeps the two in sync if they ever coexist.
-  const [dataRev, setDataRev] = useState(0);
-  // One candidate population, two projections behind a List | Matrix toggle (was a
-  // stacked ProfileRoster + CandidateMatrix rendering the same population twice).
-  // Default List; only the active projection is mounted, so exactly one data read
-  // runs at a time. Local state, matching the sibling AnalyzeWorkspace toggle.
+  // One candidate population, two projections behind a List | Matrix toggle — and the
+  // archetype retire dialog counts from it too. ONE read, owned here: the roster, the
+  // matrix and the dialog each used to fetch their own copy (two different populations,
+  // two lifecycles, and a revision counter whose only job was re-syncing them after a
+  // delete). Paused while the editor replaces the projections, and re-read when it
+  // closes — a save there changed the population. Switching List | Matrix re-reads
+  // nothing: both are projections of the same rows.
+  const population = useCandidatePopulation({ active: editor === null });
+  // Default List; local state, matching the sibling AnalyzeWorkspace toggle.
   const [projection, setProjection] = useState<"list" | "matrix">("list");
   const reduced = useReducedMotion();
 
@@ -63,7 +65,7 @@ export function ProfileTab() {
   // keying it on `params` re-fired it when router.replace cleared them) never reads
   // the intent. The button was inert, and the params it left behind meant an unrelated
   // page reload would later spring the editor open on a rebuild nobody asked for.
-  const { archetypes, archLoading, openEditor, openFromAnalysis, openRebuild, reloadArchetypes } = useProfileTabDeepLinks({
+  const { archetypes, archLoading, openEditor, openFromAnalysis, openMerged, openRebuild, reloadArchetypes } = useProfileTabDeepLinks({
     t,
     router,
     params,
@@ -84,6 +86,7 @@ export function ProfileTab() {
         initialPayload={editor.initialPayload}
         initialUpdatedAt={editor.initialUpdatedAt}
         sourceAnalysisSlug={editor.sourceAnalysisSlug}
+        rebuildSeed={editor.rebuildSeed}
         archetypes={archetypes}
         onCancel={() => setEditor(null)}
         onReload={editor.editingId ? () => void openEditor(editor.editingId!) : undefined}
@@ -102,7 +105,7 @@ export function ProfileTab() {
           {note.text}
         </p>
       ) : null}
-      <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} />
+      <ArchetypeManager archetypes={archetypes} loading={archLoading} onChanged={reloadArchetypes} population={population.rows} />
 
       <div className="space-y-3">
         {/* The create CTA sits NEXT TO the projection toggle, not inside either
@@ -136,17 +139,26 @@ export function ProfileTab() {
           >
             {projection === "list" ? (
               <ProfileRoster
+                population={population.rows}
+                loadFailed={population.failed}
                 onEdit={(id) => void openEditor(id)}
                 onRebuild={(id, newerSlug) => void openRebuild(newerSlug, id)}
-                onChanged={() => setDataRev((v) => v + 1)}
+                onDeleted={(id) => {
+                  // Prune at once, then re-read: the deleted profile's analyses become
+                  // analysis-only candidates, which only the server fold can say.
+                  population.prune(id);
+                  population.reload();
+                }}
+                onRefreshed={population.reload}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 archetypes={archetypes}
                 onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
               />
             ) : (
               <CandidateMatrix
+                population={population.rows}
+                loadFailed={population.failed}
                 archetypes={archetypes}
-                reloadKey={dataRev}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 onEditProfile={(id) => void openEditor(id)}
                 onBuildFromAnalysis={(slug) => void openFromAnalysis(slug, null)}
@@ -161,6 +173,10 @@ export function ProfileTab() {
         <ProfileTabRebuildWarnModal
           rebuildWarn={rebuildWarn}
           onClose={() => setRebuildWarn(null)}
+          onMerge={() => {
+            setRebuildWarn(null);
+            openMerged(rebuildWarn.slug, rebuildWarn.profileId, rebuildWarn.updatedAt, rebuildWarn.plan);
+          }}
           onKeep={(profileId) => {
             setRebuildWarn(null);
             void openEditor(profileId);

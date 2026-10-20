@@ -1,0 +1,7 @@
+[
+  {
+    "rider": "platform-admin-ops",
+    "files_read": 5,
+    "checked": "Read in full: app/_lib/after-response.ts, app/_lib/public-base-url.ts, app/_lib/public-base-url.test.ts, app/_lib/sanity-checks.ts, app/_lib/sanity-checks.test.ts; followed consumers one hop (api/ops/route.ts:114 getAfterResponseFailureCount, readiness.ts:134 publicOriginHealth, comms-dispatch.ts:128 publicOriginIsFallback, 6 afterResponse call sites). Hypotheses traced: (1) afterResponse has no deadline, so a hung ack pins work - already on the books twice as 'Bound afterResponse tasks with a timeout...' / 'Deadline afterResponse tasks', DEFERRED by the 2026-09-22 drain ('needs cancellation design'); re-proposing it would be void, and a real cancellation design touches the apply/publish/stage-hook callers outside this rider. (2) public-base-url: origin precedence, Host-poisoning drop, conflict warning and health are already landed and tested (18 cases); publicOriginHealth already feeds readiness (r03 platform-auth-api/B landed) - nothing structural left. (3) sanity-checks.ts classifies the Python engine's English sentences by regex (WARN_MARKERS, :17-18), a cross-language coupling that should be a structured severity emitted by pipeline.py - a genuine architecture seam, but the write set lives mostly in pipeline/jobfit (analyze-engine / cv-analysis contexts) and the classifier is pinned by a vocabulary test, so it was weaker than both cards here and went unused. No card targets this rider."
+  }
+]

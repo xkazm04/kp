@@ -1,0 +1,7 @@
+{"ctx":"*","role":"scout","tokens":1654867,"ms":689902,"note":"8 scouts via workflow wf_2dfe50c7-1d2"}
+{"ctx":"*","role":"critic","tokens":328510,"ms":1038059}
+{"ctx":"*","role":"builder","note":"wave 1, 6 builders via wf_2b7f20d7-e04","tokens":2141722,"ms":5683646}
+{"ctx":"*","role":"builder","note":"wave 2, 6 builders + 3 follow-ups via wf_bd414e88-90b","tokens":1769582,"ms":2547988}
+{"ctx":"*","role":"builder","note":"wave 3, 4 builders via wf_657a360e-c97","tokens":892039,"ms":1612181}
+{"ctx":"devcase-lifecycle","role":"followup","note":"resend of a closed case invite refused","tokens":114643,"ms":233701}
+{"ctx":"devcase-lifecycle","role":"followup","note":"homework arrival never reopens stopped intake","tokens":120147,"ms":287134}

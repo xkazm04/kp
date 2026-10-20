@@ -81,6 +81,8 @@ export function ScanRunTable({
           {sorted.map((s) => {
             const attention = s.outcome === "blocked" || s.outcome === "collapsed";
             const paused = pausedById.get(s.sourceId);
+            // `=== true`: a summary stored before the flag existed says nothing either way.
+            const truncated = s.truncated === true;
             return (
               <tr key={s.sourceId} className="border-t border-stone-200 align-top transition-colors hover:bg-paper/70">
                 <td className="py-1 pr-3 text-ink">{nameOf(s)}</td>
@@ -104,7 +106,16 @@ export function ScanRunTable({
                       </Link>
                     </span>
                   ) : (
-                    (s.reason ?? "")
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      {s.reason ?? ""}
+                      {truncated ? (
+                        // A capped pass read PART of the source and measured no absence:
+                        // a state beside the outcome, its why in the tooltip.
+                        <Tooltip label={t("table.truncatedHint")} side="left">
+                          <Badge tone="neutral" label={t("table.truncated")} />
+                        </Tooltip>
+                      ) : null}
+                    </span>
                   )}
                 </td>
               </tr>

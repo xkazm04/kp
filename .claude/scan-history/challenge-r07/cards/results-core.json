@@ -1,0 +1,117 @@
+[
+  {
+    "context": "results-core",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Trust findings born coded: severity + scope at the engine, not a prose regex",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "pipeline/jobfit/models.py",
+      "pipeline/jobfit/pipeline.py",
+      "pipeline/jobfit/authenticity.py",
+      "pipeline/jobfit/credentials.py",
+      "app/_lib/schemas.generated.ts",
+      "app/_lib/sanity-checks.ts",
+      "app/_lib/sanity-checks.test.ts",
+      "app/_components/results/QualityStrip.tsx",
+      "app/_components/results/ResultPanel.tsx",
+      "app/_components/results/verdict.ts",
+      "app/_components/results/verdict.test.ts",
+      "app/_lib/analyze-run.ts",
+      "app/_lib/provenance-dossier.ts",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/trust.py",
+      "pipeline/jobfit/tests/test_trust_findings.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Python: a run whose blind redaction found no name emits a finding {code:'blind_redaction_partial', severity:'warn', scope:'identity'}; the TS ledger over that payload puts it in warns (today isSanityWarn returns false for the 'Verify manually.' sentence, so it lands in the collapsed OK list)",
+      "Python: a structured-job parse failure emits {code:'job_context_unreadable', severity:'warn', scope:'input'} and is counted by countSanityWarns-equivalent reviewFlags (today: 0)",
+      "Python: a missing score section emits {code:'score_section_missing', severity:'blocker', scope:'score'}; resolveVerdict over that analysis returns overall=null (unscored tier) instead of a finite 0 painted as a Weak verdict",
+      "Python: sanity_checks stays byte-identical to [f.text for f in trust_findings] for every existing producer, so test_score_sanity / test_salary_sanity / test_authenticity / test_credentials / test_archetype_sanity pass unchanged",
+      "TS: trustLedger(analysis) with trustFindings present classifies by severity only and never consults WARN_MARKERS (a finding with severity 'ok' whose text contains 'failed' stays ok)",
+      "TS: trustLedger(analysis) on a legacy saved payload with sanityChecks but no trustFindings falls back to the regex split and returns the same {warns, oks} as splitSanityChecks does today",
+      "TS: authenticityBand reads scope==='authenticity' findings by severity when present (0 warn -> high, 1 -> medium, 2+ -> low), prefix+regex only on legacy payloads",
+      "Python: _softly records {code:'insight_skipped', severity:'warn', scope:'insight'} with the add-on label as a value, not only the English sentence"
+    ],
+    "premise": [
+      "app/_lib/sanity-checks.ts:17-18 classifies every trust line by regex over engine English: /manual review|disagrees|low-confidence|outside expected range|is short|is inconsistent|unavailable|failed/i",
+      "pipeline/jobfit/pipeline.py:183-185 emits 'Blind screening PARTIAL ... the name may have reached the model. Verify manually.' - probed: WARN_MARKERS.test() returns false, so a fairness/redaction failure renders in QualityStrip's collapsed clean list and is not counted",
+      "pipeline/jobfit/pipeline.py:146-148 emits 'Structured job context was unreadable and was ignored ... fell back to JD text.' - probed: classified OK",
+      "pipeline/jobfit/pipeline.py:817 appends 'Score section missing - defaulted to 0 (manual review)' and the components clamp to 0 (lines 819-823); app/_components/results/verdict.ts:43-45 treats reconcileScoreTotal=0 as finite, so VerdictBanner.tsx:37-43 paints a scored Weak verdict on a number nobody computed",
+      "pipeline/jobfit/authenticity.py:201-205 re-derives the authenticity band by substring ('manual review' in c) in Python while app/_lib/sanity-checks.ts:45-49 derives it again by regex in TS - two runtimes classifying one prose field",
+      "pipeline/jobfit/models.py:345 declares sanity_checks: list[str]; app/_lib/schemas.generated.ts:56 sanityChecks: z.array(z.string()) - no severity or scope crosses the wire",
+      "app/_lib/analyze-run.ts:588 stamps reviewFlags from countSanityWarns (the regex), and app/_lib/provenance-dossier.ts:128 exports the same regex split, so every consumer inherits the misclassification",
+      "app/_components/results/QualityStrip.tsx:17 documents that check sentences are 'deterministic engine English (not --lang localized) and are shown verbatim' - there is no code a catalog could key on"
+    ],
+    "rollback": "Additive on the wire: trust_findings is an optional new field and sanity_checks keeps its exact strings, so reverting the series restores the regex path with no data migration; saved analyses written in between still parse (the field is nullish and simply ignored).",
+    "gate": "contract",
+    "runner_up": "One server-side report-facts loader (label collision, on-board entry, JD-edited-since, also-analyzed) served to BOTH ResultPanel callers, so the live Analyze report stops being the thinner of the two.",
+    "technique": "knockout-reason-categorised-at-birth",
+    "body": "## Summary\nThe engine's trust ledger crosses the wire as English sentences and the UI decides which ones are warnings with a regex. Make each finding carry a code, a severity (ok/warn/blocker) and a scope (score/salary/identity/archetype/authenticity/credential/input/insight) from the producer that knows, keep the sentence for display, and have every TS consumer read severity instead of prose.\n\n## Description\n`sanity-checks.ts` is the one place kp still classifies a machine verdict by pattern-matching generated prose. It already misfires: the blind-screening PARTIAL note (the candidate's name may have reached the model) and the unreadable-structured-job note are classified OK, so they hide in QualityStrip's collapsed list and never count toward `review_flags`. The same regex is mirrored as a substring test in Python's `authenticity_band`, and it feeds `reviewFlags`, the provenance dossier and the authenticity chip. Worse, a `score_section_missing` repair is only a sentence, so the verdict banner cannot tell a defaulted 0 from a measured 0 and paints a Weak verdict. The fix: a tiny `trust.py` (`Finding(code, severity, scope, text)`), producers in pipeline.py / authenticity.py / credentials.py return findings, the existing string-returning functions stay as thin `[f.text ...]` wrappers so every exact-string Python test is untouched, `AnalysisResult.trust_findings` is added (nullish) and regenerated into schemas.generated.ts, and `trustLedger(analysis)` in sanity-checks.ts reads severity when findings exist and falls back to the regex only for legacy payloads. `resolveVerdict` returns the unscored tier when a score-scoped blocker is present.\n\n## Flow\n1. pipeline/jobfit/trust.py: Finding model + severity/scope literals + `texts()`.\n2. Producers: `_score_sanity_checks`, `_salary_sanity_checks`, `_grounding_sanity_checks`, `_archetype_sanity_checks`, `_softly`, the `repairs` notes, `authenticity_checks`, `prompt_injection_checks`, `credential_checks` emit findings; string wrappers preserved.\n3. models.py: `trust_findings: list[TrustFinding] | None = None`; `npm run schemas:gen` regenerates the zod schema.\n4. sanity-checks.ts: `trustLedger(analysis)` (findings-first, regex fallback) and a findings-aware `authenticityBand`; `countSanityWarns` routed through it.\n5. Consumers: QualityStrip (props from ResultPanel.tsx:282), analyze-run.ts:588, provenance-dossier.ts:128.\n6. verdict.ts: a scope='score' blocker yields overall=null.\n7. Doc: docs/features/candidates/README.md trust-ledger paragraph.\n\n## Expected impact\nA redaction miss and a degraded job context stop hiding as passes; `review_flags` counts what the engine meant, not what a regex caught; a defaulted score renders as unscored instead of a Weak verdict; and the codes are the handle a later change needs to localize the ledger (today untranslatable) and to gate decisions on specific findings. One classifier instead of two runtimes guessing at one prose field.\n\n## Evaluation\nClaim: every trust finding reaches the UI with an engine-assigned severity and scope, and no consumer classifies by prose when findings are present.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract - pytest pipeline/jobfit/tests/test_trust_findings.py + existing sanity tests unchanged; node:test app/_lib/sanity-checks.test.ts and app/_components/results/verdict.test.ts; npm run typecheck (schemas:gen) green\nResult: pending build\nGate: contract",
+    "evidence": "WARN_MARKERS probe (node, same regex as app/_lib/sanity-checks.ts:17-18):\n  false  'Blind screening PARTIAL - no candidate n...'   (pipeline.py:183)\n  false  'Structured job context was unreadable an...'   (pipeline.py:146)\n  true   'Score section missing - defaulted to 0 (...'   (pipeline.py:817)\n  false  'Withheld 2 AI-suggested matching skill(s...'   (pipeline.py:272, informational - correctly ok)\npipeline.py:817-823: repairs.append('Score section missing - defaulted to 0 (manual review)'); raw = {}; experience = _clamp_int(raw.get('experience'), 0, 25, 0) ... total = min(sum, 100) -> 0\nverdict.ts:43-45: const overall = reconcileScoreTotal(analysis.score); return { overall: Number.isFinite(overall) ? overall : null, ... } -> 0 is finite -> scored\nVerdictBanner.tsx:41: const tone = scoreTone(scored ? overall : null) -> 'weak' for 0\nauthenticity.py:205: warns = sum(1 for c in checks if c.startswith(AUTHENTICITY_PREFIX) and 'manual review' in c)\nConsumers of the regex split: QualityStrip.tsx:22,25; analyze-run.ts:588; provenance-dossier.ts:128; db/core.ts review_flags column (ALTER at core.ts:1888).\nExisting exact-string Python tests that must stay green: pipeline/jobfit/tests/test_score_sanity.py, test_salary_sanity.py, test_authenticity.py, test_credentials.py, test_archetype_sanity.py."
+  },
+  {
+    "context": "results-core",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Decide with the flags in view: Advance acknowledges them, the record keeps them",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_components/results/DispositionEditor.tsx",
+      "app/_components/results/ResultPanel.tsx",
+      "app/api/analyses/[slug]/route.ts",
+      "app/_lib/db/analyses.ts",
+      "app/_lib/db/core.ts",
+      "app/_lib/db/pipeline.ts",
+      "app/_lib/api-response.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/_components/results/decisionBrief.ts",
+      "app/_components/results/decisionBrief.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "decisionBrief(analysis) with sanityChecks holding 2 warn lines and jobFit.missingSkills ['Kubernetes','Go'] -> {openWarns: [the 2 lines], missing: ['Kubernetes','Go']}; an analysis with no warns and no jobFit -> empty brief",
+      "decisionGate(brief, 'advance', acked=[]) with 2 open warns -> {canSave:false, needs:'ack', pending:[both lines]}; with both acked -> {canSave:true}",
+      "decisionGate(brief, 'pass', note='') when the verdict band is strong (reconciled total >= SCORE_STRONG_MIN) -> {canSave:false, needs:'reason'}; with a non-blank note -> canSave true",
+      "decisionGate(brief, 'hold', ...) and clearing (disposition '') -> always canSave true, whatever the warns",
+      "PATCH /api/analyses/[slug] {disposition:'advance', acknowledged:[]} on a stored analysis whose payload has 2 warns and a stored disposition != 'advance' -> 409 DISPOSITION_ACK_REQUIRED and the row is unchanged; with acknowledged = both warn lines -> 200",
+      "The same PATCH with the stored disposition already 'advance' (a note-only edit, incl. the keepalive unmount flush) -> 200 without acks, so a legacy decision is never locked",
+      "A successful advance/pass stores decision_basis JSON {score, openWarns, acknowledged, decidedAt} on the analyses row, and the disposition_set pipeline event detail reads 'advance - 2 flags acknowledged' (plus the note when present)"
+    ],
+    "premise": [
+      "app/_components/results/ResultPanel.tsx:261-265 mounts DispositionEditor with only slug/initialDisposition/initialNote - the editor receives nothing about the analysis it decides on",
+      "app/_components/results/DispositionEditor.tsx:62-77 (pick) saves advance/hold/pass on a single click with an optional note; nothing checks what the recruiter has seen",
+      "app/_components/results/QualityStrip.tsx:55-67 renders the warn lines ('verify the score before trusting it', 'verify before advancing (manual review)') in a separate panel below the decision buttons (ResultPanel.tsx:282 vs 257-280)",
+      "pipeline/jobfit/credentials.py:120-123 emits 'Credential: the role appears to require a <licence> ... verify before advancing (manual review).' - the engine asks for verification before an advance the UI lets through in one click",
+      "app/api/analyses/[slug]/route.ts:96-111 stores disposition+note and echoes 'advance - note' to pipeline events; no record of the score or the open warnings the decision was made against",
+      "app/_lib/db/analyses.ts:275-282 setAnalysisDisposition writes only disposition/decision_note; app/_lib/db/analyses.ts:294-300 calibrationPairs then treats every advance/pass as a clean (score, outcome) label, flagged or not",
+      "app/_lib/db/pipeline.ts:1656-1678 recordAnalysisDispositionEvents composes detail as `${disposition} - ${note}` only"
+    ],
+    "rollback": "The gate is one pure module plus one PATCH branch; decision_basis is a new nullable column (ALTER TABLE ADD COLUMN, never read by existing code). Reverting the commits restores the one-click editor; the column stays harmlessly NULL-or-populated.",
+    "gate": "policy-tighten",
+    "runner_up": "Compare this CV across every role it was scored against, side by side (adopting open leftover 'Compare the same CV across JDs from listAnalysesByCvHash').",
+    "technique": "capture-the-machine-verdict-before-a-human-overwrites-it",
+    "body": "## Summary\nThe recruiter's advance/hold/pass is taken one click above a panel of engine warnings it never looks at. Put the open warnings and the missing must-haves inside the decision control, make Advance acknowledge each open warning (and Pass on a strong read give a reason), enforce the same rule at the PATCH door, and store what the decision was made against.\n\n## Description\nThe registry standard is explicit: the challengeable material must be present at the moment of the click, not one panel away, and a decision record is bound to what it judged. Today DispositionEditor gets a slug and nothing else, so 'Advance' on a candidate whose ledger says 'Credential: the role appears to require a licence ... verify before advancing' is one click, silent, and indistinguishable afterwards from an advance on a clean run - including in the calibration pairs that later judge the scorer. The leap: a pure `decisionBrief.ts` derives the open warnings (the existing splitSanityChecks) and the job-fit gaps from the analysis; `decisionGate` says what a disposition needs (ack list for advance, a reason for passing a strong read, nothing for hold/clear). The editor renders the brief inline with a checkbox per open warning, the PATCH re-derives the warnings server-side from the stored payload and refuses an un-acknowledged transition to advance with a coded refusal, and the save writes `decision_basis` (score, open warnings, acknowledged, time) and a richer pipeline event. Note-only edits and legacy decisions are never gated. If card A lands first, the brief reads finding severity instead of the regex split with no change to the gate.\n\n## Flow\n1. decisionBrief.ts + decisionBrief.test.ts (pure; cases 1-4).\n2. ResultPanel.tsx passes `analysis` to DispositionEditor.\n3. DispositionEditor.tsx: inline brief, per-warning acknowledge checkboxes, reason prompt on pass-when-strong, PATCH carries `acknowledged`.\n4. route.ts PATCH: load stored row, re-derive warns, refuse DISPOSITION_ACK_REQUIRED (api-response.ts REFUSAL_ERRORS) only on a transition to advance; store basis.\n5. db/core.ts: ALTER TABLE analyses ADD COLUMN decision_basis TEXT; db/analyses.ts setAnalysisDisposition takes basis; db/pipeline.ts event detail names the acknowledged count.\n6. messages x4: brief heading, ack label, reason prompt, errors.DISPOSITION_ACK_REQUIRED.\n7. Doc: docs/features/candidates/README.md decision section.\n\n## Expected impact\nNo advance lands on a flagged analysis without the recruiter having named each flag; a strong read is never passed without a reason; and every decision carries the machine verdict it overrode or accepted, which makes override rates and the calibration set honest (a flagged advance is now distinguishable). The Art. 14-style 'human makes the call' promise in AiDisclosure becomes something the record can show.\n\n## Evaluation\nClaim: a disposition on a flagged or strong analysis cannot be saved without the acknowledgement or reason the gate names, at the UI and at the door, and every saved decision carries its basis.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: policy-tighten - node:test app/_components/results/decisionBrief.test.ts plus a route test over app/api/analyses/[slug]/route.ts against a temp KP_DB_PATH; npm run i18n:check green\nResult: pending build\nGate: policy-tighten",
+    "evidence": "ResultPanel.tsx:261-265:\n  <DispositionEditor slug={analysisSlug} initialDisposition={initialDisposition ?? null} initialNote={initialNote ?? null} />\nDispositionEditor.tsx:62-77 pick(): const next = disposition === value ? '' : value; setDisposition(next); ... void save(next, note);  (no precondition)\nQualityStrip.tsx rendered at ResultPanel.tsx:282, BELOW the decision row at 257-280.\ncredentials.py:120-123: 'Credential: the role appears to require a {label}, not found in the candidate's credentials - verify before advancing (manual review).'\npipeline.py:1424-1426 score check text: '... verify the score before trusting it'\nroute.ts:96-111: const disposition = ...; const ok = setAnalysisDisposition(slug, disposition, note, ws); if (disposition) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, ws, note)\nanalyses.ts:280: UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ? AND workspace_id = ?\nanalyses.ts:298-300 calibrationPairs: SELECT score, disposition ... WHERE score IS NOT NULL AND disposition IN ('advance','pass')\npipeline.ts:1665: const detail = trimmedNote ? `${disposition} - ${trimmedNote}` : disposition;\nPrior decks/backlog checked: no card or open item gates the disposition or records its basis (leftover results-core items are the built ReportActions / archetype chip / PotentialBadge and the open cross-JD compare, used as runner-up)."
+  }
+]

@@ -5,6 +5,11 @@ matching, provenance weighting, the early-career dimension swap, bounded
 dynamic weights, and the cross-candidate fairness matrix. Candidate intake and
 archetype detection are `docs/features/candidates/README.md`.
 
+Confidence-band driver codes and legacy English driver strings are paired only
+when both arrays have the same length. If the scorer or an older cached payload
+returns a partial code list, the full English driver list remains visible rather
+than silently dropping a reason.
+
 ## Entry points
 
 - **Fit matrix** (`?tab=matrix`) — `app/features/insights/matrix/MatrixTab.tsx`. One
@@ -14,11 +19,94 @@ archetype detection are `docs/features/candidates/README.md`.
   (jobs-json rows that failed `Job.model_validate`). A poison-pill ingested JD
   is listed rather than dropping a column the recruiter thought was open;
   `respond()` defaults `missingJobs` to `[]` when an older CLI omitted it.
+  The default columns are the roles in the pipeline (`listOpenPositions`).
+  **"Rank in matrix"** in the posting modal opens `?tab=matrix&job=<id>`, and the
+  tab sends that id as `GET /api/matrix?job=<id>`: a role in this workspace whose
+  derived status is `open` or `draft` (`getRoleStatusForWorkspace`, the SQL twin of
+  `roleStatusOf`) is appended to the scored positions even with no pipeline entries
+  (`matrix-positions.ts::withScopedPosition`), so a freshly posted role gets a
+  scored column. A `filled` or `closed` role, or one from another workspace, is not
+  added and the tab keeps its "Position no longer open" state. With an empty
+  candidate pool the role is still returned as a column, so the empty state shows,
+  not the closed one.
   - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
     `MatrixReasoningPopover.tsx`.
+    Its CSV follows the visible candidate and role order, writes the localized
+    hard-gate reason into blocked cells, and appends an invalid-job table when
+    `missingJobs` reports jobs that could not be scored.
   - **Candidate focus** (candidate-first: one candidate ranked against every role) —
     `focus/MatrixCandidateFocus.tsx`, results in `focus/MatchResults.tsx` /
     `focus/MatchCard.tsx`, per-skill provenance chips in `focus/MatchCardSkillChips.tsx`.
+    The role comparison table separates matched, claimed-but-unproven, and
+    missing skills for each role, so a claim is never presented as proof.
+    The ranking CSV exports those same three buckets as separate columns.
+    **Every exit of the ranking carries a reasons line** — one or two plain
+    sentences built in two pure halves in `focus/matchReasons.ts`:
+    `matchReasonFacts(m)` reads the result's own fit tier, strongest/weakest score
+    dimension (as a slug + rounded percent), up to three matched / unproven / missing
+    skill names, the total and `MATCH_SCORER_VERSION` into locale-free facts
+    (`MatchReasonFacts`, whose closed vocabularies — `FIT_TIERS`,
+    `DIMENSION_LABEL_CODES` — and validator live in `app/_lib/match-verdict.ts`,
+    pinned to `matching.py` and to the catalogs by `matchReasons.test.ts`), and
+    `renderMatchReasons(facts, t)` turns them into the line (no LLM, no network; words
+    from `match.reasons.*` in all four catalogs; `null` when there is neither a
+    dimension nor a skill name, and a non-finite percent is never quoted). It shows on every card by default
+    (`focus/MatchReasonsLine.tsx`; "Explain fit" stays the optional deeper,
+    model-written layer) and fills a `Why this ranking` CSV column (`focus/matchCsv.ts`).
+    **"Add to pipeline" seals the verdict, it does not store a sentence**
+    ([ADR 0018](../../architecture/decisions/0018-a-match-verdict-is-sealed-in-the-decision-chain.md)):
+    `useMatchResultsPipeline.ts` sends the facts as `matchFacts` on `POST /api/pipeline`,
+    and the route checks them with `coerceMatchReasonFacts` (closed tier and slug
+    vocabularies, integer percents, at most three trimmed names of ≤ 40 characters per
+    list, no unknown key, and `matchScore` equal to the score being filed). Every
+    `source: "match"` add must carry them and no other add may; the retired prose fields
+    (`reasons` / `reasonsStrengths` / `reasonsRedFlags`) are refused. Any of those is a
+    400 `PIPELINE_ADD_REASONS_INVALID` with nothing sealed and nothing filed. Then the add
+    is checked against **a result the server holds**: `POST /api/match` records each
+    result it returns (`match_run_results`, `app/_lib/db/match-runs.ts`, one row per
+    run and job, 12-hour TTL, keyed by workspace, candidate, job, scorer version and a
+    hash of the sanitized weights) and answers with a `matchRunId` beside the unchanged
+    results; the Match client sends it with every add. The door loads the run in the
+    current workspace and refuses with a 409 — before the seal and the insert — when it is
+    missing, expired, another workspace's or for another candidate or role
+    (`PIPELINE_ADD_MATCH_RUN_UNKNOWN`), or when the tier, either dimension, the skill
+    lists, the score or the scorer version differ from the stored result
+    (`PIPELINE_ADD_MATCH_RUN_MISMATCH`); the card then offers "Run matching" again. The
+    stored rows are candidate data, so erasure deletes them (`scrubEntryLinkedPii`). Only
+    then, **before the insert**, it seals one `match_verdict` decision record against the entry
+    id the insert will use (`pipelineEntryIdFor`, so a re-add seals its own record on the
+    same id): actor = the filing recruiter (`humanActor()`, not `auto:match` — the record
+    attests the result the server held for the run, not only what they were shown),
+    `policyVersion` = the scorer version, `reasonCode` `match_fit`, `inputs` = the facts
+    plus the `matchRunId` they were checked against,
+    `rationale` = a byte-stable code string (`matchVerdictRationale`, e.g.
+    `match_fit tier=strong best=skills:82 worst=career:40 skills=3/1/1 score=71 scorer=match-scorer.v1`),
+    the workspace passed explicitly. A seal that fails refuses the add with 503
+    `PIPELINE_ADD_NOT_SEALED` and files nothing. `approval_detail` is no longer written
+    by any add. The kind is internal: `/status/[token]` does not list it (an open owner
+    question, see Known gaps).
+    A sealed verdict is turned back into words by `matchVerdictReasons` /
+    `sealedMatchVerdictOf` in `app/_lib/decision-attribution.ts` (re-validating the facts,
+    then `renderMatchReasons` in the reader's `match` catalog). The **Decisions cohort**
+    reads it that way: `GET /api/pipeline/[id]` returns the entry's newest verdict as
+    `matchVerdict` (facts via `listDecisionRecordsForRefs`, null when there is none or the
+    chain cannot be read), `decisionsAnalysisSummaryData.ts` fetches it when the analysis
+    modal opens, and `AiNarrative` (`DecisionsAnalysisParts.tsx`) shows the rendered line
+    with matched skills as strengths and missing ones as red flags — in Czech for a Czech
+    reader, from the same record. A legacy Match add with no record still shows the prose
+    it left in `approval_detail`, as before. The Analytics decision-records panel
+    localizes a `match_verdict` row's rationale the same way (its sealed `rationale` is
+    the code string), and
+    `npm run kpi:reasons` reads it the same way: each `source_channel = 'match'` entry is
+    looked up by `candidate_ref` among `match_verdict` records (`matchFiledRanking` in
+    `app/_lib/reasons-coverage.ts`), so an accept that clears the gate slot no longer
+    turns an explained ranking into a miss. Entries filed before the seal are **not
+    backfilled** and **not counted**: they are reported in two buckets beside the arm —
+    *legacy prose snapshot* (the old `{summary, strengths, redFlags}` is still in the
+    slot) and *legacy, snapshot cleared before the record existed* — which can only
+    shrink.
+    When a newer CV analysis makes the profile stale, the rebuild banner formats
+    that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`
     still resolves (`LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) and the
     `?profile=<id>` / `?analysis=<slug>` params it always carried are what tell
@@ -27,7 +115,7 @@ archetype detection are `docs/features/candidates/README.md`.
 - **Group evaluation** (fairness matrix, weight rationale) —
   `app/features/hiring/decisions/GroupEvalModal.tsx`, `GroupEvalComparisonCells.tsx`.
 - **Recruiter candidate list** (experienced vs. early-career columns) —
-  `app/features/library/jobs/JobsRecruiterCandidatesCard.tsx`.
+  `app/features/library/jobs/JobsRecruiterCandidates.tsx`.
 - **Interview compare** (per-cohort rubric) —
   `app/features/library/jobs/JobsCompareInterviews.tsx`.
 - **About → Archetypes chapter** (how a candidate is routed, and why the three
@@ -48,6 +136,16 @@ networks" match a JD asking for "machine learning" without text-similarity
 noise. Coverage is tracked per role family in `data/taxonomy.json` (16
 families, 676 terms total) — see below.
 
+#### Whole-token matching is cached and pre-filtered
+`contains_whole_token` / `count_whole_token` test a surface form against normalized
+text with a lookaround regex. The taxonomy holds thousands of surface forms, past `re`'s
+512-entry cache, so every call recompiled its pattern; and each regex scanned the whole
+text even for a term the text does not hold. Profiled 2026-09-28 on real AI-company ads
+(8-12 kB each): 1.5 s a posting, 5.1 s of 15.2 s in `re.compile`, 9.2 s in `search`. The
+patterns are now `lru_cache`d and an exact pre-filter runs first (every word-part of the
+surface must be a plain substring of the text, or the pattern cannot match): 0.09 s a
+posting, with `test:eval:match` output identical to before.
+
 #### Language knock-out: alias buckets, matched on word boundaries
 The KO filter's language gate (`matching.py::_has_language`) resolves a required
 language to a curated alias bucket in `data/taxonomy.json::language_aliases` (12
@@ -65,6 +163,48 @@ knock-out. Pinned by
 A required language with no bucket falls back to a literal substring match on its
 bare English name — deliberate and documented, not an oversight; modelling a new
 language means adding a bucket (config), not changing the fallback.
+
+#### Education knock-out: one ladder, three-valued gate
+Education is the one KO whose candidate-side input is an *inference* from a
+surface match, not a stated fact, so `pipeline/jobfit/education.py` owns both
+ladders and the gate that compares them. The job side (`JOB_MIN_LEVELS`:
+`phd … university, high_school, none`) is what a posting demands, and
+`university` there means "any university degree". The candidate side
+(`CANDIDATE_LEVELS`: `unknown, university, bachelor, master, phd`) is what the CV
+lets us read, and `university` there means **"the CV names a school but no degree
+title"**: `taxonomy.classify_education` falls through to it exactly when no
+phd/master/bachelor term matched. The two slugs share a spelling (stored profiles
+keep it), not a meaning.
+
+`education_gate(candidate_level, job_min)` returns one of four values, and only
+one of them knocks out:
+
+| Gate | When | Effect |
+| --- | --- | --- |
+| `not_required` | the posting states no minimum (`null`, `""`, `none`) | none |
+| `meets` | the read level provably clears the minimum (`university` meets `university`/`high_school`) | none |
+| `below` | a **measured** level under the minimum (`high_school` vs `bachelor`, `bachelor` vs `master`) | `KoReason(key="education")` in `ko_filter` |
+| `uncertain` | `unknown`, an unmodelled level, or `university` under a bachelor/master/phd floor | no KO. The band widens by 4 with driver `eduDegreeUnstated` (or `eduUnknown`), and the candidate block names the assumption |
+
+Before the gate, `matching._EDU_RANK` ranked the candidate `university` **below**
+`bachelor` and knocked it out, while `unknown` was skipped as "absence of evidence".
+Naming your school cost roles; naming nothing cost none. An English CV writing
+"Charles University, 2012-2017" was hard-KO'd from every bachelor+ role while the
+same CV in Czech ("Univerzita Karlova", classified `unknown`) passed. Measured on
+the 120-role seed corpus: a `university` read is now knocked out of **0/120** roles
+(was 46/120), a `bachelor` still of 12/120, a `high_school` of 108/120.
+`winnability`, the recruiter rows, the fit matrix and the match meta all read
+`ko_filter`, so the false KO and the phantom "drop the education floor" delta
+went with it. The `eduDegreeUnstated` driver is job-aware: a role whose floor is
+"any degree" (or none) measures the read fully and gets no wider band.
+
+The vocabulary has one source: `jobs.EDU_LEVELS`, `taxonomy._EDUCATION_PRIORITY`,
+`transform.EDU_FOUNDATION`, `profile_draft_cli._EDU_LEVELS` and `pipeline.py`'s
+LLM-payload choice set import from `education.py`, and codegen emits
+`CANDIDATE_EDUCATION_LEVELS` into `app/_lib/taxonomy.generated.ts`, which
+`app/features/shared/profileTypes.ts` re-exports as the editor's `EDU_LEVELS`.
+Pinned by `pipeline/jobfit/tests/test_education_ladder.py` (including an identity
+test by import and a byte-identical fixture over every other KO path).
 
 #### Description overlap counts whole words — in every alphabet
 The `personal` dimension's overlap term (`matching.score_personal`) credits a
@@ -145,6 +285,80 @@ before/after this change are not comparable in the same screening wave
 not refresh old snapshots). Re-score a mixed-vintage cohort before running a
 wave over it.
 
+#### Proof weights are the default scorer (ADR 0027, adopted 2026-10-18)
+
+`score_job` runs the proof weights (`DEFAULT_PROOF_WEIGHTS` = `PROOF_PREVIEW_WEIGHTS`,
+`matching.py`) unless a caller passes `proof=None`, which runs the historical arithmetic
+(the C5 harness uses it for before/after; nothing in the product path does). The levers:
+
+- a must-have marked `hardness="learnable"` weighs `learnable_must_weight` = 0.8 instead of 1.0;
+- a bare `self_declared` claim on it is credited at `self_declared_learnable` = 0.05 of what it
+  earned (anything above self-declared keeps full credit);
+- **C6b (a):** a bare claim on a prerequisite must-have or a nice-to-have is credited at
+  `self_declared_requirement` = 0.05 (`score_skills`);
+- **C6b (b):** in the BAU personal keyword overlap (`score_personal`), an ad word matched only by
+  a bare skill claim counts `self_declared_requirement` of a hit; traits and evidenced skills
+  keep a whole hit;
+- **C6b (c):** in early-career potential (`transform.compute_potential`), bare claims add at most
+  `BARE_CLAIM_VELOCITY_CAP` = 1 skill of learning velocity between them. The candidate carries the
+  old figure as `bare_claim_potential_score` (only when it differs) so `proof=None` stays the
+  historical arithmetic.
+
+The discounted claim stays *unproven*, never *missing*. Every score the proof weights move carries
+a `ProofReason` line: `learnable_weight`, `self_declared_discount`, `self_declared_overlap` or
+`self_declared_velocity`. `score_skills` and `score_personal` stay primitives and default to the
+historical arithmetic; `score_job` passes the proof weights to both.
+
+**Scorer version on every score.** `MatchResult.scorer_version` is
+`proof-weights.2-lam0.8-sd0.05-sr0.05` (`proof_scorer_version()`; C6b, before it
+`proof-weights.1-lam0.8-sd0.05`) under the default and `match-scorer.v1` under `proof=None`. It is a
+slug, so it fits the add door's `SCORER_VERSION_RE`. On the TS side `matchReasonFacts`
+(`matchReasons.ts`) carries it into the verdict facts, `recordMatchRun` stores it in
+`match_run_results.scorer_version`, and the sealed record's `policyVersion` is that value; a
+result with no stamp (an older payload) falls back to `match-scorer.v1`. A score from the old
+arithmetic is therefore distinguishable from a proof score in storage and in the chain. Scores
+already stored (`pipeline_entries.match_score`) are not refreshed: re-score a mixed-vintage
+cohort before comparing across the boundary, as above.
+
+**What it changed, measured** (`python -m pipeline.jobfit.eval.matching_era_eval --legacy`, 66
+synthetic candidates x 120 jobs, keyless, deterministic):
+
+| metric | legacy | C6 (`proof-weights.1`) | C6b (`proof-weights.2`, today) | target |
+|---|---|---|---|---|
+| free-claim gain (stuffed - base) | +18.3801 | +13.6659 | **+1.2283** | <= 2.0 — **met** |
+| best-job tier crossings from free claims | 9/66 | 7/66 | **2/66** | 0 — **not met** |
+| proof premium (proven - stuffed) | +24.703 | +29.3913 | +41.8304 | not lower — met |
+| name deltas (nonzero, 4 axes) | 0 | 0 | 0 | 0 — met |
+| student / career_switcher tier loss at best job | – | 0 | 0 | 0 — met |
+| changed scores without a reasons line | – | 0 | 0 | 0 — met |
+| hardness lift learnable / prerequisite | +9.50 / +8.91 | +8.58 / +9.42 | +8.58 / +9.42 | learnable < prerequisite — met |
+
+Per archetype free-claim gain (legacy -> C6 -> C6b): bau 20.42 -> 15.03 -> 0.95, career_switcher
+14.47 -> 10.83 -> 1.77, student 17.41 -> 13.12 -> 1.36. Each C6b leak, in order: (a) +13.6659 ->
++3.0495 and 7 -> 3 crossings; (b) -> +2.0505, 3 crossings; (c) -> +1.2283, 2 crossings
+(commits `b6bd61a4e`, `e715216eb`, `abeff477e`).
+Student and career_switcher base-twin tier changes: 13 and 3 pairs of 2760 and 1320 (C6: 11 and 3),
+none at a candidate's best job; each carries its reasons line (`comparison.protected_tier_changes`).
+C6 met neither of the first two targets and the operator adopted the weights anyway. C6b closed
+the three leaks and met the free-claim gain; the best-job crossings target is **still not met** and
+its `expectedFailure` test in `test_matching_proof_preview.py` stays, with the 2/66 frontier pinned
+beside it. No target was loosened. The two crossings left are +1-point steps over a tier line
+(cand-031 @ job-018 69 -> 70, cand-061 @ job-114 54 -> 55, both students, `career_shift`). The
+velocity lever trades them one-for-one against the protected target: dropping bare claims from
+velocity outright reaches 0/66, but two students who hold one bare claim beside real evidence
+(cand-009 @ job-002 73 -> 69, cand-045 @ job-027 71 -> 69) then lose their strong tier at their
+best job. The cap of 1 is the setting that loses no met target; the drop is an operator decision.
+`test:eval:match` was re-recorded at the adoption (role_relevance_at5 0.857 -> 0.886); C6b leaves
+it at 0.886, so it was not re-recorded.
+
+**Known gaps (C6b).** The opt-in embedding term of `score_personal` (`--embeddings`) is not gated:
+it embeds the joined skill text, bare claims included. An inline tag-only candidate (`/api/match`
+with no `skillProvenance`) is all bare claims, so every requirement it names is now discounted.
+A claim whose provenance is free prose rather than a known value is not treated as bare
+(`_is_self_declared` reads the exact value), so it escapes every proof discount — skills, overlap
+and velocity — although `provenance_weight` scores it at the self-declared floor. The seed corpus
+holds 18 such career_switcher claims; aligning the two is not part of the approved C6b scope.
+
 ### 3. Early-career dimension swap
 For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`
 (`_DIM_SLUG_EARLY`) replaces the `career` dimension (seniority/family fit —
@@ -172,14 +386,27 @@ job/internship evidence: `transferable._TRANSFERABLE_MAP` credits meta-skills at
 masculine-only token silently credits a man and not the woman who held the same
 job. Most masculine forms are a *prefix* of their feminine counterpart and cover
 both (`učitel` ⊃ `učitelka`, `ředitel` ⊃ `ředitelka`, `koordinátor` ⊃
-`koordinátorka`); where the stem changes they do not, and the feminine stem has to
-be listed alongside — `pedagog`/`pedagož`, `poradce`/`poradkyn`,
-`právník`/`právnič`, `voják`/`vojačk` — or the adjective truncated to its neutral
-stem (`projektov` covers *projektový manažer* **and** *projektová manažerka*).
-Before that fix, *Projektová manažerka* earned no project-management meta-skills
-and graded `far` where *Projektový manažer* graded `moderate` — a different
-`potential_score` off nothing but grammar. `tests/test_transferable_gender.py`
-pins the symmetry; apply the same check to any Czech token added to these lists.
+`koordinátorka`); where the stem changes they do not, or the adjective is truncated
+to its neutral stem (`projektov` covers *projektový manažer* **and** *projektová
+manažerka*). Before that fix, *Projektová manažerka* earned no project-management
+meta-skills and graded `far` where *Projektový manažer* graded `moderate` — a
+different `potential_score` off nothing but grammar.
+
+The map is split into an authored table (`_AUTHORED_TRANSFERABLE_MAP`) and a
+load-time expansion (`with_feminine_forms`) that **appends** each Czech agent
+noun's full feminine words from `taxonomy.feminine_probe_forms` — `právník` gains
+`právnice` and `právnička`, `pedagog` gains `pedagožka`, `voják` gains `vojačka`.
+Full words, not the `feminine_variants` stems: the map matches by raw substring,
+and the stem `právnic` would credit every accountant whose CV says *právnických
+osob* with `negotiation`. The expansion is additive because a nominative does not
+reach the case forms a CV is written in (*praxe pedagožky*, *práce právničky*,
+*služba vojačky*), so the authored inflection stems `pedagož`, `právnič`, `vojačk`
+stay beside the derived words; `poradkyn` stays authored because the probe
+vocabulary has no `-ce→-kyně` rule. Measured before the derivation: *Právnice*,
+the dictionary-standard feminine, earned 4 of the 7 meta-skills *Právník* and
+*Právnička* earn and graded `far` where they graded `moderate`.
+`tests/test_transferable_gender.py` pins the pairs, the inflected pairs, the
+*právnických osob* negative control and that English signals derive nothing.
 
 The *taxonomy's own* surfaces carried the same gap, and there it reached further
 than the switcher bridge. `taxonomy.feminine_variants` now derives the
@@ -201,7 +428,11 @@ student's gender. What this closed, measured on the shipped data:
 `taxonomy_check.scan_gender_gaps` asserts it mechanically over the real data —
 `python -m pipeline.jobfit.taxonomy_check` fails on any masculine surface whose
 feminine the live matcher cannot reach, and `derive=False` replays the pre-rule
-state (55 gaps) so the check is a measurement, not a tautology.
+state (55 gaps) so the check is a measurement, not a tautology. The same CLI runs
+`scan_transferable_gender_gaps` over the third consumer, the transferable map,
+with `map_transferable`'s own rule (any form in the signal's group is a substring
+of the feminine word); `derive=False` there replays 1 gap (`právník` →
+`právnice`), and the CLI's `GENDER PARITY` line counts both.
 `tests/test_taxonomy_gender.py` pins all three rows plus the negative control:
 the derivation must add *only* feminine forms (an earlier draft derived the stem
 `technic` from `technik`, which would have matched the English
@@ -256,7 +487,9 @@ list stays deterministic.
 `robustness` status (`assessed` / `not_varied` / `unavailable` / `not_applicable` /
 `insufficient_sample`) that the fairness panel renders and the sealed decision
 record quotes. `assessed` means the matrix both *varied* the weights **and**
-covered the field that was compared: the ranker pool drops any candidate
+covered the field that was compared. The varied check compares the numeric
+scheme vectors directly; explanatory `weightNotes` alone cannot establish
+that a different weighting was tested. The ranker pool drops any candidate
 `group-eval-run` cannot resolve (no `candidateId`, or a `candidateId` whose
 profile and analysis are both gone) and `recruiter_cli` skips malformed rows,
 while those candidates are still compared and still ranked on their stored
@@ -380,6 +613,45 @@ workspace that fell back holds English prose in a **shared, persisted** record �
 `AiVerdict` renders the same honest "shown in {language}" note `MatchReasoningPanel`
 does, instead of every later reader being told the text is in their language.
 Evals saved before the field carry no `comparisonLang` and render no note.
+
+The language it is asked for is **the evaluating team's own** default, not a
+fixed tenant's. `runGroupCompare` used to call `getWorkspaceDefaultLocale()` with
+no argument, which reads `DEFAULT_WORKSPACE_ID` — so a team that had set its own
+language received a persisted, team-shared comparison written in the default
+team's language, and `comparisonLang` then recorded that wrong language
+permanently, note and all. The run's `workspaceId` is now threaded into
+`runGroupCompare` as a parameter (so no call site can omit it) and passed as
+`--lang`. This is the same untenanted-locale defect `app/_lib/automation-run.ts`
+documents for the background automation pass. Pinned by
+`app/_lib/group-eval-i18n-facts.test.ts`.
+
+**A cell announces what it paints.** `cellClass` treats a null score as
+unassessed — it paints the hatch rather than the lowest band, because a coral cell
+would claim a poor fit the pipeline never computed — and the cell body renders
+nothing for it. The accessible name did not agree: `aria-label` said
+`matchVal { score: c.score ?? 0 }` and `title` a bare `c.score ?? 0`, so a
+screen-reader user was told a concrete "match 0" for the very cell the grid reads
+as not-assessed. Both halves now derive from the one exported predicate,
+`matrixCellClass.ts::announcedCellScore`, and an absent score announces
+`matrix.cellUnassessed` ("not scored") instead of a number. A GENUINE 0 is a real
+score and still announces as 0. Pinned by
+`app/features/insights/matrix/matrixCellClass.test.ts`, which asserts the paint
+and the name agree across every band floor and both null cases.
+
+**The grid popover's narrative cache is keyed by language.** The "why this
+score" popover fetches one LLM-backed narrative per cell and de-dupes on a ref so
+a second click cannot spend a second Python spawn. Both that ref and the state
+map behind it were keyed `candidate|position`, while the request itself carries
+`lang` — so the cache key did not name the one parameter that changes the answer.
+After a reader switched language, re-opening the same cell hit the de-dupe and
+kept showing the OLD language's text, and `ReasoningProvenance` then compared
+that stale `narrativeLang` against the NEW locale, so the "shown in {language}"
+note was wrong exactly when it mattered. Both the writer (`useMatrixTab`) and the
+reader (`MatrixReasoningPopover`) now build the key through
+`matrixSelection.ts::matrixReasoningKey`, so they cannot drift apart in one
+direction only. The SELECTION key stays language-free by design — a shortlisted
+cell is shortlisted whatever the reader is reading in. Pinned by
+`app/features/insights/matrix/matrixSelection.test.ts`.
 
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
@@ -544,6 +816,45 @@ return strings against `matching.FitTier`). It is the shape
 on one side alone and CI reddens instead of a recruiter reading "promising" from the
 gate that admitted them and "partial" on the badge beside their name.
 
+**The fit grid is on the same scale.** The grid kept a private 45/60/72/85 heatmap,
+so a pair at 70-71 was a strong badge in candidate focus and, one segment over, an
+unstarred cell that the column's strong count skipped and the coverage banner called
+"no strong fit". `matrixStats.ts::MATRIX_BANDS` now takes its two tier edges from
+`FIT_PROMISING_FLOOR`/`FIT_STRONG_FLOOR` (bands `<40`, `40–54`, `55–69`, `70–84`,
+`85+`; 40 and 85 are cosmetic splits inside a tier). `STRONG_THRESHOLD` (the row ★,
+the column strong count) and the min-fit floors (`0 / 55 / 70`) are the shared
+floors, and the coverage rule is the pure `uncoveredRoles`. This reverses an earlier
+choice to derive the floors *from* the bands, which existed so a floor could never
+land mid-band. It still cannot: the tier floors now open bands by construction, and
+`matrixStats.test.ts` pins every floor as a band edge and forbids the literals in the
+module. On the wire, `matrix_cli` emits each scored cell's `fitTier`,
+`confidence {low, high, level}` and `unprovenCount` (a blocked cell stays
+`{score: null, blocked, koKeys}`), and `matrixCellClass.ts::cellTier` prefers that
+server tier over banding the bare score. `app/api/matrix/matrix-cell.test.ts` reads
+the route's `Cell` type and `matrix_cli.py` and fails on a declared key the CLI never
+emits. Payload cost on the seeded corpus: about 90 bytes per scored cell
+(85 KB → 211 KB for 112 × 18).
+
+**The grid proposes a slate; the recruiter decides.** The toolbar's *Propose slate*
+toggle opens `MatrixSlatePanel.tsx` over the pure allocator
+`matrixSlate.ts::proposeSlate` (pinned by `matrixSlate.test.ts`). Over the VISIBLE
+rectangle only (the family filter, min-fit floor and `?job=` scope in force) it
+walks eligible pairs by descending score, one role per candidate, with a
+locale-collated label then id tie-break so the same grid always yields the same
+slate. Eligible means scored, not blocked, not already in flight for that pair
+(the cell ring's `isTerminalEntryStatus` rule, plus pairs added this session), and
+at or above `FIT_PROMISING_FLOOR` (55). Each role gets a state: `clear`,
+`contested` (the role's top eligible scorer was allocated elsewhere; the line names
+them, their score and the role they went to), `thin` (only one assessed candidate,
+so no comparative claim) or `uncovered` (nobody eligible at or above 55; never a
+sub-floor "best available"). A `clear` pick whose `confidence.low` does not clear
+the runner-up's score says its lead is within the margin. The slate never writes:
+*Review in grid* replaces the selection with the picks' cell keys
+(`applySlateToSelection`, a new Set) and enters select mode, so the recruiter
+unticks or swaps and files through the existing *Add*, which keeps the
+hidden-selection disclosure and the partial-failure band. Keyless: it is pure
+client arithmetic over the scores already on screen.
+
 ### Both modes say when their field was cut
 Every list on this surface is capped, so each cap is stated rather than hidden —
 the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
@@ -696,6 +1007,9 @@ form because `normalize_text` does not fold diacritics. Acronyms that collide wi
 credit. `pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py` holds one
 glue-only pair and one genuinely-related pair per language, and reddens when a fifth
 locale reaches `LANG_NAMES` without a stopword pass.
+The Czech generic nouns `vedení`, `správa`, and `podpora` are filtered too: pairs
+that share only one of those nouns now score 0.0, with distinct subjects still
+present in the token sets.
 
 The word tokenizer itself is now single-sourced as `taxonomy.WORD_RE`; `matching`'s
 `_WORD_RE` and `taxonomy_check`'s `_CORPUS_WORD_RE` alias it, so the scan that AUDITS
@@ -864,7 +1178,10 @@ per workspace from that workspace's profiles and open positions, so two tenants 
 tab open evicted each other on every poll and the hit rate fell to zero — every visit
 paying a Python spawn for a deterministic O(N×M) computation the cache existed to avoid.
 It is now a small LRU (`app/_lib/matrix-cache.ts`, capacity 8) keyed by a hash of the
-workspace plus the exact JSON handed to the scorer. Bounded rather than a plain map
+workspace plus the exact JSON handed to the scorer, plus the content digest of the
+archetype registry (`archetypeRegistryDigest()` in `app/_lib/archetype-live.ts`): the
+registry's weights score every cell and are editable at runtime, so a reweight misses the
+grid it made stale instead of being served it until eviction. Bounded rather than a plain map
 because the value is a whole grid and the key is a content hash: unbounded, it would hold
 one grid per distinct corpus state forever. Pinned by `app/_lib/matrix-cache.test.ts`
 (eviction order, read-promotes, capacity refused below 1, the key's axes and separator).
@@ -1133,13 +1450,10 @@ side either; it was removed, and a test asserts it does not come back.
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
 - The grid's cells still **paint one number**: whether that number rests on
   evidenced or self-declared skills is only readable after opening the cell's
-  reasoning popover. The GET `/api/matrix` `Cell` type now enumerates optional
-  `fitTier`, `confidence`, `unprovenCount`, and `provenanceMix` (additive: a
-  `{score, blocked}` cell still validates, and `respond()` spreads the parsed
-  matrix so a future CLI cannot be stripped by a typed mapper). `matrix_cli`
-  still emits `{score, blocked, koKeys?}` only — filling those fields is a
-  pipeline change. Until then the match card's three-bucket split is the honest
-  interim: the unproven bucket is visible on the card, not yet in the grid.
+  reasoning popover. `matrix_cli` now sends `fitTier`, `confidence` and
+  `unprovenCount` per scored cell, but the grid does not paint the band or the
+  unproven count yet; the match card's three-bucket split is the honest interim:
+  the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.
@@ -1161,17 +1475,27 @@ side either; it was removed, and a test asserts it does not come back.
   does not reach `obchodní zástupkyně`, `office manager` does not reach
   `office managerka`) — the compact fallback relaxes its end condition only for
   single plain tokens, so a multi-word surface needs its feminine written out.
-- `edu_university` conflates two levels and `ko_filter` KOs on the conflation.
-  It matches both `vysoká škola` (degree-granting) and `vyšší odborná` (VOŠ,
-  genuinely sub-bachelor), and `_EDU_RANK` ranks the merged `university` bucket
-  **below** `bachelor`. Measured against the seed corpus: a CV reading *"Vysoká
-  škola ekonomická v Praze, obor Finance"* (no degree letters written — very
-  common in Czech CVs) is hard-KO'd from **46/120** roles, the same CV with
-  `Bc.` from 12/120, and a CV mentioning **no education at all** from 0/120. So
-  naming your university costs 46 roles while staying silent costs none — the
-  uncertainty guard fails open for a blank field and closed for a partly-stated
-  one. Fixing it is a data split of the term plus a knockout-policy decision on
-  where an unstated degree level ranks; both are product calls, not a code fix.
+- `edu_university` still conflates two schools: it matches both `vysoká škola`
+  (degree-granting) and `vyšší odborná` (VOŠ, genuinely sub-bachelor), while
+  `edu_dis` (`DiS.`, the VOŠ diploma) mints `bachelor`. The KO no longer fires on
+  the merged read (see "Education knock-out" above: an unstated degree is
+  `uncertain`, 46/120 roles to 0/120), but a VOŠ graduate still reads as meeting
+  an "any university degree" floor, and a `DiS.` still reads as a bachelor. Splitting
+  the term is a data change plus a new candidate level in `education.py`.
+- The UI renders both `university` slugs with the same label
+  (`enums.education.university`), so the profile editor, the profile summary and a
+  job's markdown do not yet say "degree not stated" for the candidate side.
+- **The sealed Match verdict is operator-facing only.** Whether a candidate may see a
+  `match_verdict` on `/status/[token]` — a ranking against a role they may never have
+  applied for, a different disclosure from a rejection — is an owner call;
+  `status-decisions.ts`'s allowlists are untouched until it is made.
+- **`MATCH_SCORER_VERSION` is a client constant** (`focus/matchReasons.ts`), because the
+  Python scorer emits no version on `/api/match`. The record's `policyVersion` therefore
+  names the facts contract, not a scorer build; making the scorer stamp its own version
+  is the generated-seam work (architecture review 2026-10-07, finding #6).
+- **The facts come from the browser** (as `match_score` always has), so a sealed verdict
+  attests what the recruiter was shown, not a server recomputation; recomputing would
+  cost a Python spawn per add.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs
@@ -1189,7 +1513,7 @@ side either; it was removed, and a test asserts it does not come back.
     "data/taxonomy.json", "pipeline/jobfit/taxonomy_check.py",
     "app/_lib/candidate-pool.ts", "app/_lib/group-eval*.ts",
     "app/features/insights/matrix/**",
-    "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
+    "app/features/library/jobs/JobsRecruiterCandidates.tsx",
     "app/features/library/jobs/JobsCompareInterviews*.tsx",
     "app/features/insights/about/scenes/archetypes/**"
   ] }

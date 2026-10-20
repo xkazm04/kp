@@ -30,17 +30,18 @@
 // every refusal. That outbox row is also this hook's idempotence key.
 
 import { meterGate } from "./billing/enforce";
-import { candidateRecipient, dispatchCaseInvite } from "./comms-dispatch";
-import { isDeliverableAddress } from "./comms-recipient";
+import { dispatchCaseInvite } from "./comms-dispatch";
+import { entryContactability } from "./comms-contactability";
 import type { OutboxStatus } from "./comms-status";
 import { planStep } from "./decision-config-schema";
-import { getDevCase, listDevCasesForJob, listOutboxFiltered, createLifecycle, getLifecycle, getOpenPosting, type DevCaseRecord } from "./db/devcase";
+import { getDevCase, listDevCasesForJob, listOutboxFiltered, listPostings, createLifecycle, getLifecycle, getOpenPosting, type DevCaseRecord } from "./db/devcase";
 import { getJob, loadJd } from "./db/jobs";
 import type { PipelineEntry } from "./db/core";
 import { getInterviewPlan } from "./interview-plan";
 import { jdSlugOfJobId } from "./jd-limits";
 import { publicBaseUrl } from "./public-base-url.ts";
 import { effectiveInterviewGate } from "./stage-hooks";
+import { intakeOf } from "../features/tools/devcases/DevCaseDetail.publish";
 
 /** The comms/outbox kind one homework invite writes. Read back as the idempotence
  *  key, so the pair "(entry, posting) → at most one assignment letter" needs no new
@@ -65,7 +66,7 @@ const SENDABLE_CASE_STATUS = "approved";
 
 export type HomeworkArrivalOutcome =
   /** The hook does not govern this arrival. */
-  | { outcome: "skipped"; reason: "no_job" | "no_jd" }
+  | { outcome: "skipped"; reason: "no_job" | "no_jd" | "agent_population" }
   /** An assignment letter already exists for this (entry, posting) — the idempotence guard. */
   | { outcome: "already_invited" }
   /** No case yet and the column gates case creation for a human: the lifecycle is
@@ -75,7 +76,12 @@ export type HomeworkArrivalOutcome =
    *  claim, forwarded verbatim — never narrowed or upgraded on the way out. */
   | { outcome: "invited"; delivery: OutboxStatus; postingId: string }
   /** Nothing was sent, and the reason is on the server log. The move still stands. */
-  | { outcome: "failed"; reason: "unaddressable" | "billing" | "no_case" | "error" };
+  | { outcome: "failed"; reason: HomeworkRefusal };
+
+/** Why nothing was sent. `intake_stopped`: the case HAS postings and every one is closed
+ *  (a recruiter's stop, or a lifecycle's close-out) — intake was ended deliberately, and
+ *  an arrival is not the door that reopens it. */
+type HomeworkRefusal = "unaddressable" | "suppressed" | "billing" | "no_case" | "intake_stopped" | "error";
 
 /**
  * Run the homework arrival for an already-COMMITTED stage move.
@@ -110,6 +116,18 @@ export async function runHomeworkArrival(
   if (!jobId) return { outcome: "skipped", reason: "no_job" };
 
   try {
+    // THE SEND GATE FIRST — before a case is designed or a token published. A candidate
+    // whose consent has lapsed (not yet swept) or who was erased still carries a contact,
+    // so the addressability check further down let them through: the hook published a
+    // live apply token (or ran the whole design chain first) and only the dispatch threw.
+    // entryContactability asks commsSendSuppression the way sendComm will.
+    const gate = entryContactability(entry, CASE_INVITE_KIND);
+    // An AI agent is never sent an assignment: skip before a case is designed or parked.
+    if (!gate.ok && gate.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
+    if (!gate.ok && gate.code) {
+      return refuse(entry, "suppressed", `the send gate refuses this candidate (${gate.reason})`);
+    }
+
     // The job's newest SENDABLE assignment. Newest-first is `listDevCasesForJob`'s own
     // order, and it is workspace-scoped there — a job id is not an authority to read
     // another team's cases.
@@ -136,12 +154,18 @@ async function inviteToCase(
   workspaceId: string,
   origin: string | null
 ): Promise<HomeworkArrivalOutcome> {
-  // Unaddressable candidates are refused BEFORE anything is published — same predicate
-  // the comms layer itself uses, so "unaddressable" means here exactly what it means in
-  // the Outbox. Asked first because publishing mints a live apply token, and minting one
-  // for a letter that has nowhere to go is a real side effect nobody asked for.
-  if (!isDeliverableAddress(candidateRecipient(entry))) {
-    return refuse(entry, "unaddressable", "no deliverable contact address is on file");
+  // Uncontactable candidates are refused BEFORE anything is published — the same verdict
+  // (and the same send gate) the comms layer itself applies, so "unaddressable" and
+  // "suppressed" mean here exactly what they mean in the Outbox. Asked again here, after
+  // a design round that may have taken minutes, because publishing mints a live apply
+  // token and minting one for a letter that cannot go is a real side effect nobody asked
+  // for. The dispatch's own gate stays the final re-check.
+  const contactable = entryContactability(entry, CASE_INVITE_KIND);
+  if (!contactable.ok) {
+    if (contactable.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
+    return contactable.code
+      ? refuse(entry, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
+      : refuse(entry, "unaddressable", "no deliverable contact address is on file");
   }
 
   // An OPEN posting is reused verbatim — a case must hand every candidate the identical
@@ -152,6 +176,19 @@ async function inviteToCase(
   let posting = getOpenPosting(devCase.id, INVITE_CHANNEL, workspaceId);
   if (!posting) {
     const { getAdapter } = await import("./distribution");
+    // A STOPPED INTAKE STAYS STOPPED. No open posting on this channel means one of two
+    // things: the case was never published (publish it — the step this hook exists for),
+    // or its intake was ENDED — every posting closed, by the recruiter's stop door or a
+    // lifecycle's close-out. The second is a decision, and minting a fresh token here
+    // would silently reverse it; reopening is the recruiter's Reopen, never a board move.
+    // The state is read by `intakeOf`, the same rule the assignment detail renders and
+    // offers Stop / Reopen by. Read AFTER the await and immediately before the adapter:
+    // `publish` reaches createPosting's IMMEDIATE transaction without yielding, so a stop
+    // cannot land between this re-check and the write.
+    const casePostings = listPostings(workspaceId).filter((p) => p.caseId === devCase.id);
+    if (intakeOf(casePostings).state === "closed") {
+      return refuse(entry, "intake_stopped", `case ${devCase.id}'s intake was stopped; a recruiter reopens it in Dev → Cases`);
+    }
     posting = await getAdapter(INVITE_CHANNEL).publish(devCase);
   }
   if (!posting.token) return refuse(entry, "no_case", `posting ${posting.id} carries no apply token`);
@@ -216,7 +253,7 @@ async function designThenInvite(
     return refuse(entry, "billing", "the case-design allowance is exhausted");
   }
 
-  const job = getJob(jobId);
+  const job = getJob(jobId, workspaceId);
   const need = {
     title: jd.title || job?.title || "Work-sample assignment",
     jdSlug: jd.slug,
@@ -300,7 +337,7 @@ function alreadyInvited(entryId: string, token: string, workspaceId: string): bo
  */
 function refuse(
   entry: { id: string },
-  reason: "unaddressable" | "billing" | "no_case" | "error",
+  reason: HomeworkRefusal,
   why: string
 ): HomeworkArrivalOutcome {
   console.warn(`[stage-hooks:homework] ${entry.id}: no assignment sent (${reason}) — ${why}.`);

@@ -24,6 +24,7 @@ import {
   AUTOMATION_TOKEN_HEADER,
   MIN_AUTOMATION_TOKEN_CHARS,
   checkAutomationToken,
+  resolveHireWorkspace,
   tokensMatch,
 } from "./automation-auth.ts";
 import { hireIntakeLang, POST as hirePost } from "./route.ts";
@@ -64,6 +65,22 @@ function hireRequest(body: unknown, headers: Record<string, string> = {}): NextR
 // ---------------------------------------------------------------------------
 // The machine door (pure)
 // ---------------------------------------------------------------------------
+
+test("a body-named workspace is honoured for the MACHINE caller only", () => {
+  // The human path is authorised against the SESSION's workspace (isOperator +
+  // pipeline:write). Letting `body.workspace` then pick the tenant let a user with
+  // write access in one team compose and dispatch a hire into ANOTHER. Only the
+  // token-authenticated machine caller (no session) may name one.
+  assert.deepEqual(resolveHireWorkspace({ machine: true, bodyWorkspace: "team-b", sessionWorkspace: "workspace" }), { ok: true, workspace: "team-b" });
+  assert.deepEqual(resolveHireWorkspace({ machine: true, bodyWorkspace: "", sessionWorkspace: "workspace" }), { ok: true, workspace: "workspace" });
+  assert.deepEqual(resolveHireWorkspace({ machine: false, bodyWorkspace: "", sessionWorkspace: "team-a" }), { ok: true, workspace: "team-a" });
+  assert.deepEqual(resolveHireWorkspace({ machine: false, bodyWorkspace: "team-a", sessionWorkspace: "team-a" }), { ok: true, workspace: "team-a" }, "naming your own team is fine");
+  assert.deepEqual(resolveHireWorkspace({ machine: false, bodyWorkspace: "team-b", sessionWorkspace: "team-a" }), { ok: false }, "a human may never name another team");
+  // …and the route decides the tenant through it, not through `body.workspace ||`.
+  const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8").replace(/\/\/.*$/gm, "");
+  assert.match(src, /resolveHireWorkspace\(/);
+  assert.doesNotMatch(src, /str\(body\?\.workspace\)\s*\|\|/);
+});
 
 test("the machine door is CLOSED until the operator configures a token", () => {
   const off = checkAutomationToken(GOOD_TOKEN, partialEnv({}));

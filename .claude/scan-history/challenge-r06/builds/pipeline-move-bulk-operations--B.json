@@ -1,0 +1,20 @@
+{
+  "card": "pipeline-move-bulk-operations/B",
+  "title": "Bulk move previews what it sets off: invites, assignments, erased offers",
+  "status": "landed",
+  "base": "9989ad4c7",
+  "shas": ["85877d997", "e27a52141", "5870e0389", "836009b45"],
+  "tests_added": [
+    "app/_lib/pipeline-arrival-plan.test.ts",
+    "app/api/pipeline/batch/route.test.ts (dryRun case)",
+    "app/features/hiring/pipeline/pipelineBulkMovePreview.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {"tsc": 2, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": 0, "unit": 1, "perf": 1, "ts_ratchet": 0, "_gates_note": "tsc, unit and perf non-zero on FOREIGN paths only - see notes"},
+  "files_changed": 16,
+  "lines_changed": 943,
+  "deviations_from_card": "(1) pipelineBulkSelection.ts joined the write set, per the coordinator's hand-off (slot A moved the confirm slot and actionableRows there): BulkWhich now derives from BulkConfirm ('move' added), actionableRows('move') = active rows, cohortSignature/armedBulkConfirm take an optional moveTarget so a move confirm signs WHERE as well as WHO, new state field movePreview and event 'previewed'. (2) The hook reads arrivalBranch (the finer branch: not_interview_role vs no_ai_round), and arrivalEffect is the derived coarse effect; effectiveInterviewGate now delegates to the pure resolveInterviewGate, and stage-hooks exports interviewPlanSaved for the route. (3) Like slot A, the preview rides the status line (BulkResult verb 'previewed' + preview summary, plus heldBack) instead of new bar props, so usePipelineTabState.ts / PipelinePopulatedBoard.tsx stayed out of the write set; the hook hides a 'previewed' line whenever the move confirm is not armed. The confirm's Cancel reuses pipeline.tab.bulkRejectCancel. (4) needsConfirm also counts held AI invites (the candidate is parked for a human) besides outbound, erased and held-back effects. (5) Dry-run preview rows the server refused (CAS miss, closed, terminal) are carried into the commit settle as per-id failures with their code, so they stay selected. (6) Commit order: catalogs (lock) first, then test, feat, doc (lock).",
+  "notes": "tsc exit 2 on the whole tree: all 80 errors under the untracked kpi-sim/ directory, none in tracked files. Full npm run test:unit: 10395 tests, 2 fail = app/_lib/python-runner-concurrency.test.ts (BROKEN, Windows process-tree test, same as slot A reported) and app/_lib/db/profiles-lineage.test.ts (FLAKE, passed on re-run) - neither touches this card's code; the touched dirs (hiring/pipeline, api/pipeline/**, stage-hooks*, pipeline-entry-action*, arrival-plan) were 395/395 on the working tree. test:perf on the full working tree is red on app/page.tsx (1419 modules / 8977 KB) and 12 app/api route KB ceilings plus job-ingest.ts, driven by siblings' UNCOMMITTED files (db/pipeline.ts, comms-dispatch.ts, apply*.ts, ats/ingest.ts ...). Measured HEAD(9989ad4c7 + catalog commit) + this card's 8 source files alone via git archive into scratch: within budget, exit 0. My share: app/page.tsx 1417 -> 1418 modules, 8927 -> 8940 KB against ceiling 1418 / 8941 (no raise needed, but only 1 KB headroom remains on page KB); API routes unchanged (hire-from-need 3123 both). No ceiling raised. api:check green (no method change; dryRun is an additive body flag). Integration: POST /api/pipeline/batch {dryRun:true} answers {ok, dryRun:true, total, results:[{id, ok, code?, reason?, preview?:{effect, clears, holdBack, stage}}]}; rate limit is shared with the commit (a previewed move is 2 calls of the 20/min)."
+}

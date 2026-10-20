@@ -226,6 +226,16 @@ class StageTimerTest(unittest.TestCase):
         self.assertIn("extract", timings)
         self.assertGreaterEqual(timings["extract"], 15)
 
+    def test_it_times_with_the_high_resolution_clock(self) -> None:
+        # time.monotonic() is GetTickCount64 on Windows: 15.625 ms steps, so a 20 ms
+        # stage read as 14-15 ms and a 5 ms stage as 0. perf_counter() is the clock
+        # meant for durations; pin it so the timings are not quantised again.
+        timings: dict[str, int] = {}
+        with mock.patch.object(logger.time, "perf_counter", side_effect=[100.0, 100.0047]):
+            with logger.StageTimer(timings, "score"):
+                pass
+        self.assertEqual(timings["score"], 4)
+
     def test_a_raising_body_still_records_its_stage(self) -> None:
         # The stage that FAILED is the one an operator most wants a duration for.
         timings: dict[str, int] = {}

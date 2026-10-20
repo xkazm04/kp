@@ -86,7 +86,7 @@ export function DecisionsBanners({
                   type="button"
                   title={t("offerSent.copy")}
                   onClick={() => onCopyOffer(o.id, o.link)}
-                  className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                  className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral-ink"
                 >
                   {copiedOfferId === o.id ? <Check size={14} /> : <Copy size={14} />}
                 </button>
@@ -160,7 +160,7 @@ export function DecisionsBanners({
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-coral/40 bg-coral/5 px-4 py-2.5 dark:rounded-2xl"
         >
           <p className="min-w-0 text-sm text-ink">
-            <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-coral" aria-hidden />
+            <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-coral-ink" aria-hidden />
             {t("wave.reasons.sealFailed")}
           </p>
           <button

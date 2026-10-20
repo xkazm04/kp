@@ -5,7 +5,7 @@ tree). Three rules apply to `app/features/**`:
 
 1. **No `.tsx` over 200 lines.** Anything larger is split into modules.
 2. **Every module in a feature folder starts with that feature's name** —
-   `PipelineBoard.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
+   `PipelineTab.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
    — so a file's home is readable from its name alone and the folder sorts by
    role. PascalCase for `.tsx` components, camelCase for `.ts` helpers.
 3. **The folder tree mirrors the app's menu** — `hiring/pipeline`,
@@ -59,6 +59,13 @@ The workspace is **one route**: `/` plus query params. Every selection and filte
 `?stage=`) is a param on the same page. The server render of `/` reads **none** of
 them — only `?sim=auto` and `?onboarding=1`.
 
+`WorkspaceDocumentTitle` reflects the active tab's localized nav label in the
+browser title after an in-shell switch and restores the server title when the
+workspace unmounts. The title therefore follows app state even when the URL
+does not change. While a background task reports a measured total, the browser
+title also carries its bounded `done/total` progress so an operator can monitor
+it from another tab.
+
 ### The view selectors are app state; the URL is their inbox
 
 `?tab=` (the panel) and `?sec=` (the Analytics section) are the exception: they no
@@ -99,8 +106,8 @@ per switch, so Back no longer steps through tabs — it leaves the workspace.
 Restoring that means carrying the tab in history *state* rather than the query.
 
 `selectTab` still writes the URL in exactly one case: when a tab-scoped
-deep-link param (`?profile=`, `?job=`, `?edit=`, `?jd*` — the `clearedTabScopedParams`
-allowlist) is actually present, so the destination cannot inherit the previous
+deep-link param (`?profile=`, `?job=`, `?edit=`, `?jd*`, Assignments' `?case=` /
+`?lifecycle=` — the `clearedTabScopedParams` allowlist) is actually present, so the destination cannot inherit the previous
 tab's selection. The ordinary click touches nothing.
 
 Pinned by `e2e/shell-tab-state.spec.ts` and `e2e/analytics-sections.spec.ts`.
@@ -144,7 +151,7 @@ to be the first moment a tab's chunk was requested, putting the download on the
 critical path between the click and the first frame. `prefetchTabChunk(id)` starts
 it on nav-item hover **and** focus (a keyboard user never hovers) and inside
 `selectTab` before the URL flips; `warmLikelyTabChunks(active)` warms the hiring
-tabs on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
+tabs, including Roles and Job intake, on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
 failed prefetch is swallowed, and the render path re-requests and surfaces a real
 failure through the tab's `ErrorBoundary`.
 
@@ -155,6 +162,11 @@ Settings → Branding still paid for the chunk at click time. The rail button no
 warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
+The visible rail section is remembered in session storage across reloads. A tab
+switch makes its own section the new stored default; unavailable storage only
+loses that preference.
+The rail also announces attention-count changes through a stable polite live
+region, including when the last count drops to zero.
 
 ### A nav group may own a DOOR as well as its destinations
 
@@ -205,6 +217,12 @@ the nav is the thing that knows what its own chrome costs. Two things hang off i
   Sign out — which offered a candidate who never had a session a button that POSTs
   `/api/auth/logout` and hard-navigates them off the job ad. Appearance and language
   (`RailPreferences`) are viewer chrome and stay for everyone.
+  The **Control** link to `/control` (Art. 22 gates, audit trail, kill switch) is also
+  operator-only, drawn through `nav/controlDoor.ts`: `/control` answers a non-operator 404,
+  so the nav must not show the door either. `WorkspaceNav` reads `isOperator()` itself;
+  the interactive shell receives it as `Workspace`'s `operator` prop.
+  When a signed session exists, Sign out opens the shared confirmation dialog;
+  the open-mode entry marker with no session still leaves in one click.
 
 Open mode (`KP_OPERATOR_PASSWORD` unset) makes `isOperator()` true for everyone by
 design, so a keyless/dev install and the e2e subset are unchanged; only a
@@ -225,13 +243,26 @@ was a 403 rendered as a failed load.
   the tab's own primary route already enforces — `organization` → `members:manage`
   (`/api/org/invites`), `billing` / `models` / `integrations` → `org:manage`,
   `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
-  (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
-  deliberately absent: its door is `requireOperator`, not a capability, so no entry
-  would be truthful. `templates` is absent for the same reason — the write half of
+  (`/api/decisions/config`), `branding` → `org:manage` (`PUT /api/brand`), and the
+  tour → `pipeline:write`. Branding was once absent because its door asked only
+  `requireOperator`; since `PUT /api/brand` asks `org:manage`, an admin offered the
+  editor could edit every field and meet a 403 on save, so it now renders locked for
+  every seat but the owner (open mode and an operator session fold to owner, so the
+  keyless run keeps it). `templates` is still absent — the write half of
   `/api/templates` gates on `requireOperator`. Pinned by `navCapabilities.test.ts`.
-- **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
-  per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
-  so a late mount sees the answer on its first render). A dedicated route rather
+- **The source** is the '/' server render: `app/page.tsx` resolves
+  `currentWorkspace()` + `callerCapabilities()` once and passes them to
+  `<Workspace principal>` as a `ShellPrincipal` (`shell/shellPrincipal.ts`, below).
+  `shell/useCapabilities.ts` reads it through `ShellPrincipalContext` as its SERVER
+  snapshot and through the primed module as its client snapshot - the same array,
+  so the first render on both sides of hydration already shows the locks (no flash
+  of unlocked Billing/Models for a viewer, no mismatch, no GET). Every consumer
+  reads it this way: `Workspace` (passes its own prop - it provides the context),
+  the rail and mobile drawer through it, `WorkspaceCommandPalette`, `AboutTab`,
+  `ModelsQualityOverview`. Unseeded (a surface without the shell, or '/' failed to
+  resolve it) the hook falls back to `GET /api/me/capabilities` once per document,
+  retried after a failure. The setup wizard's seat (`setup/setupSeat.ts`) is a
+  separate read (`GET /api/me/onboarding`) and still fails open. A dedicated route rather
   than `/api/org/members`' `callerCapabilities`, because that payload is the whole
   member roster, it 401/403s for exactly the callers whose shell must still render,
   and open dev mode / an operator-password session hold no membership row at all
@@ -241,12 +272,36 @@ was a 403 rendered as a failed load.
 - **It fails open.** An unresolved set is `null`, and `null` locks nothing. A shell
   that hid an owner's Billing tab because one GET blipped would be a worse failure
   than the one this closes; the server gates remain the enforcement.
-- **Rail vs palette differ on purpose.** A locked rail row STAYS, disabled, with the
-  capability named in its tooltip (`nav.lockedTab` + `nav.capabilities.*`), because
-  a landmark that vanishes for the person who holds the key reads as a broken build.
-  The palette simply omits them: it is a search over things you can act on.
+- **Rail vs palette differ on purpose.** A locked rail row STAYS, as a LOCK DOOR —
+  focusable and activatable, the capability named in its tooltip (`nav.lockedTab` +
+  `nav.capabilities.*`), never `aria-disabled` — because a landmark that vanishes
+  for the person who holds the key reads as a broken build, and a disabled one teaches
+  the reader the product is broken. The palette simply omits them: it is a search
+  over things you can act on.
+- **Every door converges at the destination.** The rule: a seat whose KNOWN caps lack
+  `TAB_CAPABILITY[id]` is locked on arrival at `id`, whatever door it came through — a
+  rail click, a g-chord, a `?tab=` arrival (the billing checkout return, the calendar
+  callback, a shared link; the inbox deliberately ADOPTS a capability-locked id, unlike
+  the flag-gated Agents tab), programmatic `selectTab`. `WorkspaceTabPanel` renders
+  through `panelFor(TAB_PANELS, navActive, caps)` (`navCapabilities.ts`, with
+  `tabArrival`), so a locked arrival lands on `shell/LockedTabPanel.tsx` instead of the
+  tab and its 403. Branding is gated like the rest: a read-only seat on
+  `?tab=branding` meets the lock, not the editor. The panel names the tab, the
+  capability and that the seat's role lacks it, then lists who in this workspace holds
+  it (`GET /api/me/capability-holders?cap=` — gated on `read`, at most 5
+  `{name, email, role}` rows of this team and org, owner first: a strict subset of
+  `/api/org/members`), each with a mailto Ask link carrying the exact deep link.
+  No holders and a failed read are stated states (`shell/lockedDoor.ts`). Unknown caps
+  still open every door, and the panel swaps to the lock the moment caps resolve
+  without the capability. `selectTab` and the rail's section warm-up skip the chunk
+  prefetch for a locked tab — its code never renders for that seat.
 
 ### The tab error boundary speaks the reader's language
+
+The fallback also offers a Report action. It POSTs the workspace panel label,
+current path, and any server digest to `/api/feedback`, then confirms delivery
+or shows a localized failure. The thrown message stays in the browser console
+and configured error sink; it is never copied into a feedback row.
 
 `app/_components/ErrorBoundary.ts` is the fallback a reader meets when a tab's
 render throws. Its three strings were hardcoded English — the only shell copy
@@ -278,6 +333,46 @@ tab's fallback).
   dialog (`isAnyModalOpen()`) — stacking the palette on an unsaved edit dialog let
   the reader Enter their way out of a form they were mid-way through.
 
+### A lapsing session warns, then re-signs in over the page
+
+A signed session lives exactly `SESSION_TTL_MS` (7 days) and only the sign-in doors
+mint one, so every signed-in user's session ended mid-work once a week: the proxy
+answered the next write with a bare 401, the pipeline / JD / bulk surfaces folded it
+into "you don't have permission", and the only recovery was leaving the page.
+
+- **The facts.** `GET /api/me/capabilities` also answers `session`: the caller's OWN
+  `{kind: "user" | "operator", userId, email, workspaceId, expiresAt}` (`expiresAt` is
+  the verified token's `exp`). The route is ungated, so the field is strictly the
+  caller's own (never a hash, never another member) and is `null` in open mode, for
+  the guided demo, with no signed cookie, and for an identity-less non-operator
+  cookie. Pinned by `app/api/me/capabilities/route.test.ts`.
+- **The decisions** are pure, in `shell/session/sessionLapse.ts` (pinned by its test):
+  `phaseAt` (live, then `expiring` from `WARN_BEFORE_MS` = 10 min before expiry, then
+  `lapsed`; open mode is always live and arms nothing), `lapseOnStatus` (only a 401
+  lapses; a 403 is under-privilege, a 5xx an outage), `reconcileRead` (a due expiry
+  re-reads the server before prompting, so a re-sign-in in another tab is adopted),
+  `resolveReauth` and `resolveSwitch`.
+- **The wiring** is `shell/session/useSessionLapse.ts`: one timer at the next moment
+  the phase can change, a re-read on `visibilitychange`, and a 401 intake from
+  `useAttention` (`reportSessionStatus`). That works because `sharedGetJson` now
+  rejects with an `HttpStatusError` carrying `.status`; its message is still
+  `HTTP <n>`, so existing catch sites read what they read before.
+- **The surface** is `shell/session/SessionLapseDialog.tsx`, mounted once in
+  `Workspace.tsx`: an amber chip with "Stay signed in" from ten minutes out, a modal at
+  lapse (the chip stays, red, if it is dismissed). It POSTs to the real
+  `/api/auth/login` door and maps the answer with `classifyLoginResult`; the email is
+  prefilled for a user, and the operator gets a password-only form.
+- **After a successful sign-in** it re-reads the facts. Same person on the same team:
+  resume in place with one `notifyDataChanged()`. Same person whose login landed on
+  their first team: `POST /api/auth/switch-workspace` back to the lapsed one (the
+  membership-checked renewal door); anything but 2xx reloads `/`. A different person or
+  kind: a hard reload of `/`, because the page's client state was someone else's.
+- **Fail-closed.** Nothing here mints, renews or extends a session: the dialog's only
+  way out of "lapsed" is a real re-authentication through the login door, which issues
+  through `app/_lib/auth/session-issuer.ts` with its own cookie attributes. Unsaved
+  form state survives only because the page is never unmounted; nothing is persisted
+  server-side.
+
 ### The command palette lives on the rail
 
 `shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its
@@ -294,6 +389,8 @@ keyboard highlight); while typing, entity hits lead and the tab navigator trails
 walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
 `action-tasks` beside `action-new-intake`, offered at rest and on a match of
 `tasks.label` (or the hunt tokens `tasks` / `background`), href `/?tab=tasks`.
+The tour command becomes Pause or Resume and Stop while a run is live, so the
+palette remains a run-control door after starting the walk.
 
 **A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
 each response through the pure `searchResponseState(ok, body)`
@@ -305,7 +402,12 @@ row 0, and Enter opened a candidate the recruiter had not typed. A malformed but
 successful body is the opposite case and stays a genuine zero-hit result, so the
 palette may still say "no matches" for it.
 
-The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
+The palette's resting state includes the last three visited tabs from this
+browser session, alongside recent entities. It omits duplicates from the full
+tab navigator and respects capability locks. Tour and new-intake palette search
+aliases come from the four locale catalogs.
+The About tab's preview lists its six localized chapter claims with direct hash
+links to each chapter. The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
 master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:
 glyph tile, match highlight) and a **live preview pane** on the right for the
 highlighted row: kind eyebrow, the name in the display face, the destination's
@@ -357,10 +459,14 @@ about whose numbers it asked for, so a query-only key let one document re-show
 the previous tenant's counts for the whole 30 s TTL after an in-place team
 switch. An unresolved tenant is not a key — nothing is read and nothing is
 written, so the worst case is a colder pane rather than a wrong one. The tenant
-comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
-`current`; the session cookie carrying it is httpOnly), resolved once per
-document, and changing it empties the cache. `previewCache.test.ts` pins the
+comes from the shell principal (below), and changing it empties the cache. `previewCache.test.ts` pins the
 scoping, the TTL boundary and the three response shapes that mean "error".
+The live-refresh bus also clears the memo and re-fetches the highlighted item
+after a mutation, so its count does not remain stale until the TTL expires.
+An unavailable preview keeps the palette open with a Retry action that clears
+the cached result and fetches the highlighted item again.
+The loaded preview is a polite live region named with the highlighted item, so
+arrowing through results announces the new facts without moving input focus.
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group
@@ -372,6 +478,30 @@ workspace's own column label server-side, so it arrives ready to draw.
 
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.
+
+### One door for "who is looking": the shell principal
+
+`shell/shellPrincipal.ts` owns the two facts every tenant-scoped client store
+needs - the workspace this document belongs to and the caller's capabilities.
+`app/page.tsx` resolves both server-side (a failure is `null`, which is the old
+fetch-everything behaviour) and `Workspace` hands them down twice: as
+`ShellPrincipalContext` (read by the server render and the first client render,
+see `useCapabilities`) and into the module via `primeShellPrincipal` from a
+`useState` initializer, so the non-React stores read the tenant synchronously.
+Priming is a no-op without `window`: server module scope is shared across
+requests, and a primed value there would hand one request's tenant to the next.
+
+`recents.ts`, `palette/previewCache.ts` and `hiring/pipeline/usePipelineTenant.ts`
+used to carry three copies of a `GET /api/workspaces` resolver (a route that
+lists every workspace with an N+1 membership scan) to read one string. They now
+ask `shellWorkspaceId()` / `resolveShellWorkspace()` and keep only their own
+semantics: recents drops the legacy `kp.recents` key and flushes its queue, the
+preview memo clears on a different tenant, the board adopts its legacy keys.
+Unseeded - the `/jds/[slug]` and `/history/[slug]` deep-link pages mount the
+palette and record recents without the shell - one shared `GET /api/workspaces`
+answers all three, and a failure resolves `null` and is retried on the next call.
+Pinned by `shell/shellPrincipal.test.ts` (including a source probe that no
+consumer fetches the route itself).
 
 ### The bottom control dock is a two-layer toolbar with a rail
 
@@ -567,7 +697,9 @@ the dependency runs one way.
 ## Adding a tab is five declarations, and the chord is the one that bites
 
 `WORKSPACE_TAB_IDS` (the id universe + the runtime guard), a `NAV_GROUPS` entry
-(sidebar placement + label), a `TAB_CHUNKS` loader, a `WorkspaceTabChunks` branch,
+(sidebar placement + label), a `TAB_CHUNKS` loader, a `TAB_PANELS` entry in
+`WorkspaceTabChunks.tsx` (an exhaustive `Record<WorkspaceTabId, …>`: a missing entry is
+a tsc error, not a blank panel; idea-47b71431),
 and a `nav.tabs.<id>` label in all four catalogs. The **Job intake** tab
 (`?tab=intake`, Library group) is the worked example.
 
@@ -590,6 +722,10 @@ they are not interchangeable:
 single letter and both two-key chords, so either mistake fails loudly instead of
 silently moving someone's muscle memory.
 
+The `?` overlay also names the always-mounted control dock's toolbar keys:
+Left/Right and Home/End move focus among controls; Enter/Space activates the
+focused control. Arrow navigation never triggers a control's action.
+
 ## `shell/tasks/` — the AI-tasks surface
 
 `?tab=tasks` (labelled **AI tasks**; the id, the chunk and the catalog namespace
@@ -607,6 +743,14 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 | `taskSearch.ts` (+ `.test.ts`) | The free-text predicate — `taskSearchNeedle` folds what was typed, `taskMatchesSearch` tests it against the RENDERED label and the raw kind |
+
+`TaskFlightNote` links its background-run explanation to the AI tasks tab, so a
+recruiter can leave the originating surface and open the live run directly.
+
+`GET /api/tasks` includes the task kinds accepted by the server handler registry.
+The Kind filter combines that list with any legacy kind in the recent window,
+so an operator can query history for a registered kind even when its latest run
+has aged out of the live table.
 
 Eleven decisions are load-bearing:
 
@@ -708,13 +852,67 @@ only the language (`setupOnboardingFinish.ts`), and after the stamp the host
 `router.push("/me")` instead of refreshing the recruiter workspace. The draft persists
 the intent and restores it FIRST, since the step count a restored position clamps to
 depends on it (`setupDraft.ts`). The hire path is byte-for-byte what it was;
-`setupSteps.test.ts` pins both sequences.
+`setupSteps.test.ts` pins both sequences. **The fork exists only where the seeker module
+does** (`KP_JOBSEEKER=1`, read once in `app/_lib/jobseeker/enabled.ts`): `app/page.tsx`
+seeds `SetupSeekOfferContext` (`setupSeekOffer.ts`, default `false`), and without it the
+Welcome step draws no fork, the run starts already answered `hire`, a restored `seek`
+draft folds onto `hire` and nothing can finish on `/me` (`setupSeekOffer.test.ts`).
 
-**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
-rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
-appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
-exactly like `/control`, `instant = false`, a `TranslatedErrorBoundary` around the
-page and no Companion dock. It reuses the root layout's providers and nothing from
+**The seat (2026-09-23).** The `/` gate fires per user and a redeemed invite lands on
+`/`, so an invited teammate meets this wizard too. Each step whose answers need a
+capability declares it (`requires` on `SETUP_STEPS`: company -> `org:manage`, team ->
+`members:manage`, pipeline -> `pipeline:write`), and `SetupState.seat` holds who is
+answering: the caller's capabilities, read once from `GET /api/me/onboarding` (the
+same response as the draft scope; `seat.capabilities` is `callerOrgCapabilities()` ∪
+`callerCapabilities()`, the two resolvers the finish doors gate on).
+`relevantSteps(state)` filters on the intent AND the seat, so an invited recruiter
+walks Welcome -> Pipeline -> Candi -> Hand-off and an admin keeps Team but not
+Company (`org:manage` is owner-only, `roles.ts`). `finishPartsFor` writes the
+org-wide language only for a seat holding `org:manage` (the rail's switch already set
+the personal cookie), the hand-off reads "You're ready to start" when no Company step
+was walked (`setup.handoff.join.*`), and `handoffExits(seat)` drops the guided-tour
+tile for a seat without `TOUR_CAPABILITY` (`setupSeat.ts`). A null seat (the read is
+in flight or failed, and always in preview) is the owner's full run: the mirror fails
+open like `navCapabilities.ts`, and the server stays the enforcement. Open mode and an
+operator session fold to owner, so the keyless first run is unchanged.
+`PUT /api/brand` now asks `org:manage` too (a coded `FORBIDDEN_CAPABILITY` 403), so an
+accent can no longer re-skin the org from a non-owner seat.
+
+**Finish ends on a receipt (2026-09-23).** kp sends no invite mail: `POST
+/api/org/invites` mints a tokenized accept link and nothing else, so an invite staged
+on the Team step reaches nobody until the operator shares its link. `sendSetupInvites`
+keeps each landed invite's token and every answer's HTTP status, and
+`persistOnboardingSetup` returns the whole run (the fold, the per-part results, the
+per-invite results). `finishReceipt(run, origin)` (`setupFinishOutcome.ts`) turns it
+into what the operator must act on: one `copyInviteUrl` link per landed invite (a
+landed invite whose token did not come back is counted, pointing at Settings ->
+Workspaces), and each part that did not land, split by `isRetryable` - no code, 429 or
+a store `*_FAILED` can be retried; any other code is a decision; a code-less non-2xx
+from the invite route (its no-team 409, its cross-org 404) is permanent unless it is
+429/5xx. When there is nothing to act on, `finishNext` says close and the wizard
+closes exactly as before (the keyless e2e stages no invites). Otherwise
+`SetupFinishReceipt.tsx` replaces the step grid in the `SetupLeaveConfirm` slot:
+copyable links (a copy failure is toasted, never logged - the link is a capability),
+the failures by part and code in the reader's language, and **Retry** only when a
+failure is retryable. Retry runs `finishRemainder(state, run)` - only the failed
+retryable parts and only the refused retryable addresses, so a landed invite is never
+re-minted and a landed org name never re-written - and `mergeFinishRuns` folds it
+back. The draft clear and the `completed` stamp moved out of `finish()`'s `finally`
+into one `settle()` that a receipt-less finish or the receipt's **Done** reaches, so a
+partial finish keeps its answers and the board's resume door until the operator has
+seen what failed. The tour tile passes `sim.start` as `finish(after)`, so the demo
+starts once the run has closed, never beside the writes. The hand-off meta counts
+"invitation links to share after setup", not "teammates invited".
+
+**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route, OFF unless the
+install sets `KP_JOBSEEKER=1` (`proxy.ts` rewrites every `/me/**` and `/api/jobseeker/**`
+path to an address no route owns, so it answers exactly what an unknown route answers;
+the layout's `notFound()` repeats the gate one layer down, and the `jobseeker_scan` clock
+job is neither run nor listed), then gated by `isOperator()` else 404 exactly like `/control`, `instant = false`, a
+`TranslatedErrorBoundary` around the page and no Companion dock. The pages draw their
+own chrome — the flow's top bar and numbered step rail
+(`app/features/jobseeker/sieve/SieveFrame.tsx`, the shared appearance/language
+preferences in its foot, hidden for print). It reuses the root layout's providers and nothing from
 `Workspace.tsx`. The profile & CV studio it hosts is documented in
 [`docs/features/jobseeker/README.md`](../features/jobseeker/README.md).
 
@@ -724,8 +922,13 @@ page and no Companion dock. It reuses the root layout's providers and nothing fr
 | Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` (reported, see below) |
 | Team | invites (optional) | `POST /api/org/invites` per row |
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
-| Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` |
+| Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` when the run closes (straight away, or at the finish receipt's Done) |
 
+The Company step previews a valid logo URL beside its field before finish;
+failed image loads hide the preview, and editing the URL retries it.
+The Team invite field accepts pasted email lists separated by whitespace,
+commas or semicolons, adds unique valid addresses, and leaves invalid entries
+in the field for correction.
 **The Company step's one required field says where the name is read, and opens
 prefilled only when that is honest** (`SetupCompanyStep.tsx`). The hint
 (`setup.company.nameHint`) is wired as the input's `aria-describedby`
@@ -880,7 +1083,8 @@ the stamp writes under, because session storage outlives a logout inside one tab
 and the next person to sign in must not inherit a half-typed setup. Only the
 operator's own answers travel (name, accent, logo, invites, consent, the axis
 *draft*, the step); `pipeline.stored`/`counts` and the brain probe are re-read from
-the server, so the dirty check keeps comparing against real truth. The merge lets
+the server, so the dirty check keeps comparing against real truth. Restoring a
+saved draft updates a persistent screen-reader status region. The merge lets
 anything typed in this mount win over the restored value, and finishing or
 dismissing clears the slot — a dismissal is an answer, not an interruption.
 
@@ -905,7 +1109,8 @@ copy — `shared/pipelineAxisDraft.ts` is the same model Settings → Hiring use
 `shared/`: two feature groups now edit one axis). The wizard narrows it rather than
 forking it: the entry and terminal columns cannot be removed or re-roled, and an
 occupied column cannot be dropped, so no click in the step can produce a shape the
-server would refuse. That covers the presets too
+server would refuse. A preset that removes columns first lists their names for
+confirmation and disables Apply while any removed column is occupied. That covers the presets too
 (`setupPipelinePresets.ts`): *With a work sample* adds its column only when the
 loaded axis has room for one (`AXIS_MAX_STAGES`) and does not already carry a step
 by that name — in preview mode `base` is a real workspace's board, and either case

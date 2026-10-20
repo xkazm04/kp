@@ -47,12 +47,25 @@ export const defaultDeepDiveDeps: DeepDiveDeps = {
 };
 
 export type DeepDiveOutcome =
-  /** Persisted: the rationale came from a model. */
-  | { kind: "done"; source: "llm"; reasoning: Record<string, unknown>; restructured: boolean; rematched: boolean }
+  /** The rationale came from a model and is persisted — unless `moved`: the posting's
+   *  content changed while the dive was out at the model, so nothing it computed was
+   *  written over the new ad (the next scan structures and scores the new content). */
+  | { kind: "done"; source: "llm"; reasoning: Record<string, unknown>; restructured: boolean; rematched: boolean; moved: boolean }
   /** Not persisted: the engine served its template. The caller stops the shortlist. */
   | { kind: "deterministic"; source: "deterministic"; reasoning: Record<string, unknown>; restructured: boolean }
   /** Not persisted, nothing spent: no provider resolves for jd_ingest. */
   | { kind: "no_provider" };
+
+/** The stored score a deep-dive re-match is about to replace, when the new total differs
+ *  from it — `null` when there was no score (never matched, or KO'd: the as-if figure is
+ *  not a score the seeker was shown) or the total did not move. */
+export function previousScore(
+  posting: Pick<JobseekerPosting, "matchTotal" | "fitTier" | "matchedAt">,
+  nextTotal: number
+): { total: number; fitTier: JobseekerPosting["fitTier"]; matchedAt: string | null } | null {
+  if (posting.matchTotal === null || posting.matchTotal === nextTotal) return null;
+  return { total: posting.matchTotal, fitTier: posting.fitTier, matchedAt: posting.matchedAt };
+}
 
 /** The text the ad parser reads: the header the source gave us, then the body. */
 export function adTextFor(posting: Pick<JobseekerPosting, "title" | "company" | "location" | "bodyText">): string {
@@ -63,14 +76,27 @@ export function adTextFor(posting: Pick<JobseekerPosting, "title" | "company" | 
 export async function deepDivePosting(
   posting: JobseekerPosting,
   profile: JobseekerProfile,
-  opts: { lang?: string; signal?: AbortSignal; workspaceId?: string; deps?: Partial<DeepDiveDeps> } = {}
+  opts: { lang?: string; signal?: AbortSignal; workspaceId?: string; inputsAt?: string; deps?: Partial<DeepDiveDeps> } = {}
 ): Promise<DeepDiveOutcome> {
   const deps: DeepDiveDeps = { ...defaultDeepDiveDeps, ...opts.deps };
   const ws = opts.workspaceId ?? DEFAULT_WORKSPACE_ID;
   const lang = opts.lang ?? "en";
+  // The re-match's stamp is the time its INPUTS were read (the caller's profile read; the
+  // scan passes its own), never the moment the dive finished: a preferences edit saved
+  // mid-dive must postdate matchedAt, or the row reads as current and is never re-matched.
+  const inputsAt = opts.inputsAt ?? deps.now();
   let job: Record<string, unknown> | null = posting.job;
   let restructured = false;
   let rematched = false;
+  // Every write re-asserts the content hash this dive read (compare-and-swap, not a lock:
+  // the model calls take minutes and must not hold one). The first refusal means the ad
+  // moved under us; every later write is skipped, and it is said once.
+  const guard = { expectedContentHash: posting.contentHash };
+  let moved = false;
+  const markMoved = (step: string) => {
+    if (!moved) deps.log(`${posting.id}: content changed during the deep-dive (${step}), nothing written over the new ad`);
+    moved = true;
+  };
 
   // 1. Model structuring. The keyless refusal ends the deep-dive before any model spend;
   //    any other failure keeps the deterministic Job — the rationale is still worth having.
@@ -85,8 +111,8 @@ export async function deepDivePosting(
     });
     if (out.job && typeof out.job === "object" && out.source === "llm") {
       job = { ...(out.job as Record<string, unknown>), id: posting.id };
-      deps.setPostingStructure(posting.id, job, "llm", ws);
-      restructured = true;
+      if (deps.setPostingStructure(posting.id, job, "llm", ws, guard)) restructured = true;
+      else markMoved("structure");
     }
   } catch (error) {
     if (isNoProviderError(error)) return { kind: "no_provider" };
@@ -103,13 +129,21 @@ export async function deepDivePosting(
   //    Job (a deterministic spawn, no model). A KO here leaves the previous match in place
   //    — the row already carries a score the seeker saw, and "not comparable" would be a
   //    silent demotion; the rationale below says what changed.
-  if (restructured) {
+  if (restructured && !moved) {
     try {
       const { matched } = await matchChunk(profile, [{ id: posting.id, job }], deps.runCli, opts.signal);
       const hit = matched.find((m) => m.id === posting.id);
       if (hit) {
-        deps.setPostingMatch(posting.id, hit.match, { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: deps.now() }, ws);
-        rematched = true;
+        const projection = { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: inputsAt };
+        // The score this re-match REPLACES rides inside the new payload when it differs:
+        // a 71 that became a 39 on the richer Job is a fact the seeker should be able to
+        // see, not an overwrite with no trace. Inside match_json, so no schema change; the
+        // next ordinary re-match (a new version, a profile edit) writes its own payload
+        // and the note goes with the score it explained.
+        const previous = previousScore(posting, hit.total);
+        const match = previous ? { ...hit.match, previous } : hit.match;
+        if (deps.setPostingMatch(posting.id, match, projection, ws, guard)) rematched = true;
+        else markMoved("match");
       }
     } catch (error) {
       deps.log(`${posting.id}: re-match after model structuring failed, keeping the earlier score`, error);
@@ -117,11 +151,20 @@ export async function deepDivePosting(
   }
 
   // 3. The rationale. `--jobs` names a one-job corpus so the seed corpus never loads and
-  //    `--job-id` resolves to this posting; `--profile-json` is the seeker's own profile.
+  //    `--job-id` resolves to this posting; `--profile-json` is the seeker's own profile
+  //    and `--preferences-json` their preferences, overlaid exactly as match_cli overlays
+  //    them — without it the rationale was written for a candidate with no salary floor,
+  //    no work modes and the CV's seniority: not the one the score was computed for.
   const out = await deps.runCli({
     module: "reasoning_cli",
-    files: { "profile.json": profile.profile, "corpus.json": [{ ...job, id: posting.id }] },
-    args: (f) => ["--profile-json", f["profile.json"], "--jobs", f["corpus.json"], "--job-id", posting.id, "--lang", lang],
+    files: { "profile.json": profile.profile, "preferences.json": profile.preferences, "corpus.json": [{ ...job, id: posting.id }] },
+    args: (f) => [
+      "--profile-json", f["profile.json"],
+      "--preferences-json", f["preferences.json"],
+      "--jobs", f["corpus.json"],
+      "--job-id", posting.id,
+      "--lang", lang,
+    ],
     signal: opts.signal,
     llm: true,
     timeoutMs: LLM_SPAWN_TIMEOUT_MS,
@@ -135,7 +178,11 @@ export async function deepDivePosting(
     promptVersion: typeof out.promptVersion === "string" ? out.promptVersion : null,
     total: typeof out.total === "number" ? out.total : null,
     at: deps.now(),
+    // The INPUTS time, the same rule as matchedAt: a rationale is current while this is
+    // at or after the profile's updated_at. A CV or preference edit saved later makes it
+    // stale (listDeepDiveCandidates re-dives it, the summary says `reasoningStale`).
+    reasonedAt: inputsAt,
   };
-  deps.setPostingReasoning(posting.id, stored, ws);
-  return { kind: "done", source: "llm", reasoning, restructured, rematched };
+  if (!moved && !deps.setPostingReasoning(posting.id, stored, ws, guard)) markMoved("reasoning");
+  return { kind: "done", source: "llm", reasoning, restructured, rematched, moved };
 }

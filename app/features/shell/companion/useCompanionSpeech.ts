@@ -60,6 +60,8 @@ export type CompanionSpeech = {
    *  is why a speak STARTED by a click almost never lands here, and an auto-speak
    *  that was never clicked almost always will. */
   resume: () => void;
+  /** Whether the current utterance can be resumed. */
+  resumable: boolean;
   /** The turn being synthesized or played, or null. Null the moment playback
    *  settles back to idle, so a finished utterance leaves no control lit. */
   speakingId: string | null;
@@ -148,6 +150,7 @@ export function useCompanionSpeech(): CompanionSpeech {
     // aborted on unmount).
     speakingId: playback === "idle" ? null : lastId,
     playback,
+    resumable: tts.resumable,
     error: tts.error,
     errorCode: tts.errorCode,
     unsupportedLanguage: tts.served?.unsupportedLanguage ?? null,

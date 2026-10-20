@@ -61,3 +61,28 @@ test("the prior-window slice carries the same bound and the same flag", () => {
   assert.equal(cut.truncated, true);
   assert.equal(cut.total, 2);
 });
+
+// When the all-time read is cut, the rows with no cohort date are the ones dropped.
+// SQLite already sorted them last under DESC; Postgres sorts NULL first there, so the
+// query states NULLS LAST, and this pins the placement rather than the engine.
+test("an all-time cut drops the undated rows, never the dated ones", () => {
+  const db = ensureDb();
+  const jobId = "cap-nulls-job";
+  for (let i = 0; i < 6; i += 1) {
+    const dated = i < 3;
+    const { entry } = createPipelineEntry({
+      candidateId: `cap-nulls-${i}`,
+      candidateLabel: `Cap Nulls ${i}`,
+      jobId,
+      jobTitle: "Cap Nulls Role",
+      stage: dated ? "Applied" : "Screened",
+    });
+    const createdAt = dated ? new Date(Date.now() - (i + 1) * DAY).toISOString() : null;
+    db.prepare(`UPDATE pipeline_entries SET created_at = ? WHERE id = ?`).run(createdAt, entry.id);
+  }
+  const cut = pipelineAnalytics(null, { rowCap: 3, jobId });
+  assert.equal(cut.truncated, true);
+  assert.equal(cut.total, 3);
+  const screened = cut.funnel.find((s) => s.stage === "Screened");
+  assert.equal(screened?.current ?? 0, 0, "an undated row took a place inside the cap");
+});

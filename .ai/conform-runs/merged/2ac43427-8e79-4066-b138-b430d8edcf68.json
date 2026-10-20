@@ -1,0 +1,218 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2ac43427-8e79-4066-b138-b430d8edcf68",
+ "subject": "structured-output",
+ "evaluatedAt": "2026-10-17T23:25:35.995006+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "cv-extraction",
+   "subject": "structured-output",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/profile_draft_cli.py:115 The CV extraction pipeline coerces invalid or unparsed model fields into arbitrary defaults rather than using constrained decoding or a bounded model-assisted repair loop.",
+   "techniques": [
+    {
+     "technique": "enumerable-domain-decoding",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/decoder_domain_gap.py:24 Model-produced value domains are clamped imperatively rather than declared as constrained decoding token masks."
+    },
+    {
+     "technique": "schema-validation-and-repair",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:209 No model-assisted repair loop exists; provider exceptions fall back to a deterministic twin and enums are silently coerced to defaults."
+    },
+    {
+     "technique": "extraction-strategies",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/json_values.py:67 Fenced blocks are scanned before attempting a whole-text parse, and candidate selection inspects schema keys instead of keeping extraction purely syntactic."
+    },
+    {
+     "technique": "artifact-lifecycle",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:283 The extraction runs as an unmanaged CLI script without a structured state machine, progress streaming, or single-flight execution."
+    },
+    {
+     "technique": "extraction-observability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/json_values.py:151 JSON extraction returns unannotated candidates without recording the firing strategy, outcome distributions, or failure traces."
+    },
+    {
+     "technique": "display-vs-machine-channels",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:231 Prompt instructs JSON output only without extracting or healing conversational text into a separate display channel."
+    },
+    {
+     "technique": "output-budget-signal",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:273 A fixed max_output_tokens limit is applied with no classification or measurement of output size against model capacity to signal call splitting."
+    },
+    {
+     "technique": "constrained-decoding-is-a-shared-budget",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:271 Constraint parameters are passed directly per call without priority declaration or budget arbitration by an assembling layer."
+    },
+    {
+     "technique": "op-grammar-allowlisting",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/models.py:36 Pipeline extracts candidate data profiles and scores rather than actionable operation grammars."
+    },
+    {
+     "technique": "answer-coverage-gating",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:227 Input is open-ended unstructured recruiter notes without an enumerable set of units to gate answer coverage against."
+    },
+    {
+     "technique": "constraint-and-tool-channel-exclusion",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:269 Profile extraction prompt does not define tools alongside schema constraints."
+    },
+    {
+     "technique": "graded-span-grounding",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/profiling.py:49 Extracted candidate evidence items are synthesized summary strings rather than verbatim source citations requiring graded span alignment."
+    }
+   ],
+   "registryProposal": "Consider clarifying in enumerable-domain-decoding how pipelines using third-party LLM APIs without native token-mask grammars should bridge prompt menus and schema validation without resorting to silent fallback coercions."
+  },
+  {
+   "context": "tests-cv-extraction",
+   "subject": "structured-output",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_profile_draft.py:57 The test suite asserts that invalid model-produced enum strings are sanitized by coercive fallback rather than rejected at a validation door or repaired via a model loop.",
+   "techniques": [
+    {
+     "technique": "enumerable-domain-decoding",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_decoder_domain_gap.py:95 The test suite specifically tests and asserts that the gap between imperative model-produced repairs and declared domains remains open."
+    },
+    {
+     "technique": "schema-validation-and-repair",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:66 Tests assert that hallucinated or invalid enum values from LLM responses are silently coerced to defaults rather than rejected or repaired."
+    },
+    {
+     "technique": "artifact-lifecycle",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:128 Tests only check process exit codes on error instead of verifying a lifecycle state machine, cancellation reapers, or single-flight runs."
+    },
+    {
+     "technique": "extraction-observability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:139 The test suite tests error code taxonomy presence but lacks tests for extraction strategy telemetry, failure distribution metrics, or sample retention."
+    },
+    {
+     "technique": "extraction-strategies",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:179 Tests mock out the extraction call and test only downstream pure assembly, leaving the extraction strategy ladder untested against captured model outputs."
+    },
+    {
+     "technique": "output-budget-signal",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_extractors.py:328 Tests verify raw character cutoffs on inputs but do not test or assert model output budget measurements or headroom alerts against output token limits."
+    },
+    {
+     "technique": "op-grammar-allowlisting",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_profile_taxonomy_contract.py:36 The test suite verifies taxonomy contracts for candidate profile data rather than operational execution grammars."
+    },
+    {
+     "technique": "answer-coverage-gating",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:22 Tests evaluate open-ended informal recruiter notes parsing where no denominator of requested units exists to gate coverage."
+    },
+    {
+     "technique": "constrained-decoding-is-a-shared-budget",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_decoder_domain_gap.py:105 Tests inspect exported schema field counts but do not test multi-contribution constraint budgeting, route dialects, or shedding mechanisms."
+    },
+    {
+     "technique": "constraint-and-tool-channel-exclusion",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:188 Profile extraction tests do not cover turns combining tool calls and schema constraints."
+    },
+    {
+     "technique": "display-vs-machine-channels",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_profile_draft.py:195 Tests verify prompt instructions and JSON extraction but do not verify separation, cleaning, or independent failure states between display and machine channels."
+    },
+    {
+     "technique": "graded-span-grounding",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_analyze_honesty_fields.py:84 Tests exercise semantic adjacency mapping between candidate skills and job requirements rather than graded verbatim span grounding."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "structured-output",
+   "context": "candidate-channels-ui",
+   "reason": "This context contains React UI components, paging, and internationalization helpers for inbound communication channels and candidate message relays, with no LLM structured output or artifact extraction pipeline."
+  },
+  {
+   "subject": "structured-output",
+   "context": "devcase-detail",
+   "reason": "This context contains React UI components and helper modules for developer case details, posting intake state, seed previews, and channel threads, with no LLM structured output or artifact extraction pipeline."
+  },
+  {
+   "subject": "structured-output",
+   "context": "ops-observability",
+   "reason": "This context contains infrastructure-level telemetry event emission, Sentry error capture with PII scrubbing, status-tone classification, and webhook idempotency guards, with no LLM structured output or artifact extraction pipeline."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-17T23:25:35.995006+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "structured-output"
+   ],
+   "techniques": [
+    "answer-coverage-gating",
+    "artifact-lifecycle",
+    "constrained-decoding-is-a-shared-budget",
+    "constraint-and-tool-channel-exclusion",
+    "display-vs-machine-channels",
+    "enumerable-domain-decoding",
+    "extraction-observability",
+    "extraction-strategies",
+    "graded-span-grounding",
+    "op-grammar-allowlisting",
+    "output-budget-signal",
+    "schema-validation-and-repair"
+   ],
+   "deviations": 1,
+   "context": "cv-extraction",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T23:25:35.995006+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "structured-output"
+   ],
+   "techniques": [
+    "answer-coverage-gating",
+    "artifact-lifecycle",
+    "constrained-decoding-is-a-shared-budget",
+    "constraint-and-tool-channel-exclusion",
+    "display-vs-machine-channels",
+    "enumerable-domain-decoding",
+    "extraction-observability",
+    "extraction-strategies",
+    "graded-span-grounding",
+    "op-grammar-allowlisting",
+    "output-budget-signal",
+    "schema-validation-and-repair"
+   ],
+   "deviations": 1,
+   "context": "tests-cv-extraction",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

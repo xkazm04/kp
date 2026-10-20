@@ -2,14 +2,12 @@
 //
 // POST /api/tasks is one door in front of twenty kinds and carried one bucket
 // (120/10min per IP) calibrated for the cheapest of them. The exhaustiveness test
-// below is what keeps that from happening again: a kind added to HANDLERS without
-// a class here is a red test, not a silently generous budget.
+// below is what keeps that from happening again: a kind added to TASK_KINDS without
+// a class here is a compile error (and a red test), not a silently generous budget.
 //
 // Runner: node:test, via `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import {
   TASK_BUDGETS,
   TASK_BUDGET_CLASS,
@@ -17,24 +15,17 @@ import {
   taskBudget,
   taskBudgetClass,
 } from "./task-budget.ts";
-
-/** The kind ids as tasks.ts declares them — parsed, because importing tasks.ts
- *  pulls in better-sqlite3 and the whole handler graph. */
-function handlerKinds(): string[] {
-  const src = readFileSync(fileURLToPath(new URL("./tasks.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
-  const at = src.indexOf("const HANDLERS: Record<string, Spec> = {");
-  assert.ok(at > 0, "expected the HANDLERS registry in tasks.ts");
-  return [...src.slice(at, src.indexOf("\n};", at)).matchAll(/^ {2}([a-z_]+): \{$/gm)].map((m) => m[1]);
-}
+import { TASK_KINDS } from "./task-kinds.ts";
 
 test("every task kind carries an explicit budget class", () => {
-  const kinds = handlerKinds();
-  assert.ok(kinds.length >= 15, `expected the full HANDLERS registry, parsed ${kinds.length}`);
-  const unclassified = kinds.filter((k) => !(k in TASK_BUDGET_CLASS));
-  assert.deepEqual(unclassified, [], "these kinds would be budgeted by the fallback rather than a decision");
-  const stale = Object.keys(TASK_BUDGET_CLASS).filter((k) => !kinds.includes(k));
-  assert.deepEqual(stale, [], "these are budgeted but are no longer task kinds");
-  for (const k of kinds) assert.ok(TASK_BUDGET_CLASSES.includes(taskBudgetClass(k)), `${k} has a class outside the vocabulary`);
+  // The table is `Record<TaskKind, …>`, so tsc already refuses a missing kind; this
+  // pins the runtime shape (no stale extra key survives a cast) without parsing the
+  // text of tasks.ts, which the previous revision did.
+  assert.deepEqual(Object.keys(TASK_BUDGET_CLASS).sort(), [...TASK_KINDS].sort());
+  for (const k of TASK_KINDS) {
+    assert.ok(TASK_BUDGET_CLASSES.includes(TASK_BUDGET_CLASS[k]), `${k} has a class outside the vocabulary`);
+    assert.equal(taskBudgetClass(k), TASK_BUDGET_CLASS[k], `${k} is budgeted by its declared class, not the fallback`);
+  }
 });
 
 test("an unclassified kind falls to the TIGHTEST budget, never the loosest", () => {

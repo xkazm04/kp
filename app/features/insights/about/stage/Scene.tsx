@@ -62,7 +62,7 @@ export function Scene({
           <p className="mt-3 text-base leading-7 text-steel">{t(`${c}.lede`)}</p>
           <Link
             href={`/?tab=${chapter.tab}`}
-            className="focus-ring mt-5 inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+            className="focus-ring mt-5 inline-flex items-center gap-1.5 text-base font-medium text-coral-ink hover:underline"
           >
             {t(`${c}.tab`)} <ArrowRight size={15} aria-hidden />
           </Link>

@@ -26,7 +26,7 @@ import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/shared/matchTypes";
 import type { Comparison, Fairness, FairnessScheme, RiskFact, RobustnessStatus, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
-import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { selectionCacheKey } from "@/app/_lib/group-eval-cache-key";
 import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 
 // Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
@@ -284,6 +284,11 @@ async function runGroupCompare(
   roleTitle: string,
   candidates: PerCandidate[],
   roleSalaryBand: number[],
+  // TENANCY: the workspace this eval is being run FOR. The narrative is persisted and
+  // shared across that team, so its language is the team's own configured default —
+  // never a fixed tenant's. Threaded as a parameter rather than read inside, so the
+  // call site cannot forget it.
+  workspaceId: string,
   signal?: AbortSignal,
 ): Promise<{ comparison: Comparison; source: string; narrativeLang: string } | null> {
   let workdir: string | null = null;
@@ -324,8 +329,13 @@ async function runGroupCompare(
     // saved eval — render it in the org's configured language. The workspace
     // default is the org language authority available in every context (this runs
     // on-demand and in the background eval pass, which has no request cookie).
+    // …and it is THIS TEAM's default, not a fixed tenant's. A bare
+    // getWorkspaceDefaultLocale() reads DEFAULT_WORKSPACE_ID, so a team that had set
+    // its own language got a persisted, team-shared comparison written in the default
+    // team's language — and `comparisonLang` recorded that wrong language permanently.
+    // Same untenanted defect automation-run.ts documents for the background pass.
     const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
+      ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale(workspaceId)],
       // buildLlmConfigEnv: the CLI resolves the group_compare use case — without
       // this env the configured BYOM provider/key re-route is silently dead.
       // timeoutMs: this is the ONE spawn of the three this module owns directly, so
@@ -435,7 +445,7 @@ export async function runGroupEval(
   // deterministic hash of its sorted member ids, so reopening the IDENTICAL
   // comparison serves the cache instead of re-spawning the whole ≤8-process
   // pipeline. The client computes the same key from the same ids before it spawns
-  // (DecisionsTab.openGroupEval) — see group-eval/cache-key.ts for why the key is
+  // (DecisionsTab.openGroupEval) — see group-eval-cache-key.ts for why the key is
   // layered onto role_key rather than migrated into a new column. The ids hashed are
   // the ones the CLIENT sent (pre-cap/dedupe), because that is what the client can
   // key on at lookup time; a fallback-to-top-N run (`useSelection` false) is stored
@@ -507,7 +517,7 @@ export async function runGroupEval(
   const comparable = hasComparableCohort(input.length);
 
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
-  const job = jobId ? getJob(jobId) : null;
+  const job = jobId ? getJob(jobId, workspaceId) : null;
   // Which AI stages did not produce their result (see DegradedStage). Collected as
   // the run goes and persisted on the payload, so "the deterministic fallback" is a
   // stated fact rather than something the reader has to infer from missing prose.
@@ -611,6 +621,8 @@ export async function runGroupEval(
 
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
+  // entryId -> the id the ranker keyed this candidate on (fairness.candidateIds).
+  const rankerIdByEntry = new Map(input.map((c) => [c.entryId, c.candidateId || c.entryId] as const));
   for (const [idx, c] of input.entries()) {
     const rec = c.candidateId ? resolved.get(c.candidateId)?.profile ?? null : null;
     const payload = rec?.payload as { seniority?: string; archetype?: string } | null;
@@ -718,7 +730,9 @@ export async function runGroupEval(
   // against nobody. Below the floor there is nothing to compare: emit no narrative, and
   // AiVerdict falls back to the honest insufficient-sample summary.
   const compareStage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS));
-  const compare = comparable ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], compareStage.signal) : null;
+  const compare = comparable
+    ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], workspaceId, compareStage.signal)
+    : null;
   // A null compare over a comparable field means the narrative did not arrive — the
   // spawn failed, passed its deadline, or returned a headline-less body. Either way
   // the modal falls back to `summary`, and the payload now says so rather than
@@ -968,6 +982,8 @@ export async function runGroupEval(
     // record now do (UAT L1-TOM-GEF-01). "unknown" = not assessable, not "fine".
     leadSeparation: separation,
     recommendedOrder: candidates.map((c) => c.label),
+    // The same order as ranker ids, so the robust-order verdict compares people, not names.
+    recommendedIds: candidates.map((c) => rankerIdByEntry.get(c.entryId) ?? c.entryId),
     candidates,
     differentiators,
     risks,

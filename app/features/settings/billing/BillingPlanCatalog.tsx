@@ -99,7 +99,7 @@ function PlanCard({
         </button>
       )}
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-coral">
+        <p role="alert" className="mt-2 text-sm text-coral-ink">
           {error}
         </p>
       ) : null}
@@ -165,7 +165,7 @@ export function PlanCatalog({
         <div id="billing-minutes-pack" className={`${PANEL} mt-3 p-4`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
-              <Timer size={18} className="mt-0.5 shrink-0 text-coral" aria-hidden />
+              <Timer size={18} className="mt-0.5 shrink-0 text-coral-ink" aria-hidden />
               <div>
                 <p className="font-medium text-ink">{t("pack.title")}</p>
                 <p className="mt-0.5 max-w-xl text-sm text-steel">{t("pack.intro")}</p>
@@ -200,7 +200,7 @@ export function PlanCatalog({
             </button>
           </div>
           {purchase?.key === "minutes_100" && purchase.error ? (
-            <p role="alert" className="mt-2 text-sm text-coral">
+            <p role="alert" className="mt-2 text-sm text-coral-ink">
               {purchase.error}
             </p>
           ) : null}

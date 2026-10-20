@@ -1,0 +1,33 @@
+{
+  "card": "results-core/A",
+  "title": "Trust findings born coded: severity + scope at the engine, not a prose regex",
+  "status": "landed",
+  "base": "3d6e41446",
+  "shas": ["bbe38301b", "0876e54af", "de2c659c9"],
+  "tests_added": [
+    "pipeline/jobfit/tests/test_trust_findings.py",
+    "app/_lib/sanity-checks.test.ts",
+    "app/_components/results/verdict.test.ts"
+  ],
+  "cases_red_before": 17,
+  "cases_green_after": 18,
+  "cases_total": 18,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": null,
+    "design": null,
+    "docs": 0,
+    "api": null,
+    "unit": 1,
+    "ts_ratchet": 0,
+    "python_gate": 0,
+    "ruff_ratchet": 0,
+    "eval_ci": 0,
+    "perf": 1
+  },
+  "files_changed": 19,
+  "lines_changed": 928,
+  "deviations_from_card": "Design: trust.Finding is a str subclass carrying code/severity/scope/value, so producers keep returning list[str] and sanity_checks stays byte-identical with ZERO string-wrapper functions and every exact-string Python test untouched (the card proposed parallel *_findings producers + [f.text] wrappers). Added scope 'skills' (withheld matches / contradicted gaps, severity ok as before). Prompt-injection flags are scope 'input' so they never move the authenticity band. Write set grew by the cache pin the fingerprint test forces: app/_lib/cache-key.ts + cache-key.test.ts (PROMPT_VERSION v6 -> v7) and pipeline/jobfit/tests/test_analysis_prompt_version_sync.py (fingerprint re-record) - bumped rather than re-recorded because a cached pre-v7 payload would re-hide a blind redaction miss behind the legacy regex. pipeline/jobfit/tests/test_trust_findings.py holds the Python cases; credentials.py/authenticity.py producers coded in place. Critic's stored score=0 path covered: analyze-run.ts now stores trustedScoreTotal(analysis) (NULL on a score-scope blocker, incl. legacy 'Score section missing' payloads), pinned in sanity-checks.test.ts.",
+  "notes": "Cases: 12 Python (red at import) + 6 TS (5 red, the 'measured 0 stays scored' pin was green) = 18; all green. Full python gate: 3014 tests, the only failure before the pin was test_analysis_prompt_version_sync (fixed in 0876e54af), skips 4 within tolerance. tsc: 0 errors in touched files; foreign errors only (QualityHireRatingQueue.tsx, QualityInstrument.tsx, ModelsQualityOverview.tsx, JobsCompareInterviewsCohortTable.tsx - siblings' in-flight catalog keys - and the untracked kpi-sim/ tree). test:unit exit 1 on ONE foreign file: app/_lib/python-runner-concurrency.test.ts 'aborted spawn kills the whole process tree' is load-timing flaky (passes alone on retry, fails under the 7-builder load; it does not import jobfit); a recipes-literals FLAKE on the first run did not reproduce. test:perf: HEAD (committed siblings after the wave-1 settle) is ALREADY red with 34 findings; measured via git archive of HEAD + my files alone (--root-less copy of the tree): still 34 findings, +0 modules, +2 KB on app/page.tsx (8997 -> 8999, ceiling 8995) and +2 KB on the api routes whose graph holds analyze-run/sanity-checks (e.g. app/api/analyze/route.ts 3101 -> 3103 KB). I did NOT raise perf-budget.json: base is red for reasons not mine, so my +2 KB share belongs in the coordinator's combined settle. For results-core/B (wave 3): read trustLedger(analysis) / TrustFinding from app/_lib/sanity-checks.ts; QualityStrip now takes findings={analysis.trustFindings}. schemas:gen only rewrote contract-constants.generated.ts line endings - restored."
+}

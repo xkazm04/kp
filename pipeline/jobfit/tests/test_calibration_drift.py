@@ -13,12 +13,14 @@ Everything is deterministic and keyless — no fixtures, no API, no DB.
 
 from __future__ import annotations
 
+import random
 import unittest
 
 from pipeline.jobfit.calibration_drift import (
     BRIER_DEGRADATION_ALERT,
     CALIBRATION_BIN_COUNT,
     MIN_CALIBRATION_OUTCOMES,
+    MIN_DRIFT_WINDOW_OUTCOMES,
     POSITIVE_RATE_SHIFT_ALERT,
     PSI_ALERT,
     VERDICT_DRIFT,
@@ -38,10 +40,20 @@ def _pairs(*groups: tuple[int, float, int]) -> list[dict[str, float]]:
     return out
 
 
-# A well-calibrated 40-pair baseline: 70-scores advance 75% of the time,
-# 30-scores advance 25% of the time (close to their stated probabilities).
+# Windows the drift comparison will read must clear MIN_DRIFT_WINDOW_OUTCOMES, so the
+# 40-pair shapes below are scaled to it (the shape, not the count, carries each case).
+SCALE = MIN_DRIFT_WINDOW_OUTCOMES // 40
+
+
+def _shape(*groups: tuple[int, float, int]) -> list[dict[str, float]]:
+    """A 40-pair shape scaled up to the drift floor."""
+    return _pairs(*[(count * SCALE, score, outcome) for count, score, outcome in groups])
+
+
+# A well-calibrated baseline: 70-scores advance 75% of the time, 30-scores advance
+# 25% of the time (close to their stated probabilities).
 BASELINE = compute_calibration(
-    _pairs((15, 70, 1), (5, 70, 0), (5, 30, 1), (15, 30, 0))
+    _shape((15, 70, 1), (5, 70, 0), (5, 30, 1), (15, 30, 0))
 )
 
 
@@ -109,7 +121,7 @@ class DetectDriftTest(unittest.TestCase):
         # Same scores, inverted outcomes for the low bin: the 30-scores now
         # advance 75% of the time — the probabilities went bad.
         current = compute_calibration(
-            _pairs((15, 70, 1), (5, 70, 0), (15, 30, 1), (5, 30, 0))
+            _shape((15, 70, 1), (5, 70, 0), (15, 30, 1), (5, 30, 0))
         )
         report = detect_drift(BASELINE, current)
         self.assertTrue(report.alarm)
@@ -121,7 +133,7 @@ class DetectDriftTest(unittest.TestCase):
     def test_brier_improvement_never_alarms(self) -> None:
         # Signed, not absolute: getting BETTER must not trip the alarm.
         improved = compute_calibration(
-            _pairs((20, 75, 1), (20, 25, 0))  # sharper and more accurate
+            _shape((20, 75, 1), (20, 25, 0))  # sharper and more accurate
         )
         report = detect_drift(BASELINE, improved)
         self.assertLess(report.brier_delta, 0)
@@ -130,7 +142,7 @@ class DetectDriftTest(unittest.TestCase):
     def test_population_shift_trips_psi(self) -> None:
         # Same outcome quality, but the whole scored population migrated from
         # the 30/70 bins into the 90 bin — a significant distribution shift.
-        current = compute_calibration(_pairs((36, 90, 1), (4, 90, 0)))
+        current = compute_calibration(_shape((36, 90, 1), (4, 90, 0)))
         report = detect_drift(BASELINE, current)
         self.assertTrue(report.alarm)
         self.assertGreaterEqual(report.psi, PSI_ALERT)
@@ -140,7 +152,7 @@ class DetectDriftTest(unittest.TestCase):
         # Same score mix, but almost everyone advances now: the frozen curve no
         # longer describes the population even where the Brier delta is small.
         current = compute_calibration(
-            _pairs((20, 70, 1), (14, 30, 1), (6, 30, 0))
+            _shape((20, 70, 1), (14, 30, 1), (6, 30, 0))
         )
         report = detect_drift(BASELINE, current)
         base_rate = BASELINE["positives"] / BASELINE["n"]
@@ -162,6 +174,38 @@ class DetectDriftTest(unittest.TestCase):
             self.assertIsNone(report.positive_rate_shift)
             self.assertTrue(any("minOutcomes" in r for r in report.reasons))
 
+    def test_windows_below_the_drift_floor_never_alarm(self) -> None:
+        # 40 outcomes clears the curve's floor (20) but not the monitor's: the same
+        # catastrophic shift that alarms at the drift floor must be refused here.
+        base = compute_calibration(_pairs((15, 70, 1), (5, 70, 0), (5, 30, 1), (15, 30, 0)))
+        current = compute_calibration(_pairs((36, 90, 1), (4, 90, 0)))
+        self.assertTrue(base["calibrated"] and current["calibrated"])
+        report = detect_drift(base, current)
+        self.assertEqual(report.verdict, VERDICT_INSUFFICIENT)
+        self.assertFalse(report.alarm)
+        self.assertIsNone(report.psi)
+        self.assertTrue(any("drift floor" in r for r in report.reasons))
+
+    def test_calibrated_windows_from_one_population_rarely_alarm(self) -> None:
+        # Known ground truth: the score IS the probability and both windows come from
+        # the same population, so every alarm is false. At the drift floor the measured
+        # rate is about 6% (any axis); a regression that lowers the floor puts this near 1.
+        rng = random.Random(20260929)
+
+        def window(n: int) -> dict:
+            pairs = []
+            for _ in range(n):
+                p = rng.random()
+                pairs.append({"score": 100 * p, "outcome": 1 if rng.random() < p else 0})
+            return compute_calibration(pairs)
+
+        trials = 300
+        alarms = sum(
+            detect_drift(window(MIN_DRIFT_WINDOW_OUTCOMES), window(MIN_DRIFT_WINDOW_OUTCOMES)).alarm
+            for _ in range(trials)
+        )
+        self.assertLess(alarms / trials, 0.12)
+
     def test_psi_is_symmetric_zero_on_equal_distributions(self) -> None:
         self.assertAlmostEqual(population_stability_index(BASELINE, BASELINE), 0.0, places=9)
 
@@ -176,7 +220,7 @@ class DetectDriftTest(unittest.TestCase):
 
     def test_deterministic(self) -> None:
         # Pure function: identical inputs produce identical reports.
-        current = compute_calibration(_pairs((36, 90, 1), (4, 90, 0)))
+        current = compute_calibration(_shape((36, 90, 1), (4, 90, 0)))
         self.assertEqual(detect_drift(BASELINE, current), detect_drift(BASELINE, current))
 
 

@@ -11,14 +11,159 @@ dependency decision: [ADR 0009](../../architecture/decisions/0009-one-html-parse
 
 ## Entry points
 
+**The module is OFF unless the install sets `KP_JOBSEEKER=1`** (read only in
+`app/_lib/jobseeker/enabled.ts`; kp is open source and a recruiting team's install must not
+carry a personal job-search tool by default). Off, `/me/**` and `/api/jobseeker/**` answer
+exactly as an unknown route (a `proxy.ts` rewrite after the auth gate, with matcher entries so
+the dotted `cv.pdf` / `cv.md` paths are gated too; the layout also calls `notFound()`), the
+first-run wizard shows no "looking for a job" option, and the `jobseeker_scan` clock job is
+neither run nor listed.
+
+
 | Surface | Path | Gate |
 | --- | --- | --- |
-| Thin shell (the house icon rail + a mobile drawer) | `app/me/layout.tsx`, `MeNav.tsx`, `MeNavDrawer.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
-| Profile & CV studio | `app/me/page.tsx` | WP2 |
-| Jobs feed + posting detail + fit dialog | `app/me/jobs/**` | WP5 |
-| Sources (three tiers, acknowledgement) | `app/me/sources/**` | WP5 |
-| Scans (shared scheduler registry) | `app/me/scans/**` | WP5 |
+| Gate + error boundary (no chrome of its own) | `app/me/layout.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
+| **The flow — "The Sieve"** (arrive → CV → you → what you want → the sieve → worth your evening → weigh → sources) | `app/me/page.tsx` → `app/features/jobseeker/sieve/SieveFlow.tsx` | server-first; `?open=<postingId>` lands on the Weigh step |
+| **The Sky Atlas** — the same search as a hub with levels, beside the Sieve (2026-09-30, for comparison) | `app/me/atlas/page.tsx` → `app/features/jobseeker/atlas/AtlasFlow.tsx` | same gate as `/me` (layout); `?open=<postingId>` lands on that posting once the market is open |
+| Old addresses | `app/me/jobs/page.tsx` → `/me#s-evening`, `app/me/jobs/[id]/page.tsx` → `/me?open=<id>#s-weigh` | redirects |
+| Custom boards, ATS by slug, extraction rules | `app/me/sources/**` (inside `SieveSideFrame`) | the flow's Sources step links here |
+| Scan history + the clock | `app/me/scans/**` (inside `SieveSideFrame`) | |
+| The designed CV at real size (pickers + A4 sheet; also what the PDF route prints) | `app/me/cv/print?template=&accent=` | |
 | API | `app/api/jobseeker/**` | operator-gated + `requireOperator` in every handler |
+
+## The flow — `/me` ("The Sieve")
+
+**The step rail follows the content.** Steps 2 "Your CV" and 3 "You" are one section
+(`#s-cv`), so they light as one joined pair (`railSection()`). Below 860px the step strip is
+opaque and its measured height (`--sv-strip-h`, a ResizeObserver in `SieveFrame`) is part of
+every section's scroll margin, so an anchor jump never hides a heading. The rail lights the
+section just under the strip, and a rail click keeps its step lit until the reader scrolls,
+touches or types.
+
+
+**Landing-grade chapters (2026-09-28).** The owner asked for /me to be as representative
+as the landing and /about: visual quality, motion, snap scrolling, a composition per
+section. The flow now reads as eight chapters, token-driven in both registers:
+
+- **Chapter heads** (`ChapterHead.tsx`): a large outlined numeral in the accent beside the
+  head (decoration, `aria-hidden`), the eyebrow in the landing's hand (Shantell Sans, loaded
+  for /me only as `--font-me-hand` in `app/me/layout.tsx`, with JetBrains Mono as
+  `--font-me-mono`), the title at display scale. Small labels are sentence case, never
+  letter-spaced caps.
+- **Surfaces**: chapters alternate paper and a soft tint (`data-surface="tint"`), the sieve
+  sits on a dot-grid stage (`"stage"`); on a desktop tall enough, each chapter is one
+  screen high.
+- **Motion is CSS scroll-driven** (`animation-timeline: view()`, `sieve.css` "snap +
+  motion"): heads rise in, the want cards and the top five are dealt in on a stagger, the
+  Weigh dial draws its arc, a reading line runs under the top bar and the rail's connector
+  fills in the accent to the chapter being read (`--sv-progress`). Everything sits inside
+  `@supports` and `prefers-reduced-motion: no-preference`, so an unsupporting browser or a
+  still reader gets the finished page, and reveals touch LEAF elements only - a transform
+  on a container would capture a fixed overlay inside it.
+- **Proximity snap** on the flow page only (`SieveFrame snap` → `data-snap`), desktop only:
+  a chapter that comes to rest near the top settles onto it, a long one scrolls freely.
+- **Per chapter**: Arrive is a hero (the Sieve drawn as a picture of itself, `SieveArt.tsx`,
+  postings raining into a meshed funnel with the gates named in the hand; the drop as the
+  landing's sticker; the promise in numerals; three stops on a drawn line). Your CV + You
+  get a paper-on-desk CV and a ringed portrait with a hairline fact strip. What you want is a
+  bento with icon chips (titles and languages span two). The sieve's stage wears the
+  sticker. Worth your evening deals the top five as a tilted hand of sticker cards, #1 in the
+  accent. Weigh shows the score as a dial (`ScoreDial.tsx`: the arc is the score, the soft
+  arc the band) and gives a posting's long title the full width. Sources are three doors,
+  each coloured along its top edge.
+
+Promoted on 2026-09-25 from the design contest `me-seeker-flow` (winner A/2, "The
+Sieve"; the owner chose it over the more spectacular runner-up for its balance of wow and
+practicality). The owner's brief for the contest: the module worked, but it was a wall
+of sentences; the flow must be graphical and effortless. The contest arena, the winner's
+source and the promotion's style contract live under `.contest/arena/me-seeker-flow/`
+(git-ignored).
+
+**One scrolling page, eight numbered stops on a left rail** (`SieveFrame.tsx`). Each
+stop carries its live count and, from the sieve on, a bar that narrows as the sieve
+works (found → through → worth your evening → decided). A stop not reached yet is a
+dashed gap in place — "not reached" and "nothing there" never render alike. The rail's
+foot holds the house `RailPreferences` (appearance, language). Below 860 px the rail
+becomes a sticky horizontal strip.
+
+| Step | Component | What it does |
+| --- | --- | --- |
+| 1 Arrive | `StepArrive.tsx` | the real import (extract → draft → save, `importOutcome.ts` classifies each hop) as a three-stage checklist; folds to one line once a CV is in. The privacy line says what happens: nothing goes to a job board, and reading the CV may use the AI model this install is set up with (else the built-in parser); replacing a CV says scores stay until the next scan |
+| 2–3 Your CV → You | `StepYou.tsx`, `cvParagraphs.ts` | the CV text beside the person read out of it, its soft wraps rejoined: a PDF's text arrives one printed line per line, and a line that continues the one above (lower-case start, or a comma / joining word / open hyphen above it) rejoins it - never the name, a heading, a bullet or date, contact data, or anything after a finished sentence, a colon or a short line in capitals (`cvParagraphs.test.ts`); the operator's CV went from 81 printed lines to 64 paragraphs. On first view per CV per session the phrases the reading used light up and FLY into the portrait (`readCv` finds them on word boundaries, one flight per key). The facts strip is four figures (lives in, experience with the field it was spent in under it, education, languages); the sheet and its actions stick together down the row, so the sheet never lands on "Polish my CV". Skill tiles: size = level, SHAPE = provenance (solid work · half side project · ring study · dashed italic + STATED tag). "No AI read this" is one calm line when the draft came from the fixed parser. **Polish my CV** opens the existing `CvStudio` overlay |
+| 4 What you want | `StepWant.tsx`, `WantCard.tsx`, `wantModel.ts`, `useWantSave.ts` | six cards in two layers (`WantCard`): a VIEW stating the value large (places, the floor with its period, titles and target fields, work modes, level, languages) or "—" with why it is empty, the whole card one button; a click opens the EDIT layer, whose controls (pins + country codes, slider + exact amount + currency + period, title tokens + removable target fields, three mode toggles, the four-stop level, languages with a level picker) work on a DRAFT and save once on Done; Cancel / Esc drop it. Text typed but not added counts on Done. A draft is never overwritten by a save's echo: before this, a currency picked with no amount (or an amount with no currency) saved "no floor" and snapped back. Done refuses an amount with no currency and says why; 0 is "no floor". Only the changed fields are sent, `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, one save at a time in commit order, the step showing its own values until none is in flight. Languages seed from the CV and save `preferences.languages`, which the designed CV prints instead of the CV's own block (`cvDocument.ts`); an untouched Done on the CV's list stores nothing. Languages do not change the ranking. The step says scores move on the next scan and offers Scan now |
+| 5 The sieve | `StepSieve.tsx` | every posting a dot, poured through named layers: held at the door (source off or paused), one layer per hard gate (most-catching first; a two-gate posting ringed on the first, ghosted on the second), waiting for a score, then the scored field piled by score. Counters tick as dots land; a decision or a source switch MOVES dots. Each layer opens a list where a gated row states what it would have scored — never a zero. The funnel line under the stage names every step its numbers take, the merged duplicates included (`SieveFacts.folded`, the twins below): "1248 found → 76 caught by gates → 59 duplicates merged → 1113 scored" - without that step the live run's line read 1248 − 76 = 1113 |
+| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish". The same job listed once per place (EURES files a multi-region vacancy per region) is ONE row - same source, title and employer (`sieveModel.ts` `twinKey`), the best-scored copy kept, "+N more places" on it; a row with no employer is never folded. A posting whose ad lists no requirements (`skillsStated: false`, from the structured job's `requirements`) is scored 0 on skills by the matcher - its pinned rule (`test_scoring_contract.py` `UnmeasuredIsNotAPerfectFitTest`) - so it shows "—" in place of that total, with its score on what WAS measured (career + personal in their own weights, `directionTotalOf` in `db/jobseeker-postings.ts`, never a rank key). It never takes a top-five place on the skills 0: open ones are listed apart above the list (`sieveModel` `unmeasured`), the stated direction first |
+| 7 Weigh | `StepWeigh.tsx` | one posting via `GET /api/jobseeker/postings/[id]`: band gauge, the contribution stack, skills with provenance, the settled fit conversation (gaps, questions, cover-note draft) or a door to `FitStudio`, the deep read, the ad; the five checks, pay against the floor in one currency (`compareSalary`), where it came from. A sticky decide bar: Apply opens the ad first and only then offers "I applied", Let go asks why (`DISMISS_REASONS`), Undo; keys A / S / D decide, J / K walk the list the seeker is looking at. A direction chip ("Matches your target: …" / "In your target field" / "Your past field: …", from `targetAlignment`), "was n" beside a score a deep-dive replaced (`previousTotal`), and a note when the written read predates the last profile change (`reasoningStale`); the cover-note draft survives a reload, per posting (sessionStorage, per viewer) |
+| 8 Sources | `StepSources.tsx` | three lanes (tier A one tap; tier B a lock until the site's clause is acknowledged in a modal — checkbox first, CTA disabled until ticked, a changed clause re-asks; tier C refused, no control). Each card says what the source put in the sieve, or how many wait at the door while it is off, and a last run that did not land is said in the flag's ink (a board answering 404 had read like a quiet success in grey). Tier A takes two thirds of the width, its cards in two columns, B above C beside it; it groups the open feeds apart from the company boards, and a board is ONE card per vendor (Greenhouse, Ashby…) listing its companies as rows - each its own switch, count and last run - above the field that adds the next (seven companies had made the lane twenty cards long) |
+
+**Everything is derived, nothing is counted** (`sieveModel.ts`, pinned by
+`sieveModel.test.ts`): held / gated / waiting / scored, the top five, gate order and
+lift skills are re-derived from the rows on every render, so a decision moves the rail,
+the sieve and the ranking together. The rows are the postings route's `status=all`
+view paged to the end (`useSieveData.ts`); the summary projection carries the as-if
+score, the gate sentences (only for gates the vocabulary knows) and the matched skills
+with provenance for exactly this.
+
+**The style is the winner's, fused with kp's tokens** (`sieve/sieve.css`, scoped under
+`.sv`, class names kept from the winner). Every colour resolves through `app/globals.css`
+tokens, so Spark Dark repaints the flow with no second block; the display face is kp's
+serif (Fraunces, Bricolage after dark); the one kp law applied over the winner is the
+14px type floor. The controls wear named recipes (`sieve/sieveRecipes.ts`, the
+`SV_*` constants), which is also how another surface borrows the Sieve's pill, tile or
+switch. The promotion was held to the winner with the contest skill's style contract:
+22 roles, 0 deviations beyond the accepted fusion classes (font family and colour via
+tokens, the 14px floor, text-driven widths).
+
+**Keyless**: the flow never needs a model. The import degrades to the fixed parser and
+says so; the deep read answers with the fixed template and says so; the fit conversation
+and the CV studio run their deterministic twins.
+
+## The Sky Atlas — `/me/atlas` (a second view of the same search)
+
+> Status 2026-09-30: **parallel view, for comparison.** Promoted from the design contest `me-hub`
+> (winner A/3 "The Sky Atlas"; arena and the winner's source under `.contest/arena/me-hub/`, git-ignored).
+> The owner's brief: the Sieve is one long page of eight chapters, so a returning seeker scrolls past
+> setup every time; make it a hub with layers where **setup (CV, what it reads as, what you want) is the
+> precondition** and the market (sieve, best postings, weigh, sources) is visibly switched off until it is met.
+
+**Two views, one search.** A view switch ("View: Sieve | Atlas", `ViewSwitch.tsx`) sits in the header of both
+(`SieveFrame.tsx` and the Atlas's own bar). They are plain links between `/me` and `/me/atlas`: both read the
+same rows and profile and write through the same `/api/jobseeker/**` routes, so a CV dropped, a want saved or a
+posting decided in one is what the other shows. No route and no table was added.
+
+**Nothing is re-implemented.** Every level mounts the Sieve's own step inside a `.sv.at-embed` wrapper
+(`sieve.css` is loaded; `atlas.css` only drops the chapter chrome), so the behaviour is the real one:
+
+| Prototype element (A/3) | Real behaviour it is wired to |
+| --- | --- |
+| The sky: every posting a mark, radius = 100 − score, rim for what never scored | `deriveSieve` (`sieveModel.ts`) over `useSieveData` rows; placement is `atlasModel.ts` (`skyLayout`, `rimLayout`), pinned by `atlasModel.test.ts`. Twin copies of one job (`twinKey`) are one star |
+| Sectors | **the source**, not the role family: summary rows carry no role family (the structured job has one, but 242 of 247 postings on the operator's DB had none) while every row names its source |
+| The dome / iris, the lock | `lockOf(hasCv, wantsSet(prefs))`: no CV → CV in → ready. Required = the **five** wants that steer the search (places, pay floor with its currency, titles, work modes, level); **languages are the sixth card, shown and editable but never required** (they do not change the ranking, step 4). A floor without a currency is not set. A locked market shows "not reached", never a count of 0 |
+| Prototype gate switch and seeker switch | dropped: the real gate comes from the real profile |
+| Instrument deck: Lens / Spectrum / Bearing | `StepArrive` (import, replace) / `StepYou` (the CV read, polish through `CvStudio`) / `StepWant` (the six cards, `useWantSave`) |
+| Four lenses: Sieve / Evening / Weigh / Sources | `StepSieve` / `StepEvening` / `StepWeigh` (one posting, level 2: decide bar, A/S/D, J/K) / `StepSources`. Weigh opens the best open posting (or the one pointed at) |
+| Top five cards | `facts.top5`, each pointing its star at the centre on hover / focus |
+| The ceremony (iris opens, marks fly to their score) | plays when a saved want or an import opens the dome **in this session** (`adoptProfile`); the level closes onto the sky; any key skips; reduced motion shows the final frame |
+| Levels, Esc, the way back | kit `LevelTransition` / `LevelFrame` / `LevelTrail` with `levelReduce` (`atlasNav.ts`, `useAtlasNav.ts`, `useAtlasKeys.ts`); Esc goes one level up and yields to a modal or a focused field; the heading of the opened level takes focus |
+| Anchors between steps (`#s-evening`, `/me#s-want`) | intercepted in `AtlasFlow` and mapped to lenses; a market lens refuses politely while locked |
+| Scan now, the erasure door, new-since-last-visit | the flow's one `useScanTask` / `ScanDoor` (offered where the sky is empty and inside the sieve lens); `EraseMeDoor` in the page foot; the seen-anchor advances only once the Evening lens was opened |
+
+**Deliberately not ported:** the prototype's own level scenes (its CV drop, preference cards, sieve drum, catalogue,
+sources observatory: each level shows the real step instead), the wires drawn from the top-five cards to their stars
+(a card points its star by hover and focus instead), the prototype controls, and the prototype's persona data.
+Known limits: the steps keep their "Step N" eyebrows inside a level; after `EraseMeDoor` the page reloads onto `/me`;
+a posting's pay on a card is the ad's stated pay only; the wants in the unlock list open the whole Bearing level rather
+than focusing one card.
+
+**Style.** `atlas/atlas.css`, scoped under `.at` with the winner's own class names, ported from the winner's stylesheet
+(a mechanical scope-and-scale pass, then hand edits) and resolved entirely through the app's tokens: Studio Light is the
+printed atlas, Spark Dark the night sky. The prototype scaled its root font with the viewport, so the scale lives in one
+variable, `--u` (16–30px), and nothing renders below 14px. Held to the winner with the contest style contract
+(23 roles at 1280x800, light): **0 style deviations**; the four differences it lists are data (the hero's text width, the
+legend's text width, and the top-ranked card's tier colour).
+
+**Keyless:** unchanged. The import degrades to the fixed parser, the deep read and the fit conversation to their
+deterministic twins, exactly as in the Sieve.
 
 ## Wire vocabulary
 
@@ -35,7 +180,9 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
 
 ## Keyless behaviour (product property)
 
-- The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV.
+- The designed CV (below) needs no model at all: `cvDocument.ts` is deterministic, and a server with no headless browser answers the PDF route with 503 `JOBSEEKER_PDF_UNAVAILABLE` while the page offers print -> Save as PDF, which carries the same layout.
+- The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV. Roles are split at their date lines inside experience sections (`dated_roles`: "Role — Org (dates)", an education range is never a job, a blank line or an ALL-CAPS label ends a role), and `years_experience` is the stated figure, else the UNION of the dated intervals (overlaps count once, a backwards range is dropped). The location is read only from the header, which ends at the first section heading.
+- PDF text keeps a two-column template's reading order (`pipeline/jobfit/extractors.py`, `_page_text`): when a vertical gutter no fragment crosses is PROVEN, with text on both sides, the wider column is read first and the sidebar after it; otherwise pypdf's own order stands. Before this, a sidebar CV imported with its section labels above the name and an email glued onto the URL beside it.
 - Dialog turns come from `pipeline/jobfit/jobseeker_cli.py`; without a provider the
   scripted `deterministic_turn` answers with `source: "deterministic"` and a
   `fallbackReason` — never an empty reply.
@@ -43,15 +190,76 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
   matcher; the LLM deep-dive runs only for the shortlist and is skipped keyless with
   `deepDiveSkipped: "no_provider"`.
 - Under `KP_OFFLINE` every source returns `offline` before any egress.
+- The role research (below) is web research on a pinned Claude model: with no Claude CLI,
+  under `KP_OFFLINE`, or on a production box without the engine it answers
+  `source: "deterministic"` with the reason, stores nothing, and the designed CV's
+  coverage reads the seeker's own postings instead - the panel says which.
+- The GitHub read needs no model: `github.ts` reads through the one GitHub transport
+  (anonymous at 60 requests an hour without `GITHUB_TOKEN` / `GH_TOKEN`), the derivation
+  is the deterministic taxonomy scan; `KP_OFFLINE` answers `offline` before any socket.
 
 ## LLM use cases
 
-`cv_polish`, `fit_dialog`, `extraction_rules` (Settings → Models section "Job search");
-the deep-dive reuses `jd_ingest` and `match_reasoning`.
+`cv_polish`, `fit_dialog`, `extraction_rules`, `role_research` (Settings → Models section
+"Job search"); the deep-dive reuses `jd_ingest` and `match_reasoning`. `role_research` is
+the one PINNED use case: its call site passes `ProviderPin("claude_cli",
+"claude-sonnet-5-5")` to `resolve_provider`, so an operator's routing row does not move it
+(docs/architecture/llm-provider-layer.md, the pin and the `web_research` CLI mode).
+
+## What the market asks, and your GitHub
+
+Two sources of evidence from outside the CV, both the seeker's own choice, both stored per
+profile in `jobseeker_ui_state` (kinds `role_research` and `github`; the table's CHECK is
+widened once at boot for databases created before them - `core.ts`,
+`jobseeker-ui-state-migration.test.ts`) and erased with the profile.
+
+**What the market asks** (`MarketMix.tsx` under the Want cards; `roleResearch.ts`;
+`POST /api/jobseeker/research`; `pipeline/jobfit/role_research_cli.py`). The seeker's
+target titles and markets - and nothing else: never the CV, never the name - go to Claude
+Sonnet 5.5 through the Claude CLI with WebSearch and WebFetch only, up to 16 turns. It
+answers the skills current postings and market reports ask of those titles, tiered core /
+common / emerging, each with the sources it came from; a source says whether its page was
+read in full or only seen as a search result, and a skill without a surviving source is
+never shown (`roleResearchOf`). One answer per (titles, markets), order-insensitive
+(`roleResearchKey`), fresh for 14 days, six kept per profile; a miss (keyless, a failed
+run) never replaces an answer. The panel marks each skill from the seeker's OWN record -
+solid on the CV, half from their GitHub once they use it, dashed not yet - and counts the
+core skills they show; the footer names the date, the model and how many sources were read.
+The research also leads the designed CV's "Tailor for" demand (`cvTailor.ts` `demandFor`,
+source `research`, core weighing 3 / common 2 / emerging 1), on the /me preview and on the
+print page alike - it only reorders and bolds what the CV already says.
+
+**Your GitHub** (`GithubPanel.tsx` in the You column; `github.ts` reads,
+`pipeline/jobfit/github_evidence_cli.py` derives, `githubEvidence.ts` merges;
+`/api/jobseeker/github`). Registry recruiting/public-work-evidence-bounding, applied:
+- Identity is a gate. A PERSON account only (an organisation answers `not_a_person`), and
+  nothing reaches matching or the CV until the seeker says "this is my account". The panel
+  offers the handle their CV's own header names.
+- Attribution: owned, non-fork repositories only (60 most recently pushed; the languages of
+  the 12 newest non-archived).
+- The budget is said in words: names, languages, topics and descriptions were read - never
+  code; a read GitHub throttled part-way says the languages are partial, and a throttled,
+  offline or unreachable read is its own outcome, never "no evidence".
+- It corroborates, never replaces. Each repository that shows a skill becomes one
+  `personal_project` evidence item (weight 0.7, the provenance ladder's rung for personal
+  work) in the MATCHER's view of the profile (`withGithub.ts`, read by the scan and the
+  deep-dive) - never in `profile_json`, which every CV action replaces. The matcher keeps
+  the strongest basis per skill, so a CV skill used at work stays "work", a skill the CV
+  only stated rises to project standing, and a skill only the repositories show enters at
+  that rung. Turning it on or off moves the view's `updatedAt`, so the next scan re-scores;
+  forgetting it touches the profile row for the same reason.
+- The Projects section: the repositories the seeker ticks (at most six) join their
+  designed CV as project entries titled "name - github.com/owner/repo (years)", with the
+  repository's own description and its stack - nothing invented (`cvProfile`).
+
+| Route | Methods | Limit |
+| --- | --- | --- |
+| `/api/jobseeker/research` | GET the research for the current titles; POST `{ force? }` researches (a fresh answer is returned without a run unless `force`) | 6 per hour per IP |
+| `/api/jobseeker/github` | GET `{ state, suggestion }`; POST `{ handle }` reads (`outcome`: ok, invalid_handle, not_found, not_a_person, throttled, offline, unreachable, failed); PUT `{ confirmed?, use?, projects? }`; DELETE forgets | POST 10 per 10 min; PUT/DELETE 60 per 10 min |
 
 ## Error codes
 
-`JOBSEEKER_*` in `app/_lib/api-response.ts` (one STORE code, thirteen REFUSAL codes);
+`JOBSEEKER_*` in `app/_lib/api-response.ts` (one STORE code and the REFUSAL codes, `JOBSEEKER_PDF_UNAVAILABLE` the newest);
 every code has four catalog entries under `errors.*`.
 
 ## Scheduler
@@ -88,17 +296,26 @@ Acquisition is owner-consented (ADR 0009 §3). Every adapter fetches through ONE
 | robots.txt | Fetched once per host, cached 24 h; groups for `*` and `kp-jobseeker`, longest-match Allow/Disallow with `*`/`$`, `Crawl-delay` honoured; unreachable/404 = allow (logged once); 5xx = `outage` for the host for 1 h | `fetch/robots.ts` |
 | Spacing | `max(Crawl-delay, 2 s) + jitter`, jitter = FNV-1a(sourceId) % 700 ms; ONE in-flight request per host, queued | `spacingFor`, `withHostSlot` |
 | Identity | `user-agent: kp-jobseeker/1.0 (+https://github.com/xkazm04/kp; owner-operated)`, `accept` per adapter, `accept-language` from the call | `USER_AGENT`, `DEFAULT_ACCEPT` |
+| Credentials | An optional `authorization` header value (the gig adapters' official APIs: GitHub, Kaggle, HackerOne, Upwork) is sent only to the host the request started on - a cross-host redirect drops it, and robots.txt never carries it. No job-seeker adapter sets one | `PoliteFetchOptions.authorization`, `politeFetch.test.ts` |
 | Bounds | 15 s timeout, 2 MB body cap (`outage`/`too_large`), http(s) only, ≤ 5 redirects followed by hand so a cross-host hop re-checks the new host's robots | `FETCH_TIMEOUT_MS`, `MAX_BODY_BYTES` |
 | Classification | 401/403/429 → `blocked`; a 200 whose HTML carries one of six documented bot-wall signatures (`INTERSTITIAL_SIGNATURES`) → `blocked`; 404/410 → `gone`; 5xx/timeout/network → `outage`; disallowed path → `robots_disallowed` | `classifyStatus`, `looksLikeInterstitial` |
 | Retry | Never for `blocked`. The fetcher retries nothing; the scan runs again next tick | — |
+| Egress | Every job-seeker fetch is vetted by `app/_lib/jobseeker/fetch/egress.ts` (public-host string gate + resolve-and-reject over every A/AAAA address). Preview and rules/propose take a `url` only on the source's recorded host (or a subdomain) and public (400 `JOBSEEKER_RULES_INVALID` / 403 `JOBSEEKER_SOURCE_REFUSED`); creating a source vets the host and every config URL and refuses tier C. At scan time the transport is `egressGuardedFetch`: a URL on a non-public host (a sitemap `<loc>`, a rule-extracted link) is never requested and reads as `blocked`; every redirect hop, robots.txt's included, goes through the same hopGuard. `KP_OFFLINE` never resolves a hostname | `fetch/egress.ts` |
+| robots.txt bounds | At most five redirects, each vetted by the hopGuard (a refused hop reads as "no policy published"); the body is read to at most 512 KiB; patterns are matched by a linear wildcard matcher (RFC 9309 `*` / `$`), never a regex | `fetch/robots.ts` |
+| Stream deadlines | In stream mode (the MPSV bulk file) the 15 s timeout ends when headers arrive; the body is then bounded by 20 s idle and 120 s total. A stalled file ends the run as `source_outage` with "stream_timeout: N records read, M kept" | `politeFetch.ts` |
 
 `blocked` is a relationship signal: `reconcileSource` (`app/_lib/jobseeker/reconcile.ts`)
 stops the source at the first denial, records `blocked` and pauses it (`pausedReason:
 "blocked"`); only the owner resumes it (PATCH `{resume: true}`). A source that fetched fine
 but yielded nothing recognisable is `collapsed` (paused as `collapsed`), never a green run
 with zero rows. Postings are marked absent (`markAbsent`, two misses → `gone`) only after a
-COMPLETE successful pass — a truncated (`maxDetailFetches` reached), failed or stopped run
-says nothing about who is gone. `SourceRunSummary.reason` is the closed set
+COMPLETE successful pass — a truncated (`maxDetailFetches` or `maxRefs` reached, whether
+reconcile or the adapter stopped), failed or stopped run, or one where a detail page hit an
+outage (not a 404/410), says nothing about who is gone. There is no cursor: the next run
+starts from the top, so a source with exactly `maxRefs` live postings never marks anything
+absent. Only an undecided row (`new` / `shortlisted`) moves to `gone`; applied and dismissed
+rows keep their status and show the absence as `goneAt`, and a re-seen row keeps its
+decision. `SourceRunSummary.reason` is the closed set
 `RECONCILE_REASONS`: `blocked · offline · shape_changed · required_rule_miss ·
 robots_disallowed · source_outage · source_gone · config_invalid · adapter_error`.
 
@@ -138,6 +355,25 @@ hiringOrganization, jobLocation, `jobLocationType: TELECOMMUTE`, datePosted, bas
 readable text. `boardRules.ts` runs the source's rules over `config.listingUrls`
 (`{page}` placeholder, `maxPages`). Limits: `AdapterLimits { maxRefs: 500, maxDetailFetches:
 60 }` per source per run (the `PULL_LIMITS` precedent).
+
+**A company board's config names the company under the adapter's own key**
+(`companyConfig.ts`): Greenhouse `token`, Lever `site`, Ashby `board`, Workable
+`subdomain`, the rest `company`. Both UI forms used to send `{ slug }`, which no adapter
+reads, so every company board added from /me failed its create with 400; the create route
+now moves a legacy `slug` onto the right key, and the label reads either (found by the live
+e2e, 2026-09-28).
+
+**Whole-board feeds read up to the fetcher's ceiling** (`WHOLE_BOARD_MAX_BYTES`, 16 MB).
+A per-company ATS feed is one document holding every open job with its description:
+measured live, Anthropic's Greenhouse board is 9.0 MB and OpenAI's Ashby board 14.5 MB,
+both past the 2 MB page cap, so a scan recorded the AI companies' own boards as outages.
+
+**A stand-in where the employer goes is no employer** (`employer.ts`, in the six market
+languages: "siehe Beschreibung", "see description", "viz popis", "confidential"…). The live
+run's best target match read "AI Engineer (w/m/d) at siehe Beschreibung", and the twin fold
+(same source, title and employer) would merge two employers' ads that both said it. It is
+null from `rawPosting` on, and read as null from a row stored before - a whole stand-in
+only, never a word inside a name.
 
 ### API (`app/api/jobseeker/sources/**`, all `requireOperator()` → limiter → body)
 
@@ -191,7 +427,9 @@ anchor group.
 
 `pipeline/jobfit/posting_structure.py` turns every `RawPosting` into the matcher's `Job`
 with no model: work mode (`TELECOMMUTE` → remote, else remote/hybrid regexes in cs/en/de/fr,
-else onsite), seniority from the TITLE only, `role_family` via `classify_role_family`,
+else onsite only when the ad STATES the office ("on-site", "v kanceláři", "vor Ort",
+"sur site"); an ad that says nothing leaves it unstated and records `work_mode` in
+`defaulted_fields`, so the work-mode gate never knocks out a remote-only seeker on it), seniority from the TITLE only, `role_family` via `classify_role_family`,
 requirements = taxonomy skill terms (whole-token) tagged `must_have` when they sit under a
 requirements header (požadujeme / requirements / Anforderungen / exigences …) and
 `nice_to_have` otherwise or when the line says "výhodou / is a plus", a salary only when
@@ -202,57 +440,37 @@ rate is read as `salary_period="hour"` with no band, and a **yearly** figure in 
 own currency is restated ×12 for the BAND only, noted `salary_period_converted:year->month`,
 so the seeker is never told "posting states no pay" about an ad that stated its pay),
 `min_years_experience` from "N+ years/let/Jahre/ans", languages from the
-taxonomy alias table plus de/fr ad-side forms. `posting_structure_cli.py` takes
+taxonomy alias table plus de/fr ad-side forms (a stem of four letters or more must
+START a word: "ital" read "digital" as Italian until 2026-09-25). `posting_structure_cli.py` takes
 `[{id, raw}]` and answers `{jobs, notes}` (one bad posting is skipped and named; exit 2 for
 malformed input).
 
 ## Profile and CV studio
 
-**Entry.** `/me` (`app/me/page.tsx`, server: reads the seeker's row once and hands it
-to `app/features/jobseeker/ProfilePage.tsx`). The shell is `app/me/layout.tsx`: a
-`MeNav.tsx` rail, a `TranslatedErrorBoundary` around the page, no Companion dock; the
-whole rail is `print:hidden`.
+**Entry.** `/me` is the flow (above): the import is its Arrive step (`StepArrive.tsx`),
+what was read is its "You" step (`StepYou.tsx`), and the CV studio opens over it from
+**Polish my CV**. A seeker arrives here from the first-run wizard's **intent fork**
+(`docs/architecture/app-structure.md`, "shell/setup/"): "I'm looking for a job" skips
+company/team/pipeline/companion and `finish()` routes to `/me`.
 
-The rail IS the workspace rail — the same 4.75rem icon column as `NavSectionRail`'s
-level 1, composed from the same `railTile` recipe (so the active tile carries the dark
-outline), the same `RailBrandMark` on top and the same `RailPreferences` in the footer
-slot, where the `left-full` popovers anchor correctly. It stops at ONE level on
-purpose: the second level exists for ~20 modules, and /me has four destinations. They
-are real anchors with `aria-current="page"` (the URL is the state, not a tab store) —
-not a tablist, which would promise same-document panels and roving-arrow focus. Below
-`md` the column becomes a top bar carrying the mark and a hamburger, and the same rail
-slides in as an off-canvas drawer with a scrim and a `useDialogA11y` focus trap
-(`MeNavDrawer.tsx`, the `WorkspaceNavDrawer` shape). A seeker arrives here from the first-run wizard's **intent
-fork** (`docs/architecture/app-structure.md`, "shell/setup/"): "I'm looking for a job"
-skips company/team/pipeline/companion and `finish()` routes to `/me`.
+`POST /api/extract-text` returns `text`, `charCount`, and `pageCount` (`null`
+for TXT/MD/DOCX). A PDF with pages but no text layer can therefore be identified
+as a scan, while the existing empty-text refusal still handles it in the import UI.
 
-**The page opens like every other page**: a `PAGE_HEADER` carrying the
-`EYEBROW` / `TITLE_DISPLAY` / `INTRO` trio with **Polish my CV** as the header's
-primary action (it used to be the fifth control down inside the summary card), `SECTION`
-for the rhythm below it and `stagger-children` so header and body arrive in tiers.
-`/me/cv/print` inherits the same trio, all of it `print:hidden`. Explanations live on
-the control they explain rather than on a line of the page (surface-doctrine.md 1):
-the import's privacy sentence and the "what I could not read" note are `IconAction`
-hints, and no control is named by a bare `title=`. Failures are the module's one
-`FailureNotice` block with a Retry, never a red paragraph; figures carry `nums`.
-
-**Import** (`ProfileImport.tsx`): drop a CV (the shared `AnalyzeFileDropZone`, same
-8 MB / PDF·DOCX·TXT·MD contract) → `POST /api/extract-text` → `POST /api/profile/draft`
-(the recruiter-side `profile_draft`, so a seeker's profile IS the `CandidateProfileV2`
-the matcher scores) → `PUT /api/jobseeker/profile { profile, cvSourceText }`. The
-three stages tick as a checklist in three tones that survive both themes
-(moss / ink / steel); every refusal renders from its code (`useErrorMessage`) inside
-`FailureNotice`, which offers the retry. The summary (`ProfileSummary.tsx`) shows what was read (name,
-role family, years, skills, location, languages, education) and **what could not be
-read** as a list of gaps to fill, never a score. The two CANONICAL enum fields - role
-family and education level - are resolved through `useEnumLabel` (`enums.family.*`,
-`enums.education.*`), the same labeller every recruiter surface reads them under, so
-the seeker never sees a wire value like `software_engineering`; the stored value stays
-canonical. The "read without AI" honesty notice
-is the card's LAST block, wrapped in `Fade`: it can only appear after hydration
-(sessionStorage has no server snapshot), so landing there it grows the card downwards
-and shifts nothing the reader was already looking at, while reserving no empty strip
-when it never comes. The keyless twin
+**Import** (`StepArrive.tsx`): drop or choose a CV (the `upload-constraints` contract:
+8 MB, PDF·DOCX·TXT·MD) → `POST /api/extract-text` → `POST /api/profile/draft` (the
+recruiter-side `profile_draft`, so a seeker's profile IS the `CandidateProfileV2` the
+matcher scores) → `PUT /api/jobseeker/profile { profile, cvSourceText }`. The three
+stages tick as a checklist; every refusal renders from its code inside `FailureNotice`,
+which offers the retry. **What was read** is the You step: name, the role the seeker
+aims at (their first target title, else the role family), the archetype, where they
+live, years, education, languages and field as fact cards, the skills as the provenance
+mesh, and the experience the skills were read from as a timeline. The two CANONICAL enum
+fields - role family and education level - resolve through `useEnumLabel`
+(`enums.family.*`, `enums.education.*`), so the seeker never sees a wire value like
+`software_engineering`. What the CV studio could not place, and its edit suggestions,
+come from the newest `cv_polish` dialog's artifact and are said as "not polished yet"
+until one exists — never as "nothing unreadable". The keyless twin
 (`pipeline/jobfit/cv_draft.py`) drops the taxonomy's role WORDS — backend, frontend,
 fullstack, developer, engineer, architect, vývoj — from the skill claims it writes
 (they say what a person is, not what they can do, and every job title in the history
@@ -272,17 +490,15 @@ paints on the feed, the sources and the scans (the import's own near-duplicate,
 whose server is unreachable has to do about it.
 
 **What read the CV** is disclosed. `POST /api/profile/draft` answers
-`source: "llm" | "deterministic"` (from `profile_draft_cli`); on `deterministic` both
-the drafting stage line and the saved summary carry an amber `NOTICE("amber")` —
-`me.profile.readWithoutAi{Title,Body}` — saying no model was configured or reachable,
-that skills are exactly as the CV states them, and where to add a model. It has no
-column: the import writes it to `sessionStorage` under `kp-me-draft-source:<profileId>`
-(`rememberDraftSource` / `recallDraftSource`, read through `useSyncExternalStore` so
-the server snapshot is `null`), so it survives a reload of `/me` for the tab's life and
-a fresh tab claims nothing rather than claiming stale. The summary also lists the skill
-claims as chips whose `title`/`aria-label` name their `provenance`
-(`me.profile.skillSelfDeclared` for `self_declared` — a claim the CV made is never
-presented as one the app checked).
+`source: "llm" | "deterministic"` (from `profile_draft_cli`); on `deterministic` the You
+step carries one calm line (`me.sieve.you.noAi`): no AI model read this CV, skills are
+exactly as it states them. It has no column: the import writes it to `sessionStorage`
+under `kp-me-draft-source:<profileId>` (`rememberDraftSource` / `recallDraftSource`,
+read through `useSyncExternalStore` so the server snapshot is `null`), so it survives a
+reload of `/me` for the tab's life and a fresh tab claims nothing rather than claiming
+stale. A `self_declared` skill claim is drawn dashed and italic with a STATED tag, and
+its tile's accessible name says "Stated only" — a claim the CV made is never presented
+as one the app checked.
 
 `POST /api/profile/draft` answers by CODE like the rest of the family:
 `INTAKE_TEXT_REQUIRED` (400, the one deliberate refusal — empty text, the same code
@@ -320,11 +536,12 @@ carry `max-w-prose`, and the cover-note copy control announces through a SIBLING
 | `/api/jobseeker/dialogs/[id]` | GET | one dialog (the client re-reads after a `moved`) |
 | `/api/jobseeker/dialogs/[id]/message` | POST `{message}` | one exchange → `DialogReply`; CAS `appendDialogTurns` → 409 `JOBSEEKER_DIALOG_MOVED`; on `done` the artifact's preferences merge into the profile and `cvMarkdown` becomes `cvPolishedMd`. Empty body → `INTAKE_TEXT_REQUIRED` (the existing generic "nothing to send"); oversized is cut at 4 000 chars |
 | `/api/jobseeker/cv.md` | GET | `text/markdown`, `Content-Disposition: attachment; filename="cv.md"`; 404 until a polished CV exists |
-| `/me/cv/print` | page | the polished CV at 210 mm with `window.print()` |
+| `/api/jobseeker/cv.pdf` | GET | `?template=studio|signal|folio|classic|editorial|sidebar|compact&accent=ink|navy|cobalt|teal|moss|tangerine|coral|plum` -> `application/pdf`, `attachment; filename="<name>-cv.pdf"`; 404 `JOBSEEKER_PROFILE_MISSING` without a profile; 503 `JOBSEEKER_PDF_UNAVAILABLE` when no browser is installed or the render failed (cause in the server log) |
+| `/me/cv/print` | page | `?template=&accent=[&tailor=&compact=&objective=]` - the designed CV at real size (`CvDesigner` mode `page`), tailored when `tailor` names a target; the header is print-hidden, so `window.print()` and the PDF route both carry only the sheet |
 
 Limiters (pinned in `app/api/rate-limit-contract.test.ts`): profile 60/10 min,
 dialog create 30, message 30 (after the 404/409/400 refusals, before the spawn),
-export 60.
+export 60, PDF 20 (`jobseeker-cv-pdf`, before the profile read and the render).
 
 **Engine.** `app/_lib/jobseeker-run.ts` spawns `pipeline/jobfit/jobseeker_cli.py`
 (`--input-json`; `JOBSEEKER_DIALOG_TIMEOUT_MS = 120 s`, opening 30 s, `buildLlmConfigEnv`
@@ -347,7 +564,320 @@ in `cvMarkdown` or in `unreadable` (pinned by
 `pipeline/jobfit/tests/test_jobseeker_dialog.py`). A locale outside the four is
 disclosed as `fallbackLang`. The `fit` kind is the section below.
 
+## The designed CV
+
+The CV the seeker dropped, laid out as a page and taken away as a PDF, keyless. The
+"Polish my CV" conversation above rewrites the WORDS with a model; this is the LAYOUT,
+and it needs none.
+
+| Piece | Path | What |
+| --- | --- | --- |
+| Document builder | `app/features/jobseeker/cv/cvDocument.ts` | pure: profile + preferences + CV text -> `CvDocument` (name, headline, contacts, summary, roles with bullets, the CV's own skill groups with levels, education, languages, `lang`, `improvements`) |
+| Sheet | `app/features/jobseeker/cv/DesignedCv.tsx` + `cv.css` | one markup, three templates (`sidebar`, `editorial`, `compact`), four accents; hook-free, so the server print page and the client preview render the same component |
+| Designer | `app/features/jobseeker/cv/CvDesigner.tsx` (`cvRecipes.ts`) | layout thumbnails, accent dots, the tidied-wordings list, Download PDF; mode `inline` (the flow) or `page` (`/me/cv/print`) |
+| PDF renderer | `app/_lib/jobseeker/cv-pdf.ts` | headless Chromium (optional `playwright-core`) prints `/me/cv/print` with the stylesheet's own A4 `@page` |
+| Route | `app/api/jobseeker/cv.pdf/route.ts` | see the doors table above |
+
+**Where it shows.** Step 2 of the flow (`StepYou.tsx`) gains an "As dropped | Designed"
+switch over the CV column. As dropped stays the default because the flight starts from it,
+and the switch is held while the flight runs. Designed shows the real A4 sheet scaled to
+the column (laid out at 210 mm and transformed, so line breaks match the PDF), `inert`,
+with the pickers above it and a link to the full page. The layout and accent are
+remembered per browser (`localStorage` `kp-me-cv-design`) and, on the page, in the URL.
+
+**What "better expressed" means, and does not.** Deterministic and listed, never silent.
+Canonical tool names (NextJS -> Next.js, Postgres -> PostgreSQL, Langchain -> LangChain,
+lower-case acronyms), a small misspelling dictionary (Continous -> Continuous), a hyphen the
+line wrap left open ("prototype-to- production"), a lower-case sentence start, and a line
+that opens with the role's own title ("QA Engineer (SOAP, Cypress) - Legal web app" under
+the "QA Engineer" entry reads "Legal web app (SOAP, Cypress)", `withoutRoleHead`). A verb is
+never raised ("Responsible for" stays). Lines a CV lists without full stops stay separate
+bullets: a line closing a parenthesis before a capitalised line is two items, not one
+wrapped sentence (`bulletsOf`). Each change is an `improvements` row the designer
+lists ("12 wordings tidied"). A word that is also prose ("the rest of the team", "soap")
+stays prose unless a technical neighbour makes it the acronym ("Rest/Graph", "rest API").
+No claim, number or date is invented: dates are only typeset (en dash, two-digit month).
+
+**Reading.** Contacts come only from the header (the lines before the first section
+heading), so a date range is never a phone. An ALL-CAPS label below the header is a skill
+group of the CV's own ("LLM RELATED" -> "LLM Related"); with no groups, the profile's claims
+form one group, strong first. "(senior)"-style levels become 1-3 pips and the word stays in
+the text layer for a parser. Roles with bullets come first, earlier one-line roles form a
+compact list after them. The DOM order is header -> experience -> side on every template,
+so a text-order parser (an ATS) reads the name, then the work.
+
+**Language.** Section headings follow the language the CV is WRITTEN in (`cvLanguageOf`,
+stop-word counts over en/cs/de/fr), not the reader's UI locale: an English CV opened in
+the Czech product keeps English headings. They live in `CV_HEADINGS`, as document
+content, not in the UI catalogs.
+
+**Paper, not UI.** The sheet is theme-INVARIANT: `--color-cv-*` in `app/globals.css`,
+declared identically in both theme blocks (the `white-fixed` precedent), and set in points
+with Fraunces/Inter pinned (not `--font-serif`, which turns into Bricolage after dark). The
+designer's chrome around it is ordinary themed UI with the 14px floor. `cv.css` uses a
+NAMED page (`@page cv`), so a stylesheet still loaded after navigation never re-margins
+another page's printout. The first page bleeds to the top edge. Every page keeps a 10 mm
+foot and a continuation page a 10 mm head. In print the sidebar's tint is a fixed box, so
+it runs the full height of page two.
+
+**The CV's own lines, even after an AI draft.** On the model path the draft's role text
+is a paraphrase (a real CV lost "TypeScript" and every date). `sourceRoleOf` finds each
+role in the CV text by its employer (the nth mention for an employer held twice), takes
+the dates on or beside that line and the lines under it up to the next role, heading or
+dated line, and the sheet sets those verbatim; the draft text is the fallback only when
+the employer is not found. The headline compares folded, so "MICHAL KAŽDAN" is never read
+back as the headline of "Michal Každan".
+
+**Held to a written standard.** The sheet follows the registry subjects
+`recruiting/cv-content-construction` and `recruiting/cv-presentation-and-parseability`
+(forged 2026-09-26 from outside research; branch `forge/cv-construction` in the registry).
+
+*What the sheet says* (`cvContent.ts`, pure). A verb never raises the claim (the old
+"Responsible for -> Owned" rewrite is gone); self-descriptors in the seeker's own text become
+owner questions and are never deleted from their words. Bullets are ranked by the outcome
+ladder (a stated number > a stated scale > a before/after > action and object) and budgeted by
+recency: 6 for the current role, 4 within ten years, 2 older, one line past 15 years or off
+target (`CvRole.compact`); a role is never deleted, and bullets over budget are held back
+(`trimmed`, never printed; the designer lists them per role under "lines held back for length"). Skills are evidenced-first and capped at 15, with a level WORD, never
+pips; a skill no role shows, and a soft-skill list, becomes an owner question. Languages carry
+their CEFR level when stated. Bold is at most 2 terms per role, never in the skills list.
+Non-job evidence (projects, thesis, courses, certifications) becomes a dated `projects`
+section; the tailored sheet keeps only the ones that speak to the target. Dates are typeset per
+market ("present" / "dosud" / "heute" / "aujourd'hui"). No photo, birth date or marital
+status is ever emitted, and a "PERSONAL DETAILS" block is never read as skills. The owner
+questions (`no_outcome`, `missing_metric`, `listed_only`, `self_descriptor`) are shown only in
+the designer, each quoting the line it is about.
+
+*The model's rewrites are screened* (`pipeline/jobfit/jobseeker.py`, `cv-polish-v3`). Every
+suggestion's REPLACEMENT is checked against the record (the CV text plus what the seeker said
+in the dialog): a new number, a skill term from the ad, or a raised title or verb turns it into
+a question (`kind: "question"`, never applied - the sheet shows "A question for you" instead
+of Apply); a new proper noun, a self-descriptor or a less specific line is dropped. A full
+redraft from the model is only read as line proposals. Accepted edits are recorded as
+`applied` on the polish artifact (carried into a new conversation) and applied by
+`buildCvDocument({ acceptedEdits })` - in the /me preview, `/me/cv/print` and the PDF alike;
+an edit applies only while its original line is still in the CV.
+
+*How it looks and parses* (`DesignedCv.tsx`, `cv.css`, `cvQuery.ts`). Seven templates,
+presented in the designer as two groups with a schematic of each page. One column:
+`studio` (the default since 2026-09-28 - the landing's look: the name in Bricolage under a
+short accent bar, a soft accent glow in the top corner, the headline in the accent, headings
+as a small accent square plus the word, skills inline with the level word in grey),
+`signal` (technical: dates and the contact line in JetBrains Mono, a timeline rail down the
+dated entries drawn with a border and a background dot, skills as a two-column spec sheet),
+`folio` (editorial: a masthead rule, a Fraunces name, the summary as a serif lede, en-dash
+bullets), `classic` and `editorial`. Two columns, opt-in with the single-column PDF offered
+beside them: `sidebar` and `compact`. Eight accents (`--color-cv-*`, identical in both theme
+blocks): ink, navy, cobalt (the default), teal, moss, tangerine, coral, plum. A saved design
+from before carries its version: `v: 3` reads a v2 `classic` or `navy` - the old defaults,
+indistinguishable from a choice - once as unchosen; every other saved pick is kept.
+
+*The sheet has faces of its own* (`public/fonts/cv/`, built by
+`python scripts/cv/build-cv-fonts.py` from the official OFL sources, checksummed; `--check`
+verifies the committed files are a rebuild). The product's next/font faces are variable and
+split per script, which Chromium's PDF writer embeds as Type 3 fonts with a font switch at
+every diacritic: the operator's own exported CV read back "Každan" and "Česká Spořitelna"
+broken apart in both pypdf and PyMuPDF (pypdf kept 0 of 4 diacritic words whole). Static,
+single-file Latin + Latin Extended instances (Inter, Fraunces, Bricolage, JetBrains Mono -
+410 kB) embed as TrueType: the same CV now keeps every one whole in both extractors. Each
+file is named for its weight ("Inter-SemiBold", with the matching weight and bold bits):
+the instancer had kept the variable font's names, so every Inter weight embedded as
+"Inter-Regular" and Bricolage 500 as "96pt ExtraBold" - the name a text extractor reports,
+and where a parser that reads weight from the font name gets it.
+Reading order on every template: head -> summary -> experience -> projects -> education ->
+skills -> languages; each entry is one line, "Title - Employer" with the dates at its end;
+nothing that carries text is positioned and headings are not letter-spaced (both had made the
+PDF text read out of order). Four type sizes only (`--cv-*`): body 10-11pt, dates at body size
+in ink, name 22-28pt. Page budget (`cvPageBudget.ts`): one page under three years of
+experience, two otherwise, a last page under a third full is sparse; the designer reports it
+and suggests one-line roles - type never shrinks. Page two repeats the name in its head
+margin. The designer also shows "How a parser reads it" (the sheet's reading order). The PDF is
+named `First-Last-CV.pdf`, titled "Name - CV" and tagged (`cv-pdf.ts`).
+
+*Checked, not asserted.* `npm run cv:roundtrip` (a dev tool: Chromium + PyMuPDF) renders five
+synthetic reference CVs (short, long, career change, Czech diacritics, two pages) in every
+template, extracts each PDF in content order (pypdf) and by position (PyMuPDF), and asserts
+the name leads, each entry stays contiguous and nothing is lost; the checker itself runs in
+`test:unit` (`cvRoundTrip.test.ts`). It sets the sheet in the shipped faces (the fonts are
+inlined into its page). Measured 2026-09-28: `studio`, `signal`, `folio`, `classic` and
+`editorial` pass every reference in both extractors, Czech included; `sidebar` and `compact`
+fail by position - hence opt-in.
+
+**Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
+seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary
+leads with its most target-relevant sentence (every sentence verbatim); roles keep their
+date order (reordering history reads as hiding it) and inside each role the relevant bullets
+lead, with up to two demanded terms per bullet in bold; skill groups and items go
+relevant-first, nothing removed. The CV's own headline stays - a target title never stands
+in for a missing one, because under the name it reads as a title held. An optional objective
+line ("Seeking: AI Engineer roles", in the CV's language) states the direction as sought.
+`compactOffTarget`, offered only when the sheet runs over one A4 page, sets a role with
+nothing relevant as one line, in place. Every move is a `tailor` improvement, listed apart
+from the tidied wordings.
+**Demand** is what that market asks for: the union of `matchedSkills` + `missingSkills` over
+postings whose `targetAlignment.state` is `target` at that title, most asked first and
+order-independent (summaries cap each list at 6 per posting). With no such posting yet, a
+built-in list per target kind (AI/ML/LLM, frontend, backend, full-stack, QA - mirroring
+`target_titles.py`) stands in, and the designer says so. **Coverage** ("Your CV shows 9 of
+the 14 skills AI Engineer postings ask for", where each shows, the missing ones named) is
+designer chrome for the seeker and is never printed.
+`/me/cv/print` and `GET /api/jobseeker/cv.pdf` take `&tailor=<index>&compact=1&objective=0`
+(`cvQuery.ts`, one parser for all three readers); the print page reads the seeker's
+postings through `listJobseekerPostings` (a store failure falls back to the built-in list).
+
+**The PDF.** The route renders the print page in a headless Chromium with the requester's
+own cookies. The page may reach only that ONE origin (every other request is aborted),
+and the origin is never the Host header: `KP_PDF_ORIGIN` when set, else `127.0.0.1` on
+`PORT` or the request's port. Renders queue one at a time. `playwright-core` is loaded
+lazily and listed in `serverExternalPackages`. It is a dev dependency today, so a pruned
+production install answers `JOBSEEKER_PDF_UNAVAILABLE` and the page falls back to print.
+To enable server PDFs there, install `playwright-core` and a Chromium build. Measured
+locally: about 3 s a render, text selectable, 1-2 A4 pages for a ten-year CV (the
+compact template fits it on one).
+
+Tests: `app/features/jobseeker/cv/cvDocument.test.ts` (a synthetic two-column CV: header,
+contacts, roles, bullets, groups, improvements, no invented numbers, prose-vs-acronym) and
+`app/_lib/jobseeker/cv-pdf.test.ts` (origin never from Host, cookie parsing, no browser ->
+unavailable, only the app origin reachable, browser always closed).
+
+## Across sessions: the CV archive and the seeker's working state
+
+Everything the pipeline produces already lives in SQLite (profile, preferences, postings,
+scores, dialogs, deep-dives). Three things did not, and now do:
+
+- **A CV already read is remembered** (`jobseeker_cvs`, `app/_lib/db/jobseeker-cvs.ts`).
+  Every import is recorded per seeker by the sha256 of its extracted text with whitespace
+  folded. Before drafting, `POST /api/jobseeker/cvs/reuse` checks the hash: on a hit the
+  stored draft is applied with NO model call, and Arrive says so ("Read before on <date> -
+  reused, no AI call") with "Read it again", which forces a fresh draft. The import's last
+  hop is `POST /api/jobseeker/cvs` (`importCv` in `importOutcome.ts`); a failed reuse check
+  simply drafts.
+- **Earlier CVs can be picked again.** Arrive lists them (newest use first; up to 30 per
+  seeker, least recently used dropped beyond that) with "Use this one" ->
+  `POST /api/jobseeker/cvs/[id]/use`, which writes the profile through the same function an
+  import does (`makeJobseekerCvActive`). `GET /api/jobseeker/cvs` returns metadata only - no
+  text, no draft, no hash. Another seeker's id answers 404 `JOBSEEKER_CV_NOT_FOUND`.
+- **Design choices and cover notes follow the seeker** (`jobseeker_ui_state`,
+  `GET/PUT /api/jobseeker/ui-state`): the designed-CV choices and one cover-note draft per
+  posting (8000 chars each, 200 kept), saved debounced with retry (`serverDraft.ts`). Browser
+  storage is only the first paint; an edit the server never confirmed is re-sent, not
+  overwritten; a failed save says "Not saved yet - retrying" and keeps the text. The print
+  page stays URL-first. A malformed body answers 400 `JOBSEEKER_REQUEST_INVALID`.
+- Both tables are tenancy-scoped (workspace + seeker) and are erased by the seeker's own
+  door (below), not by candidate erasure.
+
+**Delete everything about me.** `DELETE /api/jobseeker/profile` with `{"confirm":"erase"}`
+(any other body: 400 `JOBSEEKER_REQUEST_INVALID`; 5 per 10 minutes per IP) runs
+`eraseJobseekerData` (`db/jobseeker-profiles.ts`) - one IMMEDIATE transaction, every
+statement bound to the workspace: the seeker's UI state, dialogs, CV archive and profile
+row, and - when no other seeker profile is left in the workspace - every
+`jobseeker_postings` row (their match, reasoning, triage and notes are all about this
+seeker; the ads return on the next scan). `jobseeker_sources` (config) is kept. The door is
+a quiet link in the /me footer behind a `ConfirmDialog` (`EraseMeDoor.tsx`); on success it
+clears every `kp-me-` browser key and reloads. A scan already running is not cancelled
+(importing the task hub put the route over its import budget): it can match nothing new
+without a profile, but a match it computed before the erase can still land on a row.
+
+## Direction and markets
+
+A seeker's CV says where they have been; `targetTitles` / `targetRoleFamilies` say where
+they are going. A career changer (years as an analyst, one year of AI work, aiming at
+AI Engineering) used to be ranked by the past. Now:
+
+- **The matcher reads the direction, never as evidence.** `transform.apply_preferences`
+  carries the targets onto `MatchCandidate`; `score_career`'s family term, when a target
+  is stated, is 1.0 for a title hit, 0.75 for a target family, 0.35 otherwise - the CV's
+  own past family included. The seniority term is unchanged, and the skills dimension
+  never reads targets: direction is a preference fit, not a claim of possession
+  (registry: candidate-archetype-routing, skill-adjacency-and-normalization). Early-career
+  profiles apply the same term to the family part of their fit slot. With no target,
+  scores are byte-identical (pinned) and the recruiter path never passes preferences.
+- **Title matching** (`pipeline/jobfit/target_titles.py`): whole-word, case- and
+  diacritic-folded, level words (Senior/Lead/Junior) and parentheticals ignored, a small
+  curated alias table (AI / ML / LLM / GenAI engineer; frontend; backend; full-stack; QA).
+  A posting is credited to the stated title whose own words it carries before one it
+  reaches only through a synonym: "AI Engineer" + "Machine Learning Engineer" are one
+  alias group, and a "Machine Learning Engineer" posting names the second (the live run of
+  2026-09-28 had credited all 178 target hits to whichever was stated first).
+  Target families = the stated ones plus the families the stated titles route to.
+- **`MatchResult.targetAlignment`** = `{state: target|family|past|none, matchedTitle,
+  targetFamilies, pastFamily}`, absent when no target is stated (empty fields are
+  dropped from the dump, so read a missing `matchedTitle` like null). A KO'd row's as-if
+  result carries it too. The posting summary and `GET /api/jobseeker/postings/[id]`
+  project it as `targetAlignment`. `MATCH_VERSION` is `jobseeker-match-v4`.
+- **Measured** on a synthetic 8-year analyst/QA/frontend + 1-year AI consultant with
+  target "AI Engineer": AI Engineer 55 -> 69, Senior AI Engineer (LLM) 64 -> 77, IT
+  Business Analyst 75 -> 61, QA Engineer 52 -> 52. The same profile routed as
+  `career_switcher` still ranks the analyst posting first (transferable-skill credit
+  fills its skills slot); /me saves every seeker as experienced, so that path is not
+  reached today.
+- **Targets come only from the seeker.** The CV studio no longer seeds the CV's own
+  role family into `targetRoleFamilies` (it used to, invisibly, steering fetches back
+  to the past). Rows seeded before this change keep the value; What you want shows
+  every target field as a removable chip, so the seeker can see and drop it.
+- **The CV studio tailors toward the first target** (`CV_POLISH_PROMPT_VERSION =
+  "cv-polish-v2"`): the persona gets a tailoring block with the hard rule "never add a
+  skill, employer, date, number or responsibility the CV does not contain", and the
+  keyless path adds grounded `lead` / `move_up` / `transfer` / `gap` suggestions in
+  en/cs/de/fr, every `before` a verbatim source line.
+- **Acquisition lets the market in.** The adapters' local location filter
+  (`adapters/shared.ts` `matchesLocations`) keeps a posting when no place is named, its
+  location is unknown, its city matches, its country is one the seeker named, or it
+  states remote and the seeker has not ruled remote out. The title filter
+  (`matchesTargets`) matches target TITLES as folded whole words; role families alone
+  never discard a posting (the matcher ranks).
+- **EURES never scans for nothing.** With no country the adapter stops before any
+  request (`config_invalid`, detail `config_missing_countries`). Both EURES doors - the
+  feed's one-click button and the Sources card - write the derived default country first
+  (`app/features/jobseeker/euresDoor.ts`), and the card says which countries it searches.
+- **Arbeitnow** (`adapters/arbeitnow.ts`, tier A, key-less): German, UK and French
+  editions of one public API, at most 4 pages of 250 per scan, filtered locally (no
+  search parameter), attribution "Jobs via Arbeitnow.com" plus each posting's own URL as
+  the link-back its terms ask for; country only from the `.co.uk`/`.fr` edition domains,
+  never a salary. Remotive was evaluated and NOT added: its robots.txt disallows
+  `/api/*` in a second `User-agent: *` group.
+- **Measured live (2026-09-25), and fixed from it.** A real career-change run (an
+  analyst-to-AI CV, target "AI Engineer", Praha + cz/de/at/nl, remote or hybrid) found
+  four acquisition defects no unit test could see:
+  - EURES reads a keyword as ANY of its words: "AI Engineer" searched EVERYWHERE and sorted
+    by date answered 454,121 vacancies and the first 300 were cooks and cleaners. With
+    stated titles the search is now title-scoped and `BEST_MATCH`-sorted (eures.ts
+    `euresRequestBody`); the same scan then held 158 target postings of 296.
+  - EURES answers `locationMap: {"CZ": ["CZ010"]}`, not the `locations[]` the adapter
+    read, so every posting was stored with no country and no place. Now the country
+    comes from the map and a Czech NUTS-3 code is named ("CZ010" -> Praha); other markets
+    carry the country, no guessed place.
+  - An Arbeitnow page is 2.23 MB (250 postings with full descriptions), past the
+    fetcher's 2 MB cap, so the source failed `too_large`. `PoliteFetchOptions.maxBytes`
+    raises the cap for one known API (clamped to 16 MB); Arbeitnow asks for 8 MB.
+  - The MPSV title filter read 39,644 Czech vacancies against the literal words "AI
+    Engineer" and kept none. Stated titles now expand through ONE alias table,
+    `pipeline/jobfit/target_title_aliases.json`, read by the matcher
+    (`target_titles.py`) and the adapters (`app/_lib/jobseeker/targetAliases.ts`) alike,
+    with the same job in cs/de/fr ("AI vývojář", "KI-Entwickler", "Ingénieur IA").
+- **robots.txt groups combine** (RFC 9309 §2.2.1): several groups naming the same agent
+  are one group, and the politest Crawl-delay among them binds (`fetch/robots.ts`
+  `groupFor`). Reading only the first `*` group had treated that Remotive API as allowed.
+
 ## Scan and scoring
+
+**A scan's failures are on the record.** `ScanSummary.failures` lists each failed phase
+(structure / match / deepdive) as `{chunks, of, code}` - failed units out of attempted and
+the first failure's code, the raw error in the server log - and `koFiltered` counts what
+the hard gates removed. A deep-dive killed because the scan stopped (the wall budget, or the
+caller) is the scan ending, said by its `aborted` phase - not an engine failure (the live run
+had recorded it as "deepdive: 1 of 10 failed"). A run whose structure or match phase failed completely is stored
+as `error`, so it does not verify the clock; a partial failure stays `ok`.
+`SourceRunSummary.truncated` marks a pass that hit `maxRefs` or the detail budget (the
+history shows "partial read"). While a source is read the task reports
+"<host> · done of total" detail progress; phase messages are the closed
+`SCAN_PROGRESS_PHASES`. The history shows "N caught by gates" and "N already current".
+
+**A deep-dive keeps its trace.** A re-match that moves the total keeps `previous` in
+`match_json` (summary: `previousTotal`); the rationale is written with the seeker's
+preferences (`reasoning_cli --preferences-json`, the same `apply_preferences` as the
+matcher) and stamped `reasonedAt`; a rationale older than the profile's last change is
+`reasoningStale`, and the next scan re-dives it after every never-dived posting.
 
 `app/_lib/jobseeker/scan.ts` — `runJobseekerScan(workspaceId, {trigger, signal?,
 onProgress?, deps?})` → `ScanSummary`. Four phases, every dependency injected
@@ -360,7 +890,7 @@ adapters and a scripted runner with no network, no interpreter and no DB
 | --- | --- | --- |
 | Acquire | `reconcileSource` per enabled, unpaused source, creation order; a `blocked`/`collapsed` source is paused by reconcile and the scan moves on | `SCAN_LIMITS { maxRefs: 300, maxDetailFetches: 60 }` per source; 8-min wall budget (`SCAN_WALL_BUDGET_MS`) joined with the caller's signal — stops BETWEEN sources, and a source not reached is recorded `skipped` / `wall_budget`, never omitted |
 | Structure | `listPostingsNeedingStructure` (job_json NULL) → `posting_structure_cli` → `setPostingStructure(id, job, "deterministic")` | one spawn per 200 |
-| Match | `listPostingsForMatching(ws, {upToDateVersion, profileUpdatedAt})` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n` → `setPostingMatch` with `match_version = "jobseeker-match-v1"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
+| Match | `listPostingsForMatching(ws, {upToDateVersion, profileUpdatedAt})` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n --include-blocked` → `setPostingMatch` for survivors, `setPostingBlocked` for the KO'd tail, both with `match_version = "jobseeker-match-v2"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
 | Deep-dive | `listDeepDiveCandidates({threshold, limit: maxPerScan})` (match_total ≥ `preferences.deepDive.threshold`, live, `reasoning_json IS NULL`, best first) → `deepDivePosting` | `deepDive.maxPerScan`; stops at the FIRST keyless answer |
 
 **Matching is incremental.** The match phase asks the store only for the rows that still
@@ -378,9 +908,26 @@ spawns `match_cli` zero times instead of re-scoring the whole dataset. The deep-
 shortlist is unaffected: it selects on `match_total` and `reasoning_json`, not on
 freshness.
 
-KO'd postings are NOT scored 0: the matcher returns only survivors (`meta.koFiltered`,
-aggregated `meta.koReasons`), so a posting that failed the hard filter stays unmatched
-(`match_total NULL`, sorted last) and the count goes to the server log.
+**A filtered posting names its gate and is stamped, never scored 0.** The seeker's own
+preferences are KO inputs — `workModes` becomes `preferred_work_modes` and `seniority`
+overrides the profile's (`transform.apply_preferences`) — beside the profile's languages
+and education. `matchChunk` passes `--include-blocked`, so `match()` also returns every
+posting the KO filter removed as `blocked: [{jobId, koKeys, koDetails, result}]`, `result`
+being the MatchResult scored AS IF the gate were lifted (its KO-mirrored eligibility flag
+reads `flag` — the only way those three chips can ever light up on `/me`). `readBlocked`
+drops an id outside the chunk and filters `koKeys` to `KO_REASON_KEYS` (`types.ts`); an
+entry left with no known key stays unstamped and is re-matched next scan.
+`setPostingBlocked` stores `match_json = {blocked: {koKeys, koDetails}, asIf: <MatchResult>}`
+with `match_total` and `fit_tier` NULL — the sort column, the `minTotal` filter and the
+deep-dive shortlist all read `match_total`, so an as-if score never ranks — and stamps
+`match_version`/`matched_at`, so the next unchanged scan counts the row in
+`skippedUpToDate` instead of re-sending it (it used to be re-sent every scan). **Re-check,
+not lock:** the UPDATE carries `AND job_json IS NOT NULL`; a content change after the
+list (`upsertPosting` NULLs `job_json`) makes it `changes === 0`, and a stale verdict is
+never stamped over new content. The KO count still goes to the server log
+(`ko_filtered`). `MATCH_VERSION` moved to `jobseeker-match-v2` so every row stored under
+v1 is re-matched once and gains its verdict. The recruiter `/api/match` never passes the
+flag, and without it `MatchResponse.blocked` is absent from the dump (byte-identical).
 
 `deepdive.ts` — `deepDivePosting(posting, profile, {lang, signal, workspaceId, deps})`,
 three spawns per posting: `jobs_cli ingest --job-id <postingId>` (use case `jd_ingest`;
@@ -389,7 +936,14 @@ posting through `matchChunk` (deterministic; a KO here leaves the earlier score 
 rather than silently demoting a card the seeker saw), then `reasoning_cli --profile-json
 --jobs <one-job corpus> --job-id` (use case `match_reasoning`) → `setPostingReasoning`.
 Re-match after model structuring IS done: it is one deterministic spawn and it is what
-makes the indexed total and the eligibility flags reflect the richer Job.
+makes the indexed total and the eligibility flags reflect the richer Job. It is stamped
+with the time its inputs were read (the scan's `inputsAt`, or the call's start), like the
+scan's own matches, so a preferences edit saved mid-dive still re-matches the row. Every
+dive write (structure, match, reasoning) re-checks the content hash it read: if the
+posting changed mid-dive nothing is written over the new ad (outcome `moved: true`). The
+deep-dive route uses the caller's own profile, not the workspace's newest. A preference
+merge from a dialog uses `mergePreferencePatch` inside the IMMEDIATE transaction, so an
+empty list never erases a stated one.
 
 **Keyless is a decision.** There is no TS-side provider oracle, so the first step is the
 probe: `jobs_cli`'s "No LLM provider available" refusal (`isNoProviderError`) or a
@@ -405,14 +959,27 @@ workspace in flight, no outcome table — `/me/scans` renders the `scheduler_run
 Offline scans are NOT refused: acquisition answers `offline` per source and the stored
 postings are still structured and matched.
 
+**Big boards converge over passes.** A scan stops at its 8-minute wall budget and the next
+one resumes where it stopped (structured rows persist). Structuring was the slow part:
+the taxonomy's whole-token matcher recompiled a regex per term per posting (about 1.5 s a
+posting on an AI company's long ad); with its patterns cached and an exact substring
+pre-filter it is about 0.09 s (`pipeline/jobfit/taxonomy.py`, docs/features/matching). A
+live scan of 1,259 postings (EURES + Anthropic + OpenAI + ElevenLabs + Cohere + Hugging
+Face + Arbeitnow) still took three passes before the speed-up; the flow reads the whole
+dataset in pages of `POSTINGS_PAGE_MAX` (500) so a large sieve loads in three requests,
+not thirteen (the list's 120/10 min limit had locked a seeker out after nine reloads). The
+sieve's pour spreads over at most 1.8 s however many dots fall, and a layer's counter ends
+on the layer's true count, not on the dots drawn (a capped layer of 946 read "360").
+
 ### API (`app/api/jobseeker/{scan,postings}/**`, all `requireOperator()` → limiter → work)
 
 | Route | Verb | Does | Limiter |
 | --- | --- | --- | --- |
 | `/api/jobseeker/scan` | POST | `startTask("jobseeker_scan", {trigger: "manual", workspaceId})` → 202 `{taskId}` | `jobseeker-scan` 6/10 min |
 | `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor, newSince}`; keyset cursor; no `status` = the live feed; `newSince` = `{count, anchorAt}` derived from the seeker's feed anchor, `null` when there is none; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
-| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; `applied` stamps `applied_at` (and leaving `applied` clears it), so the card can say when the SEEKER acted instead of when the crawler last looked; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
-| `/api/jobseeker/profile/seen` | POST | `{at, id}` — the ordering tuple of the newest row the feed RENDERED → `advanceFeedAnchor` (monotonic; an older tuple is a no-op) → `{anchor}`; no profile → 404 `JOBSEEKER_PROFILE_MISSING`; a malformed tuple → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-feed-seen` 120/10 min |
+| `/api/jobseeker/postings/[id]` | GET | one posting's summary; 240/10 min per IP (`jobseeker-posting-read`) |
+| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus` (a `gone` row is refused, 400 `APPLY_SELECTION_INVALID` `{field: "status", options: []}`); `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; `applied` stamps `applied_at` (and leaving `applied` clears it), so the card can say when the SEEKER acted instead of when the crawler last looked; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
+| `/api/jobseeker/profile/seen` | POST | `{at, id}` — the ordering tuple of the newest row the feed RENDERED (`at` must be a canonical ISO instant, a `toISOString` round-trip, else 400 `APPLY_SELECTION_INVALID` `{field: "at"}`) → `advanceFeedAnchor` (monotonic; an older tuple is a no-op) → `{anchor}`; no profile → 404 `JOBSEEKER_PROFILE_MISSING`; a malformed tuple → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-feed-seen` 120/10 min |
 | `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, source, reasoning, fallbackReason}`: `llm`/`null` (persisted), or 200 `deterministic` with `fallbackReason` `template` or `no_provider` and `reasoning` null when the template was empty (`deepdive-route.test.ts`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
 
 Codes are reused, not minted: `APPLY_SELECTION_INVALID` is the existing generic "not one
@@ -424,79 +991,15 @@ has no session, so it reads the workspace's newest profile),
 
 ## Feed, fit dialog, sources UI
 
-**Feed** (`/me/jobs`, `app/me/jobs/page.tsx` → `app/features/jobseeker/JobsFeed.tsx`).
-The server page reads the CHAIN FACTS (a profile exists · a source is enabled · a scan
-ever ran, and WHEN it ran — the later of the newest `jobseeker_scan` scheduler run and
-the newest source run, shown in the header and silent when neither exists) and the
-source labels; the client feed reads `GET /api/jobseeker/postings`
-(keyset cursor, "Load more" appends, a filter change starts over).
-
-**The feed is a LEDGER, and it arrives** (2026-09-16). It was thirty stacked
-`${PANEL} p-4` cards in a `space-y-3`; it is now the studio's table register — the same
-one `ProfileRosterRow` and `JdsIntakeSessionsTable` wear. Columns: fit · role · source ·
-posted · last seen · status · one trailing action cell, with `hidden md:/lg:/sm:`
-responsive hiding on the four a phone cannot afford. Headers are the shared
-`ColumnHead` (which owns `aria-sort`), and the sort is **the ROUTE's**, not a client
-comparator: `useTableSort` would be a lie over a keyset-paged list, so the three
-sortable columns are exactly `sort=total|posted|seen` (all DESC in the store's
-`ORDER BY`), the `SortState` is derived from the query, and the columns the route
-cannot order declare no `sortCol` and therefore claim no sortability.
-
-**A ledger row is one title line plus one meta line**, and the column allocation is what
-enforces it. FIT is `w-20`, right-aligned, and carries the `nums` numeral ALONE — the
-confidence band is its `Tooltip` and the tier badge moved to the role cell, because the
-three of them stacked cost ~230px at 1440px and starved the column a reader actually
-scans. ROLE is `w-full max-w-0`: `w-full` makes it the greedy column that absorbs what
-the fixed ones leave, `max-w-0` is what lets its children truncate inside a table cell at
-all — together, "flexible, and it shrinks the TEXT, not the column". Its meta line is
-`flex-nowrap` (wrapping is what turned a row into a ~120px block): the tier badge,
-company · location as truncating text, and the eligibility chips side by side. SOURCE
-shows the catalog label's short half (`"EURES"`, the text before `" ("`) with the full
-name on hover and focus. POSTED · LAST SEEN · STATUS are `whitespace-nowrap` and sized by
-their own content. Measured over the classes: 20px title line + 2px `mt-0.5` + 24px meta
-line (the badges govern) + 20px `py-2.5` + 1px rule ≈ **67px**.
-
-One row is `PostingRow.tsx` — the title cell linking to the detail, eligibility chips
-(`EligibilityChips.tsx`: `flag` amber, `ok` moss, `unknown` neutral, the engine's detail
-sentence revealed on hover AND focus through the shared `Tooltip`, never as `title=`), a
-status `Badge` whose tooltip carries the one fact the pill cannot show (when the seeker
-applied, or why they dropped it), and `IconAction` glyphs for shortlist / "I applied"
-(opens the source URL in a new tab, then PATCHes `applied`) / dismiss / restore.
-`DismissPicker.tsx` (a reason from `DISMISS_REASONS`, required, plus an optional note)
-has two surfaces from one dialog: `POPOVER` hung off the row's action cell in the feed —
-a ledger row must not grow a panel underneath it — and a `PANEL_SUNKEN` well inline on
-the posting page. An unscored posting says "Not scored", never 0.
-
-Rows ARRIVE rather than appear. `useRowArrival` diffs by posting id and mirrors
-`ArrivalList`'s contract (`IntakeArrivalMotion.tsx`: the same spring, 40 ms stagger
-capped at 12, reduced-motion collapse, cascade on FIRST appearance and never a replay) —
-`PostingRow` is a `motion.tr` because a table row cannot be wrapped in `ArrivalList`'s
-`motion.li`. So the first settled page cascades whole, "Load more" cascades only what it
-appended, and a filter change cascades only the ids that were not on screen a moment
-ago: the rows that survive the filter do not move. Loading follows
-`docs/design/loading-choreography.md` — `stagger-children` on the page wrapper,
-`PAGE_HEADER` and the filter bar and the table's own `<thead>` on the first frame, and a
-named `LoadingGap` (never a skeleton) holding 18rem in the table body. Filters: status
-and min fit are `SegmentedControl`s (a closed four-value vocabulary is a rail, not a
-dropdown), source is the app's own `Select` (its options resolve through the theme
-tokens; a native `<select>` opens an OS menu). The **scan door is chrome**: `ScanNowButton`
-sits in the header actions whenever a scan is a thing this chain can do (a profile and at
-least one enabled source), rather than appearing once the feed happens to be non-empty.
-
-**Empty states are chain-aware**
-(`feedModel.ts: resolveFeedEmptyState`, pinned by `feedModel.test.ts`): the FIRST
-missing link wins: no profile → link to `/me`; no enabled source → **one click to first
-results** (`EnableEuresButton.tsx`, below) beside the link to `/me/sources`; no scan yet
-→ "Scan now" (`ScanNowButton.tsx` over `useScanTask.ts`,
-which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned but
-nothing above the min fit → says how many rows the filter dropped; nothing live → scan
-again or check Dismissed. All five render through `FeedEmptyState.tsx`, which is
-`ChainEmptyState`'s layout — recessed `PANEL_SUNKEN` well, the traced `JOBS_GLYPH`
-drawing itself through `MotionizedGlyph`, one semibold line, one quiet body line, the ONE
-next step underneath — but not that component: it navigates by `WorkspaceTabId` through
-`buildTabSwitchUrl`, and /me is not the workspace SPA, so the CTA is a slot and the
-layout is inherited rather than re-invented. `data-empty-state` stays on the outer
-element; it is what the keyless e2e spec reads to assert WHICH link is being named.
+**Feed** — now the flow's "Worth your evening" step (`StepEvening.tsx`, see "The flow").
+It reads every row once (`GET /api/jobseeker/postings?status=all`, paged to the end by
+`useSieveData.ts`) and sorts, filters and ranges on the client: the list is the
+seeker's own few hundred rows, and the skyline, the top five and the rail all need the
+whole set. The old ledger (`JobsFeed.tsx`, `PostingRow.tsx`, `FeedEmptyState.tsx`) was
+removed with it; `/me/jobs` redirects to `/me#s-evening`. The chain-aware empty states
+live on in the sieve step: no profile → "not reached", no enabled source → the one-click
+EURES door beside "Choose sources", no scan yet → Scan now, a scan that found nothing →
+says so. `data-empty-state` stays on the gap box.
 
 **"New since your last visit"** is derived from ONE durable anchor per profile, never a
 maintained counter. `jobseeker_profiles.feed_seen_at` + `feed_seen_id` hold the ordering
@@ -523,11 +1026,9 @@ and the rail badge cannot disagree. The rules:
 - **A first visit is quiet.** No anchor answers `newSince: null` — not `{count: 0}` — so
   there is no badge and no divider until there is something to be behind on.
 
-With `sort=seen` the count is rendered as a DIVIDER at the boundary row; every other sort
-states it in the header (the list is not in anchor order, so a line would sit in the wrong
-place). The rail badge (`MeNav.tsx`) is read SERVER-side in `app/me/layout.tsx` from the
-same store call — no client fetch, so the rail never flashes a number in — and a zero
-renders nothing.
+The count is stated in the Evening step's head beside "Mark all as seen", and every row
+newer than the anchor carries a "New" chip; the anchor advances from the scored rows the
+flow rendered (`SieveFlow.tsx`, `renderedAnchor`).
 
 **One click to first results** (`EnableEuresButton.tsx`). A seeker who has just imported
 a CV was three pages from a scored feed. EURES is the one source that needs no
@@ -562,7 +1063,7 @@ block serves all three seeker surfaces: a `NOTICE("critical")` with `role="alert
 sentence resolved by CODE, and a Retry that re-issues exactly the request that failed
 (busy while it runs) — the filters, the sort and the scroll position survive it. Three
 rules hold around it: a BROKEN CHAIN is answered without a request at all
-(`feedModel.ts: shouldFetchRows` — no profile or no enabled source means the page
+(no profile or no enabled source means the page
 already knows what it will show, so a failed read can never be painted as an empty
 feed), a failure and an empty state are never rendered together, and the page's chrome
 stays — `/me/sources` keeps the Add form and whatever tiers it already holds, `/me/scans`
@@ -574,65 +1075,19 @@ JSON — a dev server that is not running answers an HTML 404) from a coded REFU
 `*_FAILED` STORE fault; only transport gets `me.common.unreachable`, because "the feed
 could not be loaded" is not what a reader whose server is down needs to read.
 
-**Detail** (`/me/jobs/[id]`, `app/me/jobs/[id]/page.tsx`). A SERVER page over the
-store (`getPosting`; there is no `GET /api/jobseeker/postings/[id]`), handing the client
-a projection (`postingView.ts`: body text, skill lists, breakdown, confidence,
-eligibility, reasoning; never the raw JSON-LD or the structured Job). The ad renders
-as plain paragraphs, never as HTML — in a `max-w-prose` column, because it is the
-longest prose in the product and was running the full panel width (~110ch at 1440px).
-The page wears `PAGE_HEADER` + `SECTION` like every other header in the studio: the
-title trio left, and right a GRADED action row — one `BTN_PRIMARY` (Discuss fit, the
-conversation the page exists to start), two `BTN_SECONDARY` (Open posting, "I applied")
-and dismiss/restore as an `IconAction` that carries its own name instead of spending a
-caption on it. One heading voice per level: section `<h2>`s are `font-serif text-h3`,
-`META_LABEL` goes back to labelling fields — five `<h2>`s were styled as `META_LABEL`
-beside serif siblings, so two type registers claimed the same rank. The `ScoreDial` sits
-in a reserved `h-44 w-44` box (its documented size) so the tier badge and confidence band
-beside it stop reflowing while the arc draws; the breakdown bars animate their width
-(`transition-[width] duration-300 ease-out motion-reduce:transition-none`) instead of
-jumping; the salary verdict is a `Badge` (`caution`/`positive`) rather than a
-hand-painted `text-amber-700`/`text-moss` sentence. The settled-fit section and the
-deep-dive result are wrapped in `Collapse` (PipelineMotion) and each carries a
-`role="status"` line spoken ONLY when the thing arrived in this session — a verdict read
-from the server mounts with the page and neither animates nor announces, because nothing
-arrived. Both Collapses are mounted unconditionally and toggled by `show`: a Collapse
-that mounts with its content carries `initial={false}` into its first frame and would
-never animate the one arrival it exists for. Pay is compared with the seeker's floor through
-`compareSalary` (`feedModel.ts`): never across currencies (no FX anywhere), and across
-month/year by restating the floor ×12 to the posting's period (`periodConverted` on the
-result; the same rule the Python flag applies in `matching._salary_flag`, matching
-README §7); an hourly rate stays "not comparable"; an unstated pay is unknown, never
-low. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
-missing / unproven skills, eligibility with details. Reasoning shows when deep-dived;
-else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c). The door
-answers `{source, reasoning, fallbackReason}` and the page turns that into ONE word,
-`diveOutcome()` in `postingView.ts` (`postingView.test.ts`): `llm` (persisted, and the
-only answer that triggers `router.refresh()`), `no_provider` and `template` (both
-honest keyless states, both rendering the fixed-template note, with the template text
-under it when one arrived and the note alone when it did not), `failed` (the only
-failure). A keyless deep-dive is therefore never an error and never a silent no-op.
-"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed. All THREE of
-this page's failures — the status write, the deep-dive, opening the dialog — render the
-same `FailureNotice` the other seeker surfaces do, classified through
-`classifyApiFailure`, each with a Retry that re-issues its OWN request: the deep-dive
-re-POSTs, "Discuss fit" re-creates, and a failed status move re-PATCHes the write the
-reader last asked for (the PATCH alone — the source tab "I applied" opens is a side
-effect of the first click, not of a retry). `usePostingActions` still returns
-`{code}` only, so a transport fault on that hop resolves to the action's fallback
-sentence rather than to `me.common.unreachable`; the two hops this page owns classify
-fully. The write notice keeps its dismiss (`usePostingActions.clearError`) through
-`FailureNotice`'s optional `onDismiss`.
-
-**The fit verdict lives on the posting, not only in the overlay.** The page reads the
-latest CLOSED fit dialog for the row — `latestFitDialogForPosting(postingId, workspaceId)`
-in `app/_lib/db/jobseeker-dialogs.ts` (workspace-bound, `kind = 'fit'`, `status =
-'closed'`, newest first; `jobseeker-dialogs.test.ts`) — and renders its artifact under the
-match: the verdict word, the applied door when the verdict is `apply` and the posting is
-not applied yet, the gaps with severity, the cover note with its copy control and the
-questions to ask. The regions are the SAME components the studio's sheet uses
-(`FitVerdictRow`, `FitArtifactSections`, exported from `FitSheet.tsx`). Settling a verdict
-inside the overlay updates this panel without a reload: `FitStudio` calls `onDone(artifact)`
-on the closing turn (`CvStudio`'s twin, which re-reads the profile).
+**Detail** — now the flow's Weigh step (`StepWeigh.tsx`); `/me/jobs/[id]` redirects to
+`/me?open=<id>#s-weigh`. It reads `GET /api/jobseeker/postings/[id]` → `{ view, fit,
+source }`: `view` is `postingDetailView` (`postingView.ts`: the body as text, the skill
+lists with the seeker's provenance per matched skill, the breakdown, the confidence with
+its drivers, the eligibility, early-career openness, the reasoning — never the raw
+JSON-LD or the structured Job), `fit` is the latest CLOSED fit dialog's artifact
+(`latestFitDialogForPosting`, workspace-bound), `source` the tier and host.
+A filtered posting shows its gates, the engine's sentence per gate (only for gates the
+vocabulary knows — `koDetails` stays index-aligned with `koKeys`) and "with the gate
+lifted it would score N", never a gauge. The ad is plain text, folded away; the deep read
+(`POST .../deepdive`) answers keyless with the fixed template and says so. Status moves
+are the PATCH door; Apply opens the ad in a new tab and only then offers "I applied —
+mark it". Settling a verdict in `FitStudio` updates the step without a reload.
 
 **Fit dialog (UC3)** (`FitStudio.tsx` + `FitSheet.tsx`): the Studio kit's second seeker
 variant, CvStudio's twin in composition (`ns="me"`, zones `chat | fit`,
@@ -715,23 +1170,56 @@ its tooltip and a link to `/me/sources`, because only the owner clears those. Ev
 or amber line on both pages is now `FailureNotice` (an error), `NOTICE()` (a caveat) or
 a `Badge` (a state) — no surface writes its own `text-red-700`. `SchedulerJobRow` is not reused (free minutes field, policy-pass history).
 
-**e2e.** `e2e/jobseeker-keyless.spec.ts` is declared against the throwaway DB (feed
-empty state = `no_profile`, three tiers, tier C without a control, tier B toggle →
-acknowledgement with the CTA disabled until ticked, scans toggle locked) and is NOT in
+**e2e.** `e2e/jobseeker-keyless.spec.ts` is declared against the throwaway DB (the flow
+opens on the Arrive drop, the sieve is "not reached" before a CV, `/me/jobs` lands on the
+flow, the Sources step's three lanes with tier C carrying no control, a tier-B lock →
+acknowledgement with the checkbox focused and the CTA disabled until ticked, the scans
+toggle locked) and is NOT in
 `KEYLESS_SPECS`: enrolling it means the ci.yml step and `.claude/CLAUDE.md` in the same
 change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 
+## The live end-to-end run
+
+`KP_ME_LIVE_CV=/path/to/cv.pdf npm run e2e:me-live` (`scripts/e2e/me-live.mjs` +
+`e2e/jobseeker-live.spec.ts`) walks the whole flow with the owner's real CV: a FRESH
+database (`data/kp-me-live.sqlite`) on an isolated `next dev` (KP_EMPTY=1, so the
+`.next-empty` distDir; it refuses, naming the holder, when that lock or the port is taken),
+the CV read, every designer layout, and the default one (Studio) as a PDF that must embed
+no Type 3 font; the wants typed through the cards (Praha + CZ/DE/AT/NL/PL, AI Engineer / LLM
+Engineer / Machine Learning Engineer, remote + hybrid), the three open feeds and AI
+companies' public boards switched on (tier A only - it never accepts a tier-B board's
+terms; the default boards are Anthropic, Helsing, OpenAI, ElevenLabs, Cohere, Apify,
+Spotify and Hugging Face, each checked on 2026-09-28 to list open roles - Google
+DeepMind's Greenhouse board was gone and Mistral's Lever board empty), a real scan repeated
+until nothing waits for a score (at most five passes in an hour), then the ranking, one
+target match opened and shortlisted, and every section photographed in both themes on a
+desktop and a phone. The report's top fifteen fold repeats the way the sieve does. The report and screenshots land in
+`test-results/me-live/` (git-ignored); nothing personal is asserted or printed. It is
+outside `KEYLESS_SPECS` and CI by design: it needs a CV, the network and most of an hour.
+
 ## Known gaps
 
+- The seeker's erasure does not cancel a scan already running (see "Delete everything about me").
+- With two seeker profiles in one workspace, the postings are shared and no column says whose triage a row carries, so one seeker's erasure leaves the postings alone.
+- A deep-dive whose posting changed mid-dive writes nothing (`moved: true`), but POST `/deepdive` still answers `source: "llm"` and the scan counts it in `deepDived`; the client contract has no "moved" state.
+- Regex locators: a nested quantifier (`(a+)+`, `(?:x*)*`, `(a+){2,}`) is refused at validation and a stored one is a miss at run time; one locator collects at most 1000 matches per page.
+- The designed CV's "better expressed" is deterministic tidying only; rewording bullets with a model is the CV-polish conversation's job and does not yet feed the designed sheet (its output is Markdown).
 - Everything above marked with a work-package number is not built yet. WP5 (feed, detail,
-  fit dialog, sources, scans) is built, and so is the MeNav badge (the derived "new since
-  your last visit" count).
-- The feed's divider places the boundary from `newSince.anchorAt` alone — the anchor's id
-  half is not on the wire — so a posting first seen in the very same millisecond as the
-  anchor row is drawn on the new side. The COUNT is the server's and compares the full
-  tuple; only the line's position is the approximation.
-- `/me/jobs/[id]` reads the store directly; a `GET /api/jobseeker/postings/[id]` would let
-  the page become a client reader like the other three, but nothing needs it yet.
+  fit dialog, sources, scans) is built, as the flow's steps.
+- The "New" chip compares against `newSince.anchorAt` alone — the anchor's id half is not
+  on the wire — so a posting first seen in the very same millisecond as the anchor row is
+  marked new. The COUNT is the server's and compares the full tuple.
+- The top five cards do not yet flag a posting whose fit conversation settled (the
+  winner's "guided" badge): the summary row does not carry that fact.
+- Editing "What you want" saves at once but does not re-score: the scores on screen are
+  from the last scan, and the step says so beside Scan now.
+- The rail shows no "new since your last visit" badge any more; the count lives in the
+  Evening step's head.
+- `fitTurnContext` (`app/_lib/jobseeker-fit-context.ts`) passes the stored `match_json`
+  verbatim, so for a filtered posting the fit coach receives `{blocked, asIf}` and reads
+  no `eligibility`/`missingSkills` from it — the same empty context it had when a KO'd row
+  carried no match at all. Passing `asIf` (plus the gate) would let the coach name the
+  blocking gate; not done in the change that stored the verdict.
 - `ScanSummary` has no `koFiltered` / `structured` counts and `RECONCILE_REASONS` has no
   `wall_budget`: the scan logs the KO count and records an unreached source with
   `reason: "wall_budget"` (a string the type allows) — both are counter-proposals for

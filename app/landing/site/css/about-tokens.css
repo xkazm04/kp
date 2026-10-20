@@ -1,0 +1,99 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* ------------------------------------------------------------------
+   Shared design tokens for the console. Every stylesheet reads these.
+   Unit: 1u = 16px at 1600x960 (16:10). The stage is 100u x 60u (5:3) and scales as one piece; the 3.75u above the
+   16:9 content is the headroom that keeps the poster type and the mascot off the viewport's top edge.
+   Type floor: nothing under 14px, body copy >= 16px.
+------------------------------------------------------------------- */
+.mk.mk-about {
+  --u: min(1vw, 1.6667vh);
+
+  /* chassis + brand */
+  --putty: #efe6d2;
+  --putty-2: #e4d9bf;
+  --putty-3: #d3c6a6;
+  --cream: #fdf8ee;
+  --ink: #17202a;
+  --ink-2: #222e3b;
+  --coral: #d65a4a;
+  --coral-hi: #ee7a66;
+  --amber: #caa54c;
+  --amber-hi: #e6c46a;
+  --moss: #526b4f;
+  --moss-hi: #7d9a78;
+  --lime: #dce7d0;
+  --steel: #42606f;
+  --steel-hi: #6d93a5;
+
+  /* extra pad colours (each feature owns one) */
+  --verd: #7fb3a8;
+  --silver: #b9c1c9;
+  --oxblood: #a13a2c;
+
+  /* studio backdrop */
+  --teal-0: #071417;
+  --teal-1: #0d2429;
+  --teal-2: #14383f;
+  --warm: #ffd9a0;
+
+  /* LCD */
+  --lcd-bg: #0f1b20;
+  --lcd-bg-2: #16272d;
+  --lcd-fg: #f3ecd9;
+  --lcd-dim: #9fb3b6;
+  --lcd-line: rgba(243, 236, 217, .16);
+
+  /* status LEDs (see legend) */
+  --led-wait: #f0b73e;
+  --led-ok: #6fd28a;
+  --led-none: #55656b;
+  --led-planned: #caa54c;
+  --led-locked: #d65a4a;
+
+  /* fonts: Google Fonts optional, system fallbacks always */
+  --f-display: var(--font-mk-disp, "Bricolage Grotesque"), "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --f-body: var(--font-mk-body, "Figtree"), "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --f-mono: var(--font-mk-mono, "JetBrains Mono"), "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, "Courier New", monospace;
+
+  /* type scale: floors are hard, u-based sizes scale with the stage */
+  --fs-body: max(16px, calc(var(--u) * 1.05));
+  --fs-small: max(14px, calc(var(--u) * .92));
+  --fs-label: max(14px, calc(var(--u) * .88));
+  --fs-lead: max(18px, calc(var(--u) * 1.3));
+  --fs-h3: max(20px, calc(var(--u) * 1.7));
+  --fs-h2: max(26px, calc(var(--u) * 2.6));
+  --fs-h1: max(34px, calc(var(--u) * 4.2));
+  --fs-display: max(40px, calc(var(--u) * 5.6));
+
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about {
+    --u: 16px;
+    --fs-h1: 32px;
+    --fs-display: 44px;
+    --fs-h2: 26px;
+    --fs-h3: 20px;
+  }
+}
+
+/* small shared helpers (safe to use anywhere) */
+.mk.mk-about .sil { /* silkscreen label */
+  font-family: var(--f-mono);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+.mk.mk-about .mono { font-family: var(--f-mono); }
+.mk.mk-about .disp { font-family: var(--f-display); font-weight: 800; letter-spacing: -.02em; }
+.mk.mk-about .sample-tag { /* 'stylised illustration - sample data' style caption */
+  font-family: var(--f-mono);
+  font-size: var(--fs-label);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .8;
+}

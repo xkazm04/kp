@@ -1,0 +1,123 @@
+[
+  {
+    "context": "profile-roster-matrix",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Serve one candidate population to the roster, the matrix and the retire dialog",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/candidate-population.ts",
+      "app/_lib/candidate-population.test.ts",
+      "app/api/profile/candidates/route.ts",
+      "app/features/tools/profile/useCandidatePopulation.ts",
+      "app/features/tools/profile/profileRosterView.ts",
+      "app/features/tools/profile/profileRosterView.test.ts",
+      "app/features/tools/profile/candidateMatrixContracts.test.ts",
+      "app/features/tools/profile/ProfileRoster.tsx",
+      "app/features/tools/profile/CandidateMatrix.tsx",
+      "app/features/tools/profile/ProfileTab.tsx",
+      "app/features/tools/profile/ArchetypeManager.tsx",
+      "app/features/tools/profile/ArchetypeArchiveConfirmModal.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/profile/useCandidatePopulation.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "collapsePopulation given a profile {completeness: 0.6} whose id has a staleness entry {newerSlug:'a2', newerAnalyzedAt:'2026-09-02'} -> that profile row carries completeness 0.6 and stale {newerSlug:'a2', newerAnalyzedAt:'2026-09-02'}; an analysis-only row carries completeness null and stale null",
+      "rosterFromPopulation(rows) with 3 profile rows (one stale) and 2 analysis-only rows -> profiles has exactly the 3 profile rows as {id,label,archetype,role_family,completeness} and the StaleMap has exactly one key, the stale profile's id",
+      "family parity: a profile whose role_family column is null and whose payload roleFamily is 'engineering' -> rosterFromPopulation gives role_family 'engineering' AND the same population row's role is 'engineering' (one answer in both projections, where today the roster shows an em-dash and the matrix shows engineering)",
+      "routedCount(rows, 'returner') with 2 profiles and 3 analysis-only candidates routed to 'returner' and 1 profile routed to 'bau' -> {profiles: 2, analyses: 3}; the archetype matched through archetypeDisplayKey, so an unknown/unrouted row never counts toward a real archetype",
+      "withoutProfile(rows, id) drops exactly the row whose id matches and returns the SAME array reference when no row carries that id (a delete of an unknown id re-renders nothing)",
+      "source guard (candidateMatrixContracts.test.ts, mutation-proved like its siblings): ProfileRoster.tsx and CandidateMatrix.tsx contain no fetch(\"/api/profile\" list read and no fetch(\"/api/profile/candidates\"; ProfileTab.tsx contains no dataRev and no reloadKey; ArchetypeManager.tsx contains no fetch(\"/api/profile\")"
+    ],
+    "premise": [
+      "app/features/tools/profile/ProfileTab.tsx:53-57 declares 'One candidate population, two projections behind a List | Matrix toggle', but the two projections read DIFFERENT populations: ProfileRoster.tsx:97 fetches GET /api/profile (saved profiles only, route.ts:179-180) while CandidateMatrix.tsx:77 fetches GET /api/profile/candidates (the CV-identity fold of profiles + analyses, candidates/route.ts:23-57 via collapsePopulation)",
+      "app/features/tools/profile/ArchetypeManager.tsx:71-85 fires a THIRD read of the whole /api/profile list just to count one archetype, and counts saved profiles only (line 78: rows.filter(row => row.archetype === id)); the matrix lane for the same archetype also holds analysis-only candidates (candidateMatrixView.ts:53-66 keeps a retired column that has candidates, groupByArchetype :74-99), so the retire dialog (ArchetypeArchiveConfirmModal.tsx:56, en.json profile.archetypes.archiveConfirmBody '=0 {No profile currently routes to this archetype.}') can say zero over a lane the recruiter can see holds people",
+      "app/features/tools/profile/ProfileTab.tsx:48-52 + :143 + :151 and CandidateMatrix.tsx:47,62,102 exist only to re-sync the two forked reads after a delete (dataRev bumped by the roster, passed to the matrix as reloadKey); the two reads also run two different lifecycles for one datum - AbortController in ProfileRoster.tsx:91-119, an alive flag in CandidateMatrix.tsx:75-102",
+      "staleness is known to only one projection: GET /api/profile returns the stale map (app/api/profile/route.ts:179-180) and the roster badges it (ProfileRosterRow.tsx:83-91), but CandidateRow profile rows are built without it (app/_lib/candidate-population.ts:103-115), so a profile with a newer CV reads 'current' on the matrix",
+      "the family answer forks: the roster prints the raw role_family column (ProfileRosterRow.tsx:61, RosterProfile ProfileRosterTypes.ts:5-11) while the population resolves row.role_family ?? payload.roleFamily ?? newest analysis role (candidates/route.ts:49, candidate-population.ts:109), so the two projections' Family filters disagree on the same person",
+      "the server cost is already shared - route.ts:176-178 notes both routes read the same cachedProfileRecords memo - so the fork is purely client-side: three reads, two lifecycles, one sync counter",
+      "r03 candidate-profile's slot-A runner-up names this move ('Serve one server-side population read (roster rows, matrix rows, and the retire dialog's per-archetype routed count) instead of three client reads') - adopted here, not re-proposed as a card title"
+    ],
+    "rollback": "Additive on the wire (two optional fields on the /api/profile/candidates rows; GET /api/profile keeps its shape because app/features/insights/matrix/focus/useMatchTabRun.ts:73 still reads it) and one new hook, so the commit series reverts cleanly: reverting restores the three per-component fetches and dataRev; no DB, route-method or tenancy change is made.",
+    "gate": "architecture",
+    "runner_up": "Honest population caps in one place: the same read answers {truncated, totals} so the roster stops reading '200 saved profiles' past PROFILE_LIST_LIMIT (profiles.ts:11) and the matrix stops presenting the newest 200 analyses as the whole field - both are open Known gaps in docs/features/candidates/README.md:1389-1415.",
+    "technique": "portable-read-definitions",
+    "body": "## Summary\nThe Profile tab says it shows one candidate population in two projections, but it reads three: the roster reads saved profiles, the matrix reads the CV-identity population, and the archetype retire dialog re-reads the whole roster to count one archetype. Lift one population read (the landed CV-identity fold, enriched with completeness and staleness) into ProfileTab through a `useCandidatePopulation` hook and derive every projection from it.\n\n## Description\nThe seam is the client: the server already shares one memo (route.ts:176-178), yet ProfileRoster.tsx:97, CandidateMatrix.tsx:77 and ArchetypeManager.tsx:74 each fetch on their own. The cost is counted:\n- two different populations presented as one (profiles-only vs profiles+analyses);\n- the retire dialog's count ignores analysis-only candidates in the very lane being retired;\n- staleness is invisible on the matrix;\n- the family answer differs between projections;\n- a `dataRev` -> `reloadKey` counter exists only to re-sync the forks after a delete.\n\nThe move: `collapsePopulation` carries `completeness` and `stale` on profile rows (the candidates route passes `row.completeness` and `profileStaleness(ws)`). The new hook `useCandidatePopulation` owns one AbortController-cancelled read, an optimistic `withoutProfile` prune and a `reload`. Pure derivations: `rosterFromPopulation` (profileRosterView.ts) yields the roster's rows + StaleMap; `routedCount` yields {profiles, analyses} for the retire dialog, whose copy gains an analyses clause (one new ICU key in 4 catalogs). ProfileRoster and CandidateMatrix take rows as props and lose their fetch; ProfileTab loses dataRev. GET /api/profile is unchanged for its other readers. Technique: portable-read-definitions (one read declared once, consumed by every surface).\n\nCollision check: r03 candidate-profile landed the identity fold this card consumes (it does not change collapsePopulation's merge rules); r04 profile-editor touches ProfileEditor/useProfileEditorFields, which this card does not write. ProfileRoster.tsx is also in this deck's slot B - the two must land in different waves.\n\n## Flow\n1. ProfileTab mounts `useCandidatePopulation()` -> one GET /api/profile/candidates.\n2. List projection: `rosterFromPopulation(rows)` -> ProfileRoster (filters, sort, pager unchanged).\n3. Matrix projection: rows -> CandidateMatrix (filters, lanes unchanged; a stale profile now knows it is stale).\n4. Retire: ArchetypeManager asks `routedCount(rows, id)` - no fetch, both stores counted, the dialog opens with its number already known.\n5. Delete in the roster -> `withoutProfile` prune + one `reload` -> every consumer sees the same population.\n\n## Expected impact\nThe tab stops contradicting itself: one population, one family answer, one staleness answer, and a retire dialog whose number matches the lane on screen. Three client reads become one, the counting-dialog's pending state disappears (the count is known before the dialog opens), and the sync counter is deleted. It also gives the cap-honesty fix (runner-up) a single place to land.\n\n## Evaluation\nClaim: one population read serves roster, matrix and retire count, and they agree.\nBefore: 0 of 6 acceptance cases pass.\nAfter: 6 of 6.\nMethod: gate - node:test over candidate-population.test.ts, profileRosterView.test.ts and the mutation-proved source guard in candidateMatrixContracts.test.ts, plus the challenge integration gate (tsc, lint, i18n:check, test:unit) and the keyless e2e profile-roster spec unchanged.\nResult: pending build.\nGate: architecture",
+    "evidence": "grep fetch( in the tab:\n  app/features/tools/profile/ProfileRoster.tsx:97:    fetch(\"/api/profile\", { signal: controller.signal })\n  app/features/tools/profile/CandidateMatrix.tsx:77:    fetch(\"/api/profile/candidates\")\n  app/features/tools/profile/ArchetypeManager.tsx:74:    void fetch(\"/api/profile\")\nsync counter:\n  ProfileTab.tsx:52:  const [dataRev, setDataRev] = useState(0);\n  ProfileTab.tsx:151:                reloadKey={dataRev}\n  CandidateMatrix.tsx:102:  }, [t, reloadKey]);\nretire count, profiles only:\n  ArchetypeManager.tsx:78:        setRoutedCount(rows.filter((row) => row.archetype === id).length);\n  en.json profile.archetypes.archiveConfirmBody = \"{count, plural, =0 {No profile currently routes to this archetype.} one {# profile currently routes to this archetype.} other {# profiles currently route to this archetype.}}\"\nstaleness only on the roster read:\n  app/api/profile/route.ts:180:    return NextResponse.json({ profiles, stale: profileStaleness(ws) });\n  app/_lib/candidate-population.ts:103-115 builds profile rows with key/source/id/slug/name/role/seniority/score/archetype/analyses - no stale, no completeness\nfamily fork:\n  ProfileRosterRow.tsx:61:        {p.role_family ? enumLabel(\"family\", p.role_family) : \"—\"}\n  candidates/route.ts:49:        role: row.role_family ?? p.roleFamily ?? null,\nother GET /api/profile readers kept: app/features/insights/matrix/focus/useMatchTabRun.ts:73, app/_components/results/ArchetypeBanner.tsx:109 (POST)"
+  },
+  {
+    "context": "profile-roster-matrix",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Refresh every unedited stale profile from its newer CV in one counted pass",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/profiles.ts",
+      "app/_lib/db/profiles-lineage.test.ts",
+      "app/_lib/db/profiles-staleness-equivalence.test.ts",
+      "app/features/tools/profile/ProfileRosterTypes.ts",
+      "app/features/tools/profile/profileBulkRefresh.ts",
+      "app/features/tools/profile/profileBulkRefresh.test.ts",
+      "app/features/tools/profile/ProfileRosterRefreshBar.tsx",
+      "app/features/tools/profile/ProfileRoster.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/profile/profileBulkRefresh.ts",
+      "app/features/tools/profile/profileBulkRefresh.test.ts",
+      "app/features/tools/profile/ProfileRosterRefreshBar.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "profileStaleness(ws) for a lineage profile with a newer same-CV analysis and updated_at > lineage_stamped_at -> entry carries edited:true and updatedAt = the row's updated_at; the same profile right after setProfileLineage -> edited:false (profiles-lineage.test.ts; the equivalence oracle in profiles-staleness-equivalence.test.ts extended with the two fields and still deepEqual)",
+      "planBulkRefresh(rowsInView, stale) with 5 rows in view - 3 stale unedited, 1 stale edited, 1 current - and a 6th stale row filtered OUT of view -> {clean: the 3 ids, edited: the 1 id}; the filtered-out and current rows are in neither list",
+      "refreshRequest(entry, v2) -> {id, profile: buildProfilePayload(fields of formStateFrom(v2)), signals: {selfDeclared: formStateFrom(v2).choice, isEnrolled:false, expectedGraduation: undefined, wantsDomainChange:false, hasSubstantialExperience:false}, expectedUpdatedAt: entry.updatedAt, sourceAnalysisSlug: entry.newerSlug} - byte-equal to the PUT the editor sends when a rebuild is opened and saved unchanged (useProfileEditorSubmit.ts:67-89)",
+      "runBulkRefresh over 3 clean rows with an injected fetch answering GET /api/analyses/<slug> with a v2Profile and PUT /api/profile 200 each time -> outcomes refreshed x3, exactly 3 PUTs, each carrying its row's expectedUpdatedAt and newerSlug",
+      "PUT answers 409 {code:'PROFILE_STALE'} for row 2 -> row 2 outcome 'changedSince', rows 1 and 3 'refreshed' (the run continues past a lost race)",
+      "PUT answers 429 for row 2 -> row 2 'throttled', row 3 'notAttempted', and the injected fetch is called no further after the 429 (the run stops honestly instead of hammering the shared profile-save bucket)",
+      "GET /api/analyses/<slug> answers 404, or a body whose analysis.v2Profile is absent -> that row 'failed' with reason 'noNewerProfile' and NO PUT is issued for it",
+      "an edited row is never PUT even when every fetch would succeed: it is reported 'skippedEdited' and listed in the review queue; an aborted signal mid-run leaves every unstarted row 'notAttempted'"
+    ],
+    "premise": [
+      "app/features/tools/profile/ProfileRosterRow.tsx:124-133 offers Rebuild one row at a time; ProfileTab.tsx:142 routes it to openRebuild, and for an UNEDITED profile useProfileTabDeepLinks.ts:118-120 -> openFromAnalysis (:63-83) just opens the editor prefilled with the newer v2Profile, so refreshing N stale profiles costs N editor round-trips each ending in a manual Save (useProfileEditorSubmit.ts:67-89 PUT)",
+      "the roster already filters by status: profileRosterView.ts:73-81 rosterStatus -> 'stale', rosterRows :133-138 honours filters.status, rosterFacets :107-112 offers it - the recruiter can SEE the stale set but can only act on it one row at a time",
+      "the list cannot count edited vs unedited before a run: ProfileStaleness is {newerSlug, newerAnalyzedAt} only (app/_lib/db/profiles.ts:39, query :310-332), while the divergence rule is a cheap column comparison on the same profiles row (profiles.ts:262: updated_at > lineage_stamped_at)",
+      "the server already protects a batch path: PUT re-asserts expectedUpdatedAt and answers 409 PROFILE_STALE on a lost race (app/api/profile/route.ts:281-289), and a PUT carrying sourceAnalysisSlug re-stamps lineage so the staleness clears (route.ts:295-296, setProfileLineage profiles.ts:271-284)",
+      "every PUT spawns profile_cli and draws on ONE per-IP bucket shared with the editor: PROFILE_RATE_LIMIT 60 per 10 minutes (route.ts:48, keyed profile-save at :243) - a batch must stop on 429 and say how many were not attempted, not report success",
+      "registry recruiting/candidate-identity-and-staleness technique rebuild-overwrites-manual-edits-warning, 'Bulk rebuilds are the dangerous case': skip records carrying human edits by default and report the count skipped; never run over a population not first counted; do not gate rebuilds of records with no human authorship"
+    ],
+    "rollback": "The store change is two extra SELECT columns on profileStaleness (no schema, no migration) and the rest is a new pure module, a new bar component and one mount point in ProfileRoster, so the commit series reverts cleanly; profiles already refreshed stay refreshed exactly as if the recruiter had rebuilt them one by one through the editor (same PUT, same lineage re-stamp).",
+    "gate": "contract",
+    "runner_up": "Retire-and-reroute: the archive dialog lists the candidates routed to the archetype and moves the saved profiles to a chosen active archetype in one pass - today the roster flags them 'retired' (profileRosterView.ts:78) and the only fix is re-routing each one in the editor.",
+    "technique": "rebuild-overwrites-manual-edits-warning",
+    "body": "## Summary\nA re-analysis of a CV marks its profile 'Newer CV', and today every such profile is refreshed by opening the editor and saving it by hand. Add a counted batch refresh to the roster: it refreshes every UNEDITED stale profile in view from its newer CV in one pass, skips the ones carrying the recruiter's edits and hands them over as a review queue, and reports each row's outcome truthfully.\n\n## Description\nThe roster already knows who is stale and lets the recruiter filter to them (profileRosterView.ts:73-81,133-138), but offers only a per-row Rebuild (ProfileRosterRow.tsx:124-133). For a profile nobody edited, that rebuild is ceremony: the editor opens prefilled with the newer analysis (useProfileTabDeepLinks.ts:118-120, :63-83) and waits for a Save. Twenty re-analysed CVs = twenty editor trips.\n\nThe leap, built on the registry's bulk-rebuild rules:\n- Count first. profileStaleness gains `edited` (updated_at > lineage_stamped_at, the same rule as profileDivergence) and `updatedAt`, so the roster knows before anything runs how many stale profiles in view are clean and how many carry edits.\n- A bar above the table: 'N profiles in view have a newer CV - M unedited can be refreshed now; K carry your edits and will be skipped for review.' One confirm.\n- `runBulkRefresh` (pure, injectable fetch, AbortSignal) walks the clean rows sequentially: GET the newer analysis, build the SAME PUT body the editor would send (buildProfilePayload over formStateFrom(v2), editor signal shape, expectedUpdatedAt, sourceAnalysisSlug), PUT. Outcomes: refreshed / changedSince (409 PROFILE_STALE) / throttled (429 - stop; the rest notAttempted) / failed (noNewerProfile or a code resolved through useErrorMessage).\n- The result panel states the counts per outcome in the reader's language and lists the skipped edited profiles, each with the existing Review action (the onRebuild callback -> openRebuild's three-way merge dialog, landed by r03). No edited profile is ever written by the batch.\nThe roster reloads once after the run. No new route: the batch rides the existing PUT and its CAS, rate limit and lineage stamp.\n\nCollision check: r03 landed the per-profile merge this reuses for the review queue; r04 profile-editor is writing useProfileEditorFields.ts, which this card only IMPORTS (formStateFrom) and never writes. ProfileRoster.tsx is also in this deck's slot A - the two must land in different waves.\n\n## Flow\n1. Recruiter filters the roster to Status = Newer CV (or not - the bar counts whatever is in view).\n2. Bar: 'Refresh 9 unedited from their newer CV - 3 edited profiles skipped for review'. Confirm.\n3. Progress: 'Refreshing 4 of 9' with a Stop (abort).\n4. Result: '8 refreshed, 1 changed since you loaded the list. 3 profiles carry your edits - review each.' Review opens the existing merge dialog for that profile.\n5. On 429: '5 refreshed, 4 not attempted - the save budget is spent; run again in a few minutes.'\n\n## Expected impact\nThe most frequent maintenance chore on the roster (every re-analysis creates one) collapses from N editor round-trips to one counted confirm, without ever overwriting a human correction: edited profiles are skipped by default and handed over as a walkable queue, exactly the registry's bulk-rebuild rule. Outcomes are truthful per row - a lost race, a throttle and a missing analysis each say what happened.\n\n## Evaluation\nClaim: unedited stale profiles refresh in one counted pass; edited ones are never written by it; every row's outcome is stated.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over profileBulkRefresh.test.ts (injected fetch, fake 200/409/429/404 answers) and profiles-lineage.test.ts / profiles-staleness-equivalence.test.ts against a temp KP_DB_PATH, plus the challenge integration gate (tsc, lint, i18n:check, design:check, test:unit).\nResult: pending build.\nGate: contract",
+    "evidence": "per-row only:\n  ProfileRosterRow.tsx:124-131: {staleInfo ? (<button ... onClick={() => onRebuild(p.id, staleInfo.newerSlug)} ... {t(\"rebuild\")}\n  useProfileTabDeepLinks.ts:118-120: if (!div?.diverged) { void openFromAnalysis(slug, profileId, updatedAt); return; }\nno edited flag on the list:\n  app/_lib/db/profiles.ts:39: export type ProfileStaleness = { newerSlug: string; newerAnalyzedAt: string };\n  app/_lib/db/profiles.ts:262: const diverged = row.updated_at != null && row.lineage_stamped_at != null && row.updated_at > row.lineage_stamped_at;\nserver guards the batch rides:\n  app/api/profile/route.ts:48: const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };\n  app/api/profile/route.ts:243: if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {\n  app/api/profile/route.ts:289: if (expected) return jsonRefusal(\"PROFILE_STALE\", 409);\n  app/api/profile/route.ts:295-296: const lineage = resolveLineage(body.sourceAnalysisSlug, ws); if (lineage) setProfileLineage(body.id, lineage, ws);\neditor PUT body to mirror:\n  useProfileEditorSubmit.ts:69-75 signals = { selfDeclared: fields.choice, isEnrolled, expectedGraduation || undefined, wantsDomainChange, hasSubstantialExperience }\n  useProfileEditorSubmit.ts:88: ? { id: targetId, profile, signals, expectedUpdatedAt, ...lineage }\nequivalence test that must be extended, not broken:\n  app/_lib/db/profiles-staleness-equivalence.test.ts:114: assert.deepEqual(live, oracle, \"single query must match the per-profile loop exactly\");\nregistry: ai-registry knowledge/recruiting/candidate-evidence/candidate-identity-and-staleness/techniques/rebuild-overwrites-manual-edits-warning.md, section 'Bulk rebuilds are the dangerous case'"
+  }
+]

@@ -99,7 +99,7 @@ export function BrandingEditorForm({
         </div>
         <p className="mt-1 text-sm text-steel">{t("accentHelp")}</p>
         {accentWarning ? (
-          <p role="alert" className="mt-1 text-sm text-coral">
+          <p role="alert" className="mt-1 text-sm text-coral-ink">
             {accentWarning}
           </p>
         ) : null}
@@ -132,7 +132,7 @@ export function BrandingEditorForm({
         {status ? (
           <span
             role={status.kind === "error" ? "alert" : "status"}
-            className={`inline-flex items-center gap-1.5 text-sm ${status.kind === "error" ? "text-coral" : "text-moss"}`}
+            className={`inline-flex items-center gap-1.5 text-sm ${status.kind === "error" ? "text-coral-ink" : "text-moss"}`}
           >
             {status.kind === "saved" ? <CheckCircle2 size={15} aria-hidden /> : null}
             {status.text}

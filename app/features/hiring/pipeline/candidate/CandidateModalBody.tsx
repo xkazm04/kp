@@ -13,6 +13,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { lettersNeedingYou } from "@/app/_lib/comms-resend-outcome";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { InterviewTranscriptModal } from "@/app/features/hiring/schedule/ScheduleInterviewTranscriptModal";
 import { roleBandOf } from "../map/mapSalary";
@@ -36,6 +37,7 @@ export function CandidateModalBody({
   onClose,
   onChanged,
   onOpenEntry,
+  onOpenProfile,
   onNavigate,
   onTab,
   decision,
@@ -44,6 +46,10 @@ export function CandidateModalBody({
   const { entry, tab } = view;
   const cohort = view.cohort ?? boardCohort;
   const st = useCandidateState({ entry, axis, onClose, onChanged, onOpenEntry, cohort });
+
+  // Undelivered letters are raised on open: same predicate + consent as their doors.
+  const consentStatus = st.consent?.consent.status ?? null;
+  const needsYou = useMemo(() => (st.comms ? lettersNeedingYou(st.comms, consentStatus) : 0), [st.comms, consentStatus]);
 
   const { matchByCandidate, matchLoading, matchError } = useCellMatchData(entry.jobId);
   const match = entry.candidateId ? matchByCandidate.get(entry.candidateId) : undefined;
@@ -84,7 +90,7 @@ export function CandidateModalBody({
         }
         onBack={onClose}
       />
-      <CandidateModalTabs tab={tab} onTab={onTab} />
+      <CandidateModalTabs tab={tab} onTab={onTab} activityNeedsYou={needsYou} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div {...panel("overview")}>
           <CandidateOverviewTab
@@ -95,6 +101,7 @@ export function CandidateModalBody({
             matchLoading={matchLoading}
             matchError={matchError}
             st={st}
+            onOpenProfile={onOpenProfile && entry.candidateId ? () => onOpenProfile(entry) : undefined}
           />
         </div>
         <div {...panel("activity")}>

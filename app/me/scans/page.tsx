@@ -6,6 +6,7 @@ import { schedulerJob } from "@/app/_lib/scheduler-jobs";
 import { ensureRegisteredSchedule, hasVerifiedRun, listRuns, type SchedulerRun as StoredRun } from "@/app/_lib/scheduler-store";
 import type { SchedulerJobView, SchedulerRun } from "@/app/features/hiring/pipeline/SchedulerSummaryBadges";
 import { ScansPage } from "@/app/features/jobseeker/ScansPage";
+import { SieveSideFrame } from "@/app/features/jobseeker/sieve/SieveSideFrame";
 
 // /me/scans — the seeker's view of the shared scheduler registry's `jobseeker_scan`
 // job (docs/features/jobseeker/README.md, "Scheduler"). The layout is the gate.
@@ -66,10 +67,12 @@ export default async function MeScansPage() {
   // lets the table say "Greenhouse" on the first frame instead of an opaque stored id.
   const sources = listJobseekerSources(ws);
   return (
-    <ScansPage
-      initialJob={job}
-      initialSources={sources}
-      initialLabels={sources.map((s) => [s.id, catalogEntryForHost(s.host)?.label ?? s.host] as [string, string])}
-    />
+    <SieveSideFrame page="scans">
+      <ScansPage
+        initialJob={job}
+        initialSources={sources}
+        initialLabels={sources.map((s) => [s.id, catalogEntryForHost(s.host)?.label ?? s.host] as [string, string])}
+      />
+    </SieveSideFrame>
   );
 }

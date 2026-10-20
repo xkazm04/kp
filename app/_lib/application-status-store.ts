@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomToken } from "./random-id";
+import { addColumns } from "./db/add-columns";
 
 // Candidate application-status links (idea-e76a6fb2). Isolated-connection store
 // (same pattern as offers-store.ts / schedule-store.ts): owns the
@@ -29,11 +30,7 @@ function db(): Database.Database {
     );
   `);
   // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
-  try {
-    d.exec(`ALTER TABLE application_status_links ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "application_status_links", ["workspace_id TEXT NOT NULL DEFAULT 'workspace'"]);
   _db = d;
   return d;
 }

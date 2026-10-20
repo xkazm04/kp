@@ -1,0 +1,118 @@
+[
+  {
+    "context": "billing-subscriptions",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Every meter debit names its cause: a usage journal beside the counter",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/db/core.ts",
+      "app/_lib/db/billing.ts",
+      "app/_lib/billing/entitlements.ts",
+      "app/_lib/analyze-run.ts",
+      "app/api/devcase/lifecycle/route.ts",
+      "app/api/devcase/lifecycle/[id]/redesign/route.ts",
+      "app/api/interview/complete/route.ts",
+      "app/api/jobs/[id]/publish/route.ts",
+      "app/_lib/offer-finalize.ts",
+      "app/_lib/tenancy.ts",
+      "app/_lib/db/billing-tenancy.test.ts",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [
+      "app/_lib/billing/usage-journal.test.ts"
+    ],
+    "shared_surfaces": [
+      "app/_lib/tenancy.ts"
+    ],
+    "acceptance": [
+      "recordMeterUsage('interview_minutes', 35, CHARGE_PARITY_NOW, teamA, { kind: 'interview_session', ref: 'sess_1' }) on org A (starter, 30 included, 100 credits) -> exactly one billing_usage_journal row {org_id: A, meter: 'interview_minutes', period: '2026-08', qty: 35, from_included: 30, from_credits: 5, source_kind: 'interview_session', source_ref: 'sess_1'} and billing_usage.qty for (A, interview_minutes, 2026-08) = 35",
+      "CHARGE PARITY GUARD: chargeParityFixture() + replayChargeParity() (journal-less calls) -> chargeParitySnapshot() deepEquals the committed golden `replay` in app/_lib/billing/__fixtures__/charge-parity.json byte-for-byte, and billingOverview keys are unchanged (no new overview key)",
+      "after replayChargeParity(), for every (org_id, meter, period) in billing_usage: SUM(billing_usage_journal.qty) === billing_usage.qty (journalIntegrity() returns [] ), including debits made with no source (source_kind 'unattributed')",
+      "for every journal row, from_credits equals the magnitude of the 'consumed' billing_credits delta written by the same debit (org A interview_minutes: from_credits 5 <-> delta -5; org B: from_credits 20 <-> delta -20 clamped, qty 25)",
+      "the same (org, meter, source_kind, source_ref) debited twice -> BOTH debits still count (billing_usage.qty doubles — charge unchanged) and duplicateUsageSources(orgId, period) returns [{ source_kind, source_ref, count: 2 }] — detection, never refusal",
+      "recordMeterUsage(meter, 0 or negative) -> no billing_usage row AND no journal row (the qty<=0 early return covers both)",
+      "source pin: each of the 6 production debit sites (analyze-run.ts, devcase lifecycle + redesign, interview/complete, jobs/[id]/publish, offer-finalize.ts) passes a source whose kind is in USAGE_SOURCE_KINDS (source-text assertion in the style of meter-attribution.test.ts)",
+      "tenancy: listUsageJournalForOrg(orgB, period) never returns an org A row; the new table is in the tenancy manifest's billing block and export dispositions as 'org'"
+    ],
+    "premise": [
+      "app/_lib/db/core.ts:994-1000 — billing_usage is (org_id, meter, period, qty) with PRIMARY KEY (org_id, meter, period): a per-month counter with no row per debit",
+      "app/_lib/db/billing.ts:369-375 — incrementBillingUsage is `ON CONFLICT ... DO UPDATE SET qty = qty + excluded.qty`: a debit leaves no record of what caused it",
+      "app/_lib/billing/entitlements.ts:293 — recordMeterUsage(meter, qty, now, workspace) takes no source argument; 306-318 splits included vs credits inside one transaction but only the credit half is itemized (grantBillingCredits reason 'consumed')",
+      "6 production debit sites (grep recordMeterUsage): app/_lib/analyze-run.ts:563, app/api/devcase/lifecycle/route.ts:46, app/api/devcase/lifecycle/[id]/redesign/route.ts:50, app/api/interview/complete/route.ts:355, app/api/jobs/[id]/publish/route.ts:151, app/_lib/offer-finalize.ts:132 — each has a natural source id in scope (analysis receipt, lifecycle id, session id, job id, offer/entry id)",
+      "app/_lib/analyze-run.ts:555-556 calls 'the meter ledger ... append-only' and app/api/interview/complete/route.ts:293 calls the meter row 'a per-org quantity' — the code talks about a ledger the store does not have",
+      "app/_lib/billing/entitlements.ts:286-292 — the RESIDUAL gate->debit window names a reserve-then-confirm across the call sites as the follow-up; that needs per-debit identity first",
+      "app/_lib/billing/__fixtures__/charge-parity-replay.ts:125-149 — the parity snapshot selects billing_state/events/credits/usage explicitly, so an additive journal table leaves the golden byte-identical",
+      "app/_lib/tenancy.ts:356-363 and 596-601 — billing tables are listed by name in the exempt block and export dispositions; a new table is a reported gap until listed"
+    ],
+    "rollback": "Additive: a new table written inside recordMeterUsage's existing transaction plus an optional trailing `source` argument. Reverting the series drops the journal write and the argument; billing_usage/billing_credits were never changed, and the charge-parity golden is the proof in both directions. The CREATE TABLE IF NOT EXISTS leaves an inert table behind on a reverted DB, which nothing reads.",
+    "gate": "architecture",
+    "runner_up": "Reserve-then-confirm debits (close the entitlements.ts:286 gate->debit window) — rejected here because it changes which request gets degraded at the cap, i.e. what is charged; the journal is its prerequisite.",
+    "technique": "dedupe-key-survives-soft-delete",
+    "body": "## Summary\nGive `recordMeterUsage` a `source` ({kind, ref}) and write one `billing_usage_journal` row per debit in the SAME transaction as the counter increment, carrying qty, the included/credits split, and the cause. The counter stays the only thing any gate or charge reads.\n\n## Description\nToday a debit is `qty = qty + ?` on a per-month counter (db/billing.ts:369-375). An owner who sees `interview_minutes: 35 used` cannot be told which sessions burned them; support cannot answer a dispute; a double debit (a retried completion, a re-published role) is indistinguishable from two real ones; and the two follow-ups already named in code — reserve-then-confirm (entitlements.ts:286-292) and billing hire overage through the provider's usage meters (the open irreversible item 'Bill hire overage through Polar usage meters') — both need per-debit identity the store does not have. The registry's usage-event-ingestion golden path is blunt about the asymmetry: a double count is over-billing the customer detects, a drop is under-billing nobody detects; both need an identified event to reason about. This card adds the identity WITHOUT changing a charge: the journal is write-only evidence, duplicates are DETECTED (duplicateUsageSources) and never refused (refusing would move money and is a separate irreversible card). The `source` argument is optional so a caller without one journals as `unattributed` rather than failing, and the six production sites are pinned to pass one.\n\n## Flow\n1. core.ts: `CREATE TABLE IF NOT EXISTS billing_usage_journal (id INTEGER PK, org_id, meter, period, qty, from_included, from_credits, source_kind, source_ref, occurred_at)` + index (org_id, period).\n2. db/billing.ts: `appendUsageJournal`, `listUsageJournalForOrg`, `journalIntegrity` (SUM per key vs billing_usage), `duplicateUsageSources`.\n3. entitlements.ts: `USAGE_SOURCE_KINDS` literal array + guard; recordMeterUsage takes `source?`; inside the existing tx, after the split, append the journal row using the same `fromIncluded`/`debit` numbers (limit===null -> from_included=qty, from_credits=0).\n4. Six call sites pass their id in scope.\n5. tenancy.ts: list the table in the billing exempt block + export disposition 'org'; billing-tenancy.test.ts pins its org_id filters.\n6. docs/features/billing/README.md: the journal, its invariant, and that it never gates.\n\n## Expected impact\nEvery unit on the Billing tab becomes traceable to a session, analysis, role or hire; duplicate debits become countable; the reserve-then-confirm and provider usage-ingest follow-ups get the identity they need. Zero change to any charge, gate, allowance or overview key, proven by the r05 golden.\n\n## Evaluation\nClaim: debits become attributable and duplicate-detectable with byte-identical charges.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: architecture — node:test cases in app/_lib/billing/usage-journal.test.ts over the unit DB (metering ON, POLAR_ACCESS_TOKEN set), reusing __fixtures__/charge-parity-replay.ts for the parity guard; plus the integration gate (tsc, lint, test:unit, test:perf).\nResult: pending build.\nGate: architecture",
+    "evidence": "core.ts:994-1000 `CREATE TABLE IF NOT EXISTS billing_usage (org_id ..., meter ..., period ..., qty INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (org_id, meter, period))`. db/billing.ts:372-373 `INSERT INTO billing_usage ... ON CONFLICT (org_id, meter, period) DO UPDATE SET qty = qty + excluded.qty`. entitlements.ts:293 `export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date(), workspace?: string): void`; :310 `const { fromCredits } = splitSpend(limit, used, balance, qty);` :317 `incrementBillingUsage(meter, period, qty, orgId);`. grep 'recordMeterUsage(' outside app/_lib/billing and tests = 6 call lines: analyze-run.ts:563, devcase/lifecycle/route.ts:46, devcase/lifecycle/[id]/redesign/route.ts:50, interview/complete/route.ts:355, jobs/[id]/publish/route.ts:151, offer-finalize.ts:132. charge-parity-replay.ts:136-138 selects billing_credits and billing_usage by explicit column lists; :149 returns only {billing_state, billing_events, billing_credits, billing_usage, orgs}. No prior deck card or open leftover names a usage journal/attribution for billing-subscriptions (prior billing cards: r05 'billing_alerts gets its reader', r05 'Meters state when they reset...')."
+  },
+  {
+    "context": "billing-subscriptions",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Daily subscription reconcile: flag a lost webhook, never rewrite state",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/billing/polar.ts",
+      "app/_lib/billing/sync.ts",
+      "app/_lib/billing/alerts.ts",
+      "app/_lib/db/billing.ts",
+      "app/_lib/db/billing-tenancy.test.ts",
+      "app/_lib/billing/polar-gateway.test.ts",
+      "instrumentation-node.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [
+      "app/_lib/billing/subscription-reconcile.ts",
+      "app/_lib/billing/subscription-reconcile.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "reconcileSubscriptionState(stored {plan:'free', status:'none', providerSubscriptionId:'sub_X'}, provider {status:'active', productId: starterId}, productMap) -> drift {kind:'missed_activation', severity:'error'} — a paying customer we never entitled",
+      "stored {plan:'growth', status:'active', sub 'sub_C'} vs provider {status:'revoked'} -> drift {kind:'missed_revocation'}; stored active vs provider active with the SAME mapped plan and period end within 1h -> null (no drift)",
+      "stored {status:'active', currentPeriodEnd:'2026-09-01'} vs provider active with current_period_end '2026-10-01' -> drift {kind:'missed_renewal'} (the entitledPlan past_due grace would cut from the stale end)",
+      "provider product id not in productMap -> NO subscription_drift (that is already the unmapped_product alert's job); an unreadable provider subscription (fetch -> null) -> no verdict, never drift",
+      "runSubscriptionReconcile(null) and with KP_OFFLINE / no POLAR_ACCESS_TOKEN -> {skipped:true} and zero fetches (self-hosted stays untouched); with an injected source it fetches at most SUBSCRIPTION_RECONCILE_MAX_PER_RUN subscriptions",
+      "a drift records ONE billing_alerts row kind 'subscription_drift' under the default org with providerRef 'sub-drift:<subId>'; a second run with the same drift inserts nothing (recordBillingAlert dedupe); billingAlertViews shows it to the home-org reader only (operator audience), detail withheld from others",
+      "CHARGE PARITY GUARD: after replayChargeParity(), running runSubscriptionReconcile with a source that reports every stored subscription as drifted leaves chargeParitySnapshot() byte-identical to the committed golden `replay` — billing_state, billing_credits, billing_usage untouched; only billing_alerts grows",
+      "PolarGateway.fetchSubscription issues GET /v1/subscriptions/{id} with the same headers() (Polar-Version only when pinned), is bounded by POLAR_REQUEST_TIMEOUT_MS, is never retried, and returns null on non-2xx or throw (polar-gateway.test with a stubbed fetch)"
+    ],
+    "premise": [
+      "app/api/billing/webhook/route.ts:10 — 'The ONLY write path for money state (billing_state / billing_credits)'; app/_lib/billing/sync.ts:2 — 'nothing else mutates billing_state': there is no pull, so a delivery the provider gave up on is lost forever",
+      "app/api/billing/webhook/route.ts:86 — non-2xx relies on provider redelivery; a self-hosted-by-a-customer or down deployment that stays unreachable past the provider's retry window has no recovery signal",
+      "app/_lib/billing/sync.ts:86 and :120 — a CAS-dropped set or revoke answers 2xx ('concurrent write won — ... dropped'), so the provider will never re-send it; the only record is the HTTP response body",
+      "app/_lib/billing/entitlements.ts:57-64 — past_due/unpaid entitlement is bounded by currentPeriodEnd + 7 days; a missed renewal leaves a stale end that cuts a paying customer",
+      "app/_lib/billing/sync.ts:206-232 + instrumentation-node.ts:380-410 — the daily price_reconcile job already does bounded, skipped-when-unconfigured provider GETs and writes a durable alert: the exact shape to extend",
+      "app/_lib/billing/polar.ts:266-281 — fetchProduct is the GET precedent (timeout-bounded, never retried, null on any failure); polar.ts:127-138 — mapPolarEvent already reads status/product_id/current_period_start/end off a Polar subscription object, the same object GET /v1/subscriptions/{id} returns",
+      "app/_lib/billing/alerts.ts:22 and :43-46 — the kind vocabulary + audience map; operator-audience kinds are read from the home org only (app/api/billing/route.ts:48-52), so a drift must be recorded under the default org like price_drift",
+      "messages/en.json:8973-8977 — alert codes are localized per kind; a new kind needs 4 catalog entries"
+    ],
+    "rollback": "Additive and read-only against money state: a new pure module, one GET on the gateway, one alert kind, one scheduler job. Reverting removes the job and kind; alert rows already written stay as `unknown`-coded rows the reader shows rather than drops (alerts.ts:56-58). The CHARGE PARITY GUARD case proves no revert can be needed to restore a charge.",
+    "gate": "contract",
+    "runner_up": "Persist each webhook's decision (action + detail + applied + api_version) on billing_events so 'why is this org on Free?' is answerable after the HTTP response is gone (sync.ts:185-188 returns it, nothing stores it).",
+    "technique": "entitlement-lifecycle-revocation",
+    "body": "## Summary\nAdd a daily, bounded, read-only reconcile of every stored provider subscription against the provider's own record (GET /v1/subscriptions/{id}), and turn any disagreement into a durable, deduped `subscription_drift` operator alert. It never writes billing_state — correcting state from a pull would change entitlement and is deliberately out of scope.\n\n## Description\nThe webhook is the only write path for money state (webhook/route.ts:10, sync.ts:2). Three things make that path lossy with no signal: a deployment unreachable past the provider's retry window loses the delivery outright; a CAS-dropped set or revoke answers 2xx so it is never redelivered (sync.ts:86,120); and an out-of-order guard that misjudges leaves the state wrong. The consequences run both ways — a missed activation is a customer who paid and sits on Free (the worst money-trust break), a missed revocation is unpaid entitlement, a missed renewal leaves a stale currentPeriodEnd that the past_due grace (entitlements.ts:57-64) will later use to cut a paying customer. The price reconcile (sync.ts:206) already established the pattern for a standing provider-truth check: pure decision, fetches outside it, unreadable = no verdict, one deduped alert. This card applies it to subscriptions. Polar is a cross-repo contract: the GET is read-only, parsed defensively with the same field reads mapPolarEvent already trusts, pinned by Polar-Version only when the operator pinned one, and validated against the sandbox per the README checklist before the job is enabled in production.\n\n## Flow\n1. polar.ts: `fetchSubscription(id)` mirroring fetchProduct (timeout, no retry, null on failure, noteObservedApiVersion).\n2. subscription-reconcile.ts (pure): `readProviderSubscription(body)`, `reconcileSubscriptionState(stored, provider, productMap)` -> drift | null with kinds missed_activation / missed_revocation / missed_renewal / plan_mismatch; unmapped products and unreadable reads yield no verdict.\n3. db/billing.ts: `listProviderSubscriptionsForReconcile(limit)` — a documented deployment-wide SELECT (pinned in billing-tenancy.test.ts beside pruneBillingEventPayloads).\n4. sync.ts: `runSubscriptionReconcile(source = polarGatewayFromEnv())` — skipped when null, fetch outside any transaction, record alerts under the default org with providerRef `sub-drift:<subId>`.\n5. alerts.ts: add `subscription_drift` with operator audience; 4 catalog entries.\n6. instrumentation-node.ts: a `subscription_reconcile` scheduler job beside price_reconcile, same claimDueRun/recordRun bookkeeping, under the autonomy pause.\n7. docs/features/billing/README.md: the job, its kinds, that it alerts and never corrects.\n\n## Expected impact\nA lost or dropped webhook stops being silent: the operator learns within a day that a customer paid and is not entitled (or vice versa), from the same worklist that already carries unmapped_product and price_drift. No charge, entitlement, gate or allowance moves.\n\n## Evaluation\nClaim: provider/stored subscription disagreement becomes a durable operator alert with zero writes to money state.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: contract — node:test in app/_lib/billing/subscription-reconcile.test.ts (pure cases + unit-DB run with an injected ReconcileSource-style literal, reusing __fixtures__/charge-parity-replay.ts for the parity guard) and polar-gateway.test.ts for the GET's wire shape with a stubbed fetch; plus the integration gate incl. i18n:check.\nResult: pending build.\nGate: contract",
+    "evidence": "webhook/route.ts:10 `// Provider → us. The ONLY write path for money state (billing_state /`. sync.ts:2 `// The single write path for money state; nothing else mutates billing_state.` sync.ts:86 `if (!applied) return `concurrent write won — subscription event dropped (state moved since it was read)`;` sync.ts:120 `if (!cleared) return `concurrent write won — revoke dropped ...`;` and sync.ts:188 returns detail only in the response. polar.ts:266 `async fetchProduct(productId: string): Promise<unknown | null>` with `signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS)` and `return null` on failure. instrumentation-node.ts:383-392 `const PRICE_RECONCILE_JOB = \"price_reconcile\"; ensureSchedule(... intervalMinutes: 24 * 60) ... runPriceReconcile()`. alerts.ts:22 `BILLING_ALERT_KINDS = [\"unmapped_product\", \"price_drift\"]`; :43-46 KIND_AUDIENCE. app/api/billing/route.ts:48-52 openAlertsFor adds DEPLOYMENT_ALERT_KINDS from HOME_ORG_ID only. grep over the tree: no GET /v1/subscriptions call and no subscription pull exists. Not in any prior deck (r05 billing cards were the alerts reader and the meter reset/forecast) nor in leftover-develop-2026-09-17 billing rows."
+  }
+]

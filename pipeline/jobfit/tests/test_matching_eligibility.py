@@ -319,9 +319,16 @@ class BuildMatchCandidatePreferencesTest(unittest.TestCase):
                 "countries": ["CZ", "de"],
                 "workModes": ["remote", "hybrid"],
                 "seniority": "senior",
-                "targetTitles": ["ignored here"],
+                # Was pinned as "ignored here": targets only steered fetching, so a
+                # career changer was ranked by their past. They now reach the career
+                # score's direction term (lot A2.1, test_matching_targets.py) — and
+                # only that term; the eligibility flags asserted here never read them.
+                "targetTitles": ["AI Engineer"],
+                "targetRoleFamilies": ["data_ai"],
             },
         )
+        self.assertEqual(c.target_titles, ["AI Engineer"])
+        self.assertEqual(c.target_role_families, ["data_ai"])
         self.assertEqual(c.salary_expectation, SalaryExpectation(amount=80000.0, currency="czk", period="year"))
         self.assertEqual(c.preferred_locations, ["Praha", "Brno"])
         self.assertEqual(c.preferred_countries, ["cz", "de"])

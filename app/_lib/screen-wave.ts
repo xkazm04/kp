@@ -4,15 +4,18 @@ import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
-import { isFairnessProtected, isKnownArchetype } from "./archetypes";
+import { dispatchAtsEvent } from "./ats-egress";
+import { readLiveArchetypes } from "./archetype-live";
 import { consumeScreenWaveApprovalToken, screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
+import { effectiveSpare, normalizeSpareList, spareSuffix } from "./screen-wave-spare";
 import { isNamedApprover, NAMED_APPROVER_REQUIRED, operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
 import { withCanonicalScores } from "./match-score-resolve";
 import { jdSlugOfJobId } from "./jd-limits";
 import { jdLastEditedAt } from "./db/jobs";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
+import type { ScreenDecision, ScreenReasonCode, ScreenWaveResult } from "./screen-wave-contract";
 
 export { ScreenWaveApprovalError, SCREEN_WAVE_REFUSAL_REASONS, isScreenWaveRefusalReason } from "./screen-wave-approval";
 export type { ScreenWaveRefusalReason } from "./screen-wave-approval";
@@ -28,62 +31,11 @@ export type { ScreenWaveRefusalReason } from "./screen-wave-approval";
 // sealed record would assert as a measurement. Every auto-decision is audited
 // with a rationale and the candidate gets a queued rejection comm.
 
-export type ScreenDecision = {
-  entryId: string;
-  label: string;
-  archetype: string | null;
-  // null = the candidate has no match score (never measured). Such candidates are
-  // always `action: "keep"` with reasonCode "unscored" — a fabricated 0 must never
-  // reach a threshold, a preview row, or a sealed record.
-  matchScore: number | null;
-  action: "reject" | "keep";
-  // The audit-trail rationale — byte-identical English, persisted on a committed
-  // run (the recorded audit event) and pinned by the unit tests. UNCHANGED.
-  rationale: string;
-  // DEC4 — a structured, locale-renderable mirror of `rationale`: the modal
-  // renders `decisions.wave.reasons.<reasonCode>` interpolated with
-  // `reasonParams`, so a Czech recruiter reads a Czech rationale in the preview
-  // and the committed view while the persisted audit string stays English (zero
-  // audit risk). Falls back to `rationale` when a code is unmapped.
-  reasonCode: ScreenReasonCode;
-  reasonParams: Record<string, string | number>;
-  /** Set on a committed reject whose rejection email failed to queue — the
-   *  candidate is out of the funnel and needs a manual nudge (mirrors the
-   *  rejection_comms_failed audit event, but addressable per row in the UI). */
-  commsFailed?: boolean;
-  /** Direction 2 (queue-staleness) — set when this candidate's match score was
-   *  computed BEFORE the JD's last content edit, so the row is ranking on a score
-   *  against stale text. Server-derived (same isScoreStale rule as the library /
-   *  prep chips); informs, never blocks. `staleSince` is the JD's last-edit date.
-   *  Absent (fresh score / never-edited JD / unscored) → no stale chrome. */
-  stale?: boolean;
-  staleSince?: string;
-};
-
-// The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
-// catalog key; params carry the interpolated numbers.
-export type ScreenReasonCode =
-  | "autoRejectOff"
-  | "earlyCareer"
-  | "unknownArchetype"
-  | "tieAtCutoff"
-  | "aboveCutoff"
-  | "atThreshold"
-  | "reject"
-  | "staleSkipped"
-  | "unscored"
-  // A recruiter reversed an earlier auto-rejection on this entry, which returned it
-  // to active/Screened — the wave's own cohort predicate. Spared so the machine
-  // can't immediately re-reject (and re-email) someone a human deliberately rescued.
-  | "reinstated"
-  // The tamper-evident Art. 22 record could not be written, so the rejection was
-  // NOT applied. See the seal-first ordering on the adverse path below.
-  | "sealFailed"
-  // Spared from a would-be auto-reject to form the calibration clean arm.
-  | "holdout"
-  // Spared from the auto-reject like a holdout, but the clean-arm SEAL failed, so the
-  // candidate is NOT in the calibration arm and the row must not claim to be.
-  | "holdoutSealFailed";
+// The decision / result / reason-code shapes are the route's WIRE contract, so they
+// live in the import-free screen-wave-contract.ts that the client reads through
+// too; re-exported here under their old names so every server caller is unchanged.
+export type { ScreenDecision, ScreenReasonCode, ScreenWaveResult } from "./screen-wave-contract";
+export { SCREEN_REASON_CODES, isScreenReasonCode } from "./screen-wave-contract";
 
 // The keep rationale for a candidate with NO match score (audit-string register,
 // mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
@@ -170,40 +122,22 @@ export async function runScreenWave(
   // approved from the preview, plus who approved it. A commit without it — or with
   // a token that no longer matches the live set — is refused (no solely-automated
   // adverse decision; EU AI Act / GDPR Art. 22). A dry run needs no approval.
-  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } },
+  // `spare` = the reviewer's per-person exclusions (screen-wave-spare.ts): entry ids
+  // taken out of the reject set before the token is signed. A commit must echo the
+  // list its preview was computed with, or the re-derived set differs -> "mismatch".
+  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string }; spare?: readonly string[] },
   // Tenant (P1): the team whose Screened cohort this wave ranks, rejects, and seals.
   // Threaded from the route's currentWorkspace(); an unscoped default here would run
   // the whole wave (preview, approval token, commits, seals) on the default team's
   // cohort regardless of who called it. Defaults to the single default workspace so
   // scripts/tests keep today's behavior.
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): Promise<{
-  decisions: ScreenDecision[];
-  rejected: number;
-  kept: number;
-  cohort: number;
-  config: ScreeningRule;
-  /** Signature of the EXACT set this run would reject under the active policy.
-   *  Returned on a dry run so the recruiter's commit can echo it; the commit is
-   *  refused unless it still matches the live set (the human-approval gate). */
-  approvalToken: string;
-  /** Rejections that applied but whose candidate notification failed to queue
-   *  (idea-961de357) — the wave completed; these candidates need a manual nudge.
-   *  Always 0 on a dry run (nothing is dispatched). */
-  commsFailures: number;
-  /** Candidates the wave would have rejected but did NOT, because their Art. 22
-   *  decision record could not be sealed (see the seal-first ordering below). They
-   *  are reported as keeps with reasonCode "sealFailed"; a non-zero count means the
-   *  chain is unwritable (missing signing key, locked DB) and the wave under-rejected
-   *  on purpose. Counted so the gap is visible instead of living in a console.warn.
-   *  Always 0 on a dry run (nothing is sealed). */
-  sealFailures: number;
-  /** True when this was a PREVIEW (DEC2): the full ranking / fairness / tie-break
-   *  math ran and `decisions` is populated with rationales, but NO status was
-   *  flipped, NO rejection email queued, and NO audit event written. The recruiter
-   *  reviews this, then re-runs with dryRun:false to commit. */
-  dryRun: boolean;
-}> {
+): Promise<
+  // The wire half (decisions, counts, approvalToken, dryRun) is ScreenWaveResult in
+  // screen-wave-contract.ts, documented field by field there; `config` is the
+  // resolved rule the run used, sent along but read by no client.
+  ScreenWaveResult & { config: ScreeningRule }
+> {
   const dryRun = opts?.dryRun ?? false;
   // Backstop: never merge an unvalidated override into the live config that
   // drives irreversible auto-rejections. The route validates first (→ 400), but
@@ -213,6 +147,10 @@ export async function runScreenWave(
   // DecisionConfigError, which the route maps to a 400.
   const checked = validateScreeningOverride(override);
   if (!checked.ok) throw new DecisionConfigError(checked.error);
+  // Same backstop for the exclusions: the route normalises first (-> 400), and any
+  // other caller still cannot hand the wave a malformed list.
+  const spareRead = normalizeSpareList(opts?.spare === undefined ? undefined : [...opts.spare]);
+  if (!spareRead.ok) throw new DecisionConfigError(spareRead.error);
   // Read the screening rule for THIS team (tenancy): every other read in this
   // wave threads workspaceId, but this first config read omitted it and fell to
   // DEFAULT_WORKSPACE_ID — so a non-default team's saved familyFloors (never part
@@ -220,6 +158,10 @@ export async function runScreenWave(
   // policyVersion attested to a floor the team never set.
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening", workspaceId), ...checked.override };
   const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  // ONE read of the LIVE archetype registry for the whole wave (archetype-live.ts): the
+  // shield follows runtime registry edits the way Python does, and the eligibility pass
+  // and the decision loop below judge every row by the same file.
+  const archetypes = readLiveArchetypes();
   // Direction 2 (queue-staleness) — derive, ONCE per wave, whether each candidate's
   // score predates the JD's last content edit, using the exact isScoreStale rule the
   // library roster + prep chips use. jdEditedAt is per-role (a JD-backed job's last
@@ -280,7 +222,7 @@ export async function runScreenWave(
   // stale rubber-stamp (same contract as the family floors). Omitted when 0, so a
   // holdout-disabled wave signs a byte-identical token to the pre-holdout build.
   const holdoutPct = effectiveHoldoutPercent(cfg);
-  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
+  const basePolicyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
   const wouldReject = new Set<string>();
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
@@ -289,7 +231,7 @@ export async function runScreenWave(
     // measurement — an unscored candidate can never be auto-reject-eligible. The
     // floor is the candidate's EFFECTIVE floor (family override or global).
     const belowThreshold = e.matchScore < effectiveFloor(cfg, e.roleFamily);
-    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !isFairnessProtected(e.archetype)) {
+    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !archetypes.isFairnessProtected(e.archetype)) {
       wouldReject.add(e.id);
     }
   }
@@ -315,6 +257,16 @@ export async function runScreenWave(
   for (const id of reinstatedSpared) wouldReject.delete(id);
   const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared);
   for (const id of heldOut) wouldReject.delete(id);
+  // REVIEWER EXCLUSIONS — applied LAST, so only a person who would really be rejected
+  // can be spared (a spare of a shielded, held-out, reinstated or above-cutoff person is
+  // a no-op), and BEFORE signing, so the token covers the post-spare set: the exclusions
+  // are part of what the reviewer approved. A commit re-derives this from the echoed
+  // list; a list that differs from the previewed one re-derives a different set and is
+  // refused "mismatch" below. `/spared<n>` rides the policyVersion so the sealed records
+  // say this wave had human exclusions; none -> no suffix, byte-identical to before.
+  const recruiterSpared = new Set(effectiveSpare(wouldReject, spareRead.ids));
+  for (const id of recruiterSpared) wouldReject.delete(id);
+  const policyVersion = `${basePolicyVersion}${spareSuffix([...recruiterSpared])}`;
   // Art. 22 staleness (approval-token issued-at): a preview mints a token stamped
   // NOW; a commit re-derives the signature using the token's OWN stamp, so it can
   // neither cover a different set nor be back-dated, and is refused once it is older
@@ -389,8 +341,10 @@ export async function runScreenWave(
     // are shielded from auto-rejection. An unrecognized archetype is data drift —
     // record it so the desync is visible instead of silently auto-rejecting a
     // candidate the fairness rule was meant to protect.
-    const protectedFromAutoReject = isFairnessProtected(e.archetype);
-    const knownArchetype = isKnownArchetype(e.archetype);
+    const protectedFromAutoReject = archetypes.isFairnessProtected(e.archetype);
+    // Known to EITHER registry: a custom archetype registered after the build is not
+    // data drift, so it is not audited as "Unknown archetype".
+    const knownArchetype = archetypes.isKnown(e.archetype);
     // A preview writes nothing — the unknown-archetype audit marker only fires on a
     // committed run, so a recruiter re-previewing doesn't spam the audit trail.
     if (!knownArchetype && !dryRun) {
@@ -434,7 +388,7 @@ export async function runScreenWave(
         if (!holdoutSealed) {
           sealFailures += 1;
           const unrecorded = `Kept — spared from auto-rejection, but the calibration holdout record could not be sealed, so this candidate is NOT in the clean arm. Retry once the decision chain is writable.`;
-          console.warn(`[screen-wave] holdout seal failed for ${e.candidateLabel} (${e.id}) — spared, but NOT enrolled in the calibration clean arm`);
+          console.warn(`[screen-wave] holdout seal failed for entry ${e.id} — spared, but NOT enrolled in the calibration clean arm`);
           // The audit event names the failure rather than the arm — the recorded event is
           // what an operator reads back, and "screen_wave_holdout" would assert exactly the
           // membership that does not exist.
@@ -464,6 +418,31 @@ export async function runScreenWave(
         rationale: holdoutRationale,
         reasonCode: "holdout",
         reasonParams: { score, threshold: effectiveFloor(cfg, e.roleFamily), pct: holdoutPct },
+        ...staleFields(e.id),
+      });
+      continue;
+    }
+
+    // Spared by the reviewer in the preview: kept, and on commit the exclusion is
+    // recorded on the person as a HUMAN act naming the approver of this wave (the
+    // approval above already bound the exclusion into the signed set). No seal: the
+    // sealed chain records adverse decisions and their calibration arm, and nothing
+    // adverse happened to this person.
+    if (recruiterSpared.has(e.id)) {
+      const floor = effectiveFloor(cfg, e.roleFamily);
+      const sparedRationale = `Kept — spared by the reviewer: removed from this wave before approval (match ${score} was below the ${floor} threshold).`;
+      if (!dryRun) {
+        recordAutomationEvent(e.id, "screen_wave_recruiter_spared", `${sparedRationale} · spared by ${approvedBy}`, workspaceId, `human:${approvedBy}`);
+      }
+      decisions.push({
+        entryId: e.id,
+        label: e.candidateLabel,
+        archetype: e.archetype,
+        matchScore: score,
+        action: "keep",
+        rationale: dryRun ? sparedRationale : `${sparedRationale} · spared by ${approvedBy}`,
+        reasonCode: "recruiterSpared",
+        reasonParams: { score, threshold: floor },
         ...staleFields(e.id),
       });
       continue;
@@ -587,7 +566,7 @@ export async function runScreenWave(
         const sealFailedRationale = "Kept — the Art. 22 decision record could not be sealed, so the auto-rejection was not applied. Retry once the decision chain is writable.";
         // Logged like the comms failure below (sealDecisionSafe logs the cause); the
         // row + the counted `sealFailures` are what actually surface it to the caller.
-        console.warn(`[screen-wave] decision seal failed for ${e.candidateLabel} (${e.id}) — rejection NOT applied`);
+        console.warn(`[screen-wave] decision seal failed for entry ${e.id} — rejection NOT applied`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: sealFailedRationale, reasonCode: "sealFailed", reasonParams: {}, ...stale });
         continue;
       }
@@ -612,7 +591,7 @@ export async function runScreenWave(
         // to make the residue reachable in production. That remaining window is the
         // right trade against the alternative it replaces: an APPLIED, emailed
         // rejection with no record at all. The staleSkipped keep is the wave's report.
-        console.warn(`[screen-wave] ${e.candidateLabel} (${e.id}) changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
+        console.warn(`[screen-wave] entry ${e.id} changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;
       }
@@ -622,16 +601,34 @@ export async function runScreenWave(
       // half-applied with a bare 500 and no record of what had landed. Isolate
       // it per candidate: log it, surface it in the activity feed, count it for
       // the caller, and keep going.
+      //
+      // Both failure signals count (challenge-r06 comms-dispatch-relay/A): a throw AND a
+      // resolved dead letter (the relay records `failed` and returns — a catch alone
+      // counted it as notified). A `refused` verdict (no mailbox by design) is neither.
       let commsFailed = false;
+      let commsError: unknown = null;
       try {
-        await dispatchRejection(updated, { automated: true }); // queued, never ghosts
-      } catch (commsError) {
+        const outcome = await dispatchRejection(updated, { automated: true }); // queued, never ghosts
+        if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+      } catch (thrown) {
+        commsError = thrown;
+      }
+      if (commsError !== null) {
         commsFailed = true;
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
-        console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
+        console.warn(`[screen-wave] rejection comms failed for entry ${e.id}: ${msg}`);
         recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`, workspaceId);
       }
+      // The customer's system of record hears about it too, if it subscribed. This is the
+      // SECOND place a rejection is applied (the human click, pipeline-entry-action.ts,
+      // is the other) and it used to be the one that never mirrored: a subscriber to
+      // `candidate.rejected` received every recruiter reject and none of the wave's, so a
+      // connector kept every auto-rejected candidate open. Only here — after the seal and
+      // the committed flip — so a holdout, spared, failed or stale-skipped entry mirrors
+      // nothing. Fire-and-forget beside the comm: the rejection is committed and sealed,
+      // and no mirror may abort the cohort (the delivery ledger shows a failed POST).
+      void dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...stale });

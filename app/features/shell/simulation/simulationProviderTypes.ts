@@ -2,18 +2,21 @@
 // stays under the 200-line file cap. Verbatim — same shapes, same values.
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
 import { STAGES as PIPELINE_STAGES } from "@/app/features/shared/pipelineTypes";
-import type { ScreenDecision } from "@/app/_lib/screen-wave";
+import type { ScreenDecisionRead } from "@/app/_lib/screen-wave-contract";
 import type { SimPhaseId } from "./constants";
+import type { SimMoveLog } from "./simMove";
+import type { SimLedgerStep } from "./simRunLedger";
+import type { SimResumePoint } from "./simWalkResume";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
 // of a blank "no evaluation yet" comparison during the climactic Offer step.
 export type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean; error: string | null };
-// Single-sourced from the canonical ScreenDecision (screen-wave.ts) — the wire
-// shape /api/decisions/screen-wave returns. The old local copy dropped DEC4's
-// reasonCode/reasonParams (the locale-renderable rationale mirror); importing the
-// source carries them through so SimDecisionWave can localize like the real modal.
-export type ScreenWave = { decisions: ScreenDecision[]; rejected: number; kept: number; cohort: number };
+// Single-sourced from the screen-wave route's wire contract
+// (screen-wave-contract.ts), as useSimulationWalk reads it through readWaveResult:
+// reasonCode/reasonParams (the locale-renderable rationale mirror) come through so
+// SimDecisionWave localizes like the real modal, and an unknown code arrives as null.
+export type ScreenWave = { decisions: ScreenDecisionRead[]; rejected: number; kept: number; cohort: number };
 
 export type Spotlight = { selector: string | null; title: string; caption: string };
 export type LogLine = { at: number; text: string };
@@ -63,9 +66,22 @@ export type SimState = {
   targetLabel: string | null;
   error: string | null;
   done: boolean;
+  /** How each scripted move of this run reached the app (a real click, or the
+   *  checked API fallback) and why it fell back. See simMove.ts. */
+  moves: SimMoveLog;
+  /** This run's id (simRunLedger.ts), minted when the walk starts; null while idle. */
+  runId: string | null;
+  /** One record per finished chapter: the machine-readable measurement behind
+   *  "a full demo run with zero manual edits" (summarizeLedger reads it). */
+  ledger: SimLedgerStep[];
 };
 
 export type SimCtx = SimState & {
+  /** Where a walk left on the board can be re-entered (simWalkResume.ts), or null:
+   *  nothing to resume, a run is live here, it finished, or another tab holds it. */
+  resumable: SimResumePoint | null;
+  /** Re-enter the walk at `resumable` without purging it. No-op when null. */
+  resumeAt: () => void;
   start: () => void;
   pause: () => void;
   resume: () => void;
@@ -129,6 +145,9 @@ export const IDLE_STATE: SimState = {
   targetLabel: null,
   error: null,
   done: false,
+  moves: {},
+  runId: null,
+  ledger: [],
 };
 
 // The transient run surface, cleared together whenever a run ends (done/stop/fail)

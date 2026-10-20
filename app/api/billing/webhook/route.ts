@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { BillingConfigError, ingestBillingWebhook, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 import { readTextWithLimit } from "@/app/_lib/request-body";
-import { jsonRefusal } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 
 
 // Provider → us. The ONLY write path for money state (billing_state /
@@ -34,14 +35,17 @@ const WEBHOOK_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 export async function POST(request: NextRequest) {
   const gateway = polarGatewayFromEnv();
   if (!gateway) {
-    return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
+    return jsonRefusal("BILLING_NOT_CONFIGURED", 503);
   }
   // BEFORE the body read, not after: bounding what an anonymous caller can make us
   // ALLOCATE is the point — the 256 KB cap below bounds ONE request, this bounds the
   // RATE of them. The unconfigured 503 above keeps serving freely: it costs an env
   // read and tells an operator their setup is incomplete.
-  if (!rateLimit(`billing-webhook:${clientIpFrom(request.headers)}`, WEBHOOK_RATE_LIMIT)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  // The refusal says WHEN (Retry-After from the window that refused): Polar honours it,
+  // so a full bucket costs one wait instead of a redelivery probe per second.
+  const limitKey = `billing-webhook:${clientIpFrom(request.headers)}`;
+  if (!rateLimit(limitKey, WEBHOOK_RATE_LIMIT)) {
+    return jsonThrottled(rateLimitRetryAfterMs(limitKey), WEBHOOK_RATE_LIMIT.windowMs);
   }
   // Raw body required: any re-serialization changes the bytes and breaks the MAC.
   //
@@ -56,11 +60,11 @@ export async function POST(request: NextRequest) {
   // and stays visible in the Polar dashboard rather than being silently swallowed.
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
   if (declaredLength > MAX_WEBHOOK_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+    return jsonRefusal("PAYLOAD_TOO_LARGE", 413);
   }
   const rawBody = await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES);
   if (rawBody === null) {
-    return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+    return jsonRefusal("PAYLOAD_TOO_LARGE", 413);
   }
   const headers = {
     "webhook-id": request.headers.get("webhook-id"),
@@ -72,15 +76,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof WebhookVerificationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return jsonRefusal("BILLING_WEBHOOK_SIGNATURE_INVALID", 400);
     }
     if (error instanceof BillingConfigError) {
       // Operator setup gap (e.g. secret not yet pasted) — say so; the provider
       // retries non-2xx, so deliveries succeed once the env is fixed.
-      return NextResponse.json({ error: error.message }, { status: 503 });
+      return jsonRefusal("BILLING_NOT_CONFIGURED", 503);
     }
-    console.error("[billing:webhook] ingest failed", error);
     // Non-2xx → the provider retries; right call for a transient apply failure.
-    return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
+    return safeJsonError(error, "billing:webhook", "BILLING_WEBHOOK_FAILED");
   }
 }

@@ -25,14 +25,27 @@ career-switcher) that other features key off. Downstream ranking is
 - **Archetypes tab** (`?tab=archetypes`; renamed from `?tab=profile`, which still
   resolves via `LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) —
   `app/features/tools/profile/ProfileTab.tsx`. It carries the archetype registry
-  plus one candidate population under a List | Matrix projection toggle:
+  plus one candidate population under a List | Matrix projection toggle. The
+  population is ONE read, owned by the tab: `useCandidatePopulation.ts` issues a
+  single cancellable `GET /api/profile/candidates` and hands the same rows to the
+  roster, the matrix and the archetype retire dialog. None of the three fetches on
+  its own any more (they used to read three things — the roster `GET /api/profile`,
+  the matrix the CV-identity fold, the retire dialog the roster list again — so they
+  disagreed on staleness, family and the retire count, and a `dataRev` → `reloadKey`
+  counter existed only to re-sync them after a delete). The read pauses while the
+  editor replaces the projections and re-reads when it closes; a roster delete
+  prunes the shared rows (`withoutProfile`) and re-reads once, since the deleted
+  profile's analyses become analysis-only candidates. Switching List | Matrix reads
+  nothing. `GET /api/profile` keeps its `{ profiles, stale }` shape for its other
+  readers (the Matrix tab's candidate focus).
   - **Archetype manager** (admin view of the registry) — `ArchetypeManager.tsx`.
-  - **List** — `ProfileRoster.tsx` (fetch + filter state + pager) over
+  - **List** — `ProfileRoster.tsx` (filter state + pager, rows projected from the
+    population by `rosterFromPopulation`) over
     `ProfileRosterTable.tsx` / `ProfileRosterRow.tsx`, with the filter/sort rules in
     the pure `profileRosterView.ts`. A paginated ledger: in-header column filters
     (candidate / archetype / role family / status), sortable name + completeness,
     20 rows a page via the shared `app/_components/table/TablePager.tsx`.
-  - **Matrix** — `CandidateMatrix.tsx` (fetch + population filters + detail modal)
+  - **Matrix** — `CandidateMatrix.tsx` (population filters + detail modal)
     over `CandidateMatrixBoard.tsx`: the population as a **board of archetype
     lanes**, every lane on screen at once (lanes wrap rather than scrolling
     sideways), each with a score-distribution bar summarizing its cohort shape.
@@ -42,7 +55,31 @@ career-switcher) that other features key off. Downstream ranking is
     as a profile, or edit a saved one). Role, role family and source live in
     `CandidateMatrixFilterBar.tsx` (population filters) and
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
-- **Saved analysis report** — `app/history/[slug]/page.tsx`. Its "Add to pipeline"
+    The population is keyed on **CV identity**, not on store rows:
+    `GET /api/profile/candidates` folds both stores through the pure
+    `collapsePopulation` (`app/_lib/candidate-population.ts`), so every row sharing
+    a non-null CV content hash (`analyses.cv_hash` = `profiles.source_cv_hash`) is
+    ONE candidate. A saved profile wins the archetype; the newest analysis of the CV
+    supplies the score and the slug; every analysis is listed newest-first on the
+    row (`CandidateRow.analyses`) and linked from the detail modal. A NULL hash
+    (hand-built profile, or an analysis saved before `cv_hash` existed) never merges,
+    and a candidate label is never compared: labels are filename-derived and two
+    people share them. The source filter therefore reads "has a profile" /
+    "analysis only", and lane counts count people, not rows. The chip's one action
+    and the modal footer both read `matrixChipAction`: a row with a profile id is
+    edited, never offered "build profile". A profile row also carries its
+    `completeness` and its `stale` entry (`profileStaleness(ws)`), and the family is
+    resolved once in `profileFromRecord` (the column, else the payload's
+    `roleFamily`), so the roster and the matrix give one answer for one person —
+    the roster used to print the raw column (an em-dash where the matrix said
+    "engineering"), and the matrix never knew a profile was stale. Every store read
+    in the route takes the caller's workspace (pinned by
+    `candidateMatrixContracts.test.ts`).
+- **Saved analysis report** — `app/history/[slug]/page.tsx`. Its subtitle resolves
+  role family and seniority through the shared enum catalog in the reader's
+  language, falling back to a stored value it does not recognize. The cross-job
+  footprint names each JD and its saved score, with the slug as a title fallback.
+  "Add to pipeline"
   files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
   workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
   fallback for a JD deleted out from under the analysis. The live Analyze result
@@ -51,24 +88,95 @@ career-switcher) that other features key off. Downstream ranking is
   the form already holds) and falls back to `JD <slug>` only when that row is
   missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
-  seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard cap, default 200). Name search folds diacritics and case
-  (`foldForSearch` / `historyRowMatchesQuery` in `HistoryTypes.ts`, the same
-  fold as the profile roster), so `capek` finds `Čapek`. The route answers `{ truncated, limit }`
-  beside the rows; when the page was cut, History names it as a page
-  ("Showing {n} newest; older runs still open by slug") and the Showing-of
-  line uses the loaded-slice copy instead of `rows.length` as a total. The
+  seniority/decision filters run on the SERVER (challenge-r09
+  cv-analyze-workspace/A): `historyQuery.ts` `toSearchParams` sends only what
+  narrows (search debounced 250 ms, dropdowns at once) to
+  `GET /api/analyses?q=&family=&seniority=&disposition=&cursor=&limit=`, and
+  `listAnalysesPage(query, ws)` (`app/_lib/db/analyses.ts`) applies them AFTER the
+  newest-per-(cv_hash, jd_slug) collapse (a superseded run's decision never
+  resurfaces its group) and BEFORE the window, so a workspace past 200 groups
+  still finds its oldest candidate. Name search matches
+  `kp_fold(candidate_label || ' ' || slug)` against a needle folded by the same
+  function (`foldText` in `app/_lib/text-fold.ts`), so `capek` finds `Čapek`. The
+  page is keyset-cut on `(created_at DESC, slug DESC)`: the route answers
+  `{ analyses, truncated, limit, nextCursor, facets }`, `truncated` is the store's
+  exact cap+1 answer (an exact fit is not "cut"), and **Load more** appends the
+  next page of the same query through `mergeHistoryPages` (slug-deduped, server
+  order; a row saved between two loads never shifts a later page). The count line
+  is the server's answer: "N matching runs" for a complete filtered answer, "N
+  runs shown, newest first" on a cut page, never a total. The dropdowns are
+  filled from `facets` (`listAnalysisFacets(ws)`: the family and seniority
+  vocabulary of the whole workspace's kept rows), not from the loaded page. A
+  bare GET is still the newest 200 groups. The
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
   `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader. Saved-at dates go through
   `useDateFormat` (the list) and `dateFormatter` with the server `getLocale()`
   (the report header), never the runtime default locale.
+- **History triage** (challenge-r09 cv-analyze-workspace/B) — every History row has
+  a **Decide** button beside its slug link (the link still opens the full report).
+  It opens `HistoryTriageDrawer.tsx`, a size-3xl `Modal` that reads
+  `GET /api/analyses/[slug]` (consent scrub applied) and mounts the report's own
+  `DispositionEditor`, keyed by slug, so the decision brief and its open flags are
+  in view and the decision goes through the same `PATCH /api/analyses/[slug]`
+  (acknowledgement gate, compare-and-swap, pipeline echo). There is no second write
+  path. `DispositionEditor` takes an optional `onSettled` that reports every settled
+  save, including the keepalive flush when the recruiter moves on mid-reason; the
+  host repaints the row only when `shouldApplySave` says the server accepted it
+  (`applyDecision` normalises it the way `writeDisposition` stores it). A
+  `DISPOSITION_ACK_REQUIRED` 409 or a viewer seat's 403 leaves the row as it was and
+  the drawer on that analysis. `j`/`k` (or Next/Previous) walk the queue in the
+  list's display order, never while typing in a field and never wrapping. With
+  "Skip runs that already have a decision" on (the default) the walk visits only
+  undecided runs, and the run on screen stays anchored after it is decided
+  (`triageQueueAround`). The header counts undecided/decided over the LOADED rows
+  and says "among the loaded runs" when the list is a window. Closing the drawer
+  prunes rows the active decision filter no longer matches (`pruneToFilter`), as a
+  refetch would. Opening a row also repaints it with the disposition the server
+  holds now. Pure half: `historyTriage.ts`, pinned by `historyTriage.test.ts`.
+- **Prior-runs footprint pre-spend** (challenge-r10 analyze-workspace/B) — when CVs
+  are attached in Analyze, `AnalyzePriorRunsStrip` computes `cvVariantHash` (the same
+  SHA-256 digest persisted on analysis records) and queries `GET /api/analyze/prior`.
+  If the CV has been scored or decided before in the workspace, the strip surfaces that
+  footprint before the recruiter spends another run: naming recorded dispositions
+  ('pass', 'advance', 'hold') with a link to the decided report, warning that a re-run
+  appears in History as undecided, or listing other roles the candidate was analyzed
+  for. In blind screening mode, the query and strip are completely disabled to avoid
+  candidate re-identification.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
   advance/hold/pass is recorded on the same surface as the verdict; an unsaved
-  run omits it. The panel also
+  run omits it, and the live tab raises a dismissible amber warning ("finished but not
+  saved - reloading loses it", `analyzeUnsavedWarning.ts`) whenever the response carries
+  `persistence: null`, i.e. `persistAnalysis` swallowed a `saveAnalysis` failure. There is
+  deliberately no retry-save endpoint: persisting a client-held payload would let a client
+  store an analysis and score the engine never produced. The editor is handed the `analysis` and renders its decision
+  brief inline (`app/_components/results/decisionBrief.ts`): the open trust
+  warnings (`trustLedger`: severity when coded, the legacy regex otherwise) as one
+  checkbox each, and the job-fit missing must-haves. **Advance** saves only once
+  every open warning is ticked; **Pass** on a strong read (trusted total at or
+  above `SCORE_STRONG_MIN`) asks for a reason first; Hold and clearing are never
+  gated. The door enforces the advance half: `PATCH /api/analyses/[slug]`
+  re-derives the warnings from the STORED payload and answers a transition to
+  advance that does not acknowledge each one with a coded 409
+  `DISPOSITION_ACK_REQUIRED` (`pending` lists them; the row is untouched, and the
+  editor rolls its optimistic pick back to the stored value). The gate's read and
+  the write are a compare-and-swap (`setAnalysisDispositionGuarded`): the UPDATE
+  re-asserts the disposition and payload the gate was derived from, and a row
+  another save moved in between is re-read and re-decided rather than overwritten,
+  so an un-acknowledged advance cannot land over a hold that arrived since. Re-saving the
+  stored disposition (a note edit, the keepalive unmount flush) is never gated,
+  so a decision recorded before the gate is never locked; every PATCH body the
+  editor sends carries `acknowledged`. An advance or pass stores
+  `analyses.decision_basis` (JSON `{score, openWarns, acknowledged, decidedAt}`,
+  NULL on hold/clear and on older decisions), and the `disposition_set` pipeline
+  event reads `advance — 2 flags acknowledged — <note>`. Keyless runs behave the
+  same: the brief is read from the saved payload, not a model.
+  A persisted live result also shows `ReportActions`; Copy link
+  points to its stable `/history/<slug>` URL rather than the Analyze workspace
+  URL. The saved report keeps those actions in its own header. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
   `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
   mount and on `hashchange`. So a recruiter can send a colleague the salary read of
@@ -79,11 +187,65 @@ career-switcher) that other features key off. Downstream ranking is
   single-CV analysis) falls through to the default rather than painting a blank
   panel. `initialTab` is the server-side half for a caller that already knows the
   tab; a fragment in the URL wins over it.
+- **Interview kit copy** — the report's Interview tab copies its summary,
+  questions, evidence gaps, and nonempty STAR prompts to the clipboard. It
+  confirms a successful copy and reports a blocked clipboard write in place.
+  When adding the kit to a candidate's interview prep pack, the same action
+  includes soft-signal probes that still need confirmation. A live report exposes
+  this action as soon as Add to pipeline returns the new entry ID; reopening the
+  saved report is unnecessary.
 - **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
   with the engine's own deterministic English check sentences, shown verbatim so a
   degraded run is not paraphrased. Each list is now headed by a localized
   `results.quality.engineNote` label (4 locales) that says which half is machine
   text; before it, a Czech reader had no way to tell.
+- **Trust findings, coded at birth** — every entry in the engine's trust ledger is
+  a `Finding` (`pipeline/jobfit/trust.py`): the sentence, plus a stable `code`
+  (`blind_redaction_partial`, `job_context_unreadable`, `score_section_missing`,
+  `insight_skipped`, `credential_missing`, …), a `severity` (`ok` / `warn` /
+  `blocker`) and a `scope` (`score`, `salary`, `identity`, `archetype`,
+  `authenticity`, `credential`, `input`, `insight`, `skills`) set by the producer
+  that knows them. A `Finding` is a `str`, so `sanityChecks` is byte-identical to
+  before; the structured half rides `trustFindings` on the analysis (nullish in
+  `schemas.generated.ts`). The TS readers in `app/_lib/sanity-checks.ts`
+  (`trustLedger`, `trustWarnCount`, `authenticityBand`, `scoreBlocked`,
+  `trustedScoreTotal`) go by severity/scope and use the old prose regex ONLY for
+  payloads saved before the field — so the quality strip, `review_flags`
+  (`analyze-run.ts`) and the provenance dossier now count a blind-screening
+  redaction miss and an unreadable structured job as warnings (the regex read
+  both as passes). A `score`-scope blocker (the score section was missing and the
+  components defaulted to 0) renders the verdict banner unscored and stores
+  `analyses.score` as NULL, never as a measured 0. Prompt-injection flags are
+  scoped `input`, so they never move the authenticity band. The cache
+  `PROMPT_VERSION` moved to v7 so a pre-coding cached payload is not served.
+- **The reasons guarantee for an analysis (key goal 4)** — an analysis's
+  `explanation` counts as a reasons block only when the model wrote it. When the
+  model returns none, `pipeline.py` substitutes `_explanation_fallback` (a template
+  over score, strengths and gaps) and emits a coded `explanation_fallback` finding
+  (`warn`, scope `insight`; the seeder marks the same way). When the score was not
+  computed (`score_section_missing`) the template says "Score not computed" and
+  quotes no number. Three seams hold it: `analyze-run.ts` refuses a blank or
+  whitespace explanation as the generic 502 contract failure (not cached, not
+  persisted, not debited; a cached payload with a blank one is a miss);
+  `analysisSchema` is deliberately NOT tightened, so legacy rows still read; and
+  `npm run kpi:reasons` (`hasFallbackExplanation` in `reasons-coverage.ts`) counts a
+  fallback-marked explanation as a named miss unless a `jobFit.summary` stands behind
+  it, per source arm.
+- **Model prose is checked against the CV (council value-1)** — `pipeline.py` runs the
+  taxonomy over the top-level strengths and the explanation. A strengths line naming a
+  specific technology the CV does not evidence is withheld with a coded
+  `strengths_withheld` finding; the explanation keeps its text and carries
+  `explanation_unverified_skill` (listing the skills, minus any the model itself named as
+  a gap). `reasons-coverage.ts` counts that explanation as a named miss like a fallback,
+  and the Extraction tab shows a marker under "Why this score". Only named technologies
+  are judged; generic nouns and skills the taxonomy does not model are not. The codes are
+  pinned to the TS constants by `test_unverified_skill_prose.py`.
+- **Engine stderr never reaches the recruiter (council craft-1)** — `analyze-run.ts` carries
+  the engine's code (`invalid_input` / `not_found` / `engine_error` / `timeout`) on each failed
+  variant and answers with an `errors.<CODE>` key (`ENGINE_TIMEOUT`, else `ENGINE_FAILED`): the
+  task row's error and every `partialFailures` note hold a code and empty text, and the raw
+  stderr (paths, tracebacks, `KP_*` names) goes only to the server log. The analyze tab resolves
+  the code through the errors catalog (`partialFailureLine`).
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out
@@ -93,9 +255,13 @@ career-switcher) that other features key off. Downstream ranking is
   releases the numbers only for `verified`/`stale`. The muted body block under the
   badge belongs to `incomplete` alone (it states the credential was issued without a
   scored summary, which is true only there); `revoked`/`tampered`/`unverifiable`
-  render the badge with no body, because that sentence would be a false claim about
-  what kp issued. Per-state body copy is a follow-up — it needs new keys in all four
-  locale catalogs.
+  render distinct explanatory body copy, because the incomplete sentence would be
+  a false claim about what kp issued.
+  The issued date, including the date in stale-state explanations, uses the
+  reader's locale instead of a raw ISO day.
+  Capability axes use the existing `devcase.dimension` labels in the reader's
+  locale, with the signed axis name as a fallback for older credentials.
+  The public card offers a print/PDF action; its controls disappear from print.
   Since /perfect wave 20 the card matches its sibling doors in three further ways:
   it carries a **`LanguageSwitcher`** (it is shared with employers and reached from
   a link, so the reader's language is whatever the link carried, and this was the
@@ -111,6 +277,16 @@ career-switcher) that other features key off. Downstream ranking is
   is unaffected. Pinned by `app/api/rate-limit-contract.test.ts`, and swept by
   `e2e/token-doors-axe.spec.ts` when the database holds an evaluated submission to
   mint a credential from.
+- **Both token doors are composition-kit letters** (promoted at Gate 2 of the
+  kit-unification spark, 2026-09-25; `Letter`, `LetterHead`, `Outcome`, `ScoreList` in
+  `app/_components/kit/`). `OfferClient` owns the offer door's STATE only (the load, the
+  revalidation, the in-flight guard, the 410 → expired rule, the decline confirm step) and renders
+  `app/offer/[token]/kit/OfferKitView.tsx`, which owns none. The credential's server page resolves
+  every fact it shows into a plain `SkillKitCard` and renders `app/skill/[token]/kit/SkillKitView.tsx`
+  (a client component, server-rendered, never refetching): the server HTML is the whole card, so it
+  prints without JavaScript; the public bar (Print, language) is print-hidden and the letter drops
+  its elevation in print (`doc.css`). The data → parts mappings are pinned by
+  `offerKitModel.test.ts` and `skillKitModel.test.ts`.
 
 ## Flows
 
@@ -125,18 +301,33 @@ per-skill provenance**, and archetype signals (`is_enrolled`,
 and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
 render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
 
-**CV intake takes a batch, and says what it refused.** The CV column advertises
-up to `MAX_CV_VARIANTS` ("Add variant (1/3)", the best-of-N comparison), so its
-pickers carry `multiple` and its empty drop zone reads the whole
-`dataTransfer.files` list — `AnalyzeProfileInput.addFiles` is the one cap/gate
-choke point they all pass through (`useAnalyzeFileAccept`), it stops at the first
-rejection so the gate's inline message survives, and a batch past the cap ends on
-the same `variantLimitReject` row a single over-cap drop shows. Still single-file:
-the window-level "drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`, which
-routes `dataTransfer.files[0]`) and the JD/company zones, which hold one file by
-design. The saved-JD picker distinguishes an empty library from a failed load —
+**One intake router, and every refused file is named.** Where a file goes is
+decided by a pure plan, not by which DOM node caught the event. Each zone declares
+an id from `DROP_ZONES` (`cv` | `jd` | `company`) on `data-file-dropzone`
+(`dropZoneProps`); `AnalyzeForm` hosts the ONE window drop listener
+(`useAnalyzeGlobalFileDrag`, whose depth comes from `analyzeDragCounter`), which
+calls `resolveDropZone(event.target)` (bare page space → `page`, filed as CV) and
+`planDrop(zone, files, snapshot)` in `analyzeDropRouting.ts`. The plan runs
+`acceptUpload` per file (a rejection no longer stops the batch), fills the CV
+column up to `MAX_CV_VARIANTS`, treats JD and company as single slots — a drop on
+an attached card replaces it, a second file is refused as `single-slot` — and
+returns `{cv, jd, company, refused[]}`. `useAnalyzeIntake`
+(`useAnalyzeFileAccept.ts`) applies it through the form's setters (a JD file still
+detaches the saved-JD slug; everything writes through to the attachment store), and
+every picker, the sample CV, a pasted CV and the per-row Replace plan through the
+same seam, so a click and a drop cannot diverge. Refusals render once, below the
+columns, as `analyze.dropRefused` ("{name} was not added. {reason}"), the reason
+resolved from a code (`errors.UPLOAD_*`, `variantLimitReject`, `dropSingleSlot`).
+Zones keep only the counted highlight. The CV hook still owns the content dedupe
+and the race-safe cap re-check after its hash await. `AnalyzeFileDropZone` has a
+standalone mode (`onFileChange`, planned by `planSingleSlot`) for the `/me` profile
+import, where no router listens. Pinned by `analyzeDropRouting.test.ts` and
+`analyzeFileIntakeGate.test.ts`. The saved-JD picker distinguishes an empty library from a failed load —
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
+
+Paste CV text is another variant entry: it becomes a `pasted-cv.txt` File and
+passes the same extension, size, cap, and content-dedupe gates as uploads.
 
 **And the library itself reports its own load.** `useAnalyzeJdLibrary` answers a
 `jdLibraryState` of `loading` / `ready` / `failed` (the closed vocabulary in
@@ -162,10 +353,39 @@ can hold anything another tab or an older build left behind, so a non-string
 field is dropped rather than pushed into a controlled `<textarea>` (a corrupted
 `github` never costs the recruiter their JD), an all-empty draft removes the key
 instead of writing a hollow one, and a restore only fills a field still empty so
-a saved-JD pick always beats a stale draft. `blind` and `reportLang` ride the
+a saved-JD pick always beats a stale draft. `jdSlug` and `jdEdited` also ride the
+draft codec: `restoreJdSource` restores whether the draft was linked to a saved JD
+and whether it was edited. In the form itself (`useAnalyzeForm.ts`), a unified reducer
+over `AnalyzeJdSource` (`analyzeJdSource.ts`: `none` | `typed` | `file` | `saved`)
+ensures role linkage survives text edits, file attaches detach cleanly, and
+clearing/reverting are first-class actions. `blind` and `reportLang` ride the
 same codec (`reportLang` validated with `isLocale`); they restore only when
 still at the mount default, so a configured run survives the workspace tab
 unmount the draft was built for.
+
+**Leaving the tab does not cost the report or the uploads.** The workspace
+unmounts the Analyze tab on every sidebar switch and on every New/History peek,
+so the surface declares four restore layers, each with a key, a lifetime and an
+invalidation (`analyzeSession.ts` holds the table). The *run* layer is the task
+id (`kp.analyzeTaskId`), re-attached on mount. The *result* layer is the landed
+analysis's saved-row slug (`kp.analyzeLastResult`, no PII): `onResult` stores it,
+and a remount with no running task rebuilds the live report from
+`GET /api/analyses/[slug]` through `liveAnalysisFromSavedRow`, which validates the
+payload with `analysisSchema`, rebuilds the `persistence` receipt from the row's
+columns (so Add-to-pipeline stays live instead of falling to "unsaved"), and hands
+the row's persisted GitHub deep-dive to the same `applyGithubDeepDive` a live run
+uses. A running task outranks it (`decideAnalyzeRestore`). A 404 (a deleted row,
+or one from another workspace) or a payload that fails the schema drops the crumb
+and the form starts empty. There is no half-restored panel. A 5xx keeps the crumb
+for the next visit. A reset or a new submit clears it, and an unsaved result never
+sets it. The restored report says so with a one-line note and a Start new action
+that resets. The *draft* layer is the typed text above. The *attachments* layer
+(CV variants, the JD file, the company file) lives in module memory only,
+`analyzeAttachmentStore.ts`: the form writes through on every change and the next
+mount starts from it. It is never serialized and never touches browser storage,
+because CV bytes are candidate PII, so a reload ends it. Reset clears it.
+`analyzeSession.test.ts` and `analyzeAttachmentStore.test.ts` pin both halves,
+including a source guard that keeps storage APIs out of the store.
 
 **The drop highlight is counted, and the zones announce themselves.** A zone is a
 `<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
@@ -173,12 +393,13 @@ for each of them — so `useDropZoneHighlight`'s old boolean flipped off the mom
 the cursor crossed onto the zone's own icon, strobing "will not accept" at a user
 still squarely inside the target. It now keeps a depth through
 `analyzeDragCounter.ts` (`enter` +1, `leave` −1 clamped at zero, `drop`/`dragend`
-terminal resets — `dragover` deliberately not counted), matching what
-`useAnalyzeGlobalFileDrag` already did window-wide. For assistive tech both zones
+terminal resets — `dragover` deliberately not counted), the same arithmetic
+the window listener in `useAnalyzeGlobalFileDrag` now uses. For assistive tech both zones
 carry `role="button"` plus `aria-describedby` on the localized `uploadHint`, with
 the file input named explicitly (an element with an explicit role stops labelling
 its input); the full-window drop-anywhere scrim stays `aria-hidden` and the fact
-it conveys is announced through an always-mounted polite live region instead.
+it conveys is announced through an always-mounted polite live region instead,
+both rendered once by `AnalyzeForm`.
 
 **The poll is cheap when nothing is happening, and honest when it fails.**
 `watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
@@ -190,6 +411,8 @@ task is server-side and survives a refresh, so nothing is lost). The whole
 contract is pinned by `AnalyzeApi.test.ts` against a fetch double: terminal 404,
 the ten-soft-failure ceiling shared by all three soft branches, phases forwarded
 verbatim, abort, the visibility park, and the backoff curve.
+The same abort signal now reaches the initial `/api/analyze` upload. Cancel during
+that request stops the transfer before a task id exists to cancel server-side.
 Two silences also went: a cancel the server refuses now says the task may still
 be running (`analyze.cancelFailed`) instead of leaving an idle form beside a live
 Python child, and a failed `/api/health` probe says `analyze.engineStatusUnknown`
@@ -213,6 +436,29 @@ form footer puts the run-CONFIGURING controls (report language, blind screening)
 before the Analyze button in DOM order, and what blind mode redacts is the
 checkbox's visible hint rather than a `title` attribute. Pinned by
 `analyzeDesignSurface.test.ts`.
+
+**The footer preflights what the engine can read.** A scanned CV (an image-only
+PDF) extracts to empty text without raising, and in blind mode the engine then
+refuses (`pipeline.py` halts, `gemini.py` raises `blind_unavailable`) — a refusal
+the recruiter used to meet only after the upload, and which in a multi-CV compare
+dropped the variant after the other engine calls had spent. Each attached CV and
+JD file is now measured once when it is attached: `.txt`/`.md` locally, PDF/DOCX
+through `/api/extract-text` (whose `charCount`/`pageCount` this is the first
+reader of), cached per session by `cvVariantHash`. `AnalyzeReadabilityStrip`
+shows one row per file — pages and characters, **thin** under the engine's own
+120-character bar, **no text layer**, unreadable, or not checked. The rules live
+in `analyzeCvReadability.ts` (`preflightVerdict`) and follow fail-closed on an
+unmaskable document: **blind + a CV with no text (or one the extractor refuses)
+disables Analyze** with the reason and two remedies (*Run without blind
+screening*, *Remove* that CV); while a check is still pending a blind run waits
+for it. Without blind a scan is an amber note (the model reads the raw file
+itself); a rate-limited, timed-out or offline check (`unchecked`) never blocks —
+the engine's server-side refusal stays behind the preflight as the enforcement.
+An empty JD **file** is named too, louder when pasted JD text is also present,
+because `analyze-run.ts` passes the file in preference to the text. Cost: one
+extractor spawn per distinct PDF/DOCX (the door's 20/10 min per-IP limit
+answering 429 reads as `unchecked`), and the pipeline extracts again at run time.
+Pinned by `analyzeCvReadability.test.ts`.
 
 **A refused upload answers a CODE, in the reader's language.** The document gate
 (`app/_lib/upload-constraints.ts`) returns `UPLOAD_UNSUPPORTED_TYPE` /
@@ -249,6 +495,11 @@ and a DOCX body is declared UTF-8). Known limit: a Czech document with none of
 `Š/š/Ž/ž/Ť/ť` is read as cp1252 and its carons come out as Western grave accents —
 visible mis-mapping instead of silent deletion. Pinned by
 `pipeline/jobfit/tests/test_extractors.py::PlainTextDecodingTest`.
+
+The deterministic authenticity screen also recognizes common Czech CV padding
+phrases (for example, “týmový hráč” and “orientovaný na výsledky”). Its existing
+density threshold still requires several hits; a concrete Czech career summary
+remains clean. `test_authenticity.py` pins both cases.
 
 **Blind screening reads a real CV header, not just "Firstname Lastname".**
 `pipeline/jobfit/redact.py::_guess_name_line` scans the first 8 lines for a 2-4
@@ -351,19 +602,64 @@ items (`metric`), the bullets section pick and the merged-bullet ordering all re
 the same cohort axis, so every figure the compare report quotes is one the ranking
 actually used. Pinned by `comparison.test.ts`.
 
-**Cancelling the CV scan does not discard a GitHub deep-dive that already
-landed.** The deep-dive (`executeGithubAnalysis`) is a parallel client-side run
-that routinely finishes well before the CV pipeline, and `AnalyzeTab.tsx` renders
-its panel only while `githubStatus !== "idle"`. `cancel()`
-(`useAnalyzeForm.ts`) supersedes the in-flight deep-dive by bumping
-`githubRunIdRef` — a superseded run's callbacks never fire, so a status left on
-`"loading"` would stick and keep the Analyze button disabled — but it clears the
-status through `githubStatusAfterCancel` (`analyzeGithubRunPolicy.ts`), which
-maps `"loading" → "idle"` and leaves a landed `"done"`/`"error"` untouched.
-Cancel halts the CV scan; `reset()` is the action that clears everything
-(including `githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
+**A CV run's GitHub deep-dive is a stage of the analyze task, not a browser
+request beside it.** When the form carries a handle, `submitAnalysis` sends it as a
+`githubProfile` field and `runAnalyze` (`app/_lib/analyze-run.ts`) starts the
+deep-dive beside the CV variants through `runGithubStage`
+(`app/_lib/analyze-github-stage.ts`). The stage attaches a delivered deep-dive to
+the saved row itself (`setAnalysisGithub`, once the CV half has persisted) and
+returns its outcome on the task result as `githubDeepDive`
+(`{ status: "done" | "error" | "skipped", analysis?, code?, retryAfterSec?, warning? }`,
+nullish in `analysisSchema`). So switching tab, closing it or refreshing mid-run no
+longer loses a deep-dive that was already paid for: the Tasks indicator covers the
+whole run, the History row always carries it, and a resumed run reads it off the
+stored result. The stage follows the rules of `/api/github-analysis`: the same
+handle grammar, the 20 000-character JD budget (`JD_TOO_LONG`), the TTL cache (a
+transiently-degraded read is never cached), and the same coded failures. A
+file-only JD is read through `pipeline.jobfit.extract_cli` on the persisted path,
+and an unreadable one is reported as `githubJdDropped`. The stage never throws, and
+it is awaited only after the CV half has persisted and debited, so a deep-dive
+failure can neither fail nor re-bill the CV run.
+
+- **Blind mode is enforced on the server.** A blind run never forwards the handle
+  (not even onto the task row), and both `runAnalyze` and `runGithubStage` answer
+  `skipped` for any params that carry one anyway. The client predicate
+  (`shouldRunGithubDeepDive`) now only decides what the form shows.
+- **The door's guards come along.** `/api/analyze` reads `can("pipeline:write")` and
+  charges the same `github-analysis:<ip>` bucket (10 per 10 minutes) as the door.
+  Neither guard refuses the CV run. The handle is dropped with
+  `FORBIDDEN_CAPABILITY` or `REQUEST_THROTTLED`, and the panel shows that code.
+  Pinned by `app/api/rate-limit-contract.test.ts`.
+- **Wiring.** `analyze-run.ts` is on the task hub's import graph, so it looks the
+  stage up in the late-bound runner registry (`task-external-runners.ts`) rather
+  than importing it. `/api/analyze` registers it when the module loads. A run that
+  is replayed after a restart, before that route has been hit, finds no runner and
+  reports `ANALYSIS_FAILED`, which the panel offers to retry.
+- **What still uses the door.** A GitHub-only run (no CV, so no task) and the
+  panel's Retry run through `executeGithubAnalysis` and `/api/github-analysis`. A
+  Retry's result is attached to the saved row by the form's PATCH effect, which
+  skips a slug the task already wrote.
+
+Pinned by `app/_lib/analyze-github-stage.test.ts`, the deep-dive cases in
+`app/_lib/analyze-run.test.ts` and `app/features/tools/analyze/AnalyzeApi.test.ts`.
+
+**Cancelling the CV scan does not discard a deep-dive the panel already shows.**
+A CV run's deep-dive ends with the task, so cancelling the scan cancels it too, and
+its `"loading"` panel returns to `"idle"`. A failed run does the same. A deep-dive
+from the panel's Retry is still a browser run: `cancel()` (`useAnalyzeForm.ts`)
+supersedes it by bumping `githubRunIdRef` and clears the status through
+`githubStatusAfterCancel` (`analyzeGithubRunPolicy.ts`), which maps
+`"loading" → "idle"` and leaves a landed `"done"`/`"error"` untouched. Cancel halts
+the CV scan; `reset()` is the action that clears everything (including
+`githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
 
 ### 2. Conversational / quick apply
+The public conversational apply page shows a short excerpt of the opening's
+description, plus its location when present, before the chat.
+The excerpt comes from the same server-loaded job record that builds the chat
+script, is capped at 280 characters, and renders as plain text. Roles without
+those details still start directly with the chat.
+
 Conversational apply asks 4 universal questions (name, most relevant recent
 experience, skills, "which best describes you" archetype pick), then branches:
 students get project/thesis + education + aspirations questions, switchers get
@@ -381,6 +677,20 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 `app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
 `company_url` honeypot (not `type="hidden"`) and POST it on submit so a
 form-filling bot is dropped the same way on the chat as on the lead form.
+The conversational POST checks the honeypot before its knockout audit or
+pipeline writes and returns the ordinary decline shape for a filled field.
+For ad links, the conversational door reads `c`/`v` (or the UTM aliases),
+records them on its funnel session, and stores capped campaign/variant labels on
+the accepted pipeline entry, matching the quick-apply door.
+The experience answer extracts a whole-year count from English, Czech, German,
+and French unit words; sub-year amounts and bare dates stay unparsed.
+When a role declares no languages, the conversational applicant profile uses
+the request locale as its language fallback instead of assuming Czech and English
+for every visitor. A role's explicit language list still takes precedence.
+After a quick-apply decline, the done card lets the candidate return to their
+preserved answers and submit a corrected response.
+An accepted lead can copy the status link from the same card; the copied URL
+includes `?lang=` so it opens in the language they used to apply.
 Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
@@ -454,13 +764,94 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
   never sees them, and `POST /api/apply/[id]/followup` 404s.
 - **The landing column comes from the axis.** Every inbound surface files at
   `stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted"` —
-  conversational apply, quick apply (`lead-intake.ts`) and CV intake
-  (`cv-intake.ts`) alike. A hardcoded stage name strands applicants on
-  `PipelineBoardOffAxisStrip` as soon as a team renames its first column.
+  written once, in the filing core below, which the conversational apply, quick
+  apply / lead webhooks (`lead-intake.ts`) and CV intake all file through. A
+  hardcoded stage name strands applicants off the board's axis (the pipeline
+  Sieve's retired-column layer) as soon as a team renames its first column.
+
+**The application-filing core** (`app/_lib/application-filing.ts`,
+`fileApplication`) is the one place a door turns an applicant into an entry:
+tenant, name sanitisation, identity *before* any profile build (the token's
+entry, else the email, else the provided name, else nothing), a profile build
+that always carries the workspace and locale, the entry column, consent, the
+best-effort status-link mint (`safeStatusToken`) and the acknowledgement (its
+links minted synchronously, its dispatch deferrable through the door's
+`defer(task, kind)`). All four doors file through it; each keeps only its
+validation, its knockout verdict, its copy and its decline mode. The door
+states a `proof`:
+
+| Proof | Door | A repeat may |
+| --- | --- | --- |
+| `token` | conversational apply with a valid `?lead=` token for this job | the **proven merge**: fill-only contact and GitHub handle (re-acking a newly-reachable entry with its status link), and a profile **rebuild** into the entry's own profile id when the repeat carries a CV or the entry is a degraded stub. A failed rebuild moves nothing. The only proof that rebuilds |
+| `channel` | lead core (lead webhooks; the quick form when the typed address is already on file), CV intake | backfill a missing contact, refresh consent, record `re_applied`; never rebuild or re-point the profile |
+| `none` | conversational apply without a token; the quick form when the typed address is not on file | nothing — the door answers tokenless and link recovery re-sends to the address on file |
+
+The quick form is as public as the conversational door. With no address on file its
+only possible match is a contactless entry found by **name**, and backfilling there
+made the caller the applicant's contact of record and mailed them the entry's status
+link (pinned in `reapply-capability-gate.test.ts`). A contactless applicant becomes
+reachable through the emailed token walk or a recruiter, never by a typed name.
+
+**The entry id carries nothing about the applicant.** A filing's identity is
+`applicantKey(name, email)` (`app/_lib/applicant-key.ts`, server-only): a
+domain-separated sha256 of the normalized email, else of the provided name, and
+`""` for an anonymous, address-less applicant (who never dedupes). It is stored in
+`pipeline_entries.applicant_key` behind a partial UNIQUE index on
+`(workspace_id, job_id, applicant_key)`, and the entry itself gets an opaque
+surrogate id (`m-appl-<random>-<job>`). Before, the email was written in clear into
+the primary key (`m-appl-jane-example-com-<job>`), which is the ATS subject
+reference, the decision chain's `candidateRef` and the name in every log line.
+`createPipelineEntry` looks the key up inside its IMMEDIATE transaction and treats a
+UNIQUE violation as the winner of a race (the `db/tasks.ts` shape). Erasure NULLs
+the key, and `findApplicationByApplicant` skips anonymized rows, so **an erased
+applicant who applies again is a new applicant**: the scrubbed row is never
+re-activated, backfilled, re-acknowledged or re-consented (it used to be, because the
+re-application regenerated the same email-derived id). Recruiter/Match adds keep
+their `m-<candidateId>-<job>` ids. Legacy rows keep their ids (the sealed chain
+references them) and are still found by contact. Pinned by
+`app/_lib/applicant-key.test.ts` and `app/_lib/application-filing-erasure.test.ts`.
+
+The applicant-key backstop catching a concurrent first filing is the same
+applicant by construction, so a raced `none` writes like `channel` (and the
+conversational door keeps returning its status token there). The lead core
+files a profile-less `stub` (intake-degraded, its coded `leadPending*` reason)
+and mints its enrichment token in the `onEntry` hook so its ack can carry it;
+the conversational door keeps its `re_applied` prose through `repeatDetail`.
+Moving the CV door in closed three defects: the profile was saved into the
+default workspace while the entry went to the webhook's team; a repeat CV built
+and saved a profile before the dedupe returned the existing row (an orphan
+profile); and a nameless, email-less CV deduped on the `"Applicant"` label,
+merging strangers. Pinned by `app/_lib/application-filing.test.ts` (injected
+profile builder, no Python; includes a source guard that every door files
+through the core and that the entry-stage rule, the consent block and the
+status-link mint exist once) and, over the real handler for a job owned by a
+non-default team, `app/api/apply/[id]/filing-core-door.test.ts`.
 - **Input caps precede the knockout audit.** A KO fail creates no entry but does
   persist an entry-less `ko_declined` event carrying the applicant's display
   name, and `pipeline_events` bounds the event *detail*, not the label — so the
   name cap runs above the gate on both routes.
+- **The knockout decline is automatic, and says so.** A "no" to a stated must-have
+  (`ko_auth` / `ko_mode` / `ko_lang`) ends the application with no person in front of
+  it — the owner's decision is to keep that, and to tell the candidate. Both doors
+  answer the decline with the fixed `declinedMessage` PLUS the failed must-have(s) as
+  data: `failedKo` (the step ids) and `failedKoNames` (their short names in the
+  applicant's locale, `koMustHaveNames` in `app/_lib/apply.ts` — a name, never the
+  question), and `reviewByEmail` (an address is in hand AND a relay is configured).
+  The shared `ApplyDeclineDetail` renders them on both decline screens with the
+  automatic-decision note and the review route; with `reviewByEmail` false it says the
+  email could not be sent and points at the hiring team, because the server can vouch for
+  handing a message to a relay, never for its delivery. Whenever an address is in hand
+  (the quick door always; the conversational door when its `email` answer is valid) the
+  decline email — `dispatchKnockoutDecline`, no longer gated on `notifyDecline` — is
+  sent after the response, names the must-have(s) and says a reply reaches a person who
+  will review (the `status.decisions.humanReviewNote` promise). No relay = the outbox
+  row only, like every other comm. `recordKnockoutDecline`'s `ko_declined` event is
+  unchanged: entry-less, no address, classed `auto`. Pinned by
+  `app/api/apply/[id]/ko-decline-door.test.ts`.
+- **A quick-apply repeat renews nothing.** The form is public, so even a typed address
+  that is on file proves nothing: the door passes proof `none`, the candidate gets the
+  "already applied" answer and the address ON FILE gets its links back, but consent,
+  retention and the `re_applied` trail are untouched (`reapply-capability-gate.test.ts`).
 
 **A duplicate response carries no capability token** (pinned by
 `app/api/apply/apply-error-hygiene.test.ts`). Both surfaces detect a repeat from
@@ -474,7 +865,7 @@ person's name and email prefilled, and authorize `POST
 /api/apply/[id]/followup`) — so anyone who knew a real applicant's name could
 harvest their capability links. The tokens now ride only when the caller
 *proved* ownership: a valid `?lead=` token resolving to this entry (the emailed
-enrichment walk — unchanged), or the `dedupeKey` race where this very request
+enrichment walk — unchanged), or the `applicantKey` race where this very request
 created the row. The `duplicate` flag itself stays; a returning candidate is
 still told honestly that they already applied, and their links reach them
 through the address on file. `leadToken` on the quick-apply duplicate branch was
@@ -493,8 +884,34 @@ capability token resolving to this entry. Without it the response is the same
 tokenless "you already applied" acknowledgement and **no column of the original
 entry moves**; the funnel back-link (`linkApplySession`) still runs because it
 writes to `apply_sessions` under the caller's own attempt id, never to the entry.
-A returning applicant who lost their link is not stranded — the enrichment link
-is re-sent to the address on file, the one channel that can be authenticated.
+
+**A returning applicant who lost their link is not stranded: link recovery**
+(`app/_lib/apply-link-recovery.ts`, driven by the same
+`reapply-capability-gate.test.ts`). On both doors an unproven duplicate
+re-sends the matched entry's **own** status link and `?lead=` update link to the
+contact **already on the entry**, never to the address the request typed. The
+send goes through `dispatchApplicationLinks` (`comms-dispatch.ts`) after the
+response. Its guarantees:
+
+- **Nothing on the wire.** The response carries no token, and its copy
+  (`apply.alreadyMessageRecover`, or `apply.alreadyMessageNoRelay` when no relay
+  is configured) is chosen by `recoveryMessageKey(relayConfigured)`, which never
+  reads whether an address is on file. So the answer cannot be used to probe for
+  one. The old `alreadyMessage` ("we've noted your renewed interest") is now used
+  only on the proven paths that record a `re_applied` event.
+- **One per entry per 24h.** The cooldown is the persisted `login-throttle` table,
+  keyed `apply-links:<entryId>` and claimed with its atomic UPSERT, so racing
+  workers cannot double-send. The per-IP `rateLimit()` on each door still runs
+  first. A griefer can cause at most one email a day, sent to the real candidate
+  and carrying only that candidate's links.
+- **No entry write beyond the token mint.** No pipeline event, no consent refresh.
+  The Outbox row is the audit. `ensureLeadEnrichToken` mints a lead token if the
+  entry had none (fill-only, the same capability the emailed walk uses).
+- **Skipped, with no row at all,** for a contactless entry (no refused `failed`
+  row is minted) or an anonymized entry.
+- **Quick door:** recovery runs only when the address was on file *before*
+  `intakeLead`. A contactless entry matched by name is an unproven repeat
+  (proof `none`): nothing is backfilled and nothing is sent, to either address.
 
 **Every refusal on all four apply doors carries a code.** The two submissions were
 moved onto `REFUSAL_ERRORS` earlier; the last bodied message on them was the
@@ -572,6 +989,31 @@ an id (it writes nothing). `profileEditorContracts.test.ts` pins that decision
 (and the deep-link precedence below) at the source level, proved non-vacuous
 against a mutated copy of each hook.
 
+**Readiness is live; the save confirms it.** The routing chip, the "Routing: …"
+line, the completeness meter and the clickable "Add next" gaps render from the
+first keystroke, evaluated in the browser by `profileReadiness.ts`
+(`readiness(form, archetypes)`) — no request. They used to appear only after a
+"Check (preview)" POST, which spawned `profile_cli` and spent the shared
+`profile-save` rate-limit budget; the editor no longer sends one (the route still
+accepts `persist:false`). The port reads the form through `buildProfilePayload`, the
+save's own visibility rule, so a years value retained under Student is invisible to
+it exactly as it is to the save. It reads `detection` and `commonChecklist` from the
+static `archetypes.json` import (neither is UI-editable) but the archetype ids and
+per-archetype checklists from the LIVE `archetypes` prop, because `createArchetype`
+rewrites the file at runtime and a client import is frozen at build — a custom
+archetype chosen as Who routes self-declared with its own (empty) checklist, as
+`profile_cli` would. Drift between the two engines is a red gate, not a risk:
+`pipeline/jobfit/tests/profile_readiness_cases.json` (18 request bodies with
+`profile_cli`'s answers — contradictions, a declaration-order tie, a half-even
+rounding, custom archetypes, an unknown check id failing closed) is asserted by
+`test_profile_readiness_parity.py` through `profile_cli.main` and by
+`profileReadiness.test.ts` through the port, which also pins the `CHECKS` key set
+read from `profile.py` and the signals object against `useProfileEditorSubmit`'s.
+The server stays the authority: after a save the panel shows the saved result
+(receipt, "Match now") for as long as the form still equals what was saved, and
+the live view — flagged "live preview · confirmed on save" — otherwise.
+Completeness gates nothing; Save stays enabled.
+
 **An AI draft merges; it no longer replaces.** Running "Draft with AI" inside the
 open editor used to set every field from the draft, so a recruiter who had typed
 half the intake first lost it with no diff, no confirm and no undo — while the
@@ -607,6 +1049,9 @@ every accepted save spawns `profile_cli` and writes a row, and the route is not
 operator-gated, so open mode left it an unbounded process-spawn endpoint. All five
 handlers across `route.ts` + `candidates/route.ts` answer `PROFILE_*_FAILED` codes
 rather than the thrown message (the temp workdir path, `PYTHON_CMD`, `SQLITE_*`).
+The POST/PUT child-failure branches keep the CLI status but log its stderr on the
+server and return `PROFILE_BUILD_FAILED` / `PROFILE_UPDATE_FAILED`; raw validation
+or traceback text never reaches the editor.
 
 **A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
 row's content-write stamp) beside the payload; the editor sends it back as
@@ -621,10 +1066,42 @@ successful PUT returns the row's new `updatedAt` so the stay-open save loop keep
 working; `ProfileTab` keys the editor on `mode:id:nonce` so re-opening the SAME
 profile after a refusal genuinely remounts on the fresh payload.
 
-**An abandoned intake survives Back and refresh.** The editor backs its form up to
-`sessionStorage` per profile id (`kp.profileEditor.<id|new>`), restores it after
-mount, and drops it on save or cancel. Every access is wrapped — a private window
-or a full quota costs the safety net, never the edit.
+**One profile per CV.** A `POST /api/profile` that persists a build FROM an
+analysis (`sourceAnalysisSlug`) resolves that analysis's CV hash server-side; when
+the workspace already holds a profile with the same `source_cv_hash`, the route
+answers `jsonRefusal("PROFILE_EXISTS", 409, { id })` with the existing profile's id
+and writes nothing. The check runs before the `profile_cli` spawn (a refused build
+costs no child), and `saveProfileForCv` repeats it inside an IMMEDIATE transaction
+with the INSERT, so two builds of the same CV racing across the spawn cannot both
+land. The join is workspace-scoped (`findProfileIdBySourceCvHash(hash, ws)`), a
+dry-run preview (`persist:false`) is never refused, and a build with no resolvable
+hash (a hand-built profile, a pre-`cv_hash` analysis) behaves exactly as before.
+The editor and the analysis report's "save as profile" banner both render the
+refusal in the reader's language through `useErrorMessage`.
+
+**An abandoned intake survives a refresh — and never overwrites newer work.** The
+editor backs its form up to `sessionStorage`, one slot per editing identity
+(`profileEditorBackup.backupSlot`: `kp.profileEditor.<id|new>`, plus `@<analysis slug>`
+when the editor was opened from a CV analysis — so a build-from-analysis never shares
+the blank-create slot and a rebuild never shares the plain-edit slot). The slot holds a
+versioned envelope `{v:2, baseVersion, savedAt, baseline, draft}`: the row's
+`updated_at` and the form as this session loaded it, beside the form as the recruiter
+left it. On the next open `planRestore` decides, three-way:
+
+| Plan | When | What the editor does |
+| --- | --- | --- |
+| `silent` | same version, same loaded form | restores the draft, as before |
+| `moved` | the row was saved since | recruiter-only edits apply, server-only changes stand; a field both sides changed differently is **contested** and keeps the saved value. The banner dates the backup and counts the contested fields; "Use my edits anyway" takes them, "Discard my unsaved edits" is the undo |
+| `offer` | a pre-envelope backup (no version) | nothing is applied; the banner offers "Restore my edits" |
+| `none` | absent, unreadable, or nothing was typed | the slot is dropped |
+
+This matters because the editor seeds `expectedUpdatedAt` from the FRESH load: a stale
+backup restored blind would pass `PROFILE_STALE` on the save and revert a colleague's
+version. While a restore is undecided (contested or offered fields) the slot is not
+rewritten, so a second refresh cannot silently delete the only copy. The slot is
+dropped on save, Back and the stale-reload action. Every access is wrapped — a private
+window or a full quota costs the safety net, never the edit. Pure planner + cases:
+`app/features/tools/profile/profileEditorBackup.ts` / `.test.ts`.
 
 The roster's per-column controls live in the pure `profileRosterView.ts`
 (filter/sort) — the name search folds diacritics and case (`foldForSearch`, the
@@ -633,17 +1110,92 @@ type `Č` on their keyboard still finds `Čapek`. `candidateMatrixView.ts` uses 
 same fold for the matrix's name filter; the two projections search one population,
 so a name findable in one and invisible in the other would be the bug.
 
-The roster's own load is cancelled, not just ignored: `GET /api/profile` carries an
-`AbortController` signal aborted on unmount and before a refetch, and an abort is
-never reported as a load failure. A delete prunes BOTH client maps — the rows and
-the `stale` sidecar keyed by profile id (`pruneStale`) — so a deleted profile's
-"Newer CV" state cannot outlive its row.
+The population load is cancelled, not just ignored: `useCandidatePopulation`'s one
+`GET /api/profile/candidates` carries an `AbortController` signal aborted on unmount,
+on pause (the editor opened) and before a refetch, and an abort is never reported as
+a load failure; each projection shows its own localized load failure. Staleness
+rides on the population row, so a delete that prunes the row takes its "Newer CV"
+state with it — no sidecar map can outlive it.
 
 Rebuild-from-latest (the roster's amber "Newer CV" action) is a CALLBACK into
 `ProfileTab`'s `openRebuild`, not a `?fromAnalysis=…&rebuild=…` URL push. The
 roster only ever renders inside the tab that owns the deep-link effect, and that
 effect is mount-only, so pushing those params navigated the tab to itself and the
 button did nothing.
+
+**A rebuild is a field-level merge that keeps the recruiter's edits.** The rebuild
+used to be a timestamp check (`profileDivergence`: `updated_at > lineage_stamped_at`)
+feeding a two-button dialog: keep the edits and lose the newer CV, or take the newer
+CV and lose every edit. `openRebuild` (`useProfileTabDeepLinks.ts`) now:
+
+1. reads the profile (`GET /api/profile?id=` also serves
+   `lineage: { sourceAnalysisSlug } | null`, the analysis it was built from, via
+   `profileSourceAnalysisSlug` in `app/_lib/db/profiles.ts`);
+2. if it was never edited since the build, hydrates from the newer analysis exactly as
+   before (no plan, no dialog);
+3. otherwise fetches the newer and the source analyses and plans with
+   `planRebuildFromPayloads` (`profileRebuildMerge.ts`, pure, pinned by
+   `profileRebuildMerge.test.ts`). Per field, through the editor's one payload→form
+   mapping (`formStateFrom`): untouched since the build → the newer CV; edited and
+   not changed by the newer CV → kept silently; edited **and** changed differently
+   → kept and **contested**. Re-minted row `_id`s never count as an edit (the
+   comparison is `mergeDraft`'s own).
+4. Nothing contested → the editor opens straight on the merge. Contested fields →
+   `ProfileTabRebuildWarnModal` renders `rebuildDialogModel(plan)`: the contested
+   fields by their editor labels, and **merge** (default), **keep my version** (a
+   plain edit; the newer CV is not applied and the profile stays stale) or **use
+   the newer CV for everything** (the old wholesale rebuild).
+
+The merged editor opens with the rebuild pending (`rebuildEditorState`), so the
+banner that serves the AI draft offers "use the newer CV anyway" for exactly the
+contested fields and an Undo back to the pre-rebuild form, in rebuild wording. The
+save is the same PUT as any rebuild: version-guarded and re-stamping lineage on the
+same row, so one profile per CV still holds. If the source analysis was deleted the
+plan cannot attribute anything (`mode: "unknown-baseline"`): it keeps every current
+value and contests every field that differs from the newer CV. Known gap: a profile
+edited only through fields `profile_cli` normalizes (the routed archetype) can show
+those fields as "edited"; they are preserved, never contested, unless the newer CV
+changes them too.
+
+**Refreshing every unedited stale profile at once, never an edited one.** Every
+re-analysis of a CV leaves one "Newer CV" profile behind, and for a profile nobody
+edited the per-row rebuild is ceremony (the editor opens on the newer analysis and
+waits for a Save). `ProfileRosterRefreshBar` sits above the roster table and speaks
+only when the list IN VIEW (the filtered set, every page) holds a stale profile:
+
+1. **Count first.** Each `profileStaleness` entry (`app/_lib/db/profiles.ts`) now
+   carries `edited`, the `profileDivergence` rule read in the same join
+   (`updated_at > lineage_stamped_at`), and `updatedAt`, the version a refresh
+   re-asserts. The single-query oracle in `profiles-staleness-equivalence.test.ts`
+   holds both to the per-profile answer. `planBulkRefresh`
+   (`profileBulkRefresh.ts`, pure) splits the stale rows in view into clean and
+   edited; an entry that cannot PROVE it is unedited (no flag, no version) counts as
+   edited. The bar states both numbers and asks once.
+2. **The editor's own save.** `runBulkRefresh` walks the clean rows one at a time:
+   `GET /api/analyses/<newerSlug>`, then the PUT the editor sends when an unedited
+   rebuild is opened and saved unchanged (`refreshRequest`: `buildProfilePayload`
+   over `formStateFrom(v2)`, the editor's signal shape, `expectedUpdatedAt`,
+   `sourceAnalysisSlug`), byte-equal and source-pinned against
+   `useProfileEditorSubmit.ts`. No new route: the batch keeps the PUT's lost-update
+   check, its lineage re-stamp (one profile per CV holds, the row is updated in
+   place) and its per-IP `profile-save` bucket.
+3. **Every row says what happened.** `refreshed`; `changedSince` (409
+   `PROFILE_STALE`, the run continues); `throttled` (429 on the read or the PUT:
+   the run STOPS and every later row is `notAttempted`, with a "run again in a few
+   minutes" note, never a success line); `failed` (`noNewerProfile` when the
+   analysis is gone or holds no profile, otherwise the route's code resolved through
+   `useErrorMessage`). Stop aborts the analysis read and ends the walk between rows;
+   a PUT already sent is never cancelled, so its outcome is known.
+4. **Edited profiles are never written.** They are `skippedEdited`, never read, and
+   listed as a review queue whose buttons call the same `openRebuild` as the row
+   action, so each one goes through the field-level merge above.
+
+After a run that wrote anything the roster calls `onRefreshed`, which
+`ProfileTab` wires to `population.reload`, so the roster, the matrix and the
+retire count see the refreshed rows together. Pinned by
+`profileBulkRefresh.test.ts` (injected fetch, 200/409/429/404/abort) and
+`profiles-lineage.test.ts`. Keyless: the PUT spawns `profile_cli`, which needs no
+model key.
 
 The matrix's "build from analysis" action is the same shape: `CandidateMatrix`
 takes `onBuildFromAnalysis` and `ProfileTab` feeds it `openFromAnalysis(slug, null)`.
@@ -673,7 +1225,15 @@ lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
 no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
 `archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
-so the report does not re-implement the cutoff. The conservative default (unclassifiable → experienced, not
+so the report does not re-implement the cutoff. The Archetype banner shows a
+needs-review chip when this flag is set. For student and career-switcher profiles,
+the same routed `v2Profile` also carries the deterministic
+`potentialScore` and `learningSignals` used by matching. The Extraction tab
+shows a `PotentialBadge` beside the overall score dial when that measured
+potential is present; its explanation includes the recorded learning signals.
+The Archetype banner also shows the same potential badge alongside the routing
+result, so the measured potential is visible before opening Extraction.
+The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
@@ -695,9 +1255,16 @@ opaque reference), not the store id the recruiter cannot act on. The panel is
 
 **Retiring an archetype asks first.** `Retire` used to pull the archetype out of
 every picker on one click with no question and no blast radius. It now opens
-`ArchetypeArchiveConfirmModal`, which names how many profiles currently route
-there (counted from `GET /api/profile`, shown as pending until the read lands —
-never a guessed zero) and states that retiring only hides it from the pickers.
+`ArchetypeArchiveConfirmModal`, which names how many candidates currently route
+there and states that retiring only hides it from the pickers. The count is
+`routedCount` over the tab's population — BOTH stores, the saved profiles and the
+analyzed candidates without one (`archiveConfirmAnalyses`), because the matrix lane
+being retired shows both; it used to count saved profiles only and could say "No
+profile routes here" over a lane full of people. It is known before the dialog opens
+(pending only while the tab's first read is in flight — never a guessed zero). It
+matches the normalized archetype id, not the display key: only a workspace's own
+archetypes can be retired, and the display key folds an id the bundled registry does
+not know into "unrouted"; the unrouted sentinels never count.
 
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
@@ -746,6 +1313,32 @@ client-safe by construction. `app/_lib/archetype-registry-lockstep.test.ts` read
 `registry.py` (and its contract test) and pins the two constants that are *mirrored*
 rather than shared — the `1e-6` tolerance and the `experienced` / `early_career`
 vocabulary — so a drift on either side is a red test rather than a broken deployment.
+
+**Server decisions read the LIVE file, not the bundled copy.** `app/_lib/archetypes.ts`
+imports `archetypes.json` statically, so it answers from the registry as it stood at
+build time, while the manager rewrites the file at runtime and Python re-reads it on
+every spawn. Every server reader that *decides* or *caches* on the registry goes through
+`app/_lib/archetype-live.ts` instead: the screening wave (`screen-wave.ts`, one snapshot
+per wave), the TS re-check of Python's rejects (`automation-fairness.ts`), and the
+scored-grid cache key of `GET /api/matrix` (`archetypeRegistryDigest()`, so a reweight
+re-scores the grid instead of serving the pre-edit one from the LRU; the digest is
+re-checked before a fresh grid is cached). The analyze cache key carries the same
+digest: `analyze-run.ts` reads it through the import-free leaf
+`app/_lib/archetype-registry-file.ts` (the one registry path, sha1 of the bytes), so a
+reweight misses every cached analysis once rather than serving one scored under the old
+registry, and a result whose registry changed mid-run is not cached. The reader is memoised on the file's
+mtime + size + a write generation `writeRegistry` bumps, validates through the same
+`parseRegistryDocument` the manager uses, and never throws: an unreadable or invalid file
+falls back to the bundled gate with the digest `unreadable`. Its shield is a **union**:
+an id is shielded when the bundle shields it, when its live entry does, or when neither
+registry knows it (fail closed). One rule, `shieldsFromAutoReject`, decides what an entry
+means for both readers: `fairnessProtected` **or** `scoringModel: early_career`, the key
+Python's `automation.py` uses for its never-auto-reject lever. A custom archetype
+registered after the build is therefore *known* to the wave (no
+`fairness_gate_unknown_archetype` audit event) and shielded exactly as its entry says.
+Labels, badges and display grouping still come from the bundle and may lag until a
+rebuild. Pinned by `app/_lib/archetype-live.test.ts`,
+`app/_lib/screen-wave-live-archetype.test.ts` and `app/_lib/automation-fairness.test.ts`.
 
 Errors come back as `{ error (English), code, params }`; the client localizes by
 `code` through the `errors.validation.*` catalog. **Known gap:** `weight_out_of_range`
@@ -833,21 +1426,28 @@ Two things on `/status/[token]` that only a test can hold:
 
 ## Surface
 
+The public offer card formats its deadline in the company's named time zone
+projected by the offer API, so candidates in other zones see the same deadline
+as the hiring team. The server calculates remaining time from the absolute
+expiry instant, and the card switches from hours to minutes in the final hour.
+
 | Concern | Files |
 |---|---|
 | CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
+| Analyze preflight (readability + blind guard) | `app/features/tools/analyze/analyzeCvReadability.ts`, `useAnalyzeReadability.ts`, `AnalyzeReadabilityStrip.tsx`, mounted by `AnalyzeFormFooter.tsx` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
+| Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts`; markup `app/offer/[token]/kit/` |
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
 | Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx`/`ArchetypeManagerViewPanel.tsx`/`ArchetypeArchiveConfirmModal.tsx` |
 | GitHub evidence | `app/_lib/github-evidence.ts`, `github-handle.ts`, `github-summary.ts`, `repo-activity.ts`, `repo-snapshot.ts` |
-| GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
+| GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy + `canonicalSkill`), `skill-ledger.ts` (the one skill ledger the panel renders), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
 | Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |
 | Saved analyses | `app/history/[slug]/page.tsx`, `app/features/tools/analyze/history/*` |
-| Public skill credential | `app/skill/[token]/page.tsx` |
+| Public skill credential | `app/skill/[token]/page.tsx`; markup `app/skill/[token]/kit/` |
 
 ### What the GitHub payload says, and in which language
 
@@ -877,6 +1477,55 @@ Three consequences worth knowing:
   `ok` and otherwise falls back to the run's own metrics sentence
   (`app/_lib/github-summary.ts`; pinned by `github-summary.test.ts`).
 
+### One skill ledger, two engines
+
+The deep-dive judges skills with two engines: the **label comparison**
+(`buildJobFitSignals`, `app/_lib/github/skills.ts`: JD tokens vs repo names,
+descriptions, languages and topics over a 28-bucket disjoint taxonomy) and the
+**repo-signal review** (`code-review.ts`: the model's free-text `confirmedSkills` /
+`unverifiedClaims` / `hiddenStrengths`). The panel used to print five unreconciled
+lists from them, so one skill could sit under "Potential gaps" and "Evidenced" at
+once, and a coral "Unverified claims" column read as an accusation.
+
+`buildSkillLedger` (`app/_lib/github/skill-ledger.ts`, pure, runs in the panel over a
+payload of any age) now joins both on `canonicalSkill` (free text onto the taxonomy
+bucket it uniquely names; `null`, so it stays free text, when it names none or
+several) and emits **one row per skill**, rendered by `SkillLedgerBlock` in
+`GithubAnalysisPanel.tsx`:
+
+| Verdict | When | Shows |
+|---|---|---|
+| `corroborated` | a JD skill the labels match and/or the review evidences | the repos whose labels carried it (`jobFitSignals.skillEvidence`, linked when the repo is in `topRepositories`), "seen in the language mix" when only the aggregate language map matched, and/or "seen by the review" |
+| `notReached` | a JD skill neither engine shows, on a complete read | nothing more. **Neutral**: public repositories can confirm a skill, never rule one out, and the copy says so |
+| `couldNotDetermine` | the same, but the read lost coverage (`evidenceIncomplete` in `limitations`, or `codeReview.partial`) | the partial-read caveat under the ledger |
+| `unclaimed` | a strength the review saw that no JD row accounts for (all of them when no JD was supplied) | "seen by the review" |
+
+When the labels corroborate a skill the review listed as not visible, the row stays
+`corroborated` (the label evidence is named) and carries a quiet `reviewDisagrees`
+line; the two statements differ, which is for a person to look at, not a verdict.
+This is the registry's `corroborate-a-claim-never-replace-it` three-bucket rule
+(recruiting / public-work-evidence-bounding) held by construction: there is no
+"unverified" or "gap" list left to render.
+
+Two nullish `jobFitSignals` fields feed it: `skillEvidence` (skill to repo names) and
+`undeterminedSkills` (the JD skills a partial run could not check; `potentialGaps`
+stays empty on a partial run, as before). An analysis stored before either field
+existed still parses, and its rows build from `matchingSkills` / `potentialGaps`
+with no repo names. Copy: `results.github.ledger.*`. Pinned by
+`app/_lib/github/skill-ledger.test.ts` and `skills.test.ts`.
+
+**The pipeline card holds the same rule without the ledger.** The pipeline
+candidate modal's frozen evidence card
+(`app/features/hiring/pipeline/PipelineGithubEvidenceCard.tsx`, over
+`github-summary.ts`, which carries no JD join) prints the review's
+`unverifiedClaims` as "Not seen in public repos:" in a neutral `text-steel` label,
+with a tooltip that public work can confirm a skill but never rule one out, and
+drops any skill the same review evidenced (`notSeenInPublicRepos` in
+`app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts`). It used to sit under an
+amber "Unverified claims:". Copy: `pipeline.drawer.githubNotSeen(+Title)`; pinned by
+`pipelineGithubEvidence.test.ts`, which also bans "unverified"/"claim" wording in
+all four locales.
+
 ### Who may open this door
 
 `/api/github-analysis` asks `requireCapabilityCoded("pipeline:write", requireCapability)`
@@ -886,6 +1535,10 @@ judgement about a named person, so a `viewer` seat that may read the board must 
 able to commission one. Open dev and an operator session both fold to owner, so local
 use is unchanged; the refusal is `FORBIDDEN_CAPABILITY` (403) or a 401 with no session.
 The route is no longer on `route-capability-coverage.test.ts`'s unjudged list.
+The in-task deep-dive a CV run carries asks the same question from `/api/analyze`, as
+a boolean read. Without `pipeline:write` the handle is dropped
+(`FORBIDDEN_CAPABILITY`) and the CV analysis still runs, because that route
+has always allowed it.
 
 ### Run bounds: cache, throttle, timeout, offline
 
@@ -966,7 +1619,9 @@ data inside the fence and does not change the schema-validated output shape.
     the assumed case and a marker on every report is chrome nobody reads. History
     rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
     llm / deterministic / unknown) so a mixed workspace is not uniform; a null
-    engine paints unknown, never "llm". Pinned by
+    engine paints unknown, never "llm". The History score cell labels each measured
+    number as coming from its saved CV analysis, with the analysis date; an absent
+    score remains an unlabeled dash. Pinned by
     `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
@@ -1058,6 +1713,186 @@ absence has to survive the CV.
   `concrete_ownership` to a man and the `vague_delivery` antipattern to a woman for the
   same sentence.
 
+## Cohort Studio (Analyze v2)
+
+One JD, up to `COHORT_CAP` (20) candidates, every one analysed against it, and the
+field compared dimension by dimension (fit, skills, experience, signals, trust, salary,
+public work). The wire contract is `app/features/tools/analyze/cohort/cohortTypes.ts`;
+the comparison itself — cells, bands, ranks, decoys and the CLAIMS (who leads, whether
+the lead clears the noise, whether it survives a reweighting) — is the pure engine in
+`cohortProject.ts` / `cohortClaims.ts`, decided by code. The language model only writes
+the rare cell comment, the per-dimension note and the top-`NARRATIVE_TOP` (6) narrative,
+and it never changes a claim.
+
+### Entry points
+
+| Surface | What it is |
+| --- | --- |
+| `GET /api/analyze/cohort/proposal?jd=<slug>` | who the comparison would hold and what it would spend (`CohortProposal`) |
+| `POST /api/analyze/cohort` | start a cohort (`CohortRunRequest` → `CohortRunResponse`); the run is an `analyze_cohort` task |
+| `GET /api/analyze/cohort/[id]` | the whole comparison (`CohortView`), assembled at read time; a running cohort answers its partial view |
+| `GET /api/analyze/cohort` | the recent-cohorts strip (`CohortSummary[]`, newest 12) |
+| `app/_lib/analyze-cohort-proposal.ts` | membership, reuse rule, company text, POST body parse |
+| `app/_lib/analyze-cohort-run.ts` | the runner (late-bound, `late-bound-boot.ts` registers `analyze_cohort`) |
+| `app/_lib/analyze-cohort-view.ts` | stored run sheet → `CohortView` (consent scrub, blind labels, effective status) |
+| `app/_lib/db/analysis-cohorts.ts` | the `analysis_cohorts` store + narrow reads over `analyses` / `profiles` |
+| `pipeline/jobfit/cohort_compare.py` + `cohort_compare_cli.py` | the comparative pass and its keyless floor |
+
+**Auth.** Every cohort door re-verifies the session with `requireOperator()` first (401 for
+no session, a demo-sandbox session, or a disabled account's still-signed cookie), then asks
+the seat: `read` for the three GETs, `pipeline:write` for the POST (403
+`FORBIDDEN_CAPABILITY`). Open mode is unchanged. Pinned by
+`app/api/analyze/cohort/route-auth.test.ts`.
+
+### Flow
+
+1. **Proposal.** Applicants first: every pipeline entry under the JD's job (`jd-<slug>`)
+   whose candidate resolves (`resolveCandidatePoolEntry`) to a CV with text — an
+   analysis slug, or a profile through its source analysis (member id `profile:<id>`).
+   Then a **matched** top-up from the workspace pool, ranked against the job by the
+   deterministic `recruiter_cli` ranker (KO-passed rows, rank order), until the cap.
+   Two ids for the same CV (same `cv_hash`, else same source slug) are one member; a
+   person whose consent expired or who was erased is not offered. `leftOut` counts the
+   eligible candidates of each rule the cap excluded. An un-ingested JD (no `jd-` job)
+   offers no applicants and no top-up. `companyText` composes the organisation (name +
+   domain), the job's company and the JD build intent's company.
+2. **Reuse rule.** A member is `reusable` when an analysis of the same CV is already filed
+   against THIS JD: `cv_hash` equality when both sides carry one, otherwise the member's
+   own source slug or an exact candidate-label match. `freshCount` = members − reusable.
+3. **Start.** `pipeline:write`, a per-IP limiter (`analyze-cohort:<ip>`, 10/10 min), the
+   body checked (`COHORT_MIN` ≤ members ≤ `COHORT_CAP`, membership in `MEMBERSHIPS`, no
+   repeated CV), every member re-resolved inside the workspace through the proposal's
+   resolver, then the `ai_candidates` reservation for `freshCount` units on top of the
+   in-flight analyze tasks (1 each) and in-flight cohorts (their declared `freshCount`) —
+   the same `meterGate` as `/api/analyze`, so an unmetered self-hosted install stays
+   unmetered. The row is inserted `queued`, the task started, its id stored.
+4. **Run** (three members at a time, the task's abort honoured between schedules):
+   - *reused* → `runState "reused"`, `analysisSlug` set, **no debit**;
+   - *fresh* → the source's `candidate.rawText` is written to a per-run workdir and goes
+     through the existing single-variant `runAnalyze` (same CLI args as `/api/analyze`:
+     JD text from `loadJd`, `--blind`, `--lang`, the company text; spilled to a file past
+     8 KB), persisted with `jd_slug` = the cohort's JD (History shows it under the JD)
+     and debited **one unit** exactly as `/api/analyze` does (delivered, non-cached);
+   - *GitHub* — not blind, a technical family (`TECHNICAL_FAMILIES`), a `github.com` link
+     on the CV, no deep-dive stored yet → the existing `analyze_github` stage, charged to
+     the starting IP's `github-analysis` bucket (10/10 min, shared with `/api/analyze`);
+   - one member failing is `failed` with a code (`ENGINE_FAILED`, `ANALYZE_TIMEOUT`,
+     `COHORT_MEMBER_NOT_FOUND`, …) and the cohort continues; all failing fails it.
+5. **Comparative pass.** The view is projected, the claims computed, and
+   `cohort_compare_cli` runs under TWO presentation orders (neutral, reversed). Each order
+   may suggest up to twice the shown comment cap (`suggestion_cap`); a cell comment
+   survives only when both orders commented the same (member, dimension), then the cap
+   (~1 per 4 members, `cohortCommentCap`) binds in run one's order, with run one's text. A
+   note survives only when both wrote one; the narrative is run one's. The input carries
+   compact per-dimension facts — never the CV text, and in a blind cohort never a name.
+   The model use case is `group_compare` (one Models-tab pin governs both comparison
+   surfaces). A failed pass leaves the claims standing with no comments.
+   - **The claim guard** (`contradicts_claim`): a sentence with a crown word ("leads",
+     "strongest", "vede", "führt", "en tête", …) may name only the claimed leader, and only
+     a lead that clears the noise. A crown word that is itself negated ("no overall
+     leader", "žádný lídr", "aucun candidat n'est en tête": a negation within the three
+     words before it, no member named in between) restates the claim and passes; "Alice,
+     not Bob, leads" and "nobody but Alice leads" do not. A first name alone is a mention;
+     a numbered list is a ranking.
+   - **Length:** over-length text is cut back to its last whole sentence (kept if that
+     holds at least half the cap) rather than refused; a member id in prose is replaced by
+     the label.
+   - **Nothing is dropped silently.** The CLI returns `dropped` ({item, reason}:
+     `over-length`, `contradicts-claim`, `unknown-member`, `unknown-dimension`, `over-cap`,
+     `duplicate`, `empty`, `malformed`) and `trimmed`; the intersection adds
+     `order-disagreement` for an item only one order produced. The tally
+     (`{total, byReason, trimmed, items}`) is stored with the comments in `comments_json`
+     (server-side; not on the wire contract) and logged. When the model answered but its
+     narrative was refused, the ledger's deterministic row says `unusable_output`.
+6. **Read.** `GET /api/analyze/cohort/[id]` assembles the view from the run sheet, each
+   member's saved analysis under the same consent scrub as `/api/analyses/[slug]` (an
+   expired-consent member is projected from the scrubbed payload with a masked label),
+   the stored GitHub deep-dive, and the stored comments. A member is shown by the CV's own
+   `candidate.name` (`displayMemberLabel`), else the stored label without its " → <role>"
+   suffix; two members with the same name fall back to their bare labels, then " (n)"
+   (`uniqueDisplayLabels`). The stored label stays the matching key. A blind cohort is
+   labelled "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
+   whose task ended without closing it (cancelled while queued, a restart) reads `failed`.
+
+### Walkthrough (dev)
+
+The dev-only DATA switch has a `walkthrough` mode (`?cohortFixture=walkthrough`): the real
+flow components (role picker, editable tray, run sheet) read a fixture source
+(`cohortWalkthroughSource.ts`, `public/dev/cohort/walkthrough.json`, derived from the
+20-member fixture by `fixture/buildWalkthroughFixture.ts`) instead of the routes, and Start
+runs a simulated clock (`useWalkthroughRun.ts`): reused members land first, fresh ones in
+seeded batches over ~10 s, reduced motion lands everyone at once. Claims are recomputed by
+the engine over the members actually kept; the fixture's narrative is withheld when the
+tray differs from it. Keyless, no fetch of install data, no writes. `?layer=<COHORT_LAYERS>`
+deep-links a nested-layer prototype.
+
+### Why each score is where it is
+
+Every rated cell carries a `MemberDimensionWhy` (`cohortWhy.ts`), assembled by code from
+fields every analysis already has — nothing new is written by a model, so stored and
+keyless analyses explain themselves the same way:
+
+- **why** — one code-made line ("7 of 9 required; Oracle, Kafka missing").
+- **pros / cons / notes** — `Reason`s: a code phrase (`analyzeCohort.why.*`) or the
+  analysis's own prose verbatim (alignment sentences, strengths, gaps, risk flags,
+  must-prove evidence, salary assessment, soft signals, trust findings, GitHub evidence),
+  each naming the field it came from. Lists cap at 6 plus a "+N more" row.
+- **anatomy** — the exact decomposition of a formula-made rating (skills, experience,
+  signals, trust, salary, public work): `base + Σ parts = raw`, `clamp(raw) = rating`,
+  rounded so the parts sum exactly. The formulas live once in `cohortFormula.ts`, which
+  both the cells and the anatomy read. **Fit has no anatomy and no points**: its rating is
+  the model's job-fit judgement, and its reasons are the analysis's stated strengths, gaps
+  and risk flags (overall strengths/gaps are untagged, so they appear under fit only).
+- **criteria** — per dimension the role's rows (`view.criteria[d]`: each required skill,
+  seniority target, minimum years, the salary band, every soft signal and trust finding
+  seen in the cohort) with each member's status (meets / partial / misses / unknown). The
+  role context (min years, seniority, family, band) comes from the job row
+  (`cohortRoleContext` in `analyze-cohort-view.ts`); `view.roleBand` carries the band.
+
+Salary's "partial" is a 10 % soft window past the nearest band edge
+(`SALARY_SOFT_WINDOW`). Blind cohorts redact names inside every reason and criterion note.
+
+### Data model — `analysis_cohorts`
+
+| Column | |
+| --- | --- |
+| `id` | `coh-…`, also the `order_seed` the neutral order keys on |
+| `workspace_id` | every statement binds it, point reads included (`analysis-cohorts-tenancy.test.ts`) |
+| `jd_slug`, `blind`, `report_lang` | the run's settings |
+| `status` | `COHORT_STATUSES` (`queued` / `running` / `done` / `failed`) |
+| `members_json` | `[{memberId, label, rowLabel, shownNames, membership, source, runState, analysisSlug, error}]` — `label` is the display name, `rowLabel` the stored candidate label, `shownNames` every name shown or handed to the model; writes are a compare-and-swap on the whole column |
+| `comments_json` | the reorder-surviving `CohortComments` plus the `dropped` tally, or NULL |
+| `task_id`, `created_at`, `finished_at` | |
+
+Erasure: the entry-keyed scrub (`db/pipeline.ts`) finds the erased person's member by id
+(`<candidateId>` / `profile:<candidateId>`) or by any of its names matching the entry label
+(with or without its role suffix), then masks the display name, the row label and every
+`shownNames` entry — on the run sheet and inside `comments_json` (the CV's own name can
+differ from the row label); the numbers stay as the record.
+
+### Keyless
+
+Nothing in the cohort needs a key beyond what `/api/analyze` already degrades: the
+ranker is deterministic, the analyses fall back as they always do, and
+`cohort_compare.py`'s floor writes no cell comments, a templated note per dimension from
+the claims and a templated narrative naming what it covers and how many it leaves out —
+in the report language (en/cs/de/fr) — with `engine: "keyless"`.
+
+### Known gaps (cohort)
+
+- The proposal logs, but does not return, how many applicants it skipped for having no
+  readable CV: the wire contract has no field for it.
+- A reused analysis keeps the language and blind setting it was made with.
+- `/api/analyze`'s own reservation count does not yet include in-flight cohorts' fresh
+  units (the cohort door counts both), so the two doors racing can overrun a hard cap by
+  the cohort's size.
+- The recent strip assembles each finished cohort's view to name its leader (up to
+  12 × 20 payload reads).
+- The claim guard is a word list in four languages: a faithful sentence it misreads is
+  dropped (counted as `contradicts-claim`) and the narrative falls back to the template.
+- Rows written before `shownNames` existed carry only `label`: an erasure masks the names
+  the old row stored, not a CV name the model quoted that was never stored.
+
 ## Known gaps
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority
@@ -1081,12 +1916,12 @@ absence has to survive the CV.
   and returns no `truncated` flag, so past 200 saved analyses the board's lane
   counts, distribution bars and "N candidates" label describe the newest 200 —
   presented as the whole population.
-- **History still cannot page past the cap.** `GET /api/analyses` now answers
-  `{ truncated, limit }` and History names a cut page as a page (it no longer
-  reads a 900-run workspace as "200"), but the tab still filters CLIENT-side
-  over that newest slice: searching a candidate analysed 250 runs ago returns
-  "No runs match your search or filter". The row is still reachable at
-  `/history/[slug]`. A server pager (or a query param) is the remaining half.
+- **A same-CV refusal names the profile but does not open it.** `PROFILE_EXISTS`
+  carries the existing id, and the matrix no longer offers the build, but the
+  other build doors (a `fromAnalysis` deep link, the analysis report's "save as
+  profile") show the localized refusal without an "open that profile" button.
+  Profiles duplicated before the refusal existed stay two rows on the matrix (the
+  CV's analyses attach to the newer one); nothing merges them.
 - **The saved-profile roster claims a silently capped population.**
   `GET /api/profile` serves `cachedProfileRecords` = `listProfileRecords(200, ws)`
   with no total and no `truncated` flag, and `ProfileRoster` renders
@@ -1131,6 +1966,9 @@ absence has to survive the CV.
     "app/features/tools/profile/ProfileTabTypes.ts",
     "pipeline/jobfit/profile.py", "pipeline/jobfit/registry.py",
     "pipeline/jobfit/archetypes.json", "pipeline/jobfit/gemini.py",
-    "app/history/**", "app/skill/**"
+    "app/history/**", "app/skill/**",
+    "app/api/analyze/cohort/**", "app/_lib/analyze-cohort-*.ts",
+    "app/_lib/db/analysis-cohorts.ts",
+    "pipeline/jobfit/cohort_compare.py", "pipeline/jobfit/cohort_compare_cli.py"
   ] }
 ```

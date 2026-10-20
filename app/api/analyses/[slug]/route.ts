@@ -1,24 +1,27 @@
-import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDisposition, setAnalysisGithub } from "@/app/_lib/db/analyses";
+import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDispositionGuarded, setAnalysisGithub } from "@/app/_lib/db/analyses";
 import { candidateLabelWithholdsPii, recordAnalysisDispositionEvents } from "@/app/_lib/db/pipeline";
 import { maskCandidateName, scrubPiiFromPayload } from "@/app/_lib/consent";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { decisionBasis, decisionBrief, decisionGate } from "@/app/_components/results/decisionBrief";
 
 
 // Defensive ceiling for an attached GitHub payload. A real GithubAnalysis is
 // tens of KB; anything near this is malformed or hostile, not a deep-dive.
 const MAX_GITHUB_JSON_BYTES = 256 * 1024;
 
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+// Re-read + re-decide rounds when the disposition compare-and-swap finds the row moved.
+const MAX_DISPOSITION_ATTEMPTS = 3;
+
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   // Defense in depth (see the sibling list route): this door serves ONE candidate's whole
   // CV payload, so it re-asserts the seat rather than trusting middleware's session check.
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const found = loadAnalysis(slug, ws);
     if (!found) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
     // Read-time consent gate (bug-ui-scan-2026-07-09 privacy-consent-provenance #3): if the
@@ -55,14 +58,14 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     // gets the code and resolves it in its own language.
     return safeJsonError(error, `api:analyses/${slug}`, "ANALYSIS_LOAD_FAILED");
   }
-}
+});
 
 // PATCH → record the recruiter's disposition + note on this analysis (RES5),
 // OR attach the GitHub deep-dive result (GH1). The two writes are independent:
 // a body carrying `githubAnalysis` is the deep-dive attach (validated against
 // githubAnalysisSchema so only a real payload is ever persisted); otherwise
 // disposition semantics are unchanged ("advance"|"hold"|"pass", else clears).
-export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const PATCH = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   // The WRITE door: it records a recruiter's advance/hold/pass on a candidate and echoes
   // it onto their pipeline entries as a decision event. `pipeline:write` is the
@@ -72,10 +75,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as {
       disposition?: unknown;
       note?: unknown;
+      acknowledged?: unknown;
       githubAnalysis?: unknown;
     };
 
@@ -95,16 +98,57 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
 
     const disposition = typeof body.disposition === "string" ? body.disposition : "";
     const note = typeof body.note === "string" ? body.note.slice(0, 2000) : "";
-    const ok = setAnalysisDisposition(slug, disposition, note, ws);
-    if (!ok) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+    const acknowledged = Array.isArray(body.acknowledged)
+      ? body.acknowledged.filter((a): a is string => typeof a === "string").slice(0, 100)
+      : [];
+    // The decision gate (decisionBrief.ts), re-derived from the STORED payload so the
+    // editor's checkboxes are a convenience, not the enforcement: a TRANSITION to
+    // advance must acknowledge every open trust warning. Re-saving the stored
+    // disposition (a note edit, the keepalive unmount flush) is never gated, so a
+    // decision recorded before the gate existed is never locked.
+    //
+    // Read -> decide -> write is a compare-and-swap, not a lock: the write re-asserts the
+    // disposition and payload this read saw, and a row another save moved in between is
+    // RE-READ and RE-DECIDED here rather than overwritten (an un-acknowledged "advance"
+    // that read a stored advance must not land over a hold that arrived since, and a
+    // basis must describe the payload actually stored). Bounded: a row that keeps moving
+    // is a store fault, answered by code.
+    let found: ReturnType<typeof loadAnalysis> = null;
+    let basis: ReturnType<typeof decisionBasis> | undefined;
+    let written = false;
+    for (let attempt = 0; attempt < MAX_DISPOSITION_ATTEMPTS && !written; attempt++) {
+      found = loadAnalysis(slug, ws);
+      if (!found) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+      const stored = found.row.disposition ?? "";
+      const brief = decisionBrief(found.payload);
+      const gate = decisionGate(brief, disposition, { acknowledged, note, stored });
+      if (!gate.canSave && gate.needs === "ack") {
+        return jsonRefusal("DISPOSITION_ACK_REQUIRED", 409, { pending: gate.pending });
+      }
+      // advance/pass records what it was decided against; a note-only edit keeps the
+      // basis it annotates (undefined); hold/clear carry none.
+      const decided = (disposition === "advance" || disposition === "pass") && disposition !== stored;
+      basis = decided ? decisionBasis(brief, acknowledged) : undefined;
+      const outcome = setAnalysisDispositionGuarded(
+        slug,
+        disposition,
+        note,
+        ws,
+        basis ? JSON.stringify(basis) : disposition === stored ? undefined : null,
+        { disposition: found.row.disposition, payloadJson: found.row.payload_json },
+      );
+      if (outcome === "missing") return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+      written = outcome === "saved";
+    }
+    if (!written) throw new Error(`disposition row kept moving across ${MAX_DISPOSITION_ATTEMPTS} attempts`);
     // d95fed6d — echo the decision onto the candidate's pipeline record(s) so
     // it shows in the drawer history instead of living only on the history
     // page. Best-effort and clear-skipping: clearing a disposition isn't a
     // decision worth narrating, and a failed echo must not fail the save.
     if (disposition) {
       try {
-        const saved = loadAnalysis(slug, ws);
-        if (saved) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, ws, note);
+        const ackCount = basis?.acknowledged.length ?? storedAckCount(found?.row.decision_basis);
+        if (found) recordAnalysisDispositionEvents(found.row.candidate_label, disposition, ws, note, ackCount);
       } catch (error) {
         console.error(`[api:analyses] disposition echo failed for "${slug}"`, error);
       }
@@ -112,5 +156,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     return jsonOk({ ok: true });
   } catch (error) {
     return safeJsonError(error, `api:analyses/${slug}`, "ANALYSIS_SAVE_FAILED");
+  }
+});
+
+// The acknowledged count of the basis a note-only edit annotates (0 when none/corrupt).
+function storedAckCount(json: string | null | undefined): number {
+  if (!json) return 0;
+  try {
+    const parsed = JSON.parse(json) as { acknowledged?: unknown };
+    return Array.isArray(parsed.acknowledged) ? parsed.acknowledged.length : 0;
+  } catch {
+    return 0; // a corrupt basis narrates as unacknowledged, never fails the save
   }
 }

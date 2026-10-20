@@ -13,9 +13,12 @@ import { politeFetch, _resetPolitenessForTests, _setPoliteFetchDepsForTests, typ
 import { adapterFor, hostForAdapter } from "./registry.ts";
 import { AdapterCollapsed, DEFAULT_ADAPTER_LIMITS, FetchHalt, type AdapterContext, type PostingRef } from "./types.ts";
 import { readJsonArrayStream } from "./jsonArrayStream.ts";
+import { WHOLE_BOARD_MAX_BYTES } from "./shared.ts";
+import { MAX_BODY_BYTES, MAX_BODY_BYTES_CEILING, type PoliteFetchOptions } from "../fetch/politeFetch.ts";
 import { rawFromDetailPage } from "./jsonld.ts";
 import { atsDiscover } from "./ats/discover.ts";
 import { mpsvItemToRaw } from "./mpsvBulk.ts";
+import { reconcileSource } from "../reconcile.ts";
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "__fixtures__");
 const fx = (name: string) => readFileSync(path.join(FIXTURES, name), "utf8");
@@ -180,8 +183,12 @@ test("eures: POSTs the seeker's keywords/countries, maps items; a response witho
   const adapter = adapterFor("eures");
   const refs = await collect(adapter.discover(ctx));
   assert.equal(refs.length, 2);
-  const body = JSON.parse(posted!) as { keywords: { keyword: string }[]; locationCodes: string[]; resultsPerPage: number };
+  const body = JSON.parse(posted!) as { keywords: { keyword: string; specificSearchCode: string }[]; locationCodes: string[]; resultsPerPage: number; sortSearch: string };
   assert.deepEqual(body.keywords.map((k) => k.keyword), ["Java developer"]);
+  // EURES reads a keyword as ANY of its words: stated titles search TITLES, best match
+  // first (an EVERYWHERE / MOST_RECENT query answered cooks and cleaners live).
+  assert.deepEqual(body.keywords.map((k) => k.specificSearchCode), ["TITLE"]);
+  assert.equal(body.sortSearch, "BEST_MATCH");
   assert.deepEqual(body.locationCodes, ["cz", "de"]);
   assert.equal(body.resultsPerPage, 50);
   const raw = (await adapter.detail(refs[0], ctx))!;
@@ -193,7 +200,9 @@ test("eures: POSTs the seeker's keywords/countries, maps items; a response witho
   assert.match(raw.bodyText, /Spring Boot/);
   assert.ok(raw.postedAt?.startsWith("2026-09-12"));
   const collapsed = scripted({ "*": ok('{"numberOfResults": 0}', "application/json") });
-  await assert.rejects(collect(adapter.discover(ctxFor(src, collapsed.fetch))), (e: unknown) => e instanceof AdapterCollapsed && e.reason === "shape_changed");
+  const collapsedCtx = ctxFor(src, collapsed.fetch);
+  collapsedCtx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"] };
+  await assert.rejects(collect(adapter.discover(collapsedCtx)), (e: unknown) => e instanceof AdapterCollapsed && e.reason === "shape_changed");
 });
 
 test("ats_greenhouse and ats_teamtailor map their feeds; detail completes from the hint without a fetch", async () => {
@@ -283,6 +292,88 @@ test("mpsv_bulk: streams the file, filters by targets/locations, caps at maxRefs
   }
 });
 
+test("eures: no country to search stops the run with config_invalid, before any request", async () => {
+  const { fetch, calls } = scripted({ "*": ok(fx("eures-search.json"), "application/json") });
+  const src = source({ adapter: "eures", kind: "feed", tier: "A", host: "europa.eu" });
+  const ctx = ctxFor(src, fetch);
+  ctx.preferences = { ...EMPTY_PREFERENCES, targetTitles: ["Java developer"], countries: [] };
+  await assert.rejects(collect(adapterFor("eures").discover(ctx)), (e: unknown) => e instanceof FetchHalt && e.outcome.kind === "outage" && e.outcome.detail === "config_missing_countries");
+  assert.equal(calls.length, 0, "an empty location list is a query for nothing: it is never sent");
+  // Through the real run: a named reason, not a silent empty success.
+  const summary = await reconcileSource(src, adapterFor("eures"), ctx, {
+    upsertPosting: () => assert.fail("nothing to upsert"),
+    markAbsent: () => assert.fail("a failed pass marks nothing absent"),
+    recordSourceRun: () => undefined,
+    pauseSource: () => assert.fail("a config gap is the seeker's to fix, not a pause"),
+  });
+  assert.equal(summary.outcome, "failed");
+  assert.equal(summary.reason, "config_invalid");
+});
+
+test("eures: the city filter lets through a posting in a named country and a stated-remote one", async () => {
+  const src = source({ adapter: "eures", kind: "feed", tier: "A", host: "europa.eu" });
+  const run = async (over: Partial<typeof EMPTY_PREFERENCES>) => {
+    const ctx = ctxFor(src, async () => ok(fx("eures-search.json"), "application/json"));
+    ctx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"], ...over };
+    return (await collect(adapterFor("eures").discover(ctx))).map((r) => r.hint!.location);
+  };
+  // The Dresden fixture says "Homeoffice möglich", so it states remote.
+  assert.deepEqual(await run({ locations: ["Praha"], workModes: ["hybrid"] }), ["Praha"], "remote ruled out, and neither Dresden nor de was named");
+  assert.deepEqual(await run({ locations: ["Praha"], workModes: ["hybrid"], countries: ["cz", "de"] }), ["Praha", "Dresden"], "de was named: Dresden is in the market");
+  assert.deepEqual(await run({ locations: ["Praha"] }), ["Praha", "Dresden"], "no work mode named: a stated-remote posting is reachable from Praha");
+});
+
+test("mpsv_bulk: a stated-remote posting outside the seeker's city is kept; titles match whole words", async () => {
+  const records = [
+    { referencniCislo: "R1", nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Ostrava" } }, popis: "Práce z domova, 100% remote." },
+    { referencniCislo: "R2", nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Ostrava" } }, popis: "Na pracovišti." },
+    { referencniCislo: "R3", nazev: "JavaScript kodér", mistoVykonuPrace: { obec: { nazev: "Praha" } }, popis: "Na pracovišti." },
+  ];
+  const fetch: PoliteFetch = async (url) => ({
+    kind: "ok",
+    status: 200,
+    contentType: "application/json",
+    body: "",
+    finalUrl: url,
+    stream: new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(JSON.stringify(records)));
+        c.close();
+      },
+    }),
+  });
+  const ctx = ctxFor(source({ adapter: "mpsv_bulk", kind: "feed", tier: "A", host: "data.mpsv.cz" }), fetch, { maxRefs: 50, maxDetailFetches: 0 });
+  ctx.preferences = { ...EMPTY_PREFERENCES, targetTitles: ["java"], locations: ["Praha"] };
+  const refs = await collect(adapterFor("mpsv_bulk").discover(ctx));
+  assert.deepEqual(refs.map((r) => r.externalKey), ["R1"], "R1 states remote; R2 is on-site in Ostrava; R3 is JavaScript, not Java");
+  assert.equal(refs[0].hint!.workMode, "remote");
+});
+
+test("mpsv_bulk: a stream deadline mid-file is a FetchHalt outage that says how far it got", async () => {
+  const records = [0, 1].map((i) => JSON.stringify({ referencniCislo: `R${i}`, nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Praha" } } }));
+  let sent = false;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(c) {
+      if (!sent) {
+        sent = true;
+        c.enqueue(new TextEncoder().encode(`[${records.join(",")},`));
+        return;
+      }
+      // What politeFetch's stream deadline raises (and what undici raises on a timed-out signal).
+      c.error(Object.assign(new Error("stream idle for 20000 ms"), { name: "TimeoutError" }));
+    },
+  });
+  const fetch: PoliteFetch = async (url) => ({ kind: "ok", status: 200, contentType: "application/json", body: "", finalUrl: url, stream });
+  const src = source({ adapter: "mpsv_bulk", kind: "feed", tier: "A", host: "data.mpsv.cz" });
+  const ctx = ctxFor(src, fetch, { maxRefs: 50, maxDetailFetches: 0 });
+  await assert.rejects(collect(adapterFor("mpsv_bulk").discover(ctx)), (error: unknown) => {
+    assert.ok(error instanceof FetchHalt, `a ${String(error)} escaped as-is`);
+    assert.equal(error.outcome.kind, "outage");
+    assert.match(error.outcome.detail, /2 records read/);
+    return true;
+  });
+});
+
 test("atsDiscover probes each vendor once and reports the hits", async () => {
   const { fetch, calls } = scripted({
     "https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true": ok(fx("greenhouse-jobs.json"), "application/json"),
@@ -326,8 +417,11 @@ test("KP_OFFLINE: every adapter in the registry yields offline through the REAL 
     const src = source({ adapter: name, ...configs[name] });
     const adapter = adapterFor(name);
     let halt: FetchHalt | null = null;
+    // A seeker who named a market: EURES with no country stops on its config first.
+    const ctx = ctxFor(src, politeFetch);
+    ctx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"] };
     try {
-      await collect(adapter.discover(ctxFor(src, politeFetch)));
+      await collect(adapter.discover(ctx));
     } catch (e) {
       halt = e instanceof FetchHalt ? e : null;
       if (!halt) throw e;
@@ -338,4 +432,32 @@ test("KP_OFFLINE: every adapter in the registry yields offline through the REAL 
   assert.equal(network, 0, "no adapter reached the network");
   const raw: RawPosting | null = await adapterFor("eures").detail({ externalKey: "x", url: "https://e/x" }, ctxFor(source(), politeFetch));
   assert.equal(raw, null, "a feed detail with no hint yields nothing rather than fetching");
+});
+
+test("a whole-board ATS feed asks for the fetcher's ceiling, not the 2 MB page cap", async () => {
+  // Measured live 2026-09-28: Anthropic's Greenhouse board 9.0 MB, OpenAI's Ashby board
+  // 14.5 MB - read `too_large` at the default cap, and recorded as outages.
+  assert.equal(WHOLE_BOARD_MAX_BYTES, MAX_BODY_BYTES_CEILING);
+  assert.ok(WHOLE_BOARD_MAX_BYTES > MAX_BODY_BYTES);
+  const boards: Record<string, Record<string, unknown>> = {
+    ats_greenhouse: { token: "acme" },
+    ats_ashby: { board: "acme" },
+    ats_workable: { subdomain: "acme" },
+    ats_recruitee: { company: "acme" },
+    ats_lever: { site: "acme" },
+    ats_personio: { company: "acme" },
+    ats_teamtailor: { company: "acme" },
+  };
+  for (const [name, config] of Object.entries(boards)) {
+    const asked: PoliteFetchOptions[] = [];
+    const fetch: PoliteFetch = async (_url, opts) => {
+      asked.push(opts);
+      return { kind: "gone", status: 404, detail: "scripted" };
+    };
+    const src = source({ adapter: name as JobseekerSource["adapter"], kind: "ats", tier: "A", config });
+    await collect(adapterFor(src.adapter).discover(ctxFor(src, fetch))).catch(() => {
+      /* the scripted 404 ends discovery; only the options the adapter asked with matter here */
+    });
+    assert.equal(asked[0]?.maxBytes, WHOLE_BOARD_MAX_BYTES, name);
+  }
 });

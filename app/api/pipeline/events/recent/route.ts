@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { listPipelineEventsSince, listRecentPipelineEvents } from "@/app/_lib/db/pipeline";
 
 // GET /api/pipeline/events/recent            → { events, cursor } — the last 7 days, newest first
 // GET /api/pipeline/events/recent?since=<id> → { events, cursor } — everything STRICTLY AFTER <id>
 //                                               within the window, oldest first
-// Response event: { id, candidateLabel, jobTitle, kind, fromStage, toStage, detail, createdAt }
+// Response event: { id, entryId, candidateLabel, jobTitle, kind, fromStage, toStage, detail, createdAt }
 //
 // The board's activity feed, with FULL candidate names. The sibling GET
 // /api/pipeline/events is ungated and therefore serves a privacy projection
@@ -17,11 +17,10 @@ import { listPipelineEventsSince, listRecentPipelineEvents } from "@/app/_lib/db
 export const ACTIVITY_WINDOW_DAYS = 7;
 const WINDOW_CAP = 500;
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const fromIso = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 86_400_000).toISOString();
     const sinceRaw = request.nextUrl.searchParams.get("since");
     if (sinceRaw !== null) {
@@ -37,14 +36,15 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:events/recent", "PIPELINE_EVENTS_FAILED");
   }
-}
+});
 
-/** The feed's row: the internal entry id, archetype and actor stay off the wire —
- *  the feed reads none of them, and the entry id is the IDOR handle the public
- *  projection exists to strip. */
+/** The operator-only feed carries the entry id so a row can open its candidate.
+ *  The unauthenticated sibling still strips this IDOR handle through
+ *  toPublicPipelineEvent; archetype and actor stay off both feeds. */
 function wire(e: ReturnType<typeof listRecentPipelineEvents>[number]) {
   return {
     id: e.id,
+    entryId: e.entryId,
     candidateLabel: e.candidateLabel,
     jobTitle: e.jobTitle,
     kind: e.kind,

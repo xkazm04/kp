@@ -1,0 +1,37 @@
+{
+  "id": "followup-analyze-cache-digest",
+  "round": "challenge-r08",
+  "parent": "cv-analysis-archetypes/A (bd5137a9b)",
+  "result": "shipped",
+  "commit": "6b9191034",
+  "dependency_evidence": [
+    "pipeline/jobfit/registry.py:23 reads archetypes.json at module import (every spawn)",
+    "pipeline/jobfit/pipeline.py:485 _v2_profile_and_routing on the default analyze path -> registry.detect, early_career_archetypes, low_confidence_threshold (needs-review)",
+    "pipeline/jobfit/profile.py:158,182 registry.checklist_specs weights"
+  ],
+  "change": {
+    "cache-key.ts": "optional archetypeRegistryDigest axis, appended behind an 'archreg' marker only when set",
+    "analyze-run.ts": "one digest per run; skip the cache store if the digest moved during the run",
+    "archetype-registry-file.ts": "new import-free leaf: the one registry path + a sha1 of its bytes; archetype-live.ts reads its path from it",
+    "docs": ["docs/architecture/result-caching.md", "docs/features/candidates/README.md"],
+    "perf-budget.json": "hire-from-need override maxModules 237 -> 238"
+  },
+  "prompt_version_bumped": false,
+  "prompt_version_reason": "the key shape change already retires every old hash; the fingerprint pin hashes gemini/models/taxonomy plus the PROMPT_VERSION literal, and none of them changed, so no re-record",
+  "cost": "every cached analysis misses once after a registry edit (and once on deploy)",
+  "perf": {
+    "via_archetype_live": "+4 modules / ~38 KB on 24 routes (rejected)",
+    "via_leaf": "+1 module / +2-4 KB on 29 routes; git-archive HEAD vs HEAD+change: no new finding after hire-from-need +1 module; page.tsx findings already present at HEAD"
+  },
+  "gates": {
+    "red_first": "node scripts/run-unit-tests.mjs app/_lib/cache-key.test.ts exit 1 (2 notStrictEqual)",
+    "unit_related": "cache-key, archetype-live, analyze-run, automation-fairness, screen-wave-live-archetype, matrix-cache: 58/58 exit 0",
+    "unit_app_lib_all": "exit 1: 3 failures, all in foreign in-flight files (floor-move-preview.ts, calibration-recommendation.ts / analytics calibration routes)",
+    "tsc": "exit 2: 91 errors, all foreign (kpi-sim/, floor-move-preview.test.ts, analytics-writes-authority.test.ts)",
+    "eslint_touched": "exit 0",
+    "docs_check": "exit 0",
+    "test_perf_worktree": "exit 1: page.tsx (already over at HEAD) and hire-from-need KB 3187 (committed tree 3183 <= 3186; the extra ~4 KB is foreign uncommitted work)",
+    "perf_budget_archive_tree": "HEAD+change = HEAD's 2 page.tsx findings only",
+    "python_sync_pin": "test_analysis_prompt_version_sync.py 3 passed (untouched, test:python:gate not required)"
+  }
+}

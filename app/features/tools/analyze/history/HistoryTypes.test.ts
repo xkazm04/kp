@@ -16,8 +16,6 @@ import { fileURLToPath } from "node:url";
 import {
   analysisProducer,
   distinct,
-  historyRowMatchesQuery,
-  historyShowingTotal,
   readAnalysesListPayload,
   sortOptionsByLabel,
 } from "./HistoryTypes.ts";
@@ -125,7 +123,6 @@ test("a truncated payload is a page, never a complete-list total", () => {
   assert.equal(page.truncated, true);
   assert.equal(page.limit, 200);
   assert.equal(page.analyses.length, 2);
-  assert.equal(historyShowingTotal(page.analyses.length, page.truncated), null, "Showing-of has no population figure");
 });
 
 test("a complete payload keeps rows.length as the total", () => {
@@ -135,7 +132,6 @@ test("a complete payload keeps rows.length as the total", () => {
     limit: 200,
   });
   assert.equal(page.truncated, false);
-  assert.equal(historyShowingTotal(page.analyses.length, page.truncated), 1);
 });
 
 test("truncated is a positive claim: missing or junk is not invented as true", () => {
@@ -162,19 +158,13 @@ test("HistoryTable paints the producer chip from analysisProducer, never a raw e
   assert.doesNotMatch(table, /producer\.llm/, "null must not hard-code llm");
 });
 
-test("capek matches Čapek; exact slug still matches", () => {
-  const named = { ...row("cv-capek"), candidate_label: "Čapek" };
-  assert.equal(historyRowMatchesQuery(named, "capek"), true, "ASCII needle");
-  assert.equal(historyRowMatchesQuery(named, "Čapek"), true, "exact diacritic needle");
-  assert.equal(historyRowMatchesQuery(named, "CAPEK"), true, "case-folded needle");
-  assert.equal(historyRowMatchesQuery(row("ada-lovelace"), "ada-lovelace"), true, "exact slug");
-  assert.equal(historyRowMatchesQuery(named, "novak"), false);
-});
-
-test("HistoryTab search uses the folded matcher, not toLowerCase alone", () => {
+test("History search is the SERVER's folded match; the client neither folds nor lower-cases a loaded slice", () => {
   const tab = readFileSync(fileURLToPath(new URL("./HistoryTab.tsx", import.meta.url)), "utf8");
-  assert.match(tab, /historyRowMatchesQuery/, "HistoryTab folds through HistoryTypes");
+  const types = readFileSync(fileURLToPath(new URL("./HistoryTypes.ts", import.meta.url)), "utf8");
+  assert.match(tab, /toSearchParams\(/, "the needle travels to /api/analyses, which folds it with text-fold.ts");
+  assert.doesNotMatch(tab, /historyRowMatchesQuery|foldForSearch/, "no client-side matcher over the loaded rows");
   assert.doesNotMatch(tab, /candidate_label\.toLowerCase\(\)/, "bare toLowerCase was the pre-fix needle");
+  assert.doesNotMatch(types, /normalize\("NFD"\)/, "no third copy of the fold on the client");
 });
 
 test("History dates go through the shared formatter; toLocaleString is gone", () => {
@@ -189,9 +179,10 @@ test("History dates go through the shared formatter; toLocaleString is gone", ()
 test("History names a truncated page as a page and drops the complete-list claim", () => {
   const tab = readFileSync(fileURLToPath(new URL("./HistoryTab.tsx", import.meta.url)), "utf8");
   const bar = readFileSync(fileURLToPath(new URL("./HistoryFilterBar.tsx", import.meta.url)), "utf8");
-  assert.match(tab, /readAnalysesListPayload/, "HistoryTab reads the route's honesty triple");
-  assert.match(tab, /t\("truncated"/, "truncated true paints the newest-N warning");
+  assert.match(tab, /readHistoryPage\(/, "HistoryTab reads the route's honesty triple plus its cursor");
   assert.match(tab, /truncated=\{truncated\}/, "the flag reaches the filter bar");
-  assert.match(bar, /truncated\s*\?\s*t\("showingLoaded"/, "Showing-of uses the loaded-slice copy when truncated");
-  assert.match(bar, /: t\("showing", \{ shown: filteredCount, total: totalCount \}\)/, "the complete-list copy is the else branch");
+  assert.match(tab, /nextCursor \? \(/, "a cut page offers Load more");
+  assert.match(bar, /truncated \? t\("showingFirst", \{ count: shownCount \}\)/, "a cut page names no total");
+  assert.match(bar, /: t\("showingMatched", \{ count: shownCount \}\)/, "a complete answer is the else branch");
+  assert.doesNotMatch(bar, /t\("showing", \{ shown/, "no Showing-of-total over a loaded slice");
 });

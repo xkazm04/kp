@@ -2,7 +2,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import { ensureDb, type JobRecord } from "./db/core";
+import { ensureDb, jobLifecycleInOverlay, type JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { deleteJobTranslations } from "./db/job-translations";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
@@ -160,11 +160,35 @@ export function insertJob(
   return { id: job.id, created: !targetsExisting };
 }
 
+/** No team named = the corpus role's FILING team (getJobWorkspace's fold). Copied, not
+ *  imported: db/jobs.ts would join this hub's import-graph budget. */
+function lifecycleTeam(workspaceId: string | undefined): string {
+  return workspaceId ?? DEFAULT_WORKSPACE_ID;
+}
+
 /** Flip a job's lifecycle status. W8-1 (JOB1) adds the terminal state the
  *  one-way draft → published ratchet lacked: `closed` retires a filled or
  *  abandoned role — the apply surface stops accepting, the catalog badges it.
- *  NULL status (seeded corpus job) remains "live". */
-export function setJobStatus(jobId: string, status: "draft" | "published" | "closed"): void {
+ *  NULL status (seeded corpus job) remains "live". A corpus row's status goes to the
+ *  team's overlay (jobLifecycleInOverlay); published_at stays on the shared row. */
+export function setJobStatus(jobId: string, status: "draft" | "published" | "closed", workspaceId?: string): void {
+  const d = db();
+  const row = d.prepare(`SELECT workspace_id, status, published_at FROM jobs WHERE id = ?`).get(jobId) as
+    | { workspace_id: string | null; status: string | null; published_at: string | null }
+    | undefined;
+  if (row && jobLifecycleInOverlay(row)) {
+    const now = new Date().toISOString();
+    d.transaction(() => {
+      if (status === "published") {
+        d.prepare(`UPDATE jobs SET published_at = COALESCE(published_at, ?) WHERE id = ?`).run(now, jobId);
+      }
+      d.prepare(
+        `INSERT INTO job_workspace_state (workspace_id, job_id, status, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(workspace_id, job_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`
+      ).run(lifecycleTeam(workspaceId), jobId, status, now);
+    })();
+    return;
+  }
   // published_at is the cycle start for publish-anchored metrics, so it records
   // when the role FIRST went live: COALESCE keeps the original stamp when a closed
   // role is republished, and the write is a no-op for draft/closed. Without this,
@@ -192,11 +216,20 @@ export function setJobStatus(jobId: string, status: "draft" | "published" | "clo
  *
  *  Read-only and synchronous, so it is safe to call inside the publish transaction —
  *  which is the point: the route reads the row it is about to flip under the same
- *  write lock. Pinned by app/api/jobs/jobs-publish-billing.test.ts. */
-export function classifyPublish(jobId: string): { already: boolean; wasClosed: boolean; billable: boolean } {
+ *  write lock. Pinned by app/api/jobs/jobs-publish-billing.test.ts.
+ *  `already`/`wasClosed` are the team's; `billable` reads the SHARED stamp, so billing
+ *  is unchanged by the overlay (job-workspace-state.test.ts drives the parity). */
+export function classifyPublish(
+  jobId: string,
+  workspaceId?: string
+): { already: boolean; wasClosed: boolean; billable: boolean } {
   const r = db()
-    .prepare(`SELECT status, published_at FROM jobs WHERE id = ?`)
-    .get(jobId) as { status: string | null; published_at: string | null } | undefined;
+    .prepare(
+      `SELECT COALESCE(s.status, jobs.status) AS status, jobs.published_at AS published_at FROM jobs
+       LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(lifecycleTeam(workspaceId), jobId) as { status: string | null; published_at: string | null } | undefined;
   const status = r?.status ?? null;
   return { already: status === "published", wasClosed: status === "closed", billable: !r?.published_at };
 }
@@ -210,8 +243,16 @@ export function isJobOpenForApplications(status: string | null): boolean {
   return status === null || status === "published";
 }
 
-export function getJobStatus(jobId: string): string | null {
-  const r = db().prepare(`SELECT status FROM jobs WHERE id = ?`).get(jobId) as { status: string | null } | undefined;
+/** The team's view of the status. Required: recruiters pass their team, the public
+ *  apply doors the FILING team (getJobWorkspace). */
+export function getJobStatus(jobId: string, workspaceId: string): string | null {
+  const r = db()
+    .prepare(
+      `SELECT COALESCE(s.status, jobs.status) AS status FROM jobs
+       LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(lifecycleTeam(workspaceId), jobId) as { status: string | null } | undefined;
   return r?.status ?? null;
 }
 

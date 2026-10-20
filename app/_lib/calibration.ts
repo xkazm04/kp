@@ -7,15 +7,18 @@
 // label (1 = advanced, 0 = passed). Nothing here changes the scoring engine — it
 // only MEASURES the score we already emit.
 //
-// PURE + import-free on purpose: this module is exercised by a colocated
-// `node --test` suite, which can only load a sibling that drags in no `@/` imports.
+// PURE on purpose: its one import is the import-free generated contract file, so
+// the colocated `node --test` suite loads it without dragging in any `@/` graph.
+//
+// MIN_CALIBRATION_OUTCOMES — below this many labeled outcomes the curve is
+// statistical noise; callers MUST show an honest "not yet calibrated" state
+// instead of a misleading diagram. CALIBRATION_BIN_COUNT — ten fixed bins over the
+// 0-1 probability range ([0,0.1), … , [0.9,1.0]). Both are GENERATED from
+// pipeline/jobfit/calibration_drift.py (codegen.py CONTRACT_CONSTANTS): the drift
+// alarm reads the payloads this engine emits, so the two must bin identically.
+import { CALIBRATION_BIN_COUNT, MIN_CALIBRATION_OUTCOMES } from "./contract-constants.generated.ts";
 
-/** Below this many labeled outcomes the curve is statistical noise; callers MUST
- *  show an honest "not yet calibrated" state instead of a misleading diagram. */
-export const MIN_CALIBRATION_OUTCOMES = 20;
-
-/** Ten fixed bins over the 0-1 probability range ([0,0.1), … , [0.9,1.0]). */
-export const CALIBRATION_BIN_COUNT = 10;
+export { CALIBRATION_BIN_COUNT, MIN_CALIBRATION_OUTCOMES };
 
 export type ScoreOutcome = { score: number; outcome: number };
 

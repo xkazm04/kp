@@ -12,20 +12,33 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from .taxonomy import ADJACENT_DOMAIN_SIGNALS
+from .taxonomy import ADJACENT_DOMAIN_SIGNALS, feminine_probe_forms, normalize_text
 
-# Prior-role surface signals (CZ + EN) -> transferable meta-skills.
+_SignalGroups = tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]
+
+# Prior-role surface signals (CZ + EN) -> transferable meta-skills. This is the
+# AUTHORED table; ``_TRANSFERABLE_MAP`` below is what ``map_transferable`` reads.
 #
 # GENDERED FORMS: Czech job titles inflect for gender, and a substring signal that
 # only covers the masculine silently credits a man and not the woman who did the
 # identical job. Most masculine forms are a prefix of their feminine counterpart so
 # one token covers both ("učitel" ⊃ "učitelka", "ředitel" ⊃ "ředitelka"); where the
-# stem CHANGES it does not, and each such signal needs its feminine stem listed
-# beside it — "pedagog"/"pedagož(ka)", "poradce"/"poradkyn(ě)", "právník"/"právnič(ka)",
-# "voják"/"vojačk(a)" — or the adjective truncated to its gender-neutral stem
-# ("projektov" covers "projektový manažer" AND "projektová manažerka"). Any new
-# Czech signal added here must be checked the same way.
-_TRANSFERABLE_MAP: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+# stem CHANGES it does not. Those feminines are DERIVED at import
+# (:func:`with_feminine_forms`) and ``taxonomy_check.scan_transferable_gender_gaps``
+# fails the build on a Czech signal whose feminine nothing reaches, so a new
+# masculine-only signal cannot be written. Two kinds of hand-written entry remain:
+#
+# * the INFLECTION stems "pedagož", "právnič", "vojačk": the derivation adds the
+#   full nominatives ("pedagožka", "právnice", …) because a stem such as "právnic"
+#   would substring-hit "právnických osob"; a nominative, though, does not reach
+#   the case forms a CV is actually written in ("praxe pedagožky", "práce
+#   právničky"), and these stems do. They stay beside the derived forms.
+# * "poradkyn(ě)": the probe vocabulary has no -ce -> -kyně rule, so
+#   ``feminine_probe_forms("poradce")`` is empty and the feminine can only be authored.
+#
+# An adjective is truncated to its gender-neutral stem ("projektov" covers
+# "projektový manažer" AND "projektová manažerka").
+_AUTHORED_TRANSFERABLE_MAP: _SignalGroups = (
     (("teacher", "lecturer", "tutor", "educator", "učitel", "lektor", "pedagog", "pedagož", "trenér"),
      ("mentoring", "communication", "curriculum design", "public speaking")),
     (("analyst", "analytik", "analytička"),
@@ -51,6 +64,33 @@ _TRANSFERABLE_MAP: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("military", "police", "voják", "vojačk", "policie", "hasič"),
      ("discipline", "stress management", "teamwork", "ownership")),
 )
+
+
+def feminine_signal_forms(signal: str) -> tuple[str, ...]:
+    """The full feminine word(s) a Czech agent-noun ``signal`` names, or ``()``.
+
+    Full nominatives (:func:`taxonomy.feminine_probe_forms`), never the
+    ``feminine_variants`` stems: this map matches by raw substring, and the stem
+    "právnic" would credit every CV mentioning "právnických osob". English and
+    non-agent signals derive nothing.
+    """
+    return feminine_probe_forms(normalize_text(signal))
+
+
+def with_feminine_forms(groups: _SignalGroups) -> _SignalGroups:
+    """``groups`` with each group's derived feminine forms APPENDED.
+
+    Additive: every authored signal stays, in order, so the authored inflection
+    stems keep matching case forms the nominatives cannot reach.
+    """
+    out = []
+    for signals, skills in groups:
+        derived = [f for sig in signals for f in feminine_signal_forms(sig)]
+        out.append((tuple(dict.fromkeys((*signals, *derived))), skills))
+    return tuple(out)
+
+
+_TRANSFERABLE_MAP: _SignalGroups = with_feminine_forms(_AUTHORED_TRANSFERABLE_MAP)
 
 # Any prior professional role implies these baseline meta-skills.
 _GENERIC_PROFESSIONAL = ("teamwork", "communication", "ownership", "delivery")

@@ -89,9 +89,23 @@ export function checkoutPollWindowMs(delays: readonly number[] = CHECKOUT_POLL_D
 
 // ---- the checkout-return flag ------------------------------------------------
 
-/** The provider redirects to `/?tab=billing&billing=success`. The flag is captured
+/** The provider redirects with a kind-specific `billing` success flag. It is captured
  *  ONCE (lazy initial state) because the effect strips it from the URL immediately —
  *  a re-derivation after that would read `null` and tear the banner down mid-poll. */
+export type CheckoutReturnKind = "plan" | "pack";
+
+export function checkoutReturnKind(billingParam: string | null): CheckoutReturnKind | null {
+  if (billingParam === "plan-success" || billingParam === "success") return "plan";
+  if (billingParam === "pack-success") return "pack";
+  return null;
+}
+
 export function isCheckoutReturn(billingParam: string | null): boolean {
-  return billingParam === "success";
+  return checkoutReturnKind(billingParam) !== null;
+}
+
+/** A pack return is confirmed only after credits increase over the balance
+ * captured before the provider redirect. Missing storage keeps the banner pending. */
+export function packCreditsReflectPurchase(before: number | null, current: number | null): boolean {
+  return before !== null && current !== null && Number.isFinite(before) && current > before;
 }

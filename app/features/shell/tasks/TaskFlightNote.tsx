@@ -2,6 +2,9 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { buildUrl } from "../tabs";
+import { useShellNavigate } from "../nav/shallow-nav";
 import type { useTaskResult } from "./useTaskResult";
 
 // The shared "wait or leave" affordance for an action that now runs as a
@@ -20,15 +23,23 @@ export function TaskFlightNote({
   className?: string;
 }) {
   const t = useTranslations("tasks.flight");
+  const nav = useShellNavigate();
+  const search = useSearchParams();
   if (!watch.active && !watch.loading) return null;
   return (
     <p role="status" className={`flex items-start gap-1.5 text-sm text-steel ${className}`}>
-      <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-coral" aria-hidden />
+      <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-coral-ink" aria-hidden />
       <span>
         <span className="font-medium text-ink">
           {watch.progressMsg || (watch.status === "queued" ? t("queued") : t("running"))}
         </span>{" "}
-        {t("leaveNote")}
+        <button
+          type="button"
+          onClick={() => nav.push(buildUrl({ tab: "tasks" }, search.toString()))}
+          className="focus-ring rounded-sm text-left underline decoration-stone-400 underline-offset-2 hover:text-ink"
+        >
+          {t("leaveNote")}
+        </button>
       </span>
     </p>
   );

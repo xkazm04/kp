@@ -48,7 +48,7 @@ export function PrepHeader({
       <div className="flex items-center justify-between gap-3">
         {/* Provenance: AI-tailored vs deterministic template fallback. */}
         <PrepSourceBadge source={prep.source} copy={prepSourceCopy} />
-        <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{t("doneCount", { done: doneItems, total: totalItems })}</span>
+        <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral-ink">{t("doneCount", { done: doneItems, total: totalItems })}</span>
       </div>
       {fallback ? (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">

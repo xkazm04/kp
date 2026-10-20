@@ -1,0 +1,53 @@
+{
+  "data": [
+    {
+      "id": "13",
+      "type": "program",
+      "attributes": {
+        "handle": "acme_cloud",
+        "name": "Acme Cloud",
+        "currency": "usd",
+        "profile_picture": "https://profile-photos.hackerone-user-content.com/acme.png",
+        "submission_state": "open",
+        "triage_active": true,
+        "state": "public_mode",
+        "started_accepting_at": "2024-03-01T00:00:00.000Z",
+        "number_of_reports_for_user": 0,
+        "number_of_valid_reports_for_user": 0,
+        "bounty_earned_for_user": 0.0,
+        "last_invitation_accepted_at_for_user": null,
+        "bookmarked": false,
+        "allows_bounty_splitting": true,
+        "offers_bounties": true
+      }
+    },
+    {
+      "id": "14",
+      "type": "program",
+      "attributes": {
+        "handle": "quiet_vdp",
+        "name": "Quiet VDP",
+        "currency": "usd",
+        "submission_state": "open",
+        "state": "public_mode",
+        "offers_bounties": false
+      }
+    },
+    {
+      "id": "15",
+      "type": "program",
+      "attributes": {
+        "handle": "paused_prog",
+        "name": "Paused Program",
+        "currency": "usd",
+        "submission_state": "paused",
+        "state": "public_mode",
+        "offers_bounties": true
+      }
+    }
+  ],
+  "links": {
+    "self": "https://api.hackerone.com/v1/hackers/programs?page%5Bnumber%5D=1&page%5Bsize%5D=100",
+    "last": "https://api.hackerone.com/v1/hackers/programs?page%5Bnumber%5D=1&page%5Bsize%5D=100"
+  }
+}

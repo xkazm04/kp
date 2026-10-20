@@ -33,7 +33,7 @@ bad day.
 | File | What it is |
 | --- | --- |
 | [`pipeline/jobfit/llm/fault.py`](../../pipeline/jobfit/llm/fault.py) | `FaultProvider` — a real `TextProvider` subclass that fails in one declared way |
-| [`pipeline/jobfit/eval/fault_eval.py`](../../pipeline/jobfit/eval/fault_eval.py) | the drill: every fault × every automation task × three scenarios, with a recorded expectation per fault |
+| [`pipeline/jobfit/eval/fault_eval.py`](../../pipeline/jobfit/eval/fault_eval.py) | the drill: every fault × every automation task × three scenarios, plus every fault × three callers of the shared fallback runner (`FALLBACK_SEAMS`), with a recorded expectation per fault |
 | [`pipeline/jobfit/tests/test_fault_injection.py`](../../pipeline/jobfit/tests/test_fault_injection.py) | unit-level pins for the seam itself (call bounds, the protected-language guard) |
 
 `FaultProvider` is handed to the **real** call sites — `automation.screen_candidate`,
@@ -130,20 +130,45 @@ other half was silent: `automation._generate` swallowed the failure and the CLI
 emitted `reason=None`.
 
 `automation._generate` now records it, in a vocabulary deliberately disjoint from
-the gate's so the two can never be confused
-(`automation.DEGRADATION_REASONS`):
+the gate's so the two can never be confused (`DEGRADATION_REASONS`, defined once in
+[`llm/degradation.py`](../../pipeline/jobfit/llm/degradation.py) with the classifier
+that reads it off `LLMError.subtype`; `automation.DEGRADATION_REASONS` is an alias):
 
 | reason | what happened |
 | --- | --- |
 | `provider_timeout` | the call did not come back inside its **total** wall-clock budget (`LLMError.subtype == "deadline_exceeded"`) |
 | `unparseable_output` | it returned text, and not even the corrective re-prompt made it JSON (`subtype == "unparseable_json"`) |
-| `unusable_output` | it returned parseable JSON and coercion kept none of it — the wrong type, every value out of range, or a letter `_letter_is_safe` discarded whole |
+| `unusable_output` | it returned parseable JSON and coercion kept none of it — the wrong type, every value out of range, a coercer that raised on it, or a letter `_letter_is_safe` discarded whole |
 | `provider_error` | anything else the call raised: transport, a 5xx that outlived its retries, a refusal, a missing capability |
 
 `automation_cli` passes `descent or automation.take_degradation_reason()` to
 `emit_deterministic`, so **every** deterministic serve now carries a reason. The
 reason is consumed once, on the thread that generated it: a stale reason attached
 to a later healthy call would be a lie in the one record that exists not to be.
+
+### The second seam family: the shared fallback runner
+
+`devcase/provenance.generate_with_fallback` is the LLM-or-deterministic runner behind
+fifteen call sites (devcase analyze / design / evaluate / reflect / chat / baseline /
+seed / interview scenario, agentfit, intake, jobseeker, repo_scan). It used to wrap the
+call and the coercion in one `try` and record only a `describe_fallback` prose line,
+which cannot go into a durable column — so every descent after the availability gate
+reached the ledger as `reason=None`. It now:
+
+- classifies a failed call from its subtype (`provider_timeout` /
+  `unparseable_output` / `provider_error`), and a coercer that **raises** on an
+  answer as `unusable_output` — the call succeeded and was paid for;
+- stamps that code as `fallbackCode` beside the prose `fallbackReason`;
+  `collect_fallback_reasons(pop=True)` pops both, so the code never reaches a frozen
+  devcase seat or the envelope;
+- has its code passed to `emit_deterministic` by `devcase_cli` and `agentfit_cli`
+  (`descent or step code`).
+
+`fault_eval` drills it through three callers with coercers of different temperament —
+`analyze_need` (field-by-field backfill), `analyze_agent_fit` (code-owned
+post-processing on both paths) and `run_intake_turn` (a coercer that raises on a
+reply-less payload) — under the same `EXPECTATIONS`, reading THE REASON from the
+stamped code. `rematch` is reason-checked too, wherever a call was owed.
 
 Which faults must produce which reasons is declared on each `Expectation` and
 asserted per row; the drill's report prints the reasons each fault actually
@@ -183,14 +208,14 @@ asserts nothing is worse than one that does not run.
 
 ## Known gaps
 
-- **Only the `automation` seam names its descent.** The same private `_generate`
-  is copied in `devcase/{analyze,design,evaluate,reflect}.py`, and
-  `match_reasoning` has its own (it is the path `rematch` takes). Those still fall
-  back anonymously, so a mid-call degradation there is still indistinguishable
-  from a keyless install in the ledger. This drill runs the `automation` tasks, so
-  it can only hold that one seam to the contract; unifying the copies behind one
-  helper is the follow-up, and the vocabulary above is deliberately provider-
-  agnostic so they can adopt it unchanged.
+- **The fallback runner is drilled through three of its fifteen callers.** The
+  runner is one function, so its contract holds for all of them, but a caller's
+  own coercer or post-processing is only exercised where it is drilled. Only the
+  devcase and agentfit CLIs hand the code to the ledger today; `repo_scan_cli`
+  still passes only the availability descent, and `intake_cli` / `jobseeker_cli`
+  write no deterministic ledger line at all.
+- **The extraction path is not drilled.** `gemini.complete_document` /
+  cv_analysis is a different seam with no `FaultProvider` run yet.
 - **The drill runs three scenarios, not six** (`student_weak_fairness`,
   `czech_outreach`, `bau_weak`). The matrix is fault × task; widening the scenario
   axis mostly multiplies the two modes that intentionally spend wall-clock.

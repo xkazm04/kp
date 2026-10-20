@@ -2,12 +2,13 @@
 // out of DevTab.tsx.
 import { useMemo, useState } from "react";
 import { useTaskResult, type Task } from "@/app/features/shell/tasks/TasksProvider";
+import type { TaskKind } from "@/app/_lib/task-kinds";
 import type { DevAction } from "./useDevTabActions";
 import type { Design, Result } from "./DevTypes";
 
 export function useDevTabNeedAnalysis(args: {
   tasks: Task[];
-  startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
+  startTask: (kind: TaskKind, params?: Record<string, unknown>) => Promise<Task | null>;
   buildNeed: () => Record<string, unknown>;
   runAction: (action: DevAction, fetcher: () => Promise<Response>, onOk?: (body: unknown) => void) => Promise<boolean>;
   loadCases: () => void;

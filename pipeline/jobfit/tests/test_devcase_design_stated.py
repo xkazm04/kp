@@ -6,6 +6,7 @@ import unittest
 
 from pipeline.jobfit.devcase.design import design_role
 from pipeline.jobfit.devcase.models import DevNeed, NeedAnalysis
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 
 
 def _need() -> DevNeed:
@@ -30,18 +31,27 @@ class TestStatedRequirements(unittest.TestCase):
         self.assertIn("Snowflake", role["mustHaves"])
         self.assertEqual(role["niceToHaves"], ["Python"])
 
+    def test_stated_dealbreakers_past_the_cap_are_never_trimmed(self) -> None:
+        names = ["dbt", "SQL", "Airflow", "Python", "Snowflake", "Looker", "Git", "Testing"]
+        need = DevNeed(
+            title="Analytics Engineer",
+            stack=["SQL"],
+            seniority_target="medior",
+            stated_requirements=[
+                {"skill": s, "kind": "must_have", "hardness": "prerequisite", "weight": round(0.95 - 0.05 * i, 2)}
+                for i, s in enumerate(names)
+            ],
+        )
+        role, _ = design_role(need, NeedAnalysis(real_stack=["Redshift", "Fivetran"]), provider=None)
+        # All eight confirmed dealbreakers survive, weight-ordered; the real-stack fill is what is bounded.
+        self.assertEqual(role["mustHaves"], names)
+
     def test_prompt_carries_the_grading(self) -> None:
-        captured = {}
-
-        class Capture:
-            def complete_json(self, prompt, system=None):
-                captured["prompt"] = prompt
-                return {}
-
-        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=Capture())
-        self.assertIn("statedRequirements", captured["prompt"])
-        self.assertIn("dbt", captured["prompt"])
-        self.assertIn("nice_to_have", captured["prompt"])
+        capture = TextReply({})
+        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=capture)
+        self.assertIn("statedRequirements", capture.last_prompt)
+        self.assertIn("dbt", capture.last_prompt)
+        self.assertIn("nice_to_have", capture.last_prompt)
 
     def test_pre_intake_needs_unchanged(self) -> None:
         need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="senior")
@@ -58,3 +68,26 @@ class TestStatedRequirements(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLanguagesAreNeverInvented(unittest.TestCase):
+    def test_keyless_need_without_a_language_returns_none(self) -> None:
+        need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="senior")
+        role, source = design_role(need, NeedAnalysis(real_stack=["Go"]), provider=None)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(role["languages"], [])
+
+    def test_model_reply_without_languages_stays_empty(self) -> None:
+        reply = TextReply({"title": "Backend Engineer", "mustHaves": ["Go"], "languages": []})
+        role, _ = design_role(DevNeed(title="Backend Engineer", stack=["Go"]), NeedAnalysis(real_stack=["Go"]), provider=reply)
+        self.assertEqual(role["languages"], [])
+
+    def test_prompt_carries_the_extended_grounding_rule(self) -> None:
+        capture = TextReply({})
+        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=capture)
+        self.assertIn("responsibilities restate or narrow", capture.last_prompt)
+        self.assertIn("ONLY when the input names it", capture.last_prompt)
+
+    def test_prompt_version_is_v5(self) -> None:
+        role, _ = design_role(_need(), NeedAnalysis(), provider=None)
+        self.assertEqual(role["promptVersion"], "role-design-v5")

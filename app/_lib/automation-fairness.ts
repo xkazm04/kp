@@ -16,11 +16,12 @@
 // is downgraded to `hold` + an alert (never silently applied) — `hold` routes the
 // candidate to the human Decisions gate, which is where a contested reject belongs.
 //
-// The archetype half reuses the shared fail-closed gate in ./archetypes
-// (isFairnessProtected → true for early-career AND any unknown/renamed archetype),
-// the same helper screen-wave.ts guards its auto-reject with.
+// The archetype half reuses the shared fail-closed gate, read LIVE (./archetype-live:
+// true for early-career AND any unknown/renamed archetype, the bundled shield unioned
+// with the registry file Python's automation.py derives its early-career set from on
+// every spawn), the same snapshot screen-wave.ts guards its auto-reject with.
 
-import { isFairnessProtected, isKnownArchetype } from "./archetypes";
+import { readLiveArchetypes } from "./archetype-live";
 
 // Mirror of Python `POLICY["bau_reject_score"]` (pipeline/jobfit/automation.py):
 // the only score below which a BAU candidate is auto-rejected. This is a backstop
@@ -34,7 +35,12 @@ export const BAU_REJECT_SCORE = 40;
  *  PipelineEntry satisfy this structurally. */
 export type RejectCheckEntry = { archetype: string | null; matchScore: number | null };
 
-export type AutoRejectVerdict = { allowed: true } | { allowed: false; reason: string };
+/** Stable identifier of the rule that refused an auto-reject. The audit record keys
+ *  on this, not on the English `reason`, so a refusal is countable by rule and the
+ *  sentence can be re-rendered later (blocked-rejection-as-an-audited-event). */
+export type AutoRejectRule = "entry-missing" | "protected-cohort" | "unknown-archetype" | "unscored" | "at-or-above-floor";
+
+export type AutoRejectVerdict = { allowed: true } | { allowed: false; reason: string; rule: AutoRejectRule };
 
 /** Re-assert the auto-reject fairness invariant for one entry. Returns
  *  `{allowed:true}` only when the policy pass's reject is legitimate — i.e. it
@@ -45,23 +51,24 @@ export type AutoRejectVerdict = { allowed: true } | { allowed: false; reason: st
  *  never sent) is never auto-rejected. */
 export function assertAutoRejectFair(entry: RejectCheckEntry | null | undefined): AutoRejectVerdict {
   if (!entry) {
-    return { allowed: false, reason: "entry not found for fairness re-check — auto-reject refused (fail closed)" };
+    return { allowed: false, rule: "entry-missing", reason: "entry not found for fairness re-check — auto-reject refused (fail closed)" };
   }
-  if (isFairnessProtected(entry.archetype)) {
-    const why = isKnownArchetype(entry.archetype)
+  const live = readLiveArchetypes();
+  if (live.isFairnessProtected(entry.archetype)) {
+    const why = live.isKnown(entry.archetype)
       ? `early-career archetype "${entry.archetype}" is shielded from automated rejection`
       : `unknown archetype "${entry.archetype ?? "(null)"}" is shielded from automated rejection (fail closed)`;
-    return { allowed: false, reason: why };
+    return { allowed: false, rule: live.isKnown(entry.archetype) ? "protected-cohort" : "unknown-archetype", reason: why };
   }
   const score = entry.matchScore;
   // An absent / null / 0 score means matching has not produced a genuine result
   // (an unscored data gap, not a real low match) — `evaluate_entry` holds it for
   // matching rather than reading it as 0 and rejecting, so we must too.
   if (score === null || score <= 0) {
-    return { allowed: false, reason: "unscored entry (no genuine match score) — must hold for matching, never auto-reject" };
+    return { allowed: false, rule: "unscored", reason: "unscored entry (no genuine match score) — must hold for matching, never auto-reject" };
   }
   if (score >= BAU_REJECT_SCORE) {
-    return { allowed: false, reason: `match score ${score} is at/above the ${BAU_REJECT_SCORE} reject floor — not an auto-reject` };
+    return { allowed: false, rule: "at-or-above-floor", reason: `match score ${score} is at/above the ${BAU_REJECT_SCORE} reject floor — not an auto-reject` };
   }
   return { allowed: true };
 }

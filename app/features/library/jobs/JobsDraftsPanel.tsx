@@ -150,7 +150,7 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
 
   return (
     <div data-sim="job-drafts" className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
-      <p className="text-meta uppercase tracking-wide text-coral">{t("heading")} · {drafts.length}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{t("heading")} · {drafts.length}</p>
       {loadFailed ? (
         <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-amber-800">
           {t("loadFailed")}{" "}
@@ -177,7 +177,7 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
               onClick={() => setPendingDraft(d.id)}
               disabled={sourcingId === d.id}
               title={t("sourceTitle")}
-              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               {/* The verb is "Publish" (jobs.drafts.sourceIntoPipeline); the icon
                   follows it. Sourcing is what the publish DOES, and the result
@@ -203,13 +203,13 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
         draftNote.tone === "quota" ? (
           <div
             aria-live="polite"
-            className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-2.5 py-1.5 text-sm text-coral"
+            className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-2.5 py-1.5 text-sm text-coral-ink"
           >
             <span>{draftNote.text}</span>
             <button
               type="button"
               onClick={goToBilling}
-              className="focus-ring rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/10"
+              className="focus-ring rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral-ink hover:bg-coral/10"
             >
               {t("goToBilling")}
             </button>

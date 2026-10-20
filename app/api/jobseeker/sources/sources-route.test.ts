@@ -5,25 +5,38 @@
 // writing anything.
 //
 // unit-db.ts must be the first project import (it sets KP_DB_PATH before any store opens).
-import { test, after, afterEach } from "node:test";
+import { test, after, afterEach, before } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { getJobseekerSource } from "../../../_lib/db/jobseeker-sources.ts";
+import { _setEgressLookupForTests } from "../../../_lib/jobseeker/fetch/egress.ts";
 import { _resetPolitenessForTests, _setPoliteFetchDepsForTests } from "../../../_lib/jobseeker/fetch/politeFetch.ts";
 import { catalogEntry } from "../../../_lib/jobseeker/sources-catalog.ts";
 import type { JobseekerSource } from "../../../_lib/jobseeker/types.ts";
 import { GET, POST } from "./route.ts";
 import { PATCH } from "./[id]/route.ts";
 import { POST as PREVIEW } from "./[id]/preview/route.ts";
+import { POST as PROPOSE } from "./[id]/rules/propose/route.ts";
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "_lib", "jobseeker", "__fixtures__");
 const listing = readFileSync(path.join(FIXTURES, "jobscz-listing.html"), "utf8");
 const rules = JSON.parse(readFileSync(path.join(FIXTURES, "jobscz-rules.json"), "utf8")) as unknown;
 
-after(() => cleanupUnitDb());
+// DNS is pinned: no unit run resolves a real name. `rebind.*` answers a private address
+// (the DNS-rebinding shape a string check cannot see); everything else is public.
+before(() =>
+  _setEgressLookupForTests(async (host) => {
+    if (host.startsWith("rebind.")) return [{ address: "10.0.0.5" }];
+    return [{ address: "93.184.216.34" }];
+  })
+);
+after(() => {
+  _setEgressLookupForTests(null);
+  cleanupUnitDb();
+});
 afterEach(() => {
   _resetPolitenessForTests();
   delete process.env.KP_OFFLINE;
@@ -163,4 +176,75 @@ test("preview: runs the rules against the scripted live page, writes nothing; of
   assert.equal(offline.status, 503);
   assert.equal(((await offline.json()) as { code: string }).code, "JOBSEEKER_OFFLINE");
   assert.equal(calls.length, before, "offline is decided before any fetch");
+});
+
+/** A scripted politeFetch transport that records every URL it is asked for. */
+function recordingTransport(routes: Record<string, () => Response> = {}): string[] {
+  const calls: string[] = [];
+  _setPoliteFetchDepsForTests({
+    now: () => 1_000_000,
+    sleep: async () => undefined,
+    fetch: async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      calls.push(url);
+      const factory = routes[url] ?? routes["*"];
+      if (factory) return factory();
+      if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+      return new Response(listing, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+    },
+  });
+  return calls;
+}
+
+test("preview + propose: a loopback / metadata / off-host / privately-resolving url is refused BEFORE any fetch", async () => {
+  const src = await create({ catalogId: "jobs" });
+  const calls = recordingTransport();
+  for (const url of ["http://127.0.0.1:3000/api/admin", "http://169.254.169.254/latest/meta-data/", "https://localhost/x"]) {
+    const res = await PREVIEW(json("POST", { rules, url }), params(src.id));
+    assert.equal(res.status, 400, `${url}: not on the source host`);
+    assert.equal(((await res.json()) as { code: string }).code, "JOBSEEKER_RULES_INVALID");
+    const proposed = await PROPOSE(json("POST", { url }), params(src.id));
+    assert.equal(proposed.status, 400, `propose ${url}`);
+  }
+  const offHost = await PREVIEW(json("POST", { rules, url: "https://evil.example/listing" }), params(src.id));
+  assert.equal(offHost.status, 400, "a public host that is not the source's is refused too");
+  const rebind = await PREVIEW(json("POST", { rules, url: "https://rebind.www.jobs.cz/prace/" }), params(src.id));
+  assert.equal(rebind.status, 403, "on the source host by name, private by address");
+  assert.equal(((await rebind.json()) as { code: string }).code, "JOBSEEKER_SOURCE_REFUSED");
+  const rebindPropose = await PROPOSE(json("POST", { url: "https://rebind.www.jobs.cz/prace/" }), params(src.id));
+  assert.equal(rebindPropose.status, 403);
+  assert.deepEqual(calls, [], "nothing was requested - not even robots.txt");
+});
+
+test("preview: a listing page that redirects onto a private host is refused at the hop; the target is never requested", async () => {
+  const src = await create({ catalogId: "jobs" });
+  const calls = recordingTransport({
+    "https://www.jobs.cz/prace/": () => new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } }),
+  });
+  const res = await PREVIEW(json("POST", { rules, url: "https://www.jobs.cz/prace/" }), params(src.id));
+  assert.equal(res.status, 423);
+  assert.ok(!calls.some((c) => c.includes("169.254.169.254")), calls.join(", "));
+});
+
+test("POST: every URL in a source config must be on the recorded host and public", async () => {
+  recordingTransport();
+  const offHostListing = await POST(json("POST", { adapter: "board_rules", config: { listingUrls: ["https://www.board.example/jobs?page={page}", "https://evil.example/x"] } }));
+  assert.equal(offHostListing.status, 400, "a second listing URL on another host");
+  assert.equal(((await offHostListing.json()) as { code: string }).code, "JOBSEEKER_RULES_INVALID");
+  const catalogOverride = await POST(json("POST", { catalogId: "jobs", config: { listingUrls: ["https://evil.example/{page}"] } }));
+  assert.equal(catalogOverride.status, 400, "a catalog entry's config cannot be pointed at another host");
+  const sitemapOverride = await POST(json("POST", { catalogId: "startupjobs", config: { sitemapUrl: "http://169.254.169.254/sitemap.xml" } }));
+  assert.equal(sitemapOverride.status, 400);
+  const metadataFeed = await POST(json("POST", { adapter: "mpsv_bulk", config: { url: "http://169.254.169.254/latest/meta-data/" } }));
+  assert.equal(metadataFeed.status, 403, "a feed URL on a metadata address");
+  assert.equal(((await metadataFeed.json()) as { code: string }).code, "JOBSEEKER_SOURCE_REFUSED");
+  const loopbackBoard = await POST(json("POST", { adapter: "board_sitemap_jsonld", config: { sitemapUrl: "https://localhost/sitemap.xml" } }));
+  assert.equal(loopbackBoard.status, 403);
+  const rebindBoard = await POST(json("POST", { adapter: "board_rules", config: { listingUrls: ["https://rebind.board.example/jobs"] } }));
+  assert.equal(rebindBoard.status, 403, "a board whose name resolves privately");
+  const tierC = await POST(json("POST", { adapter: "board_rules", config: { listingUrls: ["https://www.linkedin.com/jobs/search"] } }));
+  assert.equal(tierC.status, 403);
+  // A legitimate board with all its URLs on its own host (and a subdomain of it) is created.
+  const ok = await create({ adapter: "board_rules", config: { listingUrls: ["https://www.board.example/jobs?page={page}", "https://it.www.board.example/jobs"] } });
+  assert.equal(ok.host, "www.board.example");
 });

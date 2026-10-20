@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
-import { currentLlmRequestId } from "./llm-request-context";
+import { currentLlmRequestId, currentLlmRoleRunId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
 import { opsLog } from "./ops-telemetry";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
@@ -12,16 +12,19 @@ import { opsLog } from "./ops-telemetry";
 // import so the generic process runner doesn't eagerly pull in the DB layer, and
 // non-blocking — the metering ledger is telemetry and must never affect the
 // spawn it rides on. A spawn with no LLM call leaves no file (a harmless no-op).
-async function ingestUsageLog(logPath: string): Promise<void> {
+async function ingestUsageLog(logPath: string, roleRunId: string | null = null): Promise<void> {
   try {
     const { ingestLlmUsageLog } = await import("./db/llm");
-    ingestLlmUsageLog(logPath);
+    ingestLlmUsageLog(logPath, roleRunId);
   } catch (err) {
     opsLog("warn", "ledger:write:failed", { err: String(err) });
   }
 }
 
-const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+// Read per spawn, so a test's stand-in applies without re-importing the runner.
+function pythonCmd(): string {
+  return process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+}
 
 // LLM-usage metering is ON BY DEFAULT: every spawn gets a per-call sidecar path so
 // the flagship CV-analysis (and every other CLI's) spend lands in the llm_usage
@@ -58,11 +61,82 @@ export class PipelineError extends Error {
   }
 }
 
+export type SpawnFailureKind = "timeout" | "aborted" | "output_overflow" | "spawn_failed";
+
+/** The RUNNER's own failure (no CLI envelope to parse), typed: readers branch on `kind`,
+ *  and the message carries no argv — that goes to the ops log (logSpawnFailure). A
+ *  PipelineError, so status/code readers keep working: timeout 504, else 500. */
+export class SpawnFailure extends PipelineError {
+  readonly kind: SpawnFailureKind;
+  constructor(kind: SpawnFailureKind, message: string) {
+    super({ message, status: kind === "timeout" ? 504 : 500, code: kind === "timeout" ? "timeout" : "engine_error" });
+    this.name = "SpawnFailure";
+    this.kind = kind;
+  }
+}
+
+/** True only for the runner's deadline. Read this, never the message. */
+export function isSpawnTimeout(err: unknown): boolean {
+  return err instanceof SpawnFailure && err.kind === "timeout";
+}
+
+/** The admission overload as the route answers it, or null for anything else. */
+export function engineRefusal(err: unknown): { code: typeof ENGINE_BUSY_CODE; status: 503 } | null {
+  return err instanceof PipelineError && err.code === ENGINE_BUSY_CODE ? { code: ENGINE_BUSY_CODE, status: 503 } : null;
+}
+
+/** The client code for a failure the RUNNER produced (null for a CLI's envelope or a
+ *  handler's own error), for surfaces that store a failure and show it later: the task row
+ *  (tasks.ts) keeps the code and the client resolves `errors.<CODE>`. */
+export function spawnFailureCode(err: unknown): "ENGINE_BUSY" | "ENGINE_TIMEOUT" | "ENGINE_FAILED" | null {
+  if (engineRefusal(err)) return ENGINE_BUSY_CODE;
+  if (!(err instanceof SpawnFailure)) return null;
+  return err.kind === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED";
+}
+
 export async function createWorkdir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "jobfit-"));
 }
 
+// ── The jobfit workdir guard ──────────────────────────────────────────────────
+// createWorkdir makes a fresh `jobfit-*` directory directly under the OS temp dir; every
+// caller persists its uploads there and removes it afterwards. That is the ONLY shape a
+// workdir has. A path that arrives any other way, above all one a client supplied in a
+// task's params, must be neither read from nor rm -rf'd. Kept in this module (not a leaf
+// of its own) because python-runner is already on every route graph that could need it.
+const WORKDIR_PREFIX = "jobfit-";
+
+/** True only for a direct `jobfit-*` child of the OS temp dir (after resolving `..`). */
+export function isJobfitWorkdir(dir: unknown): dir is string {
+  if (typeof dir !== "string" || dir.trim() === "") return false;
+  const resolved = path.resolve(dir);
+  return (
+    path.dirname(resolved) === path.resolve(os.tmpdir()) &&
+    path.basename(resolved).startsWith(WORKDIR_PREFIX) &&
+    path.basename(resolved).length > WORKDIR_PREFIX.length
+  );
+}
+
+/** Throws unless `baseDir` is a real workdir and every non-null path lies inside it.
+ *  The message is a code, never the offending path (it may be a probe of the server's
+ *  filesystem, and the route answers with the code). */
+export function assertConfinedToWorkdir(baseDir: unknown, paths: readonly (string | null | undefined)[]): void {
+  if (!isJobfitWorkdir(baseDir)) throw new Error("ANALYZE_PARAMS_UNCONFINED");
+  const root = path.resolve(baseDir) + path.sep;
+  for (const p of paths) {
+    if (p === null || p === undefined) continue;
+    if (typeof p !== "string" || !path.resolve(p).startsWith(root)) throw new Error("ANALYZE_PARAMS_UNCONFINED");
+  }
+}
+
+/** Removes a workdir createWorkdir made — and NOTHING else. A recursive, forced rm on
+ *  a path that is not a `jobfit-*` child of the temp dir is refused (logged, not thrown:
+ *  callers run this in a finally, where a throw would mask the real outcome). */
 export async function cleanupWorkdir(workdir: string): Promise<void> {
+  if (!isJobfitWorkdir(workdir)) {
+    console.warn("[python-runner] refused to delete a path that is not a jobfit workdir");
+    return;
+  }
   await rm(workdir, { recursive: true, force: true });
 }
 
@@ -89,8 +163,8 @@ export type SpawnOptions = {
   // Lets a caller (e.g. a cancelled request/task) abort the child early.
   signal?: AbortSignal;
   // Hard ceiling on the combined stdout+stderr bytes we buffer in the Node
-  // heap. Crossing it SIGKILLs the child and rejects with an
-  // 'output exceeded N MB' error naming the CLI, instead of letting a runaway
+  // heap. Crossing it SIGKILLs the child and rejects with a
+  // SpawnFailure "output_overflow" (the CLI is named in the ops log), instead of letting a runaway
   // child grow the buffer unbounded and OOM the whole process.
   maxBufferBytes?: number;
   // Per-spawn env additions merged over process.env — e.g. KP_LLM_CONFIG from
@@ -164,39 +238,84 @@ function queueWaitMs(): number {
   return positiveNumericEnv("KP_PYTHON_QUEUE_WAIT_MS", DEFAULT_QUEUE_WAIT_MS);
 }
 
+// ---- Admission lanes (priority-and-fairness) -------------------------------------
+// The 20 s refusal is written for a caller with a human waiting. Task-runner and clock
+// work has a fifteen-minute budget, and under one FIFO list it was refused by this gate's
+// OWN bound (a group eval's six reasoning spawns against a ceiling of 4) while a
+// recruiter's click queued behind it. The lane comes from `currentSpawnLane()`, set only
+// by the task runner and the clock tick, so an unaware route is interactive and unchanged:
+//  - interactive: any free slot, admitted FIRST, refused after KP_PYTHON_QUEUE_WAIT_MS.
+//  - background: at most ceiling-1 slots (min 1, so a serial install still progresses),
+//    admitted only while no interactive caller waits, refused after
+//    KP_PYTHON_BACKGROUND_WAIT_MS (10 min: bounded, not infinite).
+// Both lanes count against the one ceiling and honour the caller's AbortSignal.
+const DEFAULT_BACKGROUND_WAIT_MS = 600_000;
+function backgroundWaitMs(): number {
+  return positiveNumericEnv("KP_PYTHON_BACKGROUND_WAIT_MS", DEFAULT_BACKGROUND_WAIT_MS);
+}
+/** The most slots background work may hold: all but one, and never fewer than one. */
+function backgroundCeiling(): number {
+  return Math.max(1, maxConcurrentSpawns() - 1);
+}
+
 type SlotWaiter = { admit: () => void };
-let inFlightSpawns = 0;
-const slotWaiters: SlotWaiter[] = [];
+const inFlight: Record<SpawnLane, number> = { interactive: 0, background: 0 };
+const waiters: Record<SpawnLane, SlotWaiter[]> = { interactive: [], background: [] };
+const totalInFlight = (): number => inFlight.interactive + inFlight.background;
 
-/** Live admission state — for tests, and for an ops surface that wants to say whether
- *  the engine is saturated rather than merely slow. */
-export function pythonSpawnLoad(): { inFlight: number; queued: number; ceiling: number } {
-  return { inFlight: inFlightSpawns, queued: slotWaiters.length, ceiling: maxConcurrentSpawns() };
+/** Live admission state (totals + per lane): for tests, the automation pass's budget
+ *  (reads `ceiling`), and an ops surface asking whether, and by whom, the engine is full. */
+export function pythonSpawnLoad(): {
+  inFlight: number;
+  queued: number;
+  ceiling: number;
+  lanes: Record<SpawnLane, { inFlight: number; queued: number }>;
+} {
+  return {
+    inFlight: totalInFlight(),
+    queued: waiters.interactive.length + waiters.background.length,
+    ceiling: maxConcurrentSpawns(),
+    lanes: {
+      interactive: { inFlight: inFlight.interactive, queued: waiters.interactive.length },
+      background: { inFlight: inFlight.background, queued: waiters.background.length },
+    },
+  };
 }
 
-/** Hand the freed slot straight to the longest-waiting caller (FIFO), so a burst is
- *  served in arrival order instead of letting a late caller barge in. `inFlightSpawns`
- *  is unchanged on a hand-over — the slot never becomes free, it changes owner. */
-function releaseSlot(): void {
-  const next = slotWaiters.shift();
-  if (next) {
-    next.admit();
-    return;
+/** Whether a caller in `lane` may take a slot right now without jumping a queue. */
+function canAdmit(lane: SpawnLane): boolean {
+  if (totalInFlight() >= maxConcurrentSpawns() || waiters.interactive.length > 0) return false;
+  return lane === "interactive" || (waiters.background.length === 0 && inFlight.background < backgroundCeiling());
+}
+
+/** Fill free slots: oldest interactive waiter first, then the oldest background waiter
+ *  while background is under its share. FIFO within a lane, so nobody barges in. */
+function admitWaiters(): void {
+  while (totalInFlight() < maxConcurrentSpawns()) {
+    const next =
+      waiters.interactive[0] ?? (inFlight.background < backgroundCeiling() ? waiters.background[0] : undefined);
+    if (!next) return;
+    next.admit(); // leaves its queue and counts itself in its lane
   }
-  inFlightSpawns = Math.max(0, inFlightSpawns - 1);
 }
 
-function acquireSlot(signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.reject(new Error("Python process aborted"));
-  if (inFlightSpawns < maxConcurrentSpawns()) {
-    inFlightSpawns += 1;
+function releaseSlot(lane: SpawnLane): void {
+  inFlight[lane] = Math.max(0, inFlight[lane] - 1);
+  admitWaiters();
+}
+
+function acquireSlot(lane: SpawnLane, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new SpawnFailure("aborted", "Python process aborted"));
+  if (canAdmit(lane)) {
+    inFlight[lane] += 1;
     return Promise.resolve();
   }
+  const queue = waiters[lane];
   return new Promise<void>((resolve, reject) => {
     let done = false;
     const drop = (): void => {
-      const i = slotWaiters.indexOf(waiter);
-      if (i >= 0) slotWaiters.splice(i, 1);
+      const i = queue.indexOf(waiter);
+      if (i >= 0) queue.splice(i, 1);
       clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
     };
@@ -205,28 +324,32 @@ function acquireSlot(signal?: AbortSignal): Promise<void> {
         if (done) return;
         done = true;
         drop();
+        inFlight[lane] += 1;
         resolve();
       },
     };
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      drop();
-      reject(
-        new PipelineError({
-          message: "The analysis engine is busy right now. Try again in a moment.",
-          status: 503,
-          code: ENGINE_BUSY_CODE,
-        }),
-      );
-    }, queueWaitMs());
+    const timer = setTimeout(
+      () => {
+        if (done) return;
+        done = true;
+        drop();
+        reject(
+          new PipelineError({
+            message: "The analysis engine is busy right now. Try again in a moment.",
+            status: 503,
+            code: ENGINE_BUSY_CODE,
+          }),
+        );
+      },
+      lane === "background" ? backgroundWaitMs() : queueWaitMs(),
+    );
     const onAbort = (): void => {
       if (done) return;
       done = true;
       drop();
-      reject(new Error("Python process aborted"));
+      reject(new SpawnFailure("aborted", "Python process aborted"));
     };
-    slotWaiters.push(waiter);
+    queue.push(waiter);
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
@@ -296,6 +419,39 @@ function killProcessTree(child: ChildProcessWithoutNullStreams): void {
   }
 }
 
+// ---- Argument hygiene ---------------------------------------------------------
+//
+// There is no shell between us and the interpreter (`shell: false` below), so a `;`, a
+// `$(…)` or a newline in an argument is inert data — nothing ever re-splits it. What a
+// shell-free argv does NOT protect against is the CLI's own parser: argparse treats an
+// element that starts with `-` as an option, so a user value passed as its own element
+// after `--message` either ends the run with "expected one argument" (a candidate who
+// typed "--help" loses their turn) or, next to a flag that takes no value, is read as
+// a flag. A value that reached us from a request, a candidate or a stored record goes
+// through {@link flagArg} instead: ONE element, `--flag=value`, which argparse assigns
+// to that flag whatever the value starts with.
+const LONG_FLAG = /^--[a-z][a-z0-9-]*$/;
+
+/** One `--flag=value` argv element for a value this code did not write itself. The
+ *  flag name is checked (a literal typo, or a flag built from data, throws); the value
+ *  is carried verbatim — leading dashes, newlines and shell metacharacters included —
+ *  because as the tail of a single element none of them can be read as syntax. */
+export function flagArg(flag: string, value: string): string {
+  if (!LONG_FLAG.test(flag)) throw new TypeError(`flagArg: ${JSON.stringify(flag)} is not a long flag name`);
+  return `${flag}=${value}`;
+}
+
+/** Refuse an argv the child could not receive intact: a non-string element (an
+ *  `undefined` from a missing field would reach the interpreter as the text
+ *  "undefined") or a NUL byte, which cannot cross exec and would end the value early.
+ *  The message names the position, never the value — the value may be user text. */
+export function assertSpawnArgs(args: readonly unknown[]): asserts args is string[] {
+  args.forEach((arg, i) => {
+    if (typeof arg !== "string") throw new TypeError(`spawnPython: argument ${i} is not a string`);
+    if (arg.includes("\0")) throw new TypeError(`spawnPython: argument ${i} contains a NUL byte`);
+  });
+}
+
 export function spawnPython(
   args: string[],
   opts: SpawnOptions = {},
@@ -323,15 +479,23 @@ export function spawnPython(
   // AsyncLocalStorage scope the CALLER owns, and a queued spawn resumes on a
   // microtask that may no longer be inside it.
   const llmRequestId = currentLlmRequestId();
+  // The admission lane, read at the same synchronous moment for the same reason.
+  const lane = currentSpawnLane();
+  // The role run these metered calls belong to, read at the same synchronous moment
+  // (llm-request-context.ts, "The role run"); null outside a run.
+  const roleRunId = currentLlmRoleRunId();
   // Admission first, fork second (see the semaphore header): the interpreter is not
   // started until a slot is held, which is the whole point — counting spawns after
   // starting them would bound nothing.
   const result = (async (): Promise<SpawnResult> => {
-    await acquireSlot(opts.signal);
+    // Inside the async body so a bad argv REJECTS `result` like every other spawn
+    // failure, rather than throwing out of a call its callers only guard with await.
+    assertSpawnArgs(args);
+    await acquireSlot(lane, opts.signal);
     try {
       return await runPythonChild(args, opts, usageLogPath, llmRequestId);
     } finally {
-      releaseSlot();
+      releaseSlot(lane);
     }
   })();
   // Ingest the usage sidecar once the child has settled (close, error, timeout,
@@ -341,8 +505,20 @@ export function spawnPython(
   // sidecar, and ingestUsageLog treats a missing file as a no-op.
   // Skip ingest entirely when the operator opted out — usageLogPath is their token
   // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
-  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
+  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath, roleRunId)).catch(() => {});
   return { result };
+}
+
+/** The argv a SpawnFailure does not carry, for the operator. An abort is the caller's own
+ *  cancel, not a fault, so it is not logged. */
+function logSpawnFailure(kind: SpawnFailureKind, args: string[], detail?: unknown): void {
+  if (kind === "aborted") return;
+  opsLog("warn", "engine:spawn:failed", {
+    kind,
+    cli: args[0] === "-m" ? args[1] : args[0],
+    argv: args.join(" "),
+    ...(detail === undefined ? {} : { detail: String(detail) }),
+  });
 }
 
 /** The actual fork + settle. Split out of {@link spawnPython} so the semaphore can wrap
@@ -353,7 +529,7 @@ function runPythonChild(
   usageLogPath: string,
   llmRequestId: string | null,
 ): Promise<SpawnResult> {
-  const child = spawn(PYTHON_CMD, args, {
+  const child = spawn(pythonCmd(), args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
     // redundant and made Turbopack's file tracer over-include the project root.
@@ -373,6 +549,9 @@ function runPythonChild(
     // Never on Windows, where `detached` allocates a console instead and the tree is
     // reaped by taskkill /T. We never unref(), so this does not outlive us.
     detached: process.platform !== "win32",
+    // Stated, not inherited from the default: every argument reaches the interpreter as
+    // one argv element and is never re-parsed by a shell (see flagArg).
+    shell: false,
     windowsHide: true,
   });
   // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #3): close the child's
@@ -397,27 +576,29 @@ function runPythonChild(
       clearTimeout(timer);
       opts.signal?.removeEventListener("abort", onAbort);
     };
-    const fail = (err: Error) => {
+    const fail = (err: SpawnFailure) => {
       if (settled) return;
       settled = true;
       cleanup();
       // The child's own descendants die with it — see killProcessTree.
       killProcessTree(child);
+      logSpawnFailure(err.kind, args);
       reject(err);
     };
 
     // Accumulate output while tracking a running byte total. A runaway child
     // would otherwise buffer its entire output until close (up to timeoutMs)
     // and OOM the process; once stdout+stderr crosses the ceiling we SIGKILL
-    // (via fail) and reject with an attributable error naming the CLI.
+    // (via fail) and reject; the ops log line names the CLI.
     const onChunk = (chunks: Buffer[], chunk: Buffer) => {
       if (settled) return;
       chunks.push(chunk);
       bufferedBytes += chunk.length;
       if (bufferedBytes > maxBufferBytes) {
         fail(
-          new Error(
-            `Python process output exceeded ${Math.round(maxBufferBytes / (1024 * 1024))} MB and was terminated: ${args.join(" ")}`,
+          new SpawnFailure(
+            "output_overflow",
+            `Python process output exceeded ${Math.round(maxBufferBytes / (1024 * 1024))} MB and was terminated`,
           ),
         );
       }
@@ -426,20 +607,23 @@ function runPythonChild(
     child.stderr.on("data", (chunk: Buffer) => onChunk(stderrChunks, chunk));
 
     const timer = setTimeout(
-      () => fail(new Error(`Python process timed out after ${Math.round(timeoutMs / 1000)}s: ${args.join(" ")}`)),
+      () => fail(new SpawnFailure("timeout", `Python process timed out after ${Math.round(timeoutMs / 1000)}s`)),
       timeoutMs,
     );
-    const onAbort = () => fail(new Error("Python process aborted"));
+    const onAbort = () => fail(new SpawnFailure("aborted", "Python process aborted"));
     if (opts.signal) {
       if (opts.signal.aborted) onAbort();
       else opts.signal.addEventListener("abort", onAbort, { once: true });
     }
 
+    // The child never started (ENOENT on PYTHON_CMD, EACCES): the raw error names the
+    // server's own configuration, so it is logged and the caller gets the kind.
     child.once("error", (err) => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(err);
+      logSpawnFailure("spawn_failed", args, err);
+      reject(new SpawnFailure("spawn_failed", "Python process could not be started"));
     });
     child.once("close", (code) => {
       if (settled) return;
@@ -539,4 +723,53 @@ export function parseStderrError(stderr: string, exitCode: number | null): Pytho
     status,
     code: codeForStatus(status),
   };
+}
+
+// ── runJobfitCli: the one spawn envelope ──────────────────────────────────────
+// Every jobfit CLI runner used to hand-copy createWorkdir → write JSON args →
+// spawnPython → exit check → parse → cleanup, and the copies drifted: 14 runners
+// passed no timeoutMs and so inherited the 10-minute DEFAULT_TIMEOUT_MS hang
+// backstop (analyze-run.ts documents the defect that caused). `timeoutMs` is REQUIRED
+// here, so a missing deadline is a type error instead of a review finding.
+
+export type RunJobfitCliOptions<T> = {
+  /** JSON files to write into the workdir, keyed by name (`job` → `job.json`). Their
+   *  absolute paths reach `args` when it is a function. */
+  inputs?: Record<string, unknown>;
+  /** REQUIRED wall-clock deadline in ms (a deadline, not the default hang backstop). */
+  timeoutMs: number;
+  signal?: AbortSignal;
+  env?: Record<string, string | undefined>;
+  /** Narrow the parsed stdout JSON into the caller's type. Defaults to a plain assertion
+   *  of `T`, which is only as safe as the CLI's contract; pass a guard at a data boundary. */
+  parse?: (raw: unknown) => T;
+};
+
+/** Run a jobfit CLI to completion: fresh workdir, JSON input files, spawn with the
+ *  required deadline, non-zero exit => PipelineError(parseStderrError), parse stdout,
+ *  and the workdir is removed on success AND failure. `args` is the argv, or a function
+ *  of the input file paths (and the workdir) when flags need them. */
+export async function runJobfitCli<T>(
+  args: string[] | ((paths: Record<string, string>, workdir: string) => string[]),
+  opts: RunJobfitCliOptions<T>,
+): Promise<T> {
+  const workdir = await createWorkdir();
+  try {
+    const paths: Record<string, string> = {};
+    for (const [name, value] of Object.entries(opts.inputs ?? {})) {
+      const file = path.join(workdir, `${name}.json`);
+      await writeFile(file, JSON.stringify(value), "utf-8");
+      paths[name] = file;
+    }
+    const argv = typeof args === "function" ? args(paths, workdir) : args;
+    const { result } = spawnPython(argv, { timeoutMs: opts.timeoutMs, signal: opts.signal, env: opts.env });
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const raw = parsePythonJson<unknown>(stdout, stderr);
+    // Boundary: stdout is the CLI's JSON envelope; without a `parse` guard the caller
+    // vouches for its shape via T.
+    return opts.parse ? opts.parse(raw) : (raw as T);
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
 }

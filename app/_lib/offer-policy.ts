@@ -110,6 +110,15 @@ export function offerHoursRemaining(expiresAtIso: string | null | undefined, now
   return Math.max(0, Math.ceil((ms - nowMs) / (60 * 60 * 1000)));
 }
 
+/** Server-clock minutes for the final hour, rounded up so an open offer never
+ *  says "0 minutes left" before its actual expiry instant. */
+export function offerMinutesRemaining(expiresAtIso: string | null | undefined, nowMs: number = Date.now()): number | null {
+  if (!expiresAtIso) return null;
+  const ms = Date.parse(expiresAtIso);
+  if (Number.isNaN(ms)) return null;
+  return Math.max(0, Math.ceil((ms - nowMs) / 60_000));
+}
+
 // ---------------------------------------------------------------------------
 // Offer TERMS validation (perfect: an-offer-carries-validated-terms, 2026-09-04)
 //

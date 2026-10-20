@@ -1,5 +1,6 @@
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { EMPTY_PREFERENCES, type JobseekerFeedAnchor, type JobseekerPreferences, type JobseekerProfile } from "../jobseeker/types";
+import { mergePreferencePatch } from "../jobseeker/profile";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -11,6 +12,8 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // Tenancy: every statement — point reads by id included — binds `workspace_id = ?`
 // (jobseeker-profiles-tenancy.test.ts). There is no public token on this surface and
 // no by-id carve-out: a leaked profile id must not resolve another workspace's seeker.
+// That includes eraseJobseekerData below, which also deletes from the seeker's other
+// jobseeker_* tables — each of those statements binds `workspace_id = ?` too.
 //
 // user_id is NULLABLE for the single-operator install that has no user rows yet, and
 // SQLite treats NULL as distinct inside a UNIQUE constraint — so `ON CONFLICT
@@ -188,6 +191,69 @@ export function advanceFeedAnchor(
   return getFeedAnchor(profileId, workspaceId);
 }
 
+// ── the seeker's own erasure door ────────────────────────────────────────────────────
+//
+// "Delete everything about me" (DELETE /api/jobseeker/profile). The seeker is the
+// person running the install, so this is their Art. 17 door onto their OWN record — a
+// different path from a candidate's erasure (db/pipeline.ts ERASURE_EXEMPT names this
+// function for each jobseeker_* table).
+//
+// What goes, all in ONE IMMEDIATE transaction (write lock at BEGIN, so a concurrent
+// profile save or dialog turn cannot land between the reads and the deletes and leave
+// an orphan behind):
+//   - jobseeker_ui_state and jobseeker_dialogs of the seeker's profile row;
+//   - every CV the seeker had read (jobseeker_cvs, by the same null-aware user key the
+//     store reads with — `user_id IS ?`, the IFNULL(user_id, '') identity of its index);
+//   - the profile row itself (preferences, CV text, polished CV, feed anchor);
+//   - jobseeker_postings for the workspace, ONLY when no other seeker profile remains in
+//     it. DECISION: the postings are the seeker's gathered dataset, and the columns on
+//     them are about the seeker — match_json / fit_tier / reasoning_json are computed
+//     against their profile, status / dismiss_reason / dismiss_note / applied_at are
+//     their own triage and their own words. In the /me product one workspace is one
+//     seeker (getWorkspaceJobseekerProfile), so when the last one leaves the rows are
+//     deleted outright rather than blanked: a blanked row is a half-dataset nobody
+//     asked for, and the advertisement copy itself is re-harvestable by the next scan
+//     from the sources config. When ANOTHER seeker profile remains, the rows are
+//     theirs too and nothing on a row says which seeker triaged it — deleting or
+//     blanking them would erase a different person's work, so they are left untouched.
+//   - jobseeker_sources is KEPT: acquisition configuration (which boards, the terms the
+//     operator acknowledged), no personal data.
+//
+// Every statement binds workspace_id. Idempotent: a second call answers all zeros.
+
+export type JobseekerErasureCounts = {
+  profiles: number;
+  cvs: number;
+  dialogs: number;
+  uiState: number;
+  postings: number;
+};
+
+export function eraseJobseekerData(userId: string | null, workspaceId: string): JobseekerErasureCounts {
+  const d = ensureDb();
+  const run = d.transaction((): JobseekerErasureCounts => {
+    // The same null-user-aware lookup the upsert uses (`IS ?`, never `= ?`).
+    const profile = d
+      .prepare(`SELECT id FROM jobseeker_profiles WHERE user_id IS ? AND workspace_id = ?`)
+      .get(userId, workspaceId) as { id: string } | undefined;
+    let uiState = 0;
+    let dialogs = 0;
+    let profiles = 0;
+    if (profile) {
+      uiState = d.prepare(`DELETE FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ?`).run(workspaceId, profile.id).changes;
+      dialogs = d.prepare(`DELETE FROM jobseeker_dialogs WHERE workspace_id = ? AND profile_id = ?`).run(workspaceId, profile.id).changes;
+      profiles = d.prepare(`DELETE FROM jobseeker_profiles WHERE id = ? AND workspace_id = ?`).run(profile.id, workspaceId).changes;
+    }
+    // CVs are keyed by the seeker, not the profile row: a CV read before the first
+    // profile save is still theirs.
+    const cvs = d.prepare(`DELETE FROM jobseeker_cvs WHERE workspace_id = ? AND user_id IS ?`).run(workspaceId, userId).changes;
+    const others = (d.prepare(`SELECT COUNT(*) AS n FROM jobseeker_profiles WHERE workspace_id = ?`).get(workspaceId) as { n: number }).n;
+    const postings = others === 0 ? d.prepare(`DELETE FROM jobseeker_postings WHERE workspace_id = ?`).run(workspaceId).changes : 0;
+    return { profiles, cvs, dialogs, uiState, postings };
+  });
+  return run.immediate();
+}
+
 /** The studio produced (or re-produced) a polished CV. */
 export function setPolishedCv(id: string, cvMarkdown: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const res = ensureDb()
@@ -196,9 +262,22 @@ export function setPolishedCv(id: string, cvMarkdown: string, workspaceId: strin
   return res.changes > 0;
 }
 
-/** Shallow-merge a partial preference set over the stored one — what the cv_polish
- *  dialog does on close with the preferences it extracted. Read→merge→write, so
- *  IMMEDIATE: two dialogs closing at once must not lose one's fields. */
+/** An input of the seeker's scores changed outside the profile row (the GitHub evidence
+ *  they stopped using): move updated_at so the next scan re-scores (scan.ts: a match is
+ *  current while matchedAt >= updatedAt). Nothing else on the row changes. */
+export function touchJobseekerProfile(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE jobseeker_profiles SET updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(new Date().toISOString(), id, workspaceId);
+  return res.changes > 0;
+}
+
+/** Merge a partial preference set over the stored one — what the cv_polish dialog does
+ *  on close with the preferences it extracted. The merge rule is profile.ts's
+ *  `mergePreferencePatch` (the ONE rule): `undefined` never overwrites, and an empty
+ *  list never erases a stated one — a dialog that did not mention places hands back
+ *  `[]`, which is "nothing said", not "no places". Read→merge→write, so IMMEDIATE: two
+ *  dialogs closing at once must not lose one's fields. */
 export function mergePreferences(
   id: string,
   partial: Partial<JobseekerPreferences>,
@@ -211,9 +290,7 @@ export function mergePreferences(
       .get(id, workspaceId) as ProfileRow | undefined;
     if (!row) return null;
     const current = fromRow(row);
-    // `undefined` members of a Partial must not overwrite stored values.
-    const defined = Object.fromEntries(Object.entries(partial).filter(([, v]) => v !== undefined));
-    const merged: JobseekerPreferences = { ...current.preferences, ...defined };
+    const merged: JobseekerPreferences = mergePreferencePatch(current.preferences, partial);
     const now = new Date().toISOString();
     d.prepare(`UPDATE jobseeker_profiles SET preferences_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`).run(
       JSON.stringify(merged),

@@ -10,10 +10,20 @@
 // it is an orphan — because a second copy of that is how the Comms Center starts
 // disagreeing with itself.
 
-import { getSubmission, hasOutboxSendFor, recordOutbox } from "./db/devcase";
+import { getSubmission, hasOutboxSendFor, recordOutbox, stampOutboxDelivered } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
+import { orgIdForWorkspace } from "./db/org-benchmarks";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { isBounceOutcome } from "./comms-status";
+import { logForeignReceipt } from "./logger";
 import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view";
+import { getRelayConfig } from "./comms-relay-store";
+
+/** A relay's positive receipt: the message reached the recipient. Stamped on the send as
+ *  `lastDeliveredAt`; "opened"/"deferred" are still accepted and not surfaced. */
+function isDeliveredOutcome(outcome: string): boolean {
+  return outcome.trim().toLowerCase() === "delivered";
+}
 
 export type DeliveryReceipt = {
   /** The message's ref (a pipeline entry id) and kind — together the ONLY key a
@@ -23,6 +33,9 @@ export type DeliveryReceipt = {
   outcome: string;
   detail?: string | null;
   recipient?: string | null;
+  /** The `messageId` the relay received in the envelope, echoed back. When present it
+   *  names the exact send the receipt concerns; absent, the (ref, kind) heuristic applies. */
+  messageId?: string | null;
 };
 
 export type DeliveryReceiptResult =
@@ -82,6 +95,59 @@ function receiptWorkspace(ref: string): string | null {
 }
 
 /**
+ * WHICH ORGANIZATION does this receipt belong to? (F-3)
+ *
+ * The same resolution `receiptWorkspace` performs, lifted one level: the ref's team, then
+ * that team's org. A team with no `org_id` folds to the default org, exactly as
+ * `WebhookChannel.crossOrgRefusal` folds it — so a single-org install answers
+ * `org-default` for everything and no boundary built on this bites there.
+ *
+ * `null` means the ref is PLACEABLE NOWHERE, and it is deliberately not folded to the
+ * default org: `recordDeliveryReceipt` already refuses that case as `unknown_ref` and files
+ * it nowhere, and folding it would let an org-boundary check mask that answer with a
+ * different one. The caller treats null as "no org to compare" and lets the refusal below
+ * do its job.
+ *
+ * Exported for the edge drain, whose signed envelope proves an INSTALL and not a tenant:
+ * a receipt it applies on behalf of one organization's edge must not write into another's
+ * ledger (edge-drain.ts applyEvent).
+ */
+export function receiptOrgId(ref: string): string | null {
+  const workspaceId = receiptWorkspace(ref);
+  if (!workspaceId) return null;
+  return orgIdForWorkspace(workspaceId) ?? DEFAULT_ORG_ID;
+}
+
+/**
+ * Does the LIVE callback's receipt belong to an organization other than the one that
+ * owns the relay sending it? (The edge drain's F-3 check, on the other door.)
+ *
+ * The callback authenticates with COMMS_CALLBACK_SECRET, which proves "the relay", and
+ * the relay is the one a single organization saved (comms_relay_config.owner_org_id —
+ * WebhookChannel.crossOrgRefusal already refuses to send it anyone else's letters). So a
+ * receipt it reports for another organization's ref concerns nothing it was handed, and
+ * filing it would let one org's relay vendor bounce, or stamp delivered, another org's
+ * messages. Precedence mirrors resolveRelay: an ENV relay (COMMS_WEBHOOK_URL) is
+ * host-level and serves every org, so it is not checked; nor is an install with no
+ * stored relay. A ref placeable nowhere is left to recordDeliveryReceipt's own
+ * `unknown_ref` refusal. Fails OPEN on an unreadable config row, as the single-tenant
+ * default every shipped install runs is unaffected either way.
+ */
+export function receiptOutsideRelayOrg(ref: string, env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): boolean {
+  if (env.COMMS_WEBHOOK_URL) return false;
+  let owner: string;
+  try {
+    const stored = getRelayConfig();
+    if (!stored.url) return false;
+    owner = stored.ownerOrgId ?? DEFAULT_ORG_ID;
+  } catch {
+    return false; // unreadable config: the send path reports it (comms-relay.ts); no org to compare
+  }
+  const receiptOrg = receiptOrgId(ref);
+  return receiptOrg !== null && receiptOrg !== owner;
+}
+
+/**
  * Apply one receipt. Positive/soft outcomes (delivered/opened/deferred) are
  * ACCEPTED but not surfaced — only the hard, reputation-critical ones record the
  * append-only `bounced` row that supersedes a green `sent` in the Comms Center
@@ -93,12 +159,24 @@ function receiptWorkspace(ref: string): string | null {
  */
 export function recordDeliveryReceipt(receipt: DeliveryReceipt): DeliveryReceiptResult {
   const { ref, kind, outcome } = receipt;
-  if (!isBounceOutcome(outcome)) return { recorded: false, outcome, reason: "not_a_bounce" };
+  const messageId = receipt.messageId?.trim() || null;
+  if (!isBounceOutcome(outcome)) {
+    // A delivery is stamped on the send it concerns (last_delivered_at) instead of being
+    // dropped; nothing is appended and the answer is unchanged. An unplaceable ref
+    // stamps nothing — the same refusal the bounce path makes.
+    if (isDeliveredOutcome(outcome) && receiptWorkspace(ref)) stampOutboxDelivered(ref, kind, messageId);
+    return { recorded: false, outcome, reason: "not_a_bounce" };
+  }
   const detail = receipt.detail && receipt.detail.trim() ? receipt.detail.trim() : outcome;
   // A receipt with no tenant is a fault belonging to nobody — refused, not filed into
   // whichever team happens to be the default (see receiptWorkspace).
   const workspaceId = receiptWorkspace(ref);
-  if (!workspaceId) return { recorded: false, outcome, reason: "unknown_ref", stored: false };
+  if (!workspaceId) {
+    // Filed nowhere, but not traceless: counted install-wide (logger.ts
+    // logForeignReceipt), because a wholesale ref-scheme drift arrives entirely here.
+    void logForeignReceipt({ ref, kind, outcome });
+    return { recorded: false, outcome, reason: "unknown_ref", stored: false };
+  }
   // CODES, not prose: this row is written by a relay callback with no reader and no
   // request locale, and the outbox is append-only — an English literal here is English
   // in a Czech team's ledger forever. The surface renders them (comms-view.ts
@@ -114,6 +192,7 @@ export function recordDeliveryReceipt(receipt: DeliveryReceipt): DeliveryReceipt
     status: "bounced",
     ref,
     workspaceId,
+    messageId,
   });
   if (!matched) return { recorded: false, outcome, reason: "no_matching_send", stored: true };
   return { recorded: true, outcome };

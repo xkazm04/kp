@@ -1,4 +1,5 @@
 import { getRelayConfig, getRelaySecret } from "./comms-relay-store";
+import { egressSealed } from "./egress-seal";
 
 // THE capability bit for outbound comms delivery — resolved env → stored config
 // → nothing. Replaces the env-only comms-truth.isRelayConfigured now that the
@@ -9,7 +10,15 @@ import { getRelayConfig, getRelaySecret } from "./comms-relay-store";
 // over /api/comms/capability. Env keeps precedence so existing deploys with
 // COMMS_WEBHOOK_URL behave exactly as before.
 
-export type ResolvedRelay = { url: string; secret: string | null; source: "env" | "config" };
+// F-2 — `ownerOrgId` is the organization that SAVED the stored relay, carried through to
+// the delivery boundary so a message belonging to another organization is refused rather
+// than POSTed (comms.ts). It is null for `source: "env"` and that is not an "unknown
+// owner": COMMS_WEBHOOK_URL is HOST-level configuration an operator put in the process
+// environment, serving the whole deployment, so an env relay is deliberately NOT
+// org-checked. The two are told apart by `source`, never by the id being null — a stored
+// row written before the column existed also has a null owner, and that one IS checked
+// (it reads as the default org).
+export type ResolvedRelay = { url: string; secret: string | null; source: "env" | "config"; ownerOrgId: string | null };
 
 /**
  * WHY a fourth word exists. A relay whose stored signing secret cannot be
@@ -48,12 +57,33 @@ function reportUnreadable(reason: string): Resolution {
   return { relay: null, health: "unreadable" };
 }
 
+/**
+ * THE SEAL. `KP_NO_COMMS_EGRESS=1` makes this resolver answer "no relay" whatever is
+ * configured — env URL, stored config, both — so every candidate-facing message queues
+ * in the local outbox and is honestly recorded `queued` rather than `sent`.
+ *
+ * The predicate itself lives in egress-seal.ts and is shared by every outbound boundary
+ * (ATS delivery, calendar, pull pass, probes); the flag now answers "may this process
+ * speak to any outside party about a candidate". It is still NOT KP_OFFLINE: that seals
+ * ALL egress, including the Claude CLI the simulated interview needs. The goal-1 demo
+ * run (scripts/kpi/role-demo-run.mjs) sets it on a scratch copy of a real database.
+ */
+export const commsEgressSealed = egressSealed;
+
 function resolve(): Resolution {
+  // No fifth health word: `RelayHealth` says what DELIVERS, and under the seal nothing
+  // does — the same answer, and the same honest `queued` claim, as an install with no
+  // relay. The flag is a process-level switch for a demo harness, never a deployment
+  // configuration an operator reads off the Channels card.
+  if (commsEgressSealed()) return { relay: null, health: "unconfigured" };
   const envUrl = process.env.COMMS_WEBHOOK_URL;
-  if (envUrl) return { relay: { url: envUrl, secret: null, source: "env" }, health: "env" };
+  if (envUrl) return { relay: { url: envUrl, secret: null, source: "env", ownerOrgId: null }, health: "env" };
   let url: string | null;
+  let ownerOrgId: string | null = null;
   try {
-    url = getRelayConfig().url;
+    const stored = getRelayConfig();
+    url = stored.url;
+    ownerOrgId = stored.ownerOrgId;
   } catch (e) {
     // The config row itself is unreadable (a broken store). Not a secret problem,
     // so it keeps the old behaviour — unconfigured — but it is no longer silent.
@@ -62,7 +92,7 @@ function resolve(): Resolution {
   }
   if (!url) return { relay: null, health: "unconfigured" };
   try {
-    return { relay: { url, secret: getRelaySecret(), source: "config" }, health: "configured" };
+    return { relay: { url, secret: getRelaySecret(), source: "config", ownerOrgId }, health: "configured" };
   } catch (e) {
     return reportUnreadable(e instanceof Error ? e.message : String(e));
   }

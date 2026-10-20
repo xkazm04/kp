@@ -1,5 +1,11 @@
 // board-storage-is-keyed-by-tenant — the board's two localStorage-backed memories
-// (saved views, per-stage SLA overrides), keyed PER WORKSPACE.
+// (saved views, and the LEFTOVER per-stage SLA overrides), keyed PER WORKSPACE.
+//
+// The SLA half is now read-and-clear only. A stage's aging cadence is TEAM data on the
+// workspace axis (`slaDays`, PATCH /api/pipeline/stage-sla), so nothing writes a
+// per-browser cadence any more; what an older build left here is read ONCE so the
+// board can offer it to the team, and cleared after a successful adoption or an
+// explicit discard (usePipelineSla.ts). Never imported silently.
 //
 // THE LEAK. Both lived under one bare, browser-wide key (`kp.pipelineViews`,
 // `kp.pipelineStageSla`) and localStorage is scoped to the ORIGIN, not to the
@@ -19,9 +25,7 @@
 // outside this lot's write set, and it exports its list API rather than the
 // resolve. Hoisting the two into one `useTenantStorage` is the follow-up.)
 
-import { normalizeStoredViews } from "./pipelineViews";
 import { clampSlaDays } from "./pipelineSla";
-import type { SavedView } from "./pipelineBoardFilters";
 
 const VIEWS_PREFIX = "kp.pipelineViews:";
 const SLA_PREFIX = "kp.pipelineStageSla:";
@@ -64,31 +68,9 @@ export function migrateLegacyKey(store: KeyValueStore, legacyKey: string, tenant
   }
 }
 
-/** Read one workspace's saved views. `null` tenant ⇒ [] — the whole point: until
- *  the workspace resolves, a board hydrates NOTHING rather than another team's list. */
-export function readStoredViews(store: KeyValueStore, workspaceId: string | null): SavedView[] {
-  if (!workspaceId) return [];
-  try {
-    const raw = store.getItem(pipelineViewsKey(workspaceId));
-    return raw ? normalizeStoredViews(JSON.parse(raw)) : [];
-  } catch {
-    return []; // corrupt / unavailable — start empty
-  }
-}
-
-/** Persist one workspace's saved views. A `null` tenant writes NOTHING (a list we
- *  cannot attribute to a team must not be written "somewhere"). */
-export function writeStoredViews(store: KeyValueStore, workspaceId: string | null, views: readonly SavedView[]): void {
-  if (!workspaceId) return;
-  try {
-    store.setItem(pipelineViewsKey(workspaceId), JSON.stringify(views));
-  } catch {
-    /* storage full / unavailable — the in-memory list still works this session */
-  }
-}
-
-/** Read one workspace's SLA overrides, clamped on the way IN (a value stored by an
- *  older build that accepted anything positive must not silence a column forever). */
+/** Read one workspace's LEFTOVER per-browser SLA overrides (written by builds before
+ *  cadences became team data), clamped on the way IN (a value stored by an older build
+ *  that accepted anything positive must not be offered as a cadence that never fires). */
 export function readStoredSla(store: KeyValueStore, workspaceId: string | null): Record<string, number> {
   if (!workspaceId) return {};
   try {
@@ -106,12 +88,13 @@ export function readStoredSla(store: KeyValueStore, workspaceId: string | null):
   }
 }
 
-/** Persist one workspace's SLA overrides. `null` tenant ⇒ no write. */
-export function writeStoredSla(store: KeyValueStore, workspaceId: string | null, overrides: Record<string, number>): void {
+/** Drop one workspace's leftover per-browser SLA overrides, once they were adopted
+ *  into the team axis or explicitly discarded. `null` tenant ⇒ nothing touched. */
+export function clearStoredSla(store: KeyValueStore, workspaceId: string | null): void {
   if (!workspaceId) return;
   try {
-    store.setItem(pipelineSlaKey(workspaceId), JSON.stringify(overrides));
+    store.removeItem(pipelineSlaKey(workspaceId));
   } catch {
-    /* storage unavailable — in-memory override still applies this session */
+    /* storage unavailable: the leftover is offered again next visit, which is harmless */
   }
 }

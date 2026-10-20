@@ -1,0 +1,120 @@
+[
+  {
+    "context": "analyze-engine",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Run the CV run's GitHub deep-dive inside the analyze task, not beside it",
+    "size": "L",
+    "effort": 8,
+    "impact": 8,
+    "risk": 7,
+    "write_set": [
+      "app/_lib/analyze-run.ts",
+      "app/api/analyze/route.ts",
+      "app/_lib/schemas.ts",
+      "app/features/tools/analyze/AnalyzeApi.ts",
+      "app/features/tools/analyze/analyzeRunAnalysis.ts",
+      "app/features/tools/analyze/useAnalyzeForm.ts",
+      "app/features/tools/analyze/AnalyzeApi.test.ts",
+      "app/api/rate-limit-contract.test.ts",
+      "docs/features/candidates/README.md",
+      "docs/architecture/candidate-data-flow.md"
+    ],
+    "new_files": [
+      "app/_lib/analyze-github-stage.ts",
+      "app/_lib/analyze-github-stage.test.ts"
+    ],
+    "shared_surfaces": [
+      "app/api/rate-limit-contract.test.ts"
+    ],
+    "acceptance": [
+      "runGithubStage({profile:'octocat', blind:false, jdText:'x'}, deps with buildGithubAnalysis resolving a valid GithubAnalysis) -> {status:'done', analysis} and deps.persist called once with the saved slug and JSON that githubAnalysisSchema accepts",
+      "runGithubStage({profile:'octocat', blind:true, ...}) -> {status:'skipped', reason:'blind'} and buildGithubAnalysis is never called (the blind rule now holds server-side, not only in analyzeGithubRunPolicy)",
+      "runGithubStage with buildGithubAnalysis throwing GithubAnalysisError('RATE_LIMITED', retryAfterSec 60) -> {status:'error', code:'RATE_LIMITED', retryAfterSec:60}; the main analysis still returns and persistAnalysis/debit run exactly as before (a deep-dive failure never fails or re-bills the CV run)",
+      "runGithubStage with a cached key (readGithubCache returns a payload) -> {status:'done'} with buildGithubAnalysis not called, and a transiently-degraded result is NOT written to the cache (same rule as the route)",
+      "runGithubStage for a JD that exists only as a file path -> the JD text handed to buildGithubAnalysis is the extractor's output; an extractor failure yields status 'done' plus warning code 'githubJdDropped' (parity with executeGithubAnalysis)",
+      "analysisSchema.safeParse on a task result carrying githubDeepDive {status:'done', analysis} succeeds, and one without the field still succeeds (older task rows keep parsing)",
+      "baseAnalyzeLog for params carrying githubProfile reports github_present:true (today hard-coded false)",
+      "submitAnalysis(..., githubProfile:'octocat') appends a 'githubProfile' form field; with blind true it does not"
+    ],
+    "premise": [
+      "app/features/tools/analyze/useAnalyzeForm.ts:538 - a CV run with a handle launches the deep-dive client-side (launchGithubRun), a sibling of the server task, not part of it",
+      "app/features/tools/analyze/useAnalyzeForm.ts:446-452 - unmount aborts githubAbortRef, so switching tab mid-deep-dive kills a paid run that is then never persisted",
+      "app/features/tools/analyze/useAnalyzeForm.ts:395-408 - the saved row only gets the deep-dive via a client PATCH that fires when BOTH the save receipt and a done deep-dive exist in the still-mounted hook",
+      "app/features/tools/analyze/useAnalyzeForm.ts:414-438 - a refresh-resumed run needs a second effect to fetch the deep-dive back from the saved row; it only works if the pre-refresh tab already PATCHed",
+      "app/features/tools/analyze/useAnalyzeForm.ts:66,72 - two extra refs (githubRunIdRef, githubAbortRef) exist only to supersede and abort the parallel client run",
+      "app/features/tools/analyze/analyzeGithubRunPolicy.ts:13 - the blind rule (no deep-dive in blind mode) is a client-only predicate; nothing on the server enforces it",
+      "app/features/tools/analyze/analyzeGithubRun.ts:59 and :71 - the client makes two extra hops (/api/extract-text, then /api/github-analysis) to rebuild a JD the analyze task already has on disk",
+      "app/_lib/analyze-run.ts:241 - baseAnalyzeLog hard-codes github_present:false, so the analyze log can never record that a deep-dive rode along",
+      "app/_lib/analyze-run.ts:439 and :466 - runAnalyze already owns persistence (persistAnalysis) and the task result, the natural owner of the deep-dive's save",
+      "app/_lib/db/analyses.ts:471-475 - setAnalysisGithub(slug, json, ws) already exists server-side; only the PATCH route calls it today",
+      "app/api/github-analysis/route.ts:37 and :85 - the deep-dive door requires pipeline:write and a 10/10min per-IP limiter, both of which the in-task path must carry over",
+      "app/api/extract-text/route.ts:96 - the JD extractor is spawnPython(['-m','pipeline.jobfit.extract_cli', path]), callable from the task on the persisted JD path"
+    ],
+    "rollback": "The series reverts cleanly: /api/github-analysis, executeGithubAnalysis and the PATCH attach are NOT removed (GitHub-only runs and the panel's Retry keep using them), the new schema field is nullish, and the task-result field is additive - reverting the commits restores the client-side launch with no data migration (github_json rows written by the task are the same shape the PATCH wrote).",
+    "gate": "architecture",
+    "runner_up": "Collapse useAnalyzeForm's 12 run-state useStates (isLoading/isCompleting/error/analysis/stageState/variantProgress + four github*) into one pure analyzeRunState reducer whose events carry the run id, retiring the per-callback current() guards.",
+    "technique": "job-progress-and-cancellation",
+    "body": "## Summary\nWhen a recruiter runs a CV analysis with a GitHub handle, the CV half runs as a server task and the GitHub deep-dive runs in the browser next to it. The task has an id and survives refresh and navigation. The deep-dive has neither. Move the deep-dive into the analyze task as one more stage, persisted by the same code that saves the analysis. GitHub-only runs and Retry keep the existing door.\n\n## Description\nThe split costs something in four places. (1) Switching tab mid-deep-dive aborts it on unmount (`useAnalyzeForm.ts:446-452`). The GitHub REST calls and the Gemini review are already spent, and nothing is saved. (2) The saved report gets the deep-dive only through a client PATCH that needs both results to land while the hook is still mounted (`:395-408`). A closed tab means the History row never shows it. (3) A refresh-resume needs a second effect to fetch it back (`:414-438`), and that only works if the old tab got to PATCH. (4) Blind mode suppresses the deep-dive only in a client predicate (`analyzeGithubRunPolicy.ts:13`), so a crafted client can pair identity with a blind score. The log also always says `github_present:false` (`analyze-run.ts:241`).\n\nThe background-jobs standard (job-progress-and-cancellation) says work that is long enough to watch gets one identity, and re-attach, cancel and the stored result all hang off it. The analyze task already is that identity. The deep-dive should be a stage of it.\n\n## Flow\n1. New `app/_lib/analyze-github-stage.ts`: `runGithubStage(input, deps)`. It is pure over injected deps (buildGithubAnalysis, the cache read/write, a JD extractor, persist). It returns `{status:'done'|'error'|'skipped', analysis?, code?, retryAfterSec?, warning?}` and refuses when `blind`.\n2. `/api/analyze` accepts `githubProfile`. When the field is present, the route checks `pipeline:write` (without it, the handle is dropped with a code and the CV run still starts) and applies the `github-analysis:<ip>` limiter. Both are updated in `rate-limit-contract.test.ts`.\n3. `runAnalyze` starts the stage in parallel with the variants. After `persistAnalysis` it writes `setAnalysisGithub` for the receipt's slug. It returns `githubDeepDive` on the result (a new nullish field in `analysisSchema`) and logs `github_present` truthfully. A stage failure never fails the CV run or changes the debit.\n4. Client: `submitAnalysis` sends the handle. `submit()` no longer calls `launchGithubRun` for CV runs. `onResult` fills `githubAnalysis`/`githubStatus`/error from `githubDeepDive`. The PATCH and restore effects are deleted. `retryGithub` and GitHub-only runs keep `executeGithubAnalysis`.\n5. Docs: the candidates README (the deep-dive section around line 381) and candidate-data-flow.md (a new hop: the handle now reaches the task).\n\n## Expected impact\nA deep-dive the org paid for is always saved to the History row, even when the tab is switched, closed or refreshed. Blind mode becomes a server guarantee. The analyze log states the truth. `useAnalyzeForm` loses two effects and most of the per-run GitHub plumbing (about 80 lines), and there is one fewer client network hop chain per run. The Tasks indicator covers the whole run.\n\n## Evaluation\nClaim: the deep-dive becomes a stage of the analyze task. It is persisted server-side, enforces blind mode, is billed and logged truthfully, and no longer depends on the tab staying mounted.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test over analyze-github-stage.test.ts (injected deps), AnalyzeApi.test.ts, schemas parse, plus the rate-limit contract test; then the integration gate (tsc, lint, test:unit, api:check).\nResult: pending build\nGate: architecture",
+    "evidence": "useAnalyzeForm.ts:538 `if (hasGithub) launchGithubRun();` / :542 `if (githubOnly) return;`\nuseAnalyzeForm.ts:446-452 unmount effect: `abortRef.current?.abort(); githubAbortRef.current?.abort();`\nuseAnalyzeForm.ts:395-408 `githubPersistedRef` + `fetch(/api/analyses/${slug}, { method: \"PATCH\", body: JSON.stringify({ githubAnalysis }) })` gated on `slug && githubStatus === \"done\" && githubAnalysis`\nuseAnalyzeForm.ts:415 `if (!resumedRef.current) return;` (restore effect)\nanalyzeGithubRunPolicy.ts:13 `export function shouldRunGithubDeepDive(opts) { return opts.hasGithub && !opts.blind; }` - the only blind enforcement; app/api/github-analysis/route.ts has no blind parameter at all\nanalyzeGithubRun.ts:59 `extractFileText(jd.jobDescriptionFile, signal)` then :71 `fetch(\"/api/github-analysis\", ...)`\nanalyze-run.ts:241 `github_present: false,`\nanalyze-run.ts:439 / :466 `persistence: persisted,`\ndb/analyses.ts:471 `export function setAnalysisGithub(slug, githubJson, workspaceId)` - the only non-test caller is app/api/analyses/[slug]/route.ts PATCH\ngithub-analysis/route.ts:37 `requireCapabilityCoded(\"pipeline:write\", requireCapability)`; :85 `rateLimit(`github-analysis:${ip}`, { limit: 10, windowMs: 600000 })`\nextract-text/route.ts:96 `spawnPython([\"-m\", \"pipeline.jobfit.extract_cli\", filePath], ...)`"
+  },
+  {
+    "context": "analyze-engine",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A landed analysis and its attached files survive leaving the Analyze tab",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/analyze/useAnalyzeForm.ts",
+      "app/features/tools/analyze/useAnalyzeCvFiles.ts",
+      "app/features/tools/analyze/AnalyzeTab.tsx",
+      "app/features/tools/analyze/analyzeDraft.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/analyze/analyzeSession.ts",
+      "app/features/tools/analyze/analyzeSession.test.ts",
+      "app/features/tools/analyze/analyzeAttachmentStore.ts",
+      "app/features/tools/analyze/analyzeAttachmentStore.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "decideAnalyzeRestore({storedTaskId:'t1', lastSlug:'s1'}) -> {kind:'resume-task', taskId:'t1'} (a running task outranks a landed result)",
+      "decideAnalyzeRestore({storedTaskId:null, lastSlug:'s1'}) -> {kind:'reload-result', slug:'s1'}; ({null,null}) -> {kind:'none'}",
+      "liveAnalysisFromSavedRow(GET /api/analyses/[slug] body with analysis payload, slug, createdAt, candidateLabel, jdSlug) -> an Analysis whose persistence is {slug, createdAt, candidateLabel, jdSlug}, so deriveAnalyzePipelineAffordance(result, library) returns kind 'add' (not 'unsaved')",
+      "liveAnalysisFromSavedRow on a body whose analysis fails analysisSchema, or a 404 body {code:'ANALYSIS_NOT_FOUND'} -> null (the crumb is then dropped and the form starts empty; there is no half-restored panel)",
+      "liveAnalysisFromSavedRow carries body.githubAnalysis through githubAnalysisSchema -> {analysis, githubAnalysis}; a corrupt githubAnalysis gives githubAnalysis null and keeps the analysis",
+      "attachment store: put({cvFiles:[a,b], jobDescriptionFile:j, companyFile:null}) then take() -> the same File objects in order, and a second take() after clear() -> empty (reset and a new submit wipe it)",
+      "attachment store holds files in module memory only: it exposes no serializer and writes nothing to sessionStorage (candidate CV bytes never reach browser storage)",
+      "restore on a slug for a DIFFERENT workspace (the route answers 404) -> kind 'none' after the fetch, and the crumb is removed"
+    ],
+    "premise": [
+      "app/features/shell/WorkspaceTabChunks.tsx:83 - the Analyze workspace is rendered only while navActive === 'analyze', so every sidebar switch unmounts it",
+      "app/features/tools/analyze/AnalyzeWorkspace.tsx:76 - the New/History segmented control also unmounts AnalyzeTab when the recruiter peeks at History",
+      "app/features/tools/analyze/useAnalyzeForm.ts:281 - onResult calls clearStoredTask(), so once a result lands no crumb remains and a remount shows an empty form; the result the recruiter was reading is gone from this surface",
+      "app/features/tools/analyze/useAnalyzeForm.ts:103 - the landed analysis lives only in component useState",
+      "app/features/tools/analyze/useAnalyzeCvFiles.ts:10 and useAnalyzeForm.ts:94,96 - CV variants, the JD file and the company file start as [] / null on every mount",
+      "app/features/tools/analyze/analyzeDraft.ts:13-15 - the draft states that attachments must be re-added after a switch; only text and flags survive",
+      "app/api/analyses/[slug]/route.ts:30-51 - GET already returns the saved analysis payload, slug, candidateLabel, jdSlug, createdAt and the persisted githubAnalysis, which is everything the live result panel needs",
+      "app/features/tools/analyze/analyzePipelineRef.ts:55 - without persistence.slug the live panel falls to the 'unsaved' disabled affordance, so a restore must rebuild the persistence receipt, not just the payload"
+    ],
+    "rollback": "Additive and client-only: two new pure modules, one new sessionStorage key (a slug, no PII) and one in-memory module store. Reverting the commits returns the form to the empty-on-remount behaviour. No server, schema or data change, so nothing persists past the revert except an orphan sessionStorage key that the old code ignores.",
+    "gate": "none",
+    "runner_up": "Re-score this candidate against another role from the result, without re-uploading: a JD picker on the result that re-submits the held CV with the new jdSlug and shows the two fits side by side.",
+    "technique": "layered-place-restoration",
+    "body": "## Summary\nA recruiter who runs an analysis, then hops to Pipeline or History to check something, comes back to an empty Analyze form. The result they were reading is gone, and so are the CVs and JD file they attached, including a 3-variant compare. Only the typed text comes back. Restore both: reload the landed result from its saved row, and keep attachments in memory across tab switches.\n\n## Description\nThe workspace unmounts the tab on every switch (`WorkspaceTabChunks.tsx:83`, `AnalyzeWorkspace.tsx:76`). The run already survives a switch while it is running, because the task id is stashed and resumed. The moment it lands, `onResult` clears that crumb (`useAnalyzeForm.ts:281`). So the one state the recruiter most wants back, the finished report with Add-to-pipeline on it, is the one that is dropped. Attachments are worse: `analyzeDraft.ts:13-15` states they must be re-added, so a recruiter who compared three CV variants has to find and drop all three files again to change the JD.\n\nIn layered-place-restoration terms, the surface restores layer 4 (typed draft) but not layer 3 (the active entity, the landed analysis). It also never declared the attachment half of layer 4. The standard asks for every layer to be declared with a key, a lifetime and an invalidation.\n\n## Flow\n1. `analyzeSession.ts` (pure): `ANALYZE_LAST_RESULT_KEY`, `decideAnalyzeRestore({storedTaskId,lastSlug})`, and `liveAnalysisFromSavedRow(body)`, which validates through analysisSchema/githubAnalysisSchema and rebuilds `persistence`.\n2. `analyzeAttachmentStore.ts`: a module-scoped holder for `{cvFiles, jobDescriptionFile, companyFile}`. Lifetime is the page process only. It is never serialized, because CV bytes are candidate PII. Invalidation: reset, a new submit's clear, or a reload.\n3. `useAnalyzeForm`: `onResult` stores the saved slug under the new key. On mount, a missing task crumb plus a present slug means GET `/api/analyses/[slug]` and hydrate `analysis`/`githubAnalysis`/`githubStatus`. A 404 or schema failure drops the crumb. `reset()` clears the slug and the store. File setters write through to the store, and `useAnalyzeCvFiles` initialises from it.\n4. `AnalyzeTab`: when a result was restored rather than just produced, show a one-line note ('Restored your last analysis') with a 'Start new' action that calls reset. Two keys in all four catalogs.\n5. `analyzeDraft.ts` header comment and the candidates README record the new per-layer contract.\n\n## Expected impact\nThe hop-away-and-back loop, which the tab model forces on every cross-check, stops costing the recruiter their report and their uploads. The restored report keeps its working Add-to-pipeline button (persistence is rebuilt). Multi-variant compares stop being single-use. No new candidate data reaches browser storage.\n\n## Evaluation\nClaim: after a tab switch, the landed analysis (with its deep-dive and pipeline affordance) and the attached files come back, and reset clears both.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test over analyzeSession.test.ts and analyzeAttachmentStore.test.ts (File exists in Node), plus i18n:check for the 4-locale keys; integration gate (tsc, lint, design:check, test:unit).\nResult: pending build\nGate: none",
+    "evidence": "WorkspaceTabChunks.tsx:83-85 `{navActive === \"analyze\" ? (<AnalyzeWorkspace initialMode=... />) : null}` inside `<div key={navActive}>`\nAnalyzeWorkspace.tsx:76 `{mode === \"new\" ? <AnalyzeTab /> : <HistoryTab />}`\nuseAnalyzeForm.ts:276-282 onResult: `setAnalysis(parsed); setIsLoading(false); setIsCompleting(false); clearStoredTask();`\nuseAnalyzeForm.ts:365-373 the mount effect resumes ONLY from ANALYZE_TASK_KEY; there is no path that restores a landed result\nuseAnalyzeCvFiles.ts:10 `const [cvFiles, setCvFiles] = useState<File[]>([]);`\nuseAnalyzeForm.ts:94 / :96 `useState<File | null>(null)` for the JD and company files\nanalyzeDraft.ts:13-15 \"File objects cannot be serialized, so attachments must be re-added after a switch and the draft never pretends otherwise.\"\napi/analyses/[slug]/route.ts GET returns { slug, candidateLabel, jdSlug, createdAt, analysis, githubAnalysis }\nanalyzePipelineRef.ts:55 `if (!persistence?.slug) return { kind: \"disabled\", reason: \"unsaved\" };`\nPrior decks / leftovers checked: the leftover-develop analyze-engine rows (AbortSignal on submit, window-drop batch, pasted CV text) are different ideas; no challenge card and no digest row names result or attachment restoration."
+  }
+]

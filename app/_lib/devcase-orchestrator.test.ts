@@ -30,19 +30,23 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
   createLifecycle,
   createPosting,
+  claimLifecycleClose,
   createSubmission,
   getDevCase,
   getLifecycle,
   listOutbox,
+  listPostings,
   saveDevCase,
+  saveDevCaseBaselineIfAbsent,
   saveDevCaseScenarioIfAbsent,
   saveDevCaseSeedIfAbsent,
   saveSubmissionEvaluation,
   updateLifecycle,
 } from "./db/devcase.ts";
+import { ensureDb } from "./db/core.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { listAudit, setAutonomy } from "./dev-control.ts";
-import { runLifecycle } from "./devcase-orchestrator.ts";
+import { activePromoteFloor, runLifecycle } from "./devcase-orchestrator.ts";
 
 after(() => cleanupUnitDb());
 beforeEach(() => setAutonomy("on"));
@@ -262,4 +266,225 @@ test("freeze-at-publish is idempotent: a resumed `approved` run never re-mints t
   assert.ok(!actions.includes("interview_scenario"), "no scenario was regenerated");
   assert.ok(!actions.includes("seed_materialized"), "no seed was regenerated");
   assert.deepEqual(actions, ["published"], "one row: the publish that resumed");
+});
+
+// --- The fence (devcase-lifecycle-fence.ts): a human close lands while the runner works. ---
+// The close is the real claim the close route makes (claimLifecycleClose), fired from the
+// runner's own progress ticks, i.e. between two of its effects.
+
+function entriesForCase(caseId: string): number {
+  const row = ensureDb().prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE dev_case_id = ?`).get(caseId) as { n: number };
+  return Number(row.n);
+}
+
+test("a close during the promote loop stops the next promotion and its advance letter", async () => {
+  const { lifecycleId, postingId, caseId } = collecting();
+  const ids = new Set([
+    evaluated(postingId, "Karel", 90).id,
+    evaluated(postingId, "Lenka", 85).id,
+    evaluated(postingId, "Milan", 80).id,
+  ]);
+
+  let ticks = 0;
+  const out = await runLifecycle(lifecycleId, (_d, _t, msg) => {
+    if (!msg?.startsWith("promoting")) return;
+    ticks += 1;
+    if (ticks === 1) claimLifecycleClose(lifecycleId);
+  });
+
+  assert.equal(out.stage, "closed", "the run reports where the lifecycle is, not where it was");
+  assert.equal(getLifecycle(lifecycleId)?.stage, "closed");
+  const invites = listOutbox(50, WS).filter((o) => o.kind === "invite" && ids.has(o.ref ?? ""));
+  assert.equal(invites.length, 1, "only the candidate promoted before the close was told they advanced");
+  assert.equal(entriesForCase(caseId), 1, "no board write after the close");
+  const stopped = listAudit(200, WS).filter((r) => r.lifecycleId === lifecycleId && r.action === "stage_moved");
+  assert.equal(stopped.length, 1, "the stop is audited");
+  assert.match(stopped[0].reason ?? "", /'ranked' to 'closed'/);
+});
+
+test("a close during the collecting drain stops the next evaluation", async () => {
+  const { lifecycleId, postingId } = collecting();
+  unevaluated(postingId, "Nina");
+  unevaluated(postingId, "Oto");
+  unevaluated(postingId, "Petr");
+
+  let finished = 0;
+  const out = await runLifecycle(lifecycleId, onEvaluated(() => {
+    finished += 1;
+    if (finished === 1) claimLifecycleClose(lifecycleId);
+  }));
+
+  assert.equal(finished, 1, "the second and third submissions are never attempted");
+  assert.equal(out.stage, "closed");
+  assert.equal(getLifecycle(lifecycleId)?.stage, "closed");
+  const actions = listAudit(200, WS).filter((r) => r.lifecycleId === lifecycleId).map((r) => r.action);
+  assert.ok(!actions.includes("evaluated"), "no evaluation decision is recorded for a closed lifecycle");
+});
+
+test("a close while publishing mints no live posting and sources nobody", async () => {
+  // A separate team keeps the sourcing pool empty, and the frozen scenario/seed/baseline
+  // mean no generation spawns: what runs is the publish step itself.
+  const WS_PUB = "team-orchestrator-publish";
+  const kase = saveDevCase({ need: null, analysis: null, role: {}, case: { title: "Publish race" } }, WS_PUB);
+  saveDevCaseScenarioIfAbsent(kase.id, { probes: ["p"], source: "llm" });
+  saveDevCaseSeedIfAbsent(kase.id, { files: [{ path: "src/a.ts", contents: "// a" }], source: "llm" });
+  saveDevCaseBaselineIfAbsent(kase.id, { solutions: [], source: "llm" });
+  const lc = createLifecycle({ title: "Publish race" }, true, "en", WS_PUB);
+  updateLifecycle(lc.id, { stage: "approved", caseId: kase.id });
+
+  const out = await runLifecycle(lc.id, (_d, _t, msg) => {
+    if (msg === "publishing") claimLifecycleClose(lc.id);
+  });
+
+  assert.equal(out.stage, "closed");
+  const open = listPostings(WS_PUB).filter((p) => p.caseId === kase.id && p.status === "open");
+  assert.equal(open.length, 0, "no open apply token is left behind a closed lifecycle");
+  assert.equal(getLifecycle(lc.id)?.postingId ?? null, null, "no posting is linked");
+  assert.equal(entriesForCase(kase.id), 0, "nobody was sourced onto the board");
+});
+
+// --- The coded run outcome (devcase-stage-outcome.ts, challenge-r07 devcase-orchestration/B). ---
+// Beside every English `detail` the runner writes a closed code, integer facts and coded
+// warnings, so the row can render the run in the reader's language and offer each fix.
+
+function evaluatedWithConfidence(postingId: string, candidateRef: string, score: number, confidence: number) {
+  const { submission } = createSubmission({ postingId, candidateRef, repoRef: `https://example.test/${candidateRef}` });
+  saveSubmissionEvaluation(
+    submission.id,
+    { evaluation: { summary: "Thin evidence.", strengths: [], concerns: [], confidence } },
+    score
+  );
+  return submission;
+}
+
+test("outcome: the ranked stage stores promoted N of topN at the active floor, with the held count as a warning", async () => {
+  const { lifecycleId, postingId } = collecting();
+  evaluatedWithConfidence(postingId, "Quido", 90, 0.2);
+
+  await runLifecycle(lifecycleId);
+
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, {
+    code: "promoted",
+    facts: { promoted: 1, topN: 3, floor: activePromoteFloor() },
+    warnings: [{ code: "held", count: 1 }],
+  });
+});
+
+test("outcome: a drain whose evaluations throw stores eval_failed with the count, and zero evaluated", async () => {
+  const { lifecycleId, postingId } = collecting();
+  unevaluated(postingId, "Radek");
+  unevaluated(postingId, "Sona");
+
+  // The drain's write is read at the next step's tick, before ranking replaces it.
+  let atRanked: unknown = undefined;
+  await runLifecycle(lifecycleId, (_d, _t, msg) => {
+    if (msg === "ranked") atRanked = getLifecycle(lifecycleId)?.outcome;
+  });
+
+  const o = atRanked as { code: string; facts: Record<string, number>; warnings: unknown[] };
+  assert.equal(o.code, "evaluated");
+  assert.equal(o.facts.evaluated, 0);
+  assert.deepEqual(o.warnings, [{ code: "eval_failed", count: 2 }]);
+  // The failures stay visible on the terminal row: ranking carries them forward.
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome?.warnings, [{ code: "eval_failed", count: 2 }]);
+});
+
+test("outcome: a pause mid-drain stores halted with what was done; a cancel stores canceled", async () => {
+  const paused = collecting();
+  unevaluated(paused.postingId, "Tomas");
+  unevaluated(paused.postingId, "Ursula");
+  let finished = 0;
+  await runLifecycle(paused.lifecycleId, onEvaluated(() => {
+    finished += 1;
+    if (finished === 1) setAutonomy("paused");
+  }));
+  assert.deepEqual(getLifecycle(paused.lifecycleId)?.outcome, {
+    code: "halted",
+    facts: { evaluated: 0 },
+    warnings: [{ code: "eval_failed", count: 1 }],
+  });
+
+  setAutonomy("on");
+  const canceled = collecting();
+  unevaluated(canceled.postingId, "Vera");
+  unevaluated(canceled.postingId, "Waldemar");
+  const controller = new AbortController();
+  await runLifecycle(canceled.lifecycleId, onEvaluated(() => controller.abort()), controller.signal);
+  assert.equal(getLifecycle(canceled.lifecycleId)?.outcome?.code, "canceled");
+});
+
+test("outcome: the store round-trips it, and a patch without one leaves it alone", () => {
+  const { lifecycleId } = collecting();
+  const outcome = {
+    code: "collecting_open" as const,
+    facts: { sourced: 0, skipped: 2 },
+    warnings: [{ code: "sourcing_failed" as const, count: 1 }, { code: "seed_skeleton_only" as const, count: 1 }],
+  };
+  updateLifecycle(lifecycleId, { outcome, detail: "published; sourcing failed" });
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, outcome);
+  updateLifecycle(lifecycleId, { detail: "something else" });
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, outcome, "untouched by a detail-only patch");
+  assert.equal(getLifecycle(lifecycleId)?.detail, "something else");
+});
+
+// --- One cohort ranking (devcase-cohort-rank.ts, challenge-r10 devcase-detail/A). ---
+// The ranked stage used to promote by the raw transfer number whatever instrument made
+// it. A keyless TEMPLATE transfer (a per-call LLM fallback) is not comparable with a
+// graded one, so in a mixed cohort the template row is withheld from auto-promotion -
+// no board write, no advance letter - and the outcome says how many were withheld.
+
+function evaluatedWithCurrency(postingId: string, candidateRef: string, score: number, transfer: "llm" | "deterministic") {
+  const { submission } = createSubmission({ postingId, candidateRef, repoRef: `https://example.test/${candidateRef}` });
+  saveSubmissionEvaluation(
+    submission.id,
+    {
+      evaluation: { summary: "Solid, well-tested work.", strengths: ["testing"], concerns: [], confidence: 0.9 },
+      source: transfer === "llm" ? "llm" : "deterministic",
+      perStepSources: { reflect: transfer, tooling: transfer, evaluate: transfer, transfer },
+    },
+    score
+  );
+  return submission;
+}
+
+function entryForSubmission(submissionId: string): number {
+  const row = ensureDb().prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE dev_submission_id = ?`).get(submissionId) as { n: number };
+  return Number(row.n);
+}
+
+test("ranking: a mixed cohort auto-promotes the graded submission only and records mixed_currency", async () => {
+  const { lifecycleId, postingId } = collecting();
+  const graded = evaluatedWithCurrency(postingId, "Greta", 72, "llm");
+  const tpl = evaluatedWithCurrency(postingId, "Tobias", 85, "deterministic");
+  assert.ok(activePromoteFloor() <= 72, "fixture assumes the default floor");
+
+  const out = await runLifecycle(lifecycleId);
+  assert.equal(out.stage, "promoted");
+
+  assert.equal(entryForSubmission(graded.id), 1, "the graded submission is on the board");
+  assert.equal(entryForSubmission(tpl.id), 0, "the template 85 is not promoted over a graded 72");
+  const invites = listOutbox(50, WS).filter((o) => o.kind === "invite");
+  assert.equal(invites.filter((o) => o.ref === tpl.id).length, 0, "and gets no advance letter");
+  assert.equal(invites.filter((o) => o.ref === graded.id).length, 1);
+
+  const outcome = getLifecycle(lifecycleId)?.outcome;
+  assert.equal(outcome?.facts.promoted, 1);
+  assert.deepEqual(
+    outcome?.warnings.filter((w) => w.code === "mixed_currency"),
+    [{ code: "mixed_currency", count: 1 }]
+  );
+});
+
+test("ranking: an all-template (keyless) cohort promotes as before, with no mixed_currency warning", async () => {
+  const { lifecycleId, postingId } = collecting();
+  const a = evaluatedWithCurrency(postingId, "Hana", 85, "deterministic");
+  const b = evaluatedWithCurrency(postingId, "Ivo", 75, "deterministic");
+
+  await runLifecycle(lifecycleId);
+
+  assert.equal(entryForSubmission(a.id), 1);
+  assert.equal(entryForSubmission(b.id), 1);
+  const outcome = getLifecycle(lifecycleId)?.outcome;
+  assert.equal(outcome?.facts.promoted, 2);
+  assert.equal(outcome?.warnings.some((w) => w.code === "mixed_currency"), false);
 });

@@ -242,6 +242,40 @@ class StructurePosting(unittest.TestCase):
             posting_structure.structure_posting(raw(title="  "))
 
 
+class SilentWorkMode(unittest.TestCase):
+    """An ad that states no work mode must not be read as an office job. It used to be
+    stamped 'onsite' as if STATED, so the matcher's work-mode gate (which already skips a
+    defaulted mode) knocked out every silent posting for a remote-only seeker."""
+
+    SILENT = raw(title="Účetní", bodyText="Vedení účetnictví. Znalost Pohody.")
+
+    def test_silent_ad_is_defaulted_not_stated(self):
+        self.assertIsNone(posting_structure.detect_work_mode(self.SILENT, "Účetní\nVedení účetnictví."))
+        job, _ = posting_structure.structure_posting(self.SILENT)
+        self.assertIn("work_mode", job.defaulted_fields)
+
+    def test_silent_ad_passes_a_remote_only_seeker(self):
+        from pipeline.jobfit.matching import MatchCandidate, ko_filter
+
+        job, _ = posting_structure.structure_posting(self.SILENT)
+        _passed, reasons = ko_filter(MatchCandidate(preferred_work_modes=["remote"]), job)
+        self.assertNotIn("work_mode", [r.key for r in reasons])
+
+    def test_a_stated_office_ad_is_still_onsite(self):
+        for body in ("Práce v kanceláři v centru Prahy.", "This is an on-site role in Brno.", "Onsite, 5 days a week."):
+            with self.subTest(body=body):
+                job, _ = posting_structure.structure_posting(raw(title="Účetní", bodyText=body))
+                self.assertEqual(job.work_mode, "onsite")
+                self.assertNotIn("work_mode", job.defaulted_fields)
+
+    def test_a_stated_office_ad_still_knocks_out_a_remote_only_seeker(self):
+        from pipeline.jobfit.matching import MatchCandidate, ko_filter
+
+        job, _ = posting_structure.structure_posting(raw(title="Účetní", bodyText="Práce v kanceláři v centru Prahy."))
+        _passed, reasons = ko_filter(MatchCandidate(preferred_work_modes=["remote"]), job)
+        self.assertIn("work_mode", [r.key for r in reasons])
+
+
 def _run(module, argv):
     out, err = io.StringIO(), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
@@ -250,6 +284,20 @@ def _run(module, argv):
         except SystemExit as exc:  # the CLIs exit(2) on bad input
             code = exc.code
     return code, out.getvalue(), err.getvalue()
+
+
+class DetectLanguagesStems(unittest.TestCase):
+    """A four-plus-letter needle is a word STEM: "ital" must start a word. As a bare
+    substring it read "digital" as Italian on every CV and ad that mentioned digital
+    work (measured on a real Czech CV, 2026-09-25: "Digital process analysis")."""
+
+    def test_digital_is_not_italian(self):
+        self.assertNotIn("Italian", posting_structure.detect_languages("Digital process analysis and digitalizace workflows."))
+
+    def test_a_real_stem_still_prefix_matches(self):
+        self.assertIn("Italian", posting_structure.detect_languages("Mluvím italsky a anglicky."))
+        self.assertIn("German", posting_structure.detect_languages("Sehr gute Deutschkenntnisse und Deutsch fließend."))
+        self.assertIn("Czech", posting_structure.detect_languages("Čeština rodilý mluvčí."))
 
 
 class StructureCli(unittest.TestCase):

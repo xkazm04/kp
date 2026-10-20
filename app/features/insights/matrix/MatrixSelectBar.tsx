@@ -39,7 +39,7 @@ export function MatrixSelectBar({
           warning register. role="status" so a screen reader hears it the moment a filter
           change creates the divergence. */}
       {selectedOutsideCount > 0 ? (
-        <span role="status" className="text-sm font-semibold text-coral">
+        <span role="status" className="text-sm font-semibold text-coral-ink">
           {t("selectedOutsideView", { count: selectedOutsideCount })}
         </span>
       ) : null}

@@ -163,6 +163,10 @@ const catalogs = [defaultFile, ...files.filter((f) => f !== defaultFile)].map((f
 // had to be said out loud.
 const catalogResult = checkCatalogs(catalogs, DEFAULT_LOCALE);
 problems.push(...catalogResult.problems);
+// Advisory, never blocking: a source string whose targets fail in two or more
+// locales is likelier a defect of the shared source than two translator slips.
+// File these against the source owner before fixing any target.
+const sourceSuspects = catalogResult.sourceSuspects;
 // The default catalog's string addresses. The error-code and archetype lookups below
 // resolve plain object paths, so a list-item address (`a.b[0]`) never matches one.
 const baseKeys = catalogResult.baseKeys;
@@ -374,19 +378,25 @@ function requireLocalizedCode(code, origin) {
 }
 
 // 1. The central registries.
-const apiResponseSrc = readFileSync(join(REPO_ROOT, "app", "_lib", "api-response.ts"), "utf8");
+// The catalogs live in app/_lib/api-errors/ (re-exported by api-response.ts).
+const REGISTRY_FILES = {
+  STORE_ERRORS: "app/_lib/api-errors/store-errors.ts",
+  REFUSAL_ERRORS: "app/_lib/api-errors/refusal-errors.ts",
+};
 for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
+  const registryFile = REGISTRY_FILES[registry];
+  const apiResponseSrc = readFileSync(join(REPO_ROOT, ...registryFile.split("/")), "utf8");
   const block = apiResponseSrc.match(new RegExp(`export const ${registry} = \\{([\\s\\S]*?)\\n\\} as const;`));
   if (!block) {
-    problems.push(`app/_lib/api-response.ts — could not locate the ${registry} block (did its shape change?)`);
+    problems.push(`${registryFile} — could not locate the ${registry} block (did its shape change?)`);
     continue;
   }
   const codes = [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]);
   if (!codes.length) {
-    problems.push(`app/_lib/api-response.ts — ${registry} parsed to zero codes (did its shape change?)`);
+    problems.push(`${registryFile} — ${registry} parsed to zero codes (did its shape change?)`);
     continue;
   }
-  for (const code of codes) requireLocalizedCode(code, `${registry} (app/_lib/api-response.ts)`);
+  for (const code of codes) requireLocalizedCode(code, `${registry} (${registryFile})`);
 }
 
 // 2. The satellite registries.
@@ -521,7 +531,14 @@ const coverageLine =
   `${coverage.defaultStrings} strings per locale checked (${coverage.listStrings} of them inside ${coverage.lists} list(s)); ` +
   `${coverage.totalUnits} across ${coverage.locales} locale(s), independent string count ${coverage.totalCounted}`;
 
+const suspectLines = sourceSuspects.map(
+  (s) => `  ? "${s.address}" fails in ${s.locales.length} locales: ${s.failures.map((f) => `${f.locale} (${f.checks.join(", ")})`).join("; ")}`
+);
 if (problems.length) {
+  if (suspectLines.length) {
+    console.error(`[i18n-check] ${sourceSuspects.length} source suspect(s), fix the source string first (advisory):`);
+    for (const l of suspectLines) console.error(l);
+  }
   console.error(`[i18n-check] ${problems.length} problem(s):`);
   for (const p of problems) console.error(`  - ${p}`);
   console.error(`[i18n-check] catalog coverage: ${coverageLine}`);

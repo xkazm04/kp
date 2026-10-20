@@ -46,7 +46,7 @@ type Kind = EconomicsKind;
 type Col = "name" | "kind" | "total" | "hired" | "hireRatePct" | "spendCzk" | "costPerHireCzk";
 
 const KIND_CLASS: Record<Kind, string> = {
-  channel: "bg-coral/10 text-coral",
+  channel: "bg-coral/10 text-coral-ink",
   source: "bg-steel/15 text-steel",
   variant: "bg-moss/15 text-moss",
 };
@@ -144,7 +144,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                   onClick={() => setKindFilter(k)}
                   aria-pressed={kindFilter === k}
                   className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-                    kindFilter === k ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                    kindFilter === k ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 text-steel hover:border-coral/40"
                   }`}
                 >
                   {k === "" ? t("kindAll") : t(`kind_${k}` as "kind_channel")}
@@ -193,7 +193,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                         <Link
                           href={boardHref(r.channelId)}
                           title={ta("viewInBoard")}
-                          className="focus-ring inline-flex items-center gap-1 rounded-sm hover:text-coral hover:underline"
+                          className="focus-ring inline-flex items-center gap-1 rounded-sm hover:text-coral-ink hover:underline"
                         >
                           {r.name} <ArrowRight size={12} aria-hidden />
                         </Link>
@@ -310,7 +310,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                     {href ? (
                       <Link
                         href={buildUrl({ ...clearedTabScopedParams(), ...href }, tabScopedSearch)}
-                        className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+                        className="focus-ring rounded underline-offset-2 hover:text-coral-ink hover:underline"
                         onClick={() => setKindFilter("variant")}
                       >
                         {line}
@@ -334,7 +334,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
               board replaced: where channels are actually configured. */}
           <Link
             href={buildTabSwitchUrl("channels", tabScopedSearch)}
-            className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
           >
             {ta("configureChannels")} <ArrowRight size={13} aria-hidden />
           </Link>
@@ -381,7 +381,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
         <p className="max-w-2xl text-sm text-steel">{t("billingNote")}</p>
         <Link
           href={buildTabSwitchUrl("billing", tabScopedSearch)}
-          className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral hover:underline"
+          className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
         >
           {t("billingLink")} <ArrowRight size={13} aria-hidden />
         </Link>

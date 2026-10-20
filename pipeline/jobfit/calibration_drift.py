@@ -25,8 +25,9 @@ Drift axes (each with a named, commented threshold):
   - base-rate shift — the observed positive (advance) rate moved, which
     invalidates the reliability curve even if Brier looks flat.
 
-Honesty gate: with EITHER window below ``minOutcomes`` the verdict is
-``insufficient_data`` and the alarm NEVER fires — an alarm computed on noise is
+Honesty gate: with EITHER window below ``minOutcomes`` (the curve's floor) OR
+below ``MIN_DRIFT_WINDOW_OUTCOMES`` (the monitor's own, larger floor) the verdict
+is ``insufficient_data`` and the alarm NEVER fires — an alarm computed on noise is
 itself a monitoring defect (same principle as the TS ``calibrated`` flag and
 matching_eval's "unmeasured metric must not pass" rule).
 """
@@ -40,11 +41,26 @@ from typing import Any, Mapping, Sequence
 MIN_CALIBRATION_OUTCOMES = 20
 CALIBRATION_BIN_COUNT = 10
 
+# The floor for COMPARING two windows is not the floor for drawing one curve. Measured
+# on this module (2026-09-29, perfectly calibrated score, both windows drawn from the
+# same population, 4000 pairs of windows per size, so every alarm is false): at 20
+# outcomes per window the alarm fired on 99.8% of pairs, at 50 on 91%, at 100 on 43%,
+# at 200 on 6%, at 400 on 0.4%. PSI carries almost all of it: with B bins its expected
+# value under NO shift is (B-1)(1/n + 1/m) (Yurdakul & Naranjo, J. Risk Model
+# Validation 14(4)) — 0.9 at B=10, n=m=20, against an alarm line of 0.25. Two windows
+# of 200 is the smallest size at which the residual false-alarm rate is a few per cent.
+MIN_DRIFT_WINDOW_OUTCOMES = 200
+
 # -- drift thresholds -------------------------------------------------------
-# Brier ranges 0 (perfect) .. 0.25 (uninformative coin at p=0.5). A worsening of
-# 0.05 eats a fifth of that whole range — comfortably past run-to-run jitter on
-# n>=20 windows, and roughly the gap between a decent (≈0.18) and a useless
-# (≈0.25) recruitment ranker. Improvement never alarms (signed, not absolute).
+# Brier ranges 0 (perfect) .. 1 (confidently wrong every time); 0.25 is the score of
+# the constant 0.5 forecast, not the top of the range. A worsening of 0.05 is a fifth
+# of that reference and roughly the gap between a decent (≈0.18) and a useless
+# (≈0.25) recruitment ranker. It is NOT past run-to-run jitter on small windows: the
+# standard deviation of the between-window delta was 0.057 at n=20, 0.035 at n=50,
+# 0.026 at n=100 and 0.018 at n=200 (same measurement as MIN_DRIFT_WINDOW_OUTCOMES).
+# A cut equal to the change it must catch detects it about half the time at best, so
+# a true 0.05 worsening is a coin flip at any window size. Improvement never alarms
+# (signed, not absolute).
 BRIER_DEGRADATION_ALERT = 0.05
 # Standard PSI convention: >0.25 = significant population shift. We alarm only
 # at "significant"; the 0.10 "moderate" band is reported but does not alarm.
@@ -170,12 +186,14 @@ def detect_drift(
     brier_alert: float = BRIER_DEGRADATION_ALERT,
     psi_alert: float = PSI_ALERT,
     positive_rate_alert: float = POSITIVE_RATE_SHIFT_ALERT,
+    min_window_outcomes: int = MIN_DRIFT_WINDOW_OUTCOMES,
 ) -> DriftReport:
     """Compare two CalibrationResult payloads and decide whether to alarm.
 
     Pure: same inputs → same DriftReport. Either window uncalibrated (below its
-    own ``minOutcomes``) → ``insufficient_data`` with NO alarm and no computed
-    axes, because a drift verdict on statistical noise is worse than none.
+    own ``minOutcomes``) or below ``min_window_outcomes`` → ``insufficient_data``
+    with NO alarm and no computed axes, because a drift verdict on statistical
+    noise is worse than none.
     """
     base_n = int(baseline.get("n", 0))
     cur_n = int(current.get("n", 0))
@@ -191,6 +209,21 @@ def detect_drift(
             reasons=[
                 f"window below minOutcomes (baseline {base_n}/{baseline.get('minOutcomes')}, "
                 f"current {cur_n}/{current.get('minOutcomes')}) — drift not evaluable"
+            ],
+        )
+    if base_n < min_window_outcomes or cur_n < min_window_outcomes:
+        return DriftReport(
+            verdict=VERDICT_INSUFFICIENT,
+            alarm=False,
+            brier_delta=None,
+            psi=None,
+            positive_rate_shift=None,
+            baseline_n=base_n,
+            current_n=cur_n,
+            reasons=[
+                f"window below the drift floor (baseline {base_n}/{min_window_outcomes}, "
+                f"current {cur_n}/{min_window_outcomes}) — comparing two windows this thin "
+                "alarms on noise; the score curve itself can still be read"
             ],
         )
 

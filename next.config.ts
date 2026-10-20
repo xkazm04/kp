@@ -114,7 +114,10 @@ const nextConfig: NextConfig = {
   // The NEXT_RUNTIME !== "nodejs" guard in instrumentation.ts stops the code from
   // ever EXECUTING off-Node; this stops it from being BUNDLED there. Honored by
   // both Turbopack and webpack, so it fixes `dev`, `dev:inspect`, and `build`.
-  serverExternalPackages: ["better-sqlite3"],
+  // playwright-core: the OPTIONAL headless browser behind /api/jobseeker/cv.pdf
+  // (app/_lib/jobseeker/cv-pdf.ts). Loaded lazily at runtime and never bundled — an
+  // install without it answers "unavailable" and the page falls back to print.
+  serverExternalPackages: ["better-sqlite3", "playwright-core"],
   experimental: {
     serverActions: {
       // Server Action request-body ceiling — this bounds POSTs to "use server"

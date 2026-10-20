@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerSource } from "@/app/_lib/db/jobseeker-sources";
 import { listingPages } from "@/app/_lib/jobseeker/adapters/boardRules";
+import { egressHopGuard, vetSourceUrl } from "@/app/_lib/jobseeker/fetch/egress";
 import { politeFetch } from "@/app/_lib/jobseeker/fetch/politeFetch";
 import { isCollapsed } from "@/app/_lib/jobseeker/rules/collapse";
 import { isRulesError, validateRules } from "@/app/_lib/jobseeker/rules/dsl";
@@ -20,7 +21,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 type PreviewBody = { rules?: unknown; url?: unknown };
 const PREVIEW_ITEMS = 5;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -35,7 +36,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as PreviewBody;
-    const ws = await currentWorkspace();
     const source = getJobseekerSource(id, ws);
     if (!source) return jsonRefusal("JOBSEEKER_SOURCE_NOT_FOUND", 404);
     if (source.tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403);
@@ -45,7 +45,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!url) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { detail: "url: no listing page to preview" });
     if (isOffline()) return jsonRefusal("JOBSEEKER_OFFLINE", 503);
 
-    const fetched = await politeFetch(url, { sourceId: source.id, host: source.host, accept: "text/html, application/xhtml+xml;q=0.9" });
+    // SSRF: the url is the caller's — it must be on the source's own host and public,
+    // and every redirect hop is vetted before it is requested (fetch/egress.ts).
+    const refused = await vetSourceUrl(url, source.host);
+    if (refused === "off_source_host" || refused === "bad_url") return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { detail: "url: not on the source host" });
+    if (refused === "not_public_host") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403, { detail: refused });
+    if (refused) return jsonRefusal("JOBSEEKER_PREVIEW_FAILED", 502, { detail: refused });
+
+    const fetched = await politeFetch(url, { sourceId: source.id, host: source.host, accept: "text/html, application/xhtml+xml;q=0.9", hopGuard: egressHopGuard() });
     if (fetched.kind === "offline") return jsonRefusal("JOBSEEKER_OFFLINE", 503);
     if (fetched.kind === "blocked") return jsonRefusal("JOBSEEKER_SOURCE_BLOCKED", 423, { detail: fetched.detail });
     if (fetched.kind !== "ok") return jsonRefusal("JOBSEEKER_PREVIEW_FAILED", 502, { detail: fetched.detail });
@@ -64,4 +71,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources/[id]/preview", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

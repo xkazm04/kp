@@ -47,6 +47,7 @@ from .taxonomy import (
     feminine_variants,
     normalize_text,
 )
+from .transferable import _AUTHORED_TRANSFERABLE_MAP, with_feminine_forms
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 TAXONOMY_PATH = _DATA_DIR / "taxonomy.json"
@@ -496,6 +497,30 @@ def scan_gender_gaps(taxonomy: dict[str, Any], *, derive: bool = True) -> list[G
     return gaps
 
 
+def scan_transferable_gender_gaps(
+    groups: Any = None, *, derive: bool = True
+) -> list[GenderGap]:
+    """Masculine signals in the transferable map whose feminine nothing reaches.
+
+    The third consumer of hand-authored Czech vocabulary, beside the two
+    :func:`scan_gender_gaps` covers: ``transferable._TRANSFERABLE_MAP``, read by
+    ``map_transferable`` (and ``domain_distance``'s moderate grade) with a plain
+    ``signal in text`` substring test over a signal GROUP — any signal in the group
+    earns the group's meta-skills, so a probe is reached when any form of its own
+    group is a substring of it. ``groups`` defaults to the authored table;
+    ``derive=False`` omits ``transferable.with_feminine_forms``.
+    """
+    authored_groups = _AUTHORED_TRANSFERABLE_MAP if groups is None else tuple(groups)
+    live = with_feminine_forms(authored_groups) if derive else authored_groups
+    gaps: list[GenderGap] = []
+    for index, ((authored, _skills), (forms, _)) in enumerate(zip(authored_groups, live)):
+        for surface in authored:
+            for probe in feminine_probe_forms(normalize_text(surface)):
+                if not any(form in probe for form in forms):
+                    gaps.append(GenderGap(f"transferable_signals[{index}]", surface, probe))
+    return gaps
+
+
 def lint_taxonomy(
     taxonomy: dict[str, Any],
     *,
@@ -781,7 +806,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  ERROR {c.describe()}", file=sys.stderr)
 
     # Czech gender parity: every masculine surface must reach its feminine form.
-    gender_gaps = scan_gender_gaps(taxonomy)
+    gender_gaps = scan_gender_gaps(taxonomy) + scan_transferable_gender_gaps()
     if gender_gaps:
         print(
             f"\nERROR: {len(gender_gaps)} Czech surface(s) classify a woman "
@@ -792,9 +817,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  ERROR {g.describe()}", file=sys.stderr)
     else:
         closed = len(scan_gender_gaps(taxonomy, derive=False))
+        closed_transferable = len(scan_transferable_gender_gaps(derive=False))
         print(
-            f"\nGENDER PARITY: no gaps — {closed} masculine-only surface(s) are "
-            "covered by the derived feminine forms (taxonomy.feminine_variants)."
+            f"\nGENDER PARITY: no gaps — {closed} masculine-only surface(s) in terms + "
+            f"adjacent_domain_signals and {closed_transferable} in transferable signals "
+            "are covered by the derived feminine forms (taxonomy.feminine_variants, "
+            "transferable.with_feminine_forms)."
         )
 
     print()

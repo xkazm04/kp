@@ -1,0 +1,139 @@
+[
+  {
+    "context": "schedule-interview-prep",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Human scorecards keyed by interviewer and round: a save never erases another",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "base_sha": "7bd867751730a53df5b33d6227a4dc4fa90392a1 (git log -3 at scout start read dbcdecf66; r08 builders advanced HEAD during the read; every cite below re-checked at 7bd86775)",
+    "write_set": [
+      "app/_lib/human-scorecard-set.ts",
+      "app/_lib/human-scorecard-set.test.ts",
+      "app/_lib/interview-prep.ts",
+      "app/api/interview-prep/scorecard/route.ts",
+      "app/api/interview-prep/scorecard/panel-scorecards.test.ts",
+      "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx",
+      "app/features/hiring/schedule/ScheduleInterviewPrepModal.tsx",
+      "app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx",
+      "app/features/hiring/schedule/ScheduleInterviewHumanScorecardSection.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "docs/features/interviews/README.md",
+      "docs/features/scheduling/README.md"
+    ],
+    "new_files": [
+      "app/_lib/human-scorecard-set.ts",
+      "app/_lib/human-scorecard-set.test.ts",
+      "app/api/interview-prep/scorecard/panel-scorecards.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "upsertHumanScorecard([], {author:'u1', stage:'interview', ...}) then upsert {author:'u2', stage:'interview'} -> 2 records; u1's ratings, summary and savedAt are byte-identical to before the second save",
+      "upsertHumanScorecard on a list holding {author:'u1', stage:'interview'} with a new card for the same (author, stage) -> list length unchanged, that record replaced, savedAt moved",
+      "same author, different stage ('interview' then 'interview-2', a workspace that split Interview into rounds) -> 2 records; round 2 does not overwrite round 1",
+      "readHumanScorecards({humanScorecard:{ratings:[r]}}) (legacy payload, no humanScorecards key) -> exactly one record {author:null, stage:null, ratings:[r]}; readHumanScorecards on a payload carrying BOTH keys -> the list only (the legacy key is the headline mirror and is never counted twice)",
+      "ownScorecard(list, 'u2', 'interview') when only u1 has saved for that stage -> null (the panel of a second interviewer opens EMPTY, never pre-filled with u1's ratings)",
+      "POST /api/interview-prep/scorecard as u1 then as u2 on the same entry -> getHumanScorecards(entry) has 2 records with authorLabel set; payload.humanScorecard equals u2's card (the headline mirror), so getHumanScorecard / candidate-timeline / listPreparedEntries.hasHumanScorecard keep answering unchanged",
+      "GET /api/interview-prep/scorecard?entry=<id> as u2 before u2 saved -> {mine:null, records:[u1's]}; the same GET from another workspace -> 404 INTERVIEW_PREP_NOT_FOUND",
+      "open mode (currentUser().userId === null): two POSTs on the same stage -> 1 record (today's single-slot behaviour), two POSTs on different stages -> 2 records"
+    ],
+    "premise": [
+      "app/_lib/interview-prep.ts:153 — saveHumanScorecard writes `{ ...existing.payload, humanScorecard: {...scorecard, source:'human'} }`: ONE key per entry, replaced wholesale on every save",
+      "app/api/interview-prep/scorecard/route.ts:158-160 — the route's own comment: a workspace may rename Interview 'or split it into several interview rounds' and still gate; route.ts:169-172 gates by stage ROLE — so round 2's save lands in the same single humanScorecard key and erases round 1's ratings and evidence",
+      "app/api/interview-prep/scorecard/route.ts:110 — the stored card is `{ ratings, source: 'human' }`: no author; route.ts:142 seals the decision as actor 'human:recruiter' — no named actor",
+      "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:52-66 — the form state is SEEDED from `initial` (ratings, evidence, recommendation, summary), and ScheduleInterviewPrepModal.tsx:140 passes `initial={prep.humanScorecard}` — a second interviewer opens the form pre-filled with the first one's verdict (anchoring), and Save overwrites it",
+      "app/features/hiring/schedule/ScheduleInterviewPrepNotes.tsx:29-31 — the product already names the case: 'so a multi-interviewer team sees ownership at a glance'",
+      "app/_lib/auth/current-user.ts:67-83 — currentUser() exposes userId (null in open mode), so an author key exists at the write path without a new identity model",
+      "app/_lib/db/users.ts:46 — getUserById, for a write-time authorLabel (import the slice, never the db.ts barrel)",
+      "Readers of the single key that the headline mirror keeps working unchanged: app/api/interview/compare/route.ts:79 and :95 (getHumanScorecard), app/_lib/candidate-timeline.ts:431 (was :425 at 7bd86775; r08 pipeline-candidate-drawer is editing this file, so re-grep `humanScorecard?: Scorecard } | undefined)?.humanScorecard` at build) (payload.humanScorecard -> drawer PipelineHumanScorecardCard), app/_lib/interview-prep.ts:296-298 (listPreparedEntries.hasHumanScorecard), and the scorecard_review approval payload set at route.ts:172 (Decisions queue)",
+      "app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx:32-36 — the review surface reads `prep.payload.humanScorecard`, one card only",
+      "Erasure needs no new work: app/_lib/db/pipeline.ts:2386-2387 blanks interview_preps.payload_json to '{}' — the list lives in that payload, so no new table, no tenancy-manifest row"
+    ],
+    "rollback": "Reverts cleanly as a series: the store keeps writing `payload.humanScorecard` as the headline mirror (the latest save), which is exactly the key the pre-change code reads, so rolling back the code leaves every reader seeing the most recent human card — the extra `humanScorecards` list becomes an ignored payload key that mergeRegeneratedPrep carries harmlessly. No schema change, no table, no migration to undo.",
+    "gate": "contract",
+    "runner_up": "A-runner-up: one prep-payload codec — the client normImported (scheduleInterviewPrepTypes.ts:47) and the server normalizer in importMerge.ts are hand-mirrored copies, and the POST/PATCH read-merge-writes (route.ts:166-175, 250-259) sit outside the .immediate() discipline their three siblings use (interview-prep.ts:126/150/173); lost to this card because in one Node process those writes cannot actually interleave.",
+    "technique": null,
+    "body": "## Summary\nThe human interview scorecard is one key inside the prep payload (`payload.humanScorecard`), replaced wholesale on every save and used to pre-fill the next person's form. A second interviewer, or a second interview round in a workspace that split the Interview column, silently erases the first record and starts anchored on it. Store human scorecards as a list keyed by (author, stage), seed each interviewer's form only from their own record, and keep `humanScorecard` as a derived headline mirror so every existing reader and a rollback stay intact.\n\n## Description\nThe registry's structured-interview-scorecards golden path (section 'Independent scoring before the debrief') and interview-round-design ('assessments are recorded before they are compared') set the standard: each assessor commits an independent written score, and a second read never has access to the first. kp breaks this in three places at once. First, `saveHumanScorecard` (interview-prep.ts:153) replaces the single key. Second, the scorecard route gates by stage ROLE precisely so a workspace can split Interview into rounds (route.ts:158-160), yet every round's save lands in that one key. Third, `HumanScorecardPanel` seeds its form from `prep.humanScorecard` (Panel:52-66, Modal:140), so interviewer B opens A's ratings, evidence and verdict pre-filled and overwrites them on Save. The decision seal also records actor 'human:recruiter' (route.ts:142) with no author.\n\nThe move is a pure module, `app/_lib/human-scorecard-set.ts`: `HumanScorecardRecord = Scorecard & { author: string|null; authorLabel: string|null; stage: string|null; savedAt: string }`, `readHumanScorecards(payload)` (legacy single key becomes one author-null record), `upsertHumanScorecard(list, rec)` (replace on the same (author, stage), else append, capped at 12), `ownScorecard(list, author, stage)` and `headlineScorecard(list)` (the latest savedAt). `saveHumanScorecard(entryId, scorecard, key)` runs the upsert inside the existing `.immediate()` transaction (interview-prep.ts:150), which is already the lock-first read-then-write strategy, with no await inside, and writes both `humanScorecards` and the `humanScorecard` headline mirror in the same UPDATE. `getHumanScorecard` keeps its signature and returns the headline. `getHumanScorecards(entryId, workspaceId)` is the new scoped reader.\n\nThe scorecard route resolves `author = currentUser().userId` (null in open mode, which gives today's single slot per stage), `stage = pipelineEntry.stage`, and `authorLabel` from `getUserById` (imported from `app/_lib/db/users`, not the barrel). It adds the author to the seal's `inputs` and gains a GET that returns `{ mine, records }`, scoped by the same `getInterviewPrep(entry, ws)` read as the POST (gated route, already listed in api-reference.md:371, so no public-routes change; the api-reference row is regenerated with `npm run api:docs` for the new method).\n\nEvery surface that shows or offers a human scorecard is named here:\n- Prep modal panel (the scoring surface): fetches `mine` and seeds only from it. The Modal stops passing `prep.humanScorecard`.\n- Transcript modal (review surface): lists `records`, each labelled by author, through HumanScorecardSection.\n- Drawer (candidate-timeline.ts:431 (was :425 at 7bd86775; r08 pipeline-candidate-drawer is editing this file, so re-grep `humanScorecard?: Scorecard } | undefined)?.humanScorecard` at build)), compare grid (compare/route.ts:79,95), Schedule card flag (interview-prep.ts:296-298) and Decisions queue (the approval payload, route.ts:172): these read the headline mirror and are deliberately unchanged in this card. Listing every panel member on the drawer and the compare grid is the named follow-up.\n\n## Flow\n1. Interviewer A (u1) opens the prep modal and clicks Score interview. GET scorecard returns `{mine:null}`, so the form is empty. A saves, and the store holds `[u1/interview]` with headline u1.\n2. Interviewer B (u2) opens the same candidate. `mine` is null again, so the form is empty and not A's. B saves, and the store holds `[u1/interview, u2/interview]` with headline u2. A's record is untouched.\n3. The candidate moves to 'Interview 2' (a split axis). A saves round 2, and the store holds three records. Round 1 survives.\n4. The transcript modal shows all three, labelled. The drawer and compare grid show the headline, as they do today.\n\n## Expected impact\nNo human interview record is ever destroyed by a colleague's or a later round's save. That is the data-loss class behind every panel or multi-round use. The pre-fill anchoring path closes, and the seal names its actor. Existing readers keep working through the mirror. Perf: server-only module plus a fetch in the panel. Nothing is added to the app/page.tsx or task-hub import graphs.\n\n## Evaluation\nClaim: human scorecards are per-(author, stage) records. A save replaces only its own record, and the scoring form never pre-fills another author's verdict.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate — node:test on human-scorecard-set.test.ts (pure) and panel-scorecards.test.ts (the real POST/GET against unit-db, two principals, as stage-role.test.ts drives POST today), plus the integration gate (tsc, lint, i18n:check, api:check, test:unit).\nResult: pending build.\nGate: contract (the stored payload gains a key and the scorecard route gains a GET. The legacy key is kept as a mirror).",
+    "evidence": "interview-prep.ts:153  `const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: \"human\" as const } };`\nscorecard/route.ts:110 `const scorecard: Scorecard = { ratings, source: \"human\" };`  route.ts:142 `actor: \"human:recruiter\",`\nscorecard/route.ts:159-160 `renamed Interview to \"Loop\" (or split it into several interview rounds) / still gates;`\nScheduleHumanScorecardPanel.tsx:55-56 `for (const r of initial?.ratings ?? []) { ratings[r.competency] = r.rating;` and :63 `useState<InterviewRecommendation | \"\">(initial?.recommendation ?? \"\")`\nScheduleInterviewPrepModal.tsx:140 `<HumanScorecardPanel ... initial={prep.humanScorecard} />`\nScheduleInterviewPrepNotes.tsx:30-31 `surfaced on the schedule card so a multi-interviewer / team sees ownership at a glance.`\ngrep humanScorecard readers outside schedule/: compare/route.ts:79,95 (getHumanScorecard); candidate-timeline.ts:431 (was :425 at 7bd86775; r08 pipeline-candidate-drawer is editing this file, so re-grep `humanScorecard?: Scorecard } | undefined)?.humanScorecard` at build); interview-prep.ts:296-298; decisionsLedgerModel.ts:42 (approval payload source==='human').\npipeline-stages.ts:32 `\"New applicants\" or splits Interview into three rounds.`\nRegistry: recruiting/assessment/structured-interview-scorecards.md §'Independent scoring before the debrief' ('Every scorecard is submitted before any discussion'), interview-round-design.md:103-111 ('different assessor, no access to the first rating before recording the second')."
+  },
+  {
+    "context": "schedule-interview-prep",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Regenerate previews its changes: keep or replace, never a blind overwrite",
+    "size": "L",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "7bd867751730a53df5b33d6227a4dc4fa90392a1",
+    "write_set": [
+      "app/_lib/interview-prep-run.ts",
+      "app/_lib/interview-prep-run.test.ts",
+      "app/_lib/interview-prep.ts",
+      "app/api/interview-prep/route.ts",
+      "app/api/interview-prep/pending-plan.test.ts",
+      "app/_lib/api-response.ts",
+      "app/features/hiring/schedule/schedulePrepPlanDiff.ts",
+      "app/features/hiring/schedule/schedulePrepPlanDiff.test.ts",
+      "app/features/hiring/schedule/scheduleInterviewPrepTypes.ts",
+      "app/features/hiring/schedule/useScheduleInterviewPrep.ts",
+      "app/features/hiring/schedule/ScheduleInterviewPrepPlanDiff.tsx",
+      "app/features/hiring/schedule/ScheduleInterviewPrepModal.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/schedule/schedulePrepPlanDiff.ts",
+      "app/features/hiring/schedule/schedulePrepPlanDiff.test.ts",
+      "app/features/hiring/schedule/ScheduleInterviewPrepPlanDiff.tsx",
+      "app/api/interview-prep/pending-plan.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "computePlanDiff(current chronology [Intro, System design, Wrap], candidate [Intro, Testing, Wrap]) -> {added:['Testing'], removed:['System design']}; a block present in both with different fromMin/toMin lands in retimed with both ranges",
+      "computePlanDiff with importedQuestions [{question:'Q1', blockRef:'System design'}] and a candidate lacking that topic -> wovenOrphaned:['Q1'] (the exact rule splitImported applies after the swap)",
+      "computePlanDiff with checked {c-3:true, k-0:true} where the candidate has 3 blocks -> checkedDetached:1; identical current and candidate -> isNoop:true and every list empty",
+      "runInterviewPrep({entryId, stage:true}) on an entry that already has a pack -> stored chronology/scenario/signals unchanged, payload.pendingPlan holds the new generator-owned keys, created_at unchanged",
+      "runInterviewPrep({entryId, stage:true}) with NO existing pack -> commits directly exactly as today (no pendingPlan; created_at set)",
+      "PATCH /api/interview-prep?entry=<id> {plan:'accept'} -> chronology equals the pending one, pendingPlan gone, created_at moved (the stale chip clears), and userProgress/interviewer/humanScorecard/importedQuestions/kitOverlay are byte-identical; a second accept -> 409 INTERVIEW_PREP_NO_PENDING_PLAN",
+      "PATCH {plan:'discard'} -> pendingPlan removed; chronology and created_at unchanged",
+      "an UNSTAGED regeneration (the Decisions-queue accept path, useDecisionsQueue.ts:441) on a pack holding a pendingPlan -> commits and clears pendingPlan (mergeRegeneratedPrep never carries a stale candidate forward)"
+    ],
+    "premise": [
+      "app/_lib/interview-prep-run.ts:79-85 — a regeneration reads the previous pack, merges and saves with `{ regenerated: true }` in one pass: the prior generated chronology is overwritten with no preview and no way back",
+      "app/_lib/interview-prep-run.ts:98-103 — mergeRegeneratedPrep = `{ ...prev, ...generated }`: preserves human keys but reports nothing about what changed",
+      "app/features/hiring/schedule/useScheduleInterviewPrep.ts:172-183 — `generate` starts the task; :147-167 the completion block swaps the plan in via setGenerated(result) — the first the interviewer sees of the new plan is after it has replaced the old one",
+      "Three offers of the same blind action: ScheduleInterviewPrepModal.tsx:66-73 (footer Regenerate), ScheduleInterviewPrepHeader.tsx:58-64 (fallback banner 'Regenerate with AI'), ScheduleInterviewPrepHeader.tsx:74-81 (stale 'JD edited since' banner)",
+      "app/features/hiring/schedule/scheduleInterviewPrepProgress.ts:51-62 — splitImported silently demotes a woven question to unassigned when a regenerate drops its block topic; ScheduleInterviewPrepRunOfShow.tsx:39 keys ticks by index `c-${i}`, so carried-forward ticks re-attach to whatever block now sits at that index — both consequences are computable BEFORE the swap and are shown to nobody",
+      "Other generators stay unstaged by design and are named: app/features/hiring/decisions/useDecisionsQueue.ts:441 (accept handoff) and app/_lib/interview-run.ts:475-482 (generates only when no chronology exists)",
+      "app/_lib/task-dedupe.ts:144-145 — interview_prep dedupes on entryId only; a `stage` param rides ctx.params through tasks.ts:325 unchanged (tasks.ts is NOT edited — it is in r08's llm-inference-runtime write set)",
+      "app/_lib/api-response.ts:1709 — the INTERVIEW_PREP_* refusal family the new INTERVIEW_PREP_NO_PENDING_PLAN code joins (four catalog entries)"
+    ],
+    "rollback": "Reverts cleanly: the only stored addition is an optional `pendingPlan` payload key. Pre-change code never reads it, and mergeRegeneratedPrep would carry it inertly. Reverting the series restores the direct-overwrite regenerate. A leftover pendingPlan on some rows is dead data with no reader, and the next unstaged regeneration of the pre-change code keeps it but never shows it.",
+    "gate": "none",
+    "runner_up": "B-runner-up: human-vs-AI reconciliation in the transcript modal — one row per competency with the AI and human ratings side by side, disagreements of 2+ first, each AI quote jumping to its turn (TranscriptModal.tsx:98-110 stacks the two cards with no comparison); lost because it collides with slot A's rewrite of the same modal and the human card becomes a list there.",
+    "technique": "regenerate-without-destroying-human-notes",
+    "body": "## Summary\nRegenerate replaces the interview plan the moment the task finishes. The interviewer learns what changed, if ever, by noticing that a block they had woven questions into is gone or that their ticks moved. From the modal, stage the regenerated plan as `pendingPlan` instead. Show a computed diff of blocks added, removed and retimed, woven questions that would fall back to unassigned, and ticks that would detach. Replace or Keep is one click.\n\n## Description\nThe registry technique regenerate-without-destroying-human-notes gets the merge half right, and kp implements that half (interview-prep-run.ts:98-103). Its step 6 is not implemented: 'Report what changed. A merge that reports nothing is functionally indistinguishable from one that destroyed everything.' Today three buttons offer the same blind action: the footer, the fallback banner and the stale-JD banner (Modal:66-73, Header:58-64, 74-81). The run overwrites in one pass (interview-prep-run.ts:79-85), and the modal swaps the plan in on completion (hook:147-167). Two consequences are fully computable in advance and shown to nobody. splitImported demotes a woven question whose block topic disappeared (progress.ts:51-62). Ticks keyed `c-<i>` (RunOfShow:39) re-attach by index.\n\nThe build:\n1. `runInterviewPrep` honours `params.stage === true` when a pack already exists. It writes the generator-owned keys under `payload.pendingPlan` through a new `stageInterviewPrepPlan` in interview-prep.ts. That is a read-merge-write in `.immediate()` with no await inside, and it leaves created_at alone. With no prior pack it commits as today. An unstaged run deletes any `pendingPlan` before merging.\n2. `acceptPendingPlan(entryId)` and `discardPendingPlan(entryId)` in interview-prep.ts, each an `.immediate()` transaction that re-reads the row and returns false when no pendingPlan exists. Accept overlays the pending generator keys onto the payload and moves created_at in the same UPDATE, so the stale chip and 'generated NN ago' follow truthfully.\n3. PATCH `/api/interview-prep` accepts `{plan:'accept'|'discard'}` behind the same `pipeline:write` capability, throttle and tenancy read as the weave (route.ts:197-252). A missing pending plan answers 409 `INTERVIEW_PREP_NO_PENDING_PLAN`, a new REFUSAL_ERRORS code with four catalog entries. No new route, so neither public-routes.ts nor the api-reference method set changes.\n4. `schedulePrepPlanDiff.ts` (pure, tested): `computePlanDiff(current, candidate, checked, importedEntries)` returns `{added, removed, retimed, wovenOrphaned, checkedDetached, durationFrom, durationTo, sourceFrom, sourceTo, isNoop}`. It reuses splitImported and prepProgress's key scheme, so the preview and the post-swap render cannot disagree.\n5. The hook passes `stage:true` when a prep exists. A completion carrying `pendingPlan` sets pending state instead of `generated`. A GET that returns `payload.pendingPlan` restores the preview after a reopen (the recruiter closed the modal mid-generation).\n6. `ScheduleInterviewPrepPlanDiff.tsx` renders the diff banner above the run-of-show with Replace plan and Keep current. An isNoop candidate says 'no changes' and offers Discard.\n\nEvery surface that offers regenerate or shows the plan is named here. The modal's three buttons are staged. The Decisions-queue accept (useDecisionsQueue.ts:441) and the voice-interview first-generation (interview-run.ts:475-482) stay direct, by design, because neither has a human watching a plan. The voice agenda, copy-out and Schedule card read the committed keys only, so a pending plan is invisible to them until accepted. Perf: one new client component in the Schedule tab chunk, nothing on app/page.tsx or the task-hub graph.\n\n## Flow\n1. The recruiter sees 'JD edited since 12 Sep' and clicks Regenerate. The task runs. The current plan stays on screen and usable.\n2. On completion the banner reads: 2 blocks added, 1 removed ('System design'), 1 woven question returns to unassigned, 2 ticks will detach, 25 to 30 min.\n3. Replace plan: PATCH accept, and the modal re-seeds from the accepted payload. Or Keep current: PATCH discard, and nothing changed.\n4. Closing the modal before deciding is safe. The next open shows the same preview from the stored pendingPlan.\n\n## Expected impact\nRegeneration becomes a reviewed decision instead of an irreversible overwrite. The interviewer keeps a tailored plan when the new one is worse (a keyless fallback template replacing an AI plan is the sharpest case, since `sourceFrom`/`sourceTo` makes it explicit). The technique's missing step 6 becomes a rendered, tested fact.\n\n## Evaluation\nClaim: a modal-initiated regeneration never replaces the committed plan until the interviewer accepts a diff computed from the same rules the post-swap render uses.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate — node:test on schedulePrepPlanDiff.test.ts (pure), interview-prep-run.test.ts (stage/unstaged with the automation stubbed as the existing test does), and pending-plan.test.ts (the real PATCH against unit-db), plus i18n:check for the new code and the integration gate.\nResult: pending build.\nGate: none.",
+    "evidence": "interview-prep-run.ts:79 `const prev = getInterviewPrep(entryId, workspaceId);` :80 `const payload = mergeRegeneratedPrep(prev?.payload, generated);` :85 `saveInterviewPrep(entryId, candidateLabel, jobTitle, payload, { regenerated: true });`\ninterview-prep-run.ts:102 `return { ...(prevPayload ?? {}), ...generated };`\nuseScheduleInterviewPrep.ts:148-150 `const result = (genFull.result as Prep) ?? null; setGenerated(result); setTaskId(null);` and :181 `startTask(\"interview_prep\", { entryId: entry.id, ... lang: locale })`\nScheduleInterviewPrepModal.tsx:68 `onClick={generate}`; ScheduleInterviewPrepHeader.tsx:60 and :76 `onClick={generate}` (three offers)\nscheduleInterviewPrepProgress.ts:58 `if (e.blockRef && blockTopics.has(e.blockRef)) woven.push(e); else unassigned.push(e);`\nScheduleInterviewPrepRunOfShow.tsx:39 `const key = `c-${i}`;`\nuseDecisionsQueue.ts:441 `void startTask(\"interview_prep\", { entryId: e.id, ... })`; interview-run.ts:475 `if (!opts?.readOnly && (!prep || !(prep.chronology && prep.chronology.length)))`\ntask-dedupe.ts:145 `const k = stableKey(\"interview_prep\", p.entryId);`\nRegistry: recruiting/assessment/interview-run-of-show/techniques/regenerate-without-destroying-human-notes.md step 6 'Report what changed — added, held back, and what was left alone because a human owned it.'\nNot a restatement: open leftovers for this context are 'Mint stable per-topic checklist keys', 'Withhold the human scorecard when consent has lapsed', 'Clamp the run-of-show to the booked interview duration', 'Flag scorecard axes the run-of-show never feeds', 'Run a live minute clock' — none stages or previews a regeneration; no prior challenge card targets this context."
+  }
+]

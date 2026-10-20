@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getPostingByToken } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { intakeSubmission } from "@/app/_lib/distribution";
+import { answerFailure, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
@@ -19,7 +19,7 @@ import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 // invented candidate appearing on that team's board, plus an acknowledgement mailed from
 // their outbox to a caller-supplied address. The token branch is checked the same way —
 // the public token-only door is /api/devcase/inbound, which needs no session at all.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // AUTHORITY (/perfect wave 31). The header above calls this "the AUTHENTICATED
   // internal door" - and until this gate landed it was nothing of the kind: the handler
   // leaned entirely on proxy.ts refusing non-public /api paths, the single-gate posture
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       : body.token
         ? getPostingByToken(body.token)
         : null;
-    if (!posting || posting.workspaceId !== (await currentWorkspace())) {
+    if (!posting || posting.workspaceId !== (ws)) {
       // Same body a genuinely unknown posting gets — never an existence oracle for
       // another team's postings.
       return NextResponse.json({ error: "postingId or a valid token is required." }, { status: 404 });
@@ -72,11 +72,10 @@ export async function POST(request: NextRequest) {
     // and the form used to claim a fresh record either way.
     return NextResponse.json({ ok: true, isNew, submission });
   } catch (error) {
-    if (error instanceof PostingClosedError) {
-      return jsonRefusal("POSTING_CLOSED", 410);
-    }
-    // better-sqlite3 SQLITE_* codes, the absolute db path and the distribution
-    // adapter's upstream body all used to ride this message to the client.
-    return safeJsonError(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
+    // A closed posting throws PostingClosedError, a Refusal: answered as
+    // POSTING_CLOSED/410. Anything else is an accident — better-sqlite3 SQLITE_* codes,
+    // the absolute db path and the distribution adapter's upstream body all used to
+    // ride this message to the client.
+    return answerFailure(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
   }
-}
+});

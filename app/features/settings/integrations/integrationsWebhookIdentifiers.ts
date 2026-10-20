@@ -26,20 +26,35 @@
 // against (`unknown event "…"`), which is what makes an unguarded copy here the
 // "reads fine, write gets rejected" failure rather than a cosmetic one.
 
-/** One subscribable event: its wire id, and the catalog key naming it. */
-export type SubscribableEventRow = { id: string; key: string };
+/** Whether an event the operator can subscribe to actually leaves kp today.
+ *
+ *  `live`     — at least one `dispatchAtsEvent("<id>", …)` call site exists in the
+ *               server tree, so a subscription can fire.
+ *  `reserved` — the id is accepted by the save (it is in SUBSCRIBABLE_EVENTS) but
+ *               nothing emits it yet: a subscription the operator can make and
+ *               never receive.
+ *
+ *  integrationsCatalog.test.ts holds each row's status to the emit sites IN BOTH
+ *  DIRECTIONS: a `live` row with no dispatch is a subscription that silently never
+ *  fires, and a `reserved` row that IS dispatched is the same lie the other way
+ *  round (the hired-only footnote this replaced was that, in four locales, from the
+ *  day the other emit sites landed). */
+export const SUBSCRIBABLE_EVENT_STATUSES = ["live", "reserved"] as const;
+export type SubscribableEventStatus = (typeof SUBSCRIBABLE_EVENT_STATUSES)[number];
+
+/** One subscribable event: its wire id, the catalog key naming it, and whether it
+ *  fires today. */
+export type SubscribableEventRow = { id: string; key: string; status: SubscribableEventStatus };
 
 /** Mirrors `SUBSCRIBABLE_EVENTS` in app/_lib/ats-webhook.ts — pinned by
- *  integrationsCatalog.test.ts, in both directions. */
+ *  integrationsCatalog.test.ts, in both directions; each row's `status` is pinned
+ *  to the emit sites the same way. */
 export const SUBSCRIBABLE_EVENT_ROWS: readonly SubscribableEventRow[] = [
-  { id: "candidate.hired", key: "candidateHired" },
-  { id: "candidate.rejected", key: "candidateRejected" },
-  { id: "offer.accepted", key: "offerAccepted" },
-  { id: "offer.declined", key: "offerDeclined" },
+  { id: "candidate.hired", key: "candidateHired", status: "live" },
+  { id: "candidate.rejected", key: "candidateRejected", status: "live" },
+  { id: "offer.accepted", key: "offerAccepted", status: "live" },
+  { id: "offer.declined", key: "offerDeclined", status: "live" },
 ];
-
-/** The event whose live wiring exists today; the note under the checkboxes says so. */
-export const HIRED_EVENT = "candidate.hired";
 
 /** Display casing of `SIGNATURE_HEADER` from app/_lib/ats-webhook.ts. HTTP header
  *  names are case-insensitive, so the canonical form is lowercase on the wire and

@@ -8,8 +8,17 @@ import type { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { ArchetypeDef, ProfilePayload } from "@/app/features/shared/profileTypes";
 import type { EditorState, NoteTone, RebuildWarn } from "./ProfileTabTypes";
+import { planRebuildFromPayloads, rebuildDialogModel, rebuildEditorState, type RebuildPlan } from "./profileRebuildMerge";
 
 type Translator = ReturnType<typeof useTranslations>;
+
+// An analysis's normalized profile dump (the payload a build hydrates from). Rejects when
+// the analysis cannot be read, so each caller decides what a missing one means.
+function fetchAnalysisProfile(slug: string): Promise<ProfilePayload | null> {
+  return fetch(`/api/analyses/${encodeURIComponent(slug)}`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+    .then((p) => (p.analysis?.v2Profile as ProfilePayload | undefined) ?? null);
+}
 type Router = ReturnType<typeof useRouter>;
 
 export function useProfileTabDeepLinks(args: {
@@ -73,22 +82,56 @@ export function useProfileTabDeepLinks(args: {
     [t, setEditor, setNote]
   );
 
+  // Open a rebuild ON its field-level merge (profileRebuildMerge.ts): the newer CV
+  // everywhere the recruiter did not edit, their edits everywhere else, and the rebuild
+  // pending so the editor's banner offers "use the new CV anyway" and Undo. Same row,
+  // same version guard and lineage as a wholesale rebuild.
+  const openMerged = useCallback(
+    (slug: string, profileId: string, updatedAt: string | null | undefined, plan: RebuildPlan) =>
+      setEditor({
+        mode: "edit",
+        editingId: profileId,
+        initialPayload: null,
+        initialUpdatedAt: updatedAt ?? null,
+        sourceAnalysisSlug: slug,
+        rebuildSeed: rebuildEditorState(plan),
+        nonce: Date.now(),
+      }),
+    [setEditor]
+  );
+
   // Rebuild-from-latest entry: unlike a first build, this re-points an EXISTING
   // profile — which may have been hand-edited since it was built. Check divergence
-  // first (GET /api/profile?id= carries it). If it diverged, raise the warning and let
-  // the recruiter decide; otherwise hydrate from the analysis exactly as before.
+  // first (GET /api/profile?id= carries it). Never edited: hydrate from the analysis
+  // exactly as before. Edited: merge field by field against the analysis it was BUILT
+  // from (`lineage`), and ask only when a field was both edited and changed by the
+  // newer CV — the dialog names those fields. Nothing contested: straight into the
+  // merged editor, no dialog. A deleted baseline cannot attribute anything, so the plan
+  // keeps the current value and contests every field the newer CV differs on.
   const openRebuild = useCallback(
     (slug: string, profileId: string) =>
       fetch(`/api/profile?id=${encodeURIComponent(profileId)}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
-        .then((p) => {
+        .then(async (p) => {
           const div = p.divergence as { diverged: boolean; editedAt: string | null } | null;
           const updatedAt = (p.updatedAt as string | null) ?? null;
-          if (div?.diverged) setRebuildWarn({ slug, profileId, editedAt: div.editedAt, updatedAt });
-          else void openFromAnalysis(slug, profileId, updatedAt);
+          if (!div?.diverged) {
+            void openFromAnalysis(slug, profileId, updatedAt);
+            return;
+          }
+          const sourceSlug = (p.lineage as { sourceAnalysisSlug?: string } | null)?.sourceAnalysisSlug ?? null;
+          const [newer, source] = await Promise.all([
+            fetchAnalysisProfile(slug),
+            sourceSlug ? fetchAnalysisProfile(sourceSlug).catch(() => null) : Promise.resolve(null),
+          ]);
+          if (!newer) throw new Error("newer analysis has no profile");
+          const plan = planRebuildFromPayloads((p.profile?.payload as ProfilePayload) ?? null, source, newer);
+          const dialog = rebuildDialogModel(plan);
+          if (dialog) setRebuildWarn({ slug, profileId, editedAt: div.editedAt, updatedAt, plan, dialog });
+          else openMerged(slug, profileId, updatedAt, plan);
         })
         .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
-    [openFromAnalysis, t, setNote, setRebuildWarn]
+    [openFromAnalysis, openMerged, t, setNote, setRebuildWarn]
   );
 
   const reloadArchetypes = useCallback(
@@ -136,5 +179,5 @@ export function useProfileTabDeepLinks(args: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { archetypes, archLoading, openEditor, openFromAnalysis, openRebuild, reloadArchetypes };
+  return { archetypes, archLoading, openEditor, openFromAnalysis, openMerged, openRebuild, reloadArchetypes };
 }

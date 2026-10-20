@@ -4,13 +4,14 @@ import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
+import { can } from "@/app/_lib/auth/current-user";
 import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import {
   MAX_CV_VARIANTS,
   validateOptionalUploadServer,
@@ -19,10 +20,14 @@ import {
 
 export const maxDuration = 60;
 
+// The GitHub deep-dive runs as a STAGE of the analyze task (challenge-r02
+// analyze-engine/A); analyze-run.ts reaches it by name through the late-bound registry,
+// and late-bound-boot.ts registers it at server boot.
+
 // Persists the upload to a stable dir and starts a background `analyze` task,
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
 // indicator tracks it) — so the analysis survives navigation + page refresh.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (workspace: string, request: Request) => {
   // Per-IP abuse containment (backlog #7): in open mode (no KP_OPERATOR_PASSWORD)
   // this route is unauthenticated, and each submit ends in a paid Gemini
   // multimodal call inside the background task. Throttle BEFORE the billing read
@@ -43,7 +48,6 @@ export async function POST(request: Request) {
   // reservation count, and the authoritative reservation. Captured here (request
   // scope) and also stamped on the task so the detached background job targets the
   // same tenant. Single-tenant path resolves to the default workspace (byte-identical).
-  const workspace = await currentWorkspace();
 
   // Billing hard GATE only: a CV analysis is the unit behind the "AI candidates"
   // meter (one person fully worked — variants of the same person count once). The
@@ -138,6 +142,25 @@ export async function POST(request: Request) {
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   const blind = form.get("blind") === "true";
 
+  // The GitHub deep-dive rides THIS task now (analyze-github-stage.ts), so this door owes
+  // the two guards /api/github-analysis applies. Neither refuses the CV run — the handle
+  // is an optional extra on a request that is otherwise valid, so a guard that fails
+  // DROPS it with a code the panel renders, and the analysis the recruiter asked for
+  // still starts:
+  //   - AUTHORIZATION: the deep-dive spends the deployment's GitHub + Gemini budget and
+  //     produces a hiring judgement about a named person, which the door reserves for
+  //     `pipeline:write`. A boolean read here, not a gate: a viewer seat may still run
+  //     the CV analysis this route has always allowed it.
+  //   - the shared `github-analysis:<ip>` budget, charged below.
+  // BLIND: a blind run never forwards the handle at all — blind screening redacts
+  // identity, and the deep-dive renders it. The handle is not even written onto the
+  // task row. (The stage refuses blind on its own too, for any params that carry one.)
+  // Read BEFORE the reservation count below: `can` awaits, and nothing may await
+  // between that count and startTask.
+  const rawGithub = form.get("githubProfile");
+  const githubHandle = !blind && typeof rawGithub === "string" && rawGithub.trim() ? rawGithub.trim() : null;
+  const githubAllowed = githubHandle ? await can("pipeline:write") : false;
+
   // `workspace` was resolved at the top of the handler (all gate reads share it) and
   // rides on the params so the background task stamps the saved analysis with it —
   // the detached task can't read the cookie itself.
@@ -174,10 +197,23 @@ export async function POST(request: Request) {
   const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze, workspace });
   if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: reserve.meter, plan: reserve.plan });
 
+  // The deep-dive's share of the GitHub budget: the SAME bucket /api/github-analysis
+  // charges, so a handle cannot buy a second 10/10min allowance by riding a CV run.
+  // Charged only once the run is certain to start (after the reservation gate), so a
+  // refused run spends none of it; a cached deep-dive shares the budget here — the stage
+  // cannot know its JD (it may be a file still to extract) until it runs. A throttle is
+  // not a 429: the handle is dropped with REQUEST_THROTTLED and the CV run proceeds.
+  if (githubHandle) {
+    if (!githubAllowed) params.githubDropped = "FORBIDDEN_CAPABILITY";
+    else if (!rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
+      params.githubDropped = "REQUEST_THROTTLED";
+    } else params.githubProfile = githubHandle;
+  }
+
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>, workspace);
   return NextResponse.json({ task });
-}
+});
 
 // Collect the uploaded CV file(s), drop content-duplicate uploads, then label
 // what's left. Dedupe is by CONTENT via the one cvVariantHash helper the client

@@ -118,6 +118,7 @@ export function CompanionVoiceTicker({
   const entry = history.entry;
   const open = entry !== null && openId === entry.id;
   const hasDetails = entry !== null && hasMoreToShow(entry.content, (entry.meta?.blocks ?? []).length);
+  const playbackBlocked = entry !== null && speech.speakingId === entry.id && speech.playback === "blocked";
 
   return (
     <div className={`${PANEL} px-3 py-2`}>
@@ -164,6 +165,7 @@ export function CompanionVoiceTicker({
         <VoiceNav history={history} className="shrink-0" />
         {chrome}
       </div>
+      {playbackBlocked ? <p role="status" className="mt-1.5 text-sm text-coral-ink">{t("voice.blockedHint")}</p> : null}
 
       {/* An ALERT, not a paragraph. The strip sits at the top of a page the
           operator is deliberately working instead of watching, so a failure that
@@ -172,7 +174,7 @@ export function CompanionVoiceTicker({
           after whatever answer is being announced. */}
       {error ? (
         <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2">
-          <p className="text-sm text-coral">{error}</p>
+          <p className="text-sm text-coral-ink">{error}</p>
           {/* The one control that gets an operator out of a failed boot on this
               surface. The footer input is correctly dead while the thread does
               not exist, so without this the strip stated a problem and offered

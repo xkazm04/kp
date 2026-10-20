@@ -41,6 +41,9 @@ process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
 //     (rows carry org_id; the enumeration is deployment-wide by design).
 //   - billingOrgForProviderRefs: the webhook's org RESOLVER — it looks a
 //     subscription/customer up across orgs to FIND the org to scope to.
+//   - listProviderSubscriptionsForReconcile: the daily subscription reconcile's
+//     read-only enumeration of stored provider subscriptions (rows carry org_id; the
+//     result feeds an operator-only alert, never an org owner's read).
 
 const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "billing.ts"), "utf8");
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
@@ -79,6 +82,12 @@ function orgBound(sql: string): boolean {
  *  find the org to scope everything else to (sync.ts → resolveBillingOrg). */
 const ORG_RESOLVERS = new Set(["billingOrgForProviderRefs"]);
 
+/** The one documented deployment-wide ENUMERATION of billing_state (challenge-r07
+ *  billing-subscriptions/B): the lost-webhook check reads every stored subscription
+ *  back from the provider. Named, pinned to exactly one read-only bounded statement, so
+ *  a second unscoped read cannot hide behind it. */
+const DEPLOYMENT_ENUMERATIONS = new Set(["listProviderSubscriptionsForReconcile"]);
+
 test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id", () => {
   const owned = sqlByOwner(src).filter(({ sql }) =>
     /\b(from|into|update|delete\s+from)\s+billing_(state|credits|usage)\b/i.test(sql)
@@ -91,9 +100,34 @@ test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id"
     2,
     "the org resolver is exactly its two lookups (by subscription, by customer) — a third is a new exemption"
   );
+  const enumerations = owned.filter(({ owner }) => DEPLOYMENT_ENUMERATIONS.has(owner));
+  assert.equal(enumerations.length, 1, "the reconcile enumeration is exactly one statement — a second is a new exemption");
+  for (const { sql } of enumerations) {
+    assert.match(sql, /^\s*SELECT\b/i, "the reconcile enumeration is READ-ONLY: it never writes billing_state");
+    assert.match(sql, /\bLIMIT \?/i, "the reconcile enumeration is bounded");
+  }
   for (const { owner, sql } of owned) {
-    if (ORG_RESOLVERS.has(owner)) continue;
+    if (ORG_RESOLVERS.has(owner) || DEPLOYMENT_ENUMERATIONS.has(owner)) continue;
     assert.ok(orgBound(sql), `${owner}: org_id is mentioned but NOT bound:\n${sql.trim().slice(0, 220)}`);
+  }
+});
+
+test("every SQL on billing_usage_journal BINDS org_id — the journal is org data like the counter it explains", () => {
+  // `\bbilling_usage\b` above cannot see this table (the `_` after `usage` is a word
+  // character), so it gets its own pass. journalIntegrity joins the counter too: BOTH
+  // sides of that join must bind the org, or one org's counter is compared with
+  // another's journal.
+  const journal = sqlByOwner(src).filter(({ sql }) => /\bbilling_usage_journal\b/i.test(sql) && /^\s*(select|insert|update|delete)\b/i.test(sql));
+  assert.deepEqual(
+    [...new Set(journal.map((s) => s.owner))].sort(),
+    ["appendUsageJournal", "calendarUsageCarried", "duplicateUsageSources", "journalIntegrity", "listUsageJournalForOrg"],
+    "a new statement on the usage journal needs its own look here"
+  );
+  for (const { owner, sql } of journal) {
+    assert.ok(orgBound(sql), `${owner}: org_id is not bound:\n${sql.trim().slice(0, 220)}`);
+    if (owner === "journalIntegrity") {
+      assert.equal((sql.match(/\borg_id\s*=\s*\?/gi) ?? []).length, 2, "journalIntegrity binds the org on the journal AND on the counter");
+    }
   }
 });
 
@@ -110,7 +144,7 @@ test("the guard itself rejects a statement that only MENTIONS org_id", () => {
 
 test("the exempt cross-org resolver is named and still exists", () => {
   assert.equal(ORG_RESOLVERS.size, 1, "a second exemption needs its own documented rationale above");
-  for (const name of ORG_RESOLVERS) {
+  for (const name of [...ORG_RESOLVERS, ...DEPLOYMENT_ENUMERATIONS]) {
     assert.match(src, new RegExp(`export function ${name}\\b`), `${name} is gone — the exemption is now dead weight`);
   }
 });
@@ -145,6 +179,26 @@ test("the documented global exceptions stay the ONLY unscoped reads", () => {
   const alertWrites = sqlBlocks.filter((s) => /insert\s+into\s+billing_alerts/i.test(s));
   assert.ok(alertWrites.length >= 1);
   for (const sql of alertWrites) assert.ok(/org_id/.test(sql), "billing_alerts insert must stamp org_id");
+});
+
+test("the org owner's alert readers and the resolve write BIND org_id — only listBillingAlerts is deployment-wide", () => {
+  // The alert reader (GET /api/billing, POST /api/billing/alerts/[id]) hands an org
+  // owner their own rows only. The deployment-wide list stays the operator's; these
+  // three must never degrade into it.
+  const alertStatements = sqlByOwner(src).filter(
+    ({ sql }) => /^\s*(select|update|delete)\b/i.test(sql) && /\bbilling_alerts\b/i.test(sql)
+  );
+  for (const owner of ["listBillingAlertsForOrg", "getBillingAlert", "resolveBillingAlert"]) {
+    const mine = alertStatements.filter((s) => s.owner === owner);
+    assert.ok(mine.length >= 1, `${owner} is gone or no longer reads billing_alerts`);
+    for (const { sql } of mine) assert.ok(orgBound(sql), `${owner}: org_id is not bound:\n${sql.trim().slice(0, 220)}`);
+  }
+  const unbound = alertStatements.filter(({ sql }) => !orgBound(sql)).map((s) => s.owner);
+  assert.deepEqual(
+    [...new Set(unbound)].sort(),
+    ["listBillingAlerts", "recordBillingAlert"],
+    "the cross-customer worklist and the providerRef dedupe probe are the only unscoped alert reads"
+  );
 });
 
 test("cross-org isolation: one org's plan/usage/credits never leak into another", () => {

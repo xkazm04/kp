@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
-import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
-import { optedOutCandidateIds } from "@/app/_lib/outreach-state-store";
+import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { outreachLetterByEntry } from "@/app/_lib/db/outreach-letters";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
 // its provider timeout so a slow-but-valid draft isn't killed at 60s (matches the
@@ -16,20 +18,22 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 export const maxDuration = 180;
 
 // Sourcing "Reach out" (idea JOB3): file a sourced / rediscovered candidate into
-// the pipeline AND fire a first-touch outreach in one click — closing the
+// the pipeline AND draft a first-touch outreach in one click — closing the
 // discover→contact loop that previously meant hunting the candidate down in the
 // pipeline tab. Reuses existing, tested machinery end-to-end:
 //   - createPipelineEntry is idempotent (a re-add returns the existing entry,
 //     created:false), so a double-click / an already-pipelined candidate doesn't
 //     spawn a second row.
 //   - runAutomationTask("outreach") drafts via the cache-keyed automation_cli and
-//     dispatches through the durable Outbox, gated on a per-entry `outreach_sent`
-//     marker — so the candidate is contacted at most once (first-contact, not a
+//     HOLDS the letter for a person (comms scope C2): nothing is sent from this door.
+//     The answer is `applied: "drafted"` plus the held letter's `outreachLetterId`;
+//     a person approves that revision and releases it through
+//     /api/outreach-letters/[id]/{approve,release}. A per-entry `outreach_sent` marker
+//     still means the candidate is contacted at most once (first-contact, not a
 //     resend) even across repeat clicks.
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Visibility gate, ahead of every read of the role and every spend — same as the
     // candidates read this button sits on and every other by-id job route
     // (docs/features/jobs README § "By-id job routes re-apply the list's visibility
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // straight off the row — and draft a paid first-touch mail naming it. 404 (not
     // 403) so the id's existence isn't confirmed; seeded corpus rows (workspace_id
     // NULL) stay reachable by every team.
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return jsonRefusal("JOB_NOT_FOUND", 404);
     }
@@ -63,35 +67,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const sourceChannel =
       typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
 
-    // GDPR gate BEFORE we mint anything (bug-ui-scan #1): consult the candidate's
-    // EXISTING consent across all their entries. A rediscovery re-contact for a
-    // NEW role would otherwise INSERT a fresh entry with blank consent that reads
-    // as contactable — re-contacting a person who was anonymized/erased or whose
-    // consent lapsed. Suppress here so no entry is minted and no send fires;
-    // dispatchOutreach re-checks (defense in depth). Fail-closed inside the gate.
-    const suppressed = candidateOutreachSuppression(body.candidateId);
-    if (suppressed) {
-      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed });
-    }
-
-    // …and the same pre-mint check for the candidate's OWN opt-out (ePrivacy Art. 13(4);
-    // Czech § 7(4)(c) of zák. č. 480/2004 Sb.). The channel would refuse the send anyway
-    // — commsSendSuppression asks the same predicate — but refusing here means no fresh
-    // pipeline entry is minted and no paid automation_cli draft is spawned for a person
-    // we may not write to. Resolved at the durable candidate identity, exactly as the
-    // consent gate above it is and for exactly the same reason: this door's whole job is
-    // to mint a NEW per-role entry, so an entry-scoped read would report "contactable"
-    // for someone who has already told us to stop.
-    if (optedOutCandidateIds([body.candidateId]).has(body.candidateId.trim())) {
-      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed: "candidate" });
+    // GDPR + ePrivacy gate BEFORE we mint anything (bug-ui-scan #1): the ONE rediscovery
+    // eligibility predicate (withheldCandidateIds, rediscovery-eligibility.ts), the same
+    // one the rank, the alert write wall and the feed read ask, resolved at the durable
+    // candidate identity across ALL their entries. This door's whole job is to mint a NEW
+    // per-role entry, whose blank consent and empty outreach_state would otherwise read
+    // as contactable for a person who was erased, whose consent lapsed, or who told us to
+    // stop (ePrivacy Art. 13(4); Czech § 7(4)(c) of zák. č. 480/2004 Sb.). Refusing here
+    // means no entry is minted and no paid automation_cli draft is spawned;
+    // the outreach task and the release re-check (defense in depth). Fail-closed
+    // inside the gate. The wire keeps its vocabulary: an opt-out answers
+    // `suppressed: "candidate"` (the halt reason), consent answers its own reason.
+    const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
+    if (withheld) {
+      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed: withheld === "opted_out" ? "candidate" : withheld });
     }
 
     // Per-IP, AFTER every cheap refusal (the 404, the missing-candidateId 400 and the
     // GDPR 409 above) and BEFORE the first write and the automation_cli draft, so a
     // rejected reach-out costs no budget. 60/10min: the recruiter works down a ranked
-    // list one click at a time and each accepted click drafts a paid first-touch and
-    // dispatches through the Outbox — generous enough for a genuine sourcing session,
-    // tight enough that a scripted loop cannot mail the whole pool. Session-gated, and
+    // list one click at a time and each accepted click drafts a paid first-touch held
+    // for approval — generous enough for a genuine sourcing session, tight enough that a
+    // scripted loop cannot spend a draft on the whole pool. Session-gated, and
     // in open mode that gate is a no-op for the whole API.
     if (!rateLimit(`jobs-outreach:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -100,7 +97,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // jobTitle / roleFamily come from the authoritative server-side record (the
     // path's job id), not the client body — same trust posture as the rest of the
     // pipeline writes.
-    const { entry, created } = createPipelineEntry({
+    const humanRef = await humanActor();
+    const { entry, created, reopened, reopenRefused } = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
       archetype: body.archetype ?? null,
@@ -120,7 +118,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // comm) speaks their language; NULL falls to the workspace default.
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
+      // A recruiter clicking "Reach out" on someone already closed on THIS role is a
+      // human decision to reconsider them: reopen on the record, named. The store still
+      // refuses an erased, role-closed or rematched entry.
+      reopen: { actorRef: humanRef },
+      // Same recruiter on the 'added' event (goal 1's meter attributes the intake by actor).
+      actor: humanRef,
     });
+
+    // The entry on THIS role is closed and stays closed (erased, role closed, or moved
+    // to another funnel): no first-touch goes to a person the board does not hold as
+    // live here. A truthful "nothing was sent" rather than drafting a paid message onto
+    // a closed row — the client reads any `suppressed*` token as exactly that.
+    if (reopenRefused) {
+      return NextResponse.json({ entryId: entry.id, created, reopened, reopenRefused, applied: "suppressed_closed" });
+    }
 
     // Close-the-prior (direction 3): a reach-out re-engages a silver medalist under a
     // NEW role — link their terminal priors (rejected/role_closed/declined elsewhere)
@@ -138,14 +150,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
-    return NextResponse.json({ entryId: entry.id, created, applied: result.applied });
+    // The held letter the recruiter approves next, when one was drafted.
+    const outreachLetterId = result.applied === "drafted" ? (outreachLetterByEntry(entry.id, ws)?.id ?? null) : null;
+    return NextResponse.json({ entryId: entry.id, created, reopened, applied: result.applied, outreachLetterId });
   } catch (error) {
-    // AutomationError carries a client-safe business message + status (e.g. the
-    // candidate has no saved profile to draft from → 400); everything else goes
-    // through the generic safe responder so raw internals never cross the wire.
+    // A refusal THIS module decided is answered as a code the client resolves in the
+    // reader's language. Any other AutomationError is the spawned engine failing: its
+    // message (parseStderrError) can be a traceback or the workdir path, so it goes to
+    // the server log and the engine's STATUS is preserved (a user-fixable 400 stays 400).
+    if (error instanceof AutomationError && error.refusal) {
+      return jsonRefusal(REFUSAL_FOR[error.refusal], error.status);
+    }
     if (error instanceof AutomationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED", error.status);
     }
     return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED");
   }
-}
+});

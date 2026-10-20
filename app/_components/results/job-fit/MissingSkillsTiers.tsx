@@ -130,7 +130,7 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                className="focus-ring inline-flex items-center gap-1 rounded-md text-sm font-medium text-coral hover:underline"
+                className="focus-ring inline-flex items-center gap-1 rounded-md text-sm font-medium text-coral-ink hover:underline"
               >
                 {expanded ? (
                   <>

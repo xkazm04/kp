@@ -177,7 +177,16 @@ test("only gaps actually RECORDED for that entry can be answered, and unanswered
 test("the accept response offers the follow-up additively and never blocks the application", () => {
   const applySrc = read("../api/apply/[id]/route.ts");
   assert.match(applySrc, /recordAndOfferGaps\(entry\.id, built\.missingGaps, workspaceId\)/, "first-time accept records + offers");
-  assert.match(applySrc, /recordAndOfferGaps\(existing\.id, rebuilt\.missingGaps, workspaceId\)/, "an enriching repeat does too");
+  // The enriching repeat's rebuild now runs inside the filing core (proof "token",
+  // application-filing.ts), which hands the BuildOutcome back; the route still records
+  // + offers the fresh gaps on the entry the merge landed on — and only for a rebuild
+  // that succeeded (a failed rebuild moved nothing, so there is nothing new to ask).
+  assert.match(
+    applySrc,
+    /const rebuilt = filed\.rebuilt\?\.ok \? filed\.rebuilt : null;[\s\S]{0,200}?rebuilt \? recordAndOfferGaps\(filed\.entry\.id, rebuilt\.missingGaps, workspaceId\) : \{\}/,
+    "an enriching repeat does too"
+  );
+  assert.doesNotMatch(applySrc, /recordAndOfferGaps\(filed\.entry\.id, filed\.rebuilt\.missingGaps/, "never from an unchecked (possibly failed) rebuild");
   assert.match(applySrc, /ensureLeadEnrichToken\(entryId, undefined, workspaceId\)/, "the capability reuses the lead-enrichment token");
   assert.match(applySrc, /const MAX_FOLLOWUP_QUESTIONS = 3/, "the ask stays small");
   // Every step is inside try/catch and returns {} — the application is already filed.

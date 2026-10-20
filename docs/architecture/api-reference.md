@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_230 routes, 306 handlers._
+_304 routes, 404 handlers._
 
 ### `/api/agents`
 
@@ -107,6 +107,7 @@ _230 routes, 306 handlers._
 | `/api/analytics/calibration` | GET | gated |
 | `/api/analytics/calibration/apply-threshold` | POST | gated |
 | `/api/analytics/calibration/band` | GET | gated |
+| `/api/analytics/calibration/floor-preview` | GET | gated |
 | `/api/analytics/calibration/threshold-history` | GET | gated |
 | `/api/analytics/decisions` | GET | gated |
 | `/api/analytics/metric-pack` | GET | gated |
@@ -118,6 +119,10 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/analyze` | POST | gated |
+| `/api/analyze/cohort` | GET, POST | gated |
+| `/api/analyze/cohort/[id]` | GET | gated |
+| `/api/analyze/cohort/proposal` | GET | gated |
+| `/api/analyze/prior` | GET | gated |
 
 ### `/api/apply`
 
@@ -143,6 +148,7 @@ _230 routes, 306 handlers._
 | `/api/ats/config` | GET, POST | gated |
 | `/api/ats/connections` | GET, POST, DELETE | gated |
 | `/api/ats/deliveries` | GET, POST | gated |
+| `/api/ats/import` | POST | gated |
 | `/api/ats/test` | POST | gated |
 
 ### `/api/attention`
@@ -180,6 +186,7 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/billing` | GET | gated |
+| `/api/billing/alerts/[id]` | POST | gated |
 | `/api/billing/checkout` | POST | gated |
 | `/api/billing/portal` | POST | gated |
 | `/api/billing/webhook` | POST | public |
@@ -243,6 +250,10 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/decisions/config` | GET, POST | gated |
+| `/api/decisions/feedback-letters` | GET | gated |
+| `/api/decisions/feedback-letters/[id]/approve` | POST | gated |
+| `/api/decisions/feedback-letters/[id]/decline` | POST | gated |
+| `/api/decisions/feedback-letters/[id]/redraft` | POST | gated |
 | `/api/decisions/group-eval` | GET | gated |
 | `/api/decisions/jd-freshness` | GET | gated |
 | `/api/decisions/peer-context` | GET | gated |
@@ -261,6 +272,9 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/devcase` | GET, POST | gated |
+| `/api/devcase/[id]` | GET | gated |
+| `/api/devcase/[id]/channels` | GET | gated |
+| `/api/devcase/[id]/intake` | POST | gated |
 | `/api/devcase/comms` | GET | gated |
 | `/api/devcase/control` | GET, POST | gated |
 | `/api/devcase/feedback` | POST | gated |
@@ -301,11 +315,42 @@ _230 routes, 306 handlers._
 | --- | --- | --- |
 | `/api/feedback` | GET, POST | gated |
 
+### `/api/gigs`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/gigs` | GET, POST | gated |
+| `/api/gigs/[id]` | GET, PATCH | gated |
+| `/api/gigs/[id]/dispatch` | POST | gated |
+| `/api/gigs/[id]/outcome` | POST | gated |
+| `/api/gigs/[id]/plans` | GET, POST | gated |
+| `/api/gigs/[id]/plans/[planId]/accept` | POST | gated |
+| `/api/gigs/[id]/proposal` | GET, POST | gated |
+| `/api/gigs/[id]/report` | GET, POST | gated |
+| `/api/gigs/[id]/research` | POST | gated |
+| `/api/gigs/[id]/workspace` | POST | gated |
+| `/api/gigs/attempts/[id]` | GET, POST | gated |
+| `/api/gigs/kpi` | GET | gated |
+| `/api/gigs/lessons` | GET, POST | gated |
+| `/api/gigs/plans` | POST | gated |
+| `/api/gigs/purge` | POST | gated |
+| `/api/gigs/scan` | POST | gated |
+| `/api/gigs/sources` | GET, POST | gated |
+| `/api/gigs/sources/[id]` | PATCH | gated |
+| `/api/gigs/specialists` | GET, POST | gated |
+| `/api/gigs/sync` | POST | gated |
+
 ### `/api/github-analysis`
 
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/github-analysis` | POST | gated |
+
+### `/api/glyphs`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/glyphs/[id]` | GET | gated |
 
 ### `/api/health`
 
@@ -339,9 +384,15 @@ _230 routes, 306 handlers._
 | `/api/interview/complete` | POST | public |
 | `/api/interview/connect` | GET, POST | public |
 | `/api/interview/create` | POST | gated |
+| `/api/interview/director` | POST | public |
+| `/api/interview/recording` | POST | public |
+| `/api/interview/recording/[sessionId]` | GET | gated |
 | `/api/interview/revoke` | POST | gated |
 | `/api/interview/sessions` | GET | gated |
 | `/api/interview/sessions/[id]` | GET | gated |
+| `/api/interview/sessions/[id]/evidence` | GET | gated |
+| `/api/interview/sessions/[id]/recording` | DELETE | gated |
+| `/api/interview/sessions/[id]/rescore` | POST | gated |
 | `/api/interview/simulate` | POST | gated |
 | `/api/interview/simulate/attach` | POST | gated |
 
@@ -350,7 +401,7 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/interview-prep` | GET, POST, PUT, PATCH | gated |
-| `/api/interview-prep/scorecard` | POST | gated |
+| `/api/interview-prep/scorecard` | GET, POST | gated |
 
 ### `/api/invite`
 
@@ -390,8 +441,11 @@ _230 routes, 306 handlers._
 | `/api/jobs/[id]/candidates` | GET | gated |
 | `/api/jobs/[id]/candidates/outreach` | POST | gated |
 | `/api/jobs/[id]/close` | POST | gated |
+| `/api/jobs/[id]/interview-kit` | GET, POST, PUT | gated |
+| `/api/jobs/[id]/interview-kit/publish` | POST | gated |
+| `/api/jobs/[id]/interview-kit/rehearse` | POST | gated |
 | `/api/jobs/[id]/priorities` | GET, PUT | gated |
-| `/api/jobs/[id]/publish` | POST | gated |
+| `/api/jobs/[id]/publish` | GET, POST | gated |
 | `/api/jobs/[id]/rediscover` | GET | gated |
 | `/api/jobs/[id]/translations` | GET, POST | gated |
 | `/api/jobs/[id]/winnability` | GET | gated |
@@ -403,19 +457,34 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/jobseeker/cv.md` | GET | gated |
+| `/api/jobseeker/cv.pdf` | GET | gated |
+| `/api/jobseeker/cvs` | GET, POST | gated |
+| `/api/jobseeker/cvs/[id]/use` | POST | gated |
+| `/api/jobseeker/cvs/reuse` | POST | gated |
 | `/api/jobseeker/dialogs` | GET, POST | gated |
 | `/api/jobseeker/dialogs/[id]` | GET | gated |
 | `/api/jobseeker/dialogs/[id]/message` | POST | gated |
+| `/api/jobseeker/github` | GET, POST, PUT, DELETE | gated |
 | `/api/jobseeker/postings` | GET | gated |
-| `/api/jobseeker/postings/[id]` | PATCH | gated |
+| `/api/jobseeker/postings/[id]` | GET, PATCH | gated |
 | `/api/jobseeker/postings/[id]/deepdive` | POST | gated |
-| `/api/jobseeker/profile` | GET, PUT | gated |
+| `/api/jobseeker/profile` | GET, PUT, DELETE | gated |
 | `/api/jobseeker/profile/seen` | POST | gated |
+| `/api/jobseeker/research` | GET, POST | gated |
 | `/api/jobseeker/scan` | POST | gated |
 | `/api/jobseeker/sources` | GET, POST | gated |
 | `/api/jobseeker/sources/[id]` | PATCH | gated |
 | `/api/jobseeker/sources/[id]/preview` | POST | gated |
 | `/api/jobseeker/sources/[id]/rules/propose` | POST | gated |
+| `/api/jobseeker/ui-state` | GET, PUT | gated |
+
+### `/api/journeys`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/journeys` | GET | gated |
+| `/api/journeys/[entryId]` | GET | gated |
+| `/api/journeys/cohort` | GET | gated |
 
 ### `/api/llm`
 
@@ -446,6 +515,7 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/me/capabilities` | GET | gated |
+| `/api/me/capability-holders` | GET | gated |
 | `/api/me/getting-started` | GET | gated |
 | `/api/me/onboarding` | GET, POST | gated |
 
@@ -470,6 +540,15 @@ _230 routes, 306 handlers._
 | `/api/org/members` | GET | gated |
 | `/api/org/members/[userId]` | PATCH, DELETE | gated |
 
+### `/api/outreach-letters`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/outreach-letters/[id]` | GET | gated |
+| `/api/outreach-letters/[id]/approve` | POST | gated |
+| `/api/outreach-letters/[id]/release` | POST | gated |
+| `/api/outreach-letters/by-entry/[entryId]` | GET | gated |
+
 ### `/api/palette`
 
 | Route | Methods | Auth |
@@ -483,15 +562,20 @@ _230 routes, 306 handlers._
 | `/api/pipeline` | GET, POST | gated |
 | `/api/pipeline/[id]` | GET, POST | gated |
 | `/api/pipeline/[id]/consent` | GET | gated |
+| `/api/pipeline/[id]/notes` | GET | gated |
+| `/api/pipeline/[id]/offer-letter` | GET | gated |
 | `/api/pipeline/[id]/timeline` | GET | gated |
+| `/api/pipeline/automation-counts` | GET | gated |
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |
+| `/api/pipeline/command/reverse` | POST | gated |
 | `/api/pipeline/events` | GET | gated |
 | `/api/pipeline/events/recent` | GET | gated |
 | `/api/pipeline/outcomes` | GET, POST | gated |
 | `/api/pipeline/rejected` | GET | gated |
 | `/api/pipeline/stage-impact` | GET | gated |
 | `/api/pipeline/stage-migration` | POST | gated |
+| `/api/pipeline/stage-sla` | PATCH | gated |
 
 ### `/api/profile`
 
@@ -513,6 +597,21 @@ _230 routes, 306 handlers._
 | --- | --- | --- |
 | `/api/repo-scan` | GET, POST | gated |
 | `/api/repo-scan/[id]` | GET | gated |
+
+### `/api/role-runs`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/role-runs` | POST | gated |
+| `/api/role-runs/[id]/advance` | POST | gated |
+| `/api/role-runs/[id]/gate/commit` | POST | gated |
+| `/api/role-runs/[id]/gate/preview` | POST | gated |
+
+### `/api/roles`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/roles/[jobId]/slate` | GET | gated |
 
 ### `/api/schedule`
 
@@ -552,13 +651,17 @@ _230 routes, 306 handlers._
 | --- | --- | --- |
 | `/api/status/[token]` | GET | public |
 | `/api/status/[token]/decisions` | GET | public |
+| `/api/status/[token]/letter` | POST | public |
 | `/api/status/[token]/nps` | GET, POST | public |
+| `/api/status/[token]/recording` | DELETE | public |
+| `/api/status/[token]/resend` | POST | public |
 
 ### `/api/stop`
 
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/stop/[token]` | GET, POST | public |
+| `/api/stop/[token]/language` | POST | public |
 
 ### `/api/stt`
 
@@ -588,6 +691,12 @@ _230 routes, 306 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/tts` | GET, POST | gated |
+
+### `/api/voice`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/voice/readiness` | GET, POST | gated |
 
 ### `/api/workspace`
 

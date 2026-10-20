@@ -6,7 +6,9 @@ import type { Job, Stats } from "./JobsTypes";
 import { jsonFetchFailure, type JsonFetchFailure } from "@/app/_lib/useJsonFetch";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { mergeJobStatus, type JobLifecycleStatus } from "./jobsStatusMerge";
-import { roleStatusOf } from "./jobsRoleStatus";
+import { clampPage, TABLE_PAGE_SIZE } from "@/app/_components/table/pageWindow";
+import type { SortState } from "@/app/_components/table/useTableSort";
+import type { JobSortCol } from "./jobsTableView";
 
 // The filter bar + debounced corpus fetch in one place. The fetch is driven
 // entirely by the filter values, so they live together: every filter change
@@ -26,11 +28,14 @@ export type JobsListFilters = {
   q: string;
 };
 
+/** The server-owned axes: sort, 20-row page and derived status (the route reads all). */
+export type JobsListWindow = { sort?: SortState<JobSortCol>; pageIndex?: number; roleStatus?: string };
+
 /** Filter values → the `/api/jobs` query string. The wire names differ from the
  *  state names (`entryOnly` → `entryEligible`), a false toggle is ABSENT rather
  *  than `false` (the route reads presence), and a whitespace-only search box is
  *  not a search. */
-export function jobsListQuery(filters: JobsListFilters): string {
+export function jobsListQuery(filters: JobsListFilters & JobsListWindow): string {
   const params = new URLSearchParams();
   if (filters.roleFamily) params.set("roleFamily", filters.roleFamily);
   if (filters.seniority) params.set("seniority", filters.seniority);
@@ -38,7 +43,20 @@ export function jobsListQuery(filters: JobsListFilters): string {
   if (filters.entryOnly) params.set("entryEligible", "true");
   if (filters.openOnly) params.set("openOnly", "true");
   if (filters.q.trim()) params.set("q", filters.q.trim());
+  if (filters.sort) {
+    params.set("sort", filters.sort.col);
+    params.set("dir", filters.sort.dir);
+    params.set("offset", String(Math.max(0, filters.pageIndex ?? 0) * TABLE_PAGE_SIZE));
+  }
+  if (filters.roleStatus) params.set("roleStatus", filters.roleStatus);
   return params.toString();
+}
+
+/** A header click: the active column flips; a new one opens descending when it is
+ *  numeric (salary, the status rank), ascending otherwise — useTableSort's rule. */
+export function nextJobsSort(prev: SortState<JobSortCol>, col: JobSortCol): SortState<JobSortCol> {
+  if (prev.col === col) return { col, dir: prev.dir === "asc" ? "desc" : "asc" };
+  return { col, dir: col === "salary" || col === "status" ? "desc" : "asc" };
 }
 
 /** The route's three honesty fields, or null when the answer did not carry them.
@@ -81,13 +99,9 @@ export function useJobsList() {
   const [roleFamily, setRoleFamilyState] = useState("");
   const [seniority, setSeniorityState] = useState("");
   const [workMode, setWorkModeState] = useState("");
-  // The Status column's filter. CLIENT-side, unlike every other filter on this
-  // table, and deliberately so: "filled" is not a fact the jobs query can express —
-  // it is the role's target compared against the PIPELINE's hired count, which lives
-  // in another table on another axis. Asking the server for it would mean either a
-  // join the browse read does not have or a second, private definition of "filled"
-  // that could disagree with the badge in the row. So the predicate runs here, over
-  // the page the query returned, from the same `roleStatusOf` the badge draws.
+  // The Status column's filter — a SERVER predicate like the rest: the store derives
+  // "filled" from the pipeline's terminal-role count in SQL (db/jobs.ts ROLE_STATUS_SQL,
+  // pinned cell-by-cell against roleStatusOf), over every row rather than a cut page.
   const [roleStatus, setRoleStatusState] = useState("");
   // Open-for-applications only (NULL/'published' status) — hides drafts and
   // closed roles. Default ON since the 2026-09 split: the Roles tab is the desk of
@@ -105,6 +119,12 @@ export function useJobsList() {
   // different things — "which slice am I looking at" vs "was the server's answer
   // cut". A merge that let both be called `page` compiled as a redeclaration.
   const [pageIndex, setPageIndex] = useState(0);
+  // Sort is server state too: it re-cuts the window, so it returns to page 1.
+  const [sort, setSort] = useState<SortState<JobSortCol>>({ col: "title", dir: "asc" });
+  const toggleSort = (col: JobSortCol) => {
+    setSort((prev) => nextJobsSort(prev, col));
+    setPageIndex(0);
+  };
   const resetPage = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setPageIndex(0);
@@ -134,7 +154,7 @@ export function useJobsList() {
     // read it) and jobsListQuery is its one definition. What went away is the
     // CONTROL — the Entry column it lived in is now the Status column, and a filter
     // with no way to turn it on is not a filter.
-    const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly: false, openOnly, q });
+    const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly: false, openOnly, q, sort, pageIndex, roleStatus });
     const handle = setTimeout(() => {
       setFetching(true);
       setFailure(null);
@@ -148,6 +168,10 @@ export function useJobsList() {
             return;
           }
           const next = readJobsListPayload(body);
+          // A page that emptied under the reader (a publish dropped rows): land on the
+          // last page that exists; the index change refetches it.
+          const last = next.page ? clampPage(pageIndex, next.page.matching) : pageIndex;
+          if (next.jobs.length === 0 && last < pageIndex) setPageIndex(last);
           setJobs(next.jobs);
           setStats(next.stats);
           setPage(next.page);
@@ -170,7 +194,7 @@ export function useJobsList() {
       controller.abort();
       clearTimeout(handle);
     };
-  }, [roleFamily, seniority, workMode, openOnly, q, reloadKey]);
+  }, [roleFamily, seniority, workMode, openOnly, q, sort, pageIndex, roleStatus, reloadKey]);
 
   const anyFilter = Boolean(roleFamily || seniority || workMode || roleStatus || openOnly || q.trim());
   const clearAll = () => {
@@ -183,14 +207,10 @@ export function useJobsList() {
     setPageIndex(0);
   };
 
-  // The rows the TABLE renders: the server's answer narrowed by the one client-side
-  // predicate. `allJobs` below stays the unnarrowed answer, because the deep-link
-  // resolver (?job=) must find a role the reader has filtered out of view — hiding
-  // it would turn a valid link into "that role no longer exists".
-  const visible = jobs === null || !roleStatus ? jobs : jobs.filter((job) => roleStatusOf(job) === roleStatus);
-
+  // `jobs` IS the window the table renders. `allJobs` names what the deep-link and
+  // ingest resolvers search; a role off this page is point-fetched by id there.
   return {
-    jobs: visible,
+    jobs,
     allJobs: jobs,
     stats,
     page,
@@ -210,6 +230,8 @@ export function useJobsList() {
     setQ,
     pageIndex,
     setPageIndex,
+    sort,
+    toggleSort,
     anyFilter,
     clearAll,
     reload: () => setReloadKey((k) => k + 1),

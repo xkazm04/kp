@@ -1,0 +1,120 @@
+[
+  {
+    "context": "platform-auth-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Deployment-wide reads gate on the home org, not on any signed-in session",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/auth/require-operator.ts",
+      "app/_lib/auth/require-operator.test.ts",
+      "app/api/ops/route.ts",
+      "app/api/health/route.ts",
+      "app/api/llm/usage/route.ts",
+      "app/api/llm/activity/route.ts",
+      "app/diagrams/page.tsx",
+      "app/api/ops/ops-route.test.ts",
+      "app/api/health/health-exposure.test.ts",
+      "app/api/deployment-read-gate.test.ts",
+      "docs/architecture/api-contracts.md"
+    ],
+    "new_files": [
+      "app/api/deployment-read-gate.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "KP_OPERATOR_PASSWORD set; a user session {sub:u, org:'org-b', role:'owner'} whose org is NOT DEFAULT_ORG_ID -> GET /api/ops answers 403 with a code, and the body carries no `tables`, `queue` or `degradedReasons` key",
+      "same org-b owner -> GET /api/health still answers the public verdict (ok/db/seeds/config/clock + status code) and `engines`, but `tables`, `queue`, `catalog`, `degradedReasons` and `configIssues` are absent",
+      "same org-b owner -> GET /api/llm/usage and GET /api/llm/activity answer 403 (the llm_usage ledger has no org column, so every row is another tenant's too)",
+      "a user session in the home org {sub:u, org:'org-default', role:'recruiter'} -> GET /api/ops 200 with `tables` present (single-org installs unchanged)",
+      "an op:true operator session -> /api/ops 200 full payload; open mode (no KP_OPERATOR_PASSWORD) -> 200; a DEMO_WORKSPACE session -> 401 as today",
+      "pure predicate isHomeOrgReader(session, env): op session -> true; claim-less non-demo session -> true (legacy operator cookie, unchanged); sub + org 'org-b' -> false; sub + org null -> true; demo -> false",
+      "deployment-read-gate ratchet: a synthetic route source that imports coreTableCounts / aggregateLlmUsage / listLlmActivity / tailJsonl and calls only requireOperator() is flagged; the real app/api tree yields zero offenders",
+      "/diagrams: the page's gate calls the home-org predicate (source assertion in the ratchet file), so an org-b owner gets notFound() like a demo session does"
+    ],
+    "premise": [
+      "app/_lib/auth/require-operator.ts:22-36 - isOperator() returns true for ANY verified non-demo session: it reads no sub, no org, no role; requireOperator (:44-46) is only that boolean",
+      "app/api/ops/route.ts:28-37 - the header says the counts are 'correct for a host-operator read and wrong for a tenant one' and that 'the caller now has to earn them', but :43-44 gates on requireOperator(), which any tenant's member passes",
+      "app/api/ops/route.ts:53-54,115-130 - the payload is coreTableCounts() (unscoped COUNT(*) over every tenant), countActiveTasks(), engineTelemetry(aggregateLlmUsage(7)), tailJsonl('ops-warn.log') and rateLimitRefusalStats()",
+      "app/api/health/route.ts:29-32,60,81-84,157-166 - `trusted = await isOperator()` releases the same deployment-wide tables/queue/catalog/degradedReasons/configIssues; the header states only anonymous callers lose the detail",
+      "app/api/llm/activity/route.ts:7-11,15-17 and app/api/llm/usage/route.ts:8-12,26-27 - row-level and aggregate llm_usage reads gated on requireOperator() alone; app/features/settings/billing/spend/BillingSpendPanel.tsx:151 records that llm_usage has 'no org or workspace column at all'",
+      "app/diagrams/page.tsx:58-66 - the explorer is 'for the people who run this install' and gates on isOperator()",
+      "app/_lib/signup-service.ts:69-78 - every self-serve registration creates a NEW org (createOrganization) and seats the registrant as its owner; app/_lib/workspace-lock.ts:36-40 says enabling it means 'accepting strangers as tenants of this deployment'; app/api/auth/register/route.ts:10-13 signs them straight in",
+      "app/_lib/db/organizations.ts:9 - DEFAULT_ORG_ID = 'org-default' is the install's home org",
+      "app/api/write-capability-gate.test.ts:3-7 and app/api/workspace/export-guard.test.ts:15-17 already name requireOperator as 'deliberately coarse ... says yes to any signed-in member regardless of role' - the WRITE doors got a ratchet (app/api/route-capability-coverage.test.ts:7-33, mutating verbs only); no equivalent exists for deployment-wide READS",
+      "app/api/ops/ops-route.test.ts:77,116,131 and app/api/health/health-exposure.test.ts:131-142 prove 'operator' only with a claim-less DEFAULT_WORKSPACE cookie; no case drives a user session from another org"
+    ],
+    "rollback": "Additive: one new predicate + gate in require-operator.ts, five call sites swap isOperator/requireOperator for it, one new ratchet test. Reverting the series restores the old gate lines verbatim; no schema, no data, no cookie format change.",
+    "gate": "policy-tighten",
+    "runner_up": "One session issuer (principal-typed mint + cookie pair) for the five sign-in doors - login x3 paths, register, invite accept and switch-workspace each hand-set claims and cookie attributes (login/route.ts:61-77, register/route.ts:79-91, invite/[token]/route.ts:103-122, switch-workspace/route.ts:97-110).",
+    "technique": "failure-direction",
+    "body": "## Summary\nGive the deployment-wide reads (/api/ops, the /api/health detail, /api/llm/usage, /api/llm/activity, /diagrams) a real host tier: the caller must belong to the install's home org (or be the password operator / open dev). Today they all gate on isOperator(), which says yes to any signed-in member of ANY org, so a stranger who self-registers on a signup-enabled deployment reads every other tenant's row counts, queue, ops warnings and LLM activity.\n\n## Description\nisOperator() (require-operator.ts:22-36) has quietly become \"signed in and not demo\". The write doors learned this and got a capability ratchet (route-capability-coverage.test.ts, mutating verbs only), but the READS that are deployment-wide by construction never did: ops/route.ts states in its own header that its counts are right for a host-operator and wrong for a tenant, then gates on requireOperator(). The same holds for the health detail, the llm_usage ledger (no org column at all) and the architecture explorer. With KP_SIGNUP_ENABLED every registration is a new org with an owner seat (signup-service.ts:69-78), so the leak is reachable by an anonymous stranger in two requests.\n\nThe move: add `isHomeOrgReader()` / `requireHomeOrgReader()` beside isOperator in require-operator.ts, built on a pure `homeOrgReader(session, env)` predicate: open mode, op:true, legacy claim-less non-demo cookie, or a user session whose `org` is DEFAULT_ORG_ID (or absent) passes; a user session from any other org does not. Swap the five call sites. Health keeps its public verdict AND keeps `engines` on the signed-in tier (the shell's engine hints are the tenant's own business); only the cross-tenant detail moves. Then add `app/api/deployment-read-gate.test.ts`, a source ratchet in the house style of route-tenancy-coverage: any route that calls a deployment-wide reader (coreTableCounts, countActiveTasks, aggregateLlmUsage, listLlmActivity, tailJsonl, rateLimitRefusalStats) must call the home-org gate, so the next telemetry route cannot regress it.\n\n## Flow\n1. Write the acceptance cases red: predicate unit cases in require-operator.test.ts; an org-b owner session in ops-route.test.ts and health-exposure.test.ts; the ratchet file.\n2. Implement homeOrgReader + the two wrappers (refusal is a coded 403 via jsonRefusal, 401 stays 401 for no session/demo).\n3. Swap ops, health (trusted -> home-org for the detail block only), llm/usage, llm/activity, diagrams/page.tsx.\n4. Update docs/architecture/api-contracts.md section 1.2 (the isOperator facts list and the /api/health paragraph).\n5. Run the integration gate.\n\n## Expected impact\nCloses a cross-tenant disclosure class (business volume, queue, ops warning tails, every org's LLM actions and request ids) for every deployment that turns signup or multiple orgs on, with zero change for single-org installs: every user of a default install is in org-default and keeps today's view. The ratchet turns 'isOperator is coarse' from a comment repeated in three test headers into an enforced rule for reads.\n\n## Evaluation\nClaim: a member of a non-home org can no longer read deployment-wide telemetry, and a new deployment-wide read route cannot ship without the home-org gate.\nBefore: 0 of 8 acceptance cases pass (no predicate, no ratchet; an org-b owner gets 200 with `tables` today).\nAfter: 8 of 8.\nMethod: gate - node:test cases above via npm run test:unit, plus the challenge integration gate.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "require-operator.ts:22-36:\n  if (!process.env.KP_OPERATOR_PASSWORD) return true;\n  ... const session = verifySession(...); if (session === null) return false;\n  if (currentWorkspaceId(session) === DEMO_WORKSPACE) return false;\n  return true;   // no sub / org / role read\nops/route.ts:33-37: 'That is correct for a host-operator read and wrong for a tenant one - ungated, any signed-in member of ANY workspace ... could read off the System strip how many candidates and analyses every other team on the box has. So the counts stay global; the caller now has to earn them.'\nops/route.ts:43: const denied = await requireOperator();\nhealth/route.ts:60: const trusted = await isOperator();\nsignup-service.ts:69: const org = createOrganization(orgName);  :78 return { ok: true, user, orgId: org.id, workspaceId: workspace.id, role: 'owner' }\nwrite-capability-gate.test.ts:4-6: 'requireOperator answers \"is a trusted, non-demo session present?\"; ... even with a password set it says yes to any signed-in member regardless of role.'\ngrep of route files calling deployment-wide readers (coreTableCounts|countActiveTasks|aggregateLlmUsage|tailJsonl|rateLimitRefusalStats|listLlmActivity) outside app/_lib: app/api/health/route.ts, app/api/ops/route.ts, app/api/llm/usage/route.ts, app/api/llm/activity/route.ts - all four gate on isOperator/requireOperator only.\nops-route.test.ts: every 'operator' case signs signSession(DEFAULT_WORKSPACE, Date.now()) with no claims (lines 77,116,131,150,198,214,230,263)."
+  },
+  {
+    "context": "platform-auth-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Readiness reasons as coded findings with a fix and a door on the System strip",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 4,
+    "write_set": [
+      "app/_lib/readiness.ts",
+      "app/_lib/readiness.test.ts",
+      "app/api/ops/route.ts",
+      "app/api/health/route.ts",
+      "app/features/settings/billing/spend/useSpendData.ts",
+      "app/features/settings/billing/spend/readinessFindings.ts",
+      "app/features/settings/billing/spend/readinessFindings.test.ts",
+      "app/features/settings/billing/spend/SpendEngineFacts.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/localization.md",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [
+      "app/_lib/readiness.ts",
+      "app/_lib/readiness.test.ts",
+      "app/features/settings/billing/spend/readinessFindings.ts",
+      "app/features/settings/billing/spend/readinessFindings.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "collectReadiness() with a jobs seed issue of severity 'error' and an empty catalog -> findings contain {code:'SEED_LOAD_FAILED', severity:'fault', params.seed:'jobs'} and {code:'CATALOG_SEED_FAILED', severity:'fault'}, and legacy degradedReasons are byte-identical to today's strings",
+      "collectReadiness() with no APP_BASE_URL / NEXT_PUBLIC_APP_BASE_URL -> a {code:'PUBLIC_ORIGIN_FALLBACK', severity:'warn', remedy:{kind:'env', vars:['APP_BASE_URL']}} finding; with both set to different origins -> PUBLIC_ORIGIN_CONFLICT naming both vars",
+      "verdict parity: for the same fixture state, /api/health's status code and ok, and /api/ops's ok, are unchanged from today (the existing seed-catalog-verdict, health-exposure and ops-route suites stay green untouched in their assertions)",
+      "an unreadable decision_config row -> finding {code:'DECISION_CONFIG_UNREADABLE', params:{phase, scope, workspaceId}, remedy:{kind:'door', tab:'decisions'}}; the finding list rides the operator-only half of /api/health, never the anonymous one",
+      "readinessFindings.toView(findings, legacyReasons): faults sort before warns; each view carries a catalog key under models.system.findings.<CODE> plus an action of type 'tab' | 'env' | 'none'; the 'tab' action's id passes isWorkspaceTabId",
+      "readinessFindings.toView with a finding whose code the client does not know -> falls back to rendering its legacy English reason string (never a blank row, never a raw key)",
+      "a stalled scheduler -> SCHEDULER_STALLED fault with params.lastTickAt and remedy kind 'host' (restart the server process); a booting one -> SCHEDULER_STARTING warn with no action",
+      "i18n: every code in READINESS_CODES has title + fix entries in all four catalogs (npm run i18n:check green, and a readinessFindings.test.ts bijection check)"
+    ],
+    "premise": [
+      "app/features/settings/billing/spend/SpendEngineFacts.tsx:121-130 renders ops.degradedReasons verbatim in an amber box; the comment at :123-124 says they are 'canonical English server diagnostics with no code to resolve', so a cs/de/fr operator reads English and gets no next action",
+      "docs/architecture/localization.md:542-543 records the same exception: '/api/ops's degradedReasons (canonical server diagnostics, no code to resolve)'",
+      "SpendEngineFacts.tsx:35-47,83-91,133-158 - the three COUNTER alarms on the same strip already carry a door (ALARM_TAB -> buildTabSwitchUrl) and a localized label: the precedent exists, the reasons are the only part left as prose",
+      "app/api/ops/route.ts:46-100 and app/api/health/route.ts:70-122 compute the same verdict twice (seed loop, catalog-seed rule, decision-config loop, scheduler heartbeat read), and app/api/health/seed-catalog-verdict.test.ts:3-20,95-103 exists to keep the two copies from disagreeing",
+      "the copies have already drifted: ops/route.ts:47-48 adds publicOriginHealth() while health/route.ts has no origin check at all (the open leftover 'Degrade /api/health when candidate links would use the site-url fallback origin' names this gap; this card carries it as a warn-severity finding rather than a 503, because .claude/onboarding/config.md:6 pins 'GET /api/health -> 200' as the boot contract and a keyless dev box has no APP_BASE_URL)",
+      "app/_lib/public-base-url.ts:125-133 - publicOriginHealth returns only an English reason string; the fix (which env var) is inside the sentence",
+      "app/features/settings/billing/spend/useSpendData.ts:18-34 - SpendOps.degradedReasons is typed string[], so the client has nothing to branch on"
+    ],
+    "rollback": "Additive on the wire (`findings` sits beside the unchanged `degradedReasons`), so reverting the UI commit alone restores the old amber list and reverting the lib commit restores the two inline copies; no stored state, no status-code change.",
+    "gate": "contract",
+    "runner_up": "Coded, actionable workspace-switch and create refusals: switch-workspace/route.ts:35,51,61,66,87 and workspaces/route.ts:74-84 answer bare English (e.g. 'Set KP_MULTI_WORKSPACE=1'), so the Workspaces console can neither localize nor offer the remedy.",
+    "technique": "remediation-affordances",
+    "body": "## Summary\nThe System strip (Models -> Usage & cost) turns a degraded deployment into an amber list of English server sentences with no next step. Make readiness produce coded findings - code, severity, params, remedy - once, in one module both /api/health and /api/ops project, and render each finding in the reader's language with its fix: a door into the tab that repairs it, the env var to set, or an honest 'this needs the host'.\n\n## Description\nToday the verdict is computed twice (ops/route.ts:46-100, health/route.ts:70-122), held together only by a test that exists to stop the copies disagreeing, and they already disagree: only /api/ops checks the public origin. The output is `degradedReasons: string[]`, which SpendEngineFacts prints raw, so an operator who reads 'decision-config:screening unreadable (team ws-x)' has to know that means 'auto-reject rules are off for that team - open Decisions and re-save them', and a Czech operator reads it in English. The counters on the same strip already carry doors; the reasons are the dead end.\n\nNew `app/_lib/readiness.ts` owns a closed READINESS_CODES vocabulary (literal array + derived union + guard, the tabs.ts pattern) and `collectReadiness({ detail })`, returning `{ verdict, findings, degradedReasons }`: verdict fields as today, legacy reason strings byte-identical, and findings of shape {code, severity: fault|warn, params, remedy: door(tab) | env(vars) | host | none}. Which findings gate the probe's status stays exactly today's set, so no monitor moves. Both routes call it; the anonymous half of /api/health still gets only the verdict. A pure client module `readinessFindings.ts` maps findings to view rows (sorting, catalog key, action, unknown-code fallback to the legacy string), and SpendEngineFacts renders title + fix + door button through buildTabSwitchUrl, the same mechanism its alarms use.\n\n## Flow\n1. Red cases: readiness.test.ts (fixtures for seed error, empty catalog, origin fallback/conflict, config row, clock states, parity with the legacy strings) and readinessFindings.test.ts (sort, action, fallback, catalog bijection).\n2. Extract collectReadiness from the two routes; routes keep their gates and response shapes, adding `findings`.\n3. Add `findings` to SpendOps; render via readinessFindings in SpendEngineFacts (role=alert for faults, role=status for warns, per the overlay's failure-outcome convention).\n4. Catalog entries models.system.findings.<CODE>.{title,fix} in en/cs/de/fr under the shared-surface lock; no em dashes.\n5. Update docs/architecture/localization.md (the degradedReasons exception becomes a coded surface) and docs/features/billing/README.md.\n\n## Expected impact\nA degraded deployment stops being an English riddle: each reason says what broke, what it costs, and where to fix it, in the operator's language, with one click for the in-app fixes. The duplicated verdict collapses to one owner, so the health/ops drift that already happened cannot recur, and the missing origin check reaches /api/health's operator detail without paging a monitor.\n\n## Evaluation\nClaim: every readiness reason reaches the operator as a localized finding with a declared remedy, computed once for both routes, with no verdict or status-code change.\nBefore: 0 of 8 acceptance cases pass (no readiness module, no codes, no findings field).\nAfter: 8 of 8.\nMethod: gate - node:test over readiness.ts and readinessFindings.ts, the existing route suites unchanged, npm run i18n:check.\nResult: pending build.\nGate: contract.",
+    "evidence": "SpendEngineFacts.tsx:121-130:\n  {ops.degradedReasons.length > 0 ? ( <ul className=\"... bg-amber-50 ...\">\n    {/* `degradedReasons` are canonical English server diagnostics with no code to resolve (docs/architecture/localization.md). */}\n    {ops.degradedReasons.map((r) => (<li key={r} ...><AlertTriangle .../> {r}</li>))}\nops/route.ts:47-48: const originHealth = publicOriginHealth(); if (originHealth.reason) degradedReasons.push(originHealth.reason);\nhealth/route.ts: no import of public-base-url; checks = seed loop :73-75, catalog :80-93, decision-config :106-111, clock :116-122.\nops/route.ts duplicates: seed loop :49-52, catalog :73-77, decision-config :85-88, clock :94-100.\nseed-catalog-verdict.test.ts:101-102: 'the two routes must never disagree about whether this catalog is broken'.\npublic-base-url.ts:130: reason: 'public-origin: no usable APP_BASE_URL or NEXT_PUBLIC_APP_BASE_URL for detached candidate links'\n.claude/onboarding/config.md:6: boot_success: \"GET /api/health -> 200\"\nuseSpendData.ts:25: degradedReasons: string[];"
+  }
+]

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
 import { codeReviewSchema } from "@/app/_lib/schemas";
-import { describeEvidenceBasis } from "@/app/_lib/github-evidence";
+import { describeCapsHit, describeEvidenceBasis } from "@/app/_lib/github-evidence";
 import { withGeminiRetry } from "@/app/_lib/gemini-retry";
 import { configuredModelFor, resolveProviderKey } from "@/app/_lib/llm-config";
 import { isOffline } from "@/app/_lib/offline";
@@ -143,7 +143,7 @@ export async function runCodeReview(
     };
   }
 
-  let results: Array<{ bundle: RepoBundle; incomplete: boolean }>;
+  let results: Awaited<ReturnType<typeof fetchRepoBundle>>[];
   try {
     results = await Promise.all(repos.map(fetchRepoBundle));
   } catch (error) {
@@ -164,6 +164,15 @@ export async function runCodeReview(
   // FINDING #2: was any sub-fetch a coverage loss (throttle/5xx/network, not a
   // genuine 404)? If so this is a PARTIAL read, not a complete one.
   const coverageIncomplete = results.some((r) => r.incomplete);
+  // The basis states each cap; a run where a cap bit says so, or a README cut at the
+  // cap reads exactly like one that fit.
+  const readBasis = [
+    ...evidenceBasis,
+    ...describeCapsHit({
+      readmes: results.filter((r) => r.cut.readme).length,
+      fileLists: results.filter((r) => r.cut.files).length,
+    }),
+  ];
 
   // fetchRepoBundle swallows each sub-fetch to a benign default ("" / []), so a
   // rate-limited or 5xx run yields bundles with no readme, commits, or files yet
@@ -185,7 +194,7 @@ export async function runCodeReview(
         unverifiedClaims: [],
         hiddenStrengths: [],
         reposReviewed,
-        evidenceBasis,
+        evidenceBasis: readBasis,
         error: REVIEW_DIAGNOSTIC.throttled,
       };
     }
@@ -200,7 +209,7 @@ export async function runCodeReview(
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
-      evidenceBasis,
+      evidenceBasis: readBasis,
       error: null,
     };
   }
@@ -288,7 +297,7 @@ export async function runCodeReview(
         unverifiedClaims: [],
         hiddenStrengths: [],
         reposReviewed,
-        evidenceBasis,
+        evidenceBasis: readBasis,
         error: REVIEW_DIAGNOSTIC.malformed,
       };
     }
@@ -309,7 +318,7 @@ export async function runCodeReview(
       unverifiedClaims: review.data.unverified_claims,
       hiddenStrengths: review.data.hidden_strengths,
       reposReviewed,
-      evidenceBasis,
+      evidenceBasis: readBasis,
       error: null,
     };
   } catch (error) {
@@ -322,7 +331,7 @@ export async function runCodeReview(
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
-      evidenceBasis,
+      evidenceBasis: readBasis,
       error: REVIEW_DIAGNOSTIC.requestFailed,
     };
   }

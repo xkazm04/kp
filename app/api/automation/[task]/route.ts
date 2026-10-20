@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AutomationError, runAutomationTask, type AutomationRefusal } from "@/app/_lib/automation-run";
+import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { getServerLocale } from "@/i18n/server";
 
 // One POST spawns a Python child AND spends on the configured model, and the
@@ -17,19 +18,9 @@ import { getServerLocale } from "@/i18n/server";
 // handful of tasks in a sitting, a scripted loop always exceeds it.
 const AUTOMATION_TASK_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-// This module's own refusals → the coded answer the reader sees in their language.
-// Anything WITHOUT a refusal token is an engine failure and takes the STORE path.
-const REFUSAL_FOR: Record<AutomationRefusal, RefusalErrorCode> = {
-  unknown_task: "AUTOMATION_TASK_UNKNOWN",
-  entry_not_found: "AUTOMATION_ENTRY_NOT_FOUND",
-  entry_has_no_profile: "AUTOMATION_ENTRY_NO_PROFILE",
-  task_not_offered: "AUTOMATION_TASK_NOT_OFFERED",
-};
-
-
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
 // with kind "automation" (tracked, dedup'd, refresh-safe); both share runAutomationTask.
-export async function POST(request: NextRequest, context: { params: Promise<{ task: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ task: string }> }) => {
   // Defense-in-depth: runs a per-entry automation task (LLM spend + outreach side
   // effects) — operator-only, like the bulk pass route.
   const denied = await requireOperator();
@@ -55,7 +46,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
     // Background/task-runner paths pass none → runAutomationTask falls back to the
     // workspace default.
     const lang = await getServerLocale();
-    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang, await currentWorkspace(), { manual: true });
+    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang, ws, { manual: true });
     return NextResponse.json(out);
   } catch (error) {
     // A refusal THIS module decided: its message is the information, so it is
@@ -71,4 +62,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
     const status = error instanceof AutomationError ? error.status : 500;
     return safeJsonError(error, "api:automation/task", "AUTOMATION_TASK_FAILED", status);
   }
-}
+});

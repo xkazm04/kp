@@ -11,11 +11,14 @@ import { PrepHeader } from "./ScheduleInterviewPrepHeader";
 import { RunOfShow } from "./ScheduleInterviewPrepRunOfShow";
 import { SignalsToConfirm, ImportedQuestionsSection } from "./ScheduleInterviewPrepQuestions";
 import { InterviewerAndNotes } from "./ScheduleInterviewPrepNotes";
+import { PrepKitOverlay } from "./ScheduleInterviewPrepOverlay";
+import { PrepPlanDiff } from "./ScheduleInterviewPrepPlanDiff";
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const {
     t,
     prep,
+    kit,
     loading,
     error,
     reload,
@@ -42,6 +45,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setBlock,
     totalItems,
     doneItems,
+    planDiff,
+    decidePlan,
+    deciding,
+    decideFailed,
   } = useScheduleInterviewPrep(entry);
 
   return (
@@ -90,6 +97,11 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             t={t}
           />
 
+          {/* A staged Regenerate (r09 schedule-interview-prep/B): the new plan waits
+              here as a diff; the run-of-show below stays the committed one, usable,
+              until the interviewer replaces it or keeps it. */}
+          {planDiff ? <PrepPlanDiff diff={planDiff} decide={decidePlan} deciding={deciding} failed={decideFailed} t={t} /> : null}
+
           <RunOfShow
             prep={prep}
             checked={checked}
@@ -116,6 +128,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             t={t}
           />
 
+          {/* The job interview kit this candidate's AI interview runs on, with the
+              recruiter's per-candidate overlay (spark interview-kit-template): drop,
+              rewrite or add a question for THIS candidate. Renders nothing when the
+              role has no kit. */}
+          <PrepKitOverlay entryId={entry.id} kit={kit} prep={prep} />
+
           <InterviewerAndNotes
             interviewer={interviewer}
             setInterviewer={setInterviewer}
@@ -127,9 +145,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
           {/* Human scorecard (PREP1): fill the role's rubric live and save it
               against this candidate — the human counterpart to the AI voice-screen
-              scorecard. Hydrated from the freshest payload: a regenerated result
-              carries the saved scorecard forward, so never read the stale GET. */}
-          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} initial={prep.humanScorecard} />
+              scorecard. Seeded from the CALLER'S OWN record for this round (the panel
+              asks GET /api/interview-prep/scorecard for `mine`), never from
+              prep.humanScorecard: that headline is whoever saved last, and passing it
+              here pre-filled a second interviewer's form with the first one's verdict
+              (r09 schedule-interview-prep/A). */}
+          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} />
         </div>
       )}
     </Modal>

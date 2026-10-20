@@ -36,7 +36,8 @@ class TestEvaluate(unittest.TestCase):
             self.assertTrue(0 <= v <= 100)
         self.assertEqual(ev["promptVersion"], CASE_EVAL_PROMPT_VERSION)
 
-    def test_transfer_is_avg_of_dims(self):
+    def test_transfer_with_equal_case_weights_is_the_mean(self):
+        # This fixture's case rubric weighs all five at 0.2, so the weighted case score IS the mean.
         ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
         t, _ = score_transfer(ev, self.role, provider=None)
         avg = round(sum(ev["dimensionScores"].values()) / 5)
@@ -488,6 +489,154 @@ class _LangPromptCapture:
     def complete_json(self, prompt, system=None, expected_keys=None):  # noqa: ANN001
         self.prompts.append(prompt)
         raise RuntimeError("captured")
+
+
+class TestKeylessCanaryTerm(unittest.TestCase):
+    """The planted-flaw verdicts are the one observed check with KNOWN ground truth, and
+    the keyless evaluator ignored them: a candidate who fixed every planted flaw and one
+    who shipped every flaw scored identically (judgment 0, transfer 49 — probe
+    2026-09-23). They now feed observed verification, by MAX, so they can only lift."""
+
+    def setUp(self):
+        # Identical observed tooling + reflection for every case below: read-first, no
+        # test edit, one decision-log entry — the probe's shape (judgment 0 today).
+        self.reflection = {"readBeforeWrite": 0.4, "verificationHabits": [], "narrative": "x"}
+        self.tooling = {
+            "fluency": 0.7,
+            "probeOutcomes": [{"probeId": "p1", "detected": True, "handledWell": None}],
+            "signals": {"readBeforeWrite": 1.0, "editedTest": False, "decisionLogEntries": 1},
+        }
+        self.case = {"rubricDimensions": [{"name": d, "weight": 0.2} for d in _DIMS]}
+        self.role = {"title": "Backend", "seniority": "medior"}
+
+    def _eval(self, statuses, lang="en"):
+        extras = {"canaryOutcomes": [{"id": f"c{i}", "status": s} for i, s in enumerate(statuses)]} if statuses is not None else None
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, extras=extras, provider=None, lang=lang)
+        return ev
+
+    def test_addressed_beats_propagated_by_the_verify_margin(self):
+        caught = self._eval(["addressed", "addressed"])["dimensionScores"]["judgment"]
+        missed = self._eval(["propagated", "propagated"])["dimensionScores"]["judgment"]
+        self.assertGreaterEqual(caught - missed, 5)
+        t_caught, _ = score_transfer(self._eval(["addressed", "addressed"]), self.role, provider=None)
+        t_missed, _ = score_transfer(self._eval(["propagated", "propagated"]), self.role, provider=None)
+        self.assertGreater(t_caught["transferScore"], t_missed["transferScore"])
+
+    def test_flagged_counts_exactly_like_addressed(self):
+        self.assertEqual(self._eval(["flagged", "flagged"])["dimensionScores"], self._eval(["addressed", "addressed"])["dimensionScores"])
+        self.assertEqual(self._eval(["flagged", "propagated"])["dimensionScores"], self._eval(["addressed", "propagated"])["dimensionScores"])
+
+    def test_unverifiable_is_no_signal_never_a_penalty(self):
+        none = self._eval(None)
+        unver = self._eval(["unverifiable", "unverifiable"])
+        self.assertEqual(unver["dimensionScores"], none["dimensionScores"])
+        self.assertEqual(unver["strengths"], none["strengths"])
+        self.assertEqual(unver["concerns"], none["concerns"])
+        # Unverifiable entries are excluded from the ratio, not counted as misses.
+        self.assertEqual(self._eval(["addressed", "unverifiable"])["dimensionScores"], self._eval(["addressed"])["dimensionScores"])
+
+    def test_propagated_never_scores_below_no_canaries(self):
+        # MAX, never instead of: a shipped flaw is a concern line, not a lower score than
+        # a run that carried no canaries at all.
+        self.assertEqual(self._eval(["propagated"])["dimensionScores"], self._eval(None)["dimensionScores"])
+
+    def test_findings_name_the_canaries_in_every_language(self):
+        for lang in ("en", "cs", "de", "fr"):
+            caught = self._eval(["addressed", "propagated"], lang=lang)
+            base = self._eval(None, lang=lang)
+            self.assertEqual(len(caught["strengths"]), len(base["strengths"]) + 1, lang)
+            self.assertEqual(len(caught["concerns"]), len(base["concerns"]) + 1, lang)
+            self.assertTrue(any("1" in s and "2" in s for s in caught["strengths"]), (lang, caught["strengths"]))
+
+
+class _FixedProvider:
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def complete_json(self, prompt, *, system=None, expected_keys=None):
+        return self._payload
+
+
+class TestWeightedCaseScore(unittest.TestCase):
+    """challenge-r05 devcase-core/B — the evaluation stamps ONE weighted case score whose
+    per-dimension contributions sum to it, on both paths, and the keyless transfer score
+    reads it instead of an equal-weight mean (component-sum-is-authoritative)."""
+
+    CANON = [
+        {"name": "framing", "weight": 0.2},
+        {"name": "tooling", "weight": 0.25},
+        {"name": "judgment", "weight": 0.25},
+        {"name": "architecture", "weight": 0.15},
+        {"name": "transfer", "weight": 0.15},
+    ]
+
+    def setUp(self):
+        self.reflection = {"readBeforeWrite": 0.7, "verificationHabits": ["adds tests", "iterates"], "narrative": "x", "confidence": 0.6}
+        self.tooling = {"fluency": 0.8, "probeOutcomes": [{"probeId": "p1", "handledWell": True}], "confidence": 0.6}
+        self.case = {"rubricDimensions": self.CANON}
+        self.role = {"title": "Backend", "seniority": "senior"}
+
+    def _assert_sums(self, ev):
+        self.assertIsInstance(ev.get("overallScore"), int)
+        contribs = [d.get("contribution") for d in ev["dimensions"]]
+        self.assertTrue(all(isinstance(c, (int, float)) for c in contribs), contribs)
+        self.assertEqual(round(sum(contribs)), ev["overallScore"])
+
+    def test_deterministic_path_stamps_the_weighted_composite(self):
+        ev, src = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        self.assertEqual(src, "deterministic")
+        self._assert_sums(ev)
+        d = ev["dimensionScores"]
+        expected = 0.2 * d["framing"] + 0.25 * d["tooling"] + 0.25 * d["judgment"] + 0.15 * d["architecture"] + 0.15 * d["transfer"]
+        self.assertEqual(ev["overallScore"], int(expected + 0.5))
+        self.assertEqual(ev.get("missingDimensions"), [])
+
+    def test_coerced_llm_payload_stamps_the_weighted_composite(self):
+        payload = {
+            "dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40},
+            "strengths": ["s"], "concerns": ["c"], "summary": "llm",
+        }
+        ev, src = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=_FixedProvider(payload))
+        self.assertEqual(src, "llm")
+        self.assertEqual(ev["overallScore"], 65)
+        self._assert_sums(ev)
+        self.assertEqual({r["name"]: r["contribution"] for r in ev["dimensions"]}["tooling"], 22.5)
+
+    def test_the_case_rubric_weights_drive_the_composite(self):
+        payload = {"dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40}, "summary": "llm"}
+        case = {"rubricDimensions": [
+            {"name": "framing", "weight": 0.16}, {"name": "tooling", "weight": 0.20}, {"name": "judgment", "weight": 0.40},
+            {"name": "architecture", "weight": 0.12}, {"name": "transfer", "weight": 0.12},
+        ]}
+        ev, _ = evaluate_submission(self.reflection, self.tooling, case, self.role, provider=_FixedProvider(payload))
+        self.assertEqual(ev["overallScore"], 70)
+        self._assert_sums(ev)
+
+    def test_keyless_transfer_score_is_the_case_score(self):
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        t, _ = score_transfer(ev, self.role, provider=None)
+        self.assertEqual(t["transferScore"], ev["overallScore"])
+
+    def test_keyless_transfer_reads_the_weights_for_a_bundle_without_overall(self):
+        # A hand-built / pre-composite evaluation: the weighted rule still applies (65, not the mean 60).
+        ev = {"dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40}, "confidence": 0.5}
+        t, _ = score_transfer(ev, self.role, provider=None)
+        self.assertEqual(t["transferScore"], 65)
+
+    def test_keyless_transfer_excludes_a_missing_dimension_and_lowers_confidence(self):
+        ev = {"dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "transfer": 40}, "confidence": 0.5}
+        t, _ = score_transfer(ev, self.role, provider=None)
+        self.assertEqual(t["transferScore"], 69)  # renormalised over 0.85, never a 50 for architecture
+        self.assertAlmostEqual(t["confidence"], 0.5 * 0.85, places=4)
+
+    def test_rationale_no_longer_claims_equal_weighting_in_any_language(self):
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        for lang in ("en", "cs", "de", "fr"):
+            t, _ = score_transfer(ev, self.role, provider=None, lang=lang)
+            text = t["roleFitRationale"]
+            self.assertIn(str(t["transferScore"]), text, lang)
+            for stale in ("weighted equally", "stejnou váhu", "gleich gewichtet", "pèse autant", "Average of", "Průměr", "Durchschnitt", "Moyenne"):
+                self.assertNotIn(stale, text, (lang, text))
 
 
 if __name__ == "__main__":

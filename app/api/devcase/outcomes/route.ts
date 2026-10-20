@@ -3,7 +3,7 @@ import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/a
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -20,7 +20,7 @@ const OUTCOMES_READ_RATE_LIMIT = { limit: 900, windowMs: 10 * 60_000 };
 // TENANT SCOPE (D5): both are the CALLER'S workspace — the outcome corpus (and so the
 // promote-floor recommendation derived from it) is per-team, not deployment-wide. The
 // promote FLOOR itself stays global (dev_control is a declared deployment-level table).
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
   // demo cookie could reach them. READ stays at identity presence; the WRITES below ask
   // the capability.
@@ -32,14 +32,13 @@ export async function GET(request: NextRequest) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const ws = await currentWorkspace();
     return NextResponse.json({ outcomes: listOutcomes(80, ws), calibration: calibrate(activeFloor(), ws), activeFloor: activeFloor() });
   } catch (error) {
     return safeJsonError(error, "api:devcase/outcomes", "DEVCASE_OUTCOMES_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
   // demo cookie could reach them. Identity presence for now; the capability slice follows.
   const denied = await requireOperator();
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
         actor: "human",
         action: "set_promote_floor",
         reason: `floor → ${Math.round(body.setFloor)} (from calibration)`,
-        workspaceId: await currentWorkspace(),
+        workspaceId: ws,
       });
       return NextResponse.json({ activeFloor: activeFloor() });
     }
@@ -100,13 +99,14 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("DEVCASE_OUTCOME_INVALID", 400, { issue });
     }
     const outcome = parsed.data;
-    const ws = await currentWorkspace();
     recordOutcome(outcome, ws);
-    // The reason carries the CANDIDATE REF - the row the workspace stamp exists for.
+    // The reason carries NO candidate label: the audit row is de-identified at the source
+    // and keyed by the outcome's own ref, so an erasure can reach it (anonymizeEntry).
     recordAudit({
       actor: "human",
       action: "outcome_recorded",
-      reason: `${outcome.candidateRef ?? "candidate"}: ${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}`,
+      reason: `${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}`,
+      ref: outcome.ref,
       workspaceId: ws,
     });
     return NextResponse.json({ ok: true, calibration: calibrate(activeFloor(), ws) });
@@ -114,4 +114,4 @@ export async function POST(request: NextRequest) {
     // The POST records an outcome and re-runs calibration over the store.
     return safeJsonError(error, "api:devcase/outcomes", "DEVCASE_OUTCOME_SAVE_FAILED");
   }
-}
+});

@@ -160,8 +160,8 @@ class StageTimer:
         self._start = 0.0
 
     def __enter__(self) -> "StageTimer":
-        self._start = time.monotonic()
+        self._start = time.perf_counter()
         return self
 
     def __exit__(self, *_exc: object) -> None:
-        self.sink[self.name] = int((time.monotonic() - self._start) * 1000)
+        self.sink[self.name] = int((time.perf_counter() - self._start) * 1000)

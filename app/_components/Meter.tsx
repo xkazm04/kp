@@ -15,13 +15,13 @@ export function Meter({
   className = "",
   trackClassName = "",
   "aria-label": ariaLabel,
+  "aria-hidden": ariaHidden,
 }: {
   value: number;
   tone?: ScoreTone;
   className?: string;
   trackClassName?: string;
-  "aria-label"?: string;
-}) {
+} & ({ "aria-label": string; "aria-hidden"?: never } | { "aria-hidden": true; "aria-label"?: never })) {
   const pct = clampPercent(Math.round(value));
   const [filled, setFilled] = useState(false);
   useEffect(() => {
@@ -44,6 +44,7 @@ export function Meter({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={ariaLabel}
+      aria-hidden={ariaHidden}
     >
       <div
         className={`h-full rounded-full ${toneClass} transition-[width] duration-700 ease-out motion-reduce:transition-none`}

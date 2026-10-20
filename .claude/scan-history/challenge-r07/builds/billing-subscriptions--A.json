@@ -1,0 +1,16 @@
+{
+  "card": "billing-subscriptions/A",
+  "title": "Every meter debit names its cause: a usage journal beside the counter",
+  "status": "landed",
+  "base": "6b911cf49",
+  "shas": ["c793d1bfc", "64046769a", "3926aafef", "2caa4dcde", "68c48cef3", "37893eb88"],
+  "tests_added": ["app/_lib/billing/usage-journal.test.ts", "app/_lib/db/billing-tenancy.test.ts (+1 test)"],
+  "cases_red_before": 7,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": null, "unit": 0, "ts_ratchet": 0, "perf": 0 },
+  "files_changed": 15,
+  "lines_changed": 537,
+  "deviations_from_card": "Critic revision applied: meter-attribution.test.ts pin updated to the 5-argument interview/complete call; case 2 declared a GUARD (green before by design, so 7 of 8 red before). (1) duplicateUsageSources returns {meter, source_kind, source_ref, count} - meter added so two meters sharing a ref cannot merge. (2) journalIntegrity takes orgId (the billing tenancy guard requires every statement on billing_usage to bind org_id); the test loops the three parity orgs. (3) devcase_lifecycle journals ref=null: that route debits BEFORE createLifecycle mints the id, and moving the debit would change which failures are charged. (4) hire ref = offer.id, not entryId (a legacy entry id can embed the applicant's email; journal rows carry no personal data). (5) The tenancy exempt-list entry + export class 'org' went in their own lock commit ahead of core.ts, so the core.ts-alone commit never shows tenancy-coverage an unclassified table. (6) perf-budget.json raised under the lock by the card's own measured share (+4/+5 KB per route, group +5) after trimming comments 7.4 KB -> 4.5 KB. Write set otherwise shrank: tenancy.ts only for the manifest, no index.ts export (callers pass object literals).",
+  "notes": "Charge unchanged: billing_usage/billing_credits get the same calls with the same numbers; r05 charge-parity golden byte-identical (case 2 + allowance-window + billing-alerts-route guards green); billingOverview gains no key. Failure-mode change stated in doc/commit: a journal INSERT that throws rolls the debit back (5 sites propagate, offer-finalize logs). tsc: 0 errors on tracked files; the only tsc output is 80 errors under untracked kpi-sim/ (foreign, pre-existing). test:perf: committed HEAD 905420b8d measured via git archive = 0 findings; the live-tree overage (+5-6 KB on ~14 routes) comes from sibling UNCOMMITTED files (shell-setup-wizard etc.), not this card - measured base 6b911cf49-era HEAD vs base+card files alone. Full test:unit: 10634/10636, the 2 failures are FLAKEs in foreign files (recipes-literals.test.ts, python-runner-concurrency.test.ts) that passed on re-run; an earlier run showed shell-setup-wizard's in-flight setupFinishOutcome.test.ts BROKEN (foreign). Hand-offs honoured: interview/complete touched at the debit argument only; analyze-run.ts touched in debitDeliveredAnalysis only. Journal rows hold opaque ids only (analysis slug is random, session/job/lifecycle/offer ids) - stated in docs/features/billing/README.md. No reader/UI yet; journalIntegrity will report pre-journal counters for the month the journal ships (documented as evidence, never a correction)."
+}

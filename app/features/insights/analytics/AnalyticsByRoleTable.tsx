@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { buildUrl } from "@/app/features/shell/tabs";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { AnalyticsExportButton } from "./AnalyticsExportButton";
 import { analyticsCsvProvenance, rolesCsvRows } from "./analyticsFunnelCsv";
@@ -29,6 +31,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
   const t = useTranslations("analytics");
   const tLog = useTranslations("analytics.log");
   const locale = useLocale();
+  const search = useSearchParams();
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
   const rows = needle ? data.byJob.filter((j) => j.jobTitle.toLocaleLowerCase().includes(needle)) : data.byJob;
@@ -114,23 +117,32 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
             <th scope="col" className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
             <th scope="col" className="pb-2 text-right font-semibold">{t("colHired")}</th>
             <th scope="col" className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">
+              <span className="sr-only">{t("colScope")}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((j) => (
-            <tr key={j.jobTitle} className="border-b border-stone-100 last:border-0">
+            // Keyed by requisition: two reqs sharing a title are two rows now.
+            <tr key={j.jobId ?? `title:${j.jobTitle}`} className="border-b border-stone-100 last:border-0">
               {/* The title cell links (a tr can't be a Link): the board's free-text
                   filter matches on jobTitle, so ?q=<title> isolates this role. */}
               <td className="py-2 pr-2 text-ink">
                 <Link
                   href={boardHref({ q: j.jobTitle })}
                   title={t("viewInBoard")}
-                  className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+                  className="focus-ring rounded underline-offset-2 hover:text-coral-ink hover:underline"
                 >
                   {j.jobTitle}
                 </Link>
               </td>
-              <td className={`py-2 text-right ${j.koDeclined > 0 ? "text-coral" : "text-steel"}`}>{j.koDeclined}</td>
+              {/* null = not attributable to this row: knockout declines are recorded by
+                  title before any application exists, so a title several reqs share (or
+                  a role-scoped view) cannot be split. A dash with its reason, never a 0. */}
+              <td className={`py-2 text-right ${(j.koDeclined ?? 0) > 0 ? "text-coral-ink" : "text-steel"}`}>
+                {j.koDeclined == null ? <span title={t("koUnattributedTitle")}>—</span> : j.koDeclined}
+              </td>
               <td className="py-2 text-right text-steel">{j.total}</td>
               <td className="py-2 text-right text-steel">{j.reachedInterview}</td>
               <td className="py-2 text-right text-ink">{j.hired}</td>
@@ -149,6 +161,22 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                   <span className={j.hired > 0 ? "font-medium text-moss" : "text-steel"}>{j.hireRatePct}%</span>
                 )}
               </td>
+              {/* Scope the whole tab to this requisition — the one axis a hiring manager
+                  asks about. Only a row that names a job id can be scoped; the row
+                  already in scope offers nothing. */}
+              <td className="py-2 pl-2 text-right">
+                {j.jobId && j.jobId !== data.jobId ? (
+                  <Link
+                    href={buildUrl({ job: j.jobId }, search.toString())}
+                    scroll={false}
+                    replace
+                    title={t("analyseRoleTitle")}
+                    className="focus-ring whitespace-nowrap rounded text-sm font-semibold text-coral-ink underline-offset-2 hover:underline"
+                  >
+                    {t("analyseRole")}
+                  </Link>
+                ) : null}
+              </td>
             </tr>
           ))}
           {/* UAT TOM-ANA-12 — the same predicate the Briefing's "which roles carry
@@ -156,7 +184,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
               hero inside it are decided once. */}
           {!hasRoleRows(data.byJob) ? (
             <tr>
-              <td colSpan={6} className="py-3">
+              <td colSpan={7} className="py-3">
                 {/* THE first-run empty state of this tab: no pipeline entry has
                     ever existed, so every figure above is blank too. The readout
                     previews the metrics this tab will hand back — honest em-dashes,
@@ -176,13 +204,13 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
             // role sitting below the cap, so this must not read as "no such role" —
             // it reports the reach of the search and hands the query to the board.
             <tr>
-              <td colSpan={6} className="py-3 text-base text-steel">
+              <td colSpan={7} className="py-3 text-base text-steel">
                 {t.rich("byRoleNoMatch", {
                   q: query.trim(),
                   link: (chunks) => (
                     <Link
                       href={boardHref({ q: query.trim() })}
-                      className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+                      className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline"
                     >
                       {chunks}
                     </Link>
@@ -204,7 +232,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
             link: (chunks) => (
               <Link
                 href={boardHref({ q: query.trim() || undefined })}
-                className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+                className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline"
               >
                 {chunks}
               </Link>

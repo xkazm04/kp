@@ -63,17 +63,29 @@ function source(rel: string): string {
     .replace(/(^|\s)\/\/.*$/gm, "$1");
 }
 
+// The decision log's fetch-and-throw half moved out of sections/DecisionLogTable.tsx
+// and into useDecisionLogExport.ts when the Decisions tab started offering the same
+// file from its own header: the guard follows the code, and now covers BOTH
+// surfaces at once because they share the hook. The invariant is unchanged.
 test("neither export path throws a raw status or a server string", () => {
-  for (const rel of ["./AnalyticsDecisionRecordsPanel.tsx", "./sections/DecisionLogTable.tsx"]) {
+  for (const rel of ["./AnalyticsDecisionRecordsPanel.tsx", "./useDecisionLogExport.ts"]) {
     const src = source(rel);
     assert.doesNotMatch(src, /throw new Error\(/, `${rel} still throws a bare Error — resolve the code and throw a LocalizedFailure`);
     assert.match(src, /new LocalizedFailure\(errMsg\(/, `${rel} must resolve the server's code before throwing`);
     assert.match(src, /apiErrorPayload\(res\)/, `${rel} must read the failed response's body for its code`);
   }
   // …and the two renderers unwrap it rather than painting a caught Error's message.
-  for (const rel of ["./sections/DecisionRecordsTable.tsx", "./sections/DecisionLogTable.tsx"]) {
+  for (const rel of ["./sections/DecisionRecordsTable.tsx", "./useDecisionLogExport.ts"]) {
     const src = source(rel);
     assert.match(src, /localizedFailureMessage\(err,/, `${rel} must unwrap the failure with its own localized fallback`);
-    assert.doesNotMatch(src, /err\.message/, `${rel} must never paint a thrown Error's raw message`);
+    assert.doesNotMatch(src, /\berr\.message\b/, `${rel} must never paint a thrown Error's raw message`);
+  }
+  // Both surfaces paint the hook's already-localized string and nothing else — a raw
+  // message rendered beside it would reintroduce the English leak the shared hook
+  // exists to prevent.
+  for (const rel of ["./sections/DecisionLogTable.tsx", "../../hiring/decisions/DecisionsExportLog.tsx"]) {
+    const src = source(rel);
+    assert.match(src, /\{trailError\}/, `${rel} must render the hook's localized failure`);
+    assert.doesNotMatch(src, /\berr\.message\b/, `${rel} must never paint a thrown Error's raw message`);
   }
 });

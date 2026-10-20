@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { safeRowParse } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { addColumns } from "./db/add-columns";
 
 // Persisted store for Decisions "group evaluations" — one comparative evaluation
 // per role, regenerated on demand and read back into the modal. Uses its OWN
@@ -37,11 +38,7 @@ function db(): Database.Database {
   // Tenancy scoping (E0 Phase 1) — backfill workspace_id on a pre-existing table.
   // Isolated stores have no core.ts migrator, so add the column here, tolerating the
   // "duplicate column" error when it's already present (mirrors the migrateExec guard).
-  try {
-    d.exec(`ALTER TABLE group_evals ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "group_evals", ["workspace_id TEXT NOT NULL DEFAULT 'workspace'"]);
   // Rebuild a legacy table whose PRIMARY KEY is role_key ALONE into the composite
   // (role_key, workspace_id). Detect via PRAGMA: workspace_id has pk=0 on the old
   // schema. Idempotent — the freshly-created table above already has the composite key,
@@ -76,11 +73,7 @@ function db(): Database.Database {
   // role's cohort at run time). NULL on every row written before this column existed
   // — a legacy row is adopted by the first CAS write that expected `null`, never
   // permanently locked. Same duplicate-column guard as workspace_id above.
-  try {
-    d.exec(`ALTER TABLE group_evals ADD COLUMN cohort_hash TEXT`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "group_evals", ["cohort_hash TEXT"]);
   _db = d;
   return d;
 }

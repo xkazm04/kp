@@ -1,0 +1,62 @@
+"use client";
+
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import { tooltipPosition } from "@/app/_components/tooltip-position";
+import "@/app/_components/kit/kit.css";
+
+/**
+ * The dimension pages' ONE delegated tip: any element inside `root` carrying `data-dim-tip`
+ * shows its sentence on hover AND on focus (never `title=`). It reads its own attribute, not the
+ * kit's `data-tip`, because the world a page descends from may already run a KitTipLayer over the
+ * same tree, and two layers answering one attribute would stack two tips. Portalled to body: the
+ * tab panel animates a transform, which would trap a fixed element (REPO-LAW).
+ */
+export function DimensionTips({ root }: { root: RefObject<HTMLElement | null> }) {
+  const [tip, setTip] = useState<{ text: string; el: HTMLElement } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = root.current;
+    if (!host) return;
+    const find = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-dim-tip]") as HTMLElement | null) : null);
+    const show = (e: Event) => {
+      const el = find(e.target);
+      const text = el?.getAttribute("data-dim-tip");
+      if (el && text) setTip({ text, el });
+      else if (e.type === "focusin") setTip(null);
+    };
+    const hide = (e: Event) => {
+      if (find(e.target)) setTip(null);
+    };
+    const clear = () => setTip(null);
+    host.addEventListener("mouseover", show);
+    host.addEventListener("mouseout", hide);
+    host.addEventListener("focusin", show);
+    host.addEventListener("focusout", clear);
+    window.addEventListener("scroll", clear, { passive: true, capture: true });
+    return () => {
+      host.removeEventListener("mouseover", show);
+      host.removeEventListener("mouseout", hide);
+      host.removeEventListener("focusin", show);
+      host.removeEventListener("focusout", clear);
+      window.removeEventListener("scroll", clear, { capture: true });
+    };
+  }, [root]);
+
+  useEffect(() => {
+    if (!tip || !tipRef.current) return;
+    const r = tip.el.getBoundingClientRect();
+    const size = tipRef.current.getBoundingClientRect();
+    setPos(tooltipPosition(r, size, "top", { width: window.innerWidth, height: window.innerHeight }));
+  }, [tip]);
+
+  if (typeof document === "undefined" || !tip) return null;
+  return createPortal(
+    <div ref={tipRef} role="tooltip" className={`k-tip${pos ? " is-on" : ""}`} style={{ left: pos?.left ?? 0, top: pos?.top ?? 0 }}>
+      {tip.text}
+    </div>,
+    document.body,
+  );
+}

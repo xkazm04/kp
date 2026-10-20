@@ -1,0 +1,1179 @@
+{
+  "_comment": "Shared parity cases for the profile editor's live readiness. Each input is the request body the editor sends (buildProfilePayload + the submit hook's signals); each expected block is profile_cli's output for it. Asserted by BOTH pipeline/jobfit/tests/test_profile_readiness_parity.py (profile_cli.main) and app/features/tools/profile/profileReadiness.test.ts (the TS port). An expected block is what profile_cli answers for its input: when a rule changes on purpose, take the new answer from the Python test's diff, never from the TS side.",
+  "cases": [
+    {
+      "name": "blank_auto",
+      "note": "A blank create: nothing typed, Who left on auto -> the default route, every gap open.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "bau",
+        "confidence": 0.4,
+        "reasonCodes": [
+          {
+            "kind": "default",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_seniority",
+            "label": "seniority"
+          },
+          {
+            "check": "has_job",
+            "label": "a work-experience entry"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_years",
+            "label": "years of experience"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_student_partial",
+      "note": "Student declared, 3 skills, a language and an education level.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "bachelor",
+          "educationDetail": "",
+          "languages": [
+            "Czech"
+          ],
+          "aspirations": [],
+          "skillClaims": [
+            {
+              "skill": "Python",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "SQL",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "Git",
+              "level": "working",
+              "provenance": "self_declared"
+            }
+          ],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "student",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "student"
+            }
+          }
+        ],
+        "completeness": 0.39,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_enrolled_with_graduation",
+      "note": "Auto: currently enrolled plus a graduation year -> student, unanimous.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": true,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false,
+          "expectedGraduation": "2027"
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 1.0,
+        "reasonCodes": [
+          {
+            "kind": "signal_enrolled",
+            "params": {}
+          },
+          {
+            "kind": "signal_expected_graduation",
+            "params": {
+              "expected_graduation": "2027"
+            }
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_bau_complete",
+      "note": "Experienced, every bau and common check satisfied.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "master",
+          "educationDetail": "",
+          "languages": [
+            "Czech",
+            "English"
+          ],
+          "aspirations": [],
+          "skillClaims": [
+            {
+              "skill": "TypeScript",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "React",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "SQL",
+              "level": "working",
+              "provenance": "self_declared"
+            }
+          ],
+          "evidence": [
+            {
+              "kind": "job",
+              "title": "Senior Engineer",
+              "text": "",
+              "skills": []
+            }
+          ],
+          "seniority": "senior",
+          "yearsExperience": 6
+        },
+        "signals": {
+          "selfDeclared": "bau",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "bau",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "bau"
+            }
+          }
+        ],
+        "completeness": 1.0,
+        "missingGaps": []
+      }
+    },
+    {
+      "name": "declared_bau_contradicted_by_enrollment",
+      "note": "Experienced declared but enrolled -> contradiction lowers the agreement.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [],
+          "seniority": "mid",
+          "yearsExperience": 4
+        },
+        "signals": {
+          "selfDeclared": "bau",
+          "isEnrolled": true,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "bau",
+        "confidence": 0.65,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "bau"
+            }
+          },
+          {
+            "kind": "contradiction_bau_early_career",
+            "params": {}
+          }
+        ],
+        "completeness": 0.33,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_job",
+            "label": "a work-experience entry"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_bau_contradicted_by_low_years",
+      "note": "Experienced declared with half a year -> contradiction via years.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [],
+          "yearsExperience": 0.5
+        },
+        "signals": {
+          "selfDeclared": "bau",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "bau",
+        "confidence": 0.65,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "bau"
+            }
+          },
+          {
+            "kind": "contradiction_bau_early_career",
+            "params": {}
+          }
+        ],
+        "completeness": 0.13,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_seniority",
+            "label": "seniority"
+          },
+          {
+            "check": "has_job",
+            "label": "a work-experience entry"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_student_contradicted_by_years",
+      "note": "Student with 5 years on the wire and not enrolled -> contradiction.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [],
+          "yearsExperience": 5
+        },
+        "signals": {
+          "selfDeclared": "student",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 0.65,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "student"
+            }
+          },
+          {
+            "kind": "contradiction_student_experienced",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_switcher_without_experience",
+      "note": "Career-switcher with no substantial experience -> the switcher note.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [
+            "Data analyst"
+          ],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "career_switcher",
+          "isEnrolled": false,
+          "wantsDomainChange": true,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "career_switcher",
+        "confidence": 0.7,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "career_switcher"
+            }
+          },
+          {
+            "kind": "contradiction_switcher_no_experience",
+            "params": {}
+          }
+        ],
+        "completeness": 0.17,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared_switcher_with_experience",
+      "note": "Career-switcher with substantial experience -> no contradiction.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "Economics",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [
+            {
+              "kind": "certification",
+              "title": "x",
+              "text": "",
+              "skills": []
+            }
+          ],
+          "yearsExperience": 7
+        },
+        "signals": {
+          "selfDeclared": "career_switcher",
+          "isEnrolled": false,
+          "wantsDomainChange": true,
+          "hasSubstantialExperience": true
+        }
+      },
+      "expected": {
+        "archetype": "career_switcher",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "career_switcher"
+            }
+          }
+        ],
+        "completeness": 0.22,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_switch_strong",
+      "note": "Auto: wants a domain change and has substantial experience.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": false,
+          "wantsDomainChange": true,
+          "hasSubstantialExperience": true
+        }
+      },
+      "expected": {
+        "archetype": "career_switcher",
+        "confidence": 0.78,
+        "reasonCodes": [
+          {
+            "kind": "signal_switch_strong",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_tie_breaks_by_declaration_order",
+      "note": "Auto: student 1.0 vs career_switcher 1.0 -> the earlier id wins.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": false,
+          "wantsDomainChange": true,
+          "hasSubstantialExperience": false,
+          "expectedGraduation": "2026"
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 0.5,
+        "reasonCodes": [
+          {
+            "kind": "signal_expected_graduation",
+            "params": {
+              "expected_graduation": "2026"
+            }
+          },
+          {
+            "kind": "signal_switch_weak",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_years_high_formats_param",
+      "note": "Auto with 4.5 years on the wire -> the years signal carries its value.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [],
+          "yearsExperience": 4.5
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "bau",
+        "confidence": 1.0,
+        "reasonCodes": [
+          {
+            "kind": "signal_yre_high",
+            "params": {
+              "years_relevant_experience": 4.5
+            }
+          }
+        ],
+        "completeness": 0.13,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_seniority",
+            "label": "seniority"
+          },
+          {
+            "check": "has_job",
+            "label": "a work-experience entry"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_years_low",
+      "note": "Auto with 0.5 years on the wire -> the low-years signal.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": [],
+          "yearsExperience": 0.5
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 1.0,
+        "reasonCodes": [
+          {
+            "kind": "signal_yre_low",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auto_mixed_rounds_agreement",
+      "note": "Auto: enrolled + substantial -> a split vote rounded to two places.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "auto",
+          "isEnrolled": true,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": true
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 0.57,
+        "reasonCodes": [
+          {
+            "kind": "signal_enrolled",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "student_evidence_kinds",
+      "note": "Student with a thesis and a certification -> both evidence checks met.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "  ",
+          "languages": [],
+          "aspirations": [
+            "ML engineer"
+          ],
+          "skillClaims": [],
+          "evidence": [
+            {
+              "kind": "thesis",
+              "title": "x",
+              "text": "",
+              "skills": []
+            },
+            {
+              "kind": "certification",
+              "title": "x",
+              "text": "",
+              "skills": []
+            }
+          ]
+        },
+        "signals": {
+          "selfDeclared": "student",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "student"
+            }
+          }
+        ],
+        "completeness": 0.5,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown_declaration_routes_auto",
+      "note": "A declared id no registry holds is ignored -> auto detection.",
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "ghost",
+          "isEnrolled": true,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "student",
+        "confidence": 1.0,
+        "reasonCodes": [
+          {
+            "kind": "signal_enrolled",
+            "params": {}
+          }
+        ],
+        "completeness": 0.0,
+        "missingGaps": [
+          {
+            "check": "has_project_or_thesis",
+            "label": "a project or thesis (your strongest evidence)"
+          },
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "has_aspirations",
+            "label": "target roles / aspirations"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          },
+          {
+            "check": "has_languages",
+            "label": "languages"
+          },
+          {
+            "check": "has_education_detail",
+            "label": "study programme & specialisation"
+          },
+          {
+            "check": "has_activity",
+            "label": "an internship, activity, or certification"
+          }
+        ]
+      }
+    },
+    {
+      "name": "custom_archetype_declared",
+      "note": "A UI-created archetype (empty checklist) chosen -> self-declared 0.9, common checks only.",
+      "customArchetypes": [
+        {
+          "id": "apprentice",
+          "label": "Apprentice",
+          "badge": "Apprentice",
+          "pythonLabel": "Apprentice",
+          "applyLabel": "Apprentice",
+          "fairnessProtected": false,
+          "scoringModel": "experienced",
+          "weights": {
+            "skills": 0.5,
+            "career": 0.35,
+            "personal": 0.15
+          },
+          "dimensionLabels": {
+            "skills": "Skills",
+            "career": "Career",
+            "personal": "Personal"
+          },
+          "checklist": []
+        }
+      ],
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "unknown",
+          "educationDetail": "",
+          "languages": [
+            "German"
+          ],
+          "aspirations": [],
+          "skillClaims": [],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "apprentice",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "apprentice",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "apprentice"
+            }
+          }
+        ],
+        "completeness": 0.29,
+        "missingGaps": [
+          {
+            "check": "min_3_skills",
+            "label": "at least 3 skills"
+          },
+          {
+            "check": "education_known",
+            "label": "education level"
+          }
+        ]
+      }
+    },
+    {
+      "name": "custom_archetype_unknown_check_fails_closed",
+      "note": "A checklist item whose check id has no predicate counts as unmet.",
+      "customArchetypes": [
+        {
+          "id": "field_tech",
+          "label": "Field_Tech",
+          "badge": "Field_Tech",
+          "pythonLabel": "Field_Tech",
+          "applyLabel": "Field_Tech",
+          "fairnessProtected": false,
+          "scoringModel": "experienced",
+          "weights": {
+            "skills": 0.5,
+            "career": 0.35,
+            "personal": 0.15
+          },
+          "dimensionLabels": {
+            "skills": "Skills",
+            "career": "Career",
+            "personal": "Personal"
+          },
+          "checklist": [
+            {
+              "check": "no_such_check",
+              "weight": 2.0,
+              "label": "an unknowable thing"
+            }
+          ]
+        }
+      ],
+      "input": {
+        "profile": {
+          "roleFamily": "general_professional",
+          "educationLevel": "vocational",
+          "educationDetail": "",
+          "languages": [
+            "Czech"
+          ],
+          "aspirations": [],
+          "skillClaims": [
+            {
+              "skill": "A",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "B",
+              "level": "working",
+              "provenance": "self_declared"
+            },
+            {
+              "skill": "C",
+              "level": "working",
+              "provenance": "self_declared"
+            }
+          ],
+          "evidence": []
+        },
+        "signals": {
+          "selfDeclared": "field_tech",
+          "isEnrolled": false,
+          "wantsDomainChange": false,
+          "hasSubstantialExperience": false
+        }
+      },
+      "expected": {
+        "archetype": "field_tech",
+        "confidence": 0.9,
+        "reasonCodes": [
+          {
+            "kind": "self_declared",
+            "params": {
+              "archetype": "field_tech"
+            }
+          }
+        ],
+        "completeness": 0.64,
+        "missingGaps": [
+          {
+            "check": "no_such_check",
+            "label": "an unknowable thing"
+          }
+        ]
+      }
+    }
+  ]
+}

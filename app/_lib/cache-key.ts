@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Locale } from "@/i18n/locales";
 
 // Pure, dependency-free analyze cache-key derivation. Split out of cache.ts (no
 // `./db` import) so the hashing contract can be exercised directly by Node's
@@ -23,7 +24,16 @@ import crypto from "node:crypto";
 // (localized) narrative per locale, so an en result must NOT be served for a cs
 // request and vice-versa. Mixing them would show English narrative under a Czech
 // UI (or stale-cache the wrong language). Bumping invalidates every pre-i18n hash.
-export const PROMPT_VERSION = "v6-2026-09-04-engine-kind";
+//
+// v7 adds `trustFindings` (challenge-r07 results-core/A): the trust ledger is now
+// coded at birth. A cached pre-v7 payload lacks it and would be read by the legacy
+// regex, which files a blind-screening redaction miss as a clean pass - so a cache
+// hit must not outlive the fix.
+//
+// v8: 8c424ff41 checks strengths and the explanation against the CV and codes an
+// unverified skill. A cached pre-v8 payload has none of this, so a cache hit must
+// not outlive the fix.
+export const PROMPT_VERSION = "v8-2026-10-07-checked-strengths";
 
 export type CacheKeyInput = {
   cvBytes: Buffer;
@@ -32,9 +42,9 @@ export type CacheKeyInput = {
   companyText: string;
   companyFileBytes: Buffer | null;
   grounding: boolean;
-  // Output locale the narrative was generated in ("en" | "cs"). Part of the key
+  // Output locale the narrative was generated in. Part of the key
   // so localized results don't collide — see the v5 note above.
-  lang: string;
+  lang: Locale;
   // Blind screening (idea-b8d711c4): a blind run scores a redacted CV, so its
   // result must NOT be served for a normal run (or vice-versa). Folded in only
   // when true — a normal run hashes exactly as before, so the existing cache stays
@@ -46,6 +56,21 @@ export type CacheKeyInput = {
   // re-ingest) must invalidate. Folded in only when set, so runs without a
   // structured job keep their pre-existing keys.
   jobStructureJson?: string;
+  // Content digest of the LIVE archetype registry (archetype-live.ts
+  // archetypeRegistryDigest). The Python analysis re-reads
+  // pipeline/jobfit/archetypes.json on every spawn: the v2 profile's archetype
+  // routing, its needs-review threshold, the early-career set and the checklist
+  // weights all come from it, and the archetype manager rewrites it at runtime. A
+  // key without it served an analysis scored under the pre-edit registry. Passed as
+  // a value (not read here) so this module stays pure. Appended only when set;
+  // every cached analysis misses ONCE after a registry edit — intended.
+  archetypeRegistryDigest?: string;
+  // The model route serving cv_analysis (llm-config.ts llmRouteFingerprint):
+  // provider, model, params and endpoint. PROMPT_VERSION pins the prompt, not the
+  // model, and the operator re-routes at runtime - a key without it served the
+  // previous model's analysis for the whole TTL after a switch. Appended only when
+  // set: the default route (no routing row) keeps its pre-axis key.
+  llmRoute?: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -86,6 +111,15 @@ export function computeCacheKey(input: CacheKeyInput): string {
   if (input.jobStructureJson) {
     field("jobstruct");
     field(input.jobStructureJson);
+  }
+  // Same append-only contract, behind its own marker.
+  if (input.archetypeRegistryDigest) {
+    field("archreg");
+    field(input.archetypeRegistryDigest);
+  }
+  if (input.llmRoute) {
+    field("llmroute");
+    field(input.llmRoute);
   }
   return h.digest("hex");
 }

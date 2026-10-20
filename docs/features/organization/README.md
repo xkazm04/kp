@@ -14,6 +14,13 @@ inventing a second scoping dimension.
 
 ## Entry points
 
+Pending invitations in each workspace's roster show their expiry in the
+reader's locale when the server supplies one, alongside the invitee and role.
+
+The Organization name field saves after a short pause. If the operator leaves
+the tab before that pause ends, the pending name is sent on unmount so the last
+edit is not discarded.
+
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
@@ -47,7 +54,9 @@ inventing a second scoping dimension.
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
   `/login` itself does not re-prompt an entered session: if
   `hasEnteredWorkspace()` is already true, the server wrapper redirects to
-  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
+  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Both this
+  redirect and the form's successful login preserve a valid `?plan=` choice from
+  the landing, without replacing a plan already present in `next`. Anonymous
   visitors still see the form. The member copy does not advertise the operator
   password: subtitle is email+password only, and the "leave blank" hint renders
   only while the email field is empty. Empty email + password remains the API
@@ -57,6 +66,68 @@ inventing a second scoping dimension.
 
 - Session claims carry real identity: `sub` (userId), `org`, `role`
   (`app/_lib/auth/session.ts`) — no longer just `{ workspace, iat, exp, epoch }`.
+- **A session can be revoked one at a time — not only all at once.** The token is a
+  stateless signed bearer credential with a 7-day TTL, so clearing the browser's copy
+  never invalidated any other copy: a cookie lifted off a stolen laptop stayed valid
+  for the rest of that week, and the only kill switch was `KP_SESSION_EPOCH`, which
+  signs **every** operator on the deployment out. `app/_lib/auth/session-revocation.ts`
+  is the targeted counterpart — a `session_revocations` table on its own connection
+  (the `login_attempts` pattern), keyed by the **principal** a signed session names:
+  `user:<sub>` for a per-user login, `op:<workspace>` for the operator password,
+  `ws:<workspace>` for a demo/claim-less cookie. Two scopes, one table: a row naming an
+  exact `iat` is "sign this device out", and the per-principal row (`session_iat =
+  ALL_SESSIONS`) is "sign out all devices" — every session issued before a cutoff, one
+  row however many cookies are out there.
+  - **`POST /api/auth/logout` writes it.** The default scope revokes the presented
+    session (so the ordinary sidebar sign-out now really signs out); `{ allDevices:
+    true }` revokes the principal. The route is self-guarding: the cookie presented *is*
+    the authority to revoke, so an anonymous caller writes nothing. It reports
+    `{ revoked }` truthfully rather than claiming a server-side sign-out it did not
+    perform.
+  - **Five seams consult it**, because each stands in front of routes the others do
+    not: `proxy.ts` (the gate, ahead of the 177 routes with no second check — via a
+    dynamic import, since Next 16 runs Proxy on the Node runtime), `currentSession()`
+    (and therefore every capability gate), `isOperator()`, `isHomeOrgReader()` and
+    **the session issuer** (`app/_lib/auth/session-issuer.ts`), which covers every
+    renewal door. A revoked cookie reads as **no session**: 401, never 403.
+  - The last two were added by the 2026-10-05 scan, and both were blind spots of the
+    same shape — **a credential that is already minted**, which no source ratchet asks
+    about. `isHomeOrgReader()` is the one tier reachable with no `requireOperator()`
+    above it (`/diagrams`, the palette preview's deployment-wide tabs), so proxy.ts
+    was the only check a revoked cookie met there — and proxy.ts fails open on the
+    revocation question. `POST /api/auth/switch-workspace` was worse: it is **public**
+    (the `/api/auth/` prefix), so proxy.ts never ran on it at all, and it is a
+    *renewal* — it hands back a fresh 7-day token on a new `iat`. A revocation names
+    `(principal, iat)`, so an exact row named the old `iat` and a cutoff matched
+    `iat < cutoff` while the re-mint's `iat` was now: **one POST reversed "sign out
+    all devices"**. `issueSession`'s account re-read did not cover it either, because
+    signing out all devices deliberately leaves the account active.
+  - **The issuer owns the renewal check, not the route** (2026-10-06). The scan fixed
+    switch-workspace inline, and that route is the only cookie-to-cookie renewal door
+    today — but the next one would have had to remember to copy it, and nothing would
+    have caught the omission. So a renewal now **names its prior session**:
+    `issueSession(res, principal, { renewing })` takes the verified prior session and
+    refuses a revoked one with `{ ok: false, reason: "revoked" }` before it signs,
+    setting no cookie. Omitting `renewing` asserts the mint comes from a **fresh
+    credential** — true of login, register and invite accept, which present a password
+    or an invite token. `session-issuer.test.ts` holds the source ratchet: any file
+    under `app/` that both verifies a session and issues one must pass `renewing:`
+    (it asserts it found switch-workspace, so it cannot pass while checking nothing).
+  - A per-user revocation deliberately follows the **person**, not the workspace their
+    cookie sits on, which is why `session_revocations` is tenancy-EXEMPT: scoping it by
+    `workspace_id` would leave the same human's other teams' cookies alive. The cutoff
+    is exclusive, so the re-login right after the click survives.
+  - The lookup **fails open on the revocation question only** when the store is
+    unreadable, and says so once in the log. A remote caller cannot induce that error
+    (it needs the operator's own disk), while fail-closed would turn any database fault
+    into a deployment-wide 401 — a cheaper attack than the one this store stops.
+    Signature, expiry and `KP_SESSION_EPOCH` are unaffected, and the epoch stays the
+    escalation path precisely because it needs no database.
+  - Pinned by `app/_lib/auth/session-revocation.test.ts` (the store, including the
+    cross-connection durability that is the reason it is not a Map) and
+    `session-revocation-enforcement.test.ts` (the stolen-cookie flow end to end through
+    the real logout handler). **Not yet built:** the "sign out all devices" button —
+    the API is ready and the sidebar's sign-out uses the single-session scope.
 - `organizations`, `users`, `memberships`, `invites` tables exist
   (`app/_lib/db/{organizations,users,memberships,invites}.ts`), each with a test
   file. `DEFAULT_ORG_ID = "org-default"` seeds the single-org case.
@@ -356,7 +427,7 @@ that target no single workspace, i.e. creating one.
 **The two org SETTINGS writes take `org:manage`, like every route beside them.**
 `setOrgName` / `setOrgLanguage` (`app/_lib/org-actions.ts`) are server actions,
 which are reachable by any signed-in member with a POST — and `setOrgLanguage`
-writes `workspaces.default_locale`, the shared row that decides the language of
+writes `organizations.default_locale`, the shared row that decides the language of
 background automation passes and of every candidate email sent without a request
 cookie, so a recruiter could re-language the company's outbound comms. Both now
 call `requireOrgCapability("org:manage")` (the same helper the export route uses:
@@ -366,22 +437,72 @@ nothing — the console renders the code, and a refused save never ticks over to
 "Saved". Pinned by `app/_lib/org-actions.test.ts`. The org NAME's storage stays a
 per-browser cookie; the gate is about who may write it, not where it lives.
 
-`setOrgLanguage` writes `workspaces.default_locale` for **every team in the caller's
-org**, not only the one their session sits on. The setting is org-wide on every
-other axis — the Organization tab, the label "App language", an `org:manage`
-capability resolved across the org — so writing a single row left a sibling team's
-automation passes and candidate emails in the previous language while the console
-reported "Saved". The org is resolved from the current workspace
+**One language authority per org.** The org's language is ONE row,
+`organizations.default_locale`, and every team follows it by the **absence** of an
+override (the `settings/inherited-default-override` shape):
+
+| State | Stored in | Written by |
+| --- | --- | --- |
+| The org's language (the source) | `organizations.default_locale` | `setOrganizationLocale` (`app/_lib/db/organizations.ts`) |
+| A team's explicit language | `workspaces.locale_override` (NULL = follow the org) | `setWorkspaceDefaultLocale` / cleared by `clearWorkspaceLocaleOverride` (`app/_lib/db/workspaces.ts`) |
+| Legacy mirror of the resolved value | `workspaces.default_locale` | every write above, and `createWorkspace` |
+
+`getWorkspaceDefaultLocale` is the one resolution door every no-cookie path reads
+(candidate-comms fallback, automation passes, group eval, interview kit, agent
+hire): the override, else the org row, else the legacy column of a row whose org
+row does not exist, validated at each step (an unsupported value degrades to
+`WORKSPACE_LOCALE_FALLBACK`, `cs`). A team created later is born following its
+org — before this, `createWorkspace` took the column default `cs` whatever the org
+had chosen, so a team added to a German org wrote Czech to its candidates.
+
+`setOrgLanguage` reaches **every team in the caller's org**: it calls
+`setOrganizationLocale(locale, orgId, { clearOverrides: true })`, which writes the
+org row, drops every team override in that org and mirrors the legacy column, in
+one IMMEDIATE transaction. The setting is org-wide on every axis — the
+Organization tab, the label "App language", an `org:manage` capability resolved
+across the org. The org is resolved from the current workspace
 (`getWorkspaceOrgId`), so an operator-password / open-dev caller with no identity
 claims still writes the whole org, and an unlinked legacy workspace (`org_id` NULL)
-keeps the single-row behaviour. A single-team deployment — the seeded shape — is
-unaffected, since its org holds exactly one row.
+keeps the single-row behaviour. There is no per-team language control in the UI
+yet; the override exists as a store state (and is what the per-team test fixtures
+set).
+
+The legacy `workspaces.default_locale` column is kept and mirrored on every write
+(expand phase), so an older image that reads only it hears the same language. The
+one-shot boot backfill `backfillOrgLocaleAuthority` (`app/_lib/db/core.ts`, recorded
+in `seed_marks` as `org-locale-authority`) seeded each org row from its OLDEST
+team's stored value and gave every team that differed that value as an explicit
+override, copied verbatim — so no existing team changed language at the migration.
+Pinned by `app/_lib/db/workspace-locale-authority.test.ts` and
+`app/_lib/org-actions.test.ts`.
 
 **Entering** a team is separate from administering it:
 `POST /api/auth/switch-workspace` requires a real membership (plus an org match).
 An org admin can seat people on a team they don't belong to, but cannot park a
 session on it — without a membership their capabilities inside it resolve empty,
 so the session would 403 on everything anyway.
+
+**One session issuer.** Every door that hands out a session mints through
+`app/_lib/auth/session-issuer.ts`: login (user, operator-password, open mode),
+register, invite accept and the switch renewal; logout clears through its
+`clearSession`. The caller names a principal (`operator`, `open`, or
+`user{userId, workspaceId}`) and never the claims. For a user the issuer reads
+`users` (the account must exist and not be `disabled`), the workspace's org (it
+must be the user's own org) and the membership (for `role`), so `org` and `role`
+on the token are what the database says at mint time. A refusal sets no cookie.
+The cookie attributes (`__Host-kp_session`: HttpOnly, Secure, SameSite=Lax,
+Path=/, Max-Age 7 days; `kp_entered`: the same without HttpOnly) are set in that
+one module; the switch renewal sets the session only, as it always did.
+
+The switch is a **renewal** (a fresh 7-day token), so it goes through the same
+checks: a user disabled after signing in gets 401 and a cleared cookie instead of
+a new week (`setMemberStatus('disabled')` leaves the membership rows in place, so
+a membership check alone renewed an offboarded account indefinitely). A user with
+no team signs in on their own org's first team (the install's home workspace for
+home-org users, as before), never another org's; an org with no team at all
+answers the uniform login 401. A source ratchet in `session-issuer.test.ts` fails
+when any other non-test file under `app/` calls `signSession(` or sets the
+session cookie by hand.
 
 A **demo session cannot switch at all** (403). `/api/demo` is public and mints a
 validly-signed cookie with no `sub` and no `op`, so the membership check above is
@@ -399,7 +520,8 @@ routes below. The switch route now refuses on the workspace the session came fro
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
 | Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role — delegation-capped, and last-owner-guarded when it demotes an existing owner; DELETE unseat) |
-| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403) |
+| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403); a disabled account **and a revoked one** are refused the renewal (401, cookie cleared) — both refusals come from the issuer, which the route hands `renewing: session` |
+| Session issuer | `app/_lib/auth/session-issuer.ts` — `issueSession` / `clearSession` / `landingWorkspaceFor`; the only mint site (source ratchet in its test) |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
@@ -410,6 +532,10 @@ routes below. The switch route now refuses on the workspace the session came fro
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
+
+Member-status badges use a neutral **Unknown** label for a server status outside
+`active`, `invited`, and `disabled`; an unfamiliar value is never presented as a
+disabled seat.
 
 ### The Workspaces console
 
@@ -436,7 +562,9 @@ way to put them on a second team.
 
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
-clicks, the second deletes the account. They used to be the same red X.
+clicks, the second deletes the account. The account-deletion confirm stays disabled
+until its blast-radius preview loads; a failed preview cannot authorize deletion.
+They used to be the same red X.
 
 **Every member write leaves a receipt, and locks the row it is writing.** A role
 change and a status toggle used to do neither: the PATCH went out, the reload came
@@ -505,8 +633,8 @@ would let any signed-in member export the whole company.
 Restore is deliberately two-step and loud: pick a file → the route returns a **dry-run
 plan** (per table, the rows the restore would actually insert against the rows it would
 delete first — the file's out-of-scope shared tier is excluded from that count so the
-preview cannot promise rows that will not land) → the operator types `REPLACE` to
-confirm. "Destructive" is decided by what
+preview cannot promise rows that will not land) → the operator types the localized
+confirmation word (`REPLACE` in English) to confirm. "Destructive" is decided by what
 would be **deleted**, not by how many tables the file names — a plan can carry
 thousands of rows and destroy nothing, or carry none and empty a live table. The write
 itself is `DELETE`-by-scope + `INSERT` in one transaction, never `DROP TABLE`, because
@@ -632,6 +760,9 @@ set only the session: `AcceptForm` redirects to `/`, and in OPEN mode (no
 had just joined the team was handed the public landing page. Both cookies are set
 inside the same best-effort `try`: with no `KP_SECRET` nothing is signed, so
 neither is written and no marker claims a session that does not exist.
+The client checks the readable marker after redeem. If best-effort signing did
+not set it, the successful account creation lands on `/login` for manual sign-in
+instead of returning to the public landing.
 
 **One transaction, not four writes.** `acceptInvite` (`app/_lib/org-service.ts`)
 runs inside `db.transaction(...).immediate()` with the redeemable-invite read
@@ -681,6 +812,8 @@ The console is fully localized in all four locales from the **`workspaceAdmin`**
 namespace, split three ways: `org` (header, General panel, the onboarding-preview
 button), `members` (roster, invite row, pending invites, both destructive
 confirms, and every toast) and `permissions` (the per-user capability editor).
+Each workspace in the left rail shows its total seats and a breakdown of active,
+invited and disabled members; an unrecognized status is shown separately.
 `app/features/settings/organization/**/*.tsx` is held at eslint **`error`** for
 `i18next/no-literal-string`.
 
@@ -698,6 +831,7 @@ translator** from the caller:
 | Helper | Signature |
 | --- | --- |
 | `roleLabel` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.role.<slug>` |
+| `roleDescription` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.roleDescription.<slug>`; explains the default access beside invite role pickers |
 | `statusBadge` | `(status, t: MembersTranslator)` — `workspaceAdmin.members.status.<slug>` |
 | `capabilityMeta` | `(t: PermissionsTranslator)` — replaces the old `CAPABILITY_META` constant; `CAPABILITY_ORDER` keeps the slug order and the catalog key per row (a capability slug carries a `:` and cannot be a catalog key) |
 
@@ -737,7 +871,10 @@ cannot enter a client bundle. It is used only to bucket legacy invites, whose
 
 `organizations`, `users`, `memberships` (user × team/workspace × role),
 `invites` (token, email, role, status, expiry). "Team" = the existing
-`workspaces` table.
+`workspaces` table. The org's language is `organizations.default_locale`; a team's
+explicit language is `workspaces.locale_override` (NULL = follow the org), and
+`workspaces.default_locale` is its legacy mirror (see **One language authority
+per org** above).
 
 Cross-company reference reads (curated shared library + aggregated benchmarks,
 never raw PII) are designed but not the current focus of this doc — see the
@@ -796,6 +933,13 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - **Per-team `llm_usage` attribution** — the usage ledger is global; it's
   written from the Python sidecar off the request path, so propagating org/team
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
+- **Team language overrides have no UI, and a round-trip through an older image
+  loses its language writes.** `workspaces.locale_override` is settable only through
+  the store; the Organization tab writes the org row. An image from before the org
+  language authority writes only the legacy `workspaces.default_locale` (its
+  fan-out), so a language changed while rolled back is not seen after re-upgrading:
+  the org row and the overrides still hold the values from before the rollback.
+  Re-save the language on the Organization tab after such a round-trip.
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out. Account-level
   disable no longer waits on it: team-data caps (`capabilitiesForUserInWorkspace`)

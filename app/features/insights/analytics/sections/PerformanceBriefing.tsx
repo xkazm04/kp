@@ -199,7 +199,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
             total: data.total,
             active: data.active,
             hired: data.hired,
-            n: (chunks) => <span className="text-coral">{chunks}</span>,
+            n: (chunks) => <span className="text-coral-ink">{chunks}</span>,
           })}
         </p>
         <p className="mt-3 max-w-2xl text-body leading-relaxed text-steel">
@@ -318,7 +318,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
                           {f.conversionPct != null ? (
                             <span
                               className={
-                                verdict === "missed" ? "text-coral" : verdict === "met" ? "text-moss" : "text-ink"
+                                verdict === "missed" ? "text-coral-ink" : verdict === "met" ? "text-moss" : "text-ink"
                               }
                             >
                               {f.conversionPct}%
@@ -348,7 +348,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
                   <button
                     type="button"
                     onClick={() => setGoalsOpen(true)}
-                    className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+                    className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline"
                   >
                     {t("briefSetGoals")}
                   </button>
@@ -378,6 +378,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         offerStage={data.offerStage ?? null}
         enumLabel={enumLabel}
         boardHref={boardHref}
+        onCadenceSaved={reload}
       />
 
       {/* ---- Band 2: what's coming ------------------------------------------ */}

@@ -108,3 +108,38 @@ test("missing authenticity is null, never authentic", () => {
   assert.equal(cmp.columns[0].authenticityBand, null);
   assert.equal(cmp.columns[0].authenticityScore, null);
 });
+
+// challenge-r10 devcase-detail/A: a keyless TEMPLATE transfer is a different instrument
+// from a model-graded one. In a mixed cohort the matrix still shows the template column
+// (the recruiter can read it) but marks it and never lets it lead an axis.
+const withCurrency = (id: string, transferScore: number, transfer: string, scores: Record<string, number>) => ({
+  id,
+  candidateRef: `cand-${id}`,
+  transferScore,
+  evaluation: { evaluation: { dimensionScores: scores }, perStepSources: { transfer } },
+});
+
+test("a mixed cohort marks template columns and never lets them lead an axis", () => {
+  const cmp = rubricCompare(rubric, [
+    withCurrency("tpl", 85, "deterministic", { framing: 95, judgment: 99 }),
+    withCurrency("llm", 72, "llm", { framing: 60 }),
+  ]);
+  const byId = Object.fromEntries(cmp.columns.map((c) => [c.id, c]));
+  assert.equal(byId.tpl.currency, "template");
+  assert.equal(byId.llm.currency, "graded");
+  assert.equal(cmp.mixed, true);
+  // Graded tier first, template listed after it.
+  assert.deepEqual(cmp.columns.map((c) => c.id), ["llm", "tpl"]);
+  assert.equal(cmp.leaderByAxis.framing, "llm", "95 on the template instrument does not beat a graded 60");
+  assert.equal(cmp.leaderByAxis.judgment, null, "an axis only a template column scored has no leader");
+});
+
+test("a uniform keyless cohort compares as before: template columns lead among themselves", () => {
+  const cmp = rubricCompare(rubric, [
+    withCurrency("a", 60, "deterministic", { framing: 70 }),
+    withCurrency("b", 80, "deterministic", { framing: 50 }),
+  ]);
+  assert.equal(cmp.mixed, false);
+  assert.deepEqual(cmp.columns.map((c) => c.id), ["b", "a"]);
+  assert.equal(cmp.leaderByAxis.framing, "a");
+});

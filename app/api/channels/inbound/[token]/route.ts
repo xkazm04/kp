@@ -7,10 +7,11 @@ import {
   MAX_LEAD_NAME_LENGTH,
 } from "@/app/_lib/inbound-lead";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
-import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
+import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { extractUploadedText, ingestCvApplication } from "@/app/_lib/cv-intake";
 
@@ -63,8 +64,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   let claimedIdemKey: string | null = null;
   try {
     const { token } = await context.params;
-    if (!rateLimit(`inbound:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    // A board or relay posts here: the 429 says when the window reopens (Retry-After).
+    const limitKey = `inbound:${token}:${clientIpFrom(request.headers)}`;
+    if (!rateLimit(limitKey, RATE_LIMIT)) {
+      return jsonThrottled(rateLimitRetryAfterMs(limitKey), RATE_LIMIT.windowMs);
     }
 
     // Unknown and revoked tokens are deliberately indistinguishable (both 404).
@@ -88,9 +91,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // counters answer different questions and never merge.
     recordChannelWebhookReceipt(token);
 
-    const job = getJob(webhook.jobId);
+    // The FILING team of this door is the webhook's: its leads land in that team's
+    // pipeline, so that team's lifecycle of a shared corpus role decides open/closed.
+    const job = getJob(webhook.jobId, webhook.workspaceId);
     if (!job) return NextResponse.json({ error: "The webhook's role no longer exists." }, { status: 404 });
-    if (!isJobOpenForApplications(getJobStatus(job.id))) {
+    if (!isJobOpenForApplications(getJobStatus(job.id, webhook.workspaceId))) {
       return NextResponse.json({ error: "This role is closed to applications.", code: "role_closed" }, { status: 410 });
     }
 
@@ -165,6 +170,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
       // duplicate re-send — so the Channels "leads" metric counts real candidates.
       // (The liveness receipt was already stamped at authentication, above.)
+      // The candidate is filed and acknowledged: the claim is DONE, durably, so a
+      // provider replay (even after a restart) is a duplicate. Settled before the
+      // accepted stamp, which must not re-open the key if it throws.
+      settleWebhookIdempotency(claimedIdemKey);
+      claimedIdemKey = null;
       if (outcome.created) recordChannelWebhookAccepted(token);
       return NextResponse.json({
         result: "accepted",

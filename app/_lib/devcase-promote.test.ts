@@ -16,8 +16,11 @@
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPosting, createSubmission, getPipelineEntry, saveDevCase, saveProfile, saveSubmissionEvaluation } from "./db.ts";
+import { createPosting, createSubmission, getPipelineEntry, getSubmission, saveDevCase, saveProfile, saveSubmissionEvaluation } from "./db.ts";
 import { mintObservedFromSubmission, promoteSubmission } from "./devcase-run.ts";
+import { clearAuthorship, recordDebriefFindings } from "./devcase-debrief-findings.ts";
+import { postingsView } from "./devcase-postings-view.ts";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 
 after(() => cleanupUnitDb());
 
@@ -151,4 +154,68 @@ test("a held submission never mints observed skills onto the candidate's profile
   assert.equal(result!.recommendation, "hold", "the promote gate holds it");
   // …and the profile write is held with it — no spawn, no credit.
   assert.deepEqual(await mintObservedFromSubmission(submission.id, result!.entryId), { credited: [], applied: false });
+});
+
+// challenge-r02 devcase-eval/B — PARITY with the pure rule the postings preview and the
+// EvalPanel render (devcase-promote-verdict.ts). The DB write and the preview must agree
+// on the recommendation AND the coded reasons, or the panel promises one verdict and the
+// Decisions card lands with another. The automation trail keeps its English sentence.
+test("promoteSubmission lands the same verdict and reason codes the preview shows", async () => {
+  const { promoteVerdict, promoteVerdictInputOf } = await import("./devcase-promote-verdict.ts");
+  const fixtures: Array<{ bundle: Record<string, unknown>; score: number | null; floor: number }> = [
+    { bundle: { ...evalBundle(), authenticity: { band: "authentic", score: 90 } }, score: 82, floor: 70 },
+    { bundle: { ...evalBundle({ band: "suspect", confidence: 0.9 }), authenticity: { band: "suspect", score: 28 } }, score: 95, floor: 70 },
+    { bundle: evalBundle({ confidence: 0.3 }), score: 90, floor: 70 },
+    { bundle: { ...evalBundle(), transfer: { roleFitRationale: "No score." } }, score: null, floor: 70 },
+  ];
+  for (const f of fixtures) {
+    const subId = makeSubmission(f.bundle, f.score as number);
+    const expected = promoteVerdict(promoteVerdictInputOf(f.bundle, f.score, f.floor));
+    const result = promoteSubmission(subId, f.floor);
+    assert.ok(result);
+    assert.equal(result!.recommendation, expected.recommendation, `recommendation parity for score ${f.score}`);
+    assert.deepEqual(result!.reasonCodes, expected.reasons, `reason-code parity for score ${f.score}`);
+    assert.ok(result!.reasons.every((r) => /^[\x20-\x7e]+$/.test(r)), "the trail sentence stays plain English");
+    assert.ok(!result!.reasons.some((r) => /transfer score 0\b/.test(r)), "an unscored submission is never 'transfer score 0'");
+    const card = JSON.parse(getPipelineEntry(result!.entryId)!.approvalDetail ?? "{}") as { recommendation?: string; confidence?: unknown };
+    assert.equal(card.recommendation, expected.recommendation, "the reviewer card agrees");
+    if (f.score == null) assert.equal(card.confidence, null, "the card carries no fabricated score");
+  }
+});
+
+// craft-1: the preview (postingsView.promotePreview) and the click (promoteSubmission) read ONE
+// rule, so the screen before the decision never says advance while the click lands hold.
+test("preview recommendation equals the click recommendation: unwitnessed, cleared, below floor, witnessed", () => {
+  const FOLLOWUPS = [1, 2, 3, 4, 5].map((i) => ({ id: `f${i}`, question: `Why ${i}?` }));
+  const bundleOf = (witness: string, nonce: string) => ({
+    ...evalBundle(),
+    integrity: { witness: { verdict: witness } },
+    followups: { questions: FOLLOWUPS },
+    evaluatedAt: nonce,
+  });
+  const clear = (id: string) => {
+    const sub = getSubmission(id)!;
+    recordDebriefFindings(sub, [1, 2, 3, 4, 5].map((followupIndex) => ({ followupIndex, kind: "supported" as const })), "human:r");
+    assert.equal(clearAuthorship(getSubmission(id)!, "human:r").cleared, true);
+  };
+  const previewOf = (id: string) => {
+    const postingId = getSubmission(id)!.postingId!;
+    return postingsView([{ id: postingId }], DEFAULT_WORKSPACE_ID)[0].submissions.find((s) => s.id === id)!.promotePreview!;
+  };
+  const cases: Array<{ name: string; witness: string; score: number; cleared: boolean; expect: "advance" | "hold"; code: string }> = [
+    { name: "unwitnessed, no clearance", witness: "unwitnessed", score: 88, cleared: false, expect: "hold", code: "trace_unwitnessed" },
+    { name: "unwitnessed, cleared by debrief", witness: "unwitnessed", score: 88, cleared: true, expect: "advance", code: "debrief_cleared" },
+    { name: "cleared but below the floor", witness: "unwitnessed", score: 40, cleared: true, expect: "hold", code: "score_below_floor" },
+    { name: "plain witnessed", witness: "witnessed", score: 88, cleared: false, expect: "advance", code: "score_clears_floor" },
+  ];
+  for (const c of cases) {
+    const id = makeSubmission(bundleOf(c.witness, c.name), c.score);
+    if (c.cleared) clear(id);
+    const preview = previewOf(id);
+    const click = promoteSubmission(id, 55);
+    assert.equal(preview.recommendation, c.expect, `${c.name}: preview`);
+    assert.equal(click!.recommendation, c.expect, `${c.name}: click`);
+    assert.equal(approvalOf(click!.entryId).recommendation, c.expect, `${c.name}: card`);
+    assert.ok(preview.reasons.some((r) => r.code === c.code), `${c.name}: coded reason ${c.code}`);
+  }
 });

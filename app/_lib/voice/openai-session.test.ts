@@ -12,7 +12,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildOpenAiSessionPayload, normalizeTranscriptionLanguage } from "./openai.ts";
+import {
+  buildOpenAiSessionPayload,
+  coerceTurnEagerness,
+  DEFAULT_TURN_EAGERNESS,
+  normalizeTranscriptionLanguage,
+  openAiTurnEagerness,
+} from "./openai.ts";
+import { DIRECTOR_TOOL_DEFS } from "./director-tools.mjs";
 
 const base = {
   model: "gpt-realtime",
@@ -34,16 +41,23 @@ test("a BCP-47 region tag is narrowed to the ISO-639-1 primary subtag", () => {
   assert.equal(audio.input.transcription.language, "en");
 });
 
-test("an absent locale yields NO language field — byte-identical to the prior default", () => {
+test("an absent locale yields NO language field — the rest of the payload is the conversational default", () => {
   const withNull = buildOpenAiSessionPayload({ ...base, language: null });
   const withUndef = buildOpenAiSessionPayload({ ...base });
+  // UPDATED DELIBERATELY (spark ai-interview-parity): a conversational (non-relay)
+  // session now carries semantic_vad at the house eagerness ("low") — the interviewer
+  // waits for a finished thought instead of a silence threshold. Everything else is
+  // the prior default, and no tool fields appear without tools.
   const expected = {
     session: {
       type: "realtime",
       model: "gpt-realtime",
       instructions: "You are a warm interviewer.",
       audio: {
-        input: { transcription: { model: "gpt-4o-transcribe" } },
+        input: {
+          transcription: { model: "gpt-4o-transcribe" },
+          turn_detection: { type: "semantic_vad", eagerness: "low" },
+        },
         output: { voice: "marin" },
       },
     },
@@ -64,4 +78,77 @@ test("normalizeTranscriptionLanguage: valid two-letter passes, malformed → nul
   assert.equal(normalizeTranscriptionLanguage(""), null);
   assert.equal(normalizeTranscriptionLanguage("english"), null);
   assert.equal(normalizeTranscriptionLanguage("123"), null);
+});
+
+// ── Director tools + semantic VAD (spark ai-interview-parity) ────────────────
+// Verified against the Realtime GA schema for POST /v1/realtime/client_secrets
+// (developers.openai.com, 2026-09-18): session.tools is a list of
+// { type: "function", name, description, parameters }, session.tool_choice takes
+// "auto" | "none" | "required", and audio.input.turn_detection accepts
+// { type: "semantic_vad", eagerness: "low" | "medium" | "high" | "auto" }.
+
+test("director tools are minted as GA function tools with tool_choice auto", () => {
+  const { session } = buildOpenAiSessionPayload({ ...base, tools: DIRECTOR_TOOL_DEFS });
+  const tools = session.tools as { type: string; name: string; description: string; parameters: unknown }[];
+  assert.equal(session.tool_choice, "auto");
+  assert.equal(tools.length, DIRECTOR_TOOL_DEFS.length);
+  DIRECTOR_TOOL_DEFS.forEach((def, i) => {
+    assert.deepEqual(tools[i], { type: "function", name: def.name, description: def.description, parameters: def.parameters });
+  });
+});
+
+test("no tools (absent or empty) means no tool fields at all", () => {
+  for (const tools of [undefined, null, []]) {
+    const { session } = buildOpenAiSessionPayload({ ...base, tools });
+    assert.equal("tools" in session, false);
+    assert.equal("tool_choice" in session, false);
+  }
+});
+
+test("relay mode (role intake) is byte-unchanged — no semantic VAD, and tools are ignored", () => {
+  const expected = {
+    session: {
+      type: "realtime",
+      model: "gpt-realtime",
+      instructions: "You are a warm interviewer.",
+      audio: {
+        input: {
+          transcription: { model: "gpt-4o-transcribe", language: "cs" },
+          turn_detection: { type: "server_vad", create_response: false, interrupt_response: true },
+        },
+        output: { voice: "marin" },
+      },
+    },
+  };
+  assert.deepEqual(buildOpenAiSessionPayload({ ...base, language: "cs", relay: true }), expected);
+  assert.deepEqual(
+    buildOpenAiSessionPayload({ ...base, language: "cs", relay: true, tools: DIRECTOR_TOOL_DEFS, turnEagerness: "high" }),
+    expected,
+    "relay never answers on its own, so it never gets tools or a semantic eagerness"
+  );
+});
+
+test("a conversational session takes the eagerness it is given", () => {
+  const { session } = buildOpenAiSessionPayload({ ...base, turnEagerness: "medium" });
+  const input = (session.audio as { input: { turn_detection: unknown } }).input;
+  assert.deepEqual(input.turn_detection, { type: "semantic_vad", eagerness: "medium" });
+});
+
+test("OPENAI_REALTIME_TURN_EAGERNESS: legal values pass, anything else falls back to low", () => {
+  assert.equal(DEFAULT_TURN_EAGERNESS, "low");
+  for (const v of ["low", "medium", "high", "auto"]) assert.equal(coerceTurnEagerness(v), v);
+  assert.equal(coerceTurnEagerness(" HIGH "), "high", "casing and whitespace are not a new value");
+  for (const v of [undefined, null, "", "eager", "0", 3]) assert.equal(coerceTurnEagerness(v), "low");
+  const prior = process.env.OPENAI_REALTIME_TURN_EAGERNESS;
+  try {
+    delete process.env.OPENAI_REALTIME_TURN_EAGERNESS;
+    assert.equal(openAiTurnEagerness(), "low");
+    process.env.OPENAI_REALTIME_TURN_EAGERNESS = "auto";
+    assert.equal(openAiTurnEagerness(), "auto");
+    process.env.OPENAI_REALTIME_TURN_EAGERNESS = "nonsense";
+    assert.equal(openAiTurnEagerness(), "low");
+  } finally {
+    if (prior === undefined) delete process.env.OPENAI_REALTIME_TURN_EAGERNESS;
+    else process.env.OPENAI_REALTIME_TURN_EAGERNESS = prior;
+  }
 });

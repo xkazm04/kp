@@ -1,6 +1,7 @@
 import { Bricolage_Grotesque, Gabarito, Shantell_Sans } from "next/font/google";
 import MarketPulseApp from "./market/MarketPulseApp";
 import { TYPE_SCALE } from "./tokens";
+import type { MarketMapSelection } from "./market/map-url";
 
 /*
  * The public /market "Market Pulse" page wrapped in Spark's scoped type system —
@@ -29,10 +30,10 @@ const hand = Shantell_Sans({
   display: "swap"
 });
 
-export default function MarketPulse() {
+export default function MarketPulse({ initialSelection }: { initialSelection: MarketMapSelection }) {
   return (
     <div className={`${TYPE_SCALE} ${display.variable} ${body.variable} ${hand.variable}`}>
-      <MarketPulseApp />
+      <MarketPulseApp initialSelection={initialSelection} />
     </div>
   );
 }

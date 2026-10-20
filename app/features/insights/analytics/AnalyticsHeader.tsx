@@ -1,11 +1,15 @@
 "use client";
 
-import { useId } from "react";
-import { useTranslations } from "next-intl";
+import { useId, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { X } from "lucide-react";
+import { BTN_GHOST, CHIP } from "@/app/_components/ui/recipes";
 import { AnalyticsStatCluster } from "./AnalyticsStatCluster";
 import { AnalyticsCopyViewLink } from "./AnalyticsCopyViewLink";
+import { MetricPackPreview } from "./MetricPackPreview";
 import type { AnalyticsSectionId } from "./sections/analyticsSections";
 import { WINDOW_CHOICES, type Analytics } from "./AnalyticsTypes";
+import { JOB_SCOPE_FIGURE_KEY, JOB_SCOPE_REASON_KEY, withheldByReason } from "./analyticsJobScope";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // The tab's header: eyebrow/title/intro, the cohort-window switcher, and the
@@ -28,6 +32,8 @@ export function AnalyticsHeader({
   days,
   setDays,
   section,
+  job = null,
+  setJob,
 }: {
   data: Analytics | null;
   error: string | null;
@@ -36,9 +42,21 @@ export function AnalyticsHeader({
   /** The section on screen, so the switcher can say when it governs nothing
    *  below it. Optional: omitted, the control describes its overall reach. */
   section?: AnalyticsSectionId;
+  /** The role in scope (?job=), null for the whole workspace. */
+  job?: string | null;
+  /** Clears (or sets) the role scope. Omitted = no scope control is offered. */
+  setJob?: (next: string | null) => void;
 }) {
   const t = useTranslations("analytics");
+  const locale = useLocale();
+  // The payload's own statement of the scope — only once it answers for THIS role
+  // (a window or role switch keeps the previous payload on screen until the new one
+  // lands, and its scope must not be read as the new one's).
+  const jobScope = job && data?.jobScope?.jobId === job ? data.jobScope : null;
+  const withheld = withheldByReason(jobScope);
+  const listFormat = new Intl.ListFormat(locale, { type: "conjunction" });
   const scopeNoteId = useId();
+  const [packOpen, setPackOpen] = useState(false);
   const windowApplies = section == null || !WINDOW_BLIND_SECTIONS.includes(section);
   // One line, three truths — the note is the switcher's accessible description
   // (aria-describedby), so the scope in force is announced WITH the control and
@@ -53,7 +71,7 @@ export function AnalyticsHeader({
   return (
     <header className="flex flex-col gap-5 border-b border-stone-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         {/* ANA2: cohort window — the windowed figures scope to entries created in
@@ -74,7 +92,7 @@ export function AnalyticsHeader({
               onClick={() => setDays(w)}
               aria-pressed={days === w}
               className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-                days === w ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                days === w ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 text-steel hover:border-coral/40"
               }`}
             >
               {w == null ? t("windowAll") : t("windowDays", { days: w })}
@@ -112,6 +130,41 @@ export function AnalyticsHeader({
         {data && (data.excludedSim ?? 0) > 0 ? (
           <p className="mt-1 max-w-3xl text-meta text-steel">{t("simExcludedNote", { count: data.excludedSim ?? 0 })}</p>
         ) : null}
+        {/* THE ROLE SCOPE, NAMED — and what it cannot scope, named too. A role view
+            that quietly kept workspace spend, the account-wide AI ledger or title-keyed
+            knockout counts under a role heading would be the lie this block exists to
+            prevent (registry: not-measurable-versus-zero). The store withholds them;
+            this says which, and why, instead of letting a blank read as a zero. */}
+        {job ? (
+          <div className="mt-3 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`${CHIP} font-semibold text-ink`}>
+                {t("jobScopeChip", { title: jobScope ? (jobScope.jobTitle ?? t("jobScopeUnknownTitle")) : t("jobScopeLoadingTitle") })}
+              </span>
+              {setJob ? (
+                <button type="button" onClick={() => setJob(null)} className={`${BTN_GHOST} px-2 py-1 text-sm`}>
+                  <X size={13} aria-hidden />
+                  {t("jobScopeClear")}
+                </button>
+              ) : null}
+            </div>
+            {withheld.length > 0 ? (
+              <div className="mt-2 text-meta text-steel">
+                <p>{t("jobScopeWithheldIntro")}</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {withheld.map((g) => (
+                    <li key={g.reason}>
+                      {t("jobScopeWithheldLine", {
+                        figures: listFormat.format(g.figures.map((f) => t(JOB_SCOPE_FIGURE_KEY[f]))),
+                        reason: t(JOB_SCOPE_REASON_KEY[g.reason]),
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {/* The two ways to take this view somewhere else. UAT TOM-ANA-8 put the
             second one here: the reader who came to settle an argument needs the file
             OR the link, and both belong above the section they describe rather than
@@ -119,19 +172,33 @@ export function AnalyticsHeader({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* W0.4 — the metric pack. The four numbers a buyer asks for (time-to-hire,
               cost-per-hire, recruiter hours saved, roles per recruiter) as one page, each
-              carrying its sample and whether it is publishable. A plain link, not a fetch:
-              the route streams the Markdown as a download. */}
-          <a
-            href={`/api/analytics/metric-pack?format=md${days ? `&days=${days}` : ""}`}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
+              carrying its sample and whether it is publishable. It opens as a PREVIEW
+              rather than a blind download: whether it can be sent, and for each blocking
+              row how many more observations it needs and roughly when, are answered on
+              the page (the Markdown download sits in the preview's footer). The pack is
+              a workspace artifact (its route reads no role), so while a role is in scope
+              the trigger says so rather than implying a role pack. */}
+          <button
+            type="button"
+            onClick={() => setPackOpen(true)}
+            aria-haspopup="dialog"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral-ink"
           >
-            {t("metricPackDownload")}
-          </a>
+            {job ? t("metricPack.preview.openWorkspace") : t("metricPack.preview.open")}
+          </button>
+          {packOpen ? (
+            <MetricPackPreview
+              days={days}
+              workspaceScoped={job != null}
+              onClose={() => setPackOpen(false)}
+              onUseAllTime={() => setDays(null)}
+            />
+          ) : null}
           {/* UAT TOM-ANA-8 — a view link needs a view to name. `section` is optional on
               this header (a caller may render it without one), and minting a link to the
               DEFAULT section instead would hand the reader a URL that lands somewhere
               else — the defect one layer down. No section, no link. */}
-          {section ? <AnalyticsCopyViewLink section={section} days={days} /> : null}
+          {section ? <AnalyticsCopyViewLink section={section} days={days} job={job} /> : null}
         </div>
       </div>
 

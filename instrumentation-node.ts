@@ -25,9 +25,14 @@ type JobOutcome = { status: "ok" | "skipped"; summary: unknown; log?: string } |
 const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promise<JobOutcome>> = {
   // Interview reminders (AUTO6) — verbatim the body the hand-written block ran.
   reminders: async () => {
-    const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+    const { sendDueInterviewReminders, sendDueScheduleNudges } = await import("./app/_lib/interview-reminders");
     const n = await sendDueInterviewReminders();
-    return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
+    // The pending-link "book your interview" nudge rides the same heartbeat; its
+    // count is reported separately so the summary stays honest about what was sent.
+    const nudges = await sendDueScheduleNudges();
+    return n || nudges
+      ? { status: "ok", summary: { sent: n, nudges }, log: `interview reminders sent: ${n}, booking nudges sent: ${nudges}` }
+      : null;
   },
   // The seeker's job-market scan (WP4c, app/_lib/jobseeker/scan.ts). Fan-out is per
   // WORKSPACE: the one cross-tenant read is the id list (`-- tenancy:global`, ids only);
@@ -68,7 +73,122 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       log: `jobseeker scan: ${totals.workspaces} workspace(s), matched ${totals.matched}, deep-dived ${totals.deepDived}, blocked ${totals.blocked}, collapsed ${totals.collapsed}`,
     };
   },
+  // Opt-in interview-audio retention (spark ai-interview-parity, WP3): delete the audio
+  // files whose window has run out — 30 days past the hiring decision, or the 180-day
+  // backstop for a candidate who was never decided — and stamp the deletion on the row
+  // that held them. Synchronous and deployment-wide (the sweep scopes each write to the
+  // workspace the row itself names), idempotent, and silent when nothing is due: at a
+  // daily cadence a "kept everything" row every night is noise.
+  //
+  // NOTE on the autonomy pause below: this handler runs from the REGISTERED-JOBS loop,
+  // which sits under the pause with the other discretionary passes. That is deliberate
+  // even though the duty is statutory, because the duty is ALSO enforced on the read
+  // path (the playback door re-checks the same predicate), so a paused deployment stops
+  // SERVING the audio even while it stops deleting it. Unlike the consent sweep, which
+  // has no read-side twin, nothing here goes unlawful-and-invisible while halted.
+  interview_recording_retention: async () => {
+    const { runInterviewRecordingRetention } = await import("./app/_lib/interview-recording");
+    const summary = runInterviewRecordingRetention();
+    if (summary.deleted === 0 && summary.failed === 0) return null;
+    return {
+      status: "ok",
+      summary,
+      log: `interview recordings deleted: ${summary.deleted} (scanned ${summary.scanned}, failed ${summary.failed})`,
+    };
+  },
+  // Gigs listing scan (app/_lib/gigs/scan.ts), the jobseeker_scan shape: per-WORKSPACE
+  // fan-out, sequential, under one shared wall budget (the scan's own per-run budget,
+  // shared by the whole pass - the jobseeker_scan convention). The gig stores have NO
+  // cross-tenant query by design (gigs-*-tenancy.test.ts forbids `tenancy:global`), so
+  // the fan-out reads the workspace list and asks each workspace's own scoped store
+  // whether it has an enabled, unpaused source. Armed only after a manual scan's `ok`.
+  gig_scan: async () => {
+    const { listWorkspaces } = await import("./app/_lib/db/workspaces");
+    const { listGigSources } = await import("./app/_lib/db/gigs-sources");
+    const { GIG_SCAN_WALL_BUDGET_MS } = await import("./app/_lib/gigs/scan");
+    const { externalRunner } = await import("./app/_lib/task-external-runners");
+    const workspaces = listWorkspaces()
+      .map((w) => w.id)
+      .filter((ws) => listGigSources(ws).some((s) => s.enabled && s.pausedReason === null));
+    if (workspaces.length === 0) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("gig_scan: clock wall budget exhausted")), GIG_SCAN_WALL_BUDGET_MS);
+    const totals = { workspaces: 0, skipped: 0 };
+    try {
+      for (const ws of workspaces) {
+        if (controller.signal.aborted) {
+          totals.skipped += 1;
+          continue;
+        }
+        // The SAME runner the manual door runs (late-bound-boot.ts `gig_scan`, registered at
+        // boot above): the expiry sweep, the scan's defaults, the qualifier, and the research
+        // enqueue - one wiring, so the clock and the button cannot drift apart.
+        await externalRunner("gig_scan")({ workspaceId: ws, signal: controller.signal, progress: () => {}, params: {} });
+        totals.workspaces += 1;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    return {
+      status: totals.workspaces > 0 ? "ok" : "skipped",
+      summary: totals,
+      log: `gig scan: ${totals.workspaces} workspace(s), ${totals.skipped} skipped on the wall budget`,
+    };
+  },
+  // Gigs run sync (app/_lib/gigs/sync.ts): per workspace with an in-flight attempt, pull
+  // the Personas execution state and land finished drafts; then (WP4) per workspace with
+  // SENT oss_bounty/competition work, ask the outcome pollers (gigs/pollers.ts) whether
+  // the judge decided. `null` when a workspace has neither - at a 15-minute cadence an
+  // empty row every tick would be noise.
+  gig_sync: async () => {
+    const { listWorkspaces } = await import("./app/_lib/db/workspaces");
+    const { listGigAttemptsByStatus } = await import("./app/_lib/db/gigs-attempts");
+    const { syncGigAttempts } = await import("./app/_lib/gigs/sync");
+    const { hasPollableGigs, pollGigOutcomes } = await import("./app/_lib/gigs/pollers");
+    const all = listWorkspaces().map((w) => w.id);
+    const inFlight = all.filter((ws) => listGigAttemptsByStatus(ws, ["dispatched", "running"]).length > 0);
+    const pollable = all.filter((ws) => hasPollableGigs(ws));
+    if (inFlight.length === 0 && pollable.length === 0) return null;
+    const totals = { workspaces: 0, drafted: 0, failed: 0, running: 0, unreachable: 0, accepted: 0, rejected: 0, pollUnreadable: 0 };
+    for (const ws of inFlight) {
+      const s = await syncGigAttempts(ws);
+      totals.workspaces += 1;
+      totals.drafted += s.drafted;
+      totals.failed += s.failed;
+      totals.running += s.running;
+      totals.unreachable += s.unreachable;
+    }
+    for (const ws of pollable) {
+      const p = await pollGigOutcomes(ws);
+      if (!inFlight.includes(ws)) totals.workspaces += 1;
+      totals.accepted += p.accepted;
+      totals.rejected += p.rejected;
+      totals.pollUnreadable += p.unreadable;
+    }
+    return {
+      status: "ok",
+      summary: totals,
+      log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}; outcomes accepted ${totals.accepted}, rejected ${totals.rejected}, unreadable ${totals.pollUnreadable}`,
+    };
+  },
+  // Role runs (ADR-0011): one live pass over every `running` run - producers over the keyless
+  // floor (role-run-live.ts). Parks at the three human gates and at each run's LLM budget; a
+  // run already being advanced by a route call is skipped. OFF by default (a created
+  // schedule is not consent to spend model calls). `null` when nothing was produced - at a
+  // short cadence an empty row every tick would be noise.
+  role_run_advance: async () => {
+    const { tickRoleRuns } = await import("./app/_lib/role-run-live");
+    const t = await tickRoleRuns();
+    if (t.produced === 0 && t.failed === 0 && t.parkedOnBudget === 0) return null;
+    if (t.failed > 0 && t.produced === 0) throw new Error(`role_run_advance: ${t.failed} run(s) failed to advance`);
+    return {
+      status: "ok",
+      summary: t,
+      log: `role runs: ${t.runs} running, ${t.produced} stage(s) produced, ${t.parkedOnBudget} parked on budget, ${t.failed} failed`,
+    };
+  },
 };
+
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
 // The Control Room's autonomy pause is presented to the operator as "Pause to halt
@@ -160,22 +280,40 @@ async function sweepExpiredConsents(): Promise<void> {
   } catch (e) {
     console.error("[clock] consent anonymization sweep failed:", e);
   }
+  // Part of the same statutory sweep: an anonymized entry's calendar event still lists the
+  // person as an attendee. Delete it (and retry the ones that failed) — ADR 0021 amendment.
+  try {
+    const { sweepErasedInterviewEvents } = await import("./app/_lib/calendar/erasure-events");
+    const swept = await sweepErasedInterviewEvents();
+    if (swept.removed || swept.orphaned) console.log("[clock] erased candidates' calendar events → removed/orphaned:", swept.removed, swept.orphaned);
+  } catch (e) {
+    console.error("[clock] erased calendar event sweep failed:", e);
+  }
+  // Statutory like the sweep above (storage limitation): the contact a KO-declined applicant
+  // left in the outbox and the decline event's name are blanked after the retention window.
+  try {
+    const { sweepKoDeclineContacts } = await import("./app/_lib/db");
+    const blanked = sweepKoDeclineContacts();
+    if (blanked) console.log("[clock] ko-decline contacts past retention → blanked:", blanked);
+  } catch (e) {
+    console.error("[clock] ko-decline retention sweep failed:", e);
+  }
 }
 
 export async function startClock(): Promise<void> {
-  // Late-bound task runners (app/_lib/task-external-runners.ts): the job-seeker scan's
-  // implementation is registered HERE, off every route's import path, so the task hub
-  // stays light. Idempotent — the dev server re-runs instrumentation on reload.
+  // Late-bound implementations (app/_lib/late-bound-boot.ts): the heavy task runners
+  // (job-seeker scan, interview kit, feedback letter) and the stage hook's interview
+  // mint are registered HERE, off every route's import path, so the task hub and the
+  // pipeline store stay light. Idempotent — the dev server re-runs instrumentation on
+  // reload.
   try {
-    const { registerTaskRunner } = await import("./app/_lib/task-external-runners");
-    registerTaskRunner("jobseeker_scan", async (ctx) => {
-      const { runJobseekerScan } = await import("./app/_lib/jobseeker/scan");
-      return runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
-    });
+    const { registerLateBoundImplementations } = await import("./app/_lib/late-bound-boot");
+    registerLateBoundImplementations();
   } catch (e) {
-    // A failed registration surfaces the first time a scan task runs (externalRunner
-    // throws by name); log it here too so the boot log names the cause.
-    console.error("[clock] task runner registration failed:", e);
+    // A failed registration surfaces the first time a late-bound kind runs (the
+    // registries throw by name — a failed task, an invite parked for a human); log it
+    // here too so the boot log names the cause.
+    console.error("[clock] late-bound registration failed:", e);
   }
   // Late-bound stage-arrival hook (app/_lib/stage-hook-registry.ts): the same seam,
   // for the same reason. db/pipeline.ts is reached by nearly every route, and
@@ -294,8 +432,12 @@ export async function startClock(): Promise<void> {
     try {
       const { SCHEDULER_JOBS } = await import("./app/_lib/scheduler-jobs");
       const { ensureRegisteredSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      const { schedulerJobOffered } = await import("./app/_lib/jobseeker/enabled");
       for (const job of SCHEDULER_JOBS) {
         if (job.name === "policy_pass") continue; // tickScheduler's — see above
+        // `jobseeker_scan` belongs to the job-seeker module, which is OFF unless the
+        // install sets KP_JOBSEEKER=1: no schedule row is created and nothing runs.
+        if (!schedulerJobOffered(job.name)) continue;
         try {
           ensureRegisteredSchedule(job);
           if (claimDueRun(job.name)) {
@@ -382,6 +524,40 @@ export async function startClock(): Promise<void> {
       }
     } catch (e) {
       console.error("[clock] price reconcile bookkeeping failed:", e);
+    }
+    // Subscription drift (billing) — a lost or CAS-dropped webhook, found by reading each
+    // stored subscription back from the provider (app/_lib/billing/subscription-reconcile.ts).
+    // It only ever raises an operator alert; billing_state stays the webhook's.
+    //
+    // DEFAULT OFF, and the flag guards the REGISTRATION, not just the run: ensureSchedule
+    // creates a row once and never re-reads its defaults, so a row registered disabled
+    // could never be enabled by setting the flag later. With the flag unset nothing below
+    // runs — no scheduler row, no provider call — so a deployment is byte-identical to one
+    // without this pass. Set it only after the sandbox pass the billing README names.
+    if (process.env.KP_BILLING_SUBSCRIPTION_RECONCILE === "1") {
+      try {
+        const { ensureSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+        const SUBSCRIPTION_RECONCILE_JOB = "subscription_reconcile";
+        ensureSchedule(SUBSCRIPTION_RECONCILE_JOB, { enabled: true, intervalMinutes: 24 * 60 });
+        if (claimDueRun(SUBSCRIPTION_RECONCILE_JOB)) {
+          const startedAt = new Date().toISOString();
+          try {
+            const { runSubscriptionReconcile } = await import("./app/_lib/billing/subscription-reconcile");
+            const r = await runSubscriptionReconcile();
+            if (!r.skipped) recordRun({ job: SUBSCRIPTION_RECONCILE_JOB, status: "ok", summary: r, startedAt });
+          } catch (e) {
+            recordRun({
+              job: SUBSCRIPTION_RECONCILE_JOB,
+              status: "error",
+              error: e instanceof Error ? e.message : String(e),
+              startedAt,
+            });
+            console.error("[clock] subscription reconcile failed:", e);
+          }
+        }
+      } catch (e) {
+        console.error("[clock] subscription reconcile bookkeeping failed:", e);
+      }
     }
     // Provider-event payload retention (db/billing.ts) — independent, best-effort,
     // idempotent, and placed beside the reconcile job because it is the other standing

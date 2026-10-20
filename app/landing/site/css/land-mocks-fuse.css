@@ -1,0 +1,173 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-land; keyframes prefixed "mkl-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* The console variant's product components (mocks.css / mocks2.css, copied unchanged) drawn in this page's language.
+   Mechanism: those sheets are driven by --mk-* / --lcd-* / --u tokens, so the transform is a token remap plus a thin layer that
+   swaps the console's dark glass for paper: ink outline, hard offset shadow, larger radii, Figtree labels, 14px floor.
+   Scoped to .sc-mock.is-b3 so the three features that keep their own panel are untouched. */
+.mk.mk-land .sc-mock.is-b3 {
+  --u: calc(var(--p) * 13.2);
+  /* palette names the copied sheets reach for, mapped onto this page's brand set */
+  --putty: #f3ecdc; --putty-2: #ebe1c9; --putty-3: #ddd0b3;
+  --coral-hi: var(--coral-d); --amber-hi: #a5801f; --moss-hi: var(--moss); --steel-hi: var(--steel);
+  --verd: #3b7f7d; --silver: #8fa39a; --oxblood: #9c3d3a; --teal-0: var(--ink); --ink-2: #2a3a48;
+  --lcd-bg: var(--paper); --lcd-bg-2: #f3ecdc; --lcd-fg: var(--ink); --lcd-dim: #3d5666; --lcd-line: rgba(23, 32, 42, .3);
+  --led-ok: #3f7a52; --led-wait: #a8842b; --led-none: #8a8f95; --led-planned: var(--amber); --led-locked: var(--coral-d);
+  --f-display: var(--f-disp); --f-mono: var(--f-body);
+  --fs-body: max(16px, calc(var(--u) * 1.05)); --fs-small: max(14px, calc(var(--u) * .92)); --fs-label: max(14px, calc(var(--u) * .88));
+  --fs-lead: max(18px, calc(var(--u) * 1.3)); --fs-h3: max(20px, calc(var(--u) * 1.7));
+  --ease: cubic-bezier(.2, .8, .2, 1); --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --fc: var(--g); --fink: var(--cream); --fz: var(--d);
+  display: block; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; color: var(--ink);
+}
+.mk.mk-land .sc-mock.is-b3 .m-cap { margin-top: calc(var(--p) * 10); color: rgba(253, 248, 238, .86); font: 700 max(14px, calc(var(--p) * 15)) var(--f-body); }
+
+/* the card itself: this page's paper card, not the console's glass */
+.mk.mk-land .sc-mock.is-b3 .mock {
+  --mk-a: var(--fz); --mk-at: var(--fz); --mk-on: var(--cream);
+  --mk-bg: var(--paper); --mk-bg2: #f3ecdc; --mk-fg: var(--ink); --mk-dim: #3d5666; --mk-line: rgba(23, 32, 42, .28);
+  --mk-soft: rgba(23, 32, 42, .06); --mk-r: calc(var(--p) * 16);
+  height: auto; border: var(--ol) solid var(--ink); border-radius: calc(var(--p) * 24);
+  padding: calc(var(--p) * 22) calc(var(--p) * 22) calc(var(--p) * 14);
+  background: var(--paper); color: var(--ink);
+  box-shadow: calc(var(--p) * 9) calc(var(--p) * 11) 0 rgba(0, 0, 0, .5);
+}
+.mk.mk-land .sc-mock.is-b3 .mock :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.mk.mk-land .scene .sc-main { align-items: safe center; }
+
+/* ---------- the shared pieces, redrawn: ink outlines, hard offset shadows, this page's type ---------- */
+.mk.mk-land .sc-mock.is-b3 .mock { --g1: calc(var(--u) * .35); --g2: calc(var(--u) * .6); --g3: calc(var(--u) * .9); --g4: calc(var(--u) * 1.3); }
+.mk.mk-land .sc-mock.is-b3 .mk-hd { min-height: 0; }
+.mk.mk-land .sc-mock.is-b3 .sil { font: 800 max(14px, calc(var(--u) * .88))/1.15 var(--f-body); letter-spacing: .09em; text-transform: uppercase; }
+.mk.mk-land .sc-mock.is-b3 .mk-ttl { font-family: var(--f-disp); font-weight: 800; letter-spacing: -.02em; }
+.mk.mk-land .sc-mock.is-b3 .mk-chip { border: 3px solid var(--ink); background: var(--lime); color: var(--ink); font: 700 var(--fs-small)/1.2 var(--f-body); padding: calc(var(--u) * .12) calc(var(--u) * .7); }
+.mk.mk-land .sc-mock.is-b3 .mk-chip.is-a { background: var(--fz); color: var(--cream); }
+.mk.mk-land .sc-mock.is-b3 .mk-chip.is-ok { background: #e3efd8; }
+.mk.mk-land .sc-mock.is-b3 .mk-re { min-height: 34px; border: 3px solid var(--ink); border-radius: calc(var(--p) * 12); background: var(--paper); color: var(--ink); box-shadow: calc(var(--p) * 3) calc(var(--p) * 3) 0 var(--ink); font: 800 max(14px, calc(var(--u) * .88)) var(--f-body); letter-spacing: .06em; padding: calc(var(--u) * .1) calc(var(--u) * .75); }
+.mk.mk-land .sc-mock.is-b3 .mk-re:hover { transform: translate(calc(var(--p) * 2), calc(var(--p) * 2)); box-shadow: calc(var(--p) * 1) calc(var(--p) * 1) 0 var(--ink); color: var(--ink); border-color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-re[aria-pressed="true"] { background: var(--amber); color: var(--ink); border-color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-panel { background: #f6f0e1; border: 3px solid var(--ink); border-radius: calc(var(--p) * 16); box-shadow: none; padding: calc(var(--u) * .7) calc(var(--u) * .9); }
+.mk.mk-land .sc-mock.is-b3 .mk-paper { border: 3px solid var(--ink); border-radius: calc(var(--p) * 12); background: var(--paper); box-shadow: calc(var(--p) * 3) calc(var(--p) * 4) 0 var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-bar { border: 3px solid var(--ink); background: #e9efdc; height: max(14px, calc(var(--u) * .9)); }
+.mk.mk-land .sc-mock.is-b3 .mk-bar > i { background: var(--fz); }
+.mk.mk-land .sc-mock.is-b3 .mk-dots i { border: 3px solid var(--ink); width: max(14px, calc(var(--u) * .95)); height: max(14px, calc(var(--u) * .95)); }
+.mk.mk-land .sc-mock.is-b3 .mk-dots i.on { background: var(--fz); border-color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-note { font-size: var(--fs-small); }
+
+/* voice: the waveform channel, the two kinds of bubble, the printed scorecard */
+.mk.mk-land .sc-mock.is-b3 .mk-rec { background: var(--coral-d); border: 3px solid var(--ink); box-shadow: none; width: max(16px, calc(var(--u) * 1.1)); height: max(16px, calc(var(--u) * 1.1)); margin-inline: 0; }
+.mk.mk-land .sc-mock.is-b3 .mk-rec::after { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-wave { height: calc(var(--u) * 2.9); background: #f3ecdc; border: 3px solid var(--ink); box-shadow: none; border-radius: calc(var(--p) * 14); padding: calc(var(--u) * .3) calc(var(--u) * .8); }
+.mk.mk-land .sc-mock.is-b3 .mk-wave::before { background: rgba(23, 32, 42, .18); }
+.mk.mk-land .sc-mock.is-b3 .mk-wave i { background: var(--coral-d); opacity: 1; }
+.mk.mk-land .sc-mock.is-b3 .mk-turn { border: 3px solid var(--ink); box-shadow: none; padding: calc(var(--u) * .45) calc(var(--u) * .8) calc(var(--u) * .5); border-radius: calc(var(--p) * 16); }
+.mk.mk-land .sc-mock.is-b3 .mk-turn.is-q { background: #fff; border-bottom-left-radius: 4px; }
+.mk.mk-land .sc-mock.is-b3 .mk-turn.is-a { background: var(--lime); color: var(--ink); border-bottom-right-radius: 4px; box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-turn.is-a .sil { color: var(--mk-dim); opacity: 1; }
+.mk.mk-land .sc-mock.is-b3 .mk-turn .sil { color: var(--steel); }
+.mk.mk-land .sc-mock.is-b3 .mk-score { border: 3px solid var(--ink); border-radius: calc(var(--p) * 14); background: #f6f0e1; filter: none; rotate: 0deg; box-shadow: calc(var(--p) * 3) calc(var(--p) * 4) 0 var(--ink); padding: calc(var(--u) * .7) calc(var(--u) * .9); }
+.mk.mk-land .sc-mock.is-b3 .mk-score::after,
+.mk.mk-land .sc-mock.is-b3 .mk-score ul::after,
+.mk.mk-land .sc-mock.is-b3 .mk-voice .mk-turns::after { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-crit::after { border-bottom: 3px dotted rgba(23, 32, 42, .28); }
+
+/* work sample: the listing is an ink panel with lime type (as the page's own code card), the flaw a coral bar */
+.mk.mk-land .sc-mock.is-b3 .mk-code { background: var(--ink); color: var(--lime); border: 3px solid var(--ink); border-radius: calc(var(--p) * 14); box-shadow: none; font-family: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace; padding: calc(var(--u) * .3) 0; }
+.mk.mk-land .sc-mock.is-b3 .mk-code::before { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-ln { padding: calc(var(--u) * .12) calc(var(--u) * 1) calc(var(--u) * .12) calc(var(--u) * 1); }
+.mk.mk-land .sc-mock.is-b3 .mk-ln:nth-child(even) { background: transparent; }
+.mk.mk-land .sc-mock.is-b3 .mk-ln > b { color: #9fb3a0; }
+.mk.mk-land .sc-mock.is-b3 .mk-ln.is-flaw { background: rgba(214, 90, 74, .42); box-shadow: none; color: var(--cream); padding-bottom: calc(var(--u) * .3); }
+.mk.mk-land .sc-mock.is-b3 .mk-flag { background: var(--coral-d); color: var(--cream); box-shadow: none; border-radius: 999px; padding: calc(var(--u) * .05) calc(var(--u) * .7); }
+.mk.mk-land .sc-mock.is-b3 .mk-flag::before { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-work .mk-dist,
+.mk.mk-land .sc-mock.is-b3 .mk-dist { background: transparent; box-shadow: none; padding: calc(var(--u) * .2) 0 0; }
+.mk.mk-land .sc-mock.is-b3 .mk-track { background: #f3ecdc; border: 3px solid var(--ink); box-shadow: none; height: calc(var(--u) * 1.4); margin: calc(var(--u) * .7) calc(var(--u) * 1) calc(var(--u) * .9); }
+.mk.mk-land .sc-mock.is-b3 .mk-track::after { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-track > i { box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-pt { border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-pt.b { box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-dist-l { font-family: var(--f-body); }
+.mk.mk-land .sc-mock.is-b3 .mk-work .mk-prompts { background: #f6f0e1; border: 3px solid var(--ink); box-shadow: none; padding: calc(var(--u) * .7) calc(var(--u) * .9); gap: calc(var(--u) * .5); }
+.mk.mk-land .sc-mock.is-b3 .mk-pr { background: #fff; border: 3px solid var(--ink); box-shadow: none; min-height: max(34px, calc(var(--u) * 2.6)); }
+.mk.mk-land .sc-mock.is-b3 .mk-pr > b { border: 3px solid var(--ink); box-shadow: none; background: var(--fz); color: var(--cream); width: max(26px, calc(var(--u) * 2)); height: max(26px, calc(var(--u) * 2)); }
+.mk.mk-land .sc-mock.is-b3 .mk-work .mk-pr:nth-child(3) > b,
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-tl > li:nth-child(3) .mk-pr > b { background: var(--coral-d); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-work .mk-prompts ol::before,
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-tl::before { border-left: 3px dashed rgba(23, 32, 42, .4); background: none; width: 0; }
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-fl > li,
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-dec > li { background: #fff; border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .is-caught .mk-fi { border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .is-missed .mk-fi { border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-dec > li > b { background: var(--fz); color: var(--cream); border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-work-d .mk-panel { box-shadow: none; background: #f6f0e1; }
+
+/* salary: the page's own range bar (ink outline, tan ends, moss middle) with the market band above the adjusted one */
+.mk.mk-land .sc-mock.is-b3 .mk-sal { background: #f6f0e1; border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-lane.is-raw .mk-band::before { background: #ecd9a0; box-shadow: none; border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-lane.is-adj .mk-band::before { background: var(--moss); box-shadow: none; border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-lane.is-adj .mk-band::after { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-lane.is-adj .mk-lane-t { color: var(--moss); }
+.mk.mk-land .sc-mock.is-b3 .mk-shift::before { background: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-shift::after { background: linear-gradient(180deg, #f6f0e1, #dce7d0); }
+.mk.mk-land .sc-mock.is-b3 .mk-shift { height: calc(var(--u) * 3.6); }
+.mk.mk-land .sc-mock.is-b3 .mk-pin { fill: var(--coral-d); stroke: var(--ink); stroke-width: 1.8; filter: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-pin circle { fill: var(--paper); stroke: var(--ink); stroke-width: 1; }
+.mk.mk-land .sc-mock.is-b3 .mk-foot-n { color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-mark { background: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-salary-d .mk-lines li { background: #fff; border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-salary-d .mk-lines b { background: var(--fz); color: var(--cream); border: 3px solid var(--ink); }
+
+/* gates: receipt slips as the page's audit rows; the kill switch is an ink-outlined pill with a big knob */
+.mk.mk-land .sc-mock.is-b3 .mock .mk-gt-slip { border-radius: calc(var(--p) * 14); border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-slip.is-sign { background: #fff; box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-slip.is-run { border: 3px dashed var(--ink); background: repeating-linear-gradient(135deg, #efe6d4 0 7px, #ddd0b3 7px 14px); color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-slip.is-run .mk-gt-m { color: #2f4351; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-slip.is-run .mk-gt-nd { border: 3px solid var(--ink); color: var(--ink); background: #fff; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-slip.is-sign .mk-gt-nd { background: var(--moss); border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-lk { border: 3px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-dec { border: 3px solid var(--ink); border-radius: 999px; font-family: var(--f-body); background: var(--lime); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-hous { background: #f6f0e1; border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-scr { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-trk { background: #e9efdc; border: 3px solid var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-tx { color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-knob { border: 3px solid var(--ink); background: #7fb07e; color: var(--ink); box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-sw[aria-checked="true"] .mk-gt-trk { box-shadow: none; background: #f3e2ae; }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-sw[aria-checked="true"] .mk-gt-knob { background: var(--amber); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-guard { border: 3px solid var(--coral-d); background: repeating-linear-gradient(135deg, rgba(214, 90, 74, .18) 0 6px, transparent 6px 12px); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-si { border: 3px solid var(--ink); background: #7fb07e; color: var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-gates[data-paused="1"] .mk-gt-si,
+.mk.mk-land .sc-mock.is-b3 .mk-gates-d[data-paused="1"] .mk-gt-si { background: var(--amber); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-never { background: repeating-linear-gradient(135deg, #efe6d4 0 7px, #ddd0b3 7px 14px); border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-gt-hatch { border: 3px solid var(--ink); background: #fff; color: var(--coral-d); }
+
+/* offer: the SIGN key is this page's primary button */
+.mk.mk-land .sc-mock.is-b3 .mk-of-sign { background: var(--coral-d); color: var(--cream); border: 3px solid var(--ink); border-radius: calc(var(--p) * 14); box-shadow: calc(var(--p) * 4) calc(var(--p) * 5) 0 var(--ink); font-family: var(--f-body); }
+.mk.mk-land .sc-mock.is-b3 .mk-of-sign:hover { transform: translate(calc(var(--p) * 2), calc(var(--p) * 3)); box-shadow: calc(var(--p) * 2) calc(var(--p) * 2) 0 var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-of-sign::after { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-of-sign[aria-pressed="true"] { background: var(--moss); }
+.mk.mk-land .sc-mock.is-b3 .mk-of-letter { border: 3px solid var(--ink); }
+.mk.mk-land .sc-mock.is-b3 .mk-of-st { border: 3px solid var(--ink); background: #fff; box-shadow: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-of-main > .mk-of-side { }
+/* salary: the shift is a soft lime funnel, no hairlines */
+.mk.mk-land .sc-mock.is-b3 .mk-shift::before { display: none; }
+.mk.mk-land .sc-mock.is-b3 .mk-shift::after { clip-path: polygon(14% 0, 66% 0, 84% 100%, 28% 100%); background: linear-gradient(180deg, rgba(220, 231, 208, .2), rgba(220, 231, 208, .95)); }
+.mk.mk-land .scene .look { top: calc(var(--p) * -26); }
+
+/* look closer: the detail level gets the width the copied component was drawn for */
+.mk.mk-land .scene.is-detail .sc-stage:has(.is-b3) { max-width: min(100%, calc(var(--p) * 1240)); }
+.mk.mk-land .sc-mock.is-b3.is-det { --u: calc(var(--p) * 12.4); }
+.mk.mk-land .sc-mock.is-b3.is-det .mk-wave { display: none; }
+.mk.mk-land .scene.is-detail:has(.is-b3) #sceneTitle { font-size: max(34px, calc(var(--p) * 48)); }
+.mk.mk-land .scene.is-detail:has(.is-b3) .sc-copy { gap: calc(var(--p) * 4); }
+.mk.mk-land .scene.is-detail:has(.is-b3) .sc-stage { margin-top: calc(var(--p) * 10); }
+.mk.mk-land .scene.is-detail:has(.is-b3) .sc-pins { gap: calc(var(--p) * 16); }
+.mk.mk-land .scene.is-detail:has(.is-b3) .sc-pins li { padding: calc(var(--p) * 27) calc(var(--p) * 16) calc(var(--p) * 10); font-size: max(16px, calc(var(--p) * 16)); }
+.mk.mk-land .scene.is-detail:has(.is-b3) .sc-main { gap: calc(var(--p) * 14) calc(var(--p) * 24); }
+.mk.mk-land .sc-mock.is-b3.is-det .mock { --g2: calc(var(--u) * .45); --g3: calc(var(--u) * .7); --g4: calc(var(--u) * 1); padding: calc(var(--p) * 18) calc(var(--p) * 18) calc(var(--p) * 10); }
+.mk.mk-land .sc-mock.is-b3 .mk-of-amt small { font-size: max(14px, .45em); }
+@media (max-height: 860px) {
+  .mk.mk-land .sc-mock.is-b3.is-det .mk-turn { padding-block: calc(var(--u) * .25); }
+  .mk.mk-land .sc-mock.is-b3.is-det .mk-turn p { line-height: 1.22; }
+  .mk.mk-land .sc-mock.is-b3.is-det .mk-tx { row-gap: calc(var(--u) * .35); }
+  .mk.mk-land .sc-mock.is-b3.is-det .mk-gt-slip { --sh: calc(var(--u) * 4.9); }
+  .mk.mk-land .scene.is-detail:has(.is-b3) .sc-count { display: none; }
+}

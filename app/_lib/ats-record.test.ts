@@ -112,6 +112,15 @@ test("an ANONYMIZED entry is REFUSED — an erased candidate is never mirrored t
   );
 });
 
+test("an AI agent entry is REFUSED — it is not a person to put in a customer's ATS", () => {
+  assert.throws(
+    () => buildAtsRecord({ entry: entry({ population: "agent" }), nowMs: NOW }),
+    (e: unknown) => e instanceof AtsRecordRefusedError && e.reason === "agent_population",
+    "the same typed refusal as an erased candidate, so the egress door dead-letters it"
+  );
+  assert.equal(buildAtsRecord({ entry: entry({ population: "human" }), nowMs: NOW }).candidate.ref, "e1");
+});
+
 test("an EXPIRED consent masks the name, drops the contact, and SAYS it withheld them", () => {
   const r = buildAtsRecord({
     entry: entry({ consentGivenAt: "2025-01-01T00:00:00.000Z", consentExpiresAt: "2026-01-01T00:00:00.000Z" }),

@@ -1,0 +1,61 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-land; keyframes prefixed "mkl-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* KandiDate · shared base for index.html and about.html: tokens, type scale, buttons, header, menu, footer, dock.
+   Sizing law: --p is one design pixel of a 1600x900 stage, scaled by min(vw, 16:9 vh). A design that is <= 900 tall
+   in design pixels therefore fits one viewport at any size from 1280x800 to 2560x1440. Every measure is
+   calc(var(--p) * N); type has a pixel floor (labels 14px, body 16px) and never goes under it.
+   Round 2: the display scale was cut to the proportions of the calm reference (h1 ~120px, h2 ~80px at 1920). */
+/* landing base: reset, type helpers, sections, reveals. Tokens, buttons, header, footer, dock live in shared/chrome.css. */
+.mk.mk-land { --ease: cubic-bezier(.6, 0, .2, 1); --spring: cubic-bezier(.3, 1.5, .5, 1); }
+.mk.mk-land * { box-sizing: border-box; }
+.mk.mk-land { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: clip; scroll-padding-top: calc(var(--hdr) * .6); }
+.mk.mk-land { margin: 0; background: var(--cream); color: var(--ink); font: 400 var(--t-body)/1.55 var(--f-body); overflow-x: clip; -webkit-font-smoothing: antialiased; }
+.mk.mk-land img,
+.mk.mk-land svg { display: block; max-width: 100%; }
+.mk.mk-land img { height: auto; }
+.mk.mk-land a { color: inherit; }
+.mk.mk-land button { font-family: inherit; }
+.mk.mk-land h1,
+.mk.mk-land h2,
+.mk.mk-land h3,
+.mk.mk-land p,
+.mk.mk-land ul,
+.mk.mk-land ol { margin: 0; }
+.mk.mk-land ul,
+.mk.mk-land ol { padding: 0; list-style: none; }
+.mk.mk-land .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mk.mk-land .skip { position: fixed; left: 12px; top: -80px; z-index: 300; background: var(--ink); color: var(--cream); padding: 12px 18px; border-radius: 10px; font-weight: 700; transition: top .2s; }
+.mk.mk-land .skip:focus { top: 12px; }
+.mk.mk-land :focus-visible { outline: 3px solid var(--cream); outline-offset: 2px; box-shadow: 0 0 0 6px var(--ink); }
+.mk.mk-land .hand { font: 700 max(22px, calc(var(--p) * 25))/1.15 var(--f-hand); color: var(--steel); }
+.mk.mk-land .eyebrow-s { font: 800 max(14px, calc(var(--p) * 14)) var(--f-body); text-transform: uppercase; letter-spacing: .12em; }
+
+/* ---------- sections (shared shape) ---------- */
+.mk.mk-land .sec { position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--p) * 100) 0 calc(var(--p) * 42); background: var(--bg); }
+.mk.mk-land .sec .edge { position: absolute; left: 0; top: calc(var(--p) * -54); width: 100%; height: calc(var(--p) * 56); fill: var(--bg); filter: drop-shadow(0 calc(var(--p) * -8) calc(var(--p) * 10) rgba(23, 32, 42, .25)); pointer-events: none; }
+.mk.mk-land .wrap { position: relative; width: min(calc(var(--p) * 1240), calc(100% - 48px)); margin: 0 auto; }
+.mk.mk-land .wrap.wide { width: min(calc(var(--p) * 1260), calc(100% - 48px)); }
+.mk.mk-land .sec-h h2,
+.mk.mk-land .voice-copy h2,
+.mk.mk-land .start-copy h2,
+.mk.mk-land .ent-l h2 { font-family: var(--f-disp); font-weight: 800; letter-spacing: -.03em; }
+.mk.mk-land .sec-h h2 { font-size: var(--h2); line-height: .98; }
+.mk.mk-land .sec-h h2 span { color: var(--amber); }
+.mk.mk-land .sec-h.split { display: grid; grid-template-columns: 1.1fr .9fr; gap: calc(var(--p) * 56); align-items: end; }
+.mk.mk-land .lead { font: 500 var(--t-lede)/1.55 var(--f-body); }
+
+.mk.mk-land.js .rv { translate: 0 calc(var(--p) * 40); transition: translate .95s var(--ease) calc(var(--i, 0) * 90ms); }
+.mk.mk-land.js .rv.in { translate: 0 0; }
+
+/* ---------- phones and tablets ---------- */
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) {
+  .mk.mk-land .sec { min-height: 0; display: block; padding: 92px 0 84px; }
+  .mk.mk-land .sec .edge { top: -34px; height: 36px; }
+  .mk.mk-land .wrap,
+.mk.mk-land .wrap.wide { width: auto; margin: 0 20px; }
+  .mk.mk-land .sec-h.split { grid-template-columns: 1fr; gap: 18px; }
+  .mk.mk-land .sec-h h2 { font-size: clamp(38px, 11vw, 60px); }
+}
+@media (max-width: 1099px) and (min-width: 700px), (max-aspect-ratio: 5/4) and (min-width: 700px) {
+  .mk.mk-land .wrap,
+.mk.mk-land .wrap.wide { margin: 0 48px; }
+}

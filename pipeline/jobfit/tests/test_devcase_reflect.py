@@ -73,6 +73,11 @@ class TestReflect(unittest.TestCase):
         self.assertNotIn("reveals", by_id["p2"])
         # fairness: the deterministic fallback is NEUTRAL, never a penalty for using tools
         self.assertEqual(t["overRelianceFlags"], [])
+        # ...and "insufficient signal" is UNKNOWN (None), not a graded failure (False):
+        # a False here halved the judgment dimension of every keyless evaluation, which
+        # is exactly what _tri_bool's contract and test_declined_probe_* forbid.
+        for o in t["probeOutcomes"]:
+            self.assertIsNone(o["handledWell"], f"{o['probeId']} graded without signal")
         self.assertGreaterEqual(t["fluency"], 0.5)
         self.assertEqual(t["promptVersion"], TOOLING_SIGNAL_PROMPT_VERSION)
 

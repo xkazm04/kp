@@ -1,5 +1,6 @@
 "use client";
 
+import { companyOf } from "@/app/_lib/jobseeker/companyConfig";
 import type { ExtractionRule, JobseekerSource, RuleDryRunResult } from "@/app/_lib/jobseeker/types";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 
@@ -67,4 +68,16 @@ export async function callJson<T>(url: string, init?: RequestInit): Promise<{ ok
 export function entryForSource(catalog: CatalogEntryView[], source: JobseekerSource): CatalogEntryView | null {
   const h = source.host.toLowerCase();
   return catalog.find((e) => e.host === h) ?? catalog.find((e) => h.endsWith(`.${e.host}`)) ?? null;
+}
+
+/** ONE label for a source, wherever /me names it: the catalog label's short half
+ *  ("EURES", the text before " (") or the full label, plus the company slug for a
+ *  per-company ATS ("Greenhouse · acme"), else the host. Two companies on one vendor
+ *  must never collapse into one name. */
+export function sourceDisplayLabel(catalog: CatalogEntryView[], source: JobseekerSource, { short = false }: { short?: boolean } = {}): string {
+  const entry = entryForSource(catalog, source);
+  if (!entry) return source.host;
+  const base = short ? entry.label.split(" (")[0]! : entry.label;
+  const company = companyOf(source.adapter, source.config);
+  return entry.needsCompanyConfig && company ? `${base} · ${company}` : base;
 }

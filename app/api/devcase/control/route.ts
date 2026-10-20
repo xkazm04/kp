@@ -6,7 +6,7 @@ import { getAutonomy, listAudit, recordAudit, setAutonomy } from "@/app/_lib/dev
 import { startTask } from "@/app/_lib/tasks";
 import { enforceTaskBudget } from "@/app/_lib/task-budget";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability, requireOrgCapability } from "@/app/_lib/auth/current-user";
 
@@ -53,7 +53,7 @@ function reconcile(workspaceId: string, ip: string): { resumed: number; budgetEx
   return { resumed, budgetExhausted: false };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
   // demo cookie could reach them. READ stays at identity presence - the panels a seat may
   // ACT on are decided by the capability gates on POST (and mirrored by /control's page).
@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const ws = await currentWorkspace();
     const lifecycles = listLifecycles(50, ws);
     return NextResponse.json({
       autonomy: getAutonomy(),
@@ -82,9 +81,9 @@ export async function GET(request: NextRequest) {
     // thrown message carries SQLITE_* codes, the db path or child stderr.
     return safeJsonError(error, "api:devcase/control", "DEVCASE_CONTROL_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
   // demo cookie could reach them. Identity presence for now; the capability slice follows.
   const denied = await requireOperator();
@@ -119,11 +118,10 @@ export async function POST(request: NextRequest) {
       // green `resumed`.
       setAutonomy("on");
       recordAudit({ actor: "human", action: "resumed" });
-      const { resumed, budgetExhausted } = reconcile(await currentWorkspace(), ip);
+      const { resumed, budgetExhausted } = reconcile(ws, ip);
       return NextResponse.json({ autonomy: "on", resumed, budgetExhausted });
     }
     if (body.action === "reconcile") {
-      const ws = await currentWorkspace();
       const { resumed, budgetExhausted } = reconcile(ws, ip);
       // Nothing resumed AND the budget refused the first enqueue: the sweep did not
       // happen at all, so this is a refusal, not a `{ resumed: 0 }` that reads like
@@ -137,4 +135,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:devcase/control", "DEVCASE_CONTROL_FAILED");
   }
-}
+});

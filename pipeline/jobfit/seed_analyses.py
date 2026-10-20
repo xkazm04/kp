@@ -42,6 +42,7 @@ from .models import AnalysisMetadata, AnalysisResult, ExtractionComparison
 from .pipeline import (
     _build_deterministic_evidence,
     _explanation_fallback,
+    explanation_fallback_finding,
     _job_fit_from_payload,
     _market_evidence_from_payload,
     _profile_from_payload,
@@ -54,6 +55,7 @@ from .pipeline import (
 from .profile import CandidateProfileV2
 from .seed_candidates import CSAS_NONTECH_ROLES as _CSAS_NONTECH_ROLES
 from .taxonomy import role_band
+from .trust import to_trust_findings
 from .transform import build_match_candidate
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -484,7 +486,10 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
     strengths = _string_list(gp["strengths"])
     gaps = _string_list(gp["gaps"])
     recommendations = _string_list(gp["recommendations"])
-    explanation = str(gp["explanation"]).strip() or _explanation_fallback(candidate, score, salary, strengths, gaps, recommendations)
+    explanation = str(gp["explanation"]).strip()
+    explanation_is_fallback = not explanation
+    if explanation_is_fallback:
+        explanation = _explanation_fallback(candidate, score, salary, strengths, gaps, recommendations)
     extraction_quality = compare_extraction_quality(raw_text, raw_text, len(candidate.skills))
     extraction_comparison = ExtractionComparison(pypdf_text=clean_text(raw_text), gemini_text=raw_text)
     evidence_trace = build_evidence_trace(candidate, score, salary)
@@ -493,6 +498,8 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
         raw_text, jd_text, [r.skill for r in job.requirements], job_fit.matching_skills, job_fit.missing_skills
     )
     sanity_checks = _sanity_checks(raw_text, score, salary)
+    if explanation_is_fallback:
+        sanity_checks = sanity_checks + [explanation_fallback_finding()]
     metadata = AnalysisMetadata(
         analysis_engine="seed-deterministic",
         text_extractor="seed",
@@ -523,6 +530,7 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
         recommendations=recommendations,
         explanation=explanation,
         sanity_checks=sanity_checks,
+        trust_findings=to_trust_findings(sanity_checks) if explanation_is_fallback else None,
         job_fit=job_fit,
         company_context=company_context,
         evidence_trace=evidence_trace,

@@ -168,7 +168,7 @@ function SecretCard({
           </p>
         ) : null}
         <p className="flex gap-2 text-sm text-steel">
-          <KeyRound size={15} aria-hidden className="mt-0.5 shrink-0 text-coral" />
+          <KeyRound size={15} aria-hidden className="mt-0.5 shrink-0 text-coral-ink" />
           <span>{COPY.secretNote}</span>
         </p>
         {card.alreadySet ? <p className="text-sm font-semibold text-ink">{COPY.secretAlreadySet}</p> : null}

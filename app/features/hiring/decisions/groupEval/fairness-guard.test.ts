@@ -87,3 +87,66 @@ test("the panel guards on the alignment check, not on bare non-emptiness", () =>
   assert.match(src, /if \(!isFairnessAligned\(fairness\)\)/, "the render guard must use isFairnessAligned");
   assert.doesNotMatch(src, /!fairness \|\| !fairness\.labels\?\.length/, "the old non-emptiness-only guard must be gone");
 });
+
+// ---- Identity, not display name (challenge-r06 tests-scoring-fairness/B) ----------
+//
+// recruiter.fairness_check now emits `rankingIds` — the robust order as candidate ids,
+// KO-failed ids excluded. Two candidates may share a label (namesakes, or every unnamed
+// profile's 'Candidate' fallback), so when ids are present the guard validates them;
+// a legacy blob without them is judged by the label rule above, unchanged.
+const namesakes = {
+  labels: ["Jan Novák", "Jan Novák"],
+  candidateIds: ["a", "b"],
+  schemes: good.schemes,
+  matrix: good.matrix,
+  own: good.own,
+  mean: good.mean,
+  ranking: ["Jan Novák"],
+  rankingIds: ["a"],
+  koFailed: ["b"],
+  weightNotes: { a: ["skills weighted up on high-trust evidence"] },
+  weightSource: "deterministic",
+} as Fairness;
+
+test("a namesake pool with one KO is aligned and assessed (not 'could not assess')", () => {
+  assert.equal(isFairnessAligned(namesakes), true);
+  assert.equal(assessRobustness(true, namesakes), "assessed");
+});
+
+test("rankingIds must name the matrix's own candidates, once each, never a KO-failed one", () => {
+  assert.equal(isFairnessAligned({ ...namesakes, rankingIds: ["z"] } as Fairness), false, "unknown id");
+  assert.equal(
+    isFairnessAligned({ ...namesakes, rankingIds: ["a", "a"], ranking: ["Jan Novák", "Jan Novák"], koFailed: [] } as Fairness),
+    false,
+    "duplicate id",
+  );
+  assert.equal(isFairnessAligned({ ...namesakes, rankingIds: ["b"] } as Fairness), false, "id also in koFailed");
+  assert.equal(
+    isFairnessAligned({ ...namesakes, rankingIds: ["a"], koFailed: [] } as Fairness),
+    false,
+    "ids + KO must still cover the field",
+  );
+});
+
+test("rankingIds and its label twin must agree in lockstep", () => {
+  const distinct = { ...namesakes, labels: ["Ada", "Bo"], ranking: ["Bo"], rankingIds: ["a"] } as Fairness;
+  assert.equal(isFairnessAligned(distinct), false, "ranking[i] must be the label of rankingIds[i]");
+});
+
+test("a legacy blob with NO rankingIds is judged by the label rule, unchanged", () => {
+  const legacy = { ...good, ranking: ["Ada"], koFailed: ["c2"] };
+  assert.equal(isFairnessAligned(legacy as Fairness), true);
+  assert.equal(isFairnessAligned({ ...good, ranking: ["Ada"], koFailed: [] } as Fairness), false);
+});
+
+test("Fair Rank rows and robust-order pills key on candidate id, never on label", () => {
+  const panel = readFileSync(path.join(dir, "GroupEvalFairnessPanel.tsx"), "utf8");
+  const audit = readFileSync(
+    path.join(dir, "..", "..", "..", "library", "jobs", "JobsRecruiterCandidatesFairness.tsx"),
+    "utf8",
+  );
+  assert.doesNotMatch(audit, /key=\{r\.label\}/, "the audit table must not key rows on the display label");
+  assert.match(audit, /key=\{r\.id\}/, "the audit table keys rows on the candidate id");
+  assert.doesNotMatch(panel, /key=\{l\}/, "robust-order pills must not key on the label");
+  assert.match(panel, /robustOrderEntries\(fairness\)/, "the pills render the id-keyed robust order");
+});

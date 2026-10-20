@@ -14,3 +14,9 @@ test("ScoreBadge normalizes the score for display (round + clamp), not raw", () 
   assert.match(src, /Math\.round\(clampPercent\(/, "the displayed score must be rounded + clamped");
   assert.doesNotMatch(src, />\{score\}</, "the raw {score} must not be rendered verbatim");
 });
+
+test("ScoreBadge gives a number and the unscored mark a localized accessible name", () => {
+  assert.match(src, /useTranslations\("pipeline\.candidate\.scorecard"\)/);
+  assert.match(src, /role="img" aria-label=\{t\("unscored"\)\}/);
+  assert.match(src, /role="img" aria-label=\{t\("scoreAria", \{ score: displayed \}\)\}/);
+});

@@ -1,0 +1,113 @@
+[
+  {
+    "context": "about-product",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Give each About scene the pure data.ts its clock contract names, and test by import",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 4,
+    "write_set": [
+      "app/features/insights/about/scenes/jd/JdGrounding.tsx",
+      "app/features/insights/about/scenes/scoring/ScoringBuckets.tsx",
+      "app/features/insights/about/scenes/screening/ScreeningLadder.tsx",
+      "app/features/insights/about/scenes/archetypes/ArchetypeRouter.tsx",
+      "app/features/insights/about/scenes/assignments/CaseBaseline.tsx",
+      "app/features/insights/about/scenes/gates/GatesQueue.tsx",
+      "app/features/insights/about/chapters.test.ts",
+      "docs/features/about/README.md"
+    ],
+    "new_files": [
+      "app/features/insights/about/scenes/jd/data.ts",
+      "app/features/insights/about/scenes/scoring/data.ts",
+      "app/features/insights/about/scenes/screening/data.ts",
+      "app/features/insights/about/scenes/archetypes/data.ts",
+      "app/features/insights/about/scenes/assignments/data.ts",
+      "app/features/insights/about/scenes/gates/data.ts",
+      "app/features/insights/about/scenes/beats.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "For each of the six scenes, `import { CYCLE, STILL, STATUS_BEATS, sceneAt } from './scenes/<ch>/data.ts'` succeeds under node:test (no .tsx in the import graph) -> all six import; 0 of the six import today because no data.ts exists.",
+      "sceneAt(phase) is total over [0, CYCLE): for every scene and every integer phase in range it returns an object whose keys are the scene's named reveal flags (booleans) and module stages (ModuleStage) -> no key is undefined at any phase.",
+      "Complete-argument beat: for every scene, every reveal flag that is true at ANY phase in [0, CYCLE) is true at STILL, and every module stage at STILL equals its maximum rank over the cycle -> holds for all six.",
+      "First-ness (the useSceneClock.ts:38-39 / README contract): sceneAt(STILL - 1) differs from sceneAt(STILL) for every scene -> today's constants fail this for JdGrounding (STILL 13, last reveal at(12)), ScoringBuckets (11 vs 10), ScreeningLadder (10 vs 9), CaseBaseline (10 vs 9), GatesQueue (10 vs 9); the build re-times STILL to 12/10/9/9/9 and the case passes for all six.",
+      "Every STATUS_BEATS key is an integer in [0, STILL] -> replaces the statusPicker-table regex at chapters.test.ts:209 with an imported array.",
+      "Chapter 4 tally: TARGETS and SIGNALS imported from scenes/archetypes/data.ts equal pipeline/jobfit/archetypes.json rule `scores` maps -> same assertion as today, with sceneTargets/sceneSignals regex parsers (chapters.test.ts:101-127) deleted.",
+      "Chapters 2/3/5/6 constants (THRESHOLD fraction + SIBLING label, KO_REASONS, AIM + OVERLAP, ACTIONS) are imported from their data.ts and pinned to the Python/TS sources exactly as today -> chapters.test.ts no longer calls `.match(` on any scenes/**/*.tsx file (grep count of scene-source extraction regexes goes 11 -> 0; only the citation-path scan still reads scene files as text).",
+      "Rendered behaviour is unchanged except the retimed STILL: each scene's JSX reads its reveal flags from sceneAt(phase) instead of inline at(n) literals -> `grep -c 'at([0-9]' scenes/*/*.tsx` goes from 56 to 0."
+    ],
+    "premise": [
+      "app/features/insights/about/stage/useSceneClock.ts:13-14 states every scene is a clock driving a pure `sceneAt(phase)` in each scene's `data.ts`; stage/stages.ts:16 and stage/motion.ts:55 repeat the claim. `ls app/features/insights/about/scenes/*/` shows only <Scene>.tsx + index.tsx in each of the six folders: no data.ts and no sceneAt exist anywhere (grep for sceneAt finds only comments at useSceneClock.ts:13,47 and clock.ts:52).",
+      "Choreography is inline JSX literals: JdGrounding.tsx:147 at(10), :194 at(11), :197 at(12); ScoringBuckets.tsx:179-181 stageOf shell 10 + at(10); ScreeningLadder.tsx:173-175 at(9); CaseBaseline.tsx:128 at(9); GatesQueue.tsx:169 at(9); ArchetypeRouter.tsx:200-205 at(9)/at(10).",
+      "STILL values: JdGrounding.tsx:35 STILL=13, ScoringBuckets.tsx:42 STILL=11, ScreeningLadder.tsx:39 STILL=10, ArchetypeRouter.tsx:37 STILL=10, CaseBaseline.tsx:41 STILL=10, GatesQueue.tsx:37 STILL=10 - five of six sit one beat after their last reveal, contradicting useSceneClock.ts:38-39 ('It must be the first tick at which every module has reached its final stage') and docs/features/about/README.md:87-88.",
+      "The only stillTick guard (chapters.test.ts:179-219) regex-parses CYCLE/STILL (:194-195) and the statusPicker table (:209) out of TSX and checks last status beat <= STILL (:215); it cannot see reveal beats at all, so a scene that adds an at(12) after STILL=10 passes green.",
+      "chapters.test.ts extracts scene constants by regex over .tsx source at 11 sites (:104 TARGETS, :113 SIGNALS, :194 CYCLE, :195 STILL, :209 statusPicker, :296 _SIBLING_MATCH, :299 THRESHOLD_X, :326 KO_REASONS, :355 AIM, :361 OVERLAP, :379 ACTIONS), each with an 'update this test with its new shape' failure message (e.g. :105, :114, :327, :380) - any JSX reformat of a scene breaks the deck's honesty suite.",
+      "The reason given for regex is that node:test cannot load TSX (scenes/status.ts:1-9, scenes/scene-status.test.ts:1); a .ts data module removes that constraint the same way scenes/status.ts already did for statusPicker."
+    ],
+    "rollback": "Pure refactor plus test rewrite inside one context: the commit series reverts cleanly because nothing outside app/features/insights/about imports the scene files (AboutTab.tsx:42-57 loads them only through the index.tsx barrels, which keep their exports) and no catalog key, route or shared surface changes.",
+    "gate": "architecture",
+    "runner_up": "One deck-wide visibility/pause authority (a single visibilitychange subscription shared by all six clocks) instead of six per-scene listeners in useDocumentVisible (stage/useSceneClock.ts:110-122) - smaller payoff, and slot B's transport store is the better home for it.",
+    "technique": "pin-the-call-not-the-name",
+    "body": "## Summary\nThe About deck's clock contract says every scene is a deterministic clock driving a pure `sceneAt(phase)` in a per-scene `data.ts`. No such file exists: the choreography lives as ~56 inline `at(n)` literals in six TSX files, and the honesty suite (`chapters.test.ts`) reaches the constants it pins by running 11 regexes over TSX source. Move each scene's CYCLE, STILL, status beats, row tables and a `sceneAt(phase)` reveal map into `scenes/<ch>/data.ts`, make the scenes render from it, and make the tests import it.\n\n## Description\nThis context is the reason every later About change is hard. A JSX-only edit (reflowing a const, renaming a row table) fails `chapters.test.ts` with an 'update this test with its new shape' message, because the test has to read the constant from source text instead of importing it. Worse, the one invariant the deck states most loudly, that `stillTick` is the *first* fully drawn beat, is checked only against the status table: the test cannot see reveal beats, and five of six scenes already sit one beat late (JdGrounding 13 vs last reveal 12; Scoring 11 vs 10; Screening, CaseBaseline and Gates 10 vs 9). `scenes/status.ts` already shows the fix: a pure .ts module node:test can load. Applying it per scene turns the deck's contract into something a test can execute (technique `pin-the-call-not-the-name`: a structural pin is an interim for a site the lane cannot execute. Here the site can be made executable, so the pin should go).\n\n## Flow\n1. Per scene, create `data.ts`: CYCLE, STILL, STATUS_BEATS (the beat keys the statusPicker uses), the data rows the tests pin (TARGETS/SIGNALS, KO_REASONS, AIM/OVERLAP, ACTIONS, threshold fraction), and `sceneAt(phase)` that returns named reveal flags and module stages built from `stageOf`.\n2. Rewrite each scene to call `sceneAt(phase)` once and read flags by name. No `at(n)` literal stays in JSX. Geometry can stay in the TSX.\n3. Add `scenes/beats.test.ts` for the executable invariants: sceneAt is total, STILL is the complete-argument beat, STILL is the FIRST such beat, and status beats are at most STILL. Retime STILL where it fails.\n4. Rewrite `chapters.test.ts` couplings to import from data.ts and delete the 11 scene-source regexes. The citation-path scan still reads files as text, because that is its job.\n5. Update the Clock contract paragraph in docs/features/about/README.md, which currently says the test parses CYCLE/STILL from TSX.\n\n## Expected impact\nThe deck's honesty suite stops breaking on cosmetic JSX edits, and its headline reduced-motion invariant becomes enforced instead of asserted. Reduced-motion readers of five chapters pin the true final frame one beat earlier (same picture, but the contract is now true). Future About work, including slot B's transport and any new chapter, builds on an importable beat table instead of a regex. The comments in useSceneClock.ts, stages.ts and motion.ts that cite data.ts become true.\n\n## Evaluation\nClaim: the scenes' choreography and pinned constants are importable pure data, and the stillTick contract is executed rather than regex-approximated.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (`npm run test:unit` over scenes/beats.test.ts and chapters.test.ts), plus `npx tsc --noEmit` and `npm run lint`.\nResult: pending build.\nGate: architecture",
+    "evidence": "grep -rn 'data.ts|sceneAt' app/features/insights/about (non-test): stage/clock.ts:52, stage/motion.ts:55, stage/stages.ts:16, stage/useSceneClock.ts:13,14,47 - comments only. ls scenes/*/ -> {ArchetypeRouter,index}.tsx, {CaseBaseline,index}.tsx, {GatesQueue,index}.tsx, {JdGrounding,index}.tsx, {ScoringBuckets,index}.tsx, {ScreeningLadder,index}.tsx. STILL: jd 13 / scoring 11 / screening 10 / archetypes 10 / assignments 10 / gates 10. Highest reveal beat: jd at(12) JdGrounding.tsx:197; scoring at(10) ScoringBuckets.tsx:181; screening at(9) ScreeningLadder.tsx:175; archetypes at(10) ArchetypeRouter.tsx:205; assignments at(9) CaseBaseline.tsx:128; gates at(9) GatesQueue.tsx:169. chapters.test.ts scene-TSX extraction regexes at lines 104,113,194,195,209,296,299,326,355,361,379 (11). useSceneClock.ts:38-39: 'It must be the first tick at which every module has reached its final stage.' docs/features/about/README.md:89-90: 'chapters.test.ts parses CYCLE / STILL from all six scenes'."
+  },
+  {
+    "context": "about-product",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A scene transport for the About deck: stop-all, step and scrub beats",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/insights/about/stage/useSceneClock.ts",
+      "app/features/insights/about/stage/clock.ts",
+      "app/features/insights/about/stage/clock.test.ts",
+      "app/features/insights/about/scenes/shared.tsx",
+      "app/features/insights/about/scenes/scene-status.test.ts",
+      "app/features/insights/about/AboutTab.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/about/README.md"
+    ],
+    "new_files": [
+      "app/features/insights/about/stage/transport.ts",
+      "app/features/insights/about/stage/transport.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "transport.ts runs(state, {inView, reduced, visible}): with user state 'auto' and all three conditions favourable -> true; with user state 'stopped' and the same conditions -> false (a user stop is a veto in the merged signal, not a fourth local boolean).",
+      "Scroll away and back does not re-arm a stop: from {user:'stopped', tick:7}, onInViewChange(false) then onInViewChange(true) -> user still 'stopped', tick still 7 (no rewind). From {user:'auto', tick:7}, the same sequence -> tick 0 (today's rewind-on-entry contract kept for auto only).",
+      "Taking control is a stop: step(+1) from {user:'auto', tick:13} on a cycle of 14 -> {user:'stopped', tick:0 when read via phaseOf}; step(-1) from tick 0 -> phase CYCLE-1; seek(5) -> {user:'stopped', phase 5}; seek(99) on cycle 14 -> phase 13 (clamped, never wraps to an arbitrary beat).",
+      "Resume is a different labelled act and continues from the held beat: play() from {user:'stopped', tick:5} -> {user:'auto'} with phase 5 on the next read (no rewind to 0).",
+      "Reduced motion: with no user seek, phase is stillTick. After seek(3) under reduced motion, phase is 3 (a reduced-motion reader may step beats deliberately). runs(...) stays false under reduced motion in every user state.",
+      "Deck-wide stop is one-directional: stopAll() puts every registered chapter into 'stopped'; calling stopAll() again changes nothing (idempotent, never a toggle); only playAll()/play() restarts.",
+      "Per-viewer memory: readStoredDeckStop('1') -> true, readStoredDeckStop(null | 'garbage') -> false, and a storage accessor that throws -> false (the page renders playing and never crashes).",
+      "SceneStatus renders the transport row from the chapter's store and keeps the persistent aria-live outer p (scene-status.test.ts updated): source pin asserts a button labelled via t('about.transport.*') and that aria-live stays on the always-mounted outer p."
+    ],
+    "premise": [
+      "Every scene loops unprompted for well over five seconds with no visible stop: CYCLE is 14-15 (JdGrounding.tsx:34, ScoringBuckets.tsx:41, ScreeningLadder.tsx:38, ArchetypeRouter.tsx:36, CaseBaseline.tsx:40, GatesQueue.tsx:36) at TICK_MS = 900 (stage/motion.ts:59), i.e. 12.6-13.5 s loops that restart forever while in view. AboutTab.tsx:107-126 offers only the /diagrams link and the tour button; no file under app/features/insights/about renders a pause control (grep -i 'pause' hits only comments and tests).",
+      "The loop's only run inputs are machine conditions: stage/useSceneClock.ts:80 `const running = shouldTick({ inView, reduced, visible })`, and stage/clock.ts:36-38 `return inView && !reduced && visible`. No user-owned stop exists anywhere in the deciders.",
+      "Re-entry rewinds unconditionally: stage/useSceneClock.ts:76 `if (inView && !reduced) setTick(0)`. A naive pause flag would be discarded by scrolling away and back, so the stop has to be stored separately from the transient pause.",
+      "The only per-viewer motion control is the OS preference: stage/useSceneClock.ts:66 `useReducedMotion()`. A reader who wants to study beat 9 of chapter 4 (the 0.4-below-0.55 fallback rule) has to wait out a 12.6 s loop, and a screen-reader user hears the status line change every beat with no way to hold it (scenes/shared.tsx:41-55 is a polite live region).",
+      "SceneStatus already receives the phase it would need and ignores it: scenes/shared.tsx:41 `SceneStatus({ text, reduced }: { phase: number; ... })`. All six scenes render it (scene-status.test.ts:30-42), so the transport can live there without editing any scene file.",
+      "Adopts an open item: `.claude/scan-history/leftover-develop-2026-09-17.jsonl:625` 'Add pause and replay controls to About scene clocks' (about-product, M, impact 8, not built, absent from both low-risk-drain-2026-09-22 result files). This card extends it from a pause toggle to the governed lifecycle (user stop vs transient pause, step/scrub as stop, deck-wide stop, per-viewer memory)."
+    ],
+    "rollback": "Additive inside one context plus one key set in four catalogs: reverting the series restores the three-term shouldTick and the untouched SceneStatus. The catalog keys are new (no rename), so reverting them cannot orphan a t() call elsewhere, and localStorage holds only a per-viewer convenience flag that the old code never reads.",
+    "gate": "none",
+    "runner_up": "Show it on your own data: when the workspace has screened a job, replace chapter 3's illustrative 120/74/8 (ScreeningLadder.tsx:56-58, flagged by about.screening.figuresNote) with that job's real ko_filter counts. Higher wow, but it needs a new read route plus tenancy and auth posture, which breaks the context's keyless no-API property.",
+    "technique": "unprompted-motion-lifecycle",
+    "body": "## Summary\nSix self-playing diagrams loop 12.6-13.5 s each, forever, while they are on screen. The reader has no way to stop them, hold a beat or step through one. Add a governed scene transport: a deck-wide Stop/Play, and per scene a step back/forward and a beat scrubber. The lifecycle lives in a pure `stage/transport.ts` that keeps the user's stop apart from the machine's transient pauses.\n\n## Description\nThe About tab exists to make a sceptical reader believe a mechanism, and the mechanisms turn on single beats: the Kafka row that finds no source, the 0.4 fallback sitting below 0.55, the rejection that parks at the barrier. Today that beat is on screen for 900 ms and then the loop moves on. The loop also breaks the published 5-second rule for motion that starts on its own and runs beside other content, because it has no visible, operable stop. The fix is more than a pause flag. `useSceneClock` rewinds on re-entry (`:76`), so a naive flag is erased by a scroll. Following `unprompted-motion-lifecycle` and `loop-pause-governance`: the user stop is a named veto in one merged run signal. Scrolling back resumes only what was transiently paused. Stepping or scrubbing counts as taking control, so it stops autoplay. Restart is a separate labelled act, never a key toggle. The deck-wide stop is remembered per viewer in guarded localStorage.\n\n## Flow\n1. `stage/transport.ts` (pure): the user state `auto` or `stopped` plus a held tick; the reducers play, stop, step(+1/-1), seek(n), stopAll and playAll; the merged `runs()` predicate; `readStoredDeckStop`. `clock.ts` gains the user term in shouldTick.\n2. `useSceneClock` reads a per-chapter transport store that `Chapter` in AboutTab provides (external store, so the frame does not re-render per tick). A re-entry rewind only happens in `auto`.\n3. `SceneStatus` (shared.tsx) renders a compact transport row beside the status line: step back, play/stop, step forward and a beat position. The live region stays the always-mounted outer p.\n4. AboutTab header gets 'Stop all animations' / 'Play animations' next to the tour link, plus one catalog key set in en/cs/de/fr.\n5. docs/features/about/README.md: the Clock contract gains the transport lifecycle.\n\n## Expected impact\nA reader can freeze any chapter on the beat that makes its argument and walk it one step at a time, so the deck changes from a screensaver into an instrument. The deck meets the pause/stop/hide obligation for unprompted motion. Screen-reader users can hold the status line instead of chasing it. Slot A's `sceneAt` table, if it lands, gives the scrubber named beats for free, but this card does not depend on it.\n\n## Evaluation\nClaim: the About loops obey one governed lifecycle (auto, stopped by the user or by taking control, resumed only by a labelled act), and the reader can stop, step and scrub every scene.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over stage/transport.test.ts, clock.test.ts and scene-status.test.ts, plus i18n:check, tsc and lint. Then a visual pass of the tab in both themes.\nResult: pending build.\nGate: none",
+    "evidence": "stage/clock.ts:36-38: `export function shouldTick({ inView, reduced, visible }: ClockConditions): boolean { return inView && !reduced && visible; }`. stage/useSceneClock.ts:76 `if (inView && !reduced) setTick(0);`, :80 `const running = shouldTick({ inView, reduced, visible });`, :84 `setInterval(() => setTick((t) => t + 1), tickMs)`. CYCLE 15/14/14/14/15/15 x TICK_MS 900 (motion.ts:59) = 13.5/12.6/12.6/12.6/13.5/13.5 s. grep -rni pause app/features/insights/about -> comments in status.ts:21, clock.ts:63, motion.ts:4 region, useSceneClock.ts:26,35, and clock.test.ts:45,47 only; no control. scenes/shared.tsx:41 `export function SceneStatus({ text, reduced }: { phase: number; text: string; reduced: boolean })` - phase received, unused. leftover-develop-2026-09-17.jsonl:625 {title:'Add pause and replay controls to About scene clocks', context:'about-product', size:'M', risk:2, impact:8}. No 'pause' title in low-risk-drain-2026-09-22*-results.jsonl (about-matching titles there are /about public-page items: lang switch, copy-link, useStillMotion, JSON-LD, and 'Preview About as the six chapter claims', which is the palette)."
+  }
+]

@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
 from pipeline.jobfit import _cli, winnability_cli
-from pipeline.jobfit.jobs import Job, JobRequirement
+from pipeline.jobfit.jobs import Job, JobRequirement, normalize_job
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
+from pipeline.jobfit.tests._helpers import CliRun, run_cli
 from pipeline.jobfit.winnability import assess_winnability
 
 
@@ -44,6 +40,19 @@ class WinnabilityTest(unittest.TestCase):
         self.assertEqual(out["eligible"], 1)  # German gate KO's the two English-only
         gate = next(g for g in out["looseGates"] if g["kind"] == "language" and g["value"] == "German")
         self.assertEqual(gate["eligibleDelta"], 2)  # dropping German restores both
+
+    def test_education_floor_reports_only_the_candidates_it_excludes(self) -> None:
+        pool = [
+            _cand("degree", ["python"], education_level="bachelor"),
+            _cand("diploma-1", ["python"], education_level="high_school"),
+            _cand("diploma-2", ["python"], education_level="high_school"),
+        ]
+        job = _job(min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 1)
+        self.assertEqual(out["looseGates"], [
+            {"kind": "education", "value": "bachelor", "eligibleDelta": 2},
+        ])
 
     def test_demoting_an_unmet_must_have_raises_the_qualified_count(self) -> None:
         # A senior role that hard-requires Kafka, against a medior backend pool.
@@ -150,6 +159,127 @@ class WinnabilityTest(unittest.TestCase):
         out = assess_winnability(pool, job)
         self.assertEqual([g for g in out["looseGates"] if g["value"] == "English"], [])
 
+    def test_two_gates_that_block_the_same_people_are_reported_jointly(self) -> None:
+        # A single-gate delta counts only the people that gate blocks ALONE. Here every
+        # excluded candidate fails BOTH the German and the bachelor gate: each delta is 0,
+        # looseGates is empty, and the pool the two gates jointly empty would read as
+        # "no lever". The joint pass names it without inventing a culprit.
+        pool = [_cand(f"b{i}", ["python"], languages=["English"], education_level="high_school") for i in range(5)]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 0)
+        self.assertEqual(out["looseGates"], [])
+        self.assertEqual(out["jointLoosen"]["eligibleDelta"], 5)
+        self.assertEqual(out["jointLoosen"]["soleBlockerSum"], 0)
+        self.assertEqual(
+            out["jointLoosen"]["gates"],
+            [{"kind": "language", "value": "German"}, {"kind": "education", "value": "bachelor"}],
+        )
+
+    def test_the_sum_of_gate_deltas_understates_the_joint_removal(self) -> None:
+        # One candidate fails only language, one only education, three fail both. The two
+        # deltas are 1 and 1 (sole blockers); removing both gates restores five. The sum
+        # of independent deltas is never MORE than the joint effect for hard gates.
+        pool = [
+            _cand("ok", ["python"], languages=["German"], education_level="bachelor"),
+            _cand("L", ["python"], languages=["English"], education_level="bachelor"),
+            _cand("E", ["python"], languages=["German"], education_level="high_school"),
+            *[_cand(f"LE{i}", ["python"], languages=["English"], education_level="high_school") for i in range(3)],
+        ]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(sorted(g["eligibleDelta"] for g in out["looseGates"]), [1, 1])
+        self.assertEqual(out["jointLoosen"]["eligibleDelta"], 5)
+        self.assertEqual(out["jointLoosen"]["soleBlockerSum"], 2)
+
+    def test_no_joint_row_when_the_gates_block_disjoint_people(self) -> None:
+        # Nobody fails both gates, so the deltas already add up to the joint effect and a
+        # joint row would only repeat them.
+        pool = [
+            _cand("ok", ["python"], languages=["German"], education_level="bachelor"),
+            _cand("L", ["python"], languages=["English"], education_level="bachelor"),
+            _cand("E", ["python"], languages=["German"], education_level="high_school"),
+        ]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertNotIn("jointLoosen", out)
+
+    def test_no_single_demotion_reaches_the_bar_but_a_combination_does(self) -> None:
+        # Candidates with python + terraform against five must-haves: demoting kafka OR
+        # kubernetes alone lifts them from 49 to 52 - under the 55 bar - so every
+        # qualifiedDelta is 0 and "the pool is not close" would be the verdict. Demoting
+        # both reaches 57. The joint pass reports that a combination exists.
+        names = ["python", "kafka", "kubernetes", "terraform", "docker"]
+        reqs = [JobRequirement(skill=n, kind="must_have") for n in names]
+        pool = [_cand(f"c{i}", ["python", "terraform"]) for i in range(3)]
+        job = _job(requirements=reqs)
+
+        def demoted(skills: list[str]) -> Job:
+            return job.model_copy(update={"requirements": [r.model_copy(update={"kind": "nice_to_have"}) if r.skill in skills else r for r in reqs]})
+
+        # Fixture precondition, read from the real scorer so a re-weighting fails HERE.
+        self.assertLess(score_job(pool[0], job).total, FIT_PROMISING_THRESHOLD)
+        self.assertGreaterEqual(score_job(pool[0], demoted(["kafka", "kubernetes"])).total, FIT_PROMISING_THRESHOLD)
+        for single in ("kafka", "kubernetes", "docker"):
+            self.assertLess(score_job(pool[0], demoted([single])).total, FIT_PROMISING_THRESHOLD)
+
+        out = assess_winnability(pool, job)
+        self.assertTrue(all(m["qualifiedDelta"] == 0 for m in out["looseMustHaves"]))
+        best = out["jointDemote"][0]
+        self.assertEqual(sorted(best["skills"]), ["kafka", "kubernetes"])
+        self.assertEqual(best["qualifiedDelta"], 3)
+
+    def test_no_pair_search_when_a_single_demotion_already_moves_someone(self) -> None:
+        # One must-have nobody has: the single lever already answers the question, so
+        # the pair fallback stays out of the payload.
+        pool = [_cand(f"c{i}", ["python"]) for i in range(3)]
+        job = _job(requirements=[JobRequirement(skill="python", kind="must_have"), JobRequirement(skill="kafka", kind="must_have")])
+        out = assess_winnability(pool, job)
+        self.assertGreater(out["looseMustHaves"][0]["qualifiedDelta"], 0)
+        self.assertNotIn("jointDemote", out)
+
+    def test_an_ad_that_states_no_pay_gets_no_verdict_not_a_clean_one(self) -> None:
+        # normalize_job stamps the market-anchor band on an ad with no pay and records
+        # "salary_band" in defaulted_fields. That band IS the market band, so top-vs-floor
+        # against itself reads "not below market" (+57% over the floor): a clean bill of
+        # health for a role that named no pay. It must be silent, and must not present
+        # the anchor as the JD's band.
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "requirements": [{"skill": "python", "kind": "must_have"}]})
+        self.assertIn("salary_band", job.defaulted_fields)
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertIsNone(salary["belowMarket"])
+        self.assertIsNone(salary["jobBand"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+        self.assertEqual(salary["assumedInputs"], ["salary_band"])
+
+    def test_a_stated_range_is_not_judged_against_an_assumed_level(self) -> None:
+        # Pay stated, seniority not: DEFAULT_POLICY stamps "medior", so the range would be
+        # measured against the medior band of a level the ad never claimed.
+        job = normalize_job({"title": "Backend engineer", "salary_min": 40000, "salary_max": 50000, "requirements": [{"skill": "python", "kind": "must_have"}]})
+        self.assertIn("seniority", job.defaulted_fields)
+        self.assertNotIn("salary_band", job.defaulted_fields)
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertIsNone(salary["belowMarket"])
+        self.assertEqual(salary["jobBand"], [40000, 50000])
+        self.assertEqual(salary["assumedInputs"], ["seniority"])
+
+    def test_a_range_stated_in_another_currency_is_silenced_not_read_as_the_markets(self) -> None:
+        # The posting's own currency wins over the market it was authored for: a EUR
+        # range (written with the symbol here) is not comparable with the CZK benchmark,
+        # and used to be read as CZK and flagged 95% under it.
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "salary_min": 3000, "salary_max": 4000, "salary_currency": "€", "requirements": [{"skill": "python", "kind": "must_have"}]})
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertEqual(salary["jobCurrency"], "EUR")
+        self.assertFalse(salary["currencyComparable"])
+        self.assertIsNone(salary["belowMarket"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+
+    def test_a_fully_stated_ad_still_gets_its_verdict(self) -> None:
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "salary_min": 20000, "salary_max": 30000, "requirements": [{"skill": "python", "kind": "must_have"}]})
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertTrue(salary["belowMarket"])
+        self.assertEqual(salary["assumedInputs"], [])
+
 
 def _nurse(label: str, skills: list[str], **kw) -> MatchCandidate:
     kw.setdefault("provenance_default", "professional")
@@ -247,17 +377,12 @@ class WinnabilityCliSkippedTest(unittest.TestCase):
     honest and the UI can flag "N not assessed"."""
 
     def _run(self, payload: dict, job: dict) -> tuple[int, dict]:
-        with tempfile.TemporaryDirectory() as d:
-            inp = Path(d) / "in.json"
-            jobp = Path(d) / "job.json"
-            inp.write_text(json.dumps(payload), encoding="utf-8")
-            jobp.write_text(json.dumps(job), encoding="utf-8")
-            buf = io.StringIO()
-            # Redirect stdout to a StringIO (no .reconfigure) so main() skips its
-            # stdio reconfigure guard cleanly and we capture the JSON payload.
-            with contextlib.redirect_stdout(buf):
-                rc = winnability_cli.main(["--input-json", str(inp), "--job-json", str(jobp)])
-            return rc, json.loads(buf.getvalue().strip().splitlines()[-1])
+        run = run_cli(
+            winnability_cli.main,
+            ["--input-json", "@in.json", "--job-json", "@job.json"],
+            files={"in.json": payload, "job.json": job},
+        )
+        return run.code, run.payload
 
     def test_malformed_candidate_is_recorded_not_silently_dropped(self) -> None:
         job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}
@@ -303,74 +428,58 @@ class WinnabilityCliErrorEnvelopeTest(unittest.TestCase):
     ``_cli.ERROR_CODES``.
     """
 
-    def _run(self, argv: list[str]) -> tuple[int, dict]:
-        err = io.StringIO()
-        # BOTH streams replaced (neither has .reconfigure): the guarded configure_stdio
-        # must skip each on its own — the open-coded pair this CLI used to carry
-        # reconfigured stderr unconditionally and died here with an AttributeError.
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
-            rc = winnability_cli.main(argv)
-        lines = [ln for ln in err.getvalue().splitlines() if ln.strip()]
-        return rc, json.loads(lines[-1])
+    # BOTH streams are replaced by run_cli (neither has .reconfigure): the guarded
+    # configure_stdio must skip each on its own — the open-coded pair this CLI used to
+    # carry reconfigured stderr unconditionally and died here with an AttributeError.
+    # run_cli also checks every envelope code against _cli.ERROR_CODES at read time.
+    EMPTY_CORPUS = {"jobs.json": "[]"}
 
-    @contextlib.contextmanager
-    def _input(self, payload: dict | str):
-        with tempfile.TemporaryDirectory() as d:
-            inp = Path(d) / "in.json"
-            inp.write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
-            yield str(inp)
+    def _run(self, input_payload: dict | str, *extra: str, files: dict | None = None) -> CliRun:
+        return run_cli(
+            winnability_cli.main,
+            ["--input-json", "@in.json", *extra],
+            files={"in.json": input_payload, **(files or {})},
+        )
 
     def test_a_job_the_corpus_does_not_carry_is_a_404_not_an_engine_failure(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            jobs = Path(d) / "jobs.json"
-            jobs.write_text("[]", encoding="utf-8")
-            with self._input({"jobId": "no-such-job", "candidates": []}) as inp:
-                rc, env = self._run(["--input-json", inp, "--jobs", str(jobs)])
+        run = self._run({"jobId": "no-such-job", "candidates": []}, "--jobs", "@jobs.json", files=self.EMPTY_CORPUS)
+        env = run.envelope
         self.assertEqual((env["status"], env["code"]), (404, "not_found"))
-        self.assertIn("no-such-job", env["error"])
-        self.assertEqual(rc, 1)
+        self.assertIn("no-such-job", env["message"])
+        self.assertEqual(run.code, 1)
 
     def test_a_malformed_input_payload_is_a_400_the_caller_can_fix(self) -> None:
-        with self._input("{not json at all") as inp:
-            rc, env = self._run(["--input-json", inp])
-        self.assertEqual((env["status"], env["code"]), (400, "invalid_input"))
-        self.assertEqual(rc, 2, "a client mistake exits 2, matching the rest of the family")
+        run = self._run("{not json at all")
+        self.assertEqual((run.envelope["status"], run.envelope["code"]), (400, "invalid_input"))
+        self.assertEqual(run.code, 2, "a client mistake exits 2, matching the rest of the family")
 
     def test_a_job_record_that_fails_validation_is_a_400(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            jobp = Path(d) / "job.json"
-            # `title` must be a string — a partially-ingested draft is the caller's
-            # payload, not an engine fault.
-            jobp.write_text(json.dumps({"id": "j1", "title": {"oops": True}}), encoding="utf-8")
-            with self._input({"jobId": "j1", "candidates": []}) as inp:
-                rc, env = self._run(["--input-json", inp, "--job-json", str(jobp)])
-        self.assertEqual((env["status"], env["code"]), (400, "invalid_input"))
-        self.assertEqual(rc, 2)
+        # `title` must be a string — a partially-ingested draft is the caller's
+        # payload, not an engine fault.
+        run = self._run(
+            {"jobId": "j1", "candidates": []},
+            "--job-json",
+            "@job.json",
+            files={"job.json": {"id": "j1", "title": {"oops": True}}},
+        )
+        self.assertEqual((run.envelope["status"], run.envelope["code"]), (400, "invalid_input"))
+        self.assertEqual(run.code, 2)
 
     def test_every_code_it_emits_is_in_the_shared_vocabulary(self) -> None:
         # Non-vacuity: a word outside ERROR_CODES resolves to no errors.<CODE> catalog
-        # key, so the reader would get the server's raw English in every locale.
-        with self._input("{nope") as inp:
-            _rc, bad_json = self._run(["--input-json", inp])
-        with tempfile.TemporaryDirectory() as d:
-            jobs = Path(d) / "jobs.json"
-            jobs.write_text("[]", encoding="utf-8")
-            with self._input({"jobId": "ghost", "candidates": []}) as inp:
-                _rc2, missing = self._run(["--input-json", inp, "--jobs", str(jobs)])
-        for env in (bad_json, missing):
-            self.assertIn(env["code"], _cli.ERROR_CODES)
+        # key, so the reader would get the server's raw English in every locale. run_cli
+        # already refuses such a code at read time; this pins it on the EMITTED envelope
+        # too, so a code the bridge merely derived cannot stand in for one the CLI named.
+        bad_json = self._run("{nope")
+        missing = self._run({"jobId": "ghost", "candidates": []}, "--jobs", "@jobs.json", files=self.EMPTY_CORPUS)
+        for run in (bad_json, missing):
+            self.assertIn(run.envelope["code"], _cli.ERROR_CODES)
+            self.assertIn(run.raw_envelope["code"], _cli.ERROR_CODES)
 
     def test_the_envelope_is_one_line_the_bridge_can_parse(self) -> None:
         # parseStderrError reads the LAST line of stderr only.
-        with tempfile.TemporaryDirectory() as d:
-            jobs = Path(d) / "jobs.json"
-            jobs.write_text("[]", encoding="utf-8")
-            err = io.StringIO()
-            with self._input({"jobId": "ghost", "candidates": []}) as inp:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
-                    winnability_cli.main(["--input-json", inp, "--jobs", str(jobs)])
-        self.assertEqual(len([ln for ln in err.getvalue().splitlines() if ln.strip()]), 1)
-
+        run = self._run({"jobId": "ghost", "candidates": []}, "--jobs", "@jobs.json", files=self.EMPTY_CORPUS)
+        self.assertEqual(len([ln for ln in run.stderr.splitlines() if ln.strip()]), 1)
 
 if __name__ == "__main__":
     unittest.main()

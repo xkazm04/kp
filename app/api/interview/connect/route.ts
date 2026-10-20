@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   LIVE_INTERVIEW_RECENCY_MIN,
   createInterviewSession,
+  getInterviewSessionById,
   getInterviewSessionByToken,
   isInterviewLinkExpired,
   isInterviewSessionLive,
+  isInterviewSessionStillLive,
+  markInterviewRecordingConsent,
   markInterviewStarted,
   revokeInterviewSession,
+  setInterviewAgenda,
   setInterviewSessionProvider,
 } from "@/app/_lib/db/interviews";
 import { getEntryWorkspace, getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
@@ -19,11 +23,30 @@ import {
   getVoiceAdapter,
   isSelfHostedProvider,
   missingVoiceEnv,
+  providerTraits,
   voiceAvailability,
   type VoiceProviderId,
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
-import { buildCandidateSafeBrief, interviewAsrKeywords } from "@/app/_lib/interview-run";
+import {
+  buildCandidateSafeBrief,
+  buildGroundedInterview,
+  buildRehearsalBriefs,
+  interviewAsrKeywords,
+  jobAsrKeywords,
+} from "@/app/_lib/interview-run";
+import {
+  buildInterviewKit,
+  buildKitOnlyInterviewKit,
+  reconcileKitWithStoredAgenda,
+  toCandidateAgendaView,
+  type InterviewKit,
+} from "@/app/_lib/interview-agenda";
+import { isCandidateInterview, isKitRehearsal } from "@/app/_lib/interview-rehearsal";
+import { buildResumeContext } from "@/app/_lib/voice/resume";
+import { resumeAddendum } from "@/app/_lib/voice/director-brief";
+import { DIRECTOR_TOOL_DEFS, type ResumeContext } from "@/app/_lib/voice/director-types";
+import { isInterviewRecordingOffered } from "@/app/_lib/interview-recording";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -38,6 +61,18 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // canonical strings now live in REFUSAL_ERRORS beside every other refusal in the
 // product, and the reader resolves `errors.<CODE>` in their own language.
 
+
+/** The session left `in_progress` while this request was working on it (the
+ *  transition table, interview-session-status.ts: only a connect moves a row INTO
+ *  live, so leaving it means a recruiter revoke or a finalize from another tab).
+ *  Whatever this request minted stays on the server. The code names what happened:
+ *  a finished screen is the single-use refusal, anything else is an inactive link. */
+function refuseLeftLive(sessionId: string) {
+  const stored = getInterviewSessionById(sessionId)?.status;
+  return stored === "completed"
+    ? jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409)
+    : jsonRefusal("INTERVIEW_LINK_INACTIVE", 409);
+}
 
 // GET → which providers are configured (used by the UI to enable/disable the switcher).
 export async function GET() {
@@ -210,11 +245,126 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("INTERVIEW_CONSENT_REQUIRED", 403);
     }
 
-    // Atomic backstop for the check above: if a /complete landed between the
-    // status read and here, the guarded UPDATE refuses to reopen the session —
-    // and we must not mint credentials for it.
+    // Atomic backstop for the checks above: if a /complete OR a revoke landed
+    // between the status read and here, the guarded UPDATE (its from-set comes from
+    // the transition table) refuses to reopen the session — and we must not mint
+    // credentials for it.
     if (!markInterviewStarted(session.id, body.consent === true)) {
-      return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409);
+      return refuseLeftLive(session.id);
+    }
+
+    // The row AFTER the start: markInterviewStarted counted this connect, so its
+    // `attempts` is the attempt this connect opens (1 on the first call, 2 after a
+    // drop) — the number the browser stamps on every director POST.
+    const started = getInterviewSessionById(session.id) ?? session;
+    const attempt = started.attempts;
+
+    // AUDIO recording is a separate, opt-in consent (spark ai-interview-parity): only
+    // a workspace that OFFERS recording can have it given, and only a literal `true`
+    // counts — the same trust-boundary rule as `consent` above. The offer is a
+    // workspace setting read best-effort: failing to read it means "not offered".
+    let recordingOffered = false;
+    if (session.mode === "candidate") {
+      try {
+        recordingOffered = isInterviewRecordingOffered(session.workspaceId);
+      } catch (offerErr) {
+        // Not offering is the safe reading — no audio is ever kept on an unknown answer.
+        console.error(`[interview:connect] recording offer unreadable for session ${session.id}:`, offerErr);
+      }
+    }
+    if (recordingOffered && body.recordingConsent === true) {
+      markInterviewRecordingConsent(session.id);
+    }
+
+    // ONE AGENDA FOR BOTH PROVIDERS (spark ai-interview-parity). Candidate-mode,
+    // entry-backed sessions get the director's agenda built HERE, from the CURRENT
+    // prep, READ-ONLY (this public door must never trigger a paid prep build), and
+    // both briefs are composed from it: the private one OpenAI receives server-side
+    // and the candidate-safe one ElevenLabs receives client-side. The session's
+    // stored `instructions` snapshot stays the fallback whenever nothing can be built.
+    // Every step is enrichment: a failure falls back, it never fails the call.
+    let kit: InterviewKit | null = null;
+    let resume: ResumeContext | null = null;
+    let directedInstructions: string | null = null;
+    let groundedCandidateBrief: string | null = null;
+    if (session.mode === "candidate" && session.entryId) {
+      try {
+        resume = buildResumeContext(session.id, session.workspaceId);
+      } catch (resumeErr) {
+        // A reconnect without its resume state is a fresh-looking start — worse, but a call.
+        console.error(`[interview:connect] resume context unreadable for session ${session.id}:`, resumeErr);
+      }
+      try {
+        // Fitted to the session's BOOKED length — what the portal promised and what the
+        // minutes debit clamps against — not to whatever the prep plans today. A
+        // RESUMED attempt keeps the stored agenda: the resume state's block ids were
+        // recorded against it (interview-agenda.ts::reconcileKitWithStoredAgenda).
+        // `kitId` is the JOB KIT VERSION this link was PINNED to at mint — not the
+        // job's latest published one: candidates in one round face the same questions
+        // even when the recruiter publishes an edit mid-round.
+        const fresh = await buildInterviewKit(session.entryId, undefined, {
+          bookedMin: session.durationMin,
+          kitId: session.kitId,
+        });
+        kit = reconcileKitWithStoredAgenda(fresh, started.agenda, resume !== null);
+        // A post-await write: the row may have left live during the kit build. The
+        // write is conditional, and a refusal ends the connect before any credential.
+        if (kit && !setInterviewAgenda(session.id, kit.agenda)) return refuseLeftLive(session.id);
+      } catch (agendaErr) {
+        kit = null;
+        console.error(`[interview:connect] agenda build failed for session ${session.id}:`, agendaErr);
+      }
+      try {
+        const built = await buildGroundedInterview(session.entryId, undefined, { readOnly: true, kit, resume });
+        directedInstructions = built.grounded ? built.instructions : null;
+      } catch {
+        /* grounding is enrichment — the stored snapshot below is the fallback */
+      }
+    }
+
+    // A REHEARSAL of a job kit (spark interview-kit-template, WP-D — interview-rehearsal.ts):
+    // a test-mode session with no entry, pinned at mint to one kit version, in the
+    // recruiter's workspace. It gets what a candidate on a link pinned to that version
+    // gets from the kit — the kit-only agenda fitted to the booked length, BOTH directed
+    // briefs, the director's tools — and nothing only a candidate carries (no CV probes,
+    // no overlay, no entry). Built from the session's own workspace and job; the
+    // recruiter's language (this request's, else the one stored at mint) stands in for
+    // the language a candidate chose at apply. A test session with NO kit — the lab —
+    // never enters here and keeps its behaviour byte for byte. Enrichment like the branch
+    // above: a failure falls back to the stored snapshot (and no tools), logged, because
+    // the recruiter would otherwise be rehearsing something that is not their kit.
+    const rehearsal = isKitRehearsal(session);
+    if (rehearsal && session.kitId) {
+      const locale = language ?? session.language;
+      try {
+        resume = buildResumeContext(session.id, session.workspaceId);
+      } catch (resumeErr) {
+        console.error(`[interview:connect] resume context unreadable for rehearsal ${session.id}:`, resumeErr);
+      }
+      try {
+        const fresh = await buildKitOnlyInterviewKit(session.kitId, session.workspaceId, {
+          bookedMin: session.durationMin,
+          locale,
+        });
+        const reconciled = reconcileKitWithStoredAgenda(fresh, started.agenda, resume !== null);
+        if (reconciled && session.jobId) {
+          const briefs = buildRehearsalBriefs(session.jobId, reconciled, { locale, resume });
+          kit = reconciled;
+          directedInstructions = briefs.instructions;
+          groundedCandidateBrief = briefs.candidateBrief;
+          if (!setInterviewAgenda(session.id, kit.agenda)) return refuseLeftLive(session.id);
+        } else {
+          console.error(
+            `[interview:connect] rehearsal ${session.id} has no directable kit (kit ${session.kitId}, job ${session.jobId}); ` +
+              `running the stored snapshot instead.`
+          );
+        }
+      } catch (rehearsalErr) {
+        kit = null;
+        directedInstructions = null;
+        groundedCandidateBrief = null;
+        console.error(`[interview:connect] kit rehearsal build failed for session ${session.id}:`, rehearsalErr);
+      }
     }
 
     // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).
@@ -243,25 +393,39 @@ export async function POST(request: NextRequest) {
     // nothing about which prompt each provider gets; it only means a candidate-mode
     // OpenAI session pays for one brief build it will not use, which is why it is
     // gated on candidate mode + an entry rather than built unconditionally.
-    let groundedCandidateBrief: string | null = null;
     if (session.mode === "candidate" && session.entryId) {
       try {
-        groundedCandidateBrief = await buildCandidateSafeBrief(session.entryId);
+        groundedCandidateBrief = await buildCandidateSafeBrief(session.entryId, { kit, resume });
       } catch {
         /* grounding is enrichment — fall back to the generic candidate-safe prompt */
       }
     }
+    // A resumed call on a FALLBACK prompt still hears that it is a resumption — the
+    // addendum is candidate-safe (block ids/titles and the words said aloud only).
+    const resumeNote = (text: string) => (resume ? `${text} ${resumeAddendum(resume, kit?.agenda ?? null)}` : text);
     const resolveAgentPrompt = (served: VoiceProviderId): string | null => {
-      if (served !== "elevenlabs" || session.mode !== "candidate") return null;
+      // A `prompt: "server"` provider is grounded server-side at mint: no client prompt.
+      if (providerTraits(served).prompt !== "client-override") return null;
+      // A rehearsal sends its candidate-safe brief exactly as a candidate's ElevenLabs
+      // session would. Every other test session (the lab) keeps the dashboard agent's
+      // own prompt — null, as it always has.
+      if (session.mode !== "candidate") return rehearsal ? groundedCandidateBrief : null;
       return (
-        groundedCandidateBrief ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin })
+        groundedCandidateBrief ??
+        resumeNote(defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin }))
       );
     };
+    // The server-minted (OpenAI) brief: the directed build when there is one, else
+    // the stored snapshot. The director's tools ride ONLY with a brief that carries
+    // the protocol describing them — a tool the prompt never mentions is a tool the
+    // model calls at random.
+    const serverInstructions = directedInstructions ?? (session.mode === "candidate" ? resumeNote(instructions) : instructions);
+    const directorTools = kit && directedInstructions ? DIRECTOR_TOOL_DEFS : null;
 
     // Provider failover (Direction 3): the session is already in_progress
     // (markInterviewStarted above, a single CAS — no double-start on failover). If
-    // the preferred provider's connect throws and the OTHER provider is available,
-    // retry with it in THIS request, building its brief via its own path above.
+    // the preferred provider's connect throws and an alternate is available,
+    // retry with it in THIS request (alternates in canonical order), building its brief via its own path above.
     // Single-provider deployments (or only the preferred configured) re-throw the
     // original error unchanged, so today's INTERVIEW_CONNECT_FAILED is preserved.
     const {
@@ -271,15 +435,18 @@ export async function POST(request: NextRequest) {
       failedOver,
     } = await connectWithFailover({
       preferred: provider,
-      instructions,
+      instructions: serverInstructions,
       language: language ?? session.language,
+      tools: directorTools,
       getAdapter: getVoiceAdapter,
       // A session that skipped /simulate's meterGate because the local provider is
       // free must never be rescued onto a PAID one — /complete would then price and
       // debit a call against a reservation that was never taken. connectWithFailover
-      // re-throws the original error when the alternate is unavailable, so this
-      // preserves today's INTERVIEW_CONNECT_FAILED semantics exactly.
-      availability: isSelfHostedProvider(provider) ? { ...voiceAvailability(), openai: false } : voiceAvailability(),
+      // HOLDS that rule itself (its isFree seam defaults to isSelfHostedProvider, and
+      // failoverOrder offers a free preferred provider only free alternates), so the
+      // availability passed here is the plain one; with no eligible alternate it
+      // re-throws the original error, preserving INTERVIEW_CONNECT_FAILED exactly.
+      availability: voiceAvailability(),
       // Binds the minted credential to THIS session. Only a HASH of it is ever sent
       // to a provider (voice/openai.ts) — the token itself opens the whole interview
       // and never leaves this server.
@@ -297,13 +464,17 @@ export async function POST(request: NextRequest) {
       // call priced on the other vendor with no way to learn that theirs was down.
       // failover_from is written once (COALESCE in the store) and stays NULL on the
       // overwhelming majority of calls, where nothing fell back.
-      setInterviewSessionProvider(session.id, served, provider);
+      // Conditional like every post-connect write: a revoke during the provider connect
+      // leaves the row refusing, and the credentials just minted never leave here.
+      if (!setInterviewSessionProvider(session.id, served, provider)) return refuseLeftLive(session.id);
       // An entry-backed session also leaves the fact on the candidate's timeline —
       // the same trail every other unattended action writes, so "why did this screen
       // run on ElevenLabs?" is answerable months later from the activity log rather
       // than from server logs that have long rotated. Best-effort: the audit marker
-      // must never fail a call the candidate is waiting on.
-      if (session.entryId) {
+      // must never fail a call the candidate is waiting on. A CANDIDATE interview only
+      // (interview-rehearsal.ts): a test session — a rehearsal, a lab call — writes
+      // nothing onto anyone's timeline, even one that somehow carries an entry.
+      if (isCandidateInterview(session)) {
         try {
           recordAutomationEvent(
             session.entryId,
@@ -334,9 +505,22 @@ export async function POST(request: NextRequest) {
     // this job actually talks about are pushed in front of the agent's
     // account-wide list. Client-sent (overrides.asr.keywords) because that is the
     // only place the ElevenLabs SDK accepts them — hence PUBLIC JOB FACTS ONLY,
-    // enforced at the source in interviewAsrKeywords. OpenAI sessions get null:
-    // their transcription is configured server-side and takes no keyword bias.
-    const asrKeywords = served === "elevenlabs" ? interviewAsrKeywords(session.entryId) : null;
+    // enforced at the source in interviewAsrKeywords. A provider whose trait row
+    // declares no `asrKeywords` (OpenAI: transcription configured server-side) gets
+    // null. A rehearsal has no entry to find the job through, so it reads the job it
+    // was minted for — the same public terms a candidate on that job gets.
+    const asrKeywords = providerTraits(served).asrKeywords
+      ? rehearsal
+        ? jobAsrKeywords(session.jobId)
+        : interviewAsrKeywords(session.entryId)
+      : null;
+
+    // THE LAST GATE before credentials leave (scan-sweep challenge r02). Everything
+    // above ran seconds of awaits after the start — kit builds, the grounded brief,
+    // the provider connect — and a recruiter's revoke in that window used to end with
+    // fresh provider credentials in the browser anyway. Nothing awaits between this
+    // check and the return, so it is the compare step of the handoff.
+    if (!isInterviewSessionStillLive(session.id)) return refuseLeftLive(session.id);
 
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
@@ -351,6 +535,16 @@ export async function POST(request: NextRequest) {
       agentPrompt,
       asrKeywords,
       connect,
+      // The director's agenda as a PROJECTION (toCandidateAgendaView): block ids,
+      // kinds, candidate-safe titles and budgets — never the competencies or the
+      // questions the stored agenda carries. Null when nothing is directed.
+      agenda: kit ? toCandidateAgendaView(kit.agenda) : null,
+      attempt,
+      // What a resumed attempt continues from: block ids and the earlier attempts'
+      // turns, which are exactly the turns this browser itself posted to the director
+      // — nothing server-private (voice/resume.ts reads only `turn` events).
+      resume,
+      recording: { offered: recordingOffered },
     });
   } catch (error) {
     // Adapter errors embed upstream provider HTTP bodies (OpenAI client_secrets

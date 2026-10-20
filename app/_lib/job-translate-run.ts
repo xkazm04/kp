@@ -72,7 +72,7 @@ export async function runPostingTranslation(
   options: { workspaceId?: string; sourceLang?: Locale; signal?: AbortSignal } = {}
 ): Promise<TranslationOutcome> {
   const workspaceId = options.workspaceId ?? DEFAULT_WORKSPACE_ID;
-  const record = getJob(jobId);
+  const record = getJob(jobId, workspaceId);
   if (!record) return { ok: false, reason: "job_gone" };
   // The store's JobRecord and the UI's Job are the same payload read through two
   // declarations (the record types its requirement `kind` as a bare string). The

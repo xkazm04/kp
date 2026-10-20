@@ -21,7 +21,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
 const readFileSync = (rel: string, enc: "utf8") => read(resolve(ROOT, rel), enc);
 
-const CHANNELS_ROWS = "app/features/hiring/channels/ChannelsCommsRows.tsx";
+// The Comms Center's ledger rows and its message document are the Night Post's post book (level 2)
+// and its letter (level 3): app/features/hiring/channels/night/README.md.
+const CHANNELS_LEDGER = "app/features/hiring/channels/night/ledger/ChannelsNightLedgerTable.tsx";
+const CHANNELS_MESSAGE = "app/features/hiring/channels/night/message/ChannelsNightLetter.tsx";
 const DRAWER_LIST = "app/features/hiring/pipeline/PipelineCommsList.tsx";
 const TOKEN_LINK = "app/features/hiring/pipeline/PipelineTokenLink.tsx";
 
@@ -69,8 +72,10 @@ test("a genuinely queued message with a real address does NOT warn", () => {
 
 // --- one predicate, two surfaces --------------------------------------------------
 
+// The Comms Center's half is the kit ledger (a caution mark on the row) and the kit message
+// document (a caution note); both ask the shared predicate, like the drawer.
 test("BOTH surfaces route through the shared predicate and neither re-derives it", () => {
-  for (const file of [CHANNELS_ROWS, DRAWER_LIST]) {
+  for (const file of [CHANNELS_LEDGER, CHANNELS_MESSAGE, DRAWER_LIST]) {
     const src = readFileSync(file, "utf8");
     assert.match(src, /isUnaddressable\(/, `${file} must ask the shared predicate`);
     // A local `deliverable === false` is exactly how the divergence grew the first
@@ -86,8 +91,9 @@ test("BOTH surfaces route through the shared predicate and neither re-derives it
 test("the drawer reuses the Comms Center's WORDING, not a second vocabulary", () => {
   const src = readFileSync(DRAWER_LIST, "utf8");
   assert.match(src, /noAddressHint/, "the drawer must render channels.comms.noAddressHint");
-  const channels = readFileSync(CHANNELS_ROWS, "utf8");
-  assert.match(channels, /noAddressHint/);
+  for (const file of [CHANNELS_LEDGER, CHANNELS_MESSAGE]) {
+    assert.match(readFileSync(file, "utf8"), /noAddressHint/, `${file} must render channels.comms.noAddressHint`);
+  }
 });
 
 // --- the drawer no longer drops payload it is handed -------------------------------
@@ -129,15 +135,36 @@ test("a failed bundle load puts the consent panel into its real failed state", (
   const hook = readFileSync("app/features/hiring/pipeline/candidate/state/useCandidateBundle.ts", "utf8");
   const panel = readFileSync("app/features/hiring/pipeline/PipelineConsentPanel.tsx", "utf8");
   const record = readFileSync("app/features/hiring/pipeline/candidate/CandidateRecordTab.tsx", "utf8");
-  // The catch that used to reset ONLY history now also records the give-up.
-  assert.match(hook, /setBundleFailed\(true\)/);
-  assert.match(hook, /bundleFailed/);
-  // …the candidate modal's Record tab hands it to the panel…
+  // The give-up is the reducer's (candidateBundle.ts): a failed pull dispatches `fail`,
+  // and only a FIRST-load failure (no snapshot at all) reads as the panel's failure.
+  assert.match(hook, /dispatch\(\{ type: "fail", seq \}\)/);
+  assert.match(hook, /bundleFailed: consentFailed\(state\)/);
+  // …never the old wipe, which blanked a good history AND a good GDPR snapshot on a
+  // transient re-pull failure.
+  assert.doesNotMatch(hook, /setHistory\(\[\]\)/);
+  assert.doesNotMatch(hook, /setBundleFailed\(true\)/);
+  // …the candidate modal's Record tab hands it to the panel, with the bundle's retry…
   assert.match(record, /loadFailed=\{bundleFailed\}/);
+  assert.match(record, /onRetry=\{st\.retry\}/);
   // …and the panel's failed branch honours it, ahead of the loading branch.
   assert.match(panel, /failed \|\| loadFailed \?/);
   // And the one-call bundle stays one call: the panel must not gain a second fetch.
   assert.equal((panel.match(/fetch\(/g) ?? []).length, 1, "ConsentPanel must keep exactly its standalone fallback fetch");
+});
+
+test("the consent panel's give-up has a way out that re-fires the load that failed", () => {
+  const panel = readFileSync("app/features/hiring/pipeline/PipelineConsentPanel.tsx", "utf8");
+  assert.match(panel, /tCommon\("retry"\)/, "a give-up with no way out is a dead end");
+  // In the modal the bundle owns the load, so the Retry re-pulls the bundle…
+  assert.match(panel, /if \(onRetry\) \{\s*onRetry\(\);/);
+  // …standalone, it re-fires the panel's own (single) read.
+  assert.match(panel, /setReloadTick\(\(n\) => n \+ 1\)/);
+  assert.match(panel, /\[entryId, bundled, reloadTick\]/, "…and the effect depends on it, or the button does nothing");
+});
+
+test("an in-modal resend re-pulls the candidate's story", () => {
+  const activity = readFileSync("app/features/hiring/pipeline/candidate/CandidateActivityTab.tsx", "utf8");
+  assert.match(activity, /<PipelineCommsList[^>]*onResent=\{st\.onLetterResent\}/);
 });
 
 // --- the quality-of-hire card must not VANISH on a failed read ---------------------
@@ -204,6 +231,94 @@ test("the two non-chip verdict surfaces share ONE class table", () => {
     const src = readFileSync(rel, "utf8");
     assert.match(src, /RECOMMENDATION_CHIP_CLASS/, `${rel} must take the shared table…`);
     assert.doesNotMatch(src, /advance: "bg-/, `…${rel} must not re-declare the colours`);
+  }
+});
+
+// --- one recovery door, three surfaces (pipeline-candidate-drawer/B) ---------------
+//
+// A bounced or dead-lettered letter used to be painted red in the candidate modal with
+// nothing to press, while the Comms Center and the dev-case outbox each chose the door
+// with their OWN predicate (raw `bounced`/`status === "failed" && !recovered` in one,
+// `verdict` in the other). resendDoorOf (comms-resend-outcome.ts) is now the one rule.
+
+// The Comms Center's message document is the Night Post's letter (level 3). Its doors are RetryDoor
+// and CorrectAddressDoor (night/message/ChannelsNightResendDoor.tsx), over the same resend
+// (useCommsResend) BouncedResend renders, so they count as door controls below.
+const CHANNELS_MODAL = CHANNELS_MESSAGE;
+const OUTBOX_ROWS = "app/features/tools/devcases/OutboxRows.tsx";
+
+test("every surface that offers a resend asks resendDoorOf, and none re-derives the door", () => {
+  for (const file of [CHANNELS_MODAL, OUTBOX_ROWS, DRAWER_LIST]) {
+    const src = readFileSync(file, "utf8");
+    assert.match(src, /resendDoorOf\(/, `${file} must ask the shared door predicate`);
+    // The OLD door predicates, verbatim: raw status bits in the Comms Center modal,
+    // a local verdict test in the outbox. (A failure-REASON line may still read the
+    // verdict — it is the door that must not.)
+    assert.doesNotMatch(src, /status === "failed" && !/, `${file} re-derives the retry door from raw status bits`);
+    assert.doesNotMatch(src, /verdict === "failed" \? <(ResendButton|RetryDoor)/, `${file} re-derives the retry door from the verdict`);
+    assert.doesNotMatch(src, /(\.bounced|verdict === "bounced") \?\s*\(?\s*(<div[^>]*>\s*)?<(BouncedResend|CorrectAddressDoor)/, `${file} re-derives the bounced door`);
+    // Every door control is rendered under the shared door, and only there.
+    const controls = (src.match(/<(ResendButton|BouncedResend|RetryDoor|CorrectAddressDoor)\b/g) ?? []).length;
+    const gated = (
+      src.match(/(door|resendDoorOf\([^)]*\)) === "(retry|correctAddress)" \?\s*\(?\s*(<div[^>]*>\s*)?<(ResendButton|BouncedResend|RetryDoor|CorrectAddressDoor)\b/g) ?? []
+    ).length;
+    assert.ok(controls > 0, `${file} must offer a door`);
+    assert.equal(gated, controls, `${file}: every resend control must sit under resendDoorOf's answer`);
+  }
+});
+
+test("the candidate modal renders the Comms Center's own door components, pre-filled with the address on file", () => {
+  const src = readFileSync(DRAWER_LIST, "utf8");
+  assert.match(src, /<ResendButton\b/);
+  assert.match(src, /<BouncedResend\b/);
+  assert.match(src, /defaultRecipient=\{m\.recipient\}/, "the bounced door must pre-fill like Channels does");
+});
+
+test("the Activity tab carries the needs-you count from the shared counter, gated on consent", () => {
+  const body = readFileSync("app/features/hiring/pipeline/candidate/CandidateModalBody.tsx", "utf8");
+  assert.match(body, /lettersNeedingYou\(/, "the count comes from the one predicate, not a local filter");
+  const tabs = readFileSync("app/features/hiring/pipeline/candidate/CandidateModalTabs.tsx", "utf8");
+  assert.match(tabs, /needsYou/, "the tab strip renders the count");
+});
+
+test("the resend door owns the channel literals; the dispatcher's local copies are pinned equal elsewhere", () => {
+  // comms-dispatch.ts keeps its own copies (cbc5c0c1f: re-exporting them put one more
+  // module on every route graph). app/_lib/comms-dispatch-channels.test.ts pins that the
+  // two copies agree; here the door module must still declare them, so the client-side
+  // rule never depends on the server dispatcher.
+  const door = readFileSync("app/_lib/comms-resend-outcome.ts", "utf8");
+  assert.match(door, /export const SIM_COMMS_CHANNEL = "simulation";/);
+  assert.match(door, /export const REFUSED_COMMS_CHANNEL = "refused";/);
+  assert.doesNotMatch(door, /from\s+["']\.\/comms-dispatch(\.ts)?["']/, "the door stays import-free of the dispatcher");
+});
+
+test("the drawer bundle carries each letter's recipient, so the bounced door can pre-fill it", async () => {
+  // unit-db FIRST: candidate-timeline reaches the stores, which read KP_DB_PATH at load.
+  const { cleanupUnitDb } = await import("@/app/_lib/testing/unit-db");
+  const { toCandidateComm } = await import("@/app/_lib/candidate-timeline");
+  try {
+    const comm = toCandidateComm({
+      id: "o1",
+      recipient: "ada@example.com",
+      subject: "Offer",
+      body: "…",
+      kind: "offer",
+      channel: "email",
+      status: "sent",
+      ref: "e1",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      failureDetail: null,
+      deliverable: true,
+      recovered: false,
+      recoveredAt: null,
+      bounced: true,
+      bouncedAt: "2026-09-02T00:00:00.000Z",
+      bounceDetail: "550",
+      orphaned: false,
+    });
+    assert.equal((comm as { recipient?: unknown }).recipient, "ada@example.com");
+  } finally {
+    cleanupUnitDb();
   }
 });
 

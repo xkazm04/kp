@@ -27,6 +27,7 @@ from pipeline.jobfit.devcase.evaluate import evaluate_submission, mint_followups
 from pipeline.jobfit.devcase.provenance import fenced_untrusted
 from pipeline.jobfit.devcase.reflect import assess_tooling, reflect_commits
 from pipeline.jobfit.match_reasoning import build_prompt
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider, TextReply, by_prompt
 
 
 class TestCombineSource(unittest.TestCase):
@@ -62,12 +63,7 @@ class TestDescribeFallback(unittest.TestCase):
         self.assertLessEqual(len(reason), 300)
 
 
-class _RaisingProvider:
-    def __init__(self, exc):
-        self._exc = exc
-
-    def complete_json(self, prompt, system=None):
-        raise self._exc
+_RaisingProvider = RaisingProvider
 
 
 class TestGenerateWithFallback(unittest.TestCase):
@@ -86,11 +82,7 @@ class TestGenerateWithFallback(unittest.TestCase):
         self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is NOT a failure
 
     def test_success_is_llm(self):
-        class _Ok:
-            def complete_json(self, prompt, system=None):
-                return {"raw": True}
-
-        result, source = generate_with_fallback(_Ok(), "p", "sys", self._det, self._coerce, logging.getLogger("t"))
+        result, source = generate_with_fallback(TextReply({"raw": True}), "p", "sys", self._det, self._coerce, logging.getLogger("t"))
         self.assertEqual(source, SOURCE_LLM)
         self.assertEqual(result, {"value": 2})  # coerce ran
         self.assertNotIn(FALLBACK_REASON_KEY, result)
@@ -132,11 +124,7 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         return {"files": files, "note": det["note"]} if files else det
 
     def _run(self, payload, logger):
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return payload
-
-        return generate_with_fallback(_Provider(), "p", "sys", self._det, self._coerce, logger)
+        return generate_with_fallback(TextReply(payload), "p", "sys", self._det, self._coerce, logger)
 
     def test_payload_that_coerces_to_the_template_is_deterministic(self):
         logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_empty")
@@ -173,12 +161,8 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         def coerce(_payload):
             return dict(self.TEMPLATE)  # the plain template, no stamp
 
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return {}
-
         with self.assertLogs(logger, level="WARNING"):
-            result, source = generate_with_fallback(_Provider(), "p", "sys", det, coerce, logger)
+            result, source = generate_with_fallback(TextReply({}), "p", "sys", det, coerce, logger)
         self.assertEqual(source, SOURCE_DETERMINISTIC)
         self.assertEqual(result[FALLBACK_REASON_KEY], UNUSABLE_OUTPUT_REASON)
 
@@ -191,12 +175,8 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
             # builder that throws leaves the comparison unprovable.
             raise RuntimeError("builder is not re-entrant")
 
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return {"files": [{"path": "a.py"}]}
-
         with self.assertLogs(logger, level="WARNING") as cm:
-            result, source = generate_with_fallback(_Provider(), "p", "sys", det, self._coerce, logger)
+            result, source = generate_with_fallback(TextReply({"files": [{"path": "a.py"}]}), "p", "sys", det, self._coerce, logger)
         self.assertEqual(source, SOURCE_LLM)
         self.assertNotIn(FALLBACK_REASON_KEY, result)
         self.assertTrue(any("could not rebuild" in m for m in cm.output))
@@ -209,38 +189,50 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is not a failure
 
 
-class _PartialReflectProvider:
+class _PartialReflectProvider(TextReply):
     """Succeeds for the reflect step only; every other step raises -> deterministic fallback,
     so a submission run mixes LLM + deterministic and must collapse to "partial"."""
 
-    def complete_json(self, prompt, system=None):
-        if "WHERE THE CANDIDATE MENTALLY WENT" in prompt:
-            return {
-                "narrative": "n",
-                "iterationPattern": "linear",
-                "deadEnds": [],
-                "readBeforeWrite": 0.5,
-                "verificationHabits": ["ran tests"],
-                "confidence": 0.6,
-            }
-        raise RuntimeError("stub: force deterministic for this step")
+    def __init__(self) -> None:
+        super().__init__(
+            by_prompt(
+                [(
+                    "WHERE THE CANDIDATE MENTALLY WENT",
+                    {
+                        "narrative": "n",
+                        "iterationPattern": "linear",
+                        "deadEnds": [],
+                        "readBeforeWrite": 0.5,
+                        "verificationHabits": ["ran tests"],
+                        "confidence": 0.6,
+                    },
+                )],
+                RuntimeError("stub: force deterministic for this step"),
+            )
+        )
 
 
-class _PartialAnalyzeProvider:
+class _PartialAnalyzeProvider(TextReply):
     """Succeeds for the analyze step only; role/case design raise -> deterministic fallback."""
 
-    def complete_json(self, prompt, system=None):
-        if "REFLECT it against the actual body of work" in prompt:  # analyze prompt (need-analysis-v3)
-            return {
-                "realStack": ["Python"],
-                "coreResponsibilities": ["own ingest"],
-                "statedVsRealGaps": [],
-                "trueComplexity": "medium",
-                "riskAreas": [],
-                "reflection": "r",
-                "confidence": 0.7,
-            }
-        raise RuntimeError("stub: force deterministic for this step")
+    def __init__(self) -> None:
+        super().__init__(
+            by_prompt(
+                [(
+                    "REFLECT it against the actual body of work",  # analyze prompt (need-analysis-v3)
+                    {
+                        "realStack": ["Python"],
+                        "coreResponsibilities": ["own ingest"],
+                        "statedVsRealGaps": [],
+                        "trueComplexity": "medium",
+                        "riskAreas": [],
+                        "reflection": "r",
+                        "confidence": 0.7,
+                    },
+                )],
+                RuntimeError("stub: force deterministic for this step"),
+            )
+        )
 
 
 class TestEvalHarnessesUseSharedCollapse(unittest.TestCase):
@@ -394,6 +386,125 @@ class UntrustedFenceReachesEveryPromptTest(unittest.TestCase):
         escaped = fenced_untrusted("REPO_SIGNALS", {"messages": []}) + f"\n{INJECTION}\n"
         with self.assertRaises(AssertionError):
             self._assert_fenced(escaped, INJECTION, "control-outside-fence")
+
+
+class TestCodedDescent(unittest.TestCase):
+    """challenge-r04 tests-llm-eval/A — the shared runner names its descent with a CODE.
+
+    ``fallbackReason`` is prose for a human reading one envelope; it cannot go into the
+    durable ledger column (the message half is provider-authored and can echo the prompt),
+    so until the runner stamped a code beside it every devcase / agentfit / intake descent
+    after the availability gate reached the ledger as nothing at all. These cases drive the
+    REAL call sites with ``FaultProvider`` — the same lying provider ``fault_eval`` drills
+    automation with — and read the code the runner stamped.
+    """
+
+    def _need(self):
+        from pipeline.jobfit.devcase.models import DevNeed
+
+        return DevNeed(title="Backend", stack=["Python"])
+
+    def test_malformed_is_unparseable_output_after_one_repair(self):
+        from pipeline.jobfit.devcase.analyze import analyze_need
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        provider = FaultProvider("malformed")
+        with self.assertLogs("pipeline.jobfit.devcase.analyze", level="WARNING"):
+            result, source = analyze_need(self._need(), None, provider=provider)
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertEqual(provider.calls, 2)  # one call + complete_json's corrective re-prompt
+        self.assertEqual(result[FALLBACK_CODE_KEY], "unparseable_output")
+        # The prose stays for the envelope; the code rides beside it, not instead of it.
+        self.assertTrue(result[FALLBACK_REASON_KEY].startswith("LLMError:"))
+
+    def test_a_raising_coercer_is_unusable_output_not_a_provider_error(self):
+        # intake's coercer RAISES on a payload with no reply. The call succeeded and was
+        # paid for; filing that beside a transport failure would send the operator to
+        # look at the network.
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+        from pipeline.jobfit.intake import run_intake_turn
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        provider = FaultProvider("wrong_shape")
+        with self.assertLogs("pipeline.jobfit.intake", level="WARNING"):
+            artifact = run_intake_turn(provider, [], {}, "We need a backend engineer.", "en")
+        self.assertEqual(artifact["source"], SOURCE_DETERMINISTIC)
+        self.assertEqual(provider.calls, 1)
+        self.assertEqual(artifact[FALLBACK_CODE_KEY], "unusable_output")
+        self.assertNotEqual(artifact[FALLBACK_CODE_KEY], "provider_error")
+
+    def test_a_hang_is_a_timeout_inside_the_total_deadline(self):
+        import time
+
+        from pipeline.jobfit.devcase.analyze import analyze_need
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        started = time.monotonic()
+        with self.assertLogs("pipeline.jobfit.devcase.analyze", level="WARNING"):
+            result, source = analyze_need(self._need(), None, provider=FaultProvider("hang", timeout=2))
+        self.assertLessEqual(time.monotonic() - started, 5.0)
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertEqual(result[FALLBACK_CODE_KEY], "provider_timeout")
+
+    def test_a_transient_outage_is_a_failed_call(self):
+        from pipeline.jobfit.devcase.analyze import analyze_need
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        with self.assertLogs("pipeline.jobfit.devcase.analyze", level="WARNING"):
+            result, _ = analyze_need(self._need(), None, provider=FaultProvider("transient", timeout=2))
+        self.assertIn(result[FALLBACK_CODE_KEY], {"provider_timeout", "provider_error"})
+
+    def test_kept_nothing_is_coded_unusable_output(self):
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_coded_kept_nothing")
+        with self.assertLogs(logger, level="WARNING"):
+            result, source = generate_with_fallback(
+                TextReply({}), "p", "sys", lambda: {"value": 1}, lambda _p: {"value": 1}, logger
+            )
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertEqual(result[FALLBACK_CODE_KEY], "unusable_output")
+
+    def test_every_stamped_code_is_in_the_shared_vocabulary(self):
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+        from pipeline.jobfit.llm.degradation import DEGRADATION_REASONS
+
+        for exc in (RuntimeError("down"), ValueError("bad"), TimeoutError("slow")):
+            with self.subTest(exc=type(exc).__name__):
+                logger = logging.getLogger("pipeline.jobfit.devcase.test_coded_vocab")
+                with self.assertLogs(logger, level="WARNING"):
+                    result, _ = generate_with_fallback(
+                        _RaisingProvider(exc), "p", "sys", lambda: {"v": 1}, lambda _p: {"v": 2}, logger
+                    )
+                self.assertIn(result[FALLBACK_CODE_KEY], DEGRADATION_REASONS)
+
+    def test_clean_runs_carry_no_code(self):
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
+
+        result, _ = generate_with_fallback(None, "p", "sys", lambda: {"v": 1}, lambda _p: {"v": 2}, logging.getLogger("t"))
+        self.assertNotIn(FALLBACK_CODE_KEY, result)
+
+    def test_pop_removes_the_reason_and_the_code(self):
+        # The code must never reach a frozen devcase seat or the TS wire: popping the
+        # prose and leaving its code behind would persist our stamp with the artifact.
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY, collect_fallback_reasons
+
+        art = {"x": 1, FALLBACK_REASON_KEY: "LLMError: boom", FALLBACK_CODE_KEY: "provider_error"}
+        reasons = collect_fallback_reasons([("analyze", art)], pop=True)
+        self.assertEqual(dict(reasons), {"analyze": "LLMError: boom"})
+        self.assertEqual(reasons.codes, {"analyze": "provider_error"})
+        self.assertEqual(art, {"x": 1})
+
+    def test_read_without_pop_leaves_the_artifact_intact(self):
+        from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY, collect_fallback_reasons
+
+        art = {FALLBACK_REASON_KEY: "LLMError: boom", FALLBACK_CODE_KEY: "provider_error"}
+        reasons = collect_fallback_reasons([("analyze", art)])
+        self.assertEqual(reasons.codes, {"analyze": "provider_error"})
+        self.assertIn(FALLBACK_CODE_KEY, art)
 
 
 if __name__ == "__main__":

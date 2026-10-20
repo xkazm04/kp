@@ -4,11 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
+import { BTN_GHOST, NOTICE } from "@/app/_components/ui/recipes";
 import { AnalyzeForm } from "./AnalyzeForm";
 import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
 import { deriveCollapseDecision } from "./analyzeCollapse";
 import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
+import { shouldWarnUnsaved } from "./analyzeUnsavedWarning";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { partialFailureLine } from "./AnalyzeApi";
 import { useAnalyzeForm } from "./useAnalyzeForm";
+
+const UNKNOWN_CODE = "__kp_unknown_code__";
+const nullIfUnknown = (text: string): string | null => (text === UNKNOWN_CODE ? null : text);
 
 // Tier 3 (docs/design/loading-choreography.md): the result renderers are heavy and
 // only ever needed once a run has produced something to show — they must not
@@ -25,6 +32,7 @@ const GithubAnalysisPanel = dynamic(
 
 export function AnalyzeTab() {
   const t = useTranslations("analyze");
+  const apiErrMsg = useErrorMessage();
   const state = useAnalyzeForm();
   const { inputs, flags, result, handlers, library } = state;
   // Direction 1 — offer the SAME Add-to-pipeline the saved report does, right on
@@ -60,6 +68,9 @@ export function AnalyzeTab() {
   // (via reset() OR a CV error). The transition guard lets the user manually
   // re-expand mid-result without being immediately collapsed again on re-render.
   const [expanded, setExpanded] = useState(true);
+  // The result whose "not saved" warning the recruiter dismissed. Keyed to the result
+  // object itself, so the next delivery that also fails to save warns again.
+  const [dismissedFor, setDismissedFor] = useState<typeof result.analysis>(null);
   const wasIdleRef = useRef(true);
   useEffect(() => {
     if (wasIdleRef.current && !idle) setExpanded(false);
@@ -89,8 +100,35 @@ export function AnalyzeTab() {
           // multi-CV comparison instead of the faked stage timeline.
           variantsDone={result.variantProgress?.done}
           variantsTotal={result.variantProgress?.total}
+          startedAt={flags.runStartedAt}
           onCancel={handlers.cancel}
         />
+      ) : null}
+
+      {/* A result reloaded from its saved row after a tab switch (analyzeSession.ts)
+          says so — it is the last report, not a run that just happened — and offers
+          the one action that ends it. */}
+      {result.restored && result.analysis && !isAnalyzing ? (
+        <div role="status" className={`${NOTICE("info")} flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm`}>
+          <p>{t("restoredNote")}</p>
+          <button type="button" onClick={handlers.reset} className={`${BTN_GHOST} h-8 px-2 text-sm`}>
+            {t("restoredStartNew")}
+          </button>
+        </div>
+      ) : null}
+
+      {/* The run finished but the save failed (persistence: null) - the result below
+          looks complete yet reaches no History row, so a reload loses it. Say so. */}
+      {shouldWarnUnsaved(result.analysis) && dismissedFor !== result.analysis && !isAnalyzing ? (
+        <div role="alert" className={`${NOTICE("amber")} flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-meta`}>
+          <div>
+            <p className="font-semibold">{t("unsavedWarningTitle")}</p>
+            <p>{t("unsavedWarningBody")}</p>
+          </div>
+          <button type="button" onClick={() => setDismissedFor(result.analysis)} className={`${BTN_GHOST} h-8 px-2 text-meta`}>
+            {t("unsavedWarningDismiss")}
+          </button>
+        </div>
       ) : null}
 
       {/* Direction 2 — a comparison that lost a variant still delivers; name the
@@ -103,13 +141,14 @@ export function AnalyzeTab() {
           </p>
           <ul className="mt-1 space-y-0.5 text-sm">
             {result.analysis.partialFailures.map((f) => (
-              // A coded failure had no engine text — show a localized generic line;
-              // an uncoded one carries engine/server English (Python stderr), shown
-              // verbatim in the localized frame (the honest "shown in English" case).
+              // The server sends a code, never engine text (it can hold paths and
+              // tracebacks): resolve it through the errors catalog, else the generic line.
               <li key={f.label}>
-                {f.code
-                  ? t("partialFailureGeneric", { label: f.label })
-                  : t("partialFailureItem", { label: f.label, error: f.error })}
+                {partialFailureLine(f, {
+                  appCode: (code) => nullIfUnknown(apiErrMsg({ code }, UNKNOWN_CODE)),
+                  item: (label, text) => t("partialFailureItem", { label, error: text }),
+                  generic: (label) => t("partialFailureGeneric", { label }),
+                })}
               </li>
             ))}
           </ul>
@@ -120,6 +159,7 @@ export function AnalyzeTab() {
         <ResultPanel
           analysis={result.analysis}
           analysisSlug={result.analysis.persistence?.slug ?? undefined}
+          liveReportActions
           pipelineRef={pipelineRef}
           pipelineDisabledReason={pipelineDisabledReason}
           // Cross-worktree seam (director note): flag a fully-cached delivery so the

@@ -6,10 +6,11 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTranslations } from "next-intl";
 import { useLoader } from "@/app/_lib/useLoader";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
-import type { DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
+import type { CaseLedgerFacets, CaseLedgerRow, JdSummary, Lifecycle, OutboxItem, SelectedJd } from "./DevTypes";
 import { buildNeed } from "./buildNeed";
 import { shouldReloadOnReturn } from "./outboxRefresh";
-import { canRaiseCaseLimit, casesListUrl, nextCaseLimit } from "./casesPage";
+import { canRaiseCaseLimit, filterCasesUrl, nextCaseLimit } from "./casesPage";
+import { EMPTY_CASE_FILTERS, caseFiltersActive, type CaseFilters } from "./DevCasesTable.filter";
 
 export function useDevTabData() {
   const t = useTranslations("devcase.studio.jds");
@@ -30,28 +31,63 @@ export function useDevTabData() {
 
   // Each loader tracks its own failure + last-updated so an outage renders an
   // explicit banner/stale pill instead of looking identical to an empty pipeline.
-  // /api/devcase returns FULL records (role/case/scenario JSON), so the detail
-  // reader opens instantly from the already-loaded list — no second fetch.
   // The read is PAGED, and the payload says whether the page was cut. It used to take
   // the store's default of 50 silently, so a studio past fifty approved cases showed
   // fifty newest and gave the reader no way to know the rest existed. The loader keeps
   // the whole envelope so `truncated` survives to the table that has to say so.
+  //
+  // THE LEDGER (challenge-r03 devcase-workspace/A): each row carries its own stage,
+  // submission count and stall inputs, joined by the store over the whole workspace,
+  // and the filters are part of the address - answered BEFORE the limit, so a stage
+  // filter speaks for the library rather than the loaded page. The rows are a
+  // projection; the detail reader fetches the full record by id when a row is opened.
   const [caseLimit, setCaseLimit] = useState(50);
-  const { data: casesPage, state: casesState, reload: loadCases } = useLoader<{ items: DevCaseDetail[]; truncated: boolean }>(
-    casesListUrl(caseLimit),
-    (p) => ({ items: (p.cases as DevCaseDetail[]) ?? [], truncated: p.truncated === true }),
-    { items: [], truncated: false },
+  const [caseFilters, setCaseFiltersState] = useState<CaseFilters>(EMPTY_CASE_FILTERS);
+  // The title is typed; the query follows it after a pause rather than per keystroke.
+  const [debouncedTitle, setDebouncedTitle] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedTitle(caseFilters.title), 250);
+    return () => window.clearTimeout(timer);
+  }, [caseFilters.title]);
+  const setCaseFilters = useCallback((next: CaseFilters) => {
+    setCaseFiltersState(next);
+    // A new question starts on the first page: a raised limit answered the old one.
+    setCaseLimit(50);
+  }, []);
+  const { data: casesPage, state: casesState, reload: loadCases } = useLoader<{
+    items: CaseLedgerRow[];
+    truncated: boolean;
+    facets: CaseLedgerFacets;
+  }>(
+    filterCasesUrl({
+      limit: caseLimit,
+      title: debouncedTitle,
+      stage: caseFilters.stage,
+      seniority: caseFilters.seniority,
+      job: caseFilters.job,
+    }),
+    (p) => ({
+      items: (p.cases as CaseLedgerRow[]) ?? [],
+      truncated: p.truncated === true,
+      facets: (p.facets as CaseLedgerFacets | undefined) ?? { stages: [], seniorities: [] },
+    }),
+    { items: [], truncated: false, facets: { stages: [], seniorities: [] } },
   );
   const cases = casesPage.items;
   const raiseCaseLimit = useCallback(() => {
     setCaseLimit((n) => nextCaseLimit(n));
   }, []);
   const canLoadMoreCases = casesPage.truncated && canRaiseCaseLimit(caseLimit);
-  const { data: postings, reload: loadPostings } = useLoader<Posting[]>(
-    "/api/devcase/postings",
-    (p) => (p.postings as Posting[]) ?? [],
-    [],
-  );
+  // THE OPEN DETAIL'S VERSION (challenge-r09 devcase-lifecycle/A). The studio used to load
+  // the workspace's whole postings fold here - every posting, every submission, every
+  // outcome join and promote verdict - on mount and after every evaluation, and the two
+  // consumers filtered it to one case (the detail) or folded it to two counts per case
+  // (the lifecycle section). The detail now reads its own case's channels by id and the
+  // lifecycle rows carry their counts, so all that is left here is a counter: bumping it
+  // re-reads the ONE open case (record + channels) and nothing else. No detail open, no
+  // request at all.
+  const [detailVersion, setDetailVersion] = useState(0);
+  const reloadDetail = useCallback(() => setDetailVersion((n) => n + 1), []);
   const { data: lifecycles, state: lifecyclesState, reload: loadLifecycles } = useLoader<Lifecycle[]>(
     "/api/devcase/lifecycle",
     (p) => (p.lifecycles as Lifecycle[]) ?? [],
@@ -73,10 +109,9 @@ export function useDevTabData() {
 
   useEffect(() => {
     loadCases();
-    loadPostings();
     loadLifecycles();
     reloadOutbox();
-  }, [loadCases, loadPostings, loadLifecycles, reloadOutbox]);
+  }, [loadCases, loadLifecycles, reloadOutbox]);
 
   // Refresh the outbox when the reader COMES BACK to the tab. Dead letters and bounce
   // receipts are produced by the relay long after the click that queued the message,
@@ -184,8 +219,9 @@ export function useDevTabData() {
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesTruncated: casesPage.truncated, casesState, loadCases,
+    caseFacets: casesPage.facets, caseFilters, setCaseFilters, caseFiltersActive: caseFiltersActive(caseFilters),
     raiseCaseLimit, canLoadMoreCases,
-    postings, loadPostings,
+    detailVersion, reloadDetail,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox: reloadOutbox,
     buildNeed: build,

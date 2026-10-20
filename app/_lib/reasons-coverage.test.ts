@@ -1,0 +1,342 @@
+// THE COUNTER'S OWN ACCEPTANCE BAR.
+//
+// A coverage metric is worth exactly as much as its ability to go DOWN. So the tests
+// that matter here are not "it counts 3 of 3" — they are the two controls:
+//
+//   * THE POSITIVE CONTROL: take a corpus that reads 100%, delete one reasons block,
+//     and the number must move. Without this, a counter that returned `ok: true`
+//     unconditionally would pass every other test in this file.
+//   * THE VACUITY CONTROL: a kind with nothing to count must read `null`, never 1.
+//     This is the specific way the metric would rot in place — the corpus loses its
+//     interviews, the scorecard arm reads "perfect", and the number keeps shipping.
+//
+// The last test runs the counter over the REAL demo corpus, so the headline number
+// has a denominator that is a fact about this repository rather than about a fixture.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  REASONS_VERDICT_KINDS,
+  countReasonsCoverage,
+  hasFallbackExplanation,
+  hasUnverifiedSkillExplanation,
+  isReasonsVerdictKind,
+  matchFiledRanking,
+  reasonsBlockOf,
+  reasonsCoveragePct,
+  scorecardFraction,
+  type ReasonsCatalog,
+  type ReasonsVerdict,
+} from "./reasons-coverage.ts";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** The real `decisions.wave.reasons.*` catalog, wrapped exactly as the meter wraps
+ *  it — so what this pins is the SHIPPED catalog's ability to resolve a sealed code,
+ *  not a fixture's. */
+function waveCatalog(overrides?: Record<string, string>): ReasonsCatalog {
+  const messages = JSON.parse(readFileSync(path.join(REPO_ROOT, "messages", "en.json"), "utf8"));
+  const reasons: Record<string, string> = { ...(messages?.decisions?.wave?.reasons ?? {}), ...overrides };
+  const lookup = (key: unknown) => reasons[String(key).replace(/^reasons\./, "")];
+  const t = ((key: unknown, params?: Record<string, unknown>) => {
+    const template = lookup(key);
+    if (template === undefined) return "";
+    return String(template).replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? `{${name}}`));
+  }) as unknown as ReasonsCatalog;
+  (t as unknown as { has: (key: unknown) => boolean }).has = (key) => lookup(key) !== undefined;
+  return t;
+}
+
+const CATALOG = waveCatalog();
+
+/** A corpus that is fully covered — one verdict of each kind, each able to say why. */
+function fullyCoveredCorpus(): ReasonsVerdict[] {
+  return [
+    { kind: "ranking", id: "r1", explanation: "Strong fit at 83/100 — matched on Java, Kafka and Spring Boot." },
+    {
+      kind: "scorecard",
+      id: "s1",
+      ratings: [
+        { competency: "Technical depth", rating: 4, evidence: "Walked through a real migration they led." },
+        { competency: "System design", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+      ],
+    },
+    {
+      kind: "rejection",
+      id: "x1",
+      reason: { reasonCode: "reject", reasonParams: { pct: 10, n: 20, count: 2, rank: 19 } },
+    },
+  ];
+}
+
+test("the closed vocabulary is the three kinds the goal names", () => {
+  assert.deepEqual([...REASONS_VERDICT_KINDS], ["ranking", "scorecard", "rejection"]);
+  assert.ok(isReasonsVerdictKind("scorecard"));
+  assert.ok(!isReasonsVerdictKind("offer"));
+});
+
+test("a fully covered corpus reads 100% on every arm — the baseline the controls move", () => {
+  const c = countReasonsCoverage(fullyCoveredCorpus(), CATALOG);
+  assert.equal(c.total.checked, 3);
+  assert.equal(c.total.withReasons, 3);
+  assert.equal(reasonsCoveragePct(c.total), 100);
+  assert.deepEqual(c.misses, []);
+  assert.deepEqual(c.unmeasuredKinds, [], "all three arms have something to count");
+  for (const kind of REASONS_VERDICT_KINDS) assert.equal(c.byKind[kind].measured, true);
+});
+
+// --- THE POSITIVE CONTROL, once per kind ---------------------------------------------
+// Each removes the ONE thing that is that kind's reasons block and asserts the number
+// moved. A counter that cannot fail these is measuring nothing.
+
+test("POSITIVE CONTROL — deleting a ranking's prose drops the ranking arm", () => {
+  const corpus = fullyCoveredCorpus();
+  const ranking = corpus[0] as Extract<ReasonsVerdict, { kind: "ranking" }>;
+  ranking.explanation = "";
+  ranking.jobFitSummary = null;
+  const c = countReasonsCoverage(corpus, CATALOG);
+  assert.equal(c.byKind.ranking.withReasons, 0, "the arm must move when the prose is gone");
+  assert.equal(c.byKind.ranking.ratio, 0);
+  assert.equal(reasonsCoveragePct(c.total), 66.7);
+  assert.deepEqual(c.misses.map((m) => m.id), ["r1"]);
+  assert.match(c.misses[0].why, /no explanation/, "and it must name what is missing, not just count it");
+});
+
+test("POSITIVE CONTROL — a scorecard whose every axis is 'Not assessed' is a MISS, not a hit", () => {
+  const corpus = fullyCoveredCorpus();
+  const scorecard = corpus[1] as Extract<ReasonsVerdict, { kind: "scorecard" }>;
+  // Still shaped like a complete scorecard: every axis rated, every axis carries a
+  // string. Only reading the evidence tells it apart from a real verdict — which is
+  // the whole reason isPlaceholderEvidence exists and why counting rows would lie.
+  scorecard.ratings = [
+    { competency: "Technical depth", rating: 3, evidence: "Not assessed." },
+    { competency: "Communication", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+  ];
+  const c = countReasonsCoverage(corpus, CATALOG);
+  assert.equal(c.byKind.scorecard.withReasons, 0);
+  assert.match(c.misses[0].why, /placeholder evidence/);
+  // …and the control on the control: one real quote among the placeholders is a hit.
+  scorecard.ratings = [
+    { competency: "Technical depth", rating: 3, evidence: "Not assessed." },
+    { competency: "Communication", rating: 2, evidence: "Answers stayed abstract when pressed." },
+  ];
+  assert.equal(countReasonsCoverage(corpus, CATALOG).byKind.scorecard.withReasons, 1);
+});
+
+test("POSITIVE CONTROL — a rejection whose code the catalog cannot resolve is a MISS", () => {
+  const corpus = fullyCoveredCorpus();
+  const rejection = corpus[2] as Extract<ReasonsVerdict, { kind: "rejection" }>;
+  rejection.reason = { reasonCode: "codeNobodyTranslated", reasonParams: {} };
+  const c = countReasonsCoverage(corpus, CATALOG);
+  assert.equal(c.byKind.rejection.withReasons, 0);
+  assert.match(c.misses[0].why, /resolves to nothing/);
+  // A sealed record with no code at all is the other shape of the same miss.
+  rejection.reason = null;
+  assert.match(countReasonsCoverage(corpus, CATALOG).misses[0].why, /no sealed reason code/);
+});
+
+test("POSITIVE CONTROL — emptying the CATALOG drops the rejection arm", () => {
+  // The counter resolves through the shipped catalog rather than pattern-matching a
+  // code, so deleting the copy — the thing a candidate would actually read — has to
+  // move the number too. A re-implemented resolver would sail through this.
+  const emptyish = waveCatalog();
+  const c = countReasonsCoverage(fullyCoveredCorpus(), {
+    ...emptyish,
+    has: () => false,
+  } as unknown as ReasonsCatalog);
+  assert.equal(c.byKind.rejection.withReasons, 0, "no copy means no reasons block, however well-sealed the code");
+  assert.equal(c.byKind.ranking.withReasons, 1, "…and the other arms are untouched by it");
+});
+
+// --- THE VACUITY CONTROL --------------------------------------------------------------
+
+test("VACUITY CONTROL — an empty arm reads null and 'not measured', NEVER 100%", () => {
+  const c = countReasonsCoverage([], CATALOG);
+  assert.equal(c.total.ratio, null, "an empty corpus has no ratio — it does not have a perfect one");
+  assert.equal(c.total.measured, false);
+  assert.equal(reasonsCoveragePct(c.total), null);
+  assert.deepEqual(c.unmeasuredKinds, ["ranking", "scorecard", "rejection"]);
+  for (const kind of REASONS_VERDICT_KINDS) {
+    assert.equal(c.byKind[kind].ratio, null, `${kind} must not report a ratio it did not measure`);
+    assert.notEqual(c.byKind[kind].ratio, 1);
+  }
+});
+
+test("VACUITY CONTROL — a partially covered corpus says WHICH kinds its number leaves out", () => {
+  // The dangerous reading: rankings are perfect, so the headline is 100% — while the
+  // two arms that carry the actual AI verdicts were never counted. The caller cannot
+  // report the headline honestly without this list, so the counter always produces it.
+  const c = countReasonsCoverage([{ kind: "ranking", id: "r1", explanation: "because." }], CATALOG);
+  assert.equal(reasonsCoveragePct(c.total), 100);
+  assert.deepEqual(c.unmeasuredKinds, ["scorecard", "rejection"]);
+});
+
+test("a scorecard with no ratings at all is a miss, and says so distinctly", () => {
+  const miss = (ratings: unknown) => reasonsBlockOf({ kind: "scorecard", id: "s", ratings }, CATALOG);
+  assert.deepEqual(miss([]), { ok: false, why: "no ratings at all" });
+  assert.deepEqual(miss(undefined), { ok: false, why: "no ratings at all" });
+  assert.deepEqual(miss("ratings"), { ok: false, why: "no ratings at all" });
+});
+
+test("blank prose is not prose — whitespace never counts as a reasons block", () => {
+  const r = reasonsBlockOf({ kind: "ranking", id: "r", explanation: "   \n ", jobFitSummary: "" }, CATALOG);
+  assert.equal(r.ok, false);
+});
+
+// --- THE REAL CORPUS ------------------------------------------------------------------
+
+test("the demo corpus's ranking arm is a real number with a real denominator", () => {
+  // The number the meter (npm run kpi:reasons) reports for the seeded corpus, pinned
+  // here so it is a fact about this repository. The denominator is asserted to be
+  // non-trivial FIRST: without that, a corpus that shrank to one row would still show
+  // a green 100% and this test would agree with it.
+  const rows = JSON.parse(
+    readFileSync(path.join(REPO_ROOT, "data", "seed_analyses", "analyses.json"), "utf8")
+  ) as { id: string; payload?: { explanation?: string; jobFit?: { summary?: string } } }[];
+  const verdicts: ReasonsVerdict[] = rows.map((row) => ({
+    kind: "ranking",
+    id: `seed:${row.id}`,
+    explanation: row?.payload?.explanation ?? null,
+    jobFitSummary: row?.payload?.jobFit?.summary ?? null,
+  }));
+  const c = countReasonsCoverage(verdicts, CATALOG);
+  assert.ok(c.byKind.ranking.checked >= 50, `the seeded corpus must be substantial, got ${c.byKind.ranking.checked}`);
+  assert.equal(reasonsCoveragePct(c.byKind.ranking), 100, `rankings without a reasons block: ${JSON.stringify(c.misses.slice(0, 5))}`);
+});
+
+// The `match` slice of the real English catalog, as the meter builds it.
+const MATCH_EN = JSON.parse(readFileSync(path.join(REPO_ROOT, "messages", "en.json"), "utf8")).match;
+const matchLookup = (key: string): string | undefined =>
+  key.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), MATCH_EN) as string | undefined;
+const MATCH_CATALOG = Object.assign(
+  (key: string, values?: Record<string, string | number>) =>
+    (matchLookup(key) ?? "").replace(/\{(\w+)\}/g, (_, n: string) => String(values?.[n] ?? "")),
+  { has: (key: string) => matchLookup(key) !== undefined }
+);
+const sealedVerdict = (facts: Record<string, unknown>) => ({
+  kind: "match_verdict",
+  reasonCode: "match_fit",
+  createdAt: "2026-10-07T10:00:00.000Z",
+  payloadJson: JSON.stringify({ inputs: facts }),
+});
+const FACTS = {
+  fitTier: "strong",
+  best: { labelCode: "skills", percent: 82 },
+  worst: { labelCode: "career", percent: 40 },
+  matched: ["Java"],
+  unproven: [],
+  missing: ["Rust"],
+  matchScore: 71,
+  scorerVersion: "match-scorer.v1",
+};
+
+test("MATCH-FILED — a sealed verdict that renders is a hit; one that says nothing or is garbled is a NAMED miss", () => {
+  const hit = matchFiledRanking({ id: "m1", record: sealedVerdict(FACTS), approvalDetail: null });
+  const silent = matchFiledRanking({ id: "m2", record: sealedVerdict({ ...FACTS, best: null, worst: null, matched: [], missing: [] }) });
+  const garbled = matchFiledRanking({ id: "m3", record: { ...sealedVerdict(FACTS), payloadJson: "{not json" } });
+  const offVocab = matchFiledRanking({ id: "m4", record: sealedVerdict({ ...FACTS, fitTier: "excellent" }) });
+  const c = countReasonsCoverage([hit, silent, garbled, offVocab], CATALOG, MATCH_CATALOG);
+  assert.equal(c.byKind.ranking.checked, 4, "none is skipped");
+  assert.equal(c.byKind.ranking.withReasons, 1);
+  assert.deepEqual(c.misses.map((m) => m.id), ["m2", "m3", "m4"]);
+  assert.match(c.misses[0].why, /neither a dimension nor a skill name/);
+  assert.match(c.misses[1].why, /no valid facts/);
+  // A cleared gate slot does not matter: the record is the reasons block.
+  assert.deepEqual(reasonsBlockOf(hit, CATALOG, MATCH_CATALOG), { ok: true, via: "sealed match_verdict" });
+});
+
+test("MATCH-FILED — POSITIVE CONTROL: the sealed verdict only counts when it RESOLVES through the match catalog", () => {
+  const hit = matchFiledRanking({ id: "m1", record: sealedVerdict(FACTS) });
+  assert.equal(reasonsBlockOf(hit, CATALOG).ok, false, "no match catalog → cannot resolve → not a hit");
+  const empty = Object.assign(() => "", { has: () => false });
+  assert.equal(reasonsBlockOf(hit, CATALOG, empty).ok, false, "a catalog that renders nothing is no reasons block");
+});
+
+test("MATCH-FILED — an entry with no sealed record is LEGACY: bucketed by its gate slot, never counted", () => {
+  const prose = matchFiledRanking({ id: "l1", approvalDetail: JSON.stringify({ summary: "Strong fit.", strengths: ["Java"], redFlags: [] }) });
+  const cleared = matchFiledRanking({ id: "l2", approvalDetail: null });
+  const overwritten = matchFiledRanking({ id: "l3", approvalDetail: JSON.stringify({ recommendation: "advance", rationale: "x" }) });
+  const scorecard = matchFiledRanking({ id: "l4", approvalDetail: JSON.stringify({ summary: "Solid interview.", ratings: [] }) });
+  const garbled = matchFiledRanking({ id: "l5", approvalDetail: "{not json" });
+  const sealed = matchFiledRanking({ id: "s1", record: sealedVerdict(FACTS) });
+  assert.equal(prose.legacy, "legacy_prose_snapshot");
+  for (const v of [cleared, overwritten, scorecard, garbled]) assert.equal(v.legacy, "legacy_snapshot_cleared", v.id);
+  const c = countReasonsCoverage([prose, cleared, overwritten, scorecard, garbled, sealed], CATALOG, MATCH_CATALOG);
+  assert.deepEqual(c.legacyMatch, { legacy_prose_snapshot: 1, legacy_snapshot_cleared: 4 });
+  assert.equal(c.byKind.ranking.checked, 1, "only the sealed entry is in the arm");
+  assert.equal(c.total.checked, 1, "and the legacy rows are not in the headline either");
+  assert.deepEqual(c.misses, [], "a legacy row is not a miss — it is not counted at all");
+});
+
+test("a fallback-marked ranking with no jobFit summary is a named miss; a real explanation is a hit", () => {
+  const cat = CATALOG;
+  const fallback = reasonsBlockOf(
+    { kind: "ranking", id: "f1", origin: "analysis", explanation: "Jane was assessed as senior. Score 70/100.", fallbackExplanation: true },
+    cat
+  );
+  assert.equal(fallback.ok, false);
+  assert.match(fallback.ok ? "" : fallback.why, /template fallback explanation only/);
+  const real = reasonsBlockOf(
+    { kind: "ranking", id: "f2", origin: "analysis", explanation: "Strong Go evidence.", fallbackExplanation: false },
+    cat
+  );
+  assert.equal(real.ok, true);
+  const viaSummary = reasonsBlockOf(
+    { kind: "ranking", id: "f3", explanation: "template", fallbackExplanation: true, jobFitSummary: "Matches the Go requirement." },
+    cat
+  );
+  assert.deepEqual(viaSummary, { ok: true, via: "jobFit.summary" });
+});
+
+test("an explanation naming a skill the CV does not evidence is a named miss, like a fallback", () => {
+  const unverified = reasonsBlockOf(
+    { kind: "ranking", id: "u1", origin: "analysis", explanation: "Deep Terraform experience.", unverifiedSkillExplanation: true },
+    CATALOG
+  );
+  assert.equal(unverified.ok, false);
+  assert.match(unverified.ok ? "" : unverified.why, /names a skill the CV does not evidence/);
+  const clean = reasonsBlockOf(
+    { kind: "ranking", id: "u2", origin: "analysis", explanation: "Deep Go experience.", unverifiedSkillExplanation: false },
+    CATALOG
+  );
+  assert.equal(clean.ok, true);
+  assert.equal(hasUnverifiedSkillExplanation({ trustFindings: [{ code: "explanation_unverified_skill" }] }), true);
+  assert.equal(hasUnverifiedSkillExplanation({ trustFindings: [{ code: "explanation_fallback" }] }), false);
+  assert.equal(hasUnverifiedSkillExplanation(null), false);
+});
+
+test("hasFallbackExplanation reads the coded finding, never the prose", () => {
+  assert.equal(hasFallbackExplanation({ trustFindings: [{ code: "explanation_fallback" }] }), true);
+  assert.equal(hasFallbackExplanation({ trustFindings: [{ code: "score_section_missing" }] }), false);
+  assert.equal(hasFallbackExplanation({}), false);
+  assert.equal(hasFallbackExplanation(null), false);
+});
+
+test("the scorecard arm carries each card's k of N, and the totals across cards", () => {
+  const corpus = fullyCoveredCorpus();
+  const scorecard = corpus[1] as Extract<ReasonsVerdict, { kind: "scorecard" }>;
+  scorecard.ratings = [
+    { competency: "A", rating: 4, evidence: "Described the cutover she led." },
+    { competency: "B", rating: 3, evidence: "Not assessed." },
+    { competency: "C", rating: 3, evidence: "" },
+  ];
+  const c = countReasonsCoverage(corpus, CATALOG);
+  // The hit rule is unchanged — one real quote is still a hit — but the fraction says 1 of 3.
+  assert.equal(c.byKind.scorecard.withReasons, 1);
+  assert.deepEqual(c.scorecardFractions, [{ id: scorecard.id, assessed: 1, axes: 3 }]);
+  assert.deepEqual(c.scorecardAxes, { assessed: 1, axes: 3 });
+  assert.deepEqual(scorecardFraction(undefined), { assessed: 0, axes: 0 });
+});
+
+test("completed sessions with no scorecard are their own bucket: not a hit, not a miss, not an arm member", () => {
+  const corpus = fullyCoveredCorpus();
+  const before = countReasonsCoverage(corpus, CATALOG);
+  assert.equal(before.completedUnscored, 0);
+  const after = countReasonsCoverage(corpus, CATALOG, undefined, 3);
+  assert.equal(after.completedUnscored, 3);
+  assert.deepEqual(after.byKind, before.byKind, "no arm moves");
+  assert.deepEqual(after.misses, before.misses, "and none is reported as a reasonless scorecard");
+  assert.deepEqual(after.total, before.total);
+});

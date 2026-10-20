@@ -94,8 +94,9 @@ export function recordAudit(input: {
         GLOBAL_ACTIONS.has(input.action) ? null : (input.workspaceId ?? DEFAULT_WORKSPACE),
         new Date().toISOString()
       );
-  } catch {
-    /* audit must never break the pipeline */
+  } catch (error) {
+    // audit must never break the pipeline — but a lost decision record is one an operator acts on
+    console.error("[dev-control] audit write failed", input.action, error);
   }
 }
 

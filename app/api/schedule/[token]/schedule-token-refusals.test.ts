@@ -16,6 +16,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { register } from "node:module";
 import { readFileSync } from "node:fs";
+import Database from "better-sqlite3";
 
 // Point next/server at the test shim BEFORE the route loads (hooks only affect LATER
 // resolutions — hence the dynamic imports below), exactly as the recruiter-side sibling
@@ -25,7 +26,7 @@ register(new URL("../../../_lib/testing/next-server-hooks.mjs", import.meta.url)
 
 const { GET, POST } = await import("./route.ts");
 const { createPipelineEntry, actOnPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
-const { createScheduleInvite, confirmScheduleInvite, declineScheduleInvite } = await import(
+const { createScheduleInvite, confirmScheduleInvite, declineScheduleInvite, setScheduleInviteProposals } = await import(
   "../../../_lib/schedule-store.ts"
 );
 const { proposeSlots } = await import("../../../_lib/schedule-slots.ts");
@@ -100,6 +101,40 @@ test("a closed link refuses every mutation with SCHEDULE_LINK_CLOSED at 410", as
   const r = await post(token, { slotAt: SLOTS[0].value });
   assert.equal(r.status, 410);
   assert.equal(r.code, "SCHEDULE_LINK_CLOSED", "the stale tab learns WHICH refusal, in its own language");
+});
+
+test("a candidate who proposed their own times is not stranded by the 7-day mint clock", async () => {
+  // The proposal is saved while the invite is stuck and still inside its first 7 days
+  // (the POST that does so needs a fully-booked horizon; the store call is what it ends in).
+  // The recruiter then stays silent past the mint TTL.
+  const { UNIT_DB_PATH } = await import("../../../_lib/testing/unit-db.ts");
+  const age = (token: string, createdDaysAgo: number, proposedDaysAgo: number) => {
+    const raw = new Database(UNIT_DB_PATH);
+    const at = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+    raw.prepare(`UPDATE schedule_invites SET created_at = ?, proposals_at = ? WHERE token = ?`).run(at(createdDaysAgo), at(proposedDaysAgo), token);
+    raw.close();
+  };
+  const readClosed = async (token: string) => {
+    const res = (await GET(
+      new Request(`http://localhost/api/schedule/${token}`, { headers: { "x-forwarded-for": ip() } }) as never,
+      ctx(token)
+    )) as unknown as Response;
+    return ((await res.json()) as { closed?: boolean }).closed ?? false;
+  };
+
+  const live = inviteFixture();
+  setScheduleInviteProposals(live.token, [{ value: SLOTS[5].value, label: SLOTS[5].label }]);
+  age(live.token, 10, 2);
+  assert.equal(await readClosed(live.token), false, "minted 10 days ago, proposed 2 days ago: the page is still open");
+  const w = await post(live.token, { withdraw: true });
+  assert.notEqual(w.code, "SCHEDULE_LINK_CLOSED");
+  assert.equal(w.status, 200, "the withdraw is honoured, not refused 410");
+
+  const dead = inviteFixture();
+  setScheduleInviteProposals(dead.token, [{ value: SLOTS[5].value, label: SLOTS[5].label }]);
+  age(dead.token, 10, 8);
+  assert.equal(await readClosed(dead.token), true, "a proposal older than the TTL still ages out");
+  assert.deepEqual(await post(dead.token, { withdraw: true }), { status: 410, code: "SCHEDULE_LINK_CLOSED" });
 });
 
 test("booking for a candidate closed out since the link was minted answers SCHEDULE_INTERVIEW_UNAVAILABLE", async () => {

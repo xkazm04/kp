@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { claimLifecycleClose, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
+import { findEntryByDevSubmission } from "@/app/_lib/db/pipeline";
 import { recordAudit } from "@/app/_lib/dev-control";
-
+import { wrapUpRecipients } from "@/app/_lib/devcase-lifecycle-fence";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // W5-3 (DEVO3) — human-gated case close-out. "closed" sat in the lifecycle
 // STAGES (and the control room's TERMINAL set) with no writer: a lifecycle
@@ -15,7 +18,11 @@ import { recordAudit } from "@/app/_lib/dev-control";
 // collecting applications nobody would process. Closing is an adverse-adjacent
 // action, so it is HUMAN-triggered (this route has no automated caller),
 // mirroring the orchestrator's adverse-action policy.
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   const { id } = await context.params;
   try {
     // OWNERSHIP. Closing dispatches a wrap-up rejection to every non-promoted submitter,
@@ -23,7 +30,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // this door. A cross-tenant id now answers the same 404 a nonexistent one does. The
     // row's own workspace still drives the enumeration and the outbox filing below - that
     // is the tenant of the WORK; this is the tenant of the CALLER.
-    const lc = ownedLifecycle(id, await currentWorkspace());
+    const lc = ownedLifecycle(id, ws);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
 
     // ATOMIC CLAIM (bug-ui-scan-2026-07-09 #1). The old guard read `lc.stage`, then
@@ -56,46 +63,59 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // Courteous wrap-up to every non-promoted submitter — the same no-ghosting
     // standard the main pipeline enforces (screen-wave dispatches rejections).
     // Deduped by recipient so two submissions from one person get one note.
-    const seen = new Set<string>();
+    //
+    // WHO is owed a note is ONE rule, wrapUpRecipients (devcase-lifecycle-fence.ts): a
+    // submitter PROMOTED to the pipeline is not rejected here. Promotion is recorded as a
+    // pipeline entry linked by dev_submission_id (no code writes a submission status of
+    // "promoted"), and from then on the pipeline owns that candidate's comms. Checking the
+    // status alone skipped nobody, so every candidate who had just been sent the "Next step"
+    // letter was then told "we won't be moving forward". Only an email-shaped contact (or,
+    // for older submissions, an email-shaped candidateRef) is an address, once per address
+    // across every posting. The runner consults the same module's stopVerdict, so after
+    // the claim above it promotes and mails nobody else.
+    const recipients = wrapUpRecipients(
+      postings.flatMap((posting) =>
+        listSubmissions(posting.id, lc.workspaceId).map((submission) => ({
+          ...submission,
+          role: posting.roleTitle ?? posting.caseTitle ?? "the role",
+        }))
+      ),
+      (submission) => findEntryByDevSubmission(submission.id, lc.workspaceId) != null
+    );
     let notified = 0;
     let notifyFailures = 0;
-    for (const posting of postings) {
-      const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
-      for (const submission of listSubmissions(posting.id, lc.workspaceId)) {
-        if (submission.status === "promoted") continue;
-        const to = submission.contact || submission.candidateRef;
-        if (!to || seen.has(to)) continue;
-        seen.add(to);
-        // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT
-        // abort the close. The old loop let a single throw leave the lifecycle
-        // half-closed — some postings flipped, stage never set, no audit — and a
-        // re-run re-notified everyone already messaged (the dedup Set is per-request).
-        // sendComm's durable Outbox records the attempt, so a failed note is
-        // recoverable via Resend; here we just count it and carry on.
-        try {
-          await sendComm({
-            to,
-            subject: `Update on your submission — ${role}`,
-            body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
-            kind: "rejection",
-            ref: submission.id,
-            // TENANT SCOPE (D5): the outbox's tenant derivation reads pipeline_entries by
-            // ref, and a dev-case submission id is not a pipeline entry — so without this
-            // the wrap-up note filed into the DEFAULT team's Outbox, invisible (and
-            // un-resendable) to the team whose case was actually closed.
-            workspaceId: lc.workspaceId,
-          });
-          notified += 1;
-        } catch (commError) {
-          notifyFailures += 1;
-          console.error(
-            `[lifecycle:close] wrap-up note failed for "${to}" (${submission.id}):`,
-            commError instanceof Error ? commError.message : commError
-          );
-        }
+    for (const { to, submission } of recipients) {
+      const role = submission.role;
+      // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT
+      // abort the close. The old loop let a single throw leave the lifecycle
+      // half-closed — some postings flipped, stage never set, no audit — and a
+      // re-run re-notified everyone already messaged (the dedup Set is per-request).
+      // sendComm's durable Outbox records the attempt, so a failed note is
+      // recoverable via Resend; here we just count it and carry on.
+      try {
+        await sendComm({
+          to,
+          subject: `Update on your submission — ${role}`,
+          body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
+          kind: "rejection",
+          ref: submission.id,
+          // TENANT SCOPE (D5): the outbox's tenant derivation reads pipeline_entries by
+          // ref, and a dev-case submission id is not a pipeline entry — so without this
+          // the wrap-up note filed into the DEFAULT team's Outbox, invisible (and
+          // un-resendable) to the team whose case was actually closed.
+          workspaceId: lc.workspaceId,
+        });
+        notified += 1;
+      } catch (commError) {
+        notifyFailures += 1;
+        console.error(
+          `[lifecycle:close] wrap-up note failed for "${to}" (${submission.id}):`,
+          commError instanceof Error ? commError.message : commError
+        );
       }
-      setPostingStatus(posting.id, "closed");
     }
+    // Every posting stops accepting submissions nobody will process.
+    for (const posting of postings) setPostingStatus(posting.id, "closed");
 
     // Stage is already "closed" (claimed atomically above); now that the count is
     // known, stamp the human-facing detail and write the audit. Only the claiming
@@ -129,4 +149,4 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // the thrown message can carry SQLITE_* detail or an upstream provider body.
     return safeJsonError(error, "api:devcase/lifecycle/close", "DEVCASE_CLOSE_FAILED");
   }
-}
+});

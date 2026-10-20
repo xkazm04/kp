@@ -25,9 +25,14 @@ test("GET answers the health word from the resolver, not from the stored url", (
   assert.match(src, /relay:\s*relayHealth\(\)/, "…and puts it on the wire as `relay`");
 });
 
-test("the card distinguishes 'unreadable' from 'off'", () => {
-  const src = read("../../../features/hiring/channels/ChannelsRelayConfigCard.tsx");
-  assert.match(src, /"unreadable"/, "the card knows the state exists");
-  assert.match(src, /statusUnreadable/, "…shows its own badge label, not statusOff");
-  assert.match(src, /unreadableNote/, "…and explains what to do about it");
+test("the Channels relay distinguishes 'unreadable' from 'off'", () => {
+  // The relay's setup level (Hiring > Channels, "The Night Post", level 1) and the plate it
+  // wears everywhere (the district, the level's status strip) — the retired relay card's job.
+  const editor = read("../../../features/hiring/channels/night/setup/SetupRelay.tsx");
+  assert.match(editor, /"unreadable"/, "the editor knows the state exists");
+  assert.match(editor, /unreadableNote/, "…and explains what to do about it");
+  const plate = read("../../../features/hiring/channels/night/channelsNightPlumbing.ts");
+  assert.match(plate, /relay === "unreadable"\) return \{[^}]*condition: "fail"[^}]*chip: "relayUnreadable"/, "the plate is failing with its own chip, not 'not configured'");
+  const copy = read("../../../features/hiring/channels/night/channelsNightCopy.ts");
+  assert.match(copy, /relayUnreadable: "channels\.relay\.statusUnreadable"/, "…which shows its own label, not statusOff");
 });

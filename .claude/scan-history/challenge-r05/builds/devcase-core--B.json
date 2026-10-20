@@ -1,0 +1,36 @@
+{
+  "card": "devcase-core/B",
+  "title": "Rubric weights compute the headline: contributions that sum to the case score",
+  "status": "landed",
+  "base": "c2c6829d6",
+  "shas": ["6a0558d14", "3db171625", "c82a4f46b", "82d053384", "e7b188c08"],
+  "tests_added": [
+    "pipeline/jobfit/tests/test_devcase_models.py::TestRubricComposite",
+    "pipeline/jobfit/tests/test_devcase_evaluate.py::TestWeightedCaseScore",
+    "pipeline/jobfit/tests/test_devcase_eval.py::TestOverallIsTheCaseScore",
+    "app/features/tools/devcases/devcaseScoreHeadline.test.ts"
+  ],
+  "cases_red_before": 21,
+  "cases_green_after": 22,
+  "cases_total": 22,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "design": 0,
+    "docs": 0,
+    "api": null,
+    "unit": 1,
+    "ts_ratchet": 0,
+    "perf": 1,
+    "python_devcase": 0,
+    "python_gate": 0,
+    "ruff_ratchet": 0,
+    "eval_ci": 0,
+    "submission_eval_both_strict": 0
+  },
+  "files_changed": 15,
+  "lines_changed": 769,
+  "deviations_from_card": "(1) Write set grew by test_devcase_eval.py only (the Row.overall acceptance case lives beside the gate it pins) - tests are allowed. (2) User vocabulary: devcase-vocabulary.test.ts bans 'case' in devcase.* English copy, so the UI and the four-language _DET rationale say 'assignment score' (cs skore zadani / de Aufgabenwert / fr score de l'exercice); identifiers stay overallScore / rubric_composite / caseScore keys. This took a second catalog commit (3db171625) after the first (6a0558d14) went red on that guard. (3) Missing dimension: BOTH excluded with renormalised weights (stated in missingDimensions + scoredWeight) AND confidence scaled by scoredWeight; a keyless transfer with nothing scored falls back to 50 at confidence 0. (4) Added one case beyond the card (headline pinned to the rows' sum on divergence, from the registry technique's procedure step 3), and headlineFor takes the panel's breakdown as a fallback row source. (5) Missing rows keep MISSING_DIMENSION_SCORE as the bar's DISPLAY seed (DimensionScore.score is an int, DevScoreBar.tsx outside the write set) but show 'not scored' in place of a contribution. (6) scoredWeight/missingDimensions/weightsNormalised added to CaseEvaluation + CaseEval beyond the card's two fields, to state the exclusion.",
+  "notes": "SCORE CHANGES (deterministic, every case-sim fixture, before transferScore/unweighted-mean -> after overallScore==transferScore): promote-gate delegator 38/38.4 -> 38, gamer 64/64.4 -> 64, minimal 64/64.4 -> 64, prompt-crafter 64/64.4 -> 64, verifier 91/90.6 -> 92; session-data-plane delegator 38 -> 38, gamer 64 -> 64, minimal 58/58.4 -> 58, prompt-crafter 64 -> 64, verifier 64 -> 64; worksurface-resilience delegator 29/29.4 -> 28, minimal 58 -> 58, prompt-crafter 64 -> 64, verifier 91/90.6 -> 92. Why: the weights put 0.5 on tooling+judgment (the discriminating dims) vs 0.4 under equal weighting, so the verifier (tooling/judgment/transfer 100) rises by ~1 and the resilience delegator (judgment 20, transfer 25, architecture 50 at 0.15) drops by ~1; the 64/58/38 bundles move <0.5 and round to the same value. GATES: submission_eval --count 48 commit path discrimination strong/weak/gamer 48.9/36.2/37.6 (margins 12.7/11.3) -> 48.0/34.5/36.0 (13.5/12.0); observed path 86.1/17.9/12.4 (68.2/73.7) -> 86.8/16.0/10.0 (70.8/76.8) - both margins widen, thresholds unchanged, so the gate only got stricter in effect; fairness unchanged (measured on judgment): commit verify_lead 37.5 ai_gap 16.7, observed 85.0/20.0, all PASS; --path both --strict exits 0. PROMOTE: on keyless installs transferScore now equals the weighted assignment score (computed at eval time; no stored bundle rewritten). GATE REDS NOT MINE: (a) tsc - 74 errors, all under the untracked kpi-sim/ directory (foreign); 0 elsewhere. (b) test:unit - one BROKEN file, app/_lib/python-runner-concurrency.test.ts 'an aborted spawn kills the whole process tree' (10s spawn deadline under 5 concurrent builders' load; also fails alone; python-runner untouched by this card); every other file green. (c) test:perf - 7 app/api routes 1 KB over their ceilings (analyze, redraft, lifecycle approve, session submit, intake promote, jds generate, status letter). Verified with walkGraph: none of my files (app/features/tools/devcases/*, messages/*.json) are in those graphs - catalogs load via a dynamic template import the walker does not resolve - so the overage comes from sibling commits landed after c2c6829d6 (ec71af438, 4390c9ca2, b49204626, b2ec8e9bd, ee01e8264 touch app/_lib). No ceiling raised. One i18n:check run went red with 608 placeholder problems across unrelated keys while I held the lock, then passed unchanged on re-run and on HEAD - transient, likely a sibling's in-flight edit. The first catalog commit attempt was rejected by commit-msg (i18n( prefix); retried as feat(."
+}

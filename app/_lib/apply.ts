@@ -1,6 +1,7 @@
 import type { useTranslations } from "next-intl";
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
 import type { JobRecord } from "./db/core";
+import type { Locale } from "@/i18n/locales";
 import { buildIntakeProfile, type ApplyAnswers, type StepCondition } from "./apply-intake";
 
 // The "apply"-namespace translator the caller threads in so the chat prompts are
@@ -15,14 +16,13 @@ export type ApplyTranslator = ReturnType<typeof useTranslations<"apply">>;
 // runs job-derived knockout (KO) questions before they enter the pipeline.
 
 // The locale default, the bilingual years parser, and the duplicate-application
-// dedup-key helpers live in the registry-free `apply-intake` module so they can
+// name normalizer live in the registry-free `apply-intake` module so they can
 // be unit-tested directly; re-exported here so the apply flow keeps a single
 // public surface.
 export {
   DEFAULT_APPLY_LANGUAGES,
   parseYearsExperience,
   normalizeApplicantName,
-  applyDedupeKey,
 } from "./apply-intake";
 
 export type ApplyStep =
@@ -279,15 +279,29 @@ export function applyKoSteps(job: JobRecord, t: ApplyTranslator): { id: string; 
 // (provenance-resolved by the Python normalizer).
 export function buildApplyProfileDraft(
   job: JobRecord,
-  answers: ApplyAnswers
+  answers: ApplyAnswers,
+  locale?: Locale,
 ): { profile: Record<string, unknown>; signals: Record<string, unknown> } {
   // The registry-free profile assembly (locale default + years parsing) lives in
   // apply-intake.ts and is pinned by apply-intake.test.ts.
-  const profile = buildIntakeProfile(job, answers);
+  const profile = buildIntakeProfile(job, answers, locale);
 
   // Trust a valid self-declaration (router treats it as primary at 0.9); fall
   // back to "auto" heuristic routing when the candidate skipped/garbled it.
   const selfDeclared =
     answers.archetype && ARCHETYPE_IDS.has(answers.archetype) ? answers.archetype : "auto";
   return { profile, signals: { selfDeclared } };
+}
+
+/** The short, plain-words name of each knockout must-have — what the decline screen
+ *  and the decline email NAME, not the question the candidate was asked. Keyed by the
+ *  step id `applyKoSteps` mints; an id this table does not know is dropped rather
+ *  than shown raw (an internal id is never candidate copy). */
+const KO_NAME_KEYS = { ko_auth: "koName.auth", ko_mode: "koName.mode", ko_lang: "koName.lang" } as const;
+
+/** Resolve failed KO step ids to their short names in the translator's language.
+ *  `t` is any apply-namespace translator: the request's (routes) or the candidate's
+ *  pinned one (the decline email). Order follows `ids`. */
+export function koMustHaveNames(ids: readonly string[], t: (key: (typeof KO_NAME_KEYS)[keyof typeof KO_NAME_KEYS]) => string): string[] {
+  return ids.flatMap((id) => (id in KO_NAME_KEYS ? [t(KO_NAME_KEYS[id as keyof typeof KO_NAME_KEYS])] : []));
 }

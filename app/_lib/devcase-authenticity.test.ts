@@ -56,6 +56,32 @@ test("an observed live-session submission with a DECISIONS log is authentic, not
   assert.deepEqual(a.reasons, []);
 });
 
+test("an observed session is not charged for an iteration pattern read off the git history it cannot have", () => {
+  // The reflection is inferred from COMMITS only (evaluation_pipeline -> reflect_commits),
+  // and a watched session has none: the deterministic path reads n=0 as a big dump
+  // (`n <= 2`) and returns "big-bang" with readBeforeWrite 0.35. That is the fixture the
+  // earlier observed tests never passed - they fed "linear" - so every watched session
+  // on the no-API-key path was docked 15 and shown a big-bang finding for work the
+  // product watched edit by edit. Same class as the commit penalties: waived.
+  const a = scoreAuthenticity({
+    commitCount: 0,
+    bursty: null,
+    spanHours: null,
+    decisionsLogPresent: false,
+    readBeforeWrite: 0.2,
+    iterationPattern: "big-bang",
+    observed: true,
+  });
+  assert.equal(a.score, 75); // the missing DECISIONS log only
+  assert.equal(a.band, "authentic");
+  assert.ok(!kinds(a).includes("bigBang"));
+  assert.ok(!kinds(a).includes("lowReadBeforeWrite"));
+  // An unobserved submission with the same reflection is still read: git is its evidence.
+  const git = scoreAuthenticity({ ...base, iterationPattern: "big-bang", readBeforeWrite: 0.2 });
+  assert.ok(kinds(git).includes("bigBang"));
+  assert.ok(kinds(git).includes("lowReadBeforeWrite"));
+});
+
 test("an observed bulk paste (no incremental build-up) is held as suspect, not authentic", () => {
   // The exact paste-from-LLM hole: a clean-looking watched session that pasted a whole
   // LLM solution. Without the paste penalty this scored 100 ("authentic"); now -65 -> 35
@@ -190,6 +216,7 @@ test("the reason vocabulary is closed and every kind is reachable", () => {
     { commitCount: 0, bursty: null, spanHours: null, decisionsLogPresent: true, observed: true, observedBulkPaste: true },
     { commitCount: 0, bursty: null, spanHours: null, decisionsLogPresent: true, observed: true, integrityCompromised: true },
     { ...base, iterationPattern: "unclear" },
+    { ...base, decisionsLogPresent: null },
   ];
   for (const c of cases) for (const r of scoreAuthenticity(c).reasons) fired.add(r.kind);
   assert.deepEqual(
@@ -205,4 +232,33 @@ test("isAuthenticityReasonKind rejects a kind this build does not know", () => {
   assert.equal(isAuthenticityReasonKind("noDecisionsLog"), true);
   assert.equal(isAuthenticityReasonKind("someFutureTell"), false);
   assert.equal(isAuthenticityReasonKind(undefined), false);
+});
+
+// ── An unread signal is not a finding against the candidate (challenge-r04
+// github-repo-intelligence/A). The repo tree could not be read (a GitHub throttle, a
+// 5xx, a timeout) -> the caller passes decisionsLogPresent: null. That is kp's own
+// infrastructure condition, not candidate behaviour: it must lower what the reviewer
+// can conclude, never the score.
+
+test("an UNREAD decisions log costs nothing and says it was not read", () => {
+  const input = { commitCount: 5, bursty: false, spanHours: 40, decisionsLogPresent: null };
+  const a = scoreAuthenticity(input);
+  const read = scoreAuthenticity({ ...input, decisionsLogPresent: true });
+  assert.equal(a.score, read.score, "an unread tree must not move the score");
+  assert.ok(!kinds(a).includes("noDecisionsLog"));
+  assert.ok(kinds(a).includes("decisionsLogUnread"));
+  assert.equal(a.band, read.band);
+});
+
+test("a READ tree with no decisions log keeps today's -25 noDecisionsLog", () => {
+  const input = { commitCount: 5, bursty: false, spanHours: 40, decisionsLogPresent: false };
+  const a = scoreAuthenticity(input);
+  const read = scoreAuthenticity({ ...input, decisionsLogPresent: true });
+  assert.equal(read.score - a.score, 25);
+  assert.ok(kinds(a).includes("noDecisionsLog"));
+  assert.ok(!kinds(a).includes("decisionsLogUnread"));
+});
+
+test("decisionsLogUnread is a kind this build knows (the panel renders it)", () => {
+  assert.equal(isAuthenticityReasonKind("decisionsLogUnread"), true);
 });

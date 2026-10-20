@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
@@ -16,11 +16,14 @@ import {
   type CandidateFilters,
 } from "./candidateMatrixView";
 import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTypes";
+import { matrixChipAction, type PopulationRow } from "@/app/_lib/candidate-population";
 
 // The Matrix projection of the Archetypes tab: the candidate population as a BOARD
-// of archetype lanes. Owns the fetch, the population filters, the detail modal and
-// the panel chrome; CandidateMatrixBoard is pure presentation over (candidates,
-// columns).
+// of archetype lanes. Owns the population filters, the detail modal and the panel
+// chrome; CandidateMatrixBoard is pure presentation over (candidates, columns). The
+// rows are NOT fetched here: ProfileTab holds the one population read
+// (useCandidatePopulation) the roster and the retire dialog also derive from, so a
+// delete on the roster needs no counter to reach this projection.
 //
 // This is the consolidated winner of a two-round `/prototype` run, and what it beat
 // is worth keeping written down, because each loss was a specific lesson:
@@ -39,13 +42,18 @@ import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTy
 // thing you see first.
 
 export function CandidateMatrix({
+  population,
+  loadFailed = false,
   archetypes,
   onEditProfile,
   onBuildFromAnalysis,
   onNewProfile,
-  reloadKey = 0,
   archivedArchetypeIds,
 }: {
+  /** The tab's candidate population; null while the first read is in flight. */
+  population: readonly PopulationRow[] | null;
+  /** The population read failed — shown as this panel's localized load failure. */
+  loadFailed?: boolean;
   archetypes: ArchetypeDef[];
   /** Open the editor for a saved profile (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
@@ -57,8 +65,6 @@ export function CandidateMatrix({
   /** Create CTA for the EMPTY state only — the always-on create button lives next
    *  to the projection toggle on ProfileTab, reachable from List and Matrix alike. */
   onNewProfile?: () => void;
-  /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
-  reloadKey?: number;
   /** Ids of retired archetypes — a retired group with candidates is flagged; an
    *  EMPTY retired group is pruned (no dead all-dots column). */
   archivedArchetypeIds?: readonly string[];
@@ -66,41 +72,14 @@ export function CandidateMatrix({
   const t = useTranslations("profile.matrix");
   const locale = useLocale();
   const enumLabel = useEnumLabel();
-  const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(NO_CANDIDATE_FILTERS);
   const [detail, setDetail] = useState<CandidateRow | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/profile/candidates")
-      .then(async (r) => ({ ok: r.ok, body: (await r.json()) as { error?: string; candidates?: unknown } }))
-      .then(({ ok, body: p }) => {
-        if (!alive) return;
-        if (!ok || p.error) {
-          // NEVER the server's `error` string (app/_lib/use-error-message.ts): this route
-          // returns the raw exception message with no machine `code`, so a failed load
-          // printed English into every locale — and printed the internals with it
-          // ("SQLITE_ERROR: no such table: profiles") to a recruiter. There is nothing to
-          // localize FROM here, so show the localized load failure. The `ok` check is what
-          // makes a body-less non-200 an error instead of a silently empty population.
-          setError(t("loadFailed"));
-        } else {
-          // Clear any prior error in the continuation (not synchronously in the
-          // effect body) so a successful refetch after a transient failure recovers.
-          setError(null);
-          setCandidates((p.candidates as CandidateRow[]) ?? []);
-        }
-      })
-      .catch(() => {
-        if (alive) setError(t("loadFailed"));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [t, reloadKey]);
-
-  const all = useMemo(() => candidates ?? [], [candidates]);
+  const candidates = population;
+  // NEVER the server's `error` string (app/_lib/use-error-message.ts): a failed read
+  // shows the localized load failure — the population hook reports only that it failed.
+  const error = loadFailed ? t("loadFailed") : null;
+  const all = useMemo<readonly CandidateRow[]>(() => candidates ?? [], [candidates]);
   const shown = useMemo(() => filterCandidates(all, filters), [all, filters]);
   // Columns derive from the FILTERED set so an archetype nobody in view routed to
   // doesn't linger as an empty lane.
@@ -119,13 +98,14 @@ export function CandidateMatrix({
   // surfaces as staleness on the profile. Direct callback: a same-tab `fromAnalysis`
   // URL push never remounts this panel.
   // The chip's single action icon: edit a saved profile, or save an analysis as one.
+  // Read through matrixChipAction: a row that carries a profile id is ALWAYS edited —
+  // the population is keyed on CV identity, so a CV that already has a profile never
+  // offers "build" (the server would refuse a second one with PROFILE_EXISTS).
   const onSave = useCallback(
     (cand: CandidateRow) => {
-      if (cand.source === "profile") {
-        if (cand.id) onEditProfile(cand.id);
-      } else if (cand.slug) {
-        onBuildFromAnalysis(cand.slug);
-      }
+      const action = matrixChipAction(cand);
+      if (action?.kind === "edit") onEditProfile(action.id);
+      else if (action?.kind === "build") onBuildFromAnalysis(action.slug);
     },
     [onEditProfile, onBuildFromAnalysis]
   );
@@ -135,7 +115,7 @@ export function CandidateMatrix({
       {/* The "Build candidate profile" CTA lives on ProfileTab beside the projection
           toggle — shared by both projections, so no button here. */}
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
       </header>
@@ -144,10 +124,9 @@ export function CandidateMatrix({
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : candidates == null ? (
-          // Tier 2 (docs/design/loading-choreography.md): first fetch in flight — hold the
-          // matrix's height, invisible for 150ms. `reloadKey` bumps re-run the effect but
-          // never reset `candidates` to null, so a refetch settles silently behind
-          // whatever is already on screen.
+          // Tier 2 (docs/design/loading-choreography.md): first read in flight — hold the
+          // matrix's height, invisible for 150ms. A reload never resets the population to
+          // null, so a refetch settles silently behind whatever is already on screen.
           <div className="h-32 reveal-quiet" aria-hidden />
         ) : all.length === 0 ? (
           <ProfileEmptyState view="matrix" archetypes={archetypes} onNewProfile={onNewProfile} />

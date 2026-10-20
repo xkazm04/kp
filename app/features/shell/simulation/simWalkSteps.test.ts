@@ -1,13 +1,15 @@
-// The walk's chapter sequencing, halt conditions and click route — the three pure
+// The walk's chapter sequencing and halt conditions (the click route moved to
+// simMove.ts, pinned by simMove.test.ts) — the pure
 // decisions inside a 464-line hook that had no test at all.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { SIM_PHASES, type SimPhaseId } from "./constants.ts";
 import {
   SIM_CHAPTERS,
   SIM_HALT_REASONS,
   chaptersMatchPhases,
-  clickRoute,
   matchHalt,
   offerHalt,
   simChapter,
@@ -30,16 +32,27 @@ test("every chapter spotlights something", () => {
   assert.equal(new Set(SIM_CHAPTERS.map((c) => c.id)).size, SIM_CHAPTERS.length, "no id appears twice");
 });
 
+test("every chapter's spotlight hook is rendered by a real surface", () => {
+  // A redesigned tab (the Night Post replaced the Channels view, 2026-09-30) must carry the walk's
+  // hook over, or the chapter spotlights nothing and the walk narrates an empty page.
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const p = path.join(dir, e.name);
+      return e.isDirectory() ? walk(p) : p.endsWith(".tsx") ? [p] : [];
+    });
+  const sources = walk(path.join(process.cwd(), "app", "features")).map((f) => readFileSync(f, "utf8")).join("\n");
+  for (const c of SIM_CHAPTERS) {
+    const hook = /^\[(data-sim[\w-]*)="([^"]+)"\]$/.exec(c.target);
+    if (!hook) continue; // "#main" is the whole surface
+    assert.ok(sources.includes(`${hook[1]}="${hook[2]}"`), `${c.id}: no surface renders ${c.target}`);
+  }
+});
+
 test("simChapter throws on an unknown id rather than silently skipping a phase", () => {
   assert.equal(simChapter("design").tab, "intake");
   // A cast, not a suppression: the id is a runtime value in the walk's own
   // navigation, so the guard has to hold for a string TypeScript never saw.
   assert.throws(() => simChapter("nope" as SimPhaseId), /unknown sim chapter/);
-});
-
-test("clickRoute names the fallback instead of hiding it", () => {
-  assert.equal(clickRoute(true), "dom", "a real click on a rendered control");
-  assert.equal(clickRoute(false), "api", "the button was not on screen — the run log must SAY the API ran it");
 });
 
 test("the halt conditions are the broken preconditions, not cosmetic failures", () => {

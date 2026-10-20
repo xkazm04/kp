@@ -26,6 +26,7 @@ from typing import Any, Protocol, Sequence
 
 from pydantic import Field
 
+from .education import JOB_MIN_LEVELS
 from .market_config import ACTIVE_MARKET, gross_period_phrase
 from .models import _Base
 from .salary_band import normalize_band
@@ -44,7 +45,8 @@ KINDS = ("must_have", "nice_to_have")
 HARDNESS = ("prerequisite", "learnable")
 # high_school added 2026-08-11: postings demanding a HS diploma had no legal value,
 # so extraction was forced into the "none"-vs-diploma self-contradiction the bench flagged.
-EDU_LEVELS = ("phd", "master", "bachelor", "university", "high_school", "none")
+# The job-side ladder lives in education.py with the candidate side it is compared to.
+EDU_LEVELS = JOB_MIN_LEVELS
 # The pay periods a posting may STATE (Job.salary_currency / Job.salary_period).
 # "hour" is in the vocabulary although no band is ever built from it: an hourly ad
 # stated pay, and a reader told "posting states no pay" would be told a falsehood.
@@ -526,3 +528,20 @@ def ingest_raw_ad(text: str, *, provider: LlmProvider, job_id: str | None = None
     if not isinstance(raw, dict):
         raise ValueError("LLM did not return a JSON object for the job ad")
     return normalize_job(raw, job_id=job_id)
+
+
+def ingest_ad_deterministic(text: str, *, job_id: str | None = None) -> Job:
+    """Keyless structural parse of a prose job posting into a :class:`Job` (no LLM).
+
+    The title is the first non-empty line (markdown heading marks stripped, capped at
+    120 chars) and the description is the whole ad. Nothing is invented: no requirements,
+    salary, location or seniority are inferred, so :func:`normalize_job` stamps the locale
+    defaults and lists every one of them in ``Job.defaulted_fields`` for the recruiter to
+    tell stated from assumed. A keyless install thus still lands a draft job to edit.
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        raise ValueError("empty job posting")
+    first = next((ln.strip() for ln in stripped.splitlines() if ln.strip()), "")
+    title = first.lstrip("#*-> \t").strip()[:120]
+    return normalize_job({"title": title, "description": stripped}, job_id=job_id)

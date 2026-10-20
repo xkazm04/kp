@@ -1,0 +1,150 @@
+{
+ "schema": "conform-run/1",
+ "worker": "eb5721fe-9d84-4035-873b-0198024c3cad",
+ "subject": "recruiter-anchored-model-evaluation",
+ "evaluatedAt": "2026-10-17T02:05:45.927545+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "models-keys-and-routing",
+   "subject": "recruiter-anchored-model-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/llm-quality.ts:194 The Models panel's scoring dependency multiplies quality by a structural-validity penalty, blending reliability into the quality statistic.",
+   "techniques": [
+    {
+     "technique": "decision-anchored-score-bands",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:81 The rubric assigns one action to two integer scores without defining their distinction; the standard requires anchoring every number or shrinking the scale."
+    },
+    {
+     "technique": "evidence-grounded-correctness",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:143 The complete return schema requests scalar dimensions, a verdict and issues rather than extracted claims with support labels and quoted contradictions."
+    },
+    {
+     "technique": "never-judge-a-fallback-as-the-models-work",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:167 The bake excludes fallback rows and retains a judges count, but the per-operation quality cell displays its composite without the surviving sample required beside every quality cell."
+    },
+    {
+     "technique": "separate-quality-from-reliability",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-quality.ts:194 Structural invalidity reduces the quality composite through INVALID_FACTOR instead of remaining a separate reliability gate."
+    },
+    {
+     "technique": "unverifiable-is-not-fabricated",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:144 The prompt explicitly distinguishes unverifiable claims, but its result schema and parser do not preserve claim labels or an unverifiable count."
+    }
+   ]
+  },
+  {
+   "context": "devcase-core",
+   "subject": "recruiter-anchored-model-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The lifecycle artifact judge requests an unanchored 1\u20135 quality score, leaving its relationship to a recruiter's action unspecified.",
+   "techniques": [
+    {
+     "technique": "decision-anchored-score-bands",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The complete prompt supplies no practitioner-action definition for any score."
+    },
+    {
+     "technique": "evidence-grounded-correctness",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:39 The grounding judgment receives a scenario label and truncated generated output without the original need or snapshot evidence."
+    },
+    {
+     "technique": "never-judge-a-fallback-as-the-models-work",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:31 Only error rows are excluded, so deterministic and partially degraded rows enter the same quality judging and summary path as real generations."
+    },
+    {
+     "technique": "separate-quality-from-reliability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:69 The quality summary omits surviving-artifact counts and pools judgments admitted without a real-generation filter, despite separate reliability reporting elsewhere in this context."
+    }
+   ]
+  },
+  {
+   "context": "tests-devcase",
+   "subject": "recruiter-anchored-model-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:107 The test certifies the identical Claude model as independent when accessed through different providers, allowing self-judging that the standard's independence countermeasure forbids.",
+   "techniques": [
+    {
+     "technique": "decision-anchored-score-bands",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 The preceding setup assigns claude-haiku-4-5 to both seats through anthropic and openrouter; changing the transport does not provide an independent judge family."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "recruiter-anchored-model-evaluation",
+   "context": "group-eval-comparison",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "recruiter-anchored-model-evaluation",
+   "context": "devcase-evaluation",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-17T02:05:45.927545+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "recruiter-anchored-model-evaluation"
+   ],
+   "techniques": [
+    "decision-anchored-score-bands",
+    "evidence-grounded-correctness",
+    "never-judge-a-fallback-as-the-models-work",
+    "separate-quality-from-reliability",
+    "unverifiable-is-not-fabricated"
+   ],
+   "deviations": 1,
+   "context": "models-keys-and-routing",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T02:05:45.927545+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "recruiter-anchored-model-evaluation"
+   ],
+   "techniques": [
+    "decision-anchored-score-bands",
+    "evidence-grounded-correctness",
+    "never-judge-a-fallback-as-the-models-work",
+    "separate-quality-from-reliability"
+   ],
+   "deviations": 1,
+   "context": "devcase-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T02:05:45.927545+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "recruiter-anchored-model-evaluation"
+   ],
+   "techniques": [
+    "decision-anchored-score-bands"
+   ],
+   "deviations": 1,
+   "context": "tests-devcase",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

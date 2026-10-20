@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useCallback, useEffect, useRef } from "react";
 
 // Canonical multi-line input — the dual-theme wrapper over a native <textarea>,
 // the sibling of TextInput. Same token-resolved base (card-white fill, ink text,
@@ -11,20 +11,36 @@ import { forwardRef } from "react";
 export type TextAreaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   sizeVariant?: "sm" | "md";
   invalid?: boolean;
+  /** Grow with controlled or typed content, up to a scrollable reading height. */
+  autoGrow?: boolean;
 };
 
 const BASE =
   "focus-ring w-full resize-y rounded-md border bg-white p-3 text-ink placeholder:text-steel caret-coral transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { className = "", sizeVariant = "md", invalid = false, ...rest },
+  { className = "", sizeVariant = "md", invalid = false, autoGrow = false, ...rest },
   ref
 ) {
+  const innerRef = useRef<HTMLTextAreaElement | null>(null);
+  const resize = useCallback(() => {
+    if (!autoGrow || !innerRef.current) return;
+    const el = innerRef.current;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+    el.style.overflowY = el.scrollHeight > 320 ? "auto" : "hidden";
+  }, [autoGrow]);
+  useEffect(() => resize(), [resize, rest.value]);
+  const attachRef = useCallback((node: HTMLTextAreaElement | null) => {
+    innerRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  }, [ref]);
   // Own the text size so a caller's `text-sm` (e.g. a monospace body) wins over
   // the base without an `!important` fight (Tailwind orders text-* by scale).
   const size = sizeVariant === "sm" ? "text-sm leading-5" : "text-base leading-6";
   // Coral hover-border matches the Select affordance so sibling controls
   // in one form row respond identically to the cursor.
   const border = invalid ? "border-red-400" : "border-stone-200 hover:border-coral/40";
-  return <textarea ref={ref} aria-invalid={invalid || undefined} className={`${BASE} ${size} ${border} ${className}`} {...rest} />;
+  return <textarea ref={attachRef} aria-invalid={invalid || undefined} className={`${BASE} ${size} ${border} ${className}`} {...rest} onInput={(event) => { rest.onInput?.(event); resize(); }} />;
 });

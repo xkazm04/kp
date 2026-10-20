@@ -1,0 +1,116 @@
+/* The Cohort Studio shell (spark analyze-v2-cohort, WP3), scoped to .cs-studio. Every colour is
+   a token: the parts paint through the --cs-* roles below, re-declared for Spark Dark, so ONE
+   markup renders in both registers. Studio Light is a calm call sheet (hairline rules, ink
+   numerals, no drop shadow); Spark Dark draws it (2px cream outlines, hard sticker shadows, a
+   little tilt that straightens under the cursor). The seat strip is the shell's one figure: the
+   cap drawn as twenty seats, filled by who sits in them (the tray) or by how far each got (the run). */
+
+.cs-studio {
+  --cs-line-w: 1px;
+  --cs-line: var(--color-stone-300);
+  --cs-rule: var(--color-stone-200);
+  --cs-act-on: var(--color-ink);
+  --cs-act-on-text: var(--color-white);
+  --cs-drop: none;
+  --cs-tilt: 0deg;
+  --cs-ease: cubic-bezier(.2, .7, .2, 1);
+  --cs-seat-line: var(--color-stone-300);
+  --cs-seat-applicant: var(--color-ink);
+  --cs-seat-matched: var(--color-steel);
+  --cs-seat-added: var(--color-coral);
+  --cs-seat-done: var(--color-moss);
+  --cs-seat-reused: color-mix(in srgb, var(--color-moss) 45%, var(--color-white));
+  --cs-seat-failed: var(--color-coral);
+  --cs-seat-busy: var(--color-dial-amber);
+}
+[data-theme="dark"] .cs-studio {
+  --cs-line-w: 2px;
+  --cs-line: var(--color-stone-300);
+  --cs-act-on: var(--color-coral);
+  --cs-act-on-text: var(--color-white);
+  --cs-drop: var(--shadow-sticker-sm);
+  --cs-tilt: -1deg;
+  --cs-ease: cubic-bezier(.34, 1.56, .64, 1);
+  --cs-seat-line: var(--color-stone-400);
+  --cs-seat-reused: color-mix(in srgb, var(--color-moss) 55%, var(--color-paper));
+}
+
+/* ---------- the call sheet: three acts on one rule ---------- */
+.cs-acts { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 0; }
+.cs-act { display: flex; flex: 1 1 14rem; min-width: 0; align-items: center; }
+.cs-act:last-child { flex-grow: 0; }
+.cs-act__rule { flex: 1 1 2rem; min-width: 1.5rem; margin: 0 1rem; border-top: var(--cs-line-w) dashed var(--cs-line); }
+.cs-act[data-state="done"] .cs-act__rule { border-top-style: solid; border-color: var(--color-moss); }
+.cs-act__btn {
+  display: flex; align-items: center; gap: .75rem; min-width: 0; max-width: 100%; text-align: left;
+  padding: .5rem .25rem .5rem 0; border-radius: var(--radius-md, .375rem);
+  transition: transform .2s var(--cs-ease);
+}
+.cs-act__btn:disabled { cursor: default; }
+.cs-act__btn:not(:disabled):hover .cs-act__n { border-color: var(--color-coral); }
+.cs-act__n {
+  flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 9999px;
+  border: var(--cs-line-w) solid var(--cs-line); background: var(--color-white); color: var(--color-steel);
+  font-family: var(--font-serif); font-weight: 600; font-variant-numeric: tabular-nums;
+  transition: background-color .2s, border-color .2s, transform .25s var(--cs-ease);
+}
+.cs-act[data-state="current"] .cs-act__n {
+  background: var(--cs-act-on); border-color: var(--cs-act-on); color: var(--cs-act-on-text);
+  box-shadow: var(--cs-drop); transform: rotate(var(--cs-tilt));
+}
+.cs-act[data-state="done"] .cs-act__n { border-color: var(--color-moss); color: var(--color-moss); }
+.cs-act__text { display: flex; min-width: 0; flex-direction: column; }
+.cs-act__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 759.98px) {
+  .cs-act { flex-basis: 100%; }
+  .cs-act__rule { display: none; }
+}
+
+/* ---------- the seat strip ---------- */
+.cs-seats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; }
+.cs-seat {
+  width: 12px; height: 18px; border-radius: 5px 5px 2px 2px;
+  border: var(--cs-line-w) solid var(--cs-seat-line); background: transparent;
+  transition: background-color .35s, border-color .35s, transform .35s var(--cs-ease);
+}
+.cs-seat[data-tone="applicant"] { background: var(--cs-seat-applicant); border-color: var(--cs-seat-applicant); }
+.cs-seat[data-tone="matched"] { background: var(--cs-seat-matched); border-color: var(--cs-seat-matched); }
+.cs-seat[data-tone="added"] { background: var(--cs-seat-added); border-color: var(--cs-seat-added); }
+.cs-seat[data-tone="done"] { background: var(--cs-seat-done); border-color: var(--cs-seat-done); }
+.cs-seat[data-tone="reused"] { background: var(--cs-seat-reused); border-color: var(--cs-seat-done); }
+.cs-seat[data-tone="queued"] { border-color: var(--cs-seat-line); border-style: dashed; }
+.cs-seat[data-tone="analyzing"] { border-color: var(--cs-seat-busy); background: color-mix(in srgb, var(--cs-seat-busy) 30%, transparent); animation: cs-seat-busy 1.6s ease-in-out infinite; }
+.cs-seat[data-tone="failed"] {
+  border-color: var(--cs-seat-failed);
+  background: repeating-linear-gradient(135deg, var(--cs-seat-failed) 0 2px, transparent 2px 5px);
+}
+[data-theme="dark"] .cs-seat:nth-child(3n + 1) { transform: rotate(-3deg); }
+[data-theme="dark"] .cs-seat:nth-child(3n + 2) { transform: rotate(2deg); }
+@keyframes cs-seat-busy { 50% { transform: translateY(-2px); } }
+
+.cs-key { display: inline-flex; align-items: center; gap: .375rem; }
+.cs-key .cs-seat { width: 10px; height: 14px; }
+
+/* ---------- the tray: one ticket per member, the rule that seated them on its edge ---------- */
+.cs-ticket {
+  position: relative; display: flex; align-items: center; gap: .75rem; min-width: 0;
+  border: var(--cs-line-w) solid var(--cs-rule); border-left-width: 4px; border-radius: .5rem;
+  background: var(--color-white); padding: .5rem .5rem .5rem .75rem;
+  transition: transform .2s var(--cs-ease), box-shadow .2s;
+}
+.cs-ticket[data-membership="applicant"] { border-left-color: var(--cs-seat-applicant); }
+.cs-ticket[data-membership="matched"] { border-left-color: var(--cs-seat-matched); }
+.cs-ticket[data-membership="added"] { border-left-color: var(--cs-seat-added); }
+[data-theme="dark"] .cs-ticket { border-radius: 1rem; border-color: var(--color-stone-300); box-shadow: var(--cs-drop); }
+[data-theme="dark"] .cs-ticket:nth-child(odd) { transform: rotate(-.4deg); }
+[data-theme="dark"] .cs-ticket:hover { transform: rotate(0); }
+
+/* ---------- the recent strip ---------- */
+.cs-recent { display: flex; gap: .75rem; overflow-x: auto; padding: 2px 2px .5rem; scroll-snap-type: x proximity; }
+.cs-recent > li { flex: none; scroll-snap-align: start; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-seat, .cs-act__n, .cs-act__btn, .cs-ticket { transition: none; }
+  .cs-seat[data-tone="analyzing"] { animation: none; }
+}

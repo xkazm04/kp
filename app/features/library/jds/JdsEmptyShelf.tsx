@@ -28,7 +28,6 @@ import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE, GLYPH_SIZE_SM } from "@/app/_components/glyph/glyphSizes";
-import { LIBRARY_GLYPH } from "@/app/_components/glyph/glyphs/libraryGlyph";
 import { BTN_PRIMARY, CHIP, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 
 // One empty slot of the ghost record. `wide` gives the Role cell the span it has
@@ -60,8 +59,7 @@ export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => 
     <div className="p-6">
       <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
         <MotionizedGlyph
-          data={LIBRARY_GLYPH.data}
-          viewBox={LIBRARY_GLYPH.viewBox}
+          glyph="library"
           className={`${GLYPH_SIZE.md} shrink-0 ${GLYPH_SIZE_SM.lg}`}
         />
         <div>

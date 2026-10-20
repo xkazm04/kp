@@ -45,7 +45,7 @@ function addEntry(overrides: Partial<Parameters<typeof createPipelineEntry>[0]> 
   return entry;
 }
 
-test("createPipelineEntry is idempotent per (candidate, job) and re-activates a terminal re-add", () => {
+test("createPipelineEntry is idempotent per (candidate, job); a terminal re-add reopens only through a named human door", () => {
   const entry = addEntry();
   assert.equal(entry.stage, "Screened", "default stage is Screened");
   assert.equal(entry.status, "active");
@@ -63,31 +63,52 @@ test("createPipelineEntry is idempotent per (candidate, job) and re-activates a 
   assert.equal(again.entry.id, entry.id);
   assert.equal(listPipelineEventsForEntry(entry.id).length, 1);
 
-  // Close it out, then re-add → the terminal row is re-surfaced as active.
+  // Close it out, then re-add. The OLD contract silently re-surfaced the terminal row as
+  // active on ANY re-add — no event, no actor — so a machine door (publish sourcing, the
+  // automation rematch, the filing core) could undo a human's reject. Forbidden now: a
+  // re-add that names no human leaves the row closed and says why…
   actOnPipelineEntry(entry.id, "reject");
   assert.equal(getPipelineEntry(entry.id)!.status, "rejected");
-  const revived = createPipelineEntry({
+  const plain = createPipelineEntry({
     candidateId: `utest-c${seq}`,
     candidateLabel: entry.candidateLabel,
     jobId: entry.jobId!,
     jobTitle: entry.jobTitle!,
   });
+  assert.equal(plain.created, false);
+  assert.equal(plain.reopened, false);
+  assert.equal(plain.reopenRefused, "not_requested");
+  assert.equal(plain.entry.status, "rejected", "no silent revive");
+
+  // …and the recruiter's reconsider door reopens it ON THE RECORD, naming who did it.
+  const revived = createPipelineEntry({
+    candidateId: `utest-c${seq}`,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId!,
+    jobTitle: entry.jobTitle!,
+    reopen: { actorRef: "human:Unit Tester" },
+  });
   assert.equal(revived.created, false);
+  assert.equal(revived.reopened, true);
   assert.equal(revived.entry.status, "active");
+  const reinstated = listPipelineEventsForEntry(entry.id).filter((e) => e.kind === "reinstated");
+  assert.equal(reinstated.length, 1);
+  assert.equal(reinstated[0].actor, "human:Unit Tester");
 });
 
 test("accept advances exactly one stage along the canonical axis and Hired is a stage ceiling", () => {
   const entry = addEntry();
   const ladder: string[] = [entry.stage];
   for (let i = 0; i < 3; i++) {
-    const next = actOnPipelineEntry(entry.id, "accept");
+    // The last hop lands on Hired: a fixture standing in for the accepted offer.
+    const next = actOnPipelineEntry(entry.id, "accept", undefined, { outcome: "offer_accepted" });
     assert.ok(next, "accept on an active entry must succeed");
     ladder.push(next.stage);
   }
   assert.deepEqual(ladder, ["Screened", "Interview", "Offer", "Hired"]);
   // The Hired candidate keeps status 'active' (see pipeline-status.ts) and a
   // further accept must NOT overrun the axis or flip anything.
-  const atCeiling = actOnPipelineEntry(entry.id, "accept");
+  const atCeiling = actOnPipelineEntry(entry.id, "accept", undefined, { outcome: "offer_accepted" });
   assert.equal(atCeiling!.stage, "Hired");
   assert.equal(atCeiling!.status, "active");
   const advanced = listPipelineEventsForEntry(entry.id).filter((e) => e.kind === "advanced");

@@ -1,0 +1,153 @@
+{"source_line":201,"disposition":"descoped","reason":"History already honors the truncated flag","risk":1,"title":"Honor the analyses list truncated flag on HistoryTab"}
+{"source_line":36,"disposition":"built","commit":"67200268","risk":1,"title":"Persist the Models section switcher in the URL"}
+{"source_line":39,"disposition":"descoped","reason":"Shared market CLI error envelope is already used","risk":1,"title":"Give market_salary_cli the shared emit_error envelope"}
+{"source_line":106,"disposition":"descoped","reason":"Checkout completion is already emitted after webhook confirmation","risk":1,"title":"Fire checkout_completed when the webhook-backed banner confirms"}
+{"source_line":181,"disposition":"deferred","reason":"Loose-gate coaching needs a contract change","risk":1,"title":"Pin winnability looseGates for seniority and work-mode"}
+{"source_line":182,"disposition":"built","commit":"52fbd141","risk":1,"title":"Pin the university-education knockout harm as a gate"}
+{"source_line":219,"disposition":"built","commit":"08f38b01","risk":1,"title":"Show a needs-review chip when archetype vote-share is below 0.55"}
+{"source_line":220,"disposition":"built","commit":"c6249863","risk":1,"title":"Render PotentialBadge on ArchetypeBanner when v2Profile has potentialScore"}
+{"source_line":222,"disposition":"built","commit":"6e8fb7d4","risk":1,"title":"Copy the interview kit to the clipboard"}
+{"source_line":224,"disposition":"built","commit":"6335425b","risk":1,"title":"Import soft-signals into the interview prep pack"}
+{"source_line":225,"disposition":"deferred","reason":"Analysis contract lacks both candidate and role seniority","risk":1,"title":"Show candidate vs role seniority when the salary read used the candidate band"}
+{"source_line":236,"disposition":"built","commit":"03f5e086","risk":1,"title":"Add Czech authenticity buzzword fixtures to the gated suite"}
+{"source_line":238,"disposition":"deferred","reason":"Czech charset gap needs a detector fix","risk":1,"title":"Measure the Czech-without-Ĺ  charset remaining gap"}
+{"source_line":251,"disposition":"descoped","reason":"Expired invites are already filtered","risk":1,"title":"Sweep pending invites past expires_at so the roster cannot show live ghosts"}
+{"source_line":264,"disposition":"deferred","reason":"Retention policy is not yet specified","risk":1,"title":"Prune repo_scans.dossier_json after the reuse window"}
+{"source_line":265,"disposition":"deferred","reason":"Retention policy is not yet specified","risk":1,"title":"Blank agent_activity.raw_json after a stated retention window"}
+{"source_line":280,"disposition":"descoped","reason":"ColumnHead already supports sticky styling","risk":1,"title":"Add an optional sticky prop on ColumnHead"}
+{"source_line":282,"disposition":"built","commit":"ca2300b9","risk":1,"title":"Add PANEL_ACCENT claimed shipped but missing from recipes.ts"}
+{"source_line":284,"disposition":"descoped","reason":"Existing PAGE_HEADER recipe supersedes the old TAB_HEADER plan","risk":1,"title":"Add the TAB_HEADER recipe the visual-uplift plan still names"}
+{"source_line":482,"disposition":"deferred","reason":"Current yearly salary path already converts to monthly; blind normalization double-divides","risk":1,"title":"Pin yearly-to-monthly restatement in test_jobs.py"}
+{"source_line":493,"disposition":"built","commit":"98e3459b","risk":1,"title":"Flush the debounced org-name write on tab unmount"}
+{"source_line":496,"disposition":"built","commit":"887350de","risk":1,"title":"Localize the backup confirm word instead of English REPLACE"}
+{"source_line":510,"disposition":"descoped","reason":"Overview mini-board already shows occupancy","risk":1,"title":"Paint occupancy counts on the impact Overview mini-board"}
+{"source_line":557,"disposition":"built","commit":"c5be9c46","risk":1,"title":"Show pending-invite expiry on the team roster"}
+{"source_line":571,"disposition":"descoped","reason":"Band compact formatting is localized by callers","risk":1,"title":"Localize formatBandCompact's k-unit"}
+{"source_line":580,"disposition":"built","commit":"44f48432","risk":1,"title":"Drop English STAGE_HELP fallbacks"}
+{"source_line":614,"disposition":"descoped","reason":"Live call already shows booked and remaining time","risk":1,"title":"Show remaining vs booked time on the live-call clock"}
+{"source_line":636,"disposition":"built","commit":"0ad921503","risk":1,"title":"Localize AppearanceToggle theme names"}
+{"source_line":641,"disposition":"built","commit":"b3fabf77","risk":1,"title":"Badge CompanionRest with the open-proposal count"}
+{"source_line":644,"disposition":"built","commit":"db694dfb","risk":1,"title":"Mount VoiceNav timeline dots on history.goTo"}
+{"source_line":648,"disposition":"built","commit":"3bd1d08f","risk":1,"title":"Surface blocked auto-speak on the ticker, not only Play"}
+{"source_line":655,"disposition":"built","commit":"5b775975","risk":1,"title":"Preview About as the six chapter claims with hash links"}
+{"source_line":661,"disposition":"built","commit":"5eddead5","risk":1,"followup_commits":["0483b76d"],"title":"Confirm which columns a preset will remove"}
+{"source_line":662,"disposition":"descoped","reason":"Journey view already shows occupancy","risk":1,"title":"Show occupancy on the read-only journey view"}
+{"source_line":664,"disposition":"built","commit":"bad8122f2","risk":1,"followup_commits":["9988ba21"],"title":"Preview the company-step logo URL"}
+{"source_line":666,"disposition":"built","commit":"a152eff5","risk":1,"title":"Announce restored setup drafts in a live region"}
+{"source_line":671,"disposition":"built","commit":"6082ef5a","risk":1,"title":"Show the ops-orb caption without hover on touch devices"}
+{"source_line":677,"disposition":"built","commit":"9bacf585","risk":1,"title":"Copy the run log as a shareable demo transcript"}
+{"source_line":702,"disposition":"built","commit":"c83b2e70","risk":1,"title":"Drive tour and intake query aliases from catalogs, not a CS literal"}
+{"source_line":705,"disposition":"built","commit":"5e2c4d7a","risk":1,"title":"Include last-visited tabs in the palette rest state"}
+{"source_line":46,"disposition":"deferred","reason":"Voice technical-term taxonomy remains incomplete","risk":1,"title":"Lockstep voice TECH_TERMS against the skill taxonomy"}
+{"source_line":50,"disposition":"deferred","reason":"Token-ceiling work needs a measured spend baseline","risk":1,"title":"Scan map-driven resolve_provider sites for token ceilings"}
+{"source_line":51,"disposition":"deferred","reason":"Typed gateway JSON schemas need a broader contract","risk":1,"title":"Lockstep gateway schemas to measured JSON use cases"}
+{"source_line":179,"disposition":"built","commit":"d71bca2b","risk":1,"title":"Pin matrix_cli cell provenance payload"}
+{"source_line":18,"disposition":"deferred","reason":"Strict interview eval has golden coverage for only 2 of 13 scenarios","risk":2,"title":"Add interview_eval --no-llm --strict to test:eval:ci"}
+{"source_line":27,"disposition":"deferred","reason":"Provider and model cache contract needs a wider decision","risk":2,"title":"Add provider and model to the reasoning cache key"}
+{"source_line":59,"disposition":"built","commit":"7e6766a2","risk":2,"title":"Count metric-pack capacity from owned roles, not the shared corpus"}
+{"source_line":61,"disposition":"built","commit":"779a24f1","risk":2,"title":"Honour holdout source on GET /api/analytics/calibration/band"}
+{"source_line":64,"disposition":"descoped","reason":"Covered by source line 61 in this wave","risk":2,"title":"Holdout score-band drilldown must not list pipeline candidates"}
+{"source_line":69,"disposition":"descoped","reason":"Moved hires are already represented","risk":2,"title":"Count kind=moved as hires in weekly momentum"}
+{"source_line":74,"disposition":"built","commit":"4519b5e0","risk":2,"title":"Warn on Apply when auto-reject is off"}
+{"source_line":103,"disposition":"descoped","reason":"Billing dunning banner is already present","risk":2,"title":"Show a dunning recovery banner with Update payment for past_due"}
+{"source_line":248,"disposition":"deferred","reason":"Retention policy is not yet specified","risk":2,"title":"Prune completed interview transcripts after a stated retention window"}
+{"source_line":394,"disposition":"descoped","reason":"Accept proposal and reschedule already check free-busy","risk":2,"title":"Re-check free/busy on accept_proposal and reschedule"}
+{"source_line":450,"disposition":"built","commit":"af9bde46c","risk":2,"title":"List live /jds/[slug] URLs in sitemap.xml"}
+{"source_line":469,"disposition":"deferred","reason":"Current yearly salary path already converts to monthly; blind normalization double-divides","risk":2,"title":"Restate yearly stated pay onto a monthly salary_band in normalize_job"}
+{"source_line":490,"disposition":"descoped","reason":"Disabled grants already have coverage","risk":2,"title":"Honor disabled status in org-wide capability grants"}
+{"source_line":545,"disposition":"built","commit":"017f6702","risk":2,"followup_commits":["bfd3fc7c8"],"title":"Add polar_whs_ to SECRET_PATTERNS after replacing the webhook-verify fixture"}
+{"source_line":546,"disposition":"built","commit":"f13d7dae5","risk":2,"title":"Protect the actions-pin allowlist from dispatched writes"}
+{"source_line":591,"disposition":"deferred","reason":"Localized OG text and font fallback remain unresolved","risk":2,"title":"Load latin-ext OG font subsets for cs/de/fr"}
+{"source_line":592,"disposition":"built","commit":"3f313cce4","risk":2,"followup_commits":["8846101d"],"title":"Time-bound readTextWithLimit against slowloris"}
+{"source_line":9,"disposition":"deferred","reason":"Digest thread needs a switcher before history remains reachable","risk":2,"title":"Land the digest on a dedicated thread, not the newest conversation"}
+{"source_line":14,"disposition":"built","commit":"5334c896","risk":2,"title":"Honor turn.json session_id so episodes link to the kp thread"}
+{"source_line":20,"disposition":"deferred","reason":"A keyed golden run is required to measure salary coverage","risk":2,"title":"Record salary_coverage on the golden set so the bar is not UNMEASURED"}
+{"source_line":23,"disposition":"built","commit":"9aa6b50b","risk":2,"title":"CAS-guard DELETE /api/llm/config the way PUT already is"}
+{"source_line":28,"disposition":"built","commit":"d13d78a0","risk":2,"title":"Give rankPoolForJob an explicit timeoutMs"}
+{"source_line":35,"disposition":"built","commit":"614913b2","risk":2,"title":"Mark inert routing rows the registry never calls"}
+{"source_line":38,"disposition":"descoped","reason":"Gateway keyless save already works","risk":2,"title":"Allow a keyless gateway save without a dummy API key"}
+{"source_line":56,"disposition":"deferred","reason":"Provider-unavailable fallback is constrained by the current architecture","risk":2,"title":"Pin analyze_cv engine_kind when the provider is unavailable"}
+{"source_line":62,"disposition":"built","commit":"97e76884","risk":2,"title":"Retire the calibration memo when apply-threshold writes"}
+{"source_line":70,"disposition":"built","commit":"d66a2a9c","risk":2,"title":"Pick the bottleneck by median wait, not mean"}
+{"source_line":78,"disposition":"built","commit":"bad8122f2","risk":2,"title":"Tally unmapped CZ-ISCO codes instead of silent default family"}
+{"source_line":79,"disposition":"built","commit":"762eee75","risk":2,"title":"Fail validateSnapshot when default-family share is too high"}
+{"source_line":81,"disposition":"built","commit":"e973a595","risk":2,"title":"Count all provider tokens in engineTelemetry, not just Gemini"}
+{"source_line":94,"disposition":"built","commit":"1f6318e8","risk":2,"title":"Emit FORBIDDEN_CAPABILITY from org and workspace gates"}
+{"source_line":96,"disposition":"built","commit":"8e310033","risk":2,"title":"Preserve ?plan= through the login success redirect"}
+{"source_line":97,"disposition":"built","commit":"9c95e831","risk":2,"title":"Fall back to /login when invite redeem did not set kp_entered"}
+{"source_line":99,"disposition":"built","commit":"9cd3774a","risk":2,"title":"Encode plan vs pack on the checkout success URL"}
+{"source_line":102,"disposition":"built","commit":"cff284f2","risk":2,"title":"Code the public webhook refusals; stop forwarding error.message"}
+{"source_line":111,"disposition":"built","commit":"3d341cdd","risk":2,"title":"Adopt Channels section from a URL inbox like Analytics ?sec="}
+{"source_line":112,"disposition":"built","commit":"24c7c9e0","risk":2,"title":"Read waiting count from /api/attention instead of /api/pipeline"}
+{"source_line":113,"disposition":"built","commit":"ad438963","risk":2,"title":"Distinguish pull URL validation 400 from store-write 500"}
+{"source_line":119,"disposition":"deferred","reason":"Status, data and stop need distinct capability projections","risk":2,"title":"Link GDPR data-access and outreach-stop from the status page"}
+{"source_line":122,"disposition":"built","commit":"7c6cabbf","risk":2,"title":"Honor the apply honeypot on the conversational POST"}
+{"source_line":123,"disposition":"built","commit":"caf21825","risk":2,"title":"Thread campaign/variant attribution through conversational apply"}
+{"source_line":128,"disposition":"built","commit":"0d181db6","risk":2,"title":"Parse German and French year units in parseYearsExperience"}
+{"source_line":129,"disposition":"built","commit":"a49d6d83","risk":2,"title":"Extend rejection-feedback protected-attribute filters to de/fr"}
+{"source_line":130,"disposition":"built","commit":"a72e08a4","risk":2,"title":"Default apply languages from the request locale, not Czech+English"}
+{"source_line":158,"disposition":"descoped","reason":"Feminine multiword cases are already covered","risk":2,"title":"Pin Czech feminine multi-word titles to the same role family"}
+{"source_line":160,"disposition":"descoped","reason":"Czech and English fairness eval is already pinned","risk":2,"title":"Pin bilingual CZ/EN skill-label recall in the fairness eval"}
+{"source_line":198,"disposition":"built","commit":"2b256d8f","risk":2,"title":"Thread AbortSignal through submitAnalysis so cancel aborts the upload"}
+{"source_line":199,"disposition":"built","commit":"5837b252","risk":2,"title":"Admit a CV batch on the window-level drop like the CV zone"}
+{"source_line":202,"disposition":"deferred","reason":"Shell intentionally treats tab query as a one-shot inbox","risk":2,"title":"Write ?tab=history when the Analyze segmented control switches"}
+{"source_line":207,"disposition":"built","commit":"eceb983e9","risk":2,"title":"Return extract-text page and char counts so callers can warn on empty scans"}
+{"source_line":221,"disposition":"deferred","reason":"Analysis contract does not expose requirement kind","risk":2,"title":"Drive MissingSkillsTiers from requirement kind, not list position"}
+{"source_line":223,"disposition":"built","commit":"7c2711e7","risk":2,"followup_commits":["5950b146"],"title":"Pass prepEntryId through after live Add-to-pipeline"}
+{"source_line":228,"disposition":"built","commit":"cf097cd3","risk":2,"title":"Require Meter aria-label at the type so unlabeled bars fail the gate"}
+{"source_line":241,"disposition":"deferred","reason":"Retention policy is not yet specified","risk":2,"title":"Blank llm_usage.request_id after 90 days like billing event payloads"}
+{"source_line":249,"disposition":"deferred","reason":"Clearing intake transcript changes studio and export behavior","risk":2,"title":"Clear role_intakes.transcript_json when an intake is promoted"}
+{"source_line":252,"disposition":"deferred","reason":"Companion pruning could break Activity turn links","risk":2,"title":"Prune companion_turns past the dock's COMPANION_THREAD_TURNS window"}
+{"source_line":254,"disposition":"descoped","reason":"Lite and capped pipeline state is already rendered","risk":2,"title":"Project listPipeline through a lite column set like TASK_LITE_COLUMNS"}
+{"source_line":262,"disposition":"deferred","reason":"Agent aggregate SQL fold needs broader design","risk":2,"title":"Bound getAgentAggregates instead of SELECT * into memory"}
+{"source_line":266,"disposition":"deferred","reason":"Retention policy is not yet specified","risk":2,"title":"Prune entry-less ko_declined events after a stated retention window"}
+{"source_line":267,"disposition":"built","commit":"5dd7f2da","risk":2,"title":"Follow prefers-color-scheme live when no explicit choice is stored"}
+{"source_line":269,"disposition":"built","commit":"a267683f","risk":2,"followup_commits":["c9fd35f7"],"title":"Add toast.promise() for in-flight mutations"}
+{"source_line":272,"disposition":"built","commit":"630bcb92","risk":2,"title":"Auto-grow TextArea to its content"}
+{"source_line":273,"disposition":"built","commit":"1c5ff359","risk":2,"title":"Add a link control to RichTextEditor"}
+{"source_line":304,"disposition":"built","commit":"23a168617","risk":2,"title":"Do not send close wrap-ups to a candidateRef that is not an address"}
+{"source_line":306,"disposition":"built","commit":"a800b4555","risk":2,"title":"Refuse inbound applications that have no sendable contact"}
+{"source_line":360,"disposition":"descoped","reason":"Events and recent responses already carry entryId","risk":2,"title":"Put entryId on GET /api/pipeline/events/recent"}
+{"source_line":420,"disposition":"built","commit":"989e0ec12","risk":2,"title":"Give validateJdBuildInput refusal codes the generate route can return"}
+{"source_line":436,"disposition":"built","commit":"45503e69","risk":2,"title":"Arm a connect timeout on intake voice-connect"}
+{"source_line":438,"disposition":"built","commit":"40b7ac83","risk":2,"title":"Let the requestor cancel a hung connecting phase"}
+{"source_line":522,"disposition":"built","commit":"65a7e55a4","risk":2,"title":"Stamp a SHA-256 on db-dump and refuse a load whose checksum drifted"}
+{"source_line":526,"disposition":"deferred","reason":"A hung afterResponse task needs cancellation design","risk":2,"title":"Bound afterResponse tasks with a timeout so a hung ack cannot pin the process"}
+{"source_line":537,"disposition":"deferred","reason":"Release gate would flag existing post-release feature history","risk":2,"title":"Fail --check when the current CHANGELOG section is a stub over feat commits"}
+{"source_line":547,"disposition":"built","commit":"b35e97a28","risk":2,"title":"Refuse dispatch writes under data/ so an agent cannot touch the operator SQLite"}
+{"source_line":555,"disposition":"built","commit":"b29465f5","risk":2,"title":"Disable the org-remove confirm until the blast-radius preview has loaded"}
+{"source_line":563,"disposition":"built","commit":"4fb00544c","risk":2,"title":"Detect robustness from scheme inequality, not notes"}
+{"source_line":584,"disposition":"built","commit":"d72b309e3","risk":2,"title":"Parse isScoreStale timestamps with Date.parse"}
+{"source_line":593,"disposition":"deferred","reason":"A hung afterResponse task needs cancellation design","risk":2,"title":"Deadline afterResponse tasks"}
+{"source_line":595,"disposition":"built","commit":"87a6c19a","risk":2,"title":"Abort in-flight infinite-scroll fetches"}
+{"source_line":596,"disposition":"built","commit":"8584b981","risk":2,"title":"Time out hung useJsonFetch requests"}
+{"source_line":599,"disposition":"deferred","reason":"Packet-loss and jitter probe semantics need harness design","risk":2,"title":"Add packet-loss and jitter probes to voice-eval audio.py"}
+{"source_line":603,"disposition":"deferred","reason":"Lab has no persisted prior-run metrics","risk":2,"title":"Keep the last lab run's metrics when switching A/B providers"}
+{"source_line":604,"disposition":"built","commit":"a4154fdc","risk":2,"title":"Offer de/fr in the lab language picker, not only Czech and English"}
+{"source_line":605,"disposition":"descoped","reason":"Completed interview card already links to status","risk":2,"title":"Hand the live-complete card the same /status CTA the SSR path has"}
+{"source_line":606,"disposition":"built","commit":"72b21de1","risk":2,"title":"Orient a reconnecting candidate when the prior attempt finalized failed"}
+{"source_line":609,"disposition":"built","commit":"9020d439d","risk":2,"title":"Cap /create and /simulate request bodies like /connect already does"}
+{"source_line":619,"disposition":"built","commit":"55c658b0f","risk":2,"title":"Treat English tech loanwords as indeterminate in language-lock"}
+{"source_line":620,"disposition":"built","commit":"171187919","risk":2,"title":"Sanitize candidateLabel before interpolating it into the EL brief"}
+{"source_line":622,"disposition":"built","commit":"28328990","risk":2,"title":"Treat IPv6 unique-local hosts as self-hosted for billing"}
+{"source_line":627,"disposition":"built","commit":"48eed9896","risk":2,"title":"Confirm SignOutButton when a real session exists"}
+{"source_line":628,"disposition":"built","commit":"9789b8cc","risk":2,"title":"Surface AiDisclosure fetch failure on the sim tab"}
+{"source_line":642,"disposition":"built","commit":"8d00ab76","risk":2,"title":"Deep-link accepted proposal outcomes to Tasks"}
+{"source_line":647,"disposition":"built","commit":"eb72f96e","risk":2,"title":"Bind Space to play/stop on the focused voice window"}
+{"source_line":652,"disposition":"built","commit":"dda8d8e3","risk":2,"title":"Announce attention-badge count changes on a live region"}
+{"source_line":653,"disposition":"built","commit":"5652a028","risk":2,"title":"Persist the last-previewed nav section across reloads"}
+{"source_line":667,"disposition":"built","commit":"54e7c180","risk":2,"title":"Accept pasted multi-email lists in InviteEditor"}
+{"source_line":670,"disposition":"built","commit":"0e4c142f","risk":2,"title":"Route the public-demo Get Started CTA through enterWorkspace"}
+{"source_line":675,"disposition":"built","commit":"d5330048","risk":2,"title":"Run the schedule-invite walk through okJson like every other write"}
+{"source_line":703,"disposition":"built","commit":"b7c2cde2","risk":2,"title":"Keep pause and stop tour actions in the palette while a run is live"}
+{"source_line":268,"disposition":"built","commit":"b0890344","risk":2,"title":"Add a ConfirmDialog primitive on the shared Modal stack"}
+{"source_line":200,"disposition":"built","commit":"4ae961ad","risk":2,"title":"Accept pasted CV text as a synthetic .txt variant"}
+{"source_line":270,"disposition":"built","commit":"b6f52973","risk":2,"title":"Portal Tooltip so overflow-hidden ancestors cannot clip it"}
+{"source_line":283,"disposition":"built","commit":"04895543","risk":2,"title":"Export useDateFormat shapes for server and .ts callers"}
+{"source_line":421,"disposition":"built","commit":"e7143d583","risk":2,"title":"Add German and French boilerplate lists to jd-lint"}
+{"source_line":422,"disposition":"built","commit":"94406a35c","risk":2,"title":"Persist jd_build failures as a JD_GENERATE code, not the traceback"}
+{"source_line":507,"disposition":"built","commit":"7cd3b0828","risk":2,"title":"Add a fixture suite for test-alias-loader.mjs"}
+{"source_line":626,"disposition":"built","commit":"0dec53b86","risk":2,"title":"Let ErrorBoundary report the crash via /api/feedback"}
+{"source_line":42,"disposition":"deferred","reason":"Prompt-log retention is currently an intentional policy choice","risk":2,"title":"Default a TTL when KP_LOG_PROMPTS is on"}
+{"source_line":47,"disposition":"built","commit":"862331e85","risk":2,"title":"Pin repo_scan production path uses with_repo_access"}
+{"source_line":597,"disposition":"deferred","reason":"Architecture change requires a human decision","risk":2,"title":"Avoid first-paint motion under reduce-motion"}
