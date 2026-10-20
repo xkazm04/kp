@@ -9,7 +9,7 @@ AI job-description builds, CV analysis and job-fit scoring, a pipeline board
 with automation, candidate self-scheduling, AI voice interviews, work-sample
 "devcase" assessments, comms outbox, analytics, and Polar prepaid billing.
 
-Stack, in one breath: **Next 16.3 (pinned exactly, instant-navigations line — ADR 0001) + React 19 + TypeScript**, Tailwind 4,
+Stack, in one breath: **Next 16.4 (pinned exactly, instant-navigations line — ADR 0001) + React 19 + TypeScript**, Tailwind 4,
 **better-sqlite3** at `data/kp.sqlite` (override with `KP_DB_PATH`; a fresh DB
 self-seeds the demo corpus from `data/seed_*`), custom **HMAC session auth**
 (`KP_OPERATOR_PASSWORD` unset = open dev mode; production **fails closed**
@@ -222,7 +222,7 @@ ignore it silently. The dismiss path is the deliberate trade-off for catching dr
 per-session instead of via periodic cleanups.
 
 The hook honors `stop_hook_active`, so it cannot loop. Fixtures:
-`node scripts/docs/__tests__/check-doc-sync.test.mjs` (25 checks, no deps) — they also
+`node scripts/docs/__tests__/check-doc-sync.test.mjs` (28 checks, no deps) — they also
 validate the map itself: every mapped doc must exist and every glob root must resolve.
 
 ### Writing a feature doc
