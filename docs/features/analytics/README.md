@@ -1110,7 +1110,10 @@ Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
 to become executable values (and `metricPackPreviewModel.ts` the pack preview's ordering and
 clearing date). Tables compose `app/_components/table/` (`TablePager`,
-`ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
+`ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions). Every analytics
+table that sorts or filters also mounts the shared `TableStatus` live region: the acquisition
+economics board, decision log and sealed-decision table announce the localized active column,
+direction and filtered result count instead of changing rows only in the visual channel.
 
 **Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
 `SearchSelect` triggers carry `role="combobox"` + `aria-haspopup="listbox"` +
