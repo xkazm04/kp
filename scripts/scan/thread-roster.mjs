@@ -14,7 +14,7 @@
 //                                                       # attempted here: the recorded tables name contexts
 //                                                       # by ids of THEIR map; see the roster's `oldName`.
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -73,8 +73,15 @@ if (args.includes("--seed")) {
   writeFileSync(ROSTER, JSON.stringify(rekey(seed(rev ?? "9c20a787"), readMap()), null, 1) + "\n");
   console.log("seeded and re-keyed", ROSTER);
 } else {
-  if (!existsSync(ROSTER)) { console.error("no roster; run with --seed first"); process.exit(1); }
-  const committed = JSON.parse(readFileSync(ROSTER, "utf8"));
+  // Read first and treat ENOENT as "no roster": an exists-then-read pair can see two files.
+  let committedText;
+  try {
+    committedText = readFileSync(ROSTER, "utf8");
+  } catch (err) {
+    if (err && err.code === "ENOENT") { console.error("no roster; run with --seed first"); process.exit(1); }
+    throw err;
+  }
+  const committed = JSON.parse(committedText);
   const fresh = rekey(committed, readMap());
   if (args.includes("--check")) {
     if (JSON.stringify(fresh) !== JSON.stringify(committed)) {
