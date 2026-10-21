@@ -15613,6 +15613,52 @@
         "at": "2026-10-19T21:34:35.232736+00:00",
         "reason": "reviewer (sonnet): The fail-open halt read at outreach-state-store.ts:157 is real, but I could not confirm the other claims. comms.ts:426 is sendComm, not dispatchOutreach, and I found no check for the missing refusal audit on the resend 409 path. The 'none' consent-policy claim is not shown by rediscovery-alert-store"
       }
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/collective-and-statutory-hiring-governance": {
+      "context": "group-eval-comparison",
+      "subject": "collective-and-statutory-hiring-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-20",
+      "evaluatedTs": "2026-10-20T21:34:29.200Z",
+      "worker": "16048985-1abb-4872-9660-03fdc3c237b7",
+      "techniques": [
+        {
+          "technique": "advisory-machine-that-never-seals",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:20 Governed runs retain topPick, so this condition exposes their recommended-lead card; the enriched table's governance check does not protect this rendering path."
+        },
+        {
+          "technique": "committee-visible-evidence-packet",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:20 The shared IconList removes empty strengths, gaps, and interview-probe sections rather than explicitly stating that no evidence was recorded, violating the packet's required common shape."
+        },
+        {
+          "technique": "governance-mode-selection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/group-eval-governance.ts:17 Missing and unrecognised governance values become the permissive recommendation mode; the modal uses this normalizer before deciding whether to crown a lead."
+        },
+        {
+          "technique": "machine-ordering-after-independent-reads",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 Committee comparisons expose the machine's numbered order immediately, without an independent-read locking gate or an instruction requiring external independent reads before reveal."
+        },
+        {
+          "technique": "name-the-ceiling-you-cannot-compute",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:4454 The displayed banner names the statutory step and missing data but does not identify the examining authority responsible for adjudicating and applying preferences, leaving the required owner unnamed."
+        },
+        {
+          "technique": "ordinal-eligibility-list-over-a-crowned-lead",
+          "verdict": "deviation",
+          "evidence": "app/_lib/group-eval-governance.ts:55 After filtering only KO failures, the builder assigns sequential ranks even to candidates with null scores; unassessed candidates must instead remain separately unranked."
+        },
+        {
+          "technique": "sticky-governance-against-silent-downgrade",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.ts:180 A cache hit becomes displayable even when governance synchronization reports a mode mismatch; the standard requires discarding and recomputing that comparison rather than displaying it with a warning."
+        }
+      ]
     }
   }
 }

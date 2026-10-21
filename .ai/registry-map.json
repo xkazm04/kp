@@ -15331,7 +15331,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact comparison presents a recommended lead even for governed payloads because its lead card checks topPick without checking the governance sealing predicate.",
+          "evaluatedAt": "2026-10-20",
+          "evaluatedAgainst": "sha256-b2:e1455cfce10b4def",
+          "evaluatedRevision": 2
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",
