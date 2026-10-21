@@ -1,4 +1,4 @@
-import { randomBytes, randomInt } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 // Single source for the app's random id / token format. The same handcrafted
 // entropy expression used to be inlined across the stores (db.ts, tasks.ts,
@@ -16,11 +16,10 @@ import { randomBytes, randomInt } from "node:crypto";
 /** A prefixed, roughly time-ordered id: `${prefix}-<base36 time>-<6 base36 random>`
  *  (e.g. randomId("off") -> "off-l9x2k1-a8f3qz"). The random suffix only de-collides
  *  ids minted in the same millisecond; these are internal keys, never exposed as a
- *  secret, so the suffix only has to de-collide. It still comes from the CSPRNG because
- *  these ids also serve as session ids (js/insecure-randomness). The Date.now() prefix keeps ids
+ *  secret, so a CSPRNG suffix is cheap insurance, and the Date.now() prefix keeps ids
  *  roughly sortable. For anything that gates access, use randomToken() instead. */
 export function randomId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${randomInt(0, 36 ** 6).toString(36).padStart(6, "0")}`;
+  return `${prefix}-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
 }
 
 /** A cryptographically-strong opaque token: `${prefix}-<32 base64url chars>` minted

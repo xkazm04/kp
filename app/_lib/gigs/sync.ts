@@ -63,9 +63,7 @@ export const GIG_DELIVERABLE_FILE_MAX_BYTES = 512 * 1024;
 export function readGigDeliverableFile(workdir: string, notBefore: string): string | null {
   const file = path.join(workdir, GIG_DELIVERABLE_FILE);
   try {
-    // Open first, then judge: size and mtime come from the OPEN descriptor that is then
-    // read, and the link check runs after the open so no path-level check precedes the
-    // path-level use (js/file-system-race).
+    // Size and mtime come from the OPEN descriptor that is read (js/file-system-race).
     const fd = openSync(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
     try {
       if (!lstatSync(file).isFile()) return null;
