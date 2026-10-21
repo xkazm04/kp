@@ -190,8 +190,9 @@ class PromptRetentionTest(_TempLogDir):
 
     def test_a_malformed_or_non_positive_ttl_is_treated_as_unset(self) -> None:
         # A broken number must not silently delete everything, and must not look
-        # like a retention policy that is not one.
-        for raw in ("banana", "0", "-5"):
+        # like a retention policy that is not one. "inf" is the case float() lets
+        # through: it parsed as a TTL that never sweeps anything.
+        for raw in ("banana", "0", "-5", "inf", "nan", "-inf"):
             with self.subTest(raw=raw):
                 with mock.patch.dict(os.environ, {"KP_LOG_PROMPTS_TTL_H": raw}, clear=False):
                     self.assertIsNone(logger.prompt_ttl_hours())
