@@ -7,7 +7,7 @@ from unittest import mock
 
 from pipeline.jobfit import automation
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.matching import MatchCandidate, score_job
+from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, fit_tier_for, score_job
 
 from pipeline.jobfit.tests._helpers import mkjob as _mkjob
 
@@ -1006,6 +1006,22 @@ class RematchTest(unittest.TestCase):
         job = mkjob(requirements=[{"skill": "Rust", "kind": "must_have", "hardness": "prerequisite"}], seniority="senior", description="seasoned only")
         out = automation.rematch_candidate(weak, "other", [job], provider=None)
         self.assertFalse(out["found"])
+
+    def test_floor_is_the_promising_band_not_a_number_of_its_own(self):
+        # Rematch, the rediscovery admission gate (rediscover.ts) and the scorer's band
+        # ask one question. A free literal here sat outside test_fit_threshold_sync.py.
+        self.assertEqual(automation.POLICY["rematch_floor"], FIT_PROMISING_THRESHOLD)
+
+    def test_admits_at_the_floor_exactly_as_the_band_does(self):
+        # Pinned at the boundary: the old `<=` refused a total of exactly 55 that
+        # fit_tier_for calls "promising" and the TS sweep (`>= SCORE_FLOOR`) admits.
+        job = mkjob(title="Alt Python", requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
+        real = score_job(BAU, job)
+        for total, admitted in ((FIT_PROMISING_THRESHOLD - 1, False), (FIT_PROMISING_THRESHOLD, True)):
+            with self.subTest(total=total), mock.patch.object(automation, "score_job", return_value=real.model_copy(update={"total": total})):
+                out = automation.rematch_candidate(BAU, "other", [job], provider=None)
+                self.assertEqual(out["found"], admitted)
+                self.assertEqual(out["found"], fit_tier_for(total) != "partial")
 
 
 class OfferTest(unittest.TestCase):
