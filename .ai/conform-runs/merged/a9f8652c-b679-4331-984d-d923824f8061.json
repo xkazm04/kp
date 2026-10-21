@@ -1,0 +1,303 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a9f8652c-b679-4331-984d-d923824f8061",
+ "subject": "talking-avatar",
+ "evaluatedAt": "2026-10-21T21:06:56.465984+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "voice-interview-components",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/voice/InterviewPresence.tsx:11 The call's only visual is a loudness-following ring plus a phase label; a search of app/_components/voice for viseme, faceSignal, talking-head, lipSync and saccade found no portrait, rig or mouth timeline.",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/InterviewPresence.tsx:16 Motion is a CSS level meter, so there is no rig, neural or hybrid route to choose."
+    },
+    {
+     "technique": "single-image-layer-decomposition",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/InterviewPresence.tsx:100 The halo is one rounded CSS element, not layers lifted from a portrait."
+    },
+    {
+     "technique": "rig-parameter-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/presence-state.ts:49 The only motion input is which audio meter to follow, not a versioned per-frame vector."
+    },
+    {
+     "technique": "viseme-drive",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/InterviewPresence.tsx:73 The ring reads input or output level; there is no mouth and no sound-to-shape timeline."
+    },
+    {
+     "technique": "procedural-presence-motion",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/InterviewPresence.tsx:19 Stillness turns the level ring off; there is no blink, drift, saccade or breath on a character."
+    },
+    {
+     "technique": "neural-motion-retargeting",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/VoiceInterview.tsx:30 The live engines are voice transports, not an audio-to-motion model with channels to retarget."
+    },
+    {
+     "technique": "per-sentence-face-sidecar",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/VoiceInterview.tsx:1310 Playback is a hidden audio element; nothing beside it is asked for face motion per sentence."
+    },
+    {
+     "technique": "face-signal-across-surfaces",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/presence-state.ts:4 Orb, pill and live region share a speaking boolean; none is a face signal on the player clock."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "faceSignal",
+    "talking-head",
+    "lipSync",
+    "saccade"
+   ],
+   "registryProposal": "motion-route-selection and viseme-drive already exclude a loudness-following glow, but the golden-path use_when does not; one line there would stop a status ring with no portrait from being scored as a failed viseme drive."
+  },
+  {
+   "context": "shell-companion-voice",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:19 Voice mode is a text strip of answers with play/stop; a search of app/features/shell/companion/voice for viseme, faceSignal, talking-head, lipSync and saccade found no face.",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:42 The mode only presents the existing thread; it does not choose how a face is animated."
+    },
+    {
+     "technique": "single-image-layer-decomposition",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:33 An answer is a paragraph of text, not a portrait split into moving parts."
+    },
+    {
+     "technique": "rig-parameter-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/voiceHistory.ts:34 The shared unit is a spoken answer record, not a per-frame head, lid and mouth vector."
+    },
+    {
+     "technique": "viseme-drive",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:57 Playback starts speech for a turn entry; no mouth shape is looked up at a sample position."
+    },
+    {
+     "technique": "procedural-presence-motion",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:137 The wait between turns is a text note, not idle blink, drift or breath on a character."
+    },
+    {
+     "technique": "per-sentence-face-sidecar",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:43 This view is handed an existing speech seam; it does not attach a face process to each sentence."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "faceSignal",
+    "talking-head",
+    "lipSync",
+    "saccade"
+   ]
+  },
+  {
+   "context": "voice-tts-package",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-tts/README.md:4 The package synthesizes and plays audio and draws nothing; a search of packages/voice-tts for viseme, faceSignal, talking-head, lipSync and saccade found none (kokoro's grapheme-to-phoneme note is a missing language pack, not a mouth map).",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/text/segment.ts:4 Sentence chunking exists so audio can play ahead; no rig, neural or hybrid face route is selected."
+    },
+    {
+     "technique": "viseme-drive",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/kokoro.ts:37 The phoneme mention is a language the local engine cannot speak, not a sound-to-mouth map."
+    },
+    {
+     "technique": "per-sentence-face-sidecar",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/types.ts:82 The provider contract returns audio only; a Kokoro process sidecar is the synthesizer, not a face helper."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "faceSignal",
+    "talking-head",
+    "lipSync",
+    "saccade"
+   ]
+  },
+  {
+   "context": "glyph-system",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/glyph/glyphs/jobsGlyph.ts:1 Glyphs are traced SVG icon paths for navigation; a search of app/_components/glyph for viseme, faceSignal, talking-head, lipSync and saccade found no speaking face.",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:4 The renderer draws a traced icon; it does not choose a rig, neural talking-head or hybrid for a portrait."
+    },
+    {
+     "technique": "single-image-layer-decomposition",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:54 The art unit is a viewBox plus path elements, not coverage layers lifted off one portrait."
+    },
+    {
+     "technique": "rig-parameter-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:49 A glyph element is an SVG path, a fill and a delay, not yaw, lids, gaze or viseme weights."
+    },
+    {
+     "technique": "procedural-presence-motion",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/motionPresets.ts:100 The pulse is an opacity loop on an icon while work runs, not breath or blinks on a character between utterances."
+    },
+    {
+     "technique": "face-signal-across-surfaces",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:13 Surfaces share preset CSS, not one face signal produced from a player clock."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "faceSignal",
+    "talking-head",
+    "lipSync",
+    "saccade"
+   ]
+  },
+  {
+   "context": "voice-stt-package",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-stt/README.md:3 The package turns captured audio into a transcript; a search of packages/voice-stt for viseme, faceSignal, talking-head, lipSync and saccade found none. whisper-cpp.ts:222 uses \"named mouth\" only to refuse an invented speaker label.",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/README.md:11 This direction ingests a person's voice; it does not animate a face for the product's speech."
+    },
+    {
+     "technique": "per-sentence-face-sidecar",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/types.ts:146 The provider returns a transcript; the sidecar mentioned nearby is the speech engine's process, not a face."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "faceSignal",
+    "talking-head",
+    "lipSync",
+    "saccade"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-21T21:06:56.465984+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "face-signal-across-surfaces",
+    "motion-route-selection",
+    "neural-motion-retargeting",
+    "per-sentence-face-sidecar",
+    "procedural-presence-motion",
+    "rig-parameter-contract",
+    "single-image-layer-decomposition",
+    "viseme-drive"
+   ],
+   "deviations": 0,
+   "context": "voice-interview-components",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-21T21:06:56.465984+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "motion-route-selection",
+    "per-sentence-face-sidecar",
+    "procedural-presence-motion",
+    "rig-parameter-contract",
+    "single-image-layer-decomposition",
+    "viseme-drive"
+   ],
+   "deviations": 0,
+   "context": "shell-companion-voice",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-21T21:06:56.465984+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "motion-route-selection",
+    "per-sentence-face-sidecar",
+    "viseme-drive"
+   ],
+   "deviations": 0,
+   "context": "voice-tts-package",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-21T21:06:56.465984+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "face-signal-across-surfaces",
+    "motion-route-selection",
+    "procedural-presence-motion",
+    "rig-parameter-contract",
+    "single-image-layer-decomposition"
+   ],
+   "deviations": 0,
+   "context": "glyph-system",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-21T21:06:56.465984+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "motion-route-selection",
+    "per-sentence-face-sidecar"
+   ],
+   "deviations": 0,
+   "context": "voice-stt-package",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}
