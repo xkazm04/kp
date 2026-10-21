@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "77c8caf0-3864-4e10-8ae8-9ceb4c5e27a3",
+ "subject": "data-viz",
+ "evaluatedAt": "2026-10-21T23:28:17.532585+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "score-metric-display",
+   "subject": "data-viz",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/ScoreDial.tsx:64 The dial converts an invalid score into a measured zero and an Early verdict, collapsing unavailable data into a negative assessment.",
+   "techniques": [
+    {
+     "technique": "chart-loading-economics",
+     "verdict": "deviation",
+     "evidence": "app/_components/FactorChart.tsx:34 The engine is dynamically loaded with matching placeholder geometry, but neither this wrapper nor its ExtractionTab call site provides a per-chart error boundary or retry state."
+    },
+    {
+     "technique": "empty-and-degraded-chart-states",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreDial.tsx:64 Non-finite scores become zero and receive the Early label instead of an explicit unavailable state."
+    },
+    {
+     "technique": "encoding-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreDial.tsx:29 Arc colors follow verdict-band indices rather than the shared 50/75 status thresholds: score 41 fills an amber segment while its badge and central readout remain weak."
+    },
+    {
+     "technique": "metric-identity",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreDial.tsx:80 The dial announces the unrounded score, such as 82.6, while ScoreBadge rounds that input to 83, giving the same metric inconsistent presentation precision."
+    },
+    {
+     "technique": "micro-visualizations",
+     "verdict": "deviation",
+     "evidence": "app/_components/GithubAnalysisPanel.tsx:207 Language shares below 2% receive identical 2% mini-bars despite their adjacent true values, fabricating magnitude instead of degrading to the number."
+    },
+    {
+     "technique": "scale-and-axis-design",
+     "verdict": "conformant",
+     "evidence": "app/_components/FactorChartBody.tsx:90 Factor bars use the shared fixed [0,1] domain, normalize against declared factor maxima, and show round percentage ticks, preserving comparison across factors and candidates."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-21T23:28:17.532585+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-viz"
+   ],
+   "techniques": [
+    "chart-loading-economics",
+    "empty-and-degraded-chart-states",
+    "encoding-vocabulary",
+    "metric-identity",
+    "micro-visualizations",
+    "scale-and-axis-design"
+   ],
+   "deviations": 1,
+   "context": "score-metric-display",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

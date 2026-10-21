@@ -28333,7 +28333,11 @@
           "revision": 6,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/ScoreDial.tsx:64 The dial converts an invalid score into a measured zero and an Early verdict, collapsing unavailable data into a negative assessment.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:0a15845e9dc44963",
+          "evaluatedRevision": 6
         },
         {
           "subject": "presenting-a-score-to-a-recruiter",

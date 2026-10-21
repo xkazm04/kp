@@ -15922,6 +15922,47 @@
         "at": "2026-10-21T21:32:22.827833+00:00",
         "reason": "reviewer (sonnet): The anchor pipeline/jobfit/tests/test_campaign.py is not among this context's listed files (test_interview*, test_intake*, test_recruiter*, test_rolebrief, test_jobs, test_salary_band), so the verdict is about a different context. The line itself does assert that a lone '95 000 CZK/month.' survives "
       }
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/data-viz": {
+      "context": "score-metric-display",
+      "subject": "data-viz",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T23:28:17.532Z",
+      "worker": "77c8caf0-3864-4e10-8ae8-9ceb4c5e27a3",
+      "techniques": [
+        {
+          "technique": "chart-loading-economics",
+          "verdict": "deviation",
+          "evidence": "app/_components/FactorChart.tsx:34 The engine is dynamically loaded with matching placeholder geometry, but neither this wrapper nor its ExtractionTab call site provides a per-chart error boundary or retry state."
+        },
+        {
+          "technique": "empty-and-degraded-chart-states",
+          "verdict": "deviation",
+          "evidence": "app/_components/ScoreDial.tsx:64 Non-finite scores become zero and receive the Early label instead of an explicit unavailable state."
+        },
+        {
+          "technique": "encoding-vocabulary",
+          "verdict": "deviation",
+          "evidence": "app/_components/ScoreDial.tsx:29 Arc colors follow verdict-band indices rather than the shared 50/75 status thresholds: score 41 fills an amber segment while its badge and central readout remain weak."
+        },
+        {
+          "technique": "metric-identity",
+          "verdict": "deviation",
+          "evidence": "app/_components/ScoreDial.tsx:80 The dial announces the unrounded score, such as 82.6, while ScoreBadge rounds that input to 83, giving the same metric inconsistent presentation precision."
+        },
+        {
+          "technique": "micro-visualizations",
+          "verdict": "deviation",
+          "evidence": "app/_components/GithubAnalysisPanel.tsx:207 Language shares below 2% receive identical 2% mini-bars despite their adjacent true values, fabricating magnitude instead of degrading to the number."
+        },
+        {
+          "technique": "scale-and-axis-design",
+          "verdict": "conformant",
+          "evidence": "app/_components/FactorChartBody.tsx:90 Factor bars use the shared fixed [0,1] domain, normalize against declared factor maxima, and show round percentage ticks, preserving comparison across factors and candidates."
+        }
+      ]
     }
   }
 }
