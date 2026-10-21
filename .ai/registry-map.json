@@ -19748,7 +19748,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:191 Passing an unparsed 600-character description excerpt directly into the generator's fact set violates the input gate by supplying raw free text that can contain unasserted claims and unverified numerals.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:c7b0cfeac29652fb",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

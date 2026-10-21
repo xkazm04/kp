@@ -1,0 +1,96 @@
+{
+  "schema": "conform-run/1",
+  "worker": "26e82d49-47d9-41c6-80cc-c9f1e76f03a9",
+  "subject": "sourcing-campaign-honesty",
+  "evaluatedAt": "2026-10-21T21:31:54.555474+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "jobs-intake",
+      "subject": "sourcing-campaign-honesty",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "pipeline/jobfit/campaign.py:191 Passing an unparsed 600-character description excerpt directly into the generator's fact set violates the input gate by supplying raw free text that can contain unasserted claims and unverified numerals.",
+      "techniques": [
+        {
+          "technique": "defaulted-value-is-absent-not-advertised",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:189 Resolves defaulted salary bands to None at the fact boundary so phantom market-anchor bands are not advertised."
+        },
+        {
+          "technique": "hook-taxonomy-bounded-by-what-is-provable",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:251 The floor hook prompt instructs the model to invent an ungrounded candidate pain instead of grounding strictly in stated title and responsibilities."
+        },
+        {
+          "technique": "missing-fact-as-a-warning-code",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:201 Computes stable warning codes directly from the facts dictionary and collapses location and work mode into a single composite warning."
+        },
+        {
+          "technique": "no-fabricated-testimonial",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:225 Enforces format exclusion at the trust boundary by dropping model variants containing quotation marks or first-person voice."
+        },
+        {
+          "technique": "regeneration-produces-new-copy-not-a-reshuffle",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:42 The generator targets a static batch size without computing a fact-derived variation budget, tracking regenerations, or bounding exhaustion."
+        },
+        {
+          "technique": "stated-facts-only-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:191 Passes raw free text from the job description into the fact payload, allowing unasserted prose and unverified numerals into the generation prompt."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "sourcing-campaign-honesty",
+      "context": "tests-interview-jobs",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor pipeline/jobfit/tests/test_campaign.py is not among this context's listed files (test_interview*, test_intake*, test_recruiter*, test_rolebrief, test_jobs, test_salary_band), so the verdict is about a different context. The line itself does assert that a lone '95 000 CZK/month.' survives "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-21T21:31:54.555474+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "sourcing-campaign-honesty"
+      ],
+      "techniques": [
+        "defaulted-value-is-absent-not-advertised",
+        "hook-taxonomy-bounded-by-what-is-provable",
+        "missing-fact-as-a-warning-code",
+        "no-fabricated-testimonial",
+        "regeneration-produces-new-copy-not-a-reshuffle",
+        "stated-facts-only-gate"
+      ],
+      "deviations": 1,
+      "context": "jobs-intake",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-21T21:31:54.555474+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "sourcing-campaign-honesty"
+      ],
+      "techniques": [
+        "defaulted-value-is-absent-not-advertised",
+        "hook-taxonomy-bounded-by-what-is-provable",
+        "missing-fact-as-a-warning-code",
+        "no-fabricated-testimonial",
+        "regeneration-produces-new-copy-not-a-reshuffle",
+        "stated-facts-only-gate"
+      ],
+      "deviations": 1,
+      "context": "tests-interview-jobs",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

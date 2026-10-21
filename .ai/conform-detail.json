@@ -15835,6 +15835,93 @@
           "evidence": "packages/voice-stt/src/types.ts:146 The provider returns a transcript; the sidecar mentioned nearby is the speech engine's process, not a face."
         }
       ]
+    },
+    "9ed899f6-f780-480d-971c-bc022e87e049/sourcing-campaign-honesty": {
+      "context": "jobs-intake",
+      "subject": "sourcing-campaign-honesty",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T21:31:54.555Z",
+      "worker": "26e82d49-47d9-41c6-80cc-c9f1e76f03a9",
+      "techniques": [
+        {
+          "technique": "defaulted-value-is-absent-not-advertised",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:189 Resolves defaulted salary bands to None at the fact boundary so phantom market-anchor bands are not advertised."
+        },
+        {
+          "technique": "hook-taxonomy-bounded-by-what-is-provable",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:251 The floor hook prompt instructs the model to invent an ungrounded candidate pain instead of grounding strictly in stated title and responsibilities."
+        },
+        {
+          "technique": "missing-fact-as-a-warning-code",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:201 Computes stable warning codes directly from the facts dictionary and collapses location and work mode into a single composite warning."
+        },
+        {
+          "technique": "no-fabricated-testimonial",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/campaign.py:225 Enforces format exclusion at the trust boundary by dropping model variants containing quotation marks or first-person voice."
+        },
+        {
+          "technique": "regeneration-produces-new-copy-not-a-reshuffle",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:42 The generator targets a static batch size without computing a fact-derived variation budget, tracking regenerations, or bounding exhaustion."
+        },
+        {
+          "technique": "stated-facts-only-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/campaign.py:191 Passes raw free text from the job description into the fact payload, allowing unasserted prose and unverified numerals into the generation prompt."
+        }
+      ]
+    },
+    "cc5e60e6-18d9-4c04-8aaa-7b7629216be6/sourcing-campaign-honesty": {
+      "context": "tests-interview-jobs",
+      "subject": "sourcing-campaign-honesty",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T21:31:54.555Z",
+      "techniques": [
+        {
+          "technique": "defaulted-value-is-absent-not-advertised",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:106 Tests that defaulted phantom fields do not generate location hooks or appear in copy."
+        },
+        {
+          "technique": "hook-taxonomy-bounded-by-what-is-provable",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:229 Pins fallback of off-taxonomy hooks to problem, which relies on an ungrounded floor prompt describing candidate pain."
+        },
+        {
+          "technique": "missing-fact-as-a-warning-code",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:114 Tests that omitted facts produce structured warning codes on the pack payload."
+        },
+        {
+          "technique": "no-fabricated-testimonial",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:328 Tests that quoted employee speech is rejected by boundary validation even under an allowed hook label."
+        },
+        {
+          "technique": "regeneration-produces-new-copy-not-a-reshuffle",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:69 The test suite only tests single generation calls and lacks any tests for variation budgeting, regeneration cycles, or exhaustion messaging."
+        },
+        {
+          "technique": "stated-facts-only-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:316 The test fixture explicitly accepts single endpoints of salary ranges as valid stated figures, bypassing the range shape requirement."
+        }
+      ],
+      "withdrawn": {
+        "worker": "26e82d49-47d9-41c6-80cc-c9f1e76f03a9",
+        "state": "deviation",
+        "at": "2026-10-21T21:32:22.827833+00:00",
+        "reason": "reviewer (sonnet): The anchor pipeline/jobfit/tests/test_campaign.py is not among this context's listed files (test_interview*, test_intake*, test_recruiter*, test_rolebrief, test_jobs, test_salary_band), so the verdict is about a different context. The line itself does assert that a lone '95 000 CZK/month.' survives "
+      }
     }
   }
 }
