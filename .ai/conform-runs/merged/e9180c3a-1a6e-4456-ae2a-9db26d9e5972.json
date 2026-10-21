@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e9180c3a-1a6e-4456-ae2a-9db26d9e5972",
+ "subject": "conversational-assessment-validation",
+ "evaluatedAt": "2026-10-21T22:18:03.485244+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "conversational-assessment-validation",
+   "context": "interview-simulator",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Static read-only review; tests were inspected but not executed. A retained hostility-rule ablation warning exists in app/_lib/student-interview.ts, but its comp"
+  }
+ ],
+ "consults": []
+}
