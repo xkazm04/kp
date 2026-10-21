@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readFileSync } from "node:fs";
 import { isFairnessProtected, isKnownArchetype, normalizeArchetype, shieldsFromAutoReject } from "./archetypes";
 import { parseRegistryDocument, registryWriteGeneration } from "./archetype-registry";
 import { archetypeRegistryPath, setRegistryFilePathOverride } from "./archetype-registry-file";
@@ -92,19 +92,33 @@ const UNREADABLE: LiveArchetypes = build(UNREADABLE_REGISTRY_DIGEST, new Set(), 
  *  (a screening wave) takes ONE snapshot so every row is judged by the same file. */
 export function readLiveArchetypes(): LiveArchetypes {
   const file = livePath();
-  let stamp: string;
+  // One descriptor serves the stamp and the read, so both describe the same file
+  // (js/file-system-race).
+  let fd: number;
   try {
-    const st = statSync(file);
-    stamp = `${file}\u0000${st.mtimeMs}\u0000${st.size}\u0000${registryWriteGeneration()}`;
+    fd = openSync(file, "r");
   } catch {
     // fail closed: no file -> the bundled gate answers, live-only ids stay shielded
     memo = null;
     return UNREADABLE;
   }
-  if (memo && memo.stamp === stamp) return memo.live;
+  try {
+    const st = fstatSync(fd);
+    const stamp = `${file}\u0000${st.mtimeMs}\u0000${st.size}\u0000${registryWriteGeneration()}`;
+    if (memo && memo.stamp === stamp) return memo.live;
+    return readSnapshot(fd, stamp);
+  } catch {
+    memo = null;
+    return UNREADABLE;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function readSnapshot(fd: number, stamp: string): LiveArchetypes {
   let live: LiveArchetypes = UNREADABLE;
   try {
-    const bytes = readFileSync(file);
+    const bytes = readFileSync(fd);
     const reg = parseRegistryDocument(bytes.toString("utf8"));
     const known = new Set<string>();
     const shielded = new Set<string>();
