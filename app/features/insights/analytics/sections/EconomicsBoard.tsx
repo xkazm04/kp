@@ -29,6 +29,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { Defer } from "@/app/_components/ui/Defer";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useTableSort } from "@/app/_components/table/useTableSort";
 import { PipelineShapeBar } from "@/app/_components/ui/PipelineShapeBar";
 import { AutomationPanel, ComputeCostPanel } from "./sectionChunks";
@@ -98,6 +99,15 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
 
   const visible = kindFilter ? sorted.filter((r) => r.kind === kindFilter) : sorted;
   const peak = Math.max(1, ...rows.map((r) => r.total));
+  const sortTitle: Record<Col, string> = {
+    name: t("colSurface"),
+    kind: t("colKind"),
+    total: t("colLeads"),
+    hired: ta("colHired"),
+    hireRatePct: ta("colHireRate"),
+    spendCzk: t("colSpend"),
+    costPerHireCzk: t("colPerHire"),
+  };
 
   // The board as a file — the "budget review" half of what this section is for, and
   // until now the only way off it was a screenshot. Exports `visible`: the rows in
@@ -163,12 +173,10 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
         {rows.length === 0 ? (
           <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">{t("boardEmpty")}</p>
         ) : (
-          // A table forced past the viewport by min-w scrolls inside this div. A bare
-          // overflow container is not reachable without a pointer in every browser
-          // (current Chrome/Firefox focus scroll containers on their own; Safari does
-          // not), so it is a NAMED, focusable region -- which also gives the data
-          // surface an accessible name it did not have.
-          <div className="mt-4 overflow-x-auto" role="region" tabIndex={0} aria-label={t("boardTitle")}>
+          <>
+            <TableStatus columnTitle={sortTitle[sort.col]} dir={sort.dir} matched={visible.length} filtered={Boolean(kindFilter)} />
+            {/* A min-w table scrolls inside this div, so it is a NAMED, focusable region: Safari does not focus bare scroll containers. */}
+            <div className="mt-4 overflow-x-auto" role="region" tabIndex={0} aria-label={t("boardTitle")}>
             <table aria-label={t("boardTitle")} className="w-full min-w-[52rem] text-base">
               <thead>
                 <tr className="border-b border-stone-200">
@@ -269,7 +277,8 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         {visible.length === 0 && rows.length > 0 ? (

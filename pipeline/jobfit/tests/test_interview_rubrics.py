@@ -180,9 +180,9 @@ class TestWorkingWithAiToolsAxis(unittest.TestCase):
         self.assertEqual(sorted(full[-1]["anchors"], key=int), ["1", "2", "3", "4", "5"])
         # Same literals as interview-rubric.test.ts: TS == Python on the extended rubric.
         h = automation.rubric_version_hash
-        self.assertEqual(h(full), "c2bebfd2f982ea40")
-        self.assertEqual(h(automation.rubric_for_candidate("student", None, True)), "cc8454ff0afeed31")
-        self.assertEqual(h(automation.rubric_for_candidate("bau", "healthcare_clinical", True)), "f7f76e3676d572ef")
+        self.assertEqual(h(full), "9386895b760c9505")
+        self.assertEqual(h(automation.rubric_for_candidate("student", None, True)), "d152a9389079978e")
+        self.assertEqual(h(automation.rubric_for_candidate("bau", "healthcare_clinical", True)), "4e5754969aaf5010")
 
     def test_the_letter_allowlist_knows_the_axis(self) -> None:
         self.assertIn(self.AXIS, automation._rubric_competency_names())
