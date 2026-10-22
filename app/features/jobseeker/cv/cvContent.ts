@@ -334,17 +334,23 @@ export function languageLines(blockLines: readonly string[] | null, profileLangu
 // designer control, stated with its trade-off — never a default.
 
 const PERSONAL_LABEL =
-  /^(date of birth|birth ?date|born|dob|age|marital status|family status|civil status|nationality|citizenship|children|photo|photograph|religion|datum narozen[íi]|narozen[aá]?|nar\.|v[ěe]k|rodinn[ýy] stav|n[áa]rodnost|st[áa]tn[íi] ob[čc]anstv[íi]|ob[čc]anstv[íi]|d[ěe]ti|fotografie|foto|geburtsdatum|geboren|geb\.|alter|familienstand|staatsangeh[öo]rigkeit|nationalit[äa]t|kinder|konfession|date de naissance|n[ée]e? le|[âa]ge|situation familiale|[ée]tat civil|nationalit[ée]|enfants)(?=\s*:|\s+[\-–]\s|\s+\d)/iu;
+  /^(date of birth|birth ?date|date and place of birth|place of birth|born|dob|age|marital status|family status|civil status|nationality|citizenship|gender|sex|children|photo|photograph|religion|health|datum narozen[íi]|datum a m[íi]sto narozen[íi]|m[íi]sto narozen[íi]|narozen[aá]?|nar\.|v[ěe]k|rodinn[ýy] stav|n[áa]rodnost|st[áa]tn[íi] ob[čc]anstv[íi]|st[áa]tn[íi] p[řr][íi]slu[šs]nost|ob[čc]anstv[íi]|pohlav[íi]|vyzn[áa]n[íi]|zdravotn[íi] stav|d[ěe]ti|fotografie|foto|geburtsdatum(?: und |\/)-?ort|geburtsdatum|geburtsort|geboren|geb\.|geschlecht|alter|familienstand|staatsangeh[öo]rigkeit|nationalit[äa]t|kinder|konfession|date et lieu de naissance|date de naissance|lieu de naissance|n[ée]e? le|sexe|[âa]ge|situation familiale|[ée]tat civil|nationalit[ée]|enfants)(?=\s*:|\s+[\-–]\s|\s+\d)/iu;
+// The European standard format prints a label and its value with no colon between them
+// ("Nationality Czech", "Gender Female"). Read only as label + ONE capitalised word, so a
+// title that starts with the same word ("Gender Studies Researcher") is still a title.
+const PERSONAL_BARE =
+  /^([Nn]ationality|[Cc]itizenship|[Gg]ender|[Ss]ex|[Ss]t[áa]tn[íi] p[řr][íi]slu[šs]nost|[Pp]ohlav[íi]|[Gg]eschlecht|[Ss]taatsangeh[öo]rigkeit|[Nn]ationalit(?:[äa]t|[ée])|[Ss]exe)\s+\p{Lu}[\p{L}-]*$/u;
 const PERSONAL_VALUE =
   /^(married|single|divorced|widowed|ženatý|ženatá|vdaná|svobodn[ýá]|rozveden[ýá]|verheiratet|ledig|geschieden|verwitwet|mari[ée]e?|c[ée]libataire|divorc[ée]e?)[.,;]?$/iu;
 const PERSONAL_PHRASE = /(?<![\p{L}])(\d{1,2}\s*years?\s*old|\d{1,2}\s*jahre\s*alt|\d{1,2}\s*ans\b)/iu;
 
 /** A line (or sentence) that states a protected personal attribute: a labelled field
- *  ("Date of birth: …", "Nar. 1990"), a bare marital status, or an age. A label must be
- *  followed by a colon, a spaced dash or a digit, so "Age-verification flow" is not one. */
+ *  ("Date of birth: …", "Nar. 1990", "Státní příslušnost: česká", "Gender Female"), a bare
+ *  marital status, or an age. A label must be followed by a colon, a spaced dash or a
+ *  digit, or stand bare before one capitalised value, so "Age-verification flow" is not one. */
 export function isPersonalData(line: string): boolean {
   const text = (line || "").trim();
-  return PERSONAL_LABEL.test(text) || PERSONAL_VALUE.test(text) || PERSONAL_PHRASE.test(text);
+  return PERSONAL_LABEL.test(text) || PERSONAL_BARE.test(text) || PERSONAL_VALUE.test(text) || PERSONAL_PHRASE.test(text);
 }
 
 /** The word for "to the present" in each market's date ranges ("03/2020 – dosud"). */
