@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { route } from "@/app/_lib/auth/workspace-context";
-import { withOperator } from "@/app/_lib/auth/route-guards";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { demoChoicePending, recordEmptyChoice, seedDemoOnDemand } from "@/app/_lib/db/demo-seed";
@@ -19,11 +19,15 @@ import { demoChoicePending, recordEmptyChoice, seedDemoOnDemand } from "@/app/_l
 // refusal outcomes are DATA the client renders in the reader's language — no server prose
 // travels (docs/architecture/api-contracts.md §1.1). Not rate-limited: it spends no money,
 // spawns nothing, and a repeat is a no-op.
-export const GET = route(withOperator)(async (ws: string) => {
+export const GET = withWorkspace(async (ws: string) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
   return jsonOk({ pending: demoChoicePending(ws) });
 });
 
-export const POST = route(withOperator)(async (ws: string, request: Request) => {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
+  const operator = await requireOperator();
+  if (operator) return operator;
   const denied = await requireCapabilityCoded("team:manage", requireCapability);
   if (denied) return denied;
   const body = (await request.json().catch(() => null)) as { choice?: unknown } | null;
