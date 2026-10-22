@@ -276,13 +276,15 @@ async function designThenInvite(
   workspaceId: string,
   opts: HomeworkArrivalOptions
 ): Promise<HomeworkArrivalOutcome> {
-  // The need is built off the JOB'S SAVED JD, which is also what ties the resulting case
-  // back to this job: `resolveCaseJobId` re-derives `jd-<slug>` from `need.jdSlug` and
-  // verifies the opening exists, so the case this designs is found by
-  // `listDevCasesForJob` on every later arrival instead of being orphaned.
+  // The need is built off the JOB'S SAVED JD when it has one, else off the job row itself
+  // (a seeded job may never have had a JD). What ties the resulting case back to this job
+  // is `need.jobId`: `resolveCaseJobId` verifies the row exists in this workspace and
+  // stores it, so the case is found by `listDevCasesForJob` on every later arrival
+  // instead of being orphaned and designed again. `jdSlug` rides along when a JD exists.
   const slug = jdSlugOfJobId(jobId);
   const jd = slug ? loadJd(slug, workspaceId) : null;
-  if (!jd) return { outcome: "skipped", reason: "no_jd" };
+  const job = getJob(jobId, workspaceId);
+  if (!jd && !job) return { outcome: "skipped", reason: "no_jd" };
 
   const gate = homeworkGate(stage, workspaceId);
 
@@ -293,11 +295,11 @@ async function designThenInvite(
     return refuse(entry, "billing", "the case-design allowance is exhausted");
   }
 
-  const job = getJob(jobId, workspaceId);
   const need = {
-    title: jd.title || job?.title || "Work-sample assignment",
-    jdSlug: jd.slug,
-    jdText: jd.body ?? "",
+    title: jd?.title || job?.title || "Work-sample assignment",
+    jobId,
+    ...(jd ? { jdSlug: jd.slug } : {}),
+    jdText: jd?.body ?? job?.description ?? "",
     roleFamily: job?.roleFamily || "software_engineering",
     stack: [] as string[],
     responsibilities: [] as string[],

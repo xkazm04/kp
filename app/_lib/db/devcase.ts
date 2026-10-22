@@ -119,13 +119,29 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
  *  "this case has a job" a fact rather than an assumption; the JD itself is not lost —
  *  it stays on the record as `jdSlug`, and the UI says so.
  *
+ *  An explicit `need.jobId` is the FIRST choice: a seeded job with no saved JD has no slug
+ *  to derive an id from, yet is still the job the case was cut for. It gets the same
+ *  existence check — an unverified id is never stored — and, when `workspaceId` is given,
+ *  must be visible to that team (a corpus row, `workspace_id IS NULL`, or its own); an
+ *  omitted `workspaceId` keeps the unscoped check. The slug path is the second choice.
+ *
  *  Exported so the write paths and their tests agree on one rule. */
-export function resolveCaseJobId(need: unknown): string | null {
-  const slug = (need as { jdSlug?: unknown } | null | undefined)?.jdSlug;
+export function resolveCaseJobId(need: unknown, workspaceId?: string): string | null {
+  const db = ensureDb();
+  const fields = need as { jobId?: unknown; jdSlug?: unknown } | null | undefined;
+  const explicit = typeof fields?.jobId === "string" ? fields.jobId.trim() : "";
+  if (explicit) {
+    const row = db.prepare(`SELECT workspace_id FROM jobs WHERE id = ?`).get(explicit) as
+      | { workspace_id: string | null }
+      | undefined;
+    if (row && (workspaceId === undefined || row.workspace_id === null || row.workspace_id === workspaceId)) {
+      return explicit;
+    }
+  }
+  const slug = fields?.jdSlug;
   const trimmed = typeof slug === "string" ? slug.trim() : "";
   if (!trimmed) return null;
   const jobId = jdJobId(trimmed);
-  const db = ensureDb();
   return db.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(jobId) ? jobId : null;
 }
 
@@ -187,7 +203,7 @@ export function saveDevCase(
   // lifecycle's approve transition and the manual POST /api/devcase — funnel through
   // this function, so a single resolution point is what makes "every assignment knows
   // its job" true of both instead of of whichever one remembered.
-  const jobId = resolveCaseJobId(input.need);
+  const jobId = resolveCaseJobId(input.need, workspaceId);
   db.prepare(
     `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at, workspace_id, job_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)`

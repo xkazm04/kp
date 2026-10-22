@@ -14,6 +14,7 @@ import {
   getLifecycle,
   getOpenPosting,
   getSubmission,
+  listDevCasesForJob,
   listLifecycles,
   listOutboxFiltered,
   saveDevCase,
@@ -223,6 +224,61 @@ test("auto gate + no case: the hook designs one and RE-RUNS to send it", async (
   const lc = listLifecycles(50, WS_AUTO).find((l) => l.need?.jdSlug === job.slug);
   assert.ok(lc, "a lifecycle was created for this job's JD");
   assert.equal(lc!.auto, true);
+});
+
+test("a seeded non-software job with NO JD designs a case tied to the job, once", async () => {
+  seq += 1;
+  const jobId = `seeded-nojd-${seq}`;
+  const title = `Seeded Accountant ${seq}`;
+  insertJob({ id: jobId, title, roleFamily: "finance" } as JobRecord, undefined, "published", WS_AUTO);
+  const entry = entryAt(WS_AUTO, jobId, title, "hw-nojd@example.com");
+
+  let designs = 0;
+  const runDesign = async (lifecycleId: string) => {
+    designs += 1;
+    const lc = getLifecycle(lifecycleId)!;
+    approveLifecycleCase(
+      lifecycleId,
+      { need: lc.need, analysis: {}, role: { title }, case: { title: `${title} case` } },
+      "clean (auto-approved)"
+    );
+  };
+
+  const res = await runHomeworkArrival(entry, "Homework", WS_AUTO, { runDesign });
+  assert.equal(res.outcome, "invited");
+  assert.equal(designs, 1);
+
+  const lcs = listLifecycles(50, WS_AUTO).filter((l) => (l.need as { jobId?: string } | undefined)?.jobId === jobId);
+  assert.equal(lcs.length, 1, "one lifecycle carries this job's id");
+  assert.equal(lcs[0].need?.roleFamily, "finance", "the job row's family, not the software default");
+  assert.equal(lcs[0].need?.jdSlug, undefined, "there is no JD to name");
+
+  const tied = listDevCasesForJob(jobId, WS_AUTO);
+  assert.equal(tied.length, 1, "the designed case is found through the job");
+
+  // A second arrival of the same entry finds that case: no second design, no second lifecycle.
+  const again = await runHomeworkArrival(entry, "Homework", WS_AUTO, { runDesign });
+  assert.equal(again.outcome, "already_invited");
+  assert.equal(designs, 1, "the design (and its meter) is not run again");
+  assert.equal(listLifecycles(50, WS_AUTO).filter((l) => (l.need as { jobId?: string } | undefined)?.jobId === jobId).length, 1);
+  assert.equal(listDevCasesForJob(jobId, WS_AUTO).length, 1);
+});
+
+test("a job id with neither a JD nor a job row is skipped with a reason and creates nothing", async () => {
+  const entry = entryAt(WS_AUTO, "ghost-job-without-row", "Ghost", "hw-ghost@example.com");
+  let designs = 0;
+  const before = listLifecycles(200, WS_AUTO).length;
+
+  const res = await runHomeworkArrival(entry, "Homework", WS_AUTO, {
+    runDesign: async () => {
+      designs += 1;
+    },
+  });
+
+  assert.deepEqual(res, { outcome: "skipped", reason: "no_jd" });
+  assert.equal(designs, 0);
+  assert.equal(listLifecycles(200, WS_AUTO).length, before, "no lifecycle was created");
+  assert.equal(listDevCasesForJob("ghost-job-without-row", WS_AUTO).length, 0);
 });
 
 test("a submission from an INVITED candidate binds to their existing entry", async () => {
