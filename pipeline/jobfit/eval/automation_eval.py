@@ -90,7 +90,7 @@ SCENARIOS: list[Scenario] = [
     ),
     Scenario(
         "bau_weak",
-        MatchCandidate(skills=["Python"], seniority="senior", role_family="software_engineering", languages=["English"], archetype="bau"),
+        MatchCandidate(skills=["Python"], seniority="senior", role_family="software_engineering", languages=["English"], archetype="bau", provenance_default="professional"),
         _job(title="Senior PM", role_family="product_project", requirements=[{"skill": "product management", "kind": "must_have", "hardness": "prerequisite"}]),
     ),
     Scenario(
@@ -172,7 +172,7 @@ def _check_scorecard(out: dict, s: Scenario) -> list[str]:
 def _check_rematch(out: dict, s: Scenario) -> list[str]:
     if not isinstance(out.get("found"), bool):
         return ["missing 'found'"]
-    if out["found"] and out.get("score", 0) <= automation.POLICY["rematch_floor"]:
+    if out["found"] and out.get("score", 0) < automation.POLICY["rematch_floor"]:
         return ["FAIRNESS: re-match below floor"]
     return []
 

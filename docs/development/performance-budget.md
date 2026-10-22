@@ -140,6 +140,13 @@ with a `why` that names the cause and the step taken (here 10 KB), not
 hidden by trimming an unrelated file. The module count is the tell: unchanged
 means growth, not a new dependency edge.
 
+**Features count too.** On 2026-10-20 main read red at `test:perf` after the
+comms release card (+2 modules, ~14 KB on `app/page.tsx`) and the interview
+AI-tools axis (~2 KB) landed, with 30 routes 1 to 5 KB over from small
+follow-ups. The ceilings were raised to the measured values in one commit whose
+`why` names those changes; no slack was added. The same day the analytics a11y harvest (TableStatus on two
+tables, 1 KB) raised `app/page.tsx` from 11707 to 11708 KB the same way.
+
 ## When it fails
 
 The message names the file, the measurement and the ceiling. In order of what

@@ -246,7 +246,7 @@ const RADIUS = { none: "0", sm: "4px", "": "4px", md: "6px", lg: "8px", xl: "12p
 const WEIGHT = { normal: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800 };
 const SIZE = { sm: ["14px", "1.43"], base: ["16px", "1.5"], lg: ["18px", "1.56"] };
 const EASE = "cubic-bezier(.4, 0, .2, 1)";
-const COLOR_WORD = /^(ink|paper|coral|moss|steel|limewash|coralwash|white|dial-stone|dial-amber|scrim|(stone|red|amber|green|blue)-\d+)$/;
+const COLOR_WORD = /^(ink|paper|coral-ink|coral-solid|coral|moss|steel|limewash|coralwash|white|dial-stone|dial-amber|scrim|(stone|red|amber|green|blue)-\d+)$/;
 const colorOf = (word) => {
   const [c, alpha] = word.split("/");
   if (!COLOR_WORD.test(c)) return null;

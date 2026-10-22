@@ -357,9 +357,16 @@ export function applyPlan(plan, { root = REPO_ROOT } = {}) {
       continue;
     }
     fs.mkdirSync(path.dirname(abs), { recursive: true });
-    const existed = fs.existsSync(abs);
-    fs.writeFileSync(abs, edit.contents, 'utf8');
-    applied.push({ path: edit.path, action: existed ? 'modify' : 'create' });
+    // 'wx' tells create from modify atomically: no check-then-write race.
+    let action = 'create';
+    try {
+      fs.writeFileSync(abs, edit.contents, { encoding: 'utf8', flag: 'wx' });
+    } catch (e) {
+      if (e?.code !== 'EEXIST') throw e;
+      action = 'modify';
+      fs.writeFileSync(abs, edit.contents, 'utf8');
+    }
+    applied.push({ path: edit.path, action });
   }
   return applied;
 }
