@@ -16096,6 +16096,52 @@
           "evidence": "app/_lib/ats-secret.ts:116 Secret rotation here re-encrypts unchanged plaintext locally; it does not mutate a remote credential requiring an issuer's write-ahead witness."
         }
       ]
+    },
+    "c6367667-9117-4b74-8800-3bdd54e304f2/entity-lifecycle": {
+      "context": "shell-palette-preview",
+      "subject": "entity-lifecycle",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T01:14:37.096Z",
+      "worker": "00188629-feb3-4f5c-8944-7525c4c53378",
+      "techniques": [
+        {
+          "technique": "archive-restore-semantics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/palette-preview/types.ts:130 The JD preview cannot communicate archival: resolveJd calls loadJd, which returns archived_at, but discards it; PreviewJd renders no archived indicator, violating the clearly archived surface requirement."
+        },
+        {
+          "technique": "blast-radius-computation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:73 This fetch obtains navigation facts; the pane neither previews destruction nor requests destructive consent."
+        },
+        {
+          "technique": "bulk-deletion-rails",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:63 Clearing this in-memory preview memo destroys no domain entities; there is no entity purge operation here."
+        },
+        {
+          "technique": "cascade-design",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:99 Retry removes a local fetch result so it can reload; it does not delete an entity or determine dependent-record fates."
+        },
+        {
+          "technique": "change-logging",
+          "verdict": "not-applicable",
+          "evidence": "app/api/palette/preview/route.ts:29 The backing endpoint returns resolved facts without performing a lifecycle transition requiring a transition record."
+        },
+        {
+          "technique": "orphan-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:48 Expired preview entries are evicted during reads; this context does not perform cross-store entity deletion or dispatch reapers."
+        },
+        {
+          "technique": "provenance-denormalization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewEntities.tsx:136 The renderer displays a supplied nullable source identifier and creates no historical record whose provenance must be captured."
+        }
+      ]
     }
   }
 }

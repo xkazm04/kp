@@ -29898,7 +29898,11 @@
           "revision": 6,
           "changedAt": "2026-08-31",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/palette/PreviewEntities.tsx:109 An archived JD reached through recents renders without an archived indicator because loadJd preserves archived rows but the preview contract and renderer omit their archive state.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:cef5e3463825ff22",
+          "evaluatedRevision": 6
         },
         {
           "subject": "client-fetch-cache",
