@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteJd, getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
+import { deleteJd, getJob, getJobOwnerWorkspace, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
@@ -53,9 +53,20 @@ export const GET = withWorkspace(async (ws: string, request: Request, context: {
     // ?brief=1 — the promoted role-intake brief behind this JD (Dev tab's
     // structured-need read, UAT L1-EVA-3). Internal authoring material like
     // build_input_json, and read from the same workspace that owns the JD. Null
-    // when no promoted intake backs the JD.
+    // when no promoted intake backs the JD. `jobRoleFamily` rides the same branch:
+    // the role family of the JD's linked job, which the Dev tab falls back to when no
+    // intake brief names one. Null when there is no job or it carries no family. A
+    // job owned by ANOTHER workspace is treated as absent (getJob reads by global id);
+    // a seeded corpus job (no owner) is shared and stays readable.
     if (params.has("brief")) {
-      return NextResponse.json({ ...publicRow, intakeBrief: promotedBriefForJob(jdJobId(slug), ws) });
+      const jobId = jdJobId(slug);
+      const owner = getJobOwnerWorkspace(jobId);
+      const job = owner === null || owner === ws ? getJob(jobId, ws) : null;
+      return NextResponse.json({
+        ...publicRow,
+        intakeBrief: promotedBriefForJob(jobId, ws),
+        jobRoleFamily: job?.roleFamily?.trim() || null,
+      });
     }
     return NextResponse.json(publicRow);
   } catch (error) {
