@@ -21,12 +21,12 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { IDEMPOTENCY_HEADER } from "./comms-envelope.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
+import { setEgressTransportForTests, type PinnedRequestInit, type PinnedRequestOptions, type PinnedResponse } from "./pinned-request.ts";
 
 after(() => cleanupUnitDb());
 
-const realFetch = globalThis.fetch;
 afterEach(() => {
-  globalThis.fetch = realFetch;
+  setEgressTransportForTests(undefined);
   setRelayHostLookupForTests(undefined);
   delete process.env.COMMS_WEBHOOK_URL;
   delete process.env.KP_COMMS_RELAY_TIMEOUT_MS;
@@ -46,14 +46,14 @@ function installRelay(respond: (attempt: Attempt, n: number, signal: AbortSignal
   const attempts: Attempt[] = [];
   process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
   setRelayHostLookupForTests(PUBLIC_LOOKUP);
-  globalThis.fetch = (async (_url: string, init: RequestInit) => {
-    const headers = (init.headers ?? {}) as Record<string, string>;
+  setEgressTransportForTests(async (_url: string, init: PinnedRequestInit) => {
+    const headers = init.headers;
     const body = JSON.parse(String(init.body)) as { messageId?: string | null };
-    const signal = (init.signal as AbortSignal | undefined) ?? null;
+    const signal = init.signal ?? null;
     const a: Attempt = { key: headers[IDEMPOTENCY_HEADER] ?? null, messageId: body.messageId ?? null, hasSignal: signal !== null };
     attempts.push(a);
     return respond(a, attempts.length, signal);
-  }) as unknown as typeof fetch;
+  });
   return attempts;
 }
 
@@ -160,26 +160,31 @@ test("an unresolvable relay host is refused rather than posted to", async () => 
 
 // --- redirects ------------------------------------------------------------------
 
-/** Install a relay that records the init of every fetch and answers with `answer`. */
+/** Install a relay that records every request made through the egress transport and
+ *  answers with `answer`. */
 function installRedirectingRelay(answer: () => unknown) {
-  const inits: RequestInit[] = [];
+  const inits: Array<{ init: PinnedRequestInit; options?: PinnedRequestOptions }> = [];
   process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
   setRelayHostLookupForTests(PUBLIC_LOOKUP);
-  globalThis.fetch = (async (_url: string, init: RequestInit) => {
-    inits.push(init);
-    return answer();
-  }) as unknown as typeof fetch;
+  setEgressTransportForTests(async (_url, init, options) => {
+    inits.push({ init, options });
+    return answer() as PinnedResponse;
+  });
   return inits;
 }
 
-test("the relay fetch does not follow redirects (part of the SSRF boundary)", async () => {
+test("the relay posts through the pinned transport, which never follows redirects (part of the SSRF boundary)", async () => {
+  // The transport itself is proven against a real socket in pinned-request.test.ts: one
+  // resolution, the vetted address dialled, a 3xx surfaced and never followed. What this
+  // pins is that the relay goes through it, pinned with the SAME resolver that vetted.
   const inits = installRedirectingRelay(() => new Response(null, { status: 200 }));
   await sendComm(MSG);
   assert.equal(inits.length, 1);
-  assert.equal(inits[0].redirect, "manual");
+  assert.equal(inits[0].init.method, "POST");
+  assert.equal(inits[0].options?.resolve, PUBLIC_LOOKUP, "the pin resolves through the resolver that vetted the host");
 });
 
-test("a 307 answer is a permanent failure after ONE fetch, with a readable reason", async () => {
+test("a 307 answer is a permanent failure after ONE request, with a readable reason", async () => {
   const inits = installRedirectingRelay(
     () => new Response(null, { status: 307, headers: { Location: "http://169.254.169.254/latest" } })
   );
@@ -189,7 +194,7 @@ test("a 307 answer is a permanent failure after ONE fetch, with a readable reaso
   assert.match(String(row.failureDetail), /redirect \(http 307\); redirects are refused/);
 });
 
-test("an opaqueredirect-shaped answer is a permanent failure after ONE fetch", async () => {
+test("a status-0 (opaqueredirect-shaped) answer is a permanent failure after ONE request", async () => {
   const inits = installRedirectingRelay(() => ({ ok: false, status: 0, type: "opaqueredirect" }));
   const row = await sendComm(MSG);
   assert.equal(inits.length, 1);

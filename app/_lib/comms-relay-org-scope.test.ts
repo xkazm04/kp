@@ -26,6 +26,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { getRelayConfig, setRelayConfig } from "./comms-relay-store.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
+import { setEgressTransportForTests } from "./pinned-request.ts";
 // The SLICE, not the `db.ts` barrel: one barrel importer in a hub module taxes every
 // route downstream, and perf-budget.json caps how many there may be.
 import { createPipelineEntry } from "./db/pipeline.ts";
@@ -39,6 +40,7 @@ after(() => cleanupUnitDb());
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  setEgressTransportForTests(undefined);
   setRelayHostLookupForTests(undefined);
   delete process.env.COMMS_WEBHOOK_URL;
 });
@@ -49,14 +51,17 @@ const PUBLIC_LOOKUP = async () => [{ address: "93.184.216.34" }];
 
 const RELAY_URL = "https://relay.example.test/hook";
 
-/** Swap global fetch and COUNT the calls: "it must never POST" is only proven by a
- *  counter that would have moved. */
+/** Swap the egress transport (and global fetch, so nothing can leave around it) and
+ *  COUNT the calls: "it must never POST" is only proven by a counter that would have
+ *  moved. */
 function countedFetch(): { n: number } {
   const calls = { n: 0 };
-  globalThis.fetch = (async () => {
+  const accept = async () => {
     calls.n += 1;
     return new Response("{}", { status: 200 });
-  }) as unknown as typeof fetch;
+  };
+  setEgressTransportForTests(accept);
+  globalThis.fetch = accept as unknown as typeof fetch;
   setRelayHostLookupForTests(PUBLIC_LOOKUP);
   return calls;
 }

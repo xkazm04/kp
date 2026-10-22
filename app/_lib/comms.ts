@@ -10,6 +10,7 @@ import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { outreachHaltFor } from "./outreach-state-store";
 import { cleanOutreachBody, outreachBodyRefusal } from "./outreach-body";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
+import { pinnedRequest } from "./pinned-request";
 import { orgIdForWorkspace } from "./db/org-benchmarks";
 import { DEFAULT_ORG_ID } from "./db/organizations";
 
@@ -302,14 +303,18 @@ class WebhookChannel implements CommsChannel {
       try {
         // A FRESH signal per attempt: AbortSignal.timeout starts counting when it is
         // created, so one hoisted signal would give attempt 3 no budget at all.
-        // `redirect: "manual"` is part of the SSRF boundary: only the URL dialled above was
-        // vetted, and a followed 307/308 would re-POST the signed envelope (candidate PII)
-        // to an unvetted, possibly internal host — on every attempt of the ladder.
-        const r = await fetch(this.url, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
+        // No redirect plus a pinned address is the SSRF boundary. `pinnedRequest`
+        // resolves the host ONCE inside the request, refuses any private answer and
+        // dials that address — fetch's own second lookup was a gap a rebinding name
+        // could win after the vet above. It never follows a redirect: a followed
+        // 307/308 would re-POST the signed envelope (candidate PII) to an unvetted,
+        // possibly internal host — on every attempt of the ladder.
+        const r = await pinnedRequest(this.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) }, { resolve: relayHostLookup });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
-        // A manual redirect surfaces as an opaque-redirect (status 0) or a 3xx. Permanent:
-        // retrying only repeats it, so dead-letter at once with no backoff.
-        if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+        // A redirect surfaces as a 3xx (status 0 is kept as a refusal too: it is never a
+        // real HTTP answer). Permanent: retrying only repeats it, so dead-letter at once
+        // with no backoff.
+        if (r.status === 0 || (r.status >= 300 && r.status < 400)) {
           return {
             status: "failed",
             attempts: attempt,
