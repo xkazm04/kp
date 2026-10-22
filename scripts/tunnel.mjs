@@ -33,13 +33,43 @@ export const CLOUDFLARED_INSTALL = [
  *    prompt  open mode and a terminal is attached — ask for one
  *    refuse  open mode and nobody to ask — exit non-zero with `message` */
 export function publicPasswordPlan(env, { isTTY }) {
-  if (env.KP_OPERATOR_PASSWORD) return { action: "have" };
-  if (isTTY) return { action: "prompt" };
+  const configured = String(env.KP_OPERATOR_PASSWORD || "");
+  // A configured password meets the same floor as a typed one: "admin" in .env.local is
+  // not a studio password for an address anyone on the internet can open.
+  if (configured.length >= MIN_PUBLIC_PASSWORD_LENGTH) return { action: "have" };
+  const weak = configured.trim() !== "";
+  if (isTTY) {
+    return {
+      action: "prompt",
+      message: weak
+        ? `The configured KP_OPERATOR_PASSWORD is too short for a public studio (under ${MIN_PUBLIC_PASSWORD_LENGTH} characters); choose one for this run.`
+        : "--public makes this studio reachable from the internet, so it needs a password.",
+    };
+  }
   return {
     action: "refuse",
-    message:
-      "--public will not start in open mode (no KP_OPERATOR_PASSWORD): set KP_OPERATOR_PASSWORD in .env.local or the shell and run it again, or run it in a terminal to be asked.",
+    message: weak
+      ? `--public will not start: KP_OPERATOR_PASSWORD is under ${MIN_PUBLIC_PASSWORD_LENGTH} characters. Set a longer one in .env.local or the shell and run it again, or run it in a terminal to be asked.`
+      : "--public will not start in open mode (no KP_OPERATOR_PASSWORD): set KP_OPERATOR_PASSWORD in .env.local or the shell and run it again, or run it in a terminal to be asked.",
   };
+}
+
+/** The env files `next dev` reads, highest precedence first (@next/env: the first file
+ *  that assigns a key wins, and the process environment beats every file). */
+export const NEXT_DEV_ENV_FILES = [".env.development.local", ".env.local", ".env.development", ".env"];
+
+/** The KP_OPERATOR_PASSWORD the dev server will run with: the process env when it is
+ *  set at all, else the first env file, in Next's order, that assigns it (blank
+ *  included: a blank assignment there is open mode in the app). `readFile(name)` returns
+ *  the text or null. Returns "" when nothing assigns it. */
+export function operatorPasswordFromEnv(env, readFile) {
+  if (env.KP_OPERATOR_PASSWORD !== undefined) return String(env.KP_OPERATOR_PASSWORD);
+  for (const name of NEXT_DEV_ENV_FILES) {
+    const text = readFile(name);
+    if (text == null) continue;
+    if (/^\s*(?:export\s+)?KP_OPERATOR_PASSWORD\s*=/m.test(text)) return passwordFromEnvFile(text);
+  }
+  return "";
 }
 
 /** Why a typed password is not acceptable, or null. */

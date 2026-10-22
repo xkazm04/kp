@@ -66,7 +66,7 @@ import {
   cloudflaredAvailable,
   freePort,
   killTunnel,
-  passwordFromEnvFile,
+  operatorPasswordFromEnv,
   publicPasswordPlan,
   startQuickTunnel,
 } from "./tunnel.mjs";
@@ -258,22 +258,21 @@ export async function main(argv = process.argv.slice(2)) {
   // --public refuses open mode before anything is installed or started.
   let publicPassword = null; // typed this run; handed to the app's environment only, never written to disk
   if (opts.public && !opts.check) {
-    let fileText = "";
-    for (const f of [".env.local", ".env"]) {
+    // Judged as the app will see it: the env file Next would read, not the last one listed.
+    const configured = operatorPasswordFromEnv(process.env, (f) => {
       try {
-        fileText += `${readFileSync(path.join(ROOT, f), "utf8")}\n`;
+        return readFileSync(path.join(ROOT, f), "utf8");
       } catch {
-        /* no such env file */
+        return null; /* no such env file */
       }
-    }
-    const fromFile = passwordFromEnvFile(fileText);
-    const plan = publicPasswordPlan({ KP_OPERATOR_PASSWORD: process.env.KP_OPERATOR_PASSWORD || fromFile }, { isTTY: Boolean(process.stdin.isTTY) });
+    });
+    const plan = publicPasswordPlan({ KP_OPERATOR_PASSWORD: configured }, { isTTY: Boolean(process.stdin.isTTY) });
     if (plan.action === "refuse") fail([plan.message]);
     if (!cloudflaredAvailable()) {
       fail(["--public needs cloudflared (a free Cloudflare program) and it was not found. Install it, then run this again:", ...CLOUDFLARED_INSTALL.map((l) => `  ${l}`)]);
     }
     if (plan.action === "prompt") {
-      say("--public makes this studio reachable from the internet, so it needs a password.");
+      say(plan.message);
       publicPassword = await askNewPassword().catch(() => fail(["Cancelled."]));
     }
   }

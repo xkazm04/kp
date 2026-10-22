@@ -15,7 +15,7 @@ const { nodeMajor, parseArgs, parseRequirements, compareInstalled, extractLocalU
   "../up.mjs"
 );
 
-const { parseTunnelUrl, publicPasswordPlan, passwordProblem, passwordFromEnvFile } = await import("../tunnel.mjs");
+const { parseTunnelUrl, publicPasswordPlan, passwordProblem, passwordFromEnvFile, operatorPasswordFromEnv, NEXT_DEV_ENV_FILES } = await import("../tunnel.mjs");
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -119,6 +119,31 @@ test("--public refuses open mode without a terminal, asks with one, passes with 
   assert.match(refused.message, /KP_OPERATOR_PASSWORD/);
   assert.equal(publicPasswordPlan({ KP_OPERATOR_PASSWORD: "" }, { isTTY: true }).action, "prompt");
   assert.equal(publicPasswordPlan({ KP_OPERATOR_PASSWORD: "x".repeat(12) }, { isTTY: false }).action, "have");
+});
+
+test("--public will not go online behind a weak password it found configured", () => {
+  // A short KP_OPERATOR_PASSWORD in .env.local was waved through as "have": the studio went
+  // on the internet behind "admin". The same floor as a typed one applies.
+  const weak = publicPasswordPlan({ KP_OPERATOR_PASSWORD: "admin" }, { isTTY: false });
+  assert.equal(weak.action, "refuse");
+  assert.match(weak.message, /12 characters/);
+  assert.equal(weak.message.includes("admin"), false, "the refusal never prints the password");
+  const asked = publicPasswordPlan({ KP_OPERATOR_PASSWORD: "admin" }, { isTTY: true });
+  assert.equal(asked.action, "prompt");
+  assert.match(asked.message, /too short/);
+  assert.equal(publicPasswordPlan({ KP_OPERATOR_PASSWORD: "   " }, { isTTY: false }).action, "refuse", "blank is open mode");
+});
+
+test("the launcher judges the password the app will actually use (Next's env-file order)", () => {
+  // Next dev: process env, then .env.development.local, .env.local, .env.development, .env;
+  // the FIRST that assigns the key wins, even with a blank value.
+  assert.deepEqual(NEXT_DEV_ENV_FILES, [".env.development.local", ".env.local", ".env.development", ".env"]);
+  const files = { ".env.local": "KP_OPERATOR_PASSWORD=short\n", ".env": "KP_OPERATOR_PASSWORD=a-strong-enough-password\n" };
+  assert.equal(operatorPasswordFromEnv({}, (f) => files[f] ?? null), "short", ".env.local beats .env");
+  const blank = { ".env.local": "KP_OPERATOR_PASSWORD=\n", ".env": "KP_OPERATOR_PASSWORD=long-long-long-pw\n" };
+  assert.equal(operatorPasswordFromEnv({}, (f) => blank[f] ?? null), "", "a blank assignment blocks the files below it");
+  assert.equal(operatorPasswordFromEnv({ KP_OPERATOR_PASSWORD: "from-the-shell" }, (f) => files[f] ?? null), "from-the-shell", "the process env beats every file");
+  assert.equal(operatorPasswordFromEnv({}, () => null), "");
 });
 
 test("password rules and env-file lookup", () => {

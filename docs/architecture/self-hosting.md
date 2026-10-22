@@ -231,9 +231,12 @@ Candidate links (offer, scheduling, interview, apply, status) must open on the
 candidate's machine, and on a desk install they point at `localhost`. `--public`
 fixes that for the length of one run:
 
-1. **Open mode is refused.** With no `KP_OPERATOR_PASSWORD` (shell, `.env.local` or
-   `.env`) it asks for one in a terminal (hidden, 12+ characters, typed twice). In a
-   session with no terminal it exits non-zero with a one-line fix. A typed password is
+1. **Open mode and a weak password are refused.** `up` reads `KP_OPERATOR_PASSWORD` the
+   way `next dev` will: from the shell, or else from the first of `.env.development.local`,
+   `.env.local`, `.env.development` and `.env` that assigns it. If it is missing or
+   shorter than 12 characters, `up` asks for one in a terminal (hidden, 12+ characters,
+   typed twice). In a session with no terminal it exits non-zero with a one-line fix and
+   never prints the password. A typed password is
    handed to the app's environment for that run only and is **not written to disk**
    (the auth layer compares a plaintext env value, so there is no hash to store); put
    it in `.env.local` to stop being asked.
