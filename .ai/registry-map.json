@@ -3282,7 +3282,11 @@
           "revision": 2,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:100 The context consumes recruiting calibration data, and searches for extract_text, pypdf, ocr and docx found no context matches while locating extraction elsewhere in the repository.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:ee97c74f3f5e0c28",
+          "evaluatedRevision": 2
         },
         {
           "subject": "test-harness",

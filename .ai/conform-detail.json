@@ -15999,6 +15999,62 @@
           "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:31 The mapping couples source paths to Markdown documents for synchronization; it does not declare product navigation locations on documentation topic records."
         }
       ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/document-text-extraction": {
+      "context": "analytics-calibration",
+      "subject": "document-text-extraction",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T00:35:19.612Z",
+      "worker": "f69575f1-e144-4891-a16d-0e4678c66a0c",
+      "techniques": [
+        {
+          "technique": "band-calibration-by-construction",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:47 Calibration measures recruiting outcomes; it does not fit extraction-quality boundaries against document regions."
+        },
+        {
+          "technique": "context-decided-escaping",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:118 Candidate labels render as React text; this context does not convert extracted document text into lightweight markup."
+        },
+        {
+          "technique": "escalation-adjudication",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:146 The retry reloads calibration data rather than producing a second reader's extraction for adjudication."
+        },
+        {
+          "technique": "extraction-yield-bands",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:66 These bands display probability ranges and observed recruiting outcomes, not document-region yield or reacquisition actions."
+        },
+        {
+          "technique": "recognition-boundary-and-escalation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:97 Source selection changes the available recruiting outcome axis; no text-layer reader or recognition escalation operates here."
+        },
+        {
+          "technique": "screen-then-confirm-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:78 The guard identifies score-caused outcome labels, not suspicious document regions requiring extraction confirmation."
+        },
+        {
+          "technique": "structural-amplification-caps",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsFamilyFloorChips.tsx:30 The component enumerates configured family floors; it does not materialize document-container repeats, references or compressed payloads."
+        },
+        {
+          "technique": "structure-saturation-guard",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/performanceBands.ts:39 The module selects dashboard claims from recruiting event counts rather than inferring document headings, lists or tables."
+        },
+        {
+          "technique": "unreadable-region-refusal",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsDriftStrip.tsx:22 Missing measurements concern cohort Brier scores, not unreadable content-bearing document regions."
+        }
+      ]
     }
   }
 }
