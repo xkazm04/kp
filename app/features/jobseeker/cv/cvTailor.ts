@@ -320,7 +320,7 @@ function byScore<T>(items: T[], score: (t: T) => number): T[] {
 }
 
 /** Up to EMPHASIS_PER_ROLE demanded terms across a role's printed bullets, heaviest
- *  first, each term once per role, each the verbatim word(s) of the bullet it sits in. */
+ *  first, at most one per bullet, each term once per role, each the verbatim word(s) of the bullet it sits in. */
 function emphasiseRole(bullets: CvBullet[], skills: Term[]): CvBullet[] {
   const picked = bullets.map(() => [] as [number, number][]);
   const used = new Set<string>();
@@ -328,6 +328,7 @@ function emphasiseRole(bullets: CvBullet[], skills: Term[]): CvBullet[] {
   for (const term of [...skills].sort((a, b) => b.weight - a.weight || b.toks.length - a.toks.length)) {
     if (n >= EMPHASIS_PER_ROLE) break;
     for (let i = 0; i < bullets.length && !used.has(term.key); i++) {
+      if (picked[i]!.length) continue; // one bold phrase per bullet (registry scan-path-hierarchy)
       const run = runsOf(tokensOf(bullets[i]!.text), term).find(([s, e]) => !picked[i]!.some(([ps, pe]) => s < pe && e > ps));
       if (!run) continue;
       picked[i]!.push(run);

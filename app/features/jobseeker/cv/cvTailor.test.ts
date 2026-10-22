@@ -154,6 +154,8 @@ test("a demanded term inside a bullet is marked for bold, only a demanded term, 
   let marks = 0;
   for (const r of TAILORED.doc.experience) {
     assert.ok(r.bullets.flatMap((b) => b.emphasis).length <= 2, r.role);
+    // One bold phrase per bullet (registry scan-path-hierarchy): two terms in one bullet is a keyword highlight.
+    assert.ok(r.bullets.every((b) => b.emphasis.length <= 1), r.role);
     for (const b of r.bullets) {
       for (const term of b.emphasis) {
         marks++;
