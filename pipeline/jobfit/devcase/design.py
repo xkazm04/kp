@@ -15,13 +15,14 @@ import math
 import threading
 from typing import Any
 
+from ..i18n import normalize_lang
 from .models import (
     RUBRIC_DIMENSIONS,
     DevNeed,
     NeedAnalysis,
     clamp_timebox_hours,
 )
-from .family_cases import family_case_for
+from .family_cases import family_case_for, posting_lang
 from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
@@ -440,7 +441,11 @@ def design_case(
                 }
             )
         if not generic_only:
-            fc = family_case_for(role_family, role.get("title"))
+            # The family case is delivered in Czech when asked for, or when the posting itself
+            # is written in Czech (the seeded ČS roles reach here with lang "en" and a Czech
+            # JD; their candidate reads Czech — council-lite T13 r2, goal 4).
+            case_lang = "cs" if normalize_lang(lang) == "cs" or posting_lang(need.title, need.jd_text) == "cs" else "en"
+            fc = family_case_for(role_family, role.get("title"), lang=case_lang)
             if fc is not None:
                 # Keyless non-software family (T13): a concrete case over starting files that
                 # seed_materializer ships, not the generic template below. `familyCase` is the

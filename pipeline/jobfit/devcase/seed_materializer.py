@@ -22,7 +22,7 @@ import re
 from typing import Any
 
 from .ai_drafts import draft_for
-from .family_cases import case_draft, family_case_for
+from .family_cases import case_draft, case_lang, family_case_for
 from .models import CaseScenario, RoleSpec
 from .provenance import generate_with_fallback
 
@@ -69,20 +69,60 @@ def _safe_path(path: str) -> str | None:
     return "/".join(parts)
 
 
-def _decisions_template(case: CaseScenario) -> str:
-    tasks = case.tasks or ["the work"]
-    lines = [
-        "# DECISIONS",
-        "",
-        "Record every significant decision while you work — this log is part of the submission",
-        "and the follow-up conversation builds on it. Using AI tools is expected and never",
-        "penalised; what matters is that the decisions are YOURS.",
-        "",
-        "For each entry: what you decided, the alternative you rejected, and why.",
-        "",
-    ]
+# The scaffolding prose the keyless seed writes around the case, per delivery language.
+# The family case renders in Czech for a Czech-posted role (family_cases.case_lang); its
+# README and decision log follow, so the candidate does not read a Czech brief framed in
+# English headings.
+_SCAFFOLD: dict[str, dict[str, str]] = {
+    "en": {
+        "log_intro": (
+            "Record every significant decision while you work — this log is part of the submission\n"
+            "and the follow-up conversation builds on it. Using AI tools is expected and never\n"
+            "penalised; what matters is that the decisions are YOURS."
+        ),
+        "log_entry": "For each entry: what you decided, the alternative you rejected, and why.",
+        "the_work": "the work",
+        "task": "Task",
+        "decision": "- Decision:",
+        "rejected": "- Rejected alternative:",
+        "why": "- Why:",
+        "no_brief": "See the assignment brief.",
+        "materials": "## Starting materials",
+        "no_materials": "Described in the brief.",
+        "tasks": "## Tasks",
+        "timebox": "Timebox: ~{hours:g}h. Keep `{log}` up to date as you go.",
+        "draft_head": "## Supplied AI draft",
+        "draft_line": "`{path}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
+    },
+    "cs": {
+        "log_intro": (
+            "Zapisujte každé podstatné rozhodnutí průběžně — tento log je součástí odevzdané práce\n"
+            "a navazující rozhovor z něj vychází. Používat nástroje AI se čeká a nikdy se netrestá;\n"
+            "jde o to, aby rozhodnutí byla VAŠE."
+        ),
+        "log_entry": "U každého záznamu: co jste rozhodli, jakou alternativu jste zamítli a proč.",
+        "the_work": "práce",
+        "task": "Úkol",
+        "decision": "- Rozhodnutí:",
+        "rejected": "- Zamítnutá alternativa:",
+        "why": "- Proč:",
+        "no_brief": "Viz zadání.",
+        "materials": "## Výchozí materiály",
+        "no_materials": "Popsány v zadání.",
+        "tasks": "## Úkoly",
+        "timebox": "Časový rámec: ~{hours:g} h. Průběžně doplňujte `{log}`.",
+        "draft_head": "## Dodaný návrh od AI",
+        "draft_line": "`{path}` je neověřený návrh vygenerovaný AI. Můžete ho použít, opravit, nebo zahodit.",
+    },
+}
+
+
+def _decisions_template(case: CaseScenario, lang: str = "en") -> str:
+    t = _SCAFFOLD.get(lang, _SCAFFOLD["en"])
+    tasks = case.tasks or [t["the_work"]]
+    lines = ["# DECISIONS", "", t["log_intro"], "", t["log_entry"], ""]
     for i, task in enumerate(tasks[:6], start=1):
-        lines += [f"## Task {i}: {task.strip()}", "", "- Decision:", "- Rejected alternative:", "- Why:", ""]
+        lines += [f"## {t['task']} {i}: {task.strip()}", "", t["decision"], t["rejected"], t["why"], ""]
     return "\n".join(lines)
 
 
@@ -114,29 +154,31 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
     use, fix or discard: for a family case it is the case's own draft, authored over the
     case's materials and named by one of its tasks (council-lite T13 r2: a family-only
     draft had nothing to do with the case); otherwise the curated draft for the role family
-    (ai_drafts.py)."""
+    (ai_drafts.py). The README and decision log are written in the case's language."""
     fc = _family_case(case, role)
     draft = _draft_for_case(case, role)
+    lang = case_lang(case.title) if fc else "en"
+    t = _SCAFFOLD[lang]
     title = case.title or role.title or "Work sample"
     readme = "\n".join(
         [
             f"# {title}",
             "",
-            (case.brief or "").strip() or "See the assignment brief.",
+            (case.brief or "").strip() or t["no_brief"],
             "",
-            "## Starting materials",
+            t["materials"],
             "",
-            (case.repo_seed or "").strip() or "Described in the brief.",
+            (case.repo_seed or "").strip() or t["no_materials"],
             "",
-            "## Tasks",
+            t["tasks"],
             "",
-            *[f"{i}. {t.strip()}" for i, t in enumerate(case.tasks or [], start=1)],
+            *[f"{i}. {task.strip()}" for i, task in enumerate(case.tasks or [], start=1)],
             "",
-            f"Timebox: ~{case.timebox_hours:g}h. Keep `{DECISIONS_FILE}` up to date as you go.",
+            t["timebox"].format(hours=case.timebox_hours, log=DECISIONS_FILE),
             "",
-            "## Supplied AI draft",
+            t["draft_head"],
             "",
-            f"`{draft['path']}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
+            t["draft_line"].format(path=draft["path"]),
         ]
     )
     family_files = [{"path": p, "contents": c} for p, c in (fc["files"] if fc else [])]
@@ -146,7 +188,7 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
         "promptVersion": SEED_PROMPT_VERSION,
         "files": [
             {"path": "README.md", "contents": readme},
-            {"path": DECISIONS_FILE, "contents": _decisions_template(case)},
+            {"path": DECISIONS_FILE, "contents": _decisions_template(case, lang)},
             *family_files,
             {"path": draft["path"], "contents": draft["contents"]},
         ],

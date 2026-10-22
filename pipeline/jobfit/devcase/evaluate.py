@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from ..i18n import language_directive, normalize_lang
+from .ai_drafts import resolve_family as resolve_draft_family
 from .models import CASE_DRAFT_CANARY_PREFIX, RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import fenced_untrusted, generate_with_fallback, str_list as _str_list
 
@@ -56,6 +57,11 @@ CANARY_VERIFY_WEIGHT = 0.5
 # never used (unverifiable) leaves it where the trace put it. Using the draft is never
 # scored by itself — only whether its claim was checked.
 AI_DRAFT_TOOLING_SWING = 0.25
+
+# Role families whose starting materials are code; every other family reads "starting
+# materials" in the canary bullets, never "starter code" (lite r2: a ticket queue was called
+# starter code). A role with no family keeps the original wording.
+_CODE_FAMILIES = frozenset({"software_engineering", "data_ai"})
 
 # Observed verification, channel-neutral (tiger C1, 2026-10-17). One verification act earns
 # the same credit whichever channel carried it; OBSERVED_VERIFY_ACTS_FOR_FULL acts earn the
@@ -181,6 +187,18 @@ _DET: dict[str, dict[str, str]] = {
         "cs": "{missed} z {total} známých chyb ve výchozím kódu zůstalo v odevzdané práci bez povšimnutí",
         "de": "{missed} von {total} bekannten Fehlern im Ausgangscode wurden ungeprüft übernommen",
         "fr": "{missed} des {total} défauts connus du code de départ ont été livrés sans examen",
+    },
+    "canaries_caught_materials": {
+        "en": "Fixed or flagged {caught} of {total} known defects in the starting materials",
+        "cs": "Opravil(a) nebo označil(a) {caught} z {total} známých chyb ve výchozích materiálech",
+        "de": "Hat {caught} von {total} bekannten Fehlern in den Ausgangsmaterialien behoben oder benannt",
+        "fr": "A corrigé ou signalé {caught} des {total} défauts connus des documents de départ",
+    },
+    "canaries_missed_materials": {
+        "en": "{missed} of {total} known defects in the starting materials shipped unexamined",
+        "cs": "{missed} z {total} známých chyb ve výchozích materiálech zůstalo v odevzdané práci bez povšimnutí",
+        "de": "{missed} von {total} bekannten Fehlern in den Ausgangsmaterialien wurden ungeprüft übernommen",
+        "fr": "{missed} des {total} défauts connus des documents de départ ont été livrés sans examen",
     },
     "ai_draft_corrected": {
         "en": "Checked the supplied AI draft and corrected its error before using it",
@@ -591,10 +609,12 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # not flagged as a negative.
         if not outcomes or (assessed and handled <= 0.5):
             concerns.append(_t("probe_handling_unclear", lang))
+        family = str(role.get("roleFamily") or "")
+        where = "" if not family or resolve_draft_family(family) in _CODE_FAMILIES else "_materials"
         if caught:
-            strengths.append(_t("canaries_caught", lang, caught=caught, total=len(graded)))
+            strengths.append(_t(f"canaries_caught{where}", lang, caught=caught, total=len(graded)))
         if len(graded) > caught:
-            concerns.append(_t("canaries_missed", lang, missed=len(graded) - caught, total=len(graded)))
+            concerns.append(_t(f"canaries_missed{where}", lang, missed=len(graded) - caught, total=len(graded)))
         if draft_share is not None:
             (strengths if draft_share > 0.5 else concerns).append(
                 _t("ai_draft_corrected" if draft_share > 0.5 else "ai_draft_pasted", lang)

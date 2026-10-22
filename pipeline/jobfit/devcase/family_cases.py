@@ -706,15 +706,169 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
 }
 
 
-def family_case_for(role_family: str | None, title: str | None = "") -> dict | None:
+# --- Czech delivery ------------------------------------------------------------------------
+#
+# The keyless designer wrote every family case in English, so a Czech-posted role (the
+# seeded contact-centre role job-115, and every seeded ČS posting) handed its candidate an
+# English brief (council-lite T13 r2, goal 4). The candidate-facing text renders in Czech
+# when the case is delivered in Czech; the starting files stay as authored (they are data
+# the canaries and their evidence are pinned to), and the internal probe notes stay English.
+
+_DECISIONS_TASK_CS = (
+    "Veďte krátký log rozhodnutí v DECISIONS.md: u každého rozhodnutí, kde zadání nechávalo prostor, zapište, "
+    "co jste zvolili, jakou alternativu jste zamítli a na co byste se zeptali týmu."
+)
+_MID_TAIL_CS = "Napište, kterých vašich rozhodnutí se to týká, a upravte to nejdůležitější."
+_USE_FIX_CS = "můžete ho použít, opravit, nebo zahodit."
+
+_CS: dict[str, dict[str, Any]] = {
+    "sales": {
+        "title": "Obchod: kvalifikujte otevřený pipeline a napište e-mail s dalším krokem",
+        "brief": (
+            "Právě jste převzali malý otevřený pipeline. Podle exportu a poznámek k playbooku rozhodněte, kam půjde "
+            "oslovování v příštím týdnu, a napište první e-mail. Rozsah zhruba ~{timebox:g} h."
+        ),
+        "repoSeed": (
+            "pipeline.csv (export otevřeného pipeline), pipeline_notes.md (jak tým určuje priority) a "
+            f"{_DRAFT_SALES_PATH} (první verze e-mailu od AI asistenta)."
+        ),
+        "tasks": [
+            "Kvalifikujte a seřaďte účty v pipeline.csv: které tři oslovíte tento týden a proč.",
+            f"Napište e-mail s dalším krokem pro účet na prvním místě. {_DRAFT_SALES_PATH} je jeho první verze od AI asistenta: {_USE_FIX_CS}",
+            "Uveďte, co byste před odesláním čehokoli ověřili nebo se zeptali a co zůstává neznámé.",
+            _DECISIONS_TASK_CS,
+        ],
+        "midFlightUpdate": (
+            "Rychlá zpráva od vedoucího obchodu: kvartál se uzavírá o týden dřív, než se plánovalo, takže se počítají "
+            f"jen obchody, které lze podepsat do dvou týdnů. {_MID_TAIL_CS}"
+        ),
+    },
+    "operations": {
+        "title": "Provoz: odsouhlaste skladovou evidenci s logem pohybů",
+        "brief": (
+            "Skladový systém hlásí stav pěti položek (SKU) a z něj se sestavuje seznam k doobjednání. Odsouhlaste "
+            "evidenci s logem pohybů a napište, co doobjednat. Rozsah zhruba ~{timebox:g} h."
+        ),
+        "repoSeed": (
+            "inventory.csv (počáteční a hlášené množství), movements.csv (všechny pohyby od začátku měsíce), "
+            f"stock_notes.md a {_DRAFT_OPS_PATH} (návrh objednacích množství od AI asistenta)."
+        ),
+        "tasks": [
+            "Odsouhlaste každé SKU: počáteční množství plus pohyby proti hlášenému stavu na skladě.",
+            f"Sestavte seznam k doobjednání z odsouhlasených množství a bodů pro objednání. {_DRAFT_OPS_PATH} je návrh objednacích množství od AI asistenta: {_USE_FIX_CS}",
+            "Napište krátkou zprávu vedoucímu skladu o všem, co nesouhlasí.",
+            _DECISIONS_TASK_CS,
+        ],
+        "midFlightUpdate": (
+            "Rychlá zpráva od vedoucího skladu: body pro objednání se na sezónní špičku zvyšují o 20 %. "
+            f"{_MID_TAIL_CS}"
+        ),
+    },
+    "support": {
+        "title": "Zákaznická podpora: roztřiďte frontu otevřených tiketů",
+        "brief": (
+            "Otevřených je osm tiketů a na frontě jste tuto směnu sami. Roztřiďte je, odpovězte na ty, které můžete "
+            "uzavřít, a zbytek předejte dál. Rozsah zhruba ~{timebox:g} h."
+        ),
+        "repoSeed": (
+            "tickets.csv (snímek otevřené fronty), queue_notes.md (jak funguje předávání) a "
+            f"{_DRAFT_SUPPORT_PATH} (odpověď na T-1043 navržená AI asistentem)."
+        ),
+        "tasks": [
+            "Seřaďte tikety z tickets.csv do pořadí práce, u každého s jednořádkovým zdůvodněním.",
+            f"Napište zákaznickou odpověď na tři tikety, na které byste odpověděli nejdřív. Odpověď na T-1043 už navrhl AI asistent v {_DRAFT_SUPPORT_PATH}: {_USE_FIX_CS}",
+            "Uveďte každý tiket, který byste předali někomu jinému, komu a co byste mu napsali.",
+            _DECISIONS_TASK_CS,
+        ],
+        "midFlightUpdate": (
+            "Rychlá zpráva od vedoucí týmu: u zákazníků Enterprise naskakuje výpadek, takže tikety Enterprise teď "
+            f"dostanou první odpověď do hodiny. {_MID_TAIL_CS}"
+        ),
+    },
+    "design": {
+        "title": "Design: zhodnoťte a upravte registrační flow podle jeho omezení",
+        "brief": (
+            "Pětikrokové registrační flow prošlo revizí. Zhodnoťte ho podle stanovených omezení a velikostí "
+            "komponent a pak ho upravte. Rozsah zhruba ~{timebox:g} h."
+        ),
+        "repoSeed": (
+            "flow_spec.md (flow), constraints.md, components.csv (exportované velikosti komponent), design_notes.md "
+            f"a {_DRAFT_DESIGN_PATH} (návrh úprav od AI asistenta)."
+        ),
+        "tasks": [
+            "Zhodnoťte flow_spec.md podle constraints.md: vypište každé porušení i s krokem, kde k němu dochází.",
+            f"Upravte flow tak, aby omezení splňovalo; změněné obrazovky popište slovy nebo náčrtem. {_DRAFT_DESIGN_PATH} je návrh úprav od AI asistenta: {_USE_FIX_CS}",
+            "Popište, jak byste úpravu otestovali s pěti uživateli a jaký výsledek by vás přiměl ji změnit znovu.",
+            _DECISIONS_TASK_CS,
+        ],
+        "midFlightUpdate": (
+            "Rychlá zpráva od produktového vedoucího: právní oddělení nově vyžaduje před vytvořením účtu zaškrtávací "
+            f"políčko souhlasu s odkazem na podmínky. {_MID_TAIL_CS}"
+        ),
+    },
+    "marketing": {
+        "title": "Marketing: naplánujte launch kampaň podle briefu a výsledků minulé kampaně",
+        "brief": (
+            "Plánujete šestitýdenní launch kampaň. Podle briefu a výsledků minulé kampaně rozhodněte o rozdělení "
+            "rozpočtu a o aktivitách na první dva týdny. Rozsah zhruba ~{timebox:g} h."
+        ),
+        "repoSeed": (
+            "campaign_brief.md (cíl, rozpočet, publikum, shrnutí minulé kampaně), results.csv (minulá kampaň po "
+            f"kanálech) a {_DRAFT_MKT_PATH} (rozdělení rozpočtu navržené AI asistentem)."
+        ),
+        "tasks": [
+            "Analyzujte results.csv: které kanály si své náklady vydělaly a podle jaké metriky.",
+            f"Navrhněte rozdělení rozpočtu 12 000 EUR a aktivity na první dva týdny. {_DRAFT_MKT_PATH} je rozdělení navržené AI asistentem: {_USE_FIX_CS}",
+            "Uveďte jedno číslo, které byste v prvním týdnu sledovali, a co by vás přimělo přesunout rozpočet.",
+            _DECISIONS_TASK_CS,
+        ],
+        "midFlightUpdate": (
+            "Rychlá zpráva od vedoucí marketingu: 3 000 EUR z rozpočtu je nově vyhrazeno na konferenci, takže kampaň "
+            f"má 9 000 EUR. {_MID_TAIL_CS}"
+        ),
+    },
+}
+
+# Czech-only letters; a posting is Czech when they make up a real share of its letters
+# (one diacritic in a name does not make an English posting Czech).
+_CS_LETTERS = frozenset("áčďéěíňóřšťúůýž")
+_CS_MIN_SHARE = 0.02
+_CS_MIN_COUNT = 5
+
+
+def posting_lang(*texts: str | None) -> str:
+    """``"cs"`` when the posting (title, JD text) is written in Czech, else ``"en"``.
+
+    The role's language signal the data already carries: the seeded ČS postings are written
+    in Czech, while their ``languages`` list (Czech + English) does not say which one the
+    candidate reads. Keyless and deterministic — a letter count, no model."""
+    text = " ".join(t for t in texts if t).lower()
+    letters = sum(1 for ch in text if ch.isalpha())
+    cs = sum(1 for ch in text if ch in _CS_LETTERS)
+    return "cs" if letters and cs >= _CS_MIN_COUNT and cs / letters >= _CS_MIN_SHARE else "en"
+
+
+def case_lang(title: str | None) -> str:
+    """The language a family case was delivered in, read off its title (``"cs"`` or ``"en"``)."""
+    return "cs" if title and title in {v["title"] for v in _CS.values()} else "en"
+
+
+def family_case_for(role_family: str | None, title: str | None = "", *, lang: str = "en") -> dict | None:
     """A fresh copy of the case entry for this role, or None when it keeps the generic path.
 
     The copy carries ``rubricDimensions`` (the canonical names/labels/weights with this
-    family's descriptions) so a caller never rebuilds it."""
+    family's descriptions) so a caller never rebuilds it, and ``lang``: with ``lang="cs"``
+    the candidate-facing text (title, brief, repoSeed, tasks, the mid-flight update) is the
+    Czech rendering."""
     fam = resolve_case_family(role_family, title)
     if fam is None:
         return None
     entry = copy.deepcopy(FAMILY_CASES[fam])
     entry["family"] = fam
+    entry["lang"] = "cs" if lang == "cs" else "en"
+    if entry["lang"] == "cs":
+        cs = _CS[fam]
+        entry.update({k: copy.deepcopy(cs[k]) for k in ("title", "brief", "repoSeed", "tasks")})
+        entry["midFlightUpdate"]["update"] = cs["midFlightUpdate"]
     entry["rubricDimensions"] = [{**d, "description": entry["rubric"][d["name"]]} for d in RUBRIC_DIMENSIONS]
     return entry

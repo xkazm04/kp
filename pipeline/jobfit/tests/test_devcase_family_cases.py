@@ -10,6 +10,9 @@ from pipeline.jobfit.devcase.evaluation_pipeline import EvaluationInputs, run_ev
 from pipeline.jobfit.devcase.family_cases import (
     FAMILY_CASES,
     case_draft,
+    case_lang,
+    family_case_for,
+    posting_lang,
     resolve_case_family,
 )
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
@@ -632,6 +635,59 @@ class TestTheCaseOwnsItsAiDraft(unittest.TestCase):
         files = [*seed["files"], {"path": "notes.md", "contents": "Done.\n"}]
         run = run_evaluation(EvaluationInputs(commits=[], case=case, role=role, probes=case["coverProbes"], seed=seed, files=files), provider=None)
         self.assertEqual(run.result["evaluation"]["dimensionScores"]["tooling"], 50)
+
+
+class TestCandidateFacingWording(unittest.TestCase):
+    def test_non_software_case_does_not_call_its_materials_starter_code(self):
+        rf, title = _ROLES["support"]
+        _, role, case, _ = _case(rf, title)
+        _f, _d, ev = _grade_with(role, case, dict([_NAIVE_NEW["support"]]))
+        text = " ".join(ev["strengths"] + ev["concerns"])
+        self.assertIn("starting materials", text)
+        self.assertNotIn("starter code", text)
+
+    def test_software_case_keeps_starter_code(self):
+        _, role, case, _ = _case("software_engineering", "Backend Engineer")
+        seed = _seed(role, case)
+        files = [*seed["files"], {"path": "notes.md", "contents": "Done.\n"}]
+        run = run_evaluation(EvaluationInputs(commits=[], case=case, role=role, probes=case["coverProbes"], seed=seed, files=files), provider=None)
+        self.assertIn("starter code", " ".join(run.result["evaluation"]["concerns"]))
+
+
+class TestCzechDelivery(unittest.TestCase):
+    def test_a_czech_posting_gets_the_case_in_czech(self):
+        role, case, source = _case_for_need(_CS_SUPPORT_NEED)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(case["familyCase"], "support")
+        self.assertEqual(posting_lang(_CS_SUPPORT_NEED.title, _CS_SUPPORT_NEED.jd_text), "cs")
+        self.assertIn("tiket", case["title"])
+        self.assertIn("Rozsah", case["brief"])
+        self.assertTrue(any(case_draft("support")["path"] in t for t in case["tasks"]))
+        self.assertIn("DECISIONS", case["tasks"][-1])
+        self.assertIn("Rychlá zpráva", case["midFlightUpdate"]["update"])
+        self.assertEqual(_check_case(case, None), [])
+        readme = next(f["contents"] for f in _seed(role, case)["files"] if f["path"] == "README.md")
+        self.assertIn("## Úkoly", readme)
+        self.assertIn("## Dodaný návrh od AI", readme)
+
+    def test_every_family_has_a_czech_rendering_and_english_postings_stay_english(self):
+        for fam, (rf, title) in _ROLES.items():
+            with self.subTest(family=fam):
+                en = family_case_for(rf, title)
+                cs = family_case_for(rf, title, lang="cs")
+                self.assertEqual(en["lang"], "en")
+                self.assertEqual(cs["lang"], "cs")
+                self.assertNotEqual(en["title"], cs["title"])
+                self.assertEqual(len(en["tasks"]), len(cs["tasks"]))
+                self.assertEqual(cs["files"], en["files"])  # the data the canaries are pinned to is shared
+                self.assertEqual(case_lang(cs["title"]), "cs")
+                self.assertEqual(case_lang(en["title"]), "en")
+                _, _role, case, _ = _case(rf, title)
+                self.assertEqual(case["title"], FAMILY_CASES[fam]["title"])  # an English posting
+
+    def test_posting_lang_ignores_a_stray_diacritic(self):
+        self.assertEqual(posting_lang("Support Specialist", "Help customers of Škoda Auto by phone and email."), "en")
+        self.assertEqual(posting_lang("", ""), "en")
 
 
 if __name__ == "__main__":
