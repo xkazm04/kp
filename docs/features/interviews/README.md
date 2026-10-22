@@ -1361,6 +1361,17 @@ by the browser itself (the exact string `voice/director.ts` would have sent, pin
 rendered at the candidate. A 409 additionally closes the channel: that call is no
 longer the live one, so posting again cannot help.
 
+Observations (`focus_lost`, `focus_returned`, `answer_timing`) are not kept forever
+while the director is down: the queue holds `MAX_QUEUED_EVENTS` = **60** and drops the
+oldest past that. Every drop is counted where it happens, on the channel's
+`droppedEvents`: `evicted` for the cap during an outage, `flushed` for what `close()`
+found still queued or what arrived after it. The browser logs one warning when an
+outage starts evicting, not one per drop. A test drives a 100-observation outage and a
+hang-up and requires sent = acknowledged + evicted + flushed with no residual. Without
+the counter that outage delivered 60 and left no trace of the other 40. The count does
+not reach the stored record yet, so a recruiter's focus summary still cannot tell
+"never left the tab" from "the departure was dropped in an outage".
+
 The **client hard stop** is the one rule that does not depend on any of this: at
 `hardCapMin + 2` minutes of live time — including the seconds earlier attempts spent
 (`resume.elapsedSec`) — the browser ends the call itself. The grace is the same
