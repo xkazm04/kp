@@ -605,7 +605,7 @@ carry: location, seniority, status, target hires, and the roles nobody is on yet
 `orbit/pipelineOrbit.css`. The region carries `data-sim="pipeline-board"`, the guided walk's
 "hired" chapter target.
 
-**Held first-contact letter (comms C2b).** The candidate modal's Overview tab opens with `candidate/outreach/OutreachReleaseCard.tsx` when the application has a held outreach letter: the exact letter and forecast, Approve (the rendered revision; a 409 reads "reload"), and Release (only in `RELEASABLE_STATES`; keyless it reads queued). Logic and API calls: `outreachCard.ts` (`outreachCard.test.ts`). Contract: `docs/features/comms/README.md` §8a.
+**Held first-contact letter (comms C2b).** The candidate modal's Overview tab opens with `candidate/outreach/OutreachReleaseCard.tsx` when the application has a held outreach letter: the exact letter and forecast, Approve (the rendered revision; a 409 reads "reload"), and Release (only in `RELEASABLE_STATES`; keyless it reads queued). Logic and API calls: `outreachCard.ts` (`outreachCard.test.ts`). Contract: `docs/features/comms/README.md` §8a. **Bulk dry-run sheet:** `candidate/outreach/BulkOutreachSheet.tsx` (logic in `outreachBulk.ts`) lists a batch outreach's held letters with forecast, per-letter edit and a bulk Approve and Release through the same per-letter doors; `usePipelineBulk` exposes `outreachSheet`, but that hook is unmounted since the Orbit, so nothing opens the sheet yet.
 
 **The Overview ("The Orbit, Lit", 2026-09-30).** The page opens one level ABOVE the orbit, on the
 owner's pick of the `/contest orbit-overview` (B/1; it replaced the 2026-09-29 /prototype "Core").
