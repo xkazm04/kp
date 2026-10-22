@@ -16946,8 +16946,39 @@
       "needsYou": "Wartet auf Sie",
       "notMeasuredTip": "Nicht gemessen: Ohne Relay wird nichts gesendet, eine Null wäre hier also keine gute Nachricht.",
       "notMeasuredNote": "Ein Strich ist keine Null: Ohne Relay wird nichts gesendet, also kann nichts fehlschlagen, unzustellbar sein oder zurückkommen.",
-      "relayOffStays": "Ein konfiguriertes Relay sendet die Nachrichten, die danach kommen. Die hier erfassten bleiben erfasst.",
-      "queuedStays": "Diese Nachrichten wurden erfasst, als kein Relay konfiguriert war. Eine Nachricht in der Warteschlange bleibt im lokalen Postausgang; nichts sendet sie später.",
+      "relayOffStays": "Ein konfiguriertes Relay sendet die Nachrichten, die danach kommen. Die hier erfassten werden Ihnen zum Senden angeboten, sobald es funktioniert, und gehen nur nach Ihrer Bestätigung hinaus.",
+      "queuedStays": "Diese Nachrichten wurden erfasst, als kein Relay konfiguriert war. Von selbst sendet sie nichts: Prüfen Sie die Liste und bestätigen Sie das Senden.",
+      "backlog": {
+        "title": "{count, plural, one {<em># Brief</em> wartete} other {<em># Briefe</em> warteten}} auf einen Absender",
+        "detail": "Sie wurden erfasst, bevor es ein Relay gab, deshalb ist nichts hinausgegangen. Gesendet wird erst, wenn Sie auf Senden drücken.",
+        "review": "Prüfen und senden",
+        "close": "Liste schließen",
+        "listLabel": "Briefe, die auf einen Absender warteten",
+        "recorded": "erfasst {when}",
+        "pick": "Senden an {recipient}: {subject}",
+        "handHelp": "Schon einen selbst aus Ihrem eigenen Postfach geschickt? Wählen Sie ihn hier ab, damit er nicht doppelt hinausgeht.",
+        "send": "{count, plural, one {# Brief senden} other {# Briefe senden}}",
+        "sending": "Wird gesendet…",
+        "nonePicked": "Wählen Sie mindestens einen Brief zum Senden aus.",
+        "result": {
+          "sent": "{count, plural, one {# Brief wurde gesendet.} other {# Briefe wurden gesendet.}}",
+          "failed": "{count, plural, one {# Brief konnte nicht zugestellt werden; das Postbuch führt ihn als fehlgeschlagen.} other {# Briefe konnten nicht zugestellt werden; das Postbuch führt sie als fehlgeschlagen.}}",
+          "queued": "{count, plural, one {# Brief wurde nur erneut erfasst, weil kein Relay mehr bereit ist.} other {# Briefe wurden nur erneut erfasst, weil kein Relay mehr bereit ist.}}",
+          "skipped": "{count, plural, one {# Brief wurde nicht gesendet:} other {# Briefe wurden nicht gesendet:}}",
+          "refused": "Das hat nicht geklappt. Das Postbuch zeigt, was gegebenenfalls hinausgegangen ist."
+        },
+        "skip": {
+          "relay_not_ready": "Es ist kein Relay zum Zustellen bereit.",
+          "too_many": "Über dem Limit pro Durchgang; senden Sie den Rest danach.",
+          "not_found": "In diesem Arbeitsbereich nicht gefunden.",
+          "not_offered": "Kein wartender Brief mehr.",
+          "already_sent": "Bereits zugestellt.",
+          "in_progress": "Wird bereits gesendet.",
+          "recipient_invalid": "Der Empfänger ist keine verwendbare E-Mail-Adresse.",
+          "suppressed": "Die Person darf nicht kontaktiert werden (Einwilligung, Löschung oder Widerspruch).",
+          "body_rejected": "Der Brief wurde wegen Länge oder Form abgelehnt."
+        }
+      },
       "scope": "Nachrichten für die {count, plural, one {# Stelle} other {# Stellen}}, die {channel} speist.",
       "scopeNone": "{channel} speist noch keine Stelle, daher gehört keine Nachricht dazu.",
       "showAll": "Alle Nachrichten zeigen",
@@ -16976,7 +17007,7 @@
       "reference": "Referenz",
       "note": {
         "queuedNoRelay": "<b>Nichts hat diesen Rechner verlassen: Es ist kein Relay konfiguriert.</b> Diese Nachricht ist erfasst, wird aber NICHT an {name} gesendet.",
-        "queuedLater": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Eine Nachricht in der Warteschlange bleibt im lokalen Postausgang; nichts sendet sie später."
+        "queuedLater": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Von selbst sendet sie nichts: Das Postbuch bietet an, die wartenden Briefe zu senden, und Sie bestätigen."
       },
       "act": {
         "title": "Was Sie tun können",
@@ -17010,7 +17041,7 @@
           "neverHanded": {
             "title": "Nie an ein Relay übergeben",
             "relayOff": "Es ist kein Zustell-Relay konfiguriert, daher hat die Nachricht diesen Rechner nicht verlassen.",
-            "relayOn": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Nichts sendet eine Nachricht aus der Warteschlange später."
+            "relayOn": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Sie geht nur hinaus, wenn Sie sie im Angebot im Postbuch bestätigen."
           },
           "deadLettered": {
             "title": "Als Dead-Letter abgelegt",

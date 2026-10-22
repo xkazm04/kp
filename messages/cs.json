@@ -16946,8 +16946,39 @@
       "needsYou": "Čeká na vás",
       "notMeasuredTip": "Neměřeno: bez relé se nic neodesílá, takže nula by tady nebyla dobrá zpráva.",
       "notMeasuredNote": "Pomlčka není nula: bez relé se nic neodesílá, takže nic nemohlo selhat, být nedoručeno ani se vrátit.",
-      "relayOffStays": "Po nastavení relé se odesílají zprávy, které vzniknou potom. Ty, které jsou zaznamenané tady, zůstanou jen zaznamenané.",
-      "queuedStays": "Zaznamenaly se v době, kdy nebylo nastavené žádné relé. Zpráva ve frontě zůstává v lokálním outboxu a později ji nic neodešle.",
+      "relayOffStays": "Po nastavení relé se odesílají zprávy, které vzniknou potom. Ty zaznamenané tady vám bude nabídnuto odeslat, jakmile relé funguje, a odejdou jen po vašem potvrzení.",
+      "queuedStays": "Zaznamenaly se v době, kdy nebylo nastavené žádné relé. Samy se neodešlou: projděte seznam a odeslání potvrďte.",
+      "backlog": {
+        "title": "{count, plural, one {<em># dopis</em> čekal} few {<em># dopisy</em> čekaly} other {<em># dopisů</em> čekalo}} na odesílatele",
+        "detail": "Zaznamenaly se dřív, než existovalo relé, takže nic neodešlo. Nic se neodešle, dokud nestisknete Odeslat.",
+        "review": "Projít a odeslat",
+        "close": "Zavřít seznam",
+        "listLabel": "Dopisy, které čekaly na odesílatele",
+        "recorded": "zaznamenáno {when}",
+        "pick": "Odeslat na {recipient}: {subject}",
+        "handHelp": "Už jste některý poslali sami ze své schránky? Odškrtněte ho tady, ať neodejde dvakrát.",
+        "send": "{count, plural, one {Odeslat # dopis} few {Odeslat # dopisy} other {Odeslat # dopisů}}",
+        "sending": "Odesílám…",
+        "nonePicked": "Vyberte alespoň jeden dopis k odeslání.",
+        "result": {
+          "sent": "{count, plural, one {Odeslán # dopis.} few {Odeslány # dopisy.} other {Odesláno # dopisů.}}",
+          "failed": "{count, plural, one {# dopis se nepodařilo doručit; v Poštovní knize je vedený jako neúspěšný.} few {# dopisy se nepodařilo doručit; v Poštovní knize jsou vedené jako neúspěšné.} other {# dopisů se nepodařilo doručit; v Poštovní knize jsou vedené jako neúspěšné.}}",
+          "queued": "{count, plural, one {# dopis se jen znovu zaznamenal, protože už není připravené žádné relé.} few {# dopisy se jen znovu zaznamenaly, protože už není připravené žádné relé.} other {# dopisů se jen znovu zaznamenalo, protože už není připravené žádné relé.}}",
+          "skipped": "{count, plural, one {# dopis se neodeslal:} few {# dopisy se neodeslaly:} other {# dopisů se neodeslalo:}}",
+          "refused": "Nepovedlo se. Co případně odešlo, ukáže Poštovní kniha."
+        },
+        "skip": {
+          "relay_not_ready": "Není připravené žádné relé, které by doručovalo.",
+          "too_many": "Přesahuje limit dávky; zbytek odešlete potom.",
+          "not_found": "V tomto pracovním prostoru nenalezeno.",
+          "not_offered": "Už to není čekající dopis.",
+          "already_sent": "Už doručeno.",
+          "in_progress": "Už se odesílá.",
+          "recipient_invalid": "Příjemce není použitelná e-mailová adresa.",
+          "suppressed": "Kandidáta nelze kontaktovat (souhlas, výmaz nebo odhlášení).",
+          "body_rejected": "Dopis byl odmítnut kvůli délce nebo podobě."
+        }
+      },
       "scope": "{count, plural, one {Zprávy pro # pozici, kterou zásobuje kanál {channel}.} few {Zprávy pro # pozice, které zásobuje kanál {channel}.} other {Zprávy pro # pozic, které zásobuje kanál {channel}.}}",
       "scopeNone": "Kanál {channel} zatím nezásobuje žádnou pozici, takže k němu nepatří žádná zpráva.",
       "showAll": "Zobrazit všechny zprávy",
@@ -16976,7 +17007,7 @@
       "reference": "Reference",
       "note": {
         "queuedNoRelay": "<b>Z tohoto počítače nic neodešlo: není nastavené žádné relé.</b> Tato zpráva je zaznamenaná. {name} ji NEdostane.",
-        "queuedLater": "Zaznamenala se v době, kdy nebylo nastavené žádné relé. Zpráva ve frontě zůstává v lokálním outboxu a později ji nic neodešle."
+        "queuedLater": "Zaznamenala se v době, kdy nebylo nastavené žádné relé. Sama se neodešle: Poštovní kniha nabídne odeslání dopisů, které čekaly, a vy to potvrdíte."
       },
       "act": {
         "title": "Co můžete udělat",
@@ -17010,7 +17041,7 @@
           "neverHanded": {
             "title": "Nikdy nepředáno relé",
             "relayOff": "Není nastavené žádné doručovací relé, takže zpráva tento počítač neopustila.",
-            "relayOn": "Zaznamenala se v době, kdy nebylo nastavené žádné relé. Zprávu ve frontě později nic neodešle."
+            "relayOn": "Zaznamenala se v době, kdy nebylo nastavené žádné relé. Odejde jen tehdy, když ji potvrdíte v nabídce v Poštovní knize."
           },
           "deadLettered": {
             "title": "Skončilo jako nedoručené",

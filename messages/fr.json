@@ -16946,8 +16946,39 @@
       "needsYou": "À traiter",
       "notMeasuredTip": "Non mesuré : sans relais, rien n’est envoyé, donc un zéro ici ne serait pas une bonne nouvelle.",
       "notMeasuredNote": "Un tiret n’est pas un zéro : sans relais, rien n’est envoyé, donc rien n’a pu échouer, rebondir ni revenir.",
-      "relayOffStays": "Un relais configuré envoie les messages qui suivent. Ceux qui sont enregistrés ici le restent.",
-      "queuedStays": "Ils ont été enregistrés alors qu’aucun relais n’était configuré. Un message en file d’attente reste dans la boîte d’envoi locale. Rien ne l’enverra plus tard.",
+      "relayOffStays": "Un relais configuré envoie les messages qui suivent. Ceux qui sont enregistrés ici vous sont proposés à l’envoi dès qu’il fonctionne, et ne partent qu’avec votre confirmation.",
+      "queuedStays": "Ils ont été enregistrés alors qu’aucun relais n’était configuré. Rien ne les envoie de lui-même : parcourez la liste et confirmez l’envoi.",
+      "backlog": {
+        "title": "{count, plural, one {<em># lettre</em> a attendu} other {<em># lettres</em> ont attendu}} un expéditeur",
+        "detail": "Elles ont été enregistrées avant qu’un relais existe, donc rien n’est parti. Rien n’est envoyé tant que vous n’appuyez pas sur Envoyer.",
+        "review": "Parcourir et envoyer",
+        "close": "Fermer la liste",
+        "listLabel": "Lettres qui ont attendu un expéditeur",
+        "recorded": "enregistrée {when}",
+        "pick": "Envoyer à {recipient} : {subject}",
+        "handHelp": "Vous en avez déjà envoyé une vous-même depuis votre messagerie ? Décochez-la ici pour qu’elle ne parte pas deux fois.",
+        "send": "{count, plural, one {Envoyer # lettre} other {Envoyer # lettres}}",
+        "sending": "Envoi en cours…",
+        "nonePicked": "Choisissez au moins une lettre à envoyer.",
+        "result": {
+          "sent": "{count, plural, one {# lettre a été envoyée.} other {# lettres ont été envoyées.}}",
+          "failed": "{count, plural, one {# lettre n’a pas pu être remise ; le registre la compte comme échouée.} other {# lettres n’ont pas pu être remises ; le registre les compte comme échouées.}}",
+          "queued": "{count, plural, one {# lettre a seulement été enregistrée de nouveau, car aucun relais n’est plus prêt.} other {# lettres ont seulement été enregistrées de nouveau, car aucun relais n’est plus prêt.}}",
+          "skipped": "{count, plural, one {# lettre n’a pas été envoyée :} other {# lettres n’ont pas été envoyées :}}",
+          "refused": "Cela n’a pas abouti. Le registre montre ce qui est éventuellement parti."
+        },
+        "skip": {
+          "relay_not_ready": "Aucun relais n’est prêt à remettre le courrier.",
+          "too_many": "Au-delà de la limite par lot ; envoyez le reste ensuite.",
+          "not_found": "Introuvable dans cet espace de travail.",
+          "not_offered": "Ce n’est plus une lettre en attente.",
+          "already_sent": "Déjà remise.",
+          "in_progress": "Déjà en cours d’envoi.",
+          "recipient_invalid": "Le destinataire n’est pas une adresse e-mail utilisable.",
+          "suppressed": "La personne ne peut pas être contactée (consentement, effacement ou opposition).",
+          "body_rejected": "La lettre a été refusée pour sa longueur ou sa forme."
+        }
+      },
       "scope": "Messages pour {count, plural, one {# poste alimenté} other {# postes alimentés}} par {channel}.",
       "scopeNone": "{channel} n’alimente encore aucun poste : aucun message ne lui est donc rattaché.",
       "showAll": "Afficher tous les messages",
@@ -16976,7 +17007,7 @@
       "reference": "Référence",
       "note": {
         "queuedNoRelay": "<b>Rien n’a quitté cette machine : aucun relais n’est configuré.</b> Ce message est enregistré. Il n’est PAS envoyé à {name}.",
-        "queuedLater": "Il a été enregistré alors qu’aucun relais n’était configuré. Un message en file d’attente reste dans la boîte d’envoi locale. Rien ne l’enverra plus tard."
+        "queuedLater": "Il a été enregistré alors qu’aucun relais n’était configuré. Rien ne l’envoie de lui-même : le registre propose d’envoyer les lettres qui ont attendu, et vous confirmez."
       },
       "act": {
         "title": "Ce que vous pouvez faire",
@@ -17010,7 +17041,7 @@
           "neverHanded": {
             "title": "Jamais transmis à un relais",
             "relayOff": "Aucun relais de distribution n’est configuré : le message n’a donc pas quitté cette machine.",
-            "relayOn": "Il a été enregistré alors qu’aucun relais n’était configuré. Rien n’envoie plus tard un message en file d’attente."
+            "relayOn": "Il a été enregistré alors qu’aucun relais n’était configuré. Il ne part que si vous le confirmez depuis la proposition du registre."
           },
           "deadLettered": {
             "title": "Échec de distribution",

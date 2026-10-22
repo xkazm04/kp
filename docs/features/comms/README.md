@@ -54,6 +54,26 @@ saying whether the clipboard took it). Neither writes anything: the row keeps it
 view says sending it yourself is not recorded (`night/message/ChannelsNightHandSend.tsx`,
 `letterHandSend.ts`).
 
+**The letters that waited for a sender.** Once a relay delivers (`relayHealth()` is `env` or
+`configured`) and the workspace holds `queued` rows recorded while none did, the post book
+(`night/ledger/ChannelsNightBacklogOffer.tsx`) shows one notice, "N letters waited for a sender",
+that opens a preview (recipient, subject, when recorded; never the body) with one **Send** for the
+batch. Letters can be cleared first: a letter sent by hand leaves no mark in the record (above), so
+the owner's deselect is how it is kept out. **Nothing sends on its own**: no relay save, boot or
+timer triggers it; only the owner's press does (`POST /api/comms/backlog`,
+`app/_lib/comms-backlog.ts`). It is not a second sender: each letter goes through `sendComm`, so
+the relay URL rules, the org check, the consent / erasure / opt-out gate and the retry ladder are a
+fresh send's, and the result is a new row in the delivery vocabulary (`sent` / `failed`) carrying
+the original's `messageId`. Before sending, each letter is re-checked: it must still be in this
+workspace, still a plain queued row (not `simulation` / `refused`), not already answered by a later
+`sent`/`failed` row of the same (ref, kind) or message identity, addressed to a deliverable
+address, and contactable (the same `commsSendSuppression` / `entryContactability` the channel
+asks). A letter that fails is **skipped and named** with its reason, never sent. A repeat or a
+double click is a named `already_sent` / `in_progress` skip, so a letter is never sent twice. The
+candidate's history gets a `comm_resent` event whose detail says it was owner-confirmed, with the
+signed-in person as actor and the time of the event (an entry-less letter has no history to note
+on). Batches are capped at 100 letters; the offer reads the newest 500 ledger rows.
+
 **The stored relay belongs to the organization that saved it (F-2).**
 `comms_relay_config` is one deployment-wide row, and until this gate existed
 nothing tied it to an org — so in a multi-org deployment every message org B
@@ -164,12 +184,13 @@ Three mutually exclusive, terminal states:
 
 | Status | Meaning | Terminal? | Action |
 |---|---|---|---|
-| `queued` | Recorded in the local outbox; no relay configured. | **Yes — terminal dev state.** | None. There is no worker, dequeue, delivery, or retry. Offline, this is the *success* outcome. |
+| `queued` | Recorded in the local outbox; no relay configured. | **Yes — terminal dev state.** | None automatic. There is no worker, dequeue, delivery, or retry; once a relay works, the owner may confirm sending the letters that waited (§1, "The letters that waited for a sender"), which writes a NEW `sent`/`failed` row and leaves this one as it was. Offline, this is the *success* outcome. |
 | `sent` | Delivered to the configured relay (HTTP 2xx). | Yes | None. |
 | `failed` | Relay configured but delivery dead-lettered (non-retryable response, or a transient failure that exhausted retries). | Yes | Escalated: alerted loudly (`console.error`) and durably (`comms.log`). |
 
 If `queued` ever appears *with* a relay configured, that is a bug, not a
-pending send — nothing in the system transitions a `queued` row.
+pending send — nothing in the system transitions a `queued` row (the owner's
+confirmed send above appends a new row; it never rewrites the old one).
 
 **The edge does not add a fourth status.** An install paired with an always-on
 edge (§11) can have inbound events *held* remotely, but nothing about an
@@ -1172,6 +1193,7 @@ air-gapped.
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
 | `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and the Channels tab says it once (`channels.receiversTruncated`: under the district, and on the receivers' level) rather than leaving each channel to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
+| `app/api/comms/backlog` | The offer and the owner's one confirmation for letters that waited for a sender. Operator-gated and workspace-scoped; the POST also needs `pipeline:write`. GET = preview (no bodies); POST `{ids}` = per-letter `sent`/`failed`/`queued` or a named skip. Idempotent; no limiter by design (a repeat sends nothing). |
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. The relay's setup level (`night/setup/useRelaySetup.ts`) calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt (pinned by `night/setup/setupGuards.test.ts`), so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
