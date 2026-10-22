@@ -12,12 +12,13 @@
 // "use client" components. Import-light on purpose (only `./safe-url.ts` + a lazy
 // node:dns) so it stays unit-loadable under `node --test`.
 //
-// NOTE — this is resolve-and-reject, not a hard IP pin: `fetch` performs its own
-// DNS lookup after this check, so a sub-second rebind between the two lookups is
-// still theoretically possible (TOCTOU). True pinning needs a custom undici
-// dispatcher that dials the vetted IP while preserving SNI/Host; that is out of
-// scope here. Resolve-and-reject blocks the practical rebind and is the minimum
-// the sibling finding asks for.
+// NOTE — this is resolve-and-reject, not a pin: a caller that then hands the URL to
+// `fetch` lets fetch do its own second lookup, which a rebinding name can win
+// (TOCTOU). The pin is `pinnedRequest` (pinned-request.ts): one resolution inside
+// the request, refused with the same `isPrivateAddress`, and that address dialled.
+// The comms relay and the ATS webhook dial through it; the other callers of this
+// guard (connect probes, posting import, llm-config, pull pass, edge drain,
+// jobseeker) still use fetch and are the follow-up adoption set.
 
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 
