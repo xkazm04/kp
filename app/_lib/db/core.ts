@@ -2607,6 +2607,10 @@ export function ensureDb(): Database.Database {
   // equality column ends the usable prefix at the range.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_entries_ws_created ON pipeline_entries (workspace_id, created_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_ws_created ON pipeline_events (workspace_id, created_at)`);
+  // Per-entry event lookups (scoredAtByEntryIds on every 30s board poll, the per-entry
+  // timeline, the rejected-lane subselect) filter on entry_id, which no index covered.
+  // Additive: no column change, nothing rewritten.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_entry ON pipeline_events (entry_id)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the

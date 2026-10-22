@@ -3247,6 +3247,16 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
   return res.changes > 0;
 }
 
+/** The score-provenance lookup's SQL for `n` entry ids (exported so the index test
+ *  plans the real statement, not a copy). `+workspace_id` keeps the planner off the
+ *  workspace index (it would walk every event the tenant wrote) and on
+ *  idx_pipeline_events_entry; the tenant filter still applies, row by row. */
+export function scoredAtSql(n: number): string {
+  return `SELECT entry_id, MIN(created_at) AS at FROM pipeline_events
+          WHERE kind = 'scored' AND +workspace_id = ? AND entry_id IN (${new Array(n).fill("?").join(",")})
+          GROUP BY entry_id`;
+}
+
 /** When each named entry's stored match score was filled AFTER the add: the
  *  earliest `scored` event per entry (entry-scoring.ts logs one beside every
  *  setEntryMatchScore write that wins; nothing else writes match_score after the
@@ -3259,11 +3269,7 @@ export function scoredAtByEntryIds(ids: readonly string[], workspaceId: string =
   const db = ensureDb();
   for (const part of chunk(unique, SQL_IN_CHUNK)) {
     const rows = db
-      .prepare(
-        `SELECT entry_id, MIN(created_at) AS at FROM pipeline_events
-          WHERE kind = 'scored' AND workspace_id = ? AND entry_id IN (${part.map(() => "?").join(",")})
-          GROUP BY entry_id`
-      )
+      .prepare(scoredAtSql(part.length))
       .all(workspaceId, ...part) as Array<{ entry_id: string; at: string | null }>;
     for (const r of rows) if (r.at) out.set(r.entry_id, r.at);
   }
