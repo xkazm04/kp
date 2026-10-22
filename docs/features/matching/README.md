@@ -220,6 +220,14 @@ Unicode-aware `[^\W_]+` only removes false credit (a Czech nurse CV scored
 `personal` 0.35 / total 27 against *iOS Engineer – George*; now 0.25 / 25). Pinned
 by `test_matching.ScorePersonalOverlapTest`.
 
+#### Free-text skill detection: whole word plus a bounded tail
+The taxonomy detector (`taxonomy._text_contains`) matches a skill surface as a whole token; its
+spaceless fallback may end inside a word only by an inflection tail of at most 4 characters
+(plus a short Czech list and `-ář…` agent forms) that does not begin an English derivation
+(`ion`, `iv`, `ity`, `al`). So `products` and `pythonu` match, `production` no longer credits
+*product*, `javascript` no longer credits *java*. Words glued by PDF extraction lose fallback
+credit. Pinned by `tests/test_taxonomy_word_boundary.py`.
+
 ### 2. Provenance weighting (evidence-gated, not presence-gated)
 Every matched skill is discounted by where the claim came from
 (`skill_match_score()` in `taxonomy.py`, multiplies taxonomy match × weight):
