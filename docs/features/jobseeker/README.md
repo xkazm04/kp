@@ -642,7 +642,10 @@ target (`CvRole.compact`); a role is never deleted, and bullets over budget are 
 pips; a skill no role shows, and a soft-skill list, becomes an owner question. Languages carry
 their CEFR level when stated. Bold is at most 2 terms per role, never in the skills list.
 Non-job evidence (projects, thesis, courses, certifications) becomes a dated `projects`
-section; the tailored sheet keeps only the ones that speak to the target. Dates are typeset per
+section; the tailored sheet keeps only the ones that speak to the target, and prints them
+above the experience when no role title speaks to the target and the best project is at least
+as relevant as the best role, bullets included (`projectsFirst`: a career changer whose bridge
+is outside paid work). Dates are typeset per
 market ("present" / "dosud" / "heute" / "aujourd'hui"). No photo, birth date or marital
 status is ever emitted, and a "PERSONAL DETAILS" block is never read as skills. The owner
 questions (`no_outcome`, `missing_metric`, `listed_only`, `self_descriptor`) are shown only in
@@ -685,7 +688,7 @@ the instancer had kept the variable font's names, so every Inter weight embedded
 "Inter-Regular" and Bricolage 500 as "96pt ExtraBold" - the name a text extractor reports,
 and where a parser that reads weight from the font name gets it.
 Reading order on every template: head -> summary -> experience -> projects -> education ->
-skills -> languages; each entry is one line, "Title - Employer" with the dates at its end;
+skills -> languages (projects before experience on a tailored sheet with `projectsFirst`); each entry is one line, "Title - Employer" with the dates at its end;
 nothing that carries text is positioned and headings are not letter-spaced (both had made the
 PDF text read out of order). Four type sizes only (`--cv-*`): body 10-11pt, dates at body size
 in ink, name 22-28pt. Page budget (`cvPageBudget.ts`): one page under three years of

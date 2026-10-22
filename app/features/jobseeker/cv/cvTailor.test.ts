@@ -261,14 +261,23 @@ test("tailoring re-ranks every bullet a role holds: a relevant line the budget h
   assert.ok(out.doc.questions.some((q) => q.kind === "no_outcome" && q.text === "Tried an LLM prototype."));
 });
 
-// career-change-framing: the bridge is outside paid work when no role's TITLE speaks to the
-// target. The reference career changer (a teacher moving into data analysis) then reads its
-// projects first; the history stays whole and in date order below them.
+// career-change-framing: the projects lead when the bridge is outside paid work - no role's
+// TITLE speaks to the target, and no role's bullets beat the best project. The history stays
+// whole and in date order below them.
 const TEACHER = REFERENCE_CVS.find((r) => r.id === "career-change")!.doc;
 const ANALYST_DEMAND = { source: "postings" as const, postings: 3, skills: [{ skill: "SQL", count: 3 }, { skill: "Power BI", count: 2 }, { skill: "Python", count: 2 }] };
+// The same teacher whose paid role is only teaching: the SQL and Python work is a project.
+const TEACHING_ONLY = {
+  ...TEACHER,
+  experience: TEACHER.experience.map((r, i) => (i === 0 ? { ...r, bullets: r.bullets.slice(2), trimmed: [] } : r)),
+  projects: [
+    { ...TEACHER.projects[0]!, bullets: [{ ...TEACHER.projects[0]!.bullets[0]!, text: "Joined two years of open bus-arrival data with weather records in SQL and Python and published the analysis." }] },
+    TEACHER.projects[1]!,
+  ],
+};
 
-test("no role title on target and a relevant project: the projects print above the experience", () => {
-  const out = tailorCvDocument(TEACHER, { target: "Data Analyst", demand: ANALYST_DEMAND });
+test("no role title on target and the bridge is a project: the projects print above the experience", () => {
+  const out = tailorCvDocument(TEACHING_ONLY, { target: "Data Analyst", demand: ANALYST_DEMAND });
   assert.equal(out.doc.projectsFirst, true);
   assert.ok(out.moves.some((m) => m.move === "projectsFirst"));
   const lines = cvReadingLines(out.doc);
@@ -278,10 +287,14 @@ test("no role title on target and a relevant project: the projects print above t
   assert.deepEqual(checkRoundTrip(out.doc, lines.join("\n")).findings, []);
 });
 
-test("a role title on target, or no relevant project: the experience leads as before", () => {
+test("a title on target, a paid role holding the stronger bridge, or no project: the experience leads", () => {
   const onTarget = tailorCvDocument(DOC, { target: "AI Engineer", postings: POSTINGS });
   assert.ok(!onTarget.doc.projectsFirst);
-  const noBridge = tailorCvDocument({ ...TEACHER, projects: [] }, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  // The reference teacher's SQL and Power BI dashboards are paid work: they lead that role.
+  const paidBridge = tailorCvDocument(TEACHER, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!paidBridge.doc.projectsFirst);
+  assert.match(paidBridge.doc.experience[0]!.bullets[0]!.text, /Power BI/);
+  const noBridge = tailorCvDocument({ ...TEACHING_ONLY, projects: [] }, { target: "Data Analyst", demand: ANALYST_DEMAND });
   assert.ok(!noBridge.doc.projectsFirst);
   assert.ok(!noBridge.moves.some((m) => m.move === "projectsFirst"));
 });
