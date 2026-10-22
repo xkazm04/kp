@@ -10,9 +10,11 @@ import {
   defendedRung,
   evidenceLadder,
   quotedRung,
+  reasonCatalogKey,
   watchedRung,
   type WatchedRung,
 } from "./ladder.ts";
+import { doorRegister } from "../devcase-apply-subtitle.ts";
 
 // The observed cast's WATCHED evidence, one row per archetype, written from the Python
 // harness (pipeline/jobfit/tests/test_devcase_mid_archetype.py pins it to the live cast).
@@ -148,5 +150,27 @@ test("every reasons key and empty cause resolves in all four catalogs", () => {
     };
     for (const k of LADDER_REASON_KEYS) assert.equal(typeof cat.evidenceLadder.reasons[k], "string", `${locale}: evidenceLadder.reasons.${k}`);
     for (const c of EMPTY_CAUSES) assert.equal(typeof cat.evidenceLadder.empty[c], "string", `${locale}: evidenceLadder.empty.${c}`);
+  }
+});
+
+test("the register swaps only the software-only line, and every twin resolves in all four catalogs (CX S44)", () => {
+  // The same signal the candidate door reads: technical or unclassified -> software wording.
+  assert.equal(doorRegister("software_engineering"), "software");
+  assert.equal(doorRegister(null), "software");
+  assert.equal(doorRegister("sales"), "general");
+  assert.equal(reasonCatalogKey("watchedTest", "software"), "watchedTest");
+  assert.equal(reasonCatalogKey("watchedTest", "general"), "watchedTestGeneral");
+  const twins = new Set<string>();
+  for (const k of LADDER_REASON_KEYS) {
+    assert.equal(reasonCatalogKey(k, "software"), k, `software keeps ${k}`);
+    const g = reasonCatalogKey(k, "general");
+    if (g !== k) twins.add(g);
+    else assert.notEqual(k, "watchedTest", "the test line has a role-neutral twin");
+  }
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const cat = JSON.parse(readFileSync(new URL(`../../../messages/${locale}.json`, import.meta.url), "utf8")) as {
+      evidenceLadder: { reasons: Record<string, string> };
+    };
+    for (const k of twins) assert.equal(typeof cat.evidenceLadder.reasons[k], "string", `${locale}: evidenceLadder.reasons.${k}`);
   }
 });

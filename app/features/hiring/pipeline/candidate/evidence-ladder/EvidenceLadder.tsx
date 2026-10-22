@@ -3,7 +3,10 @@
 // ADR 0027 S3 - the evidence ladder on the candidate overview: how this candidate works
 // with AI, rung by rung (watched in the case, defended in the debrief, quoted in the
 // interview). Descriptive and read-only: no score, no total, nothing feeds the match, and
-// it takes no action. The interview ratings come from the candidate bundle the modal has
+// it takes no action. The intro says the one score link that DOES exist, upstream of this
+// view: the watched checks are the evaluation's own inputs (evaluate.py judgment/transfer),
+// so they count toward the work sample's transfer score; the debrief and the AI-tools
+// rating feed no score (that axis is excluded from interview totals, automation.py S1). The interview ratings come from the candidate bundle the modal has
 // already loaded; the work-sample half is read through existing doors
 // (useWorkSampleEvidence).
 
@@ -33,7 +36,7 @@ export function EvidenceLadder({
     if (work.status === "failed") return <p className="text-meta text-steel">{t("loadFailed")}</p>;
     const evaluated = work.evaluation !== null && typeof work.evaluation === "object";
     return which === "watched" ? (
-      <WatchedRungView rung={watchedRung(work.submission, work.evaluation)} />
+      <WatchedRungView rung={watchedRung(work.submission, work.evaluation)} register={work.register} />
     ) : (
       <DefendedRungView rung={defendedRung(work.submission, evaluated, work.debrief)} />
     );

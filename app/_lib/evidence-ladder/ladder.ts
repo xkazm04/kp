@@ -40,6 +40,23 @@ export type LadderReasonKey = (typeof LADDER_REASON_KEYS)[number];
 /** A reasons line: a catalog key plus its ICU values. */
 export type LadderReason = { key: LadderReasonKey; values?: Record<string, string | number> };
 
+/** The case's wording register (CX S44), the same signal the candidate door reads
+ *  (devcase-apply-subtitle.ts doorRegister): "software" for a technical role family or an
+ *  unclassified case, "general" for every other family. */
+export type LadderRegister = "software" | "general";
+
+/** Reasons lines whose software wording has a role-neutral twin, `<key>General`. The fact
+ *  is the same (`editedTest`: a test file in the starting material was written or edited);
+ *  only the words change, so a sales or ops owner is not told about "automated tests". */
+const GENERAL_VARIANTS = { watchedTest: "watchedTestGeneral" } as const;
+export type LadderReasonCatalogKey = LadderReasonKey | (typeof GENERAL_VARIANTS)[keyof typeof GENERAL_VARIANTS];
+
+/** The catalog key to render a reasons line in, for the case's register. */
+export function reasonCatalogKey(key: LadderReasonKey, register: LadderRegister): LadderReasonCatalogKey {
+  if (register === "general" && key in GENERAL_VARIANTS) return GENERAL_VARIANTS[key as keyof typeof GENERAL_VARIANTS];
+  return key;
+}
+
 /** Why a rung has nothing to show. Each one is a different fact, said plainly:
  *  no_case       no work sample is attached to this candidate;
  *  not_evaluated a work sample exists but has not been evaluated;

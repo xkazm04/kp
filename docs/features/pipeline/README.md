@@ -746,6 +746,17 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 | **Activity** | interview outcome (+ transcript), human scorecard, messages with their delivery verdict; the merged history with rematch links |
 | **Record** | the autosaved recruiter note, GitHub evidence / deep-dive, GDPR consent with its audit trail, links to the full match and the profile editor |
 
+**How they work with AI (ADR 0027 S3; plain wording CX S44, 2026-10-22).** The Overview ends
+with the evidence ladder (`candidate/evidence-ladder/`, pure assembly in
+`app/_lib/evidence-ladder/ladder.ts`): watched in the work sample, explained in the follow-up,
+rated in the interview, each read on its own with no total and an empty rung naming why. Its
+intro states the one score link that exists: none of it feeds the match score; the watched
+checks are the evaluation's own inputs, so they count toward the work sample's transfer score;
+the follow-up findings and the AI-tools rating (excluded from interview totals) count toward no
+score. The case's role family picks the wording (`doorRegister`, the candidate door's signal, read
+from `GET /api/devcase/[id]`): a non-technical case reads a role-neutral twin for the one
+software-only line (`reasons.watchedTestGeneral`). Copy is `evidenceLadder.*`, all four locales.
+
 The Scorecard breakdown resolves the ranker's `labelCode` through the shared
 `match.dims.*` translations, with its English label as a fallback for older rows.
 

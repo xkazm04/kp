@@ -9,16 +9,20 @@
 //   GET /api/devcase/[caseId]/channels             the case's postings with submissions inlined,
 //                                                  each with its persisted evaluation
 //   GET /api/interview-prep/scorecard?debrief=<s>  the C4 findings readout for that submission
+//   GET /api/devcase/[caseId]                      the case record, read only for its role family:
+//                                                  the wording register (CX S44), the same signal
+//                                                  the candidate door reads (doorRegister)
 //
 // An entry with no work sample stops after the first read. Read-only: nothing here writes.
 
 import { useEffect, useState } from "react";
-import type { DebriefReadoutInput } from "@/app/_lib/evidence-ladder/ladder";
+import type { DebriefReadoutInput, LadderRegister } from "@/app/_lib/evidence-ladder/ladder";
+import { caseRoleFamily, doorRegister } from "@/app/_lib/devcase-apply-subtitle";
 
 export type WorkSampleEvidence =
   | { status: "loading" }
   | { status: "failed" }
-  | { status: "ready"; submission: boolean; evaluation: unknown; debrief: DebriefReadoutInput | null };
+  | { status: "ready"; submission: boolean; evaluation: unknown; debrief: DebriefReadoutInput | null; register: LadderRegister };
 
 async function readJson(url: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
   const res = await fetch(url, { signal });
@@ -35,6 +39,11 @@ function submissionEvaluation(channels: Record<string, unknown> | null, submissi
     if (hit) return hit.evaluation ?? null;
   }
   return null;
+}
+
+function registerOf(record: Record<string, unknown> | null): LadderRegister {
+  const c = record?.case && typeof record.case === "object" ? (record.case as { need?: unknown; role?: unknown }) : null;
+  return doorRegister(caseRoleFamily(c?.need, c?.role));
 }
 
 export function useWorkSampleEvidence(entryId: string): WorkSampleEvidence {
@@ -55,9 +64,12 @@ export function useWorkSampleEvidence(entryId: string): WorkSampleEvidence {
       const caseId = typeof entry.devCaseId === "string" && entry.devCaseId ? entry.devCaseId : null;
       const submissionId = typeof entry.devSubmissionId === "string" && entry.devSubmissionId ? entry.devSubmissionId : null;
       // An assignment sent but nothing submitted yet is a work sample with no evaluation.
-      if (!submissionId) return settle({ status: "ready", submission: caseId !== null, evaluation: null, debrief: null });
-      const [channels, debrief] = await Promise.all([
+      if (!submissionId) return settle({ status: "ready", submission: caseId !== null, evaluation: null, debrief: null, register: "software" });
+      const [channels, debrief, record] = await Promise.all([
         caseId ? readJson(`/api/devcase/${encodeURIComponent(caseId)}/channels`, signal) : Promise.resolve(null),
+        // Wording only: an unread record falls back to the software wording, the register
+        // an unclassified case reads, and never fails the rung.
+        caseId ? readJson(`/api/devcase/${encodeURIComponent(caseId)}`, signal).catch(() => null) : Promise.resolve(null),
         readJson(`/api/interview-prep/scorecard?debrief=${encodeURIComponent(submissionId)}`, signal),
       ]);
       if (caseId && !channels) return settle({ status: "failed" });
@@ -66,6 +78,7 @@ export function useWorkSampleEvidence(entryId: string): WorkSampleEvidence {
         submission: true,
         evaluation: submissionEvaluation(channels, submissionId),
         debrief: debrief as DebriefReadoutInput | null,
+        register: registerOf(record),
       });
     })().catch(() => settle({ status: "failed" }));
     return () => controller.abort();

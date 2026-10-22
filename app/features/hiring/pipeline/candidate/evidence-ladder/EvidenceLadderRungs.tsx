@@ -7,25 +7,27 @@
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { META_LABEL } from "@/app/_components/ui/recipes";
-import type {
-  DefendedRung,
-  EmptyRung,
-  LadderReason,
-  LadderRung,
-  QuotedRung,
-  WatchedRung,
+import {
+  reasonCatalogKey,
+  type DefendedRung,
+  type EmptyRung,
+  type LadderReason,
+  type LadderRegister,
+  type LadderRung,
+  type QuotedRung,
+  type WatchedRung,
 } from "@/app/_lib/evidence-ladder/ladder";
 
-function Reasons({ reasons }: { reasons: readonly LadderReason[] }) {
+function Reasons({ reasons, register = "software" }: { reasons: readonly LadderReason[]; register?: LadderRegister }) {
   const t = useTranslations("evidenceLadder.reasons");
   const [lead, ...rest] = reasons;
   return (
     <>
-      {lead ? <p className="text-h3 font-semibold text-ink">{t(lead.key, lead.values)}</p> : null}
+      {lead ? <p className="text-h3 font-semibold text-ink">{t(reasonCatalogKey(lead.key, register), lead.values)}</p> : null}
       {rest.length ? (
         <ul className="mt-1.5 space-y-1 text-meta text-steel">
           {rest.map((r) => (
-            <li key={r.key}>{t(r.key, r.values)}</li>
+            <li key={r.key}>{t(reasonCatalogKey(r.key, register), r.values)}</li>
           ))}
         </ul>
       ) : null}
@@ -50,8 +52,10 @@ export function EmptyRungView({ rung }: { rung: EmptyRung }) {
   return <p className="text-meta text-steel" data-empty={rung.cause}>{t(rung.cause)}</p>;
 }
 
-export function WatchedRungView({ rung }: { rung: WatchedRung | EmptyRung }) {
-  return rung.state === "empty" ? <EmptyRungView rung={rung} /> : <Reasons reasons={rung.reasons} />;
+/** `register` is the case's wording register (a role-neutral twin for software-only lines);
+ *  it defaults to the software wording, which is what an unclassified case reads. */
+export function WatchedRungView({ rung, register = "software" }: { rung: WatchedRung | EmptyRung; register?: LadderRegister }) {
+  return rung.state === "empty" ? <EmptyRungView rung={rung} /> : <Reasons reasons={rung.reasons} register={register} />;
 }
 
 export function DefendedRungView({ rung }: { rung: DefendedRung | EmptyRung }) {

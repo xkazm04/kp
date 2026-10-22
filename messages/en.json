@@ -18051,42 +18051,43 @@
   },
   "evidenceLadder": {
     "reasons": {
-      "watchedActs": "{count, plural, =0 {No verification acts watched} one {# verification act watched} other {# verification acts watched}}",
-      "watchedTest": "Wrote or edited a test",
-      "watchedAssistant": "{count, plural, one {Asked the assistant to check its work once} other {Asked the assistant to check its work # times}}",
-      "watchedStakeholder": "{count, plural, one {Raised a check with the stakeholder once} other {Raised a check with the stakeholder # times}}",
-      "watchedPlanted": "Caught {caught} of {graded} planted defects, counted as one act",
-      "witness_witnessed": "Timeline witnessed: the work arrived as it happened",
-      "witness_neutral": "Timeline partly offline, read as neutral",
-      "witness_unwitnessed": "Timeline not witnessed: most of the work arrived in bulk. A reason to hold, never a penalty",
-      "defendedSupported": "{supported} of {total} follow-ups supported",
-      "defendedRevised": "{count, plural, one {# answer revised the evidence} other {# answers revised the evidence}}",
-      "defendedNotEvidenced": "{count, plural, one {# claim not evidenced} other {# claims not evidenced}}",
-      "defendedNotAsked": "{count, plural, one {# follow-up not asked} other {# follow-ups not asked}}",
-      "defendedHeld": "Held for authorship until a person clears it",
-      "defendedCleared": "Authorship cleared by a person",
+      "watchedActs": "{count, plural, =0 {We did not see them check the work} one {We saw them check the work # time} other {We saw them check the work # times}}",
+      "watchedTest": "Wrote or changed an automated test that checks the work",
+      "watchedTestGeneral": "Wrote or changed a check to test their own work",
+      "watchedAssistant": "{count, plural, one {Asked the AI assistant once to double-check its answer} other {Asked the AI assistant # times to double-check its answer}}",
+      "watchedStakeholder": "{count, plural, one {Raised a doubt or a suspected mistake with the person behind the brief once} other {Raised a doubt or a suspected mistake with the person behind the brief # times}}",
+      "watchedPlanted": "Spotted {caught} of {graded} checkable mistakes we hid in the starting material, counted as one check",
+      "witness_witnessed": "We saw the work take shape step by step, as it happened",
+      "witness_neutral": "Part of the work was done offline, so how it was built counts neither for nor against them",
+      "witness_unwitnessed": "Most of the work appeared all at once rather than being built up step by step. A reason to pause and check with them, never a penalty",
+      "defendedSupported": "{supported} of {total} follow-up answers backed up the work",
+      "defendedRevised": "{count, plural, one {# answer changed what the work seemed to show} other {# answers changed what the work seemed to show}}",
+      "defendedNotEvidenced": "{count, plural, one {# claim they could not back up} other {# claims they could not back up}}",
+      "defendedNotAsked": "{count, plural, one {# follow-up question was not asked} other {# follow-up questions were not asked}}",
+      "defendedHeld": "On hold until a person confirms the work is their own",
+      "defendedCleared": "A person confirmed the work is their own",
       "quotedRatings": "{count, plural, one {# rating, shown as given} other {# ratings, shown as given and never averaged}}",
-      "quotedNoEvidence": "At least one rating has no notes"
+      "quotedNoEvidence": "At least one rating came with no notes explaining it"
     },
     "empty": {
       "no_case": "No evidence yet: no work sample is attached to this candidate.",
       "not_evaluated": "No evidence yet: the work sample has not been evaluated.",
-      "not_watched": "No evidence yet: a repository submission, so nothing was watched live.",
-      "no_followups": "No evidence yet: the evaluation set no debrief questions.",
-      "not_recorded": "No evidence yet: the debrief has not been recorded.",
-      "not_rated": "No evidence yet: no interviewer has rated working with AI tools."
+      "not_watched": "No evidence yet: the work was handed in finished, as a link, so we did not see how it was made.",
+      "no_followups": "No evidence yet: the review of the work raised no follow-up questions to ask.",
+      "not_recorded": "No evidence yet: the answers from the follow-up conversation have not been recorded.",
+      "not_rated": "No evidence yet: no interviewer has rated how they work with AI tools."
     },
     "title": "How they work with AI",
-    "intro": "Three rungs of evidence, each read on its own. No score, no total, and nothing here changes the match.",
+    "intro": "Three kinds of evidence, each read on its own and never added up. None of it feeds the match score. The checks watched in the work sample do count toward its transfer score; the follow-up answers and the interview rating count toward no score.",
     "gateNote": "This view informs your decision. It takes no action.",
     "rung": {
-      "watched": "Watched in the case",
-      "defended": "Defended in the debrief",
-      "quoted": "Quoted in the interview"
+      "watched": "Watched in the work sample",
+      "defended": "Explained in the follow-up",
+      "quoted": "Rated in the interview"
     },
     "rungHint": {
-      "watched": "Verification acts the live session recorded, on any channel.",
-      "defended": "The interviewer's recorded finding for each follow-up.",
+      "watched": "Each time they checked the work instead of taking it on trust, whichever way they did it.",
+      "defended": "For each follow-up question about the work, what the interviewer recorded.",
       "quoted": "The working with AI tools rating, as each interviewer gave it."
     },
     "rating": "{rating} of {max}",
