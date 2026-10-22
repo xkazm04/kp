@@ -5,6 +5,7 @@ import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
 import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord, type AtsRefusalReason } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
+import { pinnedRequest } from "./pinned-request.ts";
 import { egressSealed } from "./egress-seal.ts";
 import {
   deferSealedAtsDelivery,
@@ -300,7 +301,7 @@ export async function deliver(
   // preparation, and two steps of it awaited: the DNS resolve inside the SSRF re-vet and
   // the dynamic import it does. The consent gate that admitted this record ran before all
   // of it, so an erasure committed in between would otherwise be mirrored to a third party
-  // with the gate's stale blessing. No await may be added between here and the fetch.
+  // with the gate's stale blessing. No await may be added between here and the send.
   if (freshness) {
     const verdict = freshness({ webhookUrl: cfg.webhookUrl });
     if (!verdict.ok) {
@@ -308,19 +309,25 @@ export async function deliver(
     }
   }
   try {
-    // `redirect: "manual"` is part of the SSRF boundary, not a nicety. The guard above
-    // vets ONLY the URL we dial; with the default `follow`, a webhook host that passes
-    // every check can answer `302 Location: http://169.254.169.254/…` (or a 307 to
-    // 127.0.0.1, which replays method + the signed PII body) and undici would dial that
-    // address with no re-vetting — turning the vetted endpoint into a redirector into the
-    // internal network, and the returned status into a port-scan oracle via /api/ats/test.
-    // Not following also matches what webhook senders do (GitHub/Stripe don't).
-    const r = await fetch(target, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(5000) });
+    // No redirect plus a pinned address is the SSRF boundary, not a nicety. The guard
+    // above vets ONLY the URL we dial, and only at the moment it resolved it:
+    //   • PINNED — `pinnedRequest` resolves the host ONCE inside the request, refuses any
+    //     private answer and dials that address. fetch used to resolve the name a second
+    //     time, and a rebinding host answered public to the vet and 169.254.169.254 to
+    //     the connect. The resolve is part of the request, not an awaited step before it,
+    //     so the freshness check above is still the last statement before the send.
+    //   • NO REDIRECT — a webhook host that passes every check can answer
+    //     `302 Location: http://169.254.169.254/…` (or a 307 to 127.0.0.1, which replays
+    //     method + the signed PII body); following it would turn the vetted endpoint into
+    //     a redirector into the internal network, and the returned status into a
+    //     port-scan oracle via /api/ats/test. Not following also matches what webhook
+    //     senders do (GitHub/Stripe don't).
+    const r = await pinnedRequest(target, { method: "POST", headers, body, signal: AbortSignal.timeout(5000) });
     if (r.ok) return { delivered: true, status: r.status };
-    // A manual redirect surfaces as an opaque-redirect response (per the fetch spec:
-    // status 0, ok false). `|| undefined` on purpose — 0 is not an HTTP status, so the
-    // ledger records no last_status rather than a fake one.
-    if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+    // A redirect surfaces as a 3xx (status 0 is refused too: it is never a real HTTP
+    // answer). `|| undefined` on purpose — 0 is not an HTTP status, so the ledger
+    // records no last_status rather than a fake one.
+    if (r.status === 0 || (r.status >= 300 && r.status < 400)) {
       return {
         delivered: false,
         status: r.status || undefined,

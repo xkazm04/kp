@@ -18,6 +18,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { setAtsConfig } from "./ats-config-store.ts";
 import { dispatchAtsEvent, retryDueAtsDeliveries } from "./ats-egress.ts";
 import { listAtsDeliveries } from "./ats-delivery-store.ts";
+import { setEgressTransportForTests } from "./pinned-request.ts";
 import {
   actOnPipelineEntry,
   anonymizeEntry,
@@ -33,15 +34,14 @@ after(() => cleanupUnitDb());
  *  record build and the POST. Returns the bodies seen. */
 async function withCapturingFetch(fn: () => Promise<void>): Promise<string[]> {
   const bodies: string[] = [];
-  const real = globalThis.fetch;
-  globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
-    bodies.push(String(init?.body ?? ""));
-    return { ok: true, status: 200 } as unknown as Response;
-  }) as unknown as typeof fetch;
+  setEgressTransportForTests(async (_url, init) => {
+    bodies.push(String(init.body ?? ""));
+    return { ok: true, status: 200 };
+  });
   try {
     await fn();
   } finally {
-    globalThis.fetch = real;
+    setEgressTransportForTests(undefined);
   }
   return bodies;
 }
@@ -158,15 +158,14 @@ test("consent expiring INSIDE the preparation window refuses the over-disclosing
  *  schedule a retry. */
 async function withFetchAnswering(ok: boolean, fn: () => Promise<void>): Promise<string[]> {
   const bodies: string[] = [];
-  const real = globalThis.fetch;
-  globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
-    bodies.push(String(init?.body ?? ""));
-    return { ok, status: ok ? 200 : 500 } as unknown as Response;
-  }) as unknown as typeof fetch;
+  setEgressTransportForTests(async (_url, init) => {
+    bodies.push(String(init.body ?? ""));
+    return { ok, status: ok ? 200 : 500 };
+  });
   try {
     await fn();
   } finally {
-    globalThis.fetch = real;
+    setEgressTransportForTests(undefined);
   }
   return bodies;
 }

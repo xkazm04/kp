@@ -10,6 +10,7 @@ import { setAtsConfig } from "./ats-config-store.ts";
 import { deliver, dispatchAtsEvent, retryDueAtsDeliveries } from "./ats-egress.ts";
 import { getAtsDelivery, listAtsDeliveries, listDueAtsDeliveries } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
+import { setEgressTransportForTests, type EgressTransport } from "./pinned-request.ts";
 
 after(() => cleanupUnitDb());
 
@@ -17,15 +18,20 @@ const realFetch = globalThis.fetch;
 let calls: string[] = [];
 beforeEach(() => {
   calls = [];
-  globalThis.fetch = (async (url: string | URL | Request) => {
+  // Both doors counted: the pinned transport deliver dials, and global fetch in case
+  // anything ever leaves around it.
+  const record = (async (url: string | URL | Request) => {
     calls.push(String(url instanceof Request ? url.url : url));
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
+  globalThis.fetch = record;
+  setEgressTransportForTests(record as unknown as EgressTransport);
   process.env.KP_NO_COMMS_EGRESS = "1";
   setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
 });
 afterEach(() => {
   globalThis.fetch = realFetch;
+  setEgressTransportForTests(undefined);
   delete process.env.KP_NO_COMMS_EGRESS;
 });
 
