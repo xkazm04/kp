@@ -16424,6 +16424,52 @@
           "evidence": "scripts/perf/check-budget.mjs:364 The suppression ratchets correctly report drops, but the graph-budget gate reports only ceiling breaches and missing inputs; below-ceiling shrinkage produces no actionable drop finding, and the CI test accepts the empty findings array."
         }
       ]
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/metric-surface-contract": {
+      "context": "score-metric-display",
+      "subject": "metric-surface-contract",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T04:02:18.061Z",
+      "techniques": [
+        {
+          "technique": "derive-outside-the-hot-loop",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ScoreDial.tsx:44 The animation loop updates a displayed score; it does not collect or derive exported operational measurements."
+        },
+        {
+          "technique": "export-terms-not-ratios",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/FactorChartBody.tsx:77 These are candidate score points against fixed ceilings, not accumulated event counts or published success rates."
+        },
+        {
+          "technique": "fault-localizing-metric-set",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/AnalysisProgress.tsx:76 The component consumes run progress to render a status display; it does not instrument pipeline throughput, errors or hand-offs."
+        },
+        {
+          "technique": "metric-removal-is-a-staged-pipeline",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/FactorChart.tsx:9 These exports preserve a TypeScript module interface; the inspected context does not remove or rename an exported monitoring metric."
+        },
+        {
+          "technique": "same-process-monotonic-intervals",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/AnalysisProgress.tsx:41 Wall-clock subtraction drives local elapsed-time feedback, not a published operational latency or queue-wait series."
+        },
+        {
+          "technique": "sampled-metrics-declare-their-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/GithubAnalysisPanel.tsx:200 Limiting visible language rows is presentation truncation, not sampling operational observations for export."
+        }
+      ],
+      "withdrawn": {
+        "worker": "69f173b1-cd96-4973-95e4-5104099fe6c0",
+        "state": "not-applicable",
+        "at": "2026-10-22T04:02:47.683067+00:00",
+        "reason": "reviewer (sonnet): The primary anchor, GithubAnalysisPanel.tsx:190, is not one of this context's files. It only shows business-data Metric tiles (repos, stars, forks), which says nothing about whether exported operational metrics apply to the score-display files. The AnalysisProgress.tsx technique anchor is also outsi"
+      }
     }
   }
 }

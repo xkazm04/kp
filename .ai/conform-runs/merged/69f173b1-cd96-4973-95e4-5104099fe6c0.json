@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "69f173b1-cd96-4973-95e4-5104099fe6c0",
+  "subject": "metric-surface-contract",
+  "evaluatedAt": "2026-10-22T04:02:18.061358+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "metric-surface-contract",
+      "context": "score-metric-display",
+      "reason": "withdrawn after review: reviewer (sonnet): The primary anchor, GithubAnalysisPanel.tsx:190, is not one of this context's files. It only shows business-data Metric tiles (repos, stars, forks), which says nothing about whether exported operational metrics apply to the score-display files. The AnalysisProgress.tsx technique anchor is also outsi"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T04:02:18.061358+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "metric-surface-contract"
+      ],
+      "techniques": [
+        "derive-outside-the-hot-loop",
+        "export-terms-not-ratios",
+        "fault-localizing-metric-set",
+        "metric-removal-is-a-staged-pipeline",
+        "same-process-monotonic-intervals",
+        "sampled-metrics-declare-their-rate"
+      ],
+      "deviations": 0,
+      "context": "score-metric-display",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
