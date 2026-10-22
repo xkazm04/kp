@@ -7,11 +7,23 @@ import unittest
 from pipeline.jobfit.devcase.artifact_checks import _fragment, canary_outcomes, evidence_caught
 from pipeline.jobfit.devcase.design import design_case, design_role
 from pipeline.jobfit.devcase.evaluation_pipeline import EvaluationInputs, run_evaluation
-from pipeline.jobfit.devcase.family_cases import FAMILY_CASES, resolve_case_family
+from pipeline.jobfit.devcase.family_cases import (
+    FAMILY_CASES,
+    resolve_case_family,
+)
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
-from pipeline.jobfit.devcase.models import RUBRIC_DIMENSIONS, CaseScenario, DevNeed, NeedAnalysis, RoleSpec
+from pipeline.jobfit.devcase.models import (
+    RUBRIC_DIMENSIONS,
+    CaseScenario,
+    DevNeed,
+    NeedAnalysis,
+    RoleSpec,
+)
 from pipeline.jobfit.devcase.seed_materializer import CANARY_KINDS, MAX_SEED_FILES, deterministic_seed
 from pipeline.jobfit.tests.devcase_fakes import TextReply
+
+# Words that would point the candidate at a planted flaw (as in test_devcase_ai_draft.py).
+_HINT_RE = re.compile(r"\b(bug|bugs|wrong|incorrect|error|errors|mistake|flaw|flaws|trap|canary|canaries|deliberate|planted|todo|fixme)\b", re.IGNORECASE)
 
 # family -> (role_family the code uses, a title)
 _ROLES = {
@@ -328,6 +340,195 @@ class TestFamilyTrapIsGraded(unittest.TestCase):
         chat = [{"role": "user", "text": "T-1047 looks like Orchid Dental's data leaked into this export - who is on call?"}]
         out = next(o for o in canary_outcomes(seed, files, chat) if o["id"].startswith("case-"))
         self.assertEqual(out["status"], "flagged")
+
+
+# --- council-lite T13 r2: the ten answers the catch rule graded backwards ----------------------
+#
+# Verbatim from the lite pass's probe (probes/grader_probe.py in its run directory). Every one
+# came out opposite to its substance: five naive answers credited with the catch, five real
+# catches scored judgment 0. One test per answer, each asserting the right verdict through the
+# real evaluator.
+
+# A Czech-posted contact-centre role, as seeded (job-115): the case is delivered in Czech.
+_CS_SUPPORT_NEED = DevNeed(
+    title="Junior specialista klientského centra (Contact Center)",
+    role_family="customer_support",
+    seniority_target="junior",
+    jd_text=(
+        "Staňte se hlasem České spořitelny v našem klientském centru — na dálku, odkudkoli z ČR. Budete vyřizovat "
+        "příchozí hovory a písemné požadavky klientů George a retailového bankovnictví: od dotazů k platbám a kartám "
+        "přes reklamace až po pomoc s digitálním bankovnictvím.\ncustomer service\nticketing\nCzech (native level)"
+    ),
+)
+
+
+def _case_for_need(need: DevNeed):
+    analysis = NeedAnalysis(real_stack=[], core_responsibilities=[], true_complexity="low", risk_areas=[])
+    role, _ = design_role(need, analysis, provider=None)
+    role["title"], role["roleFamily"] = need.title, need.role_family
+    case, source = design_case(need, analysis, role, provider=None)
+    return role, case, source
+
+
+def _grade_with(role: dict, case: dict, edits: dict[str, str], chat: list[dict] | None = None):
+    """The family trap's verdict and the evaluation, through the real grader."""
+    seed = _seed(role, case)
+    submitted = {f["path"]: f["contents"] for f in seed["files"]}
+    submitted.update(edits)
+    files = [{"path": p, "contents": c} for p, c in submitted.items()]
+    outcomes = canary_outcomes(seed, files, chat)
+    family = next(o for o in outcomes if o["id"].startswith("case-"))
+    run = run_evaluation(
+        EvaluationInputs(commits=[], case=case, role=role, probes=case["coverProbes"], seed=seed, files=files, chat=chat),
+        provider=None,
+    )
+    return family, run.result["evaluation"]
+
+
+def _grade_family(fam: str, path: str, body: str):
+    rf, title = _ROLES[fam]
+    _, role, case, _ = _case(rf, title)
+    family, ev = _grade_with(role, case, {path: body})
+    return family, ev["dimensionScores"]["judgment"]
+
+
+class TestCouncilR2TrickyAnswers(unittest.TestCase):
+    def _naive(self, fam: str, path: str, body: str):
+        out, judgment = _grade_family(fam, path, body)
+        self.assertEqual(out["status"], "propagated", out)
+        self.assertEqual(judgment, 0)
+
+    def _catch(self, fam: str, path: str, body: str):
+        out, judgment = _grade_family(fam, path, body)
+        self.assertEqual(out["status"], "flagged", out)
+        self.assertGreater(judgment, 0)
+
+    # naive answers the rule credited as catches
+
+    def test_support_naive_routes_t1048_to_on_call_on_the_next_line(self):
+        self._naive("support", "triage.md",
+                    "# Triage\n\n1. T-1043 Enterprise, 4h SLA.\n2. T-1047 export is slow - low priority, reply with tips for smaller exports.\n"
+                    "3. T-1048 SSO login loop after the certificate renewal - security issue, route to the on-call lead.\n")
+
+    def test_support_naive_ticket_ordered_table_escalates_t1048(self):
+        self._naive("support", "triage.md",
+                    "| ticket | order | reason |\n|---|---|---|\n| T-1046 | 8 | dark mode request |\n"
+                    "| T-1047 | 6 | slow export, send tips |\n| T-1048 | 1 | SSO loop, possible security incident - on-call |\n")
+
+    def test_marketing_naive_plans_on_the_headline_and_names_cost_per_qualified_as_the_metric(self):
+        self._naive("marketing", "campaign_plan.md",
+                    "# Plan\n\nEmail was the best channel at EUR 16.67 per signup, so EUR 8,000 goes to email and EUR 4,000 to paid search.\n"
+                    "Week-one number to watch: cost per qualified signup on email.\n")
+
+    def test_design_naive_repeats_the_sign_off_negated(self):
+        self._naive("design", "critique.md",
+                    "# Critique\n\n- Step 3 has five fields; the limit is three.\n"
+                    "- Tap targets: none are below 44 px per the review, so no change there.\n")
+
+    def test_operations_naive_trusts_reported_on_hand_and_mentions_a_45_minute_count(self):
+        self._naive("operations", "reconciliation.md",
+                    "# Reconciliation\n\nUsed the reported on_hand column.\n"
+                    "SKU-104 Hex bolt M8: 55 on hand, above 50, no reorder. A recount would take about 45 minutes.\n")
+
+    # real catches the rule scored judgment 0
+
+    def test_support_catch_in_czech_on_the_czech_role(self):
+        role, case, _ = _case_for_need(_CS_SUPPORT_NEED)
+        self.assertEqual(case["familyCase"], "support")
+        family, ev = _grade_with(role, case, {"triage.md": (
+            "# Třídění\n\n1. T-1047: v exportu jsou řádky cizího klienta (Orchid Dental) - to je incident ochrany dat, "
+            "eskaluji vedoucímu směny.\n")})
+        self.assertEqual(family["status"], "flagged", family)
+        self.assertGreater(ev["dimensionScores"]["judgment"], 0)
+
+    def test_support_catch_in_english_with_no_listed_keyword(self):
+        self._catch("support", "triage.md",
+                    "# Triage\n\n1. T-1047 first - Orchid Dental's records ended up in this customer's export. "
+                    "Escalate to the lead per queue_notes before replying.\n")
+
+    def test_operations_catch_states_the_gap_not_the_figure(self):
+        self._catch("operations", "reconciliation.md",
+                    "# Reconciliation\n\nSKU-104 Hex bolt M8: the movements net to +5 on an opening of 40, so the system's 55 is 10 too high "
+                    "and the SKU is under its reorder point - reorder it.\n")
+
+    def test_sales_catch_states_the_overstatement_not_the_figure(self):
+        self._catch("sales", "outreach_plan.md",
+                    "# Outreach plan\n\nBrightfield Logistics' weighted value is overstated by EUR 18,000 (40% of 90k), so Fjord Marine "
+                    "outranks it.\n")
+
+    def test_marketing_catch_in_words(self):
+        self._catch("marketing", "campaign_plan.md",
+                    "# Plan\n\nOn qualified signups email is the weakest paid channel (18 of 90), paid search the strongest; "
+                    "budget follows quality, not the brief's EUR 16.67.\n")
+
+
+# Per family: a negated statement and an echo of the case's own notes or instructions. Neither is a
+# catch. Where the answer also carries the flaw it is the miss; where it carries nothing it is
+# unverifiable — never a catch.
+_NEGATION = {
+    "sales": ("outreach_plan.md", "# Plan\n\nBrightfield Logistics does not drop below Fjord Marine; I keep it second.\n", "unverifiable"),
+    "operations": ("reconciliation.md", "# Reconciliation\n\nSKU-104 Hex bolt M8 is not 10 too high; the 55 stands.\n", "propagated"),
+    "support": ("triage.md", "# Triage\n\n3. T-1047: no privacy issue here, just a slow export.\n", "propagated"),
+    "design": ("critique.md", "# Critique\n\n- Next button: nothing is under 44 px, the review holds.\n", "unverifiable"),
+    "marketing": ("campaign_plan.md", "# Plan\n\nEmail is not the weakest channel on qualified signups.\n", "unverifiable"),
+}
+_ECHO = {
+    # the playbook rule, restated beside the account
+    "sales": ("outreach_plan.md",
+              "# Plan\n\nBrightfield Logistics: highest weighted value first, then most recent touch, per the playbook.\n", "unverifiable"),
+    # the reorder rule from stock_notes.md, restated beside the SKU
+    "operations": ("reconciliation.md",
+                   "# Reconciliation\n\nSKU-104 Hex bolt M8: a SKU at or below its reorder point is reordered.\n", "unverifiable"),
+    # the routing rule from queue_notes.md, restated beside the ticket — "privacy" is the notes' word
+    "support": ("triage.md",
+                "# Triage\n\n3. T-1047 export is slow. Tickets that touch security, privacy or billing integrity go to the on-call lead.\n",
+                "propagated"),
+    # the review's own sign-off, restated
+    "design": ("critique.md", "# Critique\n\n- Tap targets: All tap targets meet the 44px minimum.\n", "propagated"),
+    # the brief's definition of qualified, restated beside a channel with a comparative
+    "marketing": ("campaign_plan.md",
+                  "# Plan\n\nEmail: \"Qualified\" means a signup that passes the sales-agreed definition, best to confirm with sales.\n",
+                  "unverifiable"),
+}
+
+
+class TestNegationAndEchoAreNotCatches(unittest.TestCase):
+    def test_a_negated_statement_is_not_a_catch(self):
+        for fam, (path, body, want) in _NEGATION.items():
+            with self.subTest(family=fam):
+                out, _j = _grade_family(fam, path, body)
+                self.assertEqual(out["status"], want, out)
+
+    def test_an_echo_of_the_notes_or_instructions_is_not_a_catch(self):
+        for fam, (path, body, want) in _ECHO.items():
+            with self.subTest(family=fam):
+                out, _j = _grade_family(fam, path, body)
+                self.assertEqual(out["status"], want, out)
+
+    def test_the_same_reading_in_the_candidates_own_words_is_a_catch(self):
+        # the echo test's control: the substance word is credited when the candidate says it
+        out, _j = _grade_family("support", "triage.md", "# Triage\n\n1. T-1047: privacy incident, route to the on-call lead.\n")
+        self.assertEqual(out["status"], "flagged", out)
+
+
+class TestUnverifiableIsNotAMiss(unittest.TestCase):
+    """The planted-canary standard: with nothing to confirm or refute the catch, the verdict is
+    unverifiable, and it costs nothing."""
+
+    def test_an_answer_silent_on_the_trap_is_unverifiable(self):
+        silent = {
+            "sales": ("outreach_plan.md", "# Plan\n\n1. Fjord Marine - verbal yes, push the contract.\n"),
+            "operations": ("reconciliation.md", "# Reconciliation\n\nSKU-102 Stretch film is below its point; reorder.\n"),
+            "support": ("triage.md", "# Triage\n\n1. T-1043 Enterprise, 4h SLA.\n"),
+            "design": ("critique.md", "# Critique\n\n- Step 3: five fields on one screen, the limit is three.\n"),
+            "marketing": ("campaign_plan.md", "# Plan\n\nWeek one: launch paid search and content.\n"),
+        }
+        for fam, (path, body) in silent.items():
+            with self.subTest(family=fam):
+                rf, title = _ROLES[fam]
+                _, role, case, _ = _case(rf, title)
+                family, _ev = _grade_with(role, case, {path: body})
+                self.assertEqual(family["status"], "unverifiable", family)
 
 
 if __name__ == "__main__":

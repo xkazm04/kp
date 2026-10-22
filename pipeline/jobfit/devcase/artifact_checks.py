@@ -7,7 +7,8 @@ sessions submit their tree; both checks quietly no-op when files are absent):
   (seed_materializer v2). Per canary: was the flaw ADDRESSED (the flawed fragment
   is gone), FLAGGED (called out in the DECISIONS log or a stakeholder/assistant
   message), PROPAGATED (still present), or UNVERIFIABLE (the fragment could not be
-  located in the seed — no grading against noise).
+  located in the seed, or nothing the candidate wrote either confirms or refutes the
+  catch — no grading against noise, and never scored as a miss).
 
 * baseline_similarity — the case froze one-shot naive-LLM solutions at approval
   (LLM-era controls #6). Similarity of the candidate's DELTA to each baseline's
@@ -72,11 +73,38 @@ def _descends_from_seed(seed_body: str, sub_body: str) -> bool:
 # a triage plan, a memo), so a family case's trap was ungradable or read as missed for
 # exactly the candidates who caught it (council-lite T13 r1). Each group is a list of
 # case-insensitive regexes, any of which satisfies the group; the trap counts as caught
-# when ONE window of consecutive contributed lines satisfies EVERY group (the account and
-# its corrected figure, the ticket and the word privacy). Only the candidate's own lines
-# count: a line that appears anywhere in the seed never does, so the planted text quoted
-# back cannot catch its own trap.
-_EVIDENCE_WINDOW_LINES = 3
+# when ONE statement satisfies EVERY group (the account and its corrected figure, the
+# ticket and the privacy reading of it). Only the candidate's own lines count: a line that
+# appears anywhere in the seed never does, so the planted text quoted back cannot catch its
+# own trap.
+#
+# council-lite T13 r2 found the rule misgrading plausible answers both ways, so it is
+# stricter about WHAT counts as a statement and what it says:
+#   * the unit is one line, not a three-line window: a triage that answers T-1047 as a slow
+#     export and routes the next ticket to on-call on the following line was credited with
+#     the catch. A short heading line naming the subject is read with the line after it.
+#   * the FIRST group is the subject (the account, the ticket) and is matched as written;
+#     every later group is the substance and is matched with the seed's own phrasing masked
+#     out, so echoing the queue notes ("security, privacy or billing integrity go to the
+#     on-call lead") or an instruction is not a catch.
+#   * a substance match negated earlier in its clause ("none are below 44 px") does not
+#     count.
+# A canary may carry ``missEvidence`` in the same shape: what a candidate who carried the
+# flaw writes (the stale figure, the speed-complaint reading). It is matched as written —
+# the paste IS the evidence — and so is the flawed fragment itself appearing in any file
+# the candidate wrote. With neither a catch nor a miss to point at, the verdict is
+# ``unverifiable``: the planted-canary standard grades only what the work shows.
+_SHINGLE = 4
+_HEADING_MAX_CHARS = 60
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
+_NEGATOR_RE = re.compile(
+    r"\b(?:no|not|none|never|nothing|neither|nor|without|cannot)\b|n't\b"
+    r"|\b(?:žádn\w*|není|nejsou|nikdy|nic)\b"  # cs
+    r"|\b(?:kein\w*|nicht|nie)\b"  # de
+    r"|\b(?:aucun\w*|pas|jamais|sans)\b",  # fr
+    re.IGNORECASE,
+)
+_CLAUSE_BREAK_RE = re.compile(r"[.;:!?,()\[\]|—–]|\s-\s|\b(?:but|however|ale|avšak|jenže|aber|mais)\b", re.IGNORECASE)
 
 
 def _contributed_blocks(seeded: dict[str, str], submitted: dict[str, str], chat: list[dict] | None) -> list[list[str]]:
@@ -93,15 +121,90 @@ def _contributed_blocks(seeded: dict[str, str], submitted: dict[str, str], chat:
     return blocks
 
 
-def evidence_caught(groups: list[list[str]] | None, blocks: list[list[str]]) -> bool:
-    """True when one window of contributed lines matches every evidence group."""
-    compiled = [[re.compile(rx, re.IGNORECASE) for rx in g] for g in (groups or []) if g]
+def seed_shingles(seeded: dict[str, str] | list[str]) -> frozenset[tuple[str, ...]]:
+    """Every run of ``_SHINGLE`` consecutive words in the seed — the phrasing an echo
+    reuses. Accepts the path->body map or bare texts."""
+    texts = seeded.values() if isinstance(seeded, dict) else seeded
+    out: set[tuple[str, ...]] = set()
+    for body in texts:
+        words = [w.lower() for w in _WORD_RE.findall(body)]
+        out.update(tuple(words[i : i + _SHINGLE]) for i in range(len(words) - _SHINGLE + 1))
+    return frozenset(out)
+
+
+def _mask_echo(line: str, shingles: frozenset[tuple[str, ...]]) -> str:
+    """The line with every word that sits in a seed-phrased run blanked out."""
+    if not shingles:
+        return line
+    spans = [(m.start(), m.end(), m.group().lower()) for m in _WORD_RE.finditer(line)]
+    masked = [False] * len(spans)
+    for i in range(len(spans) - _SHINGLE + 1):
+        if tuple(s[2] for s in spans[i : i + _SHINGLE]) in shingles:
+            for j in range(i, i + _SHINGLE):
+                masked[j] = True
+    chars = list(line)
+    for (start, end, w), m in zip(spans, masked):
+        # A figure is the candidate's own arithmetic even beside the seed's words
+        # ("LinkedIn ads: 15%, EUR 1,800" against the draft's "EUR 1,500").
+        if m and not any(ch.isdigit() for ch in w):
+            chars[start:end] = " " * (end - start)
+    return "".join(chars)
+
+
+def _negated(text: str, start: int) -> bool:
+    """A negator earlier in the clause that holds ``start``."""
+    head = text[:start]
+    breaks = list(_CLAUSE_BREAK_RE.finditer(head))
+    clause = head[breaks[-1].end() :] if breaks else head
+    return bool(_NEGATOR_RE.search(clause))
+
+
+def _affirmed(rx: re.Pattern, text: str) -> bool:
+    return any(not _negated(text, m.start()) for m in rx.finditer(text))
+
+
+def _statements(lines: list[str], subject: list[re.Pattern]) -> list[str]:
+    """Lines, with a short subject-only heading read together with the line after it."""
+    out: list[str] = []
+    for i, ln in enumerate(lines):
+        out.append(ln)
+        heading = ln.startswith("#") or ln.endswith(":") or len(ln) <= _HEADING_MAX_CHARS
+        if heading and i + 1 < len(lines) and any(rx.search(ln) for rx in subject):
+            out.append(f"{ln}\n{lines[i + 1]}")
+    return out
+
+
+def _compile(groups: list[list[str]] | None) -> list[list[re.Pattern]]:
+    return [[re.compile(rx, re.IGNORECASE) for rx in g] for g in (groups or []) if g]
+
+
+def evidence_caught(
+    groups: list[list[str]] | None, blocks: list[list[str]], shingles: frozenset[tuple[str, ...]] = frozenset()
+) -> bool:
+    """True when one statement states the catch: the subject (group one) as written, every
+    later group affirmed in the statement with the seed's phrasing (``shingles``) masked."""
+    compiled = _compile(groups)
+    if not compiled:
+        return False
+    subject, substance = compiled[0], compiled[1:]
+    for lines in blocks:
+        for unit in _statements(lines, subject):
+            if not any(rx.search(unit) for rx in subject):
+                continue
+            body = _mask_echo(unit, shingles)
+            if all(any(_affirmed(rx, body) for rx in g) for g in substance):
+                return True
+    return False
+
+
+def evidence_missed(groups: list[list[str]] | None, blocks: list[list[str]]) -> bool:
+    """True when one statement carries the flaw: every group matched as written."""
+    compiled = _compile(groups)
     if not compiled:
         return False
     for lines in blocks:
-        for i in range(max(1, len(lines) - _EVIDENCE_WINDOW_LINES + 1)):
-            window = "\n".join(lines[i : i + _EVIDENCE_WINDOW_LINES])
-            if all(any(rx.search(window) for rx in g) for g in compiled):
+        for unit in _statements(lines, compiled[0]):
+            if all(any(rx.search(unit) for rx in g) for g in compiled):
                 return True
     return False
 
@@ -130,6 +233,7 @@ def canary_outcomes(seed: dict | None, files: list[dict] | None, chat: list[dict
     ).lower()
 
     blocks: list[list[str]] | None = None
+    shingles: frozenset[tuple[str, ...]] | None = None
 
     out: list[dict] = []
     for c in canaries:
@@ -141,20 +245,32 @@ def canary_outcomes(seed: dict | None, files: list[dict] | None, chat: list[dict
         if groups:
             if blocks is None:
                 blocks = _contributed_blocks(seeded, submitted, chat)
-            stated = evidence_caught(groups, blocks)
+                shingles = seed_shingles(seeded)
+            stated = evidence_caught(groups, blocks, shingles or frozenset())
         else:
             stated = False
         located = bool(frag) and frag in seed_body
-        if groups and not (located and path in submitted and _descends_from_seed(seed_body, sub_body)):
+        edited = path in submitted and sub_body != seed_body
+        if groups and not (located and edited and _descends_from_seed(seed_body, sub_body)):
             # An evidence-bearing canary is gradable in ANY file the candidate submitted:
-            # the ground truth stated in their own work is the catch, its absence the miss.
-            # (An edit of the seeded file still goes through the fragment rule below.)
+            # the ground truth stated in their own work is the catch, the flaw carried
+            # into it (the miss evidence, or the flawed fragment itself in a file they
+            # wrote) the miss, and neither is no signal. The seeded file handed back
+            # untouched is not an edit of it. (An edit still goes through the fragment
+            # rule below.)
+            miss = c.get("missEvidence") if isinstance(c.get("missEvidence"), list) else None
+            written = [body for p, body in submitted.items() if p != path and body != seeded.get(p)]
+            written += [str(m.get("text") or "") for m in (chat or []) if isinstance(m, dict) and m.get("role") == "user"]
+            carried = bool(frag) and any(frag.lower() in body.lower() for body in written)
             if stated:
                 status = "flagged"
                 note = "the candidate's own work states the ground truth the planted flaw contradicts"
-            else:
+            elif carried or evidence_missed(miss, blocks or []):
                 status = "propagated"
-                note = "nothing the candidate wrote states the ground truth — the planted flaw went uncaught"
+                note = "the candidate's own work carries the planted flaw — it went uncaught"
+            else:
+                status = "unverifiable"
+                note = "nothing the candidate wrote either states the ground truth or carries the flaw — not graded"
         elif not located:
             status = "unverifiable"
             note = "flawed fragment could not be located in the seed — not graded"

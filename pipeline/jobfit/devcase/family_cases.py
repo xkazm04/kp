@@ -66,14 +66,40 @@ def _probe(pid: str, kind: str, where: str, reveals: str, options: list[str]) ->
     return {"id": pid, "kind": kind, "where": where, "reveals": reveals, "decisionSpace": options}
 
 
-def _canary(cid: str, kind: str, path: str, fragment: str, truth: str, reveals: str, evidence: list[list[str]]) -> dict:
+def _canary(
+    cid: str, kind: str, path: str, fragment: str, truth: str, reveals: str,
+    evidence: list[list[str]], miss: list[list[str]],
+) -> dict:
     """A family trap in the shape artifact_checks grades. ``flaw`` QUOTES the fragment (the
-    grader only locates a quoted one), and ``catchEvidence`` is what a catcher writes in
-    ANY file: these cases are mostly answered in a new file, never an edit of the seed."""
+    grader only locates a quoted one). ``catchEvidence`` is what a catcher writes in ANY
+    file (these cases are mostly answered in a new file, never an edit of the seed): the
+    first group names the subject, the rest the substance, which must be the candidate's
+    own reading — an echo of the notes or a negated statement does not count.
+    ``missEvidence`` is what a candidate who carried the flaw writes. An answer showing
+    neither is graded ``unverifiable``, never a miss (artifact_checks.canary_outcomes)."""
     return {
         "id": cid, "kind": kind, "path": path, "flaw": f"`{fragment}`",
-        "groundTruth": truth, "reveals": reveals, "catchEvidence": evidence,
+        "groundTruth": truth, "reveals": reveals, "catchEvidence": evidence, "missEvidence": miss,
     }
+
+
+# A figure in any of the spellings a candidate uses: 36000, 36,000, 36 000, 36.000, and for
+# round thousands 36k and 36 tis. (Czech). ``thousands`` is the leading part and ``rest``
+# the last three digits, so _k(36) matches all of those and _k(1, "800") matches 1,800.
+def _k(thousands: int, rest: str = "000") -> str:
+    short = r"|\s?k\b|\s?tis" if rest == "000" else ""
+    return rf"(?<![\d.,]){thousands}(?:[\s,.']?{rest}(?![\d]){short})"
+
+
+# A bare count, not a duration or a share ("45 minutes" is not 45 units).
+_NOT_A_UNIT = r"(?!\s*(?:min|mins|minutes?|minut\w*|h\b|hours?|hod\w*|%|percent|procent))"
+
+
+# Comparative words, en + cs, for a measure stated as better or worse than another.
+_COMPARE = (
+    r"(?:weak\w*|worst|poor\w*|expensive|cheap\w*|best|strong\w*|better|worse|lowest|highest"
+    r"|nejhor\w*|nejlep\w*|nejslab\w*|nejsiln\w*|dražš\w*|levněj\w*|nejdraž\w*|nejlevn\w*|horš\w*|lepš\w*)"
+)
 
 
 _DECISIONS_TASK = (
@@ -261,8 +287,14 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "Brightfield Logistics,Proposal,90000,40,54000",
                     "90000 x 40% is 36000, not 54000; with the correct value Brightfield drops below Fjord Marine (52500) in the ranking.",
                     "Do they recompute the weighted column, or rank on a figure that is quietly wrong?",
-                    # Brightfield next to its corrected weighted value (36000 in any spelling).
-                    [[r"brightfield"], [r"(?<![\d.,])36(?:[\s,.' ]?000)(?![\d])", r"(?<![\d.,])36\s?k\b", r"(?<![\d.,])36\s?tis"]]),
+                    # Brightfield next to its corrected weighted value (36000 in any spelling),
+                    # the gap (overstated by 18000), or its fall below Fjord Marine.
+                    [[r"brightfield"],
+                     [_k(36), _k(18),
+                      r"(?:drops?|falls?|moves?|slips?|goes|lands?|ranks?)\s+(?:to\s+)?(?:below|under|behind|after)\s+fjord",
+                      r"(?:pod|za)\s+fjord"]],
+                    # Brightfield ranked on the stored 54000.
+                    [[r"brightfield"], [_k(54)]]),
         ],
         "rubric": {
             "framing": "Turns an open pipeline into a ranked, justified week of outreach.",
@@ -308,8 +340,16 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "SKU-104,Hex bolt M8,40,55,50",
                     "40 - 10 + 20 - 5 is 45, not 55; at 45 the SKU is below its reorder point of 50 and must be reordered.",
                     "Do they reconcile every SKU, or miss the one whose reported figure hides a reorder?",
-                    # SKU-104 next to its reconciled quantity (45).
-                    [[r"sku[- ]?104", r"hex bolt"], [r"(?<![\d.,-])45(?![\d]|[.,]\d)"]]),
+                    # SKU-104 next to its reconciled quantity (45) or the gap ("10 too high").
+                    [[r"sku[- ]?104", r"hex bolt", r"šroub"],
+                     [r"(?<![\d.,-])45(?![\d]|[.,]\d)" + _NOT_A_UNIT,
+                      r"\b10\s*(?:units?\s*|ks\s*|kus\w*\s*)?(?:too\s+(?:high|many|much)|over\b|more than|higher|navíc|víc|více|vyšší|přebývá)",
+                      r"(?:overstat\w*|over[- ]?(?:report|count)\w*|inflat\w*|off|out|high|discrepanc\w*|gap|difference|rozdíl\w*|nadsazen\w*|vyšší)\s+(?:of\s+|by\s+|o\s+)?10\b",
+                      r"\bo\s+10\s+(?:ks|kus\w*|víc|více|vyšší|výš)"]],
+                    # SKU-104 left at the reported 55, or kept off the reorder list.
+                    [[r"sku[- ]?104", r"hex bolt", r"šroub"],
+                     [r"(?<![\d.,-])55(?![\d])", r"(?:above|over|nad)\s+(?:its\s+|the\s+)?(?:reorder\s+point|point|50)",
+                      r"\bno\s+(?:re)?order", r"nedoobjedn\w*|neobjedn\w*"]]),
         ],
         "rubric": {
             "framing": "Turns a sheet and a log into a clear reconciliation and reorder decision.",
@@ -355,12 +395,24 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "The ticket is filed as a low-priority speed complaint, but the summary reports another customer's data in this customer's export: a privacy incident that goes to the on-call lead.",
                     "Do they notice the escalation behind a low priority, or answer the speed complaint?",
                     # T-1047 (or Orchid Dental) next to the privacy reading of it, in any of the
-                    # four delivery locales, or routed to the on-call lead the notes name for it.
+                    # four delivery locales. Routing to on-call is NOT the catch: the queue
+                    # notes say to route security tickets there, and a triage that sends the
+                    # next ticket (T-1048) to on-call was credited with it (lite r2).
                     [[r"t[- ]?1047", r"orchid"],
-                     [r"privacy", r"personal data", r"data (?:breach|leak|exposure|protection)", r"\bbreach", r"\bleak",
-                      r"gdpr", r"(?:another|other|different|wrong) customer", r"someone else", r"cross[- ]?(?:tenant|customer|account)",
-                      r"on[- ]?call", r"security (?:incident|issue)", r"soukrom", r"osobní (?:údaj|data)", r"únik",
-                      r"datenschutz", r"datenleck", r"dsgvo", r"confidentialit", r"fuite", r"données personnelles", r"rgpd"]]),
+                     [r"privacy", r"personal data", r"data (?:breach|leak\w*|exposure|protection)", r"\bleak\w*",
+                      r"gdpr", r"(?:another|other|different|wrong|foreign)\s+(?:customer|client|account|company)",
+                      r"someone else", r"cross[- ]?(?:tenant|customer|account)", r"confidentialit",
+                      r"(?:orchid(?:\s+dental)?|another\s+(?:customer|client|account|company))(?:'s|’s)?\s+(?:records|rows|data|details|information)",
+                      # cs
+                      r"soukrom", r"osobní(?:ch)?\s+(?:údaj|dat)", r"únik", r"ochran\w*\s+(?:osobních\s+)?(?:dat|údajů)",
+                      r"ciz(?:í|ího|ích|ímu)\s+(?:klient|zákazník|firm|společnost|data|údaj)", r"jiného\s+(?:klienta|zákazníka)",
+                      # de, fr
+                      r"datenschutz", r"datenleck", r"dsgvo", r"fremde\w*\s+(?:kunde|daten)",
+                      r"fuite", r"données personnelles", r"rgpd", r"autre client"]],
+                    # T-1047 answered as the speed complaint it was filed as.
+                    [[r"t[- ]?1047"],
+                     [r"\bslow", r"speed", r"\btips?\b", r"smaller exports?", r"performance", r"low[- ]priority",
+                      r"pomal", r"rychlost", r"\btip\w*"]]),
         ],
         "rubric": {
             "framing": "Turns a raw queue into an ordered, reasoned shift plan.",
@@ -411,11 +463,17 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "components.csv lists the Next button at 40 x 40 and the Skip for now link at 96 x 24, both below the 44 px minimum.",
                     "Do they measure the components, or repeat the review's claim?",
                     # A named undersized component (or "tap target") next to its real size or a
-                    # "below 44" reading of it.
-                    [[r"\bnext\b", r"\bskip\b", r"tap target", r"touch target"],
+                    # "below 44" reading of it — affirmed, so "none are below 44 px" is not one.
+                    [[r"\bnext\b", r"\bskip\b", r"tap target", r"touch target", r"tlačítk", r"odkaz", r"dotyk"],
                      [r"\b40\s*(?:x|×|by)\s*40\b", r"\b(?:96|40)\s*(?:x|×|by)\s*24\b", r"\b40\s*px\b",
                       r"(?:below|under|smaller than|less than|short of|fails?|violat\w*|miss\w*)\s+(?:the\s+)?44", r"<\s*44",
-                      r"\b24\s*px\s*(?:high|tall)", r"(?:height|tall)\s*(?:of\s*)?24\b"]]),
+                      r"(?:does\s+not|doesn't|do\s+not|don't|not|never)\s+(?:meet|reach|satisfy)\w*\s+(?:the\s+)?(?:44|minim)",
+                      r"\b24\s*px\s*(?:high|tall)", r"(?:height|tall)\s*(?:of\s*)?24\b",
+                      r"(?:pod|menší\s+než|nesplň\w*)\s+(?:limit\w*\s+|minim\w*\s+)?44"]],
+                    # The review's claim carried: targets said to meet the minimum.
+                    [[r"(?:tap|touch)\s+targets?", r"sign-?off", r"accessibility review", r"\b44\b", r"dotyk"],
+                     [r"\b(?:all|every)\b[^.\n]{0,30}\b(?:meet|pass|fine|ok|compliant)", r"\bnone\s+(?:are|is|of them)?\s*(?:below|under|smaller)",
+                      r"(?:meet|meets|pass|passes)\s+(?:the\s+)?(?:44|minimum)", r"\bno\s+change", r"(?<!\w)splň\w*"]]),
         ],
         "rubric": {
             "framing": "Turns a reviewed flow and a constraint list into a clear critique and revision plan.",
@@ -461,11 +519,20 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "Email was our best channel at EUR 16.67 per signup",
                     "Per qualified signup Paid search is best at EUR 62.50 (4000 / 64) against Email at EUR 83.33 (1500 / 18); the brief's figure ignores quality.",
                     "Do they recompute on qualified signups, or build the plan on the brief's claim?",
-                    # A channel next to its cost per QUALIFIED signup (62.50 / 83.33) or the
-                    # qualified measure itself.
-                    [[r"paid search", r"\bemail\b", r"e-mail"],
-                     [r"(?<![\d.,])62[.,]5", r"(?<![\d.,])83[.,]3", r"(?:cost|eur|€)\s*(?:per|/)\s*qualified", r"per qualified",
-                      r"\bcpql?\b", r"qualif\w*\s+(?:rate|share|ratio)", r"only\s+18\b"]]),
+                    # A channel next to its cost per QUALIFIED signup (62.50 / 83.33), its
+                    # qualified share (18 of 90), or a comparison made on the qualified measure.
+                    # Naming "cost per qualified signup" is not a catch: task 3 asks for the
+                    # number to watch, and a plan built on EUR 16.67 can still name it (lite r2).
+                    [[r"paid search", r"\bemail\b", r"e-mail", r"linkedin", r"\bcontent\b"],
+                     [r"(?<![\d.,])62[.,]5", r"(?<![\d.,])83[.,]3",
+                      r"\b18\s*(?:of|/|out of|z)\s*90\b", r"\b64\s*(?:of|/|out of|z)\s*160\b",
+                      r"\b(?:20|40)\s*%\s*(?:qualif|kvalif)", r"(?:qualif|kvalif)\w*[^.;,\n]{0,40}\b(?:20|40)\s*%",
+                      rf"(?:qualif|kvalif)\w*[^.;,\n]{{0,40}}\b{_COMPARE}", rf"\b{_COMPARE}\b[^.;,\n]{{0,40}}(?:qualif|kvalif)",
+                      r"only\s+18\b", r"jen\s+18\b"]],
+                    # The brief's headline carried: Email best on cost per signup.
+                    [[r"\bemail\b", r"e-mail"],
+                     [r"16[.,]67", r"\bbest\s+channel", r"\b(?:most|bulk|majority)\b[^.\n]{0,30}\b(?:budget|spend|money)",
+                      r"nejlepší\s+kanál"]]),
         ],
         "rubric": {
             "framing": "Turns a brief and a results table into a clear campaign plan.",
