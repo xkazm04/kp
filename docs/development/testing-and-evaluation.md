@@ -69,8 +69,11 @@ to both readers by `scripts/docs/__tests__/keyless-e2e-pin.test.mjs`.
 `KP_DB_PATH` (`data/kp-e2e.sqlite`, gitignored) rather than `data/kp.sqlite`.
 These specs write — an offer and an org invite are minted, profiles are saved,
 pipeline entries move — so before this they mutated the developer's own demo
-corpus, and each run changed what the next one measured. A fresh file self-seeds
-from `data/seed_*`, so **deleting it is the reset**. Two caveats worth knowing:
+corpus, and each run changed what the next one measured. A fresh file seeds the
+demo corpus from `data/seed_*` because the webServer env sets `KP_SEED_DEMO=1` (a
+plain fresh database boots empty since 2026-10-22), so **deleting it is the reset**.
+A server you start yourself for `KP_E2E_BASE_URL` needs `KP_SEED_DEMO=1` too, or it
+stops on the first-run data choice. Two caveats worth knowing:
 `reuseExistingServer` means a dev server already on :3101 is used as it is, with
 whatever DB it opened; and setting `KP_E2E_BASE_URL` drops the webServer block
 entirely, so the server's env is whoever started it (ci.yml's keyless job boots

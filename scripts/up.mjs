@@ -37,8 +37,10 @@
 //             so this server cannot run at the same time as `npm run dev:empty`
 //             (they share .next-empty/dev/lock); Next says so if you try.
 //             An explicit KP_DB_PATH in the shell is honoured.
-//   --demo    no KP_EMPTY, the default data/kp.sqlite: exactly `npm run dev`, the
-//             seeded demo corpus.
+//   --demo    no KP_EMPTY, KP_SEED_DEMO=1, the default data/kp.sqlite: the seeded demo
+//             corpus. Since operator triage T1 (2026-10-22) a plain `npm run dev` on a
+//             fresh file boots EMPTY and asks "start empty or demo?" on first start, so
+//             --demo opts in explicitly instead of riding the old seeded default.
 //
 // ENTERING THE WORKSPACE: '/' shows the public landing until the kp_entered marker
 // is set, and the only thing that sets it is a POST to /api/auth/login (the
@@ -143,6 +145,8 @@ export function serverEnv(env, { demo, python }) {
   if (!demo) {
     out.KP_EMPTY = "1";
     if (!env.KP_DB_PATH) out.KP_DB_PATH = OWNER_DB;
+  } else {
+    out.KP_SEED_DEMO = "1";
   }
   return out;
 }

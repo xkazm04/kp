@@ -14,8 +14,8 @@ loadEnv({ path: ".env.local" });
 //
 // Absolute, because a relative KP_DB_PATH resolves against the SERVER's cwd
 // (app/_lib/db-path.ts), which is the launch directory and not necessarily this
-// one. Throwaway and gitignored (`data/*.sqlite`): a fresh file self-seeds the
-// demo corpus from data/seed_* on first boot, so DELETING IT IS THE RESET —
+// one. Throwaway and gitignored (`data/*.sqlite`): a fresh file seeds the
+// demo corpus from data/seed_* on first boot (KP_SEED_DEMO=1 in webServer.env), so DELETING IT IS THE RESET —
 // that is the supported way to clear whatever the specs accumulated.
 //
 // TWO HONEST CAVEATS. (1) `reuseExistingServer` is on locally, so a dev server
@@ -23,7 +23,8 @@ loadEnv({ path: ".env.local" });
 // likely none), and this isolation does not retroactively apply to it. (2) When
 // KP_E2E_BASE_URL is set the webServer block is dropped entirely and the server
 // env is whatever started it; ci.yml's keyless job boots its own against a
-// fresh checkout's data/kp.sqlite, which is isolated by being disposable.
+// fresh checkout's data/kp.sqlite, which is isolated by being disposable — and that
+// server needs KP_SEED_DEMO=1 in its own env to see the seeded corpus.
 const E2E_DB_PATH = path.resolve(import.meta.dirname, "data", "kp-e2e.sqlite");
 
 // KP_E2E_BASE_URL points the suite at an ALREADY-RUNNING app (e.g. a production
@@ -149,6 +150,11 @@ export default defineConfig({
             // ci.yml's release job) keeps its own setting; the release subset does not
             // touch /me, and journey-role-to-schedule walks the wizard either way.
             KP_JOBSEEKER: "1",
+            // The demo corpus seeds at boot only on opt-in since operator triage T1
+            // (2026-10-22, app/_lib/db/seed-gate.ts) — a fresh kp-e2e.sqlite would
+            // otherwise boot empty and stop on the first-run data choice. Every spec
+            // here, KEYLESS_SPECS included, is written against the seeded corpus.
+            KP_SEED_DEMO: "1",
             ...(process.env.KP_OFFLINE ? { KP_OFFLINE: process.env.KP_OFFLINE } : {}),
             ...(process.env.KP_APP_MASTER_REPO_ROOTS
               ? { KP_APP_MASTER_REPO_ROOTS: process.env.KP_APP_MASTER_REPO_ROOTS }

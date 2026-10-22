@@ -23,6 +23,13 @@ services:
       KP_DB_PATH: /data/kp.sqlite
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      # Demo data. Unset (the default), a fresh volume boots EMPTY and the first
+      # visit asks "start empty, or explore with demo data?" — the answer is stored
+      # in the database, so it is asked once. Set KP_SEED_DEMO=1 to seed the demo
+      # corpus at boot with no question (an unattended demo box); KP_EMPTY=1 forces
+      # a blank tenant and skips the question. A volume that already holds data is
+      # never wiped or re-seeded either way.
+      # KP_SEED_DEMO: "1"
     volumes:
       - kp-data:/data
     healthcheck:
