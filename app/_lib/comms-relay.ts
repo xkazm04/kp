@@ -1,5 +1,6 @@
 import { getRelayConfig, getRelaySecret } from "./comms-relay-store";
 import { egressSealed } from "./egress-seal";
+import { CommsSmtpSecretError, getSmtpPrivateConfig, type SmtpPrivateConfig } from "./comms-smtp-store";
 
 // THE capability bit for outbound comms delivery — resolved env → stored config
 // → nothing. Replaces the env-only comms-truth.isRelayConfigured now that the
@@ -108,7 +109,69 @@ export function relayHealth(): RelayHealth {
   return resolve().health;
 }
 
-/** Is a real delivery relay wired? (See resolveRelay for precedence.) */
+/** Is a real SENDER wired: a relay, or (T6) the built-in SMTP sender? Every "sent" vs
+ *  "queued" claim keys off this bit, and an SMTP letter that the server accepted IS sent,
+ *  so the name stayed (thirty callers) while its meaning widened to "a letter can leave".
+ *  See resolveTransport for the precedence between the two. */
 export function isRelayConfigured(): boolean {
-  return resolveRelay() !== null;
+  return resolveTransport().kind !== "none";
+}
+
+// ---- T6: the SMTP sender, a sibling transport behind the same capability bit ----------
+//
+// PRECEDENCE: relay (env, then stored) FIRST, then the stored SMTP sender, then nothing.
+// An install that already wired a relay keeps delivering exactly as it did when an owner
+// later fills in a mailbox, because the relay is the integration someone built on purpose
+// (it can map kp.comm.v1 onto an ATS); SMTP is the no-infrastructure fallback that lets a
+// keyless owner's letters actually leave. Both are sealed by KP_NO_COMMS_EGRESS.
+
+export type SmtpHealth = "configured" | "unconfigured" | "unreadable";
+
+const loggedSmtpReasons = new Set<string>();
+
+function resolveSmtpWithHealth(): { smtp: SmtpPrivateConfig | null; health: SmtpHealth } {
+  if (commsEgressSealed()) return { smtp: null, health: "unconfigured" };
+  try {
+    const smtp = getSmtpPrivateConfig();
+    return smtp ? { smtp, health: "configured" } : { smtp: null, health: "unconfigured" };
+  } catch (e) {
+    if (e instanceof CommsSmtpSecretError) {
+      if (!loggedSmtpReasons.has(e.message)) {
+        loggedSmtpReasons.add(e.message);
+        console.error(
+          `[comms-smtp] An SMTP sender is stored but its password cannot be decrypted: ${e.message} ` +
+            `Letters will keep queueing in the local outbox. Restore the KP_ATS_SECRET_KEY (or KP_SECRET) it was ` +
+            `stored under, or re-enter the password on the Channels tab.`
+        );
+      }
+      return { smtp: null, health: "unreadable" };
+    }
+    console.error(`[comms-smtp] Could not read the stored SMTP sender: ${e instanceof Error ? e.message : e}`);
+    return { smtp: null, health: "unconfigured" };
+  }
+}
+
+/** The SMTP sender with its decrypted password, or null. Server-internal. */
+export function resolveSmtp(): SmtpPrivateConfig | null {
+  return resolveSmtpWithHealth().smtp;
+}
+
+/** What the SMTP card says: `unreadable` is a stored sender whose password no longer
+ *  decrypts, said apart from "not configured" exactly as the relay does. */
+export function smtpHealth(): SmtpHealth {
+  return resolveSmtpWithHealth().health;
+}
+
+export type ResolvedTransport =
+  | { kind: "relay"; relay: ResolvedRelay }
+  | { kind: "smtp"; smtp: SmtpPrivateConfig }
+  | { kind: "none" };
+
+/** THE transport a letter goes out through (see PRECEDENCE above). */
+export function resolveTransport(): ResolvedTransport {
+  const relay = resolveRelay();
+  if (relay) return { kind: "relay", relay };
+  const smtp = resolveSmtp();
+  if (smtp) return { kind: "smtp", smtp };
+  return { kind: "none" };
 }

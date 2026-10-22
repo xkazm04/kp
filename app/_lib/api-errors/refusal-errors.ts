@@ -742,6 +742,13 @@ export const REFUSAL_ERRORS = {
    *  code as `detail`: it is English prose for the log and for API consumers, never the
    *  thing the card paints. */
   COMMS_RELAY_INVALID: "That relay endpoint isn't allowed. Use a public https:// URL.",
+  /** The SMTP sender changed since the editor read it (409). Nothing was written; the
+   *  current public view rides beside the code as DATA. */
+  COMMS_SMTP_STALE: "Someone saved a newer email sender. Reload and make your change again.",
+  /** The sender failed validation (400): an unknown preset, an address that is not one,
+   *  a bad host or port, or a plain-text security mode. The validator's sentence rides
+   *  beside the code as `detail`. */
+  COMMS_SMTP_INVALID: "That email sender setting isn't valid. Check the address, server and port.",
   /** An approve arrived for a lifecycle that is not at the review gate (409) — a second
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */

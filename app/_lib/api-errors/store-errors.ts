@@ -111,6 +111,9 @@ export const STORE_ERRORS = {
   // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
   // which the handler used to forward as `error.message`.
   COMMS_RELAY_SAVE_FAILED: "Could not save the relay config. Please try again.",
+  // POST /api/comms/smtp (T6): the same shape as the relay door, plus an encrypted
+  // mailbox password whose crypto detail must never reach the client.
+  COMMS_SMTP_SAVE_FAILED: "Could not save the email sender. Please try again.",
   // GET /api/ops (/perfect wave 17, api-workspace). Its catch forwarded the thrown
   // message for a payload assembled from better-sqlite3 (the db FILE PATH inside a
   // SQLITE_* text), the seed report (absolute seed paths) and three log tails (the

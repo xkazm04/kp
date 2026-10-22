@@ -461,6 +461,14 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // NULL owner reads as the default org, so a pre-upgrade row and a single-org install are
   // unchanged. The env relay (COMMS_WEBHOOK_URL) is host-level and is not org-checked.
   "comms_relay_config",
+  // T6 — the org's built-in SMTP sender (comms-smtp-store.ts), the relay's sibling
+  // transport and exempt for the same reason: a singleton (`CHECK (id = 1)`) of org-level
+  // integration config with an encrypted mailbox password, recording the org that saved it
+  // (`owner_org_id`); the delivery boundary refuses another organization's messages
+  // (comms.ts SmtpChannel). Its two bounded lists (suppressed addresses, the last few
+  // attempts) are only ever written for the owner org's own sends. Lazy-store table, and
+  // a singleton with no org_id, hence ORG_CONFIG_NOT_PORTABLE.
+  "comms_smtp_config",
   // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
   // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
   // drain cursor. Its own header says it is "modeled on comms-relay-store.ts down to the
@@ -557,6 +565,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "brand_settings",
   "calendar_connections",
   "comms_relay_config",
+  "comms_smtp_config",
   "decision_config",
   "decision_records",
   "dev_audit",
@@ -755,6 +764,7 @@ export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
   "ats_connections",
   "ats_delivery",
   "comms_relay_config",
+  "comms_smtp_config",
   "personas_bridge",
   "edge_config", // the edge pairing: URL + HMAC secret + this install's sealing keypair
 ]);
