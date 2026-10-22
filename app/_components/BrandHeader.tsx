@@ -12,6 +12,8 @@ import { EXTERNAL_LOGO_IMG_ATTRS, shouldRenderLogo } from "@/app/_lib/brand-conf
  *  render it (`shouldRenderLogo`) and own the fallback for `onError`. */
 export function BrandLogo({ src, alt, onError, className }: { src: string; alt: string; onError: () => void; className: string }) {
   return (
+    // The logo is an operator-configured external URL: next/image cannot optimise it without a
+    // remote-pattern entry per host, and BrandLogo is the single place it is drawn.
     // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
     <img src={src} alt={alt} onError={onError} {...EXTERNAL_LOGO_IMG_ATTRS} className={className} />
   );
