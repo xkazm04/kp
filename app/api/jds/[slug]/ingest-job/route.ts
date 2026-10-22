@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getJob, loadJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -57,7 +59,9 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     // (jd-limits.ts), and insertJob's content-twin dedup would hand back an
     // unrelated job id — leaving the JD unlinked while the response claimed
     // success. The `getJob` short-circuit above already makes this idempotent.
-    const { id } = insertJob({ ...job, id: jobId }, undefined, "draft", ws);
+    // A blank parsed company is the owner's own role (org-name-server.ts).
+    const company = companyOrDefault(job.company, await effectiveOrgName());
+    const { id } = insertJob({ ...job, id: jobId, company }, undefined, "draft", ws);
     return NextResponse.json({ ok: true, jobId: id, already: false, source });
   } catch (error) {
     return safeJsonError(error, "api:jds:ingest-job", "JD_SAVE_FAILED");

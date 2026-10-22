@@ -474,7 +474,7 @@ The v1 actions:
 | --- | --- | --- |
 | `run_analysis` | `candidate` *(req)* · `role` | the board's own per-entry AI screening (`automation` task, `task: "screen"`) |
 | `generate_digest` | — | the `companion_digest` task (below) |
-| `draft_jd` | `title` *(req)* · `need` *(req)* · `seniority` | the Generate flow byte for byte: `insertAnalyzingJd` + the `jd_build` task. The JD appears in the library **unpublished**; publishing stays a separate act |
+| `draft_jd` | `title` *(req)* · `need` *(req)* · `seniority` | the Generate flow byte for byte: `insertAnalyzingJd` + the `jd_build` task, company = the owner's org name (`effectiveOrgName`). The JD appears in the library **unpublished**; publishing stays a separate act |
 | `draft_outreach` | `candidate` *(req)* · `role` | the board's cohort drafter with a cohort of one (`batch_outreach`), whose output lands in the Outbox |
 
 **Candidates are addressed by NAME, not by id** — the grounding hands the model

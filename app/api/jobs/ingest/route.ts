@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
-import { canWriteJobLifecycle } from "@/app/_lib/db/jobs";
+import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -60,7 +62,14 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     //
     // derivedId when the caller named no job: the parser's id is then just a slug of the
     // ad's TITLE, so two different roles that share a title must fork, not overwrite.
-    const { id, created } = insertJob(job, jobContentHash(adText), "draft", ws, {
+    // An ad that names no employer is the owner's own role: fill the blank company
+    // from the org name (org-name-server.ts) so the apply page names who is hiring.
+    // A re-parse INTO a named row keeps that row's company first. Never over a parsed one.
+    const company = companyOrDefault(
+      job.company,
+      (explicitJobId ? getJob(explicitJobId, ws)?.company?.trim() : "") || (await effectiveOrgName())
+    );
+    const { id, created } = insertJob({ ...job, company }, jobContentHash(adText), "draft", ws, {
       derivedId: !explicitJobId,
     });
     return NextResponse.json({ jobId: id, created, source, title: job.title });

@@ -6,6 +6,8 @@ import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { readJdBuildOptions } from "@/app/_lib/jd-build-run";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 
@@ -89,9 +91,13 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
   // The recruiter's original intent, persisted on the JD row so Duplicate re-seeds
   // the PROMPT (not the rendered markdown) and Retry can replay even after the task
   // row is pruned. templateId (stable) is stored, not the resolved templateBody.
+  // A blank company is the owner's own role: resolved HERE, in the request, because
+  // the build runs detached with no cookie to read (org-name-server.ts). Persisted on
+  // the intent too, so a Retry replays the same name. A typed company always wins.
+  const company = companyOrDefault(record.company, await effectiveOrgName());
   const buildInput = {
     needText,
-    company: typeof record.company === "string" ? record.company : undefined,
+    company,
     seniority: typeof record.seniority === "string" ? record.seniority : undefined,
     roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
     repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
@@ -118,7 +124,7 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
       workspaceId: ws,
       createdBy: (await currentUser()).userId,
       params: {
-        company: typeof record.company === "string" ? record.company : undefined,
+        company,
         seniority: typeof record.seniority === "string" ? record.seniority : undefined,
         roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
         needText,

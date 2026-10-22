@@ -1225,7 +1225,8 @@
     "close": "Close",
     "scanningCv": "Scanning CV",
     "formatting": "Formatting",
-    "salesEnquirySubject": "Enterprise plan enquiry"
+    "salesEnquirySubject": "Enterprise plan enquiry",
+    "employerLogo": "Employer logo"
   },
   "aiDisclosure": {
     "loadFailed": "Could not confirm this workspace's rules. Showing the default disclosure.",

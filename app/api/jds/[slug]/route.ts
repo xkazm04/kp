@@ -3,6 +3,8 @@ import { deleteJd, getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
 import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
@@ -130,7 +132,8 @@ export const PATCH = withWorkspace(async (ws: string, request: Request, context:
     // winnability coach's "+N eligible") answered the OLD text.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId, ws)) {
+    const linkedJob = getJob(jobId, ws);
+    if (linkedJob) {
       try {
         const { job, source } = await ingestJobAd(fields.body, jobId);
         // A keyless install parses deterministically (no requirements). Overwriting a
@@ -150,7 +153,10 @@ export const PATCH = withWorkspace(async (ws: string, request: Request, context:
         // (pasted, keyless 0–0 miss) has no grounded band, and the parse stands.
         // No content hash: the row already exists under this explicit id, so the
         // upsert path applies and the lifecycle status is preserved.
-        insertJob(withGroundedBand({ ...job, id: jobId }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
+        // The edited wording rarely restates the employer: a blank parsed company keeps
+        // the role's own, then the org name — it must never wipe the apply page's "who".
+        const company = companyOrDefault(job.company, linkedJob.company?.trim() || (await effectiveOrgName()));
+        insertJob(withGroundedBand({ ...job, id: jobId, company }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);

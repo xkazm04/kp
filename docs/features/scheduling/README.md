@@ -765,7 +765,8 @@ candidate read a Czech invitation and landed on an English booking page. The
 `rescheduleLink` inside the confirmation email is pinned the same way. The
 recruiter-facing `url` in the response stays **bare** — `?lang=` on a link the
 recruiter opens would rewrite their own cookie and flip the console's language.
-`/schedule/[token]` also renders the shared `LanguageSwitcher`, the escape hatch
+`/schedule/[token]` also renders `EmployerBrand` (the owner's logo + name, nothing on a
+default brand) and the shared `LanguageSwitcher`, the escape hatch
 for a forwarded link or a stale cookie, like every other public candidate page.
 Pinned by `app/schedule/[token]/schedule-link-locale.test.ts`.
 

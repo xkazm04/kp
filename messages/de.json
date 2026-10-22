@@ -1225,7 +1225,8 @@
     "close": "Schließen",
     "scanningCv": "Lebenslauf wird gescannt",
     "formatting": "Formatierung",
-    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif"
+    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif",
+    "employerLogo": "Logo des Arbeitgebers"
   },
   "aiDisclosure": {
     "loadFailed": "Die Regeln dieses Arbeitsbereichs konnten nicht bestätigt werden. Die Standardinformationen werden angezeigt.",

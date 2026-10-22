@@ -7,6 +7,8 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { ingestStructuredJob } from "@/app/_lib/jd-ingest";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 
 export const maxDuration = 60;
 
@@ -88,7 +90,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // Ingest the role into the corpus as a DRAFT structured Job (best-effort).
     let jobIngested = false;
     try {
-      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company: body.company }, ws);
+      // A cleared company field is the owner's own role: fill it from the org name
+      // (org-name-server.ts) so the apply page names who is hiring. A typed one wins.
+      const company = companyOrDefault(body.company, await effectiveOrgName());
+      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company }, ws);
     } catch (ingestError) {
       // Best-effort: a failed ingest never blocks the JD save. But it is not
       // silent — the operator sees `jobIngested: false` and a retry affordance,

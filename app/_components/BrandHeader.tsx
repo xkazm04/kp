@@ -6,6 +6,17 @@ import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useBrand } from "@/app/_components/BrandProvider";
 import { EXTERNAL_LOGO_IMG_ATTRS, shouldRenderLogo } from "@/app/_lib/brand-config";
 
+/** The operator's logo as an <img>: the ONE place an external brand logo is drawn
+ *  (both the workspace header below and the candidate doors' EmployerBrand), so the
+ *  no-referrer attributes and the lint waiver live once. Callers decide when to
+ *  render it (`shouldRenderLogo`) and own the fallback for `onError`. */
+export function BrandLogo({ src, alt, onError, className }: { src: string; alt: string; onError: () => void; className: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
+    <img src={src} alt={alt} onError={onError} {...EXTERNAL_LOGO_IMG_ATTRS} className={className} />
+  );
+}
+
 // The white-label header block (mark + name [+ tagline]) shared by both sidebars
 // (E-BRD-3). Renders the workspace's logo + display name when set, else the default
 // KandiDate mark + name. Presentational inner content only — callers own the
@@ -21,12 +32,10 @@ export function BrandHeader({ markClass, showTagline = true }: { markClass: stri
   return (
     <>
       {shouldRenderLogo(logoUrl, logoError) ? (
-        // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
-        <img
+        <BrandLogo
           src={logoUrl!}
           alt={name}
           onError={() => setLogoError(true)}
-          {...EXTERNAL_LOGO_IMG_ATTRS}
           className={`shrink-0 rounded-md object-contain ${markClass}`}
         />
       ) : (

@@ -1225,7 +1225,8 @@
     "close": "Zavřít",
     "scanningCv": "Probíhá analýza CV",
     "formatting": "Formátování",
-    "salesEnquirySubject": "Poptávka plánu Enterprise"
+    "salesEnquirySubject": "Poptávka plánu Enterprise",
+    "employerLogo": "Logo zaměstnavatele"
   },
   "aiDisclosure": {
     "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",

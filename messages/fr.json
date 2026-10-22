@@ -1225,7 +1225,8 @@
     "close": "Fermer",
     "scanningCv": "Analyse du CV en cours",
     "formatting": "Mise en forme",
-    "salesEnquirySubject": "Demande de renseignements sur l'offre Enterprise"
+    "salesEnquirySubject": "Demande de renseignements sur l'offre Enterprise",
+    "employerLogo": "Logo de l’employeur"
   },
   "aiDisclosure": {
     "loadFailed": "Impossible de confirmer les règles de cet espace de travail. Les informations par défaut sont affichées.",

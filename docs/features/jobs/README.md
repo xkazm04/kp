@@ -317,6 +317,19 @@ Publish with an inline **Retry** that re-POSTs to
 duplicate draft). When `slug` is supplied, the save route rejects an unknown
 slug (404) so a retry can never mint a `jd-<slug>` Job with no backing draft.
 
+### A blank company is the owner's own
+
+Every door that writes a role a candidate can apply to — `POST /api/jobs/ingest`,
+`/api/jds/save`, `/api/jds/generate`, `/api/jds/[slug]` (edit re-sync),
+`/ingest-job`, `/revisions`, `/retry-analysis`, `/api/intake/[id]/promote` and the
+companion's `draft_jd` — fills a BLANK company from `effectiveOrgName()`
+(`app/_lib/org-name-server.ts`): the `kp_org_name` cookie, then the brand display
+name, then the seed gate's fallback (empty on an unseeded install). A typed or parsed
+company always wins (`companyOrDefault`); a re-sync keeps the row's own company
+before the org name. Backgrounded builds resolve it at the door, in the request, and
+carry it on the task params and the persisted intent — the detached task has no
+cookie. Pinned by `app/_lib/org-name-default.test.ts`.
+
 ### Which team's JD `/jds/[slug]` serves
 
 The page is candidate-facing and a candidate carries no session, so the visitor's

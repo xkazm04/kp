@@ -3,6 +3,8 @@ import { loadJd } from "@/app/_lib/db/jobs";
 import { getTask } from "@/app/_lib/db/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { replayParamsFromIntent, restartJdBuild } from "@/app/_lib/jd-build-start";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -54,7 +56,10 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     // legacy params so the replay re-fills THIS row; the old task is terminal, so
     // its (now slug-keyed) dedupe entry won't merge this run. Same tenant the JD row
     // lives in (proven by the scoped loadJd above).
-    const { taskId } = restartJdBuild(slug, replayParams, ws);
+    // A build first run before its company was named (or a legacy intent) replays with
+    // the owner's org name, resolved here since the replay runs detached. A stored one wins.
+    const company = companyOrDefault(replayParams.company, await effectiveOrgName());
+    const { taskId } = restartJdBuild(slug, { ...replayParams, company }, ws);
     return NextResponse.json({ taskId });
   } catch (error) {
     return safeJsonError(error, "api:jds/retry-analysis", "JD_GENERATE_FAILED");

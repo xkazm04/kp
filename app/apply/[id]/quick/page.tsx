@@ -5,6 +5,7 @@ import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { EmployerBrand } from "@/app/_components/EmployerBrand";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { QuickApplyForm } from "./QuickApplyForm";
 
@@ -47,7 +48,8 @@ export default async function QuickApplyPage({
     if (status === "draft") notFound();
     return (
       <main className="mx-auto max-w-md px-4 py-12">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-end gap-3">
+          <EmployerBrand className="mr-auto" />
           <LanguageSwitcher />
         </div>
         <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
@@ -63,7 +65,8 @@ export default async function QuickApplyPage({
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <EmployerBrand className="mr-auto" />
         <LanguageSwitcher />
       </div>
       <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>

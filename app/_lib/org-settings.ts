@@ -97,6 +97,28 @@ export function resolveOrgName(rawStored: string | null | undefined, fallback = 
   return clean || fallback;
 }
 
+/** The org name a SERVER write fills a blank company with, from the three sources a
+ *  request can reach, in order: the browser's stored name (the `kp_org_name` cookie),
+ *  the deployment's white-label display name (brand row — the first-run wizard writes
+ *  it too, and it is the only one a request from another browser can see), then the
+ *  seed gate's fallback (the demo's company, or empty). Pure: the caller reads the
+ *  three (`effectiveOrgName` in org-name-server.ts). */
+export function pickOrgName(
+  cookieRaw: string | null | undefined,
+  brandDisplayName: string | null | undefined,
+  fixturesSeeded: boolean
+): string {
+  return resolveOrgName(cookieRaw, sanitizeOrgName(brandDisplayName ?? "") || orgNameFallback(fixturesSeeded));
+}
+
+/** A company the user typed (or the parser read off their ad) always wins; only a
+ *  blank one takes `fallback`. Undefined when both are blank, so a nameless install
+ *  stores NULL exactly as before rather than an empty string. */
+export function companyOrDefault(typed: unknown, fallback: string): string | undefined {
+  const own = typeof typed === "string" ? typed.trim() : "";
+  return own || fallback.trim() || undefined;
+}
+
 /** Client-only: the effective org name from document.cookie. SSR-safe — returns
  *  `fallback` when document is unavailable. Pass `useOrgNameFallback()`. */
 export function readClientOrgName(fallback = ""): string {

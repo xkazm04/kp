@@ -31,7 +31,9 @@ edit is not discarded.
   `fixtureSeedEnabled()` and handed down by `BrandProvider`), so an unseeded owner
   workspace (`npm run up`) never presents the bank as its company. The first-run
   wizard also writes the typed company into the brand display name while that is
-  still the default (`persistSetupBrand`). There is **no
+  still the default (`persistSetupBrand`). A role created with its company blank takes
+that name server-side (`effectiveOrgName`, `app/_lib/org-name-server.ts`; see the jobs
+doc). There is **no
   domain row**: `organizations.domain` exists in the schema but nothing in the app
   ever writes it (`createOrganization` is called once, from `signup-service.ts`,
   with no domain), so every install has it NULL and the panel was rendering a

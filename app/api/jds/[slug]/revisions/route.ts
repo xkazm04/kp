@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getJob, listJdRevisions, loadJd, revertJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
@@ -56,7 +58,8 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     // requirements parsed from the text the operator just discarded.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId, ws)) {
+    const linkedJob = getJob(jobId, ws);
+    if (linkedJob) {
       try {
         const { job, source } = await ingestJobAd(restored.body, jobId);
         // A keyless install parses deterministically (no requirements). Overwriting a
@@ -64,7 +67,9 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
         // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields
         // and jobResynced stays false (the truth).
         if (source !== "llm") return NextResponse.json({ ok: true, restored, jobResynced: false });
-        insertJob({ ...job, id: jobId }, undefined, "draft", ws);
+        // Same as the PATCH re-sync: a blank parsed company keeps the role's own, then the org name.
+        const company = companyOrDefault(job.company, linkedJob.company?.trim() || (await effectiveOrgName()));
+        insertJob({ ...job, id: jobId, company }, undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds/revisions] JD ${slug} reverted but job re-ingest failed`, ingestError);

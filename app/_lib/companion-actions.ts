@@ -206,14 +206,18 @@ export const COMPANION_ACTIONS: readonly CompanionActionSpec[] = [
       // links the two. `analysis_status` never reaches "published" on this path —
       // publishing is a separate act the operator takes in the library.
       const options = { description: true, marketResearch: true, caseDesign: false };
-      const buildInput = { needText, seniority: params.seniority, lang: ctx.locale, options };
+      // The companion names no company: the owner's org name fills it, resolved in
+      // this request since the build runs detached (org-name-server.ts).
+      const { effectiveOrgName } = await import("./org-name-server");
+      const company = (await effectiveOrgName()) || undefined;
+      const buildInput = { needText, company, seniority: params.seniority, lang: ctx.locale, options };
       const { slug } = startJdBuild({
         title: valid.title,
         options,
         buildInput,
         workspaceId: ctx.workspaceId,
         createdBy: ctx.userId ?? null,
-        params: { needText, seniority: params.seniority, lang: ctx.locale },
+        params: { needText, company, seniority: params.seniority, lang: ctx.locale },
       });
       return { key: "jdDrafting", values: { title: valid.title }, ref: slug };
     },

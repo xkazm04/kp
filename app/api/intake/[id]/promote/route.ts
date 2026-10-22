@@ -5,6 +5,8 @@ import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { intakeLang } from "@/app/_lib/intake-lang";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentUser } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -83,7 +85,9 @@ export const POST = withWorkspace(async (ws: string, request: Request, { params 
     // `brief` and `company` ride the persisted intent too: the retry's row-fallback
     // replay (task pruned) rebuilds from it, and without them the role loses its
     // must-have stack, responsibilities, stated requirements and stated languages.
-    const company = typeof body.company === "string" ? body.company : undefined;
+    // Blank ⇒ the owner's org name, resolved in THIS request (the build is detached and
+    // has no cookie); a company the requestor typed always wins (org-name-server.ts).
+    const company = companyOrDefault(body.company, await effectiveOrgName());
     const buildInput = { needText, company, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options, brief };
     const { slug, taskId } = startJdBuild({
       title,
