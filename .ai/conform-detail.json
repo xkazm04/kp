@@ -16055,6 +16055,47 @@
           "evidence": "app/features/insights/analytics/AnalyticsDriftStrip.tsx:22 Missing measurements concern cohort Brier scores, not unreadable content-bearing document regions."
         }
       ]
+    },
+    "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/dynamic-secret-lifecycle": {
+      "context": "ats-sync-egress",
+      "subject": "dynamic-secret-lifecycle",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T00:54:41.928Z",
+      "worker": "936baf1b-c4c7-4e64-9dfa-d46299ae3bc0",
+      "techniques": [
+        {
+          "technique": "expiry-buffer-beyond-lease",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-config-store.ts:248 The signing secret is supplied by the caller and encrypted locally; this path creates no remote credential whose expiry must exceed a lease."
+        },
+        {
+          "technique": "idempotent-revoke-and-give-up",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats/connections-store.ts:327 Connection removal deletes local configuration; it is not a revocation callback for a credential minted by this context."
+        },
+        {
+          "technique": "lease-vs-native-tracking",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-delivery-store.ts:146 The leased artifact is a delivery attempt identified by event and entry, not an issued credential or certificate."
+        },
+        {
+          "technique": "persist-before-provision",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats/connections-store.ts:244 The store encrypts an existing caller-supplied API token; it performs no credential provisioning or minted-token handout."
+        },
+        {
+          "technique": "ttl-ladder-derivation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-delivery-store.ts:29 This duration bounds ownership of a delivery attempt, so the credential lifetime and renewal ladder does not apply."
+        },
+        {
+          "technique": "wal-per-external-side-effect",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-secret.ts:116 Secret rotation here re-encrypts unchanged plaintext locally; it does not mutate a remote credential requiring an issuer's write-ahead witness."
+        }
+      ]
     }
   }
 }

@@ -5486,7 +5486,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/ats/connections-store.ts:244 Context and repository searches found custody of supplied secrets and delivery-attempt leases, but no ATS credential issuer or matches for lease_duration, revokeCredential or mintCredential, so this subject's issuance precondition does not hold.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:9d26f7a6264acd94",
+          "evaluatedRevision": 2
         },
         {
           "subject": "settings",
