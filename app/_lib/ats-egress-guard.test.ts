@@ -18,7 +18,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
-import { isPrivateAddress, assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
+import { isPrivateAddress, assertDeliverableWebhookUrl, assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 
 // --- The write-boundary guard the ATS config store now delegates to -------------
 // (validateUrl -> assertPublicHttpsEndpoint). These are the exact SSRF pivots from
@@ -115,6 +115,27 @@ test("isPrivateAddress allows genuine public addresses", () => {
 // --- Delivery-time guard rejects string-level pivots BEFORE any DNS lookup -------
 // (These reject in the assertPublicHttpsEndpoint stage, so the test never touches
 // the network. The DNS-resolution branch is covered by isPrivateAddress above.)
+
+// A URL with userinfo passes every store-side check, and Node's fetch then throws
+// "Request cannot be constructed from a URL that includes credentials: <the URL>" —
+// which the connector probes and test routes render as their failure reason. The
+// guard refuses it first, before any lookup, and names neither half of the pair.
+test("assertPublicHttpsEndpointResolved refuses embedded credentials without echoing them", async () => {
+  let looked = 0;
+  const lookup = async () => {
+    looked++;
+    return [{ address: "93.184.216.34" }];
+  };
+  for (const raw of ["https://ops:s3cret-token@ats.example.com/v1", "https://only-user@ats.example.com/v1"]) {
+    await assert.rejects(assertPublicHttpsEndpointResolved(raw, "ATS base URL", lookup), (e: Error) => {
+      assert.match(e.message, /credentials/);
+      assert.doesNotMatch(e.message, /s3cret|ops|only-user/);
+      return true;
+    });
+  }
+  assert.equal(looked, 0);
+  assert.equal(await assertPublicHttpsEndpointResolved("https://ats.example.com/v1", "ATS base URL", lookup), "https://ats.example.com/v1");
+});
 
 test("assertDeliverableWebhookUrl rejects http/IP/internal without hitting the network", async () => {
   await assert.rejects(assertDeliverableWebhookUrl("http://hooks.example.com/x"), /https/);

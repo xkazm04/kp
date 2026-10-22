@@ -137,7 +137,14 @@ export async function assertPublicHttpsEndpointResolved(
   lookupFn: HostLookup = defaultHostLookup,
 ): Promise<string> {
   const href = assertPublicHttpsEndpoint(raw, label); // https + no literal-IP/internal host (FIRST gate)
-  const host = new URL(href).hostname.toLowerCase();
+  const parsed = new URL(href);
+  // Userinfo is refused here, by name only: fetch throws on it with the WHOLE URL in
+  // its message ("…includes credentials: https://user:pass@host/"), and the callers
+  // render a failure reason to the operator, the probe memory and the delivery ledger.
+  if (parsed.username || parsed.password) {
+    throw new Error(`Invalid ${label}: credentials in the URL are not allowed — use the secret field.`);
+  }
+  const host = parsed.hostname.toLowerCase();
   let results: Array<{ address: string }>;
   try {
     results = await lookupFn(host);
