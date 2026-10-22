@@ -66,6 +66,46 @@ def _descends_from_seed(seed_body: str, sub_body: str) -> bool:
     return survived / len(seed_lines) >= _DESCENT_MIN_SEED_LINE_SURVIVAL
 
 
+# A canary may also carry ``catchEvidence``: what a candidate who CAUGHT the flaw writes
+# down, wherever they write it. The fragment rule above only sees an edit to the seeded
+# file, and a work sample outside software is mostly answered in a NEW file (a ranking,
+# a triage plan, a memo), so a family case's trap was ungradable or read as missed for
+# exactly the candidates who caught it (council-lite T13 r1). Each group is a list of
+# case-insensitive regexes, any of which satisfies the group; the trap counts as caught
+# when ONE window of consecutive contributed lines satisfies EVERY group (the account and
+# its corrected figure, the ticket and the word privacy). Only the candidate's own lines
+# count: a line that appears anywhere in the seed never does, so the planted text quoted
+# back cannot catch its own trap.
+_EVIDENCE_WINDOW_LINES = 3
+
+
+def _contributed_blocks(seeded: dict[str, str], submitted: dict[str, str], chat: list[dict] | None) -> list[list[str]]:
+    """The candidate's own lines, one block per submitted file and per chat message they
+    sent, with every line the seed already carried (in any file) left out."""
+    seed_lines = {ln.strip() for body in seeded.values() for ln in body.splitlines() if ln.strip()}
+    texts = [submitted[p] for p in sorted(submitted)]
+    texts += [str(m.get("text") or "") for m in (chat or []) if isinstance(m, dict) and m.get("role") == "user"]
+    blocks = []
+    for text in texts:
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip() and ln.strip() not in seed_lines]
+        if lines:
+            blocks.append(lines)
+    return blocks
+
+
+def evidence_caught(groups: list[list[str]] | None, blocks: list[list[str]]) -> bool:
+    """True when one window of contributed lines matches every evidence group."""
+    compiled = [[re.compile(rx, re.IGNORECASE) for rx in g] for g in (groups or []) if g]
+    if not compiled:
+        return False
+    for lines in blocks:
+        for i in range(max(1, len(lines) - _EVIDENCE_WINDOW_LINES + 1)):
+            window = "\n".join(lines[i : i + _EVIDENCE_WINDOW_LINES])
+            if all(any(rx.search(window) for rx in g) for g in compiled):
+                return True
+    return False
+
+
 def _by_path(files: list[dict] | None) -> dict[str, str]:
     out: dict[str, str] = {}
     for f in files or []:
@@ -89,13 +129,33 @@ def canary_outcomes(seed: dict | None, files: list[dict] | None, chat: list[dict
         + [str(m.get("text") or "") for m in (chat or []) if isinstance(m, dict) and m.get("role") == "user"]
     ).lower()
 
+    blocks: list[list[str]] | None = None
+
     out: list[dict] = []
     for c in canaries:
         path = str(c.get("path") or "")
         frag = _fragment(str(c.get("flaw") or ""))
         seed_body = seeded.get(path, "")
         sub_body = submitted.get(path, "")
-        if not frag or frag not in seed_body:
+        groups = c.get("catchEvidence") if isinstance(c.get("catchEvidence"), list) else None
+        if groups:
+            if blocks is None:
+                blocks = _contributed_blocks(seeded, submitted, chat)
+            stated = evidence_caught(groups, blocks)
+        else:
+            stated = False
+        located = bool(frag) and frag in seed_body
+        if groups and not (located and path in submitted and _descends_from_seed(seed_body, sub_body)):
+            # An evidence-bearing canary is gradable in ANY file the candidate submitted:
+            # the ground truth stated in their own work is the catch, its absence the miss.
+            # (An edit of the seeded file still goes through the fragment rule below.)
+            if stated:
+                status = "flagged"
+                note = "the candidate's own work states the ground truth the planted flaw contradicts"
+            else:
+                status = "propagated"
+                note = "nothing the candidate wrote states the ground truth — the planted flaw went uncaught"
+        elif not located:
             status = "unverifiable"
             note = "flawed fragment could not be located in the seed — not graded"
         elif path not in submitted:
@@ -115,7 +175,7 @@ def canary_outcomes(seed: dict | None, files: list[dict] | None, chat: list[dict
             status = "unverifiable"
             note = "submitted file does not descend from the seed version — not mechanically gradable"
         else:
-            mentioned = bool(frag.lower() in voiced) or bool(
+            mentioned = stated or bool(frag.lower() in voiced) or bool(
                 path and path.lower() in voiced and _FLAGGED_WRONG_RE.search(voiced)
             )
             if frag not in sub_body:

@@ -119,10 +119,12 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             f"`{draft['path']}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
         ]
     )
-    # T13: the keyless family case ships its own starting files and canaries. Matched on the
-    # case title so a case the model designed (a different title) never gets mismatched files.
-    fc = family_case_for(role.role_family, role.title)
-    if fc is not None and case.title != fc["title"]:
+    # T13: the keyless family case ships its own starting files and canaries — only for a case
+    # carrying the explicit `familyCase` marker design_case stamps on it (and only for the
+    # family this role resolves to). A title match used to decide this, and a model reply with
+    # no title inherited the family title, so the family files shipped beside model tasks.
+    fc = family_case_for(role.role_family, role.title) if case.family_case else None
+    if fc is not None and case.family_case != fc["family"]:
         fc = None
     family_files = [{"path": p, "contents": c} for p, c in (fc["files"] if fc else [])]
     family_canaries = list(fc["canaries"]) if fc else []

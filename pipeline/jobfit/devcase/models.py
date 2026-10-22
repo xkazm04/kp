@@ -309,6 +309,10 @@ class CaseScenario(_Base):
     # cases designed before case-design v6 or when the designer judged it unfit).
     mid_flight_update: MidFlightUpdate | None = None
     prompt_version: str = ""
+    # T13 — the keyless non-software family this case was built from (family_cases.py), or ""
+    # for every other case. seed_materializer ships the family's starting files ONLY on this
+    # marker: a case the model designed never carries it, whatever its title says.
+    family_case: str = ""
 
     @field_validator("timebox_hours", mode="after")
     @classmethod

@@ -10,7 +10,12 @@ coverProbes, midFlightUpdate, a rubric) plus the STARTING FILES ``seed_materiali
 ships with it and the canaries those files carry. The files hold one under-documented
 area (named in a notes file that points at material not supplied) and one verification
 trap (a planted flaw with a single checkable ground truth, recorded as a canary and
-graded by the existing artifact_checks rule).
+graded by artifact_checks.canary_outcomes). The canary quotes its fragment and carries
+``catchEvidence``, so the trap is graded wherever the candidate answers: an edit of the
+seeded file, or the new file a ranking, triage plan or memo is usually written in.
+
+A case built here is stamped ``familyCase`` (the family id); seed_materializer ships the
+family files only for a case carrying that marker, never on a title match.
 
 Pure data + a resolver: no randomness, no clock, no network, no model call. Software and
 every other family never resolve here, and the keyed (LLM) path never reads this table.
@@ -61,8 +66,14 @@ def _probe(pid: str, kind: str, where: str, reveals: str, options: list[str]) ->
     return {"id": pid, "kind": kind, "where": where, "reveals": reveals, "decisionSpace": options}
 
 
-def _canary(cid: str, kind: str, path: str, flaw: str, truth: str, reveals: str) -> dict:
-    return {"id": cid, "kind": kind, "path": path, "flaw": flaw, "groundTruth": truth, "reveals": reveals}
+def _canary(cid: str, kind: str, path: str, fragment: str, truth: str, reveals: str, evidence: list[list[str]]) -> dict:
+    """A family trap in the shape artifact_checks grades. ``flaw`` QUOTES the fragment (the
+    grader only locates a quoted one), and ``catchEvidence`` is what a catcher writes in
+    ANY file: these cases are mostly answered in a new file, never an edit of the seed."""
+    return {
+        "id": cid, "kind": kind, "path": path, "flaw": f"`{fragment}`",
+        "groundTruth": truth, "reveals": reveals, "catchEvidence": evidence,
+    }
 
 
 _DECISIONS_TASK = (
@@ -197,7 +208,7 @@ of 20 to 200 people.
 
 ## Last campaign, in short
 
-Total spend EUR 11,000 for 370 signups. Email was our best channel at EUR 16.67 per signup, so
+Total spend EUR 11,000 for 360 signups. Email was our best channel at EUR 16.67 per signup, so
 the plan is to put most of the new budget there.
 
 "Qualified" means a signup that passes the sales-agreed definition. That definition lives in the
@@ -249,7 +260,9 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             _canary("case-sales-weighted", "wrong_constant", "pipeline.csv",
                     "Brightfield Logistics,Proposal,90000,40,54000",
                     "90000 x 40% is 36000, not 54000; with the correct value Brightfield drops below Fjord Marine (52500) in the ranking.",
-                    "Do they recompute the weighted column, or rank on a figure that is quietly wrong?"),
+                    "Do they recompute the weighted column, or rank on a figure that is quietly wrong?",
+                    # Brightfield next to its corrected weighted value (36000 in any spelling).
+                    [[r"brightfield"], [r"(?<![\d.,])36(?:[\s,.' ]?000)(?![\d])", r"(?<![\d.,])36\s?k\b", r"(?<![\d.,])36\s?tis"]]),
         ],
         "rubric": {
             "framing": "Turns an open pipeline into a ranked, justified week of outreach.",
@@ -294,7 +307,9 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             _canary("case-ops-onhand", "wrong_constant", "inventory.csv",
                     "SKU-104,Hex bolt M8,40,55,50",
                     "40 - 10 + 20 - 5 is 45, not 55; at 45 the SKU is below its reorder point of 50 and must be reordered.",
-                    "Do they reconcile every SKU, or miss the one whose reported figure hides a reorder?"),
+                    "Do they reconcile every SKU, or miss the one whose reported figure hides a reorder?",
+                    # SKU-104 next to its reconciled quantity (45).
+                    [[r"sku[- ]?104", r"hex bolt"], [r"(?<![\d.,-])45(?![\d]|[.,]\d)"]]),
         ],
         "rubric": {
             "framing": "Turns a sheet and a log into a clear reconciliation and reorder decision.",
@@ -338,7 +353,14 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             _canary("case-support-escalation", "subtle_bug", "tickets.csv",
                     "Export took 4 minutes and the file also contained rows for a customer named Orchid Dental that we do not recognise",
                     "The ticket is filed as a low-priority speed complaint, but the summary reports another customer's data in this customer's export: a privacy incident that goes to the on-call lead.",
-                    "Do they notice the escalation behind a low priority, or answer the speed complaint?"),
+                    "Do they notice the escalation behind a low priority, or answer the speed complaint?",
+                    # T-1047 (or Orchid Dental) next to the privacy reading of it, in any of the
+                    # four delivery locales, or routed to the on-call lead the notes name for it.
+                    [[r"t[- ]?1047", r"orchid"],
+                     [r"privacy", r"personal data", r"data (?:breach|leak|exposure|protection)", r"\bbreach", r"\bleak",
+                      r"gdpr", r"(?:another|other|different|wrong) customer", r"someone else", r"cross[- ]?(?:tenant|customer|account)",
+                      r"on[- ]?call", r"security (?:incident|issue)", r"soukrom", r"osobní (?:údaj|data)", r"únik",
+                      r"datenschutz", r"datenleck", r"dsgvo", r"confidentialit", r"fuite", r"données personnelles", r"rgpd"]]),
         ],
         "rubric": {
             "framing": "Turns a raw queue into an ordered, reasoned shift plan.",
@@ -387,7 +409,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             _canary("case-design-targets", "stale_doc", "flow_spec.md",
                     "All tap targets meet the 44px minimum",
                     "components.csv lists the Next button at 40 x 40 and the Skip for now link at 96 x 24, both below the 44 px minimum.",
-                    "Do they measure the components, or repeat the review's claim?"),
+                    "Do they measure the components, or repeat the review's claim?",
+                    # A named undersized component (or "tap target") next to its real size or a
+                    # "below 44" reading of it.
+                    [[r"\bnext\b", r"\bskip\b", r"tap target", r"touch target"],
+                     [r"\b40\s*(?:x|×|by)\s*40\b", r"\b(?:96|40)\s*(?:x|×|by)\s*24\b", r"\b40\s*px\b",
+                      r"(?:below|under|smaller than|less than|short of|fails?|violat\w*|miss\w*)\s+(?:the\s+)?44", r"<\s*44",
+                      r"\b24\s*px\s*(?:high|tall)", r"(?:height|tall)\s*(?:of\s*)?24\b"]]),
         ],
         "rubric": {
             "framing": "Turns a reviewed flow and a constraint list into a clear critique and revision plan.",
@@ -432,7 +460,12 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             _canary("case-marketing-cost", "stale_doc", "campaign_brief.md",
                     "Email was our best channel at EUR 16.67 per signup",
                     "Per qualified signup Paid search is best at EUR 62.50 (4000 / 64) against Email at EUR 83.33 (1500 / 18); the brief's figure ignores quality.",
-                    "Do they recompute on qualified signups, or build the plan on the brief's claim?"),
+                    "Do they recompute on qualified signups, or build the plan on the brief's claim?",
+                    # A channel next to its cost per QUALIFIED signup (62.50 / 83.33) or the
+                    # qualified measure itself.
+                    [[r"paid search", r"\bemail\b", r"e-mail"],
+                     [r"(?<![\d.,])62[.,]5", r"(?<![\d.,])83[.,]3", r"(?:cost|eur|€)\s*(?:per|/)\s*qualified", r"per qualified",
+                      r"\bcpql?\b", r"qualif\w*\s+(?:rate|share|ratio)", r"only\s+18\b"]]),
         ],
         "rubric": {
             "framing": "Turns a brief and a results table into a clear campaign plan.",
@@ -454,5 +487,6 @@ def family_case_for(role_family: str | None, title: str | None = "") -> dict | N
     if fam is None:
         return None
     entry = copy.deepcopy(FAMILY_CASES[fam])
+    entry["family"] = fam
     entry["rubricDimensions"] = [{**d, "description": entry["rubric"][d["name"]]} for d in RUBRIC_DIMENSIONS]
     return entry
