@@ -137,7 +137,10 @@ export async function cleanupWorkdir(workdir: string): Promise<void> {
     console.warn("[python-runner] refused to delete a path that is not a jobfit workdir");
     return;
   }
-  await rm(workdir, { recursive: true, force: true });
+  // Retries: on Windows a just-exited child's handles release a beat late (EBUSY/EPERM),
+  // and this runs in runJobfitCli's `finally` — a throw here would REPLACE the
+  // PipelineError the caller is meant to see.
+  await rm(workdir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
 export async function persistFile(workdir: string, file: File, baseName: string): Promise<string> {
