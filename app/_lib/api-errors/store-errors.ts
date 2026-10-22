@@ -71,6 +71,8 @@ export const STORE_ERRORS = {
   // GET /api/decisions/role-view: the per-role decision view (S45) reads the board,
   // the submissions and the scorecards; a locked DB answers this code, not a raw 500.
   ROLE_VIEW_LOOKUP_FAILED: "Could not load this role's candidates. Please try again.",
+  SHORTLIST_READ_FAILED: "Could not load the shortlist. Please try again.",
+  SHORTLIST_SAVE_FAILED: "Could not save the shortlist. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",

@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_307 routes, 407 handlers._
+_308 routes, 409 handlers._
 
 ### `/api/agents`
 
@@ -267,6 +267,7 @@ _307 routes, 407 handlers._
 | `/api/decisions/records` | GET | gated |
 | `/api/decisions/role-view` | GET | gated |
 | `/api/decisions/screen-wave` | POST | gated |
+| `/api/decisions/shortlist` | GET, POST | gated |
 
 ### `/api/demo`
 

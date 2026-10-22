@@ -114,6 +114,7 @@ export function DocketRoleLevel({
       ) : null}
       <div className="mt-6">
         <DocketRoleOverview
+          jobId={jobId}
           read={read}
           hasJob={jobId != null}
           proposals={proposals}

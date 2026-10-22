@@ -7,7 +7,8 @@
 // value below every real one), never as 0. A person never sent a work sample is not a person
 // who scored 0 on it.
 //
-// The shortlist tick is page state only (no persistence: a kept shortlist needs a schema).
+// The shortlist is PERSISTED (db/role-shortlist.ts, ADR 0030): useRoleShortlist holds it; the
+// helpers below are the pure set arithmetic over it.
 // With two or more ticked, the selection is handed to the existing Group evaluation as an
 // explicit selection over the role's full active cohort (rosterGroups below).
 import { compareCells, type SortCell, type SortDir, type SortState } from "@/app/_components/table/useTableSort";
@@ -89,7 +90,7 @@ export function sortOverview(rows: readonly OverviewRow[], sort: SortState<Overv
     .map((x) => x.r);
 }
 
-// ---- the shortlist (page state only) -------------------------------------------------
+// ---- the shortlist (set arithmetic over the persisted marks) -------------------------------------------------
 
 /** Tick or untick one person; a tick past the comparison's cap is ignored (the server re-enforces). */
 export function toggleShortlist(set: ReadonlySet<string>, id: string, cap: number): ReadonlySet<string> {

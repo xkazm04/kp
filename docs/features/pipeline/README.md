@@ -18,6 +18,10 @@ deterministic fallback so the pipeline never blocks when the CLI is missing.
   catalog key and the page's own eyebrow/title stay "pipeline".
 - `/?tab=decisions` — the Decisions queue, where AI holds/recommendations land for
   a human to approve or reject (`app/features/hiring/decisions/DecisionsTab.tsx`).
+  On a role's level, the "Everyone on this role" table carries a PERSISTED shortlist
+  (ADR 0030): a tick saves `shortlisted`, "Mark as chosen" saves `chosen` with who and when,
+  in `role_shortlist` (`app/_lib/db/role-shortlist.ts`, `/api/decisions/shortlist`). Human-set
+  only, workspace-scoped, deleted with the candidate on erasure.
 - Per-candidate modal — `app/features/hiring/pipeline/candidate/CandidateModal.tsx`
   (see [The candidate modal](#the-candidate-modal)). It replaced the right-side
   candidate drawer in 2026-09; the drawer's section components and its state hook

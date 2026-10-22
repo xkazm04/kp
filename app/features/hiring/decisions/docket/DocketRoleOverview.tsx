@@ -12,7 +12,8 @@
 //
 // Nothing is decided here. A row opens the candidate modal (the same door the decide rows use),
 // where advance, offer and reject (with its undo window) are the human-gated actions. The tick
-// is a page-only shortlist; with two or more ticked, one action hands the selection to the
+// is the role's PERSISTED shortlist (useRoleShortlist, ADR 0030: it survives a reload and a
+// teammate sees it; 'chosen' names who chose and when); with two or more ticked, one action hands the selection to the
 // existing Group evaluation. A narrow sheet keeps every column (as cards) rather than dropping one.
 import { useMemo, useState, type ReactNode } from "react";
 import { CheckSquare, Square } from "lucide-react";
@@ -20,6 +21,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ABSENT, Button, Mark, Section } from "@/app/_components/kit";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { ariaSort, type SortState } from "@/app/_components/table/useTableSort";
 import { GROUP_EVAL_CAP } from "@/app/_lib/group-eval-cohort";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -32,14 +34,15 @@ import {
   pruneShortlist,
   shortlistSelection,
   sortOverview,
-  toggleShortlist,
   OVERVIEW_COLS,
   type OverviewCol,
   type OverviewRow,
 } from "./roleOverviewModel";
+import { useRoleShortlist } from "./useRoleShortlist";
 import type { RoleViewRead } from "./useRoleWorkSamples";
 
 export function DocketRoleOverview({
+  jobId,
   read,
   hasJob,
   proposals,
@@ -48,6 +51,8 @@ export function DocketRoleOverview({
   onCompare,
   compareBusy,
 }: {
+  /** The role's job id; null for a title-only role (nothing to persist a shortlist against). */
+  jobId: string | null;
   read: RoleViewRead;
   /** False for a title-only role: there is no job to read the people of. */
   hasJob: boolean;
@@ -66,7 +71,9 @@ export function DocketRoleOverview({
   const enumLabel = useEnumLabel();
   const provText = useScoreProvenanceText();
   const [sort, setSort] = useState<SortState<OverviewCol>>({ col: "match", dir: "desc" });
-  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set());
+  const fmt = useDateFormat();
+  const { marks, failed, apply } = useRoleShortlist(jobId);
+  const ticked = useMemo<ReadonlySet<string>>(() => new Set(marks.keys()), [marks]);
 
   const base = useMemo(
     () => (read.status === "ready" ? overviewRows(read.candidates, proposals, stageOrder) : []),
@@ -106,7 +113,7 @@ export function DocketRoleOverview({
         data-tip={blocked ? t("tickCap", { cap: GROUP_EVAL_CAP }) : undefined}
         onClick={(e) => {
           e.stopPropagation();
-          if (!blocked) setTicked((cur) => toggleShortlist(pruneShortlist(cur, base.map((x) => x.entryId)), r.entryId, GROUP_EVAL_CAP));
+          if (!blocked) void apply([r.entryId], on ? null : "shortlisted");
         }}
         className={`${BTN_GHOST} cursor-pointer p-0.5`}
       >
@@ -195,10 +202,22 @@ export function DocketRoleOverview({
   );
 
   const selection = shortlistSelection(shortlist, rows);
+  const allChosen = shortlist.size > 0 && [...shortlist].every((id) => marks.get(id)?.state === "chosen");
+  const whoOf = (setBy: string) => setBy.replace(/^human:/, "");
   const actions =
     base.length > 1 ? (
       <div className="dk-ov__bar">
-        {shortlist.size > 0 ? <Button variant="ghost" size="sm" label={t("clear")} onClick={() => setTicked(new Set())} /> : null}
+        {shortlist.size > 0 ? <Button variant="ghost" size="sm" label={t("clear")} onClick={() => void apply([...shortlist], null)} /> : null}
+        {jobId ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            label={allChosen ? t("unchoose") : t("choose")}
+            tip={t("chooseTip")}
+            disabled={shortlist.size === 0}
+            onClick={() => void apply([...shortlist], allChosen ? "shortlisted" : "chosen")}
+          />
+        ) : null}
         <Button
           variant="secondary"
           size="sm"
@@ -222,6 +241,7 @@ export function DocketRoleOverview({
       <div className="dk-ov">
         <p className="dk-ov__note">{t("note")}</p>
         {actions}
+        {failed ? <p className="dk-ov__note" role="status">{t("saveFailed")}</p> : null}
         {base.length === 0 ? (
           <p className="dk-ov__note">{hasJob ? t("empty") : t("noJob")}</p>
         ) : (
@@ -249,6 +269,11 @@ export function DocketRoleOverview({
                       onOpen(r.entryId);
                     }}
                   />
+                  {marks.get(r.entryId)?.state === "chosen" ? (
+                    <span className="dk-cell__q dk-ov__chosen">
+                      {t("chosenBy", { who: whoOf(marks.get(r.entryId)!.setBy) || ABSENT, date: fmt.date(marks.get(r.entryId)!.setAt) })}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="dk-ov__facts">
                   {fact("stage", <span className="dk-stage" data-s={r.stage}>{enumLabel("stage", r.stage)}</span>)}

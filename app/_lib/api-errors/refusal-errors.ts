@@ -692,6 +692,10 @@ export const REFUSAL_ERRORS = {
   SCREEN_WAVE_JOB_REQUIRED: "Name the role this screening wave should run on.",
   /** GET /api/decisions/role-view with no `job` (400). Nothing was read. */
   ROLE_VIEW_JOB_REQUIRED: "Choose a role to see its candidates side by side.",
+  /** POST /api/decisions/shortlist with a malformed body (400). Nothing was written. */
+  SHORTLIST_REQUEST_INVALID: "That shortlist change could not be read. Reload and try again.",
+  /** The person is not on this role in this workspace (404). Nothing was written. */
+  SHORTLIST_ENTRY_UNKNOWN: "That person is no longer on this role. Reload to see the current list.",
   /** Commit without a previewed approval token (409). */
   SCREEN_WAVE_APPROVAL_REQUIRED: "Review the preview and approve this set before committing the wave.",
   /** The approval token is older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (409). */

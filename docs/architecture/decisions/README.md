@@ -39,6 +39,7 @@ to be true for it to change?*
 - change how a candidate's AI collaboration is scored, or add AI-keyword or tool-noun weight to a match → [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md)
 - add an outbound connector or channel, change how a receipt is matched to a send, or let a message reach a candidate without a named approver → [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md)
 - run a unit-test launcher beside another suite, or treat a gate failure that only appears beside another lane as a flake → [0029](0029-one-unit-suite-per-machine.md)
+- store or change who was shortlisted or chosen on a role, or let anything but a signed-in person write it → [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md)
 
 ## Index
 
@@ -73,6 +74,7 @@ to be true for it to change?*
 | [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md) | Candidates are scored on proof of how they work with AI, through one channel-neutral evidence ladder, with a human at every gate | accepted | 2026-10-17 |
 | [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md) | Every channel shares one message identity and one egress seal, and a person releases what reaches a candidate | accepted | 2026-10-17 |
 | [0029](0029-one-unit-suite-per-machine.md) | The unit-test launcher runs one suite per machine at a time | accepted | 2026-10-18 |
+| [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md) | The role shortlist is a workspace-scoped table, set only by a person | accepted | 2026-10-22 |
 
 ## Writing a new one
 

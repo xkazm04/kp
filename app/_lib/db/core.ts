@@ -1174,6 +1174,21 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_entry_notes_entry ON pipeline_entry_notes (entry_id, workspace_id, created_at);
 
+    -- The role SHORTLIST (db/role-shortlist.ts, ADR 0030, triage T14): which people a human
+    -- ticked 'shortlisted' or marked 'chosen' on a role, with who and when. One row per
+    -- (workspace, role, entry). Human-set only: written by POST /api/decisions/shortlist and
+    -- nothing else. Deleted with the candidate by the erasure scrub (db/pipeline.ts).
+    CREATE TABLE IF NOT EXISTS role_shortlist (
+      workspace_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('shortlisted', 'chosen')),
+      set_by TEXT NOT NULL,
+      set_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, job_id, entry_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_role_shortlist_entry ON role_shortlist (entry_id, workspace_id);
+
     -- The Match results the server HOLDS (db/match-runs.ts, ADR 0018 amendment): one row
     -- per (run, job) of every /api/match answer, carrying the verdict facts the server
     -- derived itself. POST /api/pipeline checks a Match add against it before it seals.

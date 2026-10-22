@@ -2493,6 +2493,11 @@ function scrubEntryLinkedPii(
   if (tables.has("pipeline_entry_notes")) {
     db.prepare(`DELETE FROM pipeline_entry_notes WHERE entry_id = ?`).run(entryId);
   }
+  // The role shortlist (db/role-shortlist.ts): who was shortlisted or chosen, and by whom,
+  // is a record about this person; DELETED with them, nothing of it is retained.
+  if (tables.has("role_shortlist")) {
+    db.prepare(`DELETE FROM role_shortlist WHERE entry_id = ?`).run(entryId);
+  }
   // Voice interview: transcript_json is the candidate's verbatim spoken answers (raw
   // PII → dropped to []) and scorecard_json is a free-text synthesis quoting them (→
   // NULL). The assessment DECISION survives on the entry/events, not on this row.

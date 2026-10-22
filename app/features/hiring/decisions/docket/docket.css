@@ -142,3 +142,5 @@
 .dk-roster .k-row { height: auto; padding-block: 6px; }
 .dk-roster .k-row__name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 @container dk (max-width: 560px) { .dk-roster .k-row { grid-template-columns: [mark] 0px [name] minmax(0, 1fr) [meta] auto [fig] auto [time] 0px [act] 0px [end]; column-gap: 10px; } }
+/* T14: a chosen person's "chosen by X on D" sits under the name; it is the only row that grows. */
+.dk-ov__chosen { display: block; white-space: normal; }
