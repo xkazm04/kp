@@ -1753,7 +1753,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "PROBE_RATE_LIMIT",
     optsDef: "const PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "resolveRelay()",
+    expensive: "probeRelay()",
     servedBefore: "await requireOperator()",
   },
   {
@@ -1791,7 +1791,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "TEST_PING_RATE_LIMIT",
     optsDef: "const TEST_PING_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: 'deliver("ping"',
+    expensive: "probeAtsWebhook(",
   },
   {
     // The OAuth start: each hit mints a 32-byte state, SETS A COOKIE and redirects a
