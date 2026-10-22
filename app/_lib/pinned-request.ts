@@ -56,6 +56,19 @@ export function setEgressTransportForTests(fn: EgressTransport | undefined): voi
   transportOverride = fn;
 }
 
+// TRANSITIONAL — the fetch-mock bridge. Before this transport existed, ~20 test files
+// outside the egress suites drove a relay or ATS delivery by replacing
+// `globalThis.fetch`. Until they move to `setEgressTransportForTests`, a node:test
+// child (NODE_TEST_CONTEXT is node's own runner marker; a server process never carries
+// it) whose fetch has been REPLACED dials that mock with the old `redirect: "manual"`
+// init. Outside a test runner this branch is unreachable, and a test that leaves
+// fetch alone gets the real pinned transport. Delete it once those files migrate.
+const nativeFetch = globalThis.fetch;
+function legacyFetchMock(): typeof fetch | undefined {
+  if (!process.env.NODE_TEST_CONTEXT) return undefined;
+  return globalThis.fetch !== nativeFetch ? globalThis.fetch : undefined;
+}
+
 /** The `lookup` hook handed to the socket: resolve once, refuse the whole answer if any
  *  address is private (as the vet does), and connect to the first address only. */
 function pinnedLookup(resolve: HostLookup, refuse: (ip: string) => boolean): LookupFunction {
@@ -92,6 +105,13 @@ function pinnedLookup(resolve: HostLookup, refuse: (ip: string) => boolean): Loo
  *  never followed). */
 export function pinnedRequest(url: string, init: PinnedRequestInit, options: PinnedRequestOptions = {}): Promise<PinnedResponse> {
   if (transportOverride) return transportOverride(url, init, options);
+  const mock = legacyFetchMock();
+  if (mock) {
+    return mock(url, { method: init.method, headers: init.headers, body: init.body, redirect: "manual", signal: init.signal }).then((r) => ({
+      ok: r.ok,
+      status: r.status,
+    }));
+  }
   return new Promise<PinnedResponse>((resolvePromise, reject) => {
     const { signal } = init;
     if (signal?.aborted) {
