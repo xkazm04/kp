@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "08d0a5b4-d63c-443f-ae3b-8325db9b2300",
+ "subject": "long-form-reading-surface",
+ "evaluatedAt": "2026-10-22T03:21:30.678738+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "matrix-focus",
+   "subject": "long-form-reading-surface",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:178 Context and repository searches found no reading-surface identifiers in matrix-focus, whose results render match cards and comparisons rather than a navigable prose document.",
+   "techniques": [
+    {
+     "technique": "anchor-id-single-assigner",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:104 Role titles are card labels; searches found no heading-address consumers in this context."
+    },
+    {
+     "technique": "fixed-chrome-offset-budget",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:57 The comparison pins columns horizontally; it introduces no reading panel or heading clearance against top chrome."
+    },
+    {
+     "technique": "focus-transfer-on-in-place-navigation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/matrix/focus/MatrixCandidateFocus.tsx:128 The action computes a candidate ranking; it does not navigate between articles."
+    },
+    {
+     "technique": "scroll-spy-reading-band",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:168 Bars represent match scores, and searches found no current-section tracker or reading-progress mechanism."
+    },
+    {
+     "technique": "server-parsed-once-reused",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/matrix/focus/MatchReasonsLine.tsx:11 Explanatory copy derives from match facts; no article outline or reading metadata is extracted."
+    }
+   ],
+   "absenceTerms": [
+    "headingId",
+    "tableOfContents",
+    "scrollSpy",
+    "readingTime"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T03:21:30.678738+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "long-form-reading-surface"
+   ],
+   "techniques": [
+    "anchor-id-single-assigner",
+    "fixed-chrome-offset-budget",
+    "focus-transfer-on-in-place-navigation",
+    "scroll-spy-reading-band",
+    "server-parsed-once-reused"
+   ],
+   "deviations": 0,
+   "context": "matrix-focus",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

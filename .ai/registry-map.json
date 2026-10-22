@@ -23141,7 +23141,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:178 Context and repository searches found no reading-surface identifiers in matrix-focus, whose results render match cards and comparisons rather than a navigable prose document.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:ee082e781491937e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "multi-provider-gateway-plane",
