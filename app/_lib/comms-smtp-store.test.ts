@@ -81,9 +81,9 @@ test("a preset fills host, port and security; the user types only address and pa
   assert.equal(saved.security, "tls");
   assert.equal(saved.hasPassword, true);
   assert.equal(JSON.stringify(saved).includes(PASSWORD), false, "the public view never carries the password");
-  const o365 = setSmtpConfig({ preset: "office365", address: "owner@contoso.com" });
+  const o365 = setSmtpConfig({ preset: "office365", address: "owner@contoso.com", password: PASSWORD });
   assert.deepEqual([o365.host, o365.port, o365.security, o365.hasPassword], ["smtp.office365.com", 587, "starttls", true]);
-  const seznam = setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz" });
+  const seznam = setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz", password: PASSWORD });
   assert.deepEqual([seznam.host, seznam.port, seznam.security], ["smtp.seznam.cz", 465, "tls"]);
 });
 
@@ -154,7 +154,7 @@ test("custom refuses a plain-text mode and a bad host or port", () => {
   assert.throws(() => setSmtpConfig({ preset: "custom", address: "a@b.cz", host: "mail b", port: 587, security: "starttls" }), CommsSmtpError);
   assert.throws(() => setSmtpConfig({ preset: "custom", address: "a@b.cz", host: "mail.b.cz", port: 0, security: "starttls" }), CommsSmtpError);
   assert.throws(() => setSmtpConfig({ preset: "gmail", address: "not an address" }), CommsSmtpError);
-  const ok = setSmtpConfig({ preset: "custom", address: "a@b.cz", host: "Mail.B.cz", port: 587, security: "starttls" });
+  const ok = setSmtpConfig({ preset: "custom", address: "a@b.cz", host: "Mail.B.cz", port: 587, security: "starttls", password: PASSWORD });
   assert.deepEqual([ok.host, ok.port, ok.security], ["mail.b.cz", 587, "starttls"]);
 });
 
@@ -162,7 +162,7 @@ test("suppression list: normalized, kept across saves, removable; attempts are b
   setSmtpConfig({ preset: "gmail", address: "owner@gmail.com", password: PASSWORD });
   suppressSmtpAddress("Jana@Example.cz", 550, "5.1.1 User unknown");
   assert.equal(smtpSuppressionFor("jana@example.cz")?.code, 550);
-  setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz" });
+  setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz", password: PASSWORD });
   assert.ok(smtpSuppressionFor("JANA@example.cz"), "a save keeps the list");
   assert.equal(unsuppressSmtpAddress("jana@example.cz"), true);
   assert.equal(smtpSuppressionFor("jana@example.cz"), null);
@@ -172,4 +172,32 @@ test("suppression list: normalized, kept across saves, removable; attempts are b
   const attempts = getSmtpConfig().attempts;
   assert.equal(attempts.length, SMTP_ATTEMPTS_MAX);
   assert.equal(attempts[0].messageId, `m${SMTP_ATTEMPTS_MAX + 4}`, "newest first");
+});
+
+test("a kept password never follows the sender to another server, login or org", () => {
+  // The exploit this pins: re-point `host` at a server you run, omit the password (the
+  // card's "leave blank to keep"), press Send test, read AUTH PLAIN off your own socket.
+  const live = setSmtpConfig({ preset: "gmail", address: "owner@gmail.com", password: PASSWORD, ownerOrgId: "org-a" });
+  const moves: Array<Record<string, unknown>> = [
+    { preset: "custom", address: "owner@gmail.com", host: "smtp.attacker.example", port: 465, security: "tls", ownerOrgId: "org-a" },
+    { preset: "office365", address: "owner@gmail.com", ownerOrgId: "org-a" },
+    { preset: "gmail", address: "someone.else@gmail.com", ownerOrgId: "org-a" },
+    { preset: "gmail", address: "owner@gmail.com", ownerOrgId: "org-b" },
+  ];
+  for (const move of moves) {
+    assert.throws(
+      () => setSmtpConfig({ ...move, expectedVersion: live.version }),
+      (e: unknown) => e instanceof CommsSmtpError && e.field === "password",
+      `refused: ${JSON.stringify(move)}`
+    );
+  }
+  const after = getSmtpPrivateConfig();
+  assert.deepEqual([after?.host, after?.address, after?.ownerOrgId, getSmtpConfig().version], ["smtp.gmail.com", "owner@gmail.com", "org-a", live.version], "nothing was written");
+  // Same server, login and org: the blank password still means keep.
+  const named = setSmtpConfig({ preset: "gmail", address: "Owner@Gmail.com", fromName: "Acme", ownerOrgId: "org-a", expectedVersion: live.version });
+  assert.equal(named.hasPassword, true);
+  // A move WITH a new password is an ordinary save.
+  const moved = setSmtpConfig({ preset: "custom", address: "owner@b.cz", host: "mail.b.cz", port: 587, security: "starttls", password: "a-new-one", ownerOrgId: "org-a" });
+  assert.equal(moved.host, "mail.b.cz");
+  assert.equal(getSmtpPrivateConfig()?.password, "a-new-one");
 });

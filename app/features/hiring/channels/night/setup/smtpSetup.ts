@@ -107,11 +107,22 @@ export function smtpDirty(state: SmtpState | null, form: SmtpForm): boolean {
   return form.preset === "custom" && (form.host.trim() !== seed.host || form.port.trim() !== seed.port || form.security !== seed.security);
 }
 
-/** Save may run: not busy, an address typed, and a password stored or typed. */
+/** The form sends the sender to another server or login than the stored one, so the stored
+ *  password cannot be kept: the server refuses that save (comms-smtp-store.ts), and the card
+ *  asks for the password instead of offering "keep". */
+export function smtpPasswordRequired(state: SmtpState | null, form: SmtpForm): boolean {
+  if (!state?.hasPassword) return false;
+  if (form.address.trim().toLowerCase() !== state.address.trim().toLowerCase()) return true;
+  if (form.preset !== "custom" || state.preset !== "custom") return form.preset !== state.preset;
+  return form.host.trim().toLowerCase() !== state.host.trim().toLowerCase();
+}
+
+/** Save may run: not busy, an address typed, and a password stored (for this server and
+ *  login) or typed. */
 export function canSaveSmtp(state: SmtpState | null, form: SmtpForm, busy: boolean): boolean {
   if (busy || form.address.trim() === "") return false;
   if (form.preset === "custom" && (form.host.trim() === "" || form.port.trim() === "")) return false;
-  return form.password !== "" || Boolean(state?.hasPassword);
+  return form.password !== "" || (Boolean(state?.hasPassword) && !smtpPasswordRequired(state, form));
 }
 
 export type SmtpSaveBody = {

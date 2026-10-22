@@ -11,6 +11,7 @@ import {
   SMTP_RECENT_SHOWN,
   canSaveSmtp,
   smtpDirty,
+  smtpPasswordRequired,
   smtpStageLabel,
   smtpTestGate,
   type SmtpTest,
@@ -92,7 +93,7 @@ export function SetupSmtp() {
         <SetupSecretField
           key={`${s.state?.version ?? "unread"}-${s.state?.hasPassword ?? ""}`}
           label={t("password")}
-          has={Boolean(s.state?.hasPassword)}
+          has={Boolean(s.state?.hasPassword) && !smtpPasswordRequired(s.state, s.form)}
           value={s.form.password}
           onChange={(v) => s.setForm({ password: v })}
           placeholder={t("passwordPlaceholder")}

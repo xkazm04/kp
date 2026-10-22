@@ -86,6 +86,11 @@ resolved at send time, every answer must be public, and the client dials that ve
   `KP_SECRET`). Without a key, saving a password is refused (`field: "encryptionKey"`).
 - No API response carries it. GET and POST return `hasPassword` only, and a refusal returns the
   code plus the `field` it concerns, never the store's prose.
+- A blank password on save keeps the stored one only for the same host, address and owner org.
+  Any other change has to come with the password, or it is refused with `field: "password"`.
+  Otherwise anyone who can save the card could point `host` at their own server, press Send
+  test, and read the owner's password out of `AUTH PLAIN`. The card asks for the password
+  instead of offering "keep" once the server or the address changes (`smtpPasswordRequired`).
 - The save door parses its body apart from the store work and never logs a JSON syntax error,
   because that error would quote the body.
 - Every reply text passes through `redactSecrets` twice, in the client and in the channel. The

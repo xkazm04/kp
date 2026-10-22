@@ -228,6 +228,17 @@ function str(v: unknown, field: string): string {
   return v.trim();
 }
 
+/** Whether a save sends the stored password somewhere it was not typed for: another
+ *  server, another login, or another org. Port and security are not part of it: TLS
+ *  still checks the same host name, and neither mode sends AUTH in clear. */
+function smtpDestinationMoved(current: Row, next: { host: string; address: string; ownerOrgId: string | null }): boolean {
+  return (
+    (current.host ?? "").toLowerCase() !== next.host ||
+    normalizeAddress(current.address ?? "") !== normalizeAddress(next.address) ||
+    (current.owner_org_id ?? null) !== next.ownerOrgId
+  );
+}
+
 /** Normalize an address for the suppression list. */
 export function normalizeAddress(a: string): string {
   return a.trim().toLowerCase();
@@ -237,7 +248,8 @@ export function normalizeAddress(a: string): string {
  * Upsert the sender. `preset` fills host, port and security (a preset IGNORES any host
  * sent beside it); `custom` takes them from the body. An empty `address` with no host
  * disables the sender. Password handling (relay-store contract):
- *   • `password` omitted → keep the stored one.
+ *   • `password` omitted → keep the stored one, but only for the same host, address and
+ *     owner org; moving any of them without a new password is refused (field `password`).
  *   • `password` === ""  → clear it (the sender stops being configured).
  *   • any other string   → replace it, encrypted at rest.
  *
@@ -308,6 +320,13 @@ export function setSmtpConfig(input: {
     const version = current?.version ?? 0;
     if (expected !== undefined && expected !== version) {
       throw new CommsSmtpStaleError("The SMTP sender changed since it was read. Reload and make your change again.");
+    }
+    // A kept password stays with the server, the login and the org it was typed for.
+    // Without this, anyone who may save the card could re-point `host` at a server they
+    // run and press Send test: the client would AUTH there with the owner's mailbox
+    // password, which no API ever returns but the wire would hand over.
+    if (nextPassword === undefined && current?.password && host !== null && smtpDestinationMoved(current, { host, address, ownerOrgId })) {
+      throw new CommsSmtpError("Re-enter the password: the server, the address or the owning organization changed.", "password");
     }
     db()
       .prepare(

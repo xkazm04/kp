@@ -5,6 +5,7 @@ import {
   parseSmtpBody,
   smtpDirty,
   smtpFormFrom,
+  smtpPasswordRequired,
   smtpSaveBody,
   smtpStageLabel,
   smtpTestGate,
@@ -44,6 +45,27 @@ test("dirty and save gates", () => {
   assert.equal(canSaveSmtp(null, { ...smtpFormFrom(null), address: "a@b.cz", password: "p" }, false), true);
   assert.equal(canSaveSmtp(STORED, { ...form, preset: "custom", host: "" }, false), false);
   assert.equal(canSaveSmtp(STORED, form, true), false);
+});
+
+test("a new server or login needs the password typed again; a new display name does not", () => {
+  const form = smtpFormFrom(STORED);
+  assert.equal(smtpPasswordRequired(STORED, form), false);
+  assert.equal(canSaveSmtp(STORED, { ...form, fromName: "Acme", address: "Owner@Seznam.cz" }, false), true, "same server, same login");
+  const moved = [
+    { ...form, preset: "gmail" as const },
+    { ...form, address: "someone@seznam.cz" },
+    { ...form, preset: "custom" as const, host: "smtp.attacker.example", port: "465", security: "tls" as const },
+  ];
+  for (const f of moved) {
+    assert.equal(smtpPasswordRequired(STORED, f), true, JSON.stringify(f));
+    assert.equal(canSaveSmtp(STORED, f, false), false, "the stored password is not offered to another server");
+    assert.equal(canSaveSmtp(STORED, { ...f, password: "typed" }, false), true);
+  }
+  const custom = parseSmtpBody({ config: { ...STORED, preset: "custom", host: "mail.acme.cz", port: 587, security: "starttls" }, smtp: "configured" }) as SmtpState;
+  const cf = smtpFormFrom(custom);
+  assert.equal(smtpPasswordRequired(custom, { ...cf, port: "465", security: "tls" }), false, "port and mode stay on the same host");
+  assert.equal(smtpPasswordRequired(custom, { ...cf, host: "MAIL.acme.cz" }), false);
+  assert.equal(smtpPasswordRequired(custom, { ...cf, host: "mail.other.cz" }), true);
 });
 
 test("the test gate: only a configured, saved, readable sender is tested", () => {
