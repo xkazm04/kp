@@ -104,8 +104,41 @@
 .dk .dk-sort.is-on.k-btn { color: var(--color-coral-ink); }
 .dk .dk-ov__name.k-btn { display: block; justify-content: flex-start; height: auto; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; font: inherit; font-weight: 600; color: var(--k-ink); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-decoration: underline; text-decoration-color: var(--k-rule-strong); text-underline-offset: 3px; }
 .dk .dk-ov__name.k-btn:hover { text-decoration-color: currentColor; }
-.dk-cell, .dk-cell--none { display: inline-flex; align-items: baseline; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dk-cell, .dk-cell--none { display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; min-width: 0; max-width: 100%; }
 .dk-cell .nums { font-variant-numeric: tabular-nums; }
 .dk-cell__q { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
 .dk-cell[data-hold="held"] .dk-cell__m { color: var(--color-coral-ink); }
-.dk-cell--none { font-size: var(--text-micro); color: var(--k-quiet); font-style: italic; }
+.dk-cell--none { font-size: var(--text-micro); color: var(--color-steel); font-style: italic; white-space: nowrap; }
+
+/* CX S46 (T15): the role table's layout. One container (.dk-ov); wide = a grid, ONE line per person;
+   narrow = a card per person, each fact under its own label. No cell is clipped in either. */
+.dk-ov { container: dkov / inline-size; }
+.dk-ov__note { margin: 0 0 8px; font-size: var(--text-micro); color: var(--k-quiet); max-width: 96ch; }
+.dk-ov__bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; margin-bottom: 8px; }
+.dk-ov__lab { display: block; font-size: var(--text-micro); color: var(--k-quiet); }
+.dk-ov__facts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 8px 12px; }
+.dk-ov__cell { min-width: 0; }
+.dk-ov__head { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 0; border-bottom: 1px solid var(--k-rule-strong); font-size: var(--text-micro); color: var(--k-quiet); }
+.dk-ov__head .dk-ov__tick { display: none; }
+[data-theme="dark"] .dk-ov__head { border-bottom-width: 2px; }
+.dk-ov__row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--k-rule); cursor: pointer; }
+.dk-ov__row:hover { background: var(--k-hover); }
+.dk-ov__who { min-width: 0; }
+.dk .dk-ov__name.k-btn { overflow-wrap: anywhere; white-space: normal; text-overflow: clip; overflow: visible; }
+@container dkov (min-width: 940px) {
+  .dk-ov__head, .dk-ov__row { display: grid; grid-template-columns: 1.75rem minmax(9rem, 1fr) 6.5rem 8rem 12rem 9.5rem 8.5rem; gap: 0 8px; align-items: center; }
+  .dk-ov__head .dk-ov__tick { display: block; }
+  .dk-ov__head { padding: 8px 0; }
+  .dk-ov__row { padding: 6px 0; min-height: 40px; }
+  .dk-ov__facts { display: contents; }
+  .dk-ov__lab { display: none; }
+  .dk-ov__cell, .dk-ov__who { white-space: nowrap; }
+  .dk .dk-ov__name.k-btn { white-space: nowrap; }
+}
+.dk { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
+/* contrast floor: a disabled control and an absence stay legible (steel, not the faint step) */
+.dk .dk-ov__bar .k-btn:disabled, .dk .dk-ov__bar .k-btn[aria-disabled="true"] { color: var(--color-steel); border-color: var(--k-rule-strong); }
+/* "Every open role": a role title wraps instead of being cut at the name track's edge */
+.dk-roster .k-row { height: auto; padding-block: 6px; }
+.dk-roster .k-row__name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+@container dk (max-width: 560px) { .dk-roster .k-row { grid-template-columns: [mark] 0px [name] minmax(0, 1fr) [meta] auto [fig] auto [time] 0px [act] 0px [end]; column-gap: 10px; } }

@@ -18,7 +18,9 @@ import { roleKeyOf, type Group } from "../decisionsQueueTypes";
 import type { DocketProposal } from "./docketModel";
 
 export type OverviewCol = "candidate" | "stage" | "match" | "workSample" | "interview" | "proposal";
-export const OVERVIEW_COLS: readonly OverviewCol[] = ["candidate", "stage", "match", "workSample", "interview", "proposal"];
+/** The table's column order, left to right: who, where they are, then each instrument on its own
+ *  (match, interview, work sample), then what the AI proposes. One line per person at desktop width. */
+export const OVERVIEW_COLS: readonly OverviewCol[] = ["candidate", "stage", "match", "interview", "workSample", "proposal"];
 
 export type OverviewRow = {
   entryId: string;

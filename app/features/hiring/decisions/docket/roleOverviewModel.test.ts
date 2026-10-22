@@ -64,6 +64,11 @@ test("no column blends the parts: there is no total to sort by", () => {
   for (const col of OVERVIEW_COLS) assert.ok(!/total|blend|overall/i.test(col));
 });
 
+test("the columns read who, stage, match, interview, work sample, proposal, each once", () => {
+  assert.deepEqual([...OVERVIEW_COLS], ["candidate", "stage", "match", "interview", "workSample", "proposal"]);
+  assert.equal(new Set(OVERVIEW_COLS).size, OVERVIEW_COLS.length);
+});
+
 test("a click on the same column flips it, a new column opens numbers-high-first and names A-Z", () => {
   assert.deepEqual(nextOverviewSort({ col: "match", dir: "desc" }, "match"), { col: "match", dir: "asc" });
   assert.deepEqual(nextOverviewSort({ col: "match", dir: "asc" }, "candidate"), { col: "candidate", dir: "asc" });

@@ -6,15 +6,18 @@
 // instruments, and the section's one line says each is read on its own. Absence is "—" with its
 // reason and sorts last, never as 0 (roleOverviewModel.ts).
 //
+// The layout is decisions-local, not the kit DataTable: at desktop width it is a one-line-per-person
+// grid; below the container breakpoint (docket.css) the same markup folds to a card per person,
+// each fact under its own label, so nothing is clipped and the page never scrolls sideways.
+//
 // Nothing is decided here. A row opens the candidate modal (the same door the decide rows use),
 // where advance, offer and reject (with its undo window) are the human-gated actions. The tick
 // is a page-only shortlist; with two or more ticked, one action hands the selection to the
-// existing Group evaluation. Narrow sheets fold Interview first, then Stage and the AI proposal
-// (the kit's fold order); Candidate, Match and Work sample never fold.
-import { useMemo, useState } from "react";
+// existing Group evaluation. A narrow sheet keeps every column (as cards) rather than dropping one.
+import { useMemo, useState, type ReactNode } from "react";
 import { CheckSquare, Square } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { ABSENT, Button, DataTable, Mark, Section, type Column } from "@/app/_components/kit";
+import { ABSENT, Button, Mark, Section } from "@/app/_components/kit";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { ariaSort, type SortState } from "@/app/_components/table/useTableSort";
@@ -30,21 +33,11 @@ import {
   shortlistSelection,
   sortOverview,
   toggleShortlist,
+  OVERVIEW_COLS,
   type OverviewCol,
   type OverviewRow,
 } from "./roleOverviewModel";
 import type { RoleViewRead } from "./useRoleWorkSamples";
-
-const TRACK: Record<OverviewCol, Column["track"]> = {
-  candidate: "name",
-  stage: "meta",
-  interview: "meta+1",
-  match: "fig",
-  workSample: "time",
-  proposal: "act",
-};
-// The table's column order is the measure's track order (mark name meta meta+1 fig time act).
-const ORDER: readonly OverviewCol[] = ["candidate", "stage", "interview", "match", "workSample", "proposal"];
 
 export function DocketRoleOverview({
   read,
@@ -99,21 +92,6 @@ export function DocketRoleOverview({
       />
     );
   };
-
-  const columns: Column[] = [
-    { id: "tick", label: t("cols.tick"), track: "mark" },
-    ...ORDER.map(
-      (col): Column => ({
-        id: col,
-        label: t(`cols.${col}`),
-        track: TRACK[col],
-        primary: col === "candidate",
-        numeric: col === "match",
-        head: head(col),
-        sort: ariaSort(sort, col),
-      }),
-    ),
-  ];
 
   const tick = (r: OverviewRow) => {
     const on = shortlist.has(r.entryId);
@@ -208,31 +186,18 @@ export function DocketRoleOverview({
     );
   };
 
-  const cells = (r: OverviewRow) => [
-    tick(r),
-    <Button
-      key="name"
-      variant="link"
-      label={r.label}
-      className="dk-ov__name"
-      aria-haspopup="dialog"
-      aria-label={t("openAria", { name: r.label })}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen(r.entryId);
-      }}
-    />,
-    <span key="stage" className="dk-stage" data-s={r.stage}>{enumLabel("stage", r.stage)}</span>,
-    interviewCell(r),
-    matchCell(r),
-    wsCell(r),
-    proposalCell(r),
-  ];
+  const lab = (col: OverviewCol) => <span className="dk-ov__lab">{t(`cols.${col}`)}</span>;
+  const fact = (col: Exclude<OverviewCol, "candidate">, body: ReactNode) => (
+    <div key={col} role="cell" className="dk-ov__cell" data-col={col}>
+      {lab(col)}
+      {body}
+    </div>
+  );
 
   const selection = shortlistSelection(shortlist, rows);
   const actions =
     base.length > 1 ? (
-      <>
+      <div className="dk-ov__bar">
         {shortlist.size > 0 ? <Button variant="ghost" size="sm" label={t("clear")} onClick={() => setTicked(new Set())} /> : null}
         <Button
           variant="secondary"
@@ -243,24 +208,60 @@ export function DocketRoleOverview({
           loading={compareBusy}
           onClick={() => onCompare(selection)}
         />
-      </>
+      </div>
     ) : null;
 
+  const ready = read.status === "ready";
   return (
-    <Section title={t("title")} count={read.status === "ready" ? base.length : undefined} state={t("note")} actions={actions}>
-      <DataTable
-        rows={rows}
-        columns={columns}
-        cells={cells}
-        rowKey={(r) => r.entryId}
-        visibleRows={10}
-        onSelect={(key) => onOpen(key)}
-        state={read.status === "loading" ? "loading" : read.status === "failed" ? "error" : "ready"}
-        errorText={t("loadFailed")}
-        emptyText={hasJob ? t("empty") : t("noJob")}
-        label={t("title")}
-        resetKey={`${sort.col}:${sort.dir}`}
-      />
+    <Section
+      title={t("title")}
+      count={ready ? base.length : undefined}
+      status={read.status === "loading" ? "loading" : read.status === "failed" ? "error" : "ready"}
+      errorText={t("loadFailed")}
+    >
+      <div className="dk-ov">
+        <p className="dk-ov__note">{t("note")}</p>
+        {actions}
+        {base.length === 0 ? (
+          <p className="dk-ov__note">{hasJob ? t("empty") : t("noJob")}</p>
+        ) : (
+          <div role="table" aria-label={t("title")}>
+            <div role="row" className="dk-ov__head">
+              <div role="columnheader" className="dk-ov__tick"><span className="sr-only">{t("cols.tick")}</span></div>
+              {OVERVIEW_COLS.map((col) => (
+                <div key={col} role="columnheader" aria-sort={ariaSort(sort, col)} data-col={col}>
+                  {head(col)}
+                </div>
+              ))}
+            </div>
+            {rows.map((r) => (
+              <div key={r.entryId} role="row" className="dk-ov__row" onClick={() => onOpen(r.entryId)}>
+                <div role="cell" className="dk-ov__tick">{tick(r)}</div>
+                <div role="cell" className="dk-ov__who">
+                  <Button
+                    variant="link"
+                    label={r.label}
+                    className="dk-ov__name"
+                    aria-haspopup="dialog"
+                    aria-label={t("openAria", { name: r.label })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(r.entryId);
+                    }}
+                  />
+                </div>
+                <div className="dk-ov__facts">
+                  {fact("stage", <span className="dk-stage" data-s={r.stage}>{enumLabel("stage", r.stage)}</span>)}
+                  {fact("match", matchCell(r))}
+                  {fact("interview", interviewCell(r))}
+                  {fact("workSample", wsCell(r))}
+                  {fact("proposal", proposalCell(r))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </Section>
   );
 }

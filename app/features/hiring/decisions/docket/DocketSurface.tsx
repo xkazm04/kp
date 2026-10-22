@@ -198,7 +198,7 @@ export function DocketSurface(p: Props) {
         </>
       )}
       {p.entries != null && !p.error && roster.length > 0 ? (
-        <div className="mt-6">
+        <div className="mt-6 dk-roster">
           <Section title={t("docket.roster.title")} count={roster.length} state={t("docket.roster.note")}>
             {roster.map((g) => {
               const waiting = waitingByRole.get(g.roleKey) ?? 0;

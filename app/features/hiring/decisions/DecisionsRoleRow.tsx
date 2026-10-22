@@ -79,11 +79,11 @@ export function RoleDecisionRow({
 
   return (
     <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="font-serif text-h3 text-ink">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h4 className="min-w-0 basis-full break-words font-serif text-h3 text-ink sm:basis-auto">
           {roleTitle} <span className="text-sm font-normal text-steel">· {t("candidateCount", { count: entries.length })}</span>
         </h4>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canSelect ? (
             <button
               type="button"
