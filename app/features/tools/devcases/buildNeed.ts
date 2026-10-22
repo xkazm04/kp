@@ -38,8 +38,10 @@ export function buildNeed(input: {
   jd: SelectedJd | null;
   repoUrls: string[];
   seniority: string;
+  /** The job row's own role_family, for a JD with no intake brief behind it. */
+  jobRoleFamily?: string | null;
 }): BuiltNeed {
-  const { jd, repoUrls, seniority } = input;
+  const { jd, repoUrls, seniority, jobRoleFamily } = input;
   // Promoted-intake JD → the brief's structured fields fill the need (the same fill
   // runJdBuild does for JdBuildInput.brief — closing the dual-fill asymmetry noted in
   // app/_lib/devcase-run.ts / UAT L1-EVA-3): stack from graded must-haves,
@@ -65,9 +67,9 @@ export function buildNeed(input: {
     seniorityTarget: seniority,
     // roleFamily: the brief's classified family when an intake backs the JD (the
     // design/eval chain is domain-neutral since the rubric was de-industry-locked);
-    // the software_engineering constant remains the recorded default for JD-only
-    // needs, where nothing has classified them.
-    roleFamily: brief?.roleFamily || "software_engineering",
+    // then the job row's own family for a JD-only role; the software_engineering
+    // constant remains the recorded default only when nothing classifies the role.
+    roleFamily: brief?.roleFamily || jobRoleFamily?.trim() || "software_engineering",
     jdSlug: jd?.slug ?? "",
     jdText: jd?.body ?? "",
     ...(brief && graded.length

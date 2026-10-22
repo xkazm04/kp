@@ -105,3 +105,10 @@ test("no JD selected yields an empty-but-well-formed need (never undefined field
     jdText: "",
   });
 });
+
+test("a JD-only role takes the job row's family; nothing classifying it falls back to software", () => {
+  const sales = buildNeed({ jd: jd(null), repoUrls: [""], seniority: "mid", jobRoleFamily: " sales " });
+  assert.equal(sales.roleFamily, "sales");
+  const none = buildNeed({ jd: jd(null), repoUrls: [""], seniority: "mid", jobRoleFamily: null });
+  assert.equal(none.roleFamily, "software_engineering");
+});
