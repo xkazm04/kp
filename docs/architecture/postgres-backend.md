@@ -110,10 +110,13 @@ owns the equivalent), while the prune must stay: nothing else bounds `gemini_cac
 `lookupPromptCache` skips expired rows without deleting them. Fixture seeding runs BEFORE
 the PK rebuilds and the `workspace_id`/`org_id` backfills, and that order is load-bearing —
 the backfills are written as heals over "whatever rows exist", which is what makes them
-order-independent; the same test pins it. `KP_EMPTY=1` (`npm run dev:empty`) skips every
-fixture seeder while still creating the schema, the default workspace and the default org,
-and leaves `onboarding_state` NULL so the first-run wizard fires
-(`app/_lib/db/core-empty-boot.test.ts`).
+order-independent; the same test pins it. Since 2026-10-22 the fixture seeders run at boot
+only on the `KP_SEED_DEMO=1` opt-in (ADR 0002's amendment); by default — and always under
+`KP_EMPTY=1` (`npm run dev:empty`) — a boot creates the schema, the default workspace and
+the default org and nothing else, and leaves `onboarding_state` NULL so the first-run
+wizard fires (`app/_lib/db/core-empty-boot.test.ts`). The on-demand path,
+`seedDemoCorpus()`, runs the same seeders followed by the same backfill, so a demo seeded
+from the first-run choice never leaves a NULL `workspace_id` either.
 
 **The SQL itself is largely portable** (run `npm run db:pg-audit` for the live list):
 no `strftime` / `json_extract`, and `PRAGMA` appears in connection setup rather than in

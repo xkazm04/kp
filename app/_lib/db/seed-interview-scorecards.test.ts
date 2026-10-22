@@ -26,7 +26,7 @@ function boot(dbPath: string): void {
   const res = spawnSync(
     process.execPath,
     ["--import", "./scripts/test-alias-loader.mjs", "--experimental-transform-types", "--disable-warning=ExperimentalWarning", "--input-type=module", "-e", BOOT_CHILD],
-    { cwd: process.cwd(), encoding: "utf8", env: { ...process.env, KP_DB_PATH: dbPath, NO_COLOR: "1", FORCE_COLOR: "0", KP_EMPTY: "" } }
+    { cwd: process.cwd(), encoding: "utf8", env: { ...process.env, KP_DB_PATH: dbPath, NO_COLOR: "1", FORCE_COLOR: "0", KP_EMPTY: "", KP_SEED_DEMO: "1" } }
   );
   assert.match(res.stdout, /BOOTED/, `boot failed\nstdout=${res.stdout}\nstderr=${res.stderr}`);
 }

@@ -43,6 +43,7 @@ register(new URL("../../_lib/testing/next-server-hooks.mjs", import.meta.url));
 // without ever reading a cookie, so both routes answer their full payload here.
 // KP_EMPTY would skip seeding entirely, which is the opposite of what this proves.
 delete process.env.KP_EMPTY;
+process.env.KP_SEED_DEMO = "1"; // the demo corpus seeds at boot only on opt-in since triage T1
 
 const CWD = process.cwd();
 const FAKE_ROOT = mkdtempSync(path.join(tmpdir(), "kp-broken-seed-"));

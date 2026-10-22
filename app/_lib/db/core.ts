@@ -1998,6 +1998,10 @@ export function ensureDb(): Database.Database {
     // The authority when the session has no user claim (open dev mode, operator
     // password) — mirrors the default_locale per-workspace-scalar pattern.
     "ALTER TABLE workspaces ADD COLUMN onboarding_state TEXT",
+    // First-run data choice (triage T1): 'empty' | 'demo' | NULL. The answer to "start
+    // empty, or explore with demo data?" on a fresh install, recorded so the screen
+    // never comes back (db/demo-seed.ts). NULL = never asked.
+    "ALTER TABLE workspaces ADD COLUMN demo_choice TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -2833,54 +2837,22 @@ export function ensureDb(): Database.Database {
   // NULL until the NEXT boot, which is the shape "why is one demo candidate invisible"
   // takes. Pinned by core-boot-tail.test.ts.
   //
-  // KP_EMPTY=1 (npm run dev:empty) skips ALL fixture content — the ČS demo corpus,
-  // candidates, analyses, pipeline, example JD, seed members — so the app boots as a
-  // truly blank tenant for first-run/onboarding verification. Structural bootstrap
-  // above (schema, default workspace/org) still runs: a real deployment has it too.
+  // The demo corpus no longer seeds by default (operator triage T1, 2026-10-22): a fresh
+  // database boots with the structural bootstrap above (schema, default workspace/org)
+  // and nothing else, and the first-run screen offers the demo, which then lands through
+  // seedDemoCorpus() below — the SAME seeders in the SAME order, followed by the same
+  // tenant backfill. KP_SEED_DEMO=1 keeps the old seeded-at-boot behaviour for machines
+  // (Playwright, CI's keyless job, `npm run up -- --demo`); KP_EMPTY=1 still forces blank.
+  // A database that already holds the seeded rows keeps them: nothing here deletes, and
+  // the one-shot seeders are seed_marks-gated, so they never re-seed either way.
   if (fixtureSeedEnabled()) {
-    seedExampleJd(db);
-    seedOrgMembers(db);
-    seedJobs(db);
-    seedCandidates(db);
-    seedAnalyses(db);
-    seedPipeline(db);
-    seedInterviewScorecards(db); // completed demo interviews: the scorecard arm of kpi:reasons
-    seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
-    // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
-    // run — mark it onboarded so the setup wizard doesn't ambush existing dev
-    // DBs. COALESCE keeps a real recorded state; dev:empty (KP_EMPTY=1) skips
-    // this whole block, so the blank tenant stays NULL and the wizard fires.
-    db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+    runDemoSeeders(db);
   }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
   backfillIntakeEvents(db); // recover the role-intake history that predates intake_events
 
-  // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
-  // rows AND freshly-seeded ones) to the default workspace. After all seeders so
-  // it's order-independent — a seeded row that didn't stamp the column is caught.
-  db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  // Jobs: authored openings (a status was set) belong to the default team; seeded
-  // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
-  db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
-  // Pipeline audit trails: backfill each row's workspace from its linked entry (an
-  // entry-less event, e.g. ko_declined, falls back to the default workspace).
-  db.prepare(
-    `UPDATE pipeline_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = pipeline_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
-  db.prepare(
-    `UPDATE consent_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = consent_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
-  // Channels: inbound webhooks belong to the team that minted them (default). The comms
-  // outbox derives each message's workspace from its referenced entry (ref = entry id),
-  // falling back to the default for entry-less/system messages.
-  db.prepare(`UPDATE channel_webhooks SET workspace_id = 'workspace' WHERE workspace_id IS NULL`).run();
-  db.prepare(
-    `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
+  backfillTenantScope(db); // after all seeders — see the function for why
   // Run one create-copy-drop-rename PK widening ATOMICALLY and RESUMABLY. SQLite can't
   // ALTER a PRIMARY KEY, so the three widenings below rebuild their table — and a rebuild
   // written as four bare statements is a boot wedge waiting to happen: a process killed
@@ -3069,6 +3041,74 @@ export function ensureDb(): Database.Database {
   _dbHolder.__kpDb = db;
   runBootMaintenance(db);
   return db;
+}
+
+// The fixture seeders, in the one order they are allowed to run (SEED ORDER, in ensureDb).
+// Shared by the opt-in boot path and the on-demand seedDemoCorpus(), so the two can never
+// drift into seeding different corpora.
+function runDemoSeeders(db: Database.Database): void {
+  seedExampleJd(db);
+  seedOrgMembers(db);
+  seedJobs(db);
+  seedCandidates(db);
+  seedAnalyses(db);
+  seedPipeline(db);
+  seedInterviewScorecards(db); // completed demo interviews: the scorecard arm of kpi:reasons
+  seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
+  // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
+  // run — mark it onboarded so the setup wizard doesn't ambush it. COALESCE keeps
+  // a real recorded state; a blank boot never gets here, so its tenant stays NULL
+  // and the wizard fires.
+  db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+}
+
+// Tenant-column heals over "whatever rows exist". Runs at boot AFTER the seeders, and again
+// at the end of seedDemoCorpus(), which is what keeps a seeded row from ever sitting with a
+// NULL workspace_id: a seeder that did not stamp the column is caught here, in either path.
+// Every statement only touches NULL rows, so a second run is a no-op.
+function backfillTenantScope(db: Database.Database): void {
+  // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
+  // rows AND freshly-seeded ones) to the default workspace. After all seeders (here and in
+  // seedDemoCorpus) so it's order-independent — a seeded row that didn't stamp the column is caught.
+  db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  // Jobs: authored openings (a status was set) belong to the default team; seeded
+  // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
+  db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
+  // Pipeline audit trails: backfill each row's workspace from its linked entry (an
+  // entry-less event, e.g. ko_declined, falls back to the default workspace).
+  db.prepare(
+    `UPDATE pipeline_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = pipeline_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  db.prepare(
+    `UPDATE consent_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = consent_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  // Channels: inbound webhooks belong to the team that minted them (default). The comms
+  // outbox derives each message's workspace from its referenced entry (ref = entry id),
+  // falling back to the default for entry-less/system messages.
+  db.prepare(`UPDATE channel_webhooks SET workspace_id = 'workspace' WHERE workspace_id IS NULL`).run();
+  db.prepare(
+    `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+}
+
+/**
+ * Seed the demo corpus ON DEMAND — the "Explore with demo data" half of the first-run
+ * choice (db/demo-seed.ts, POST /api/setup/demo). The same fixture seeders the opt-in
+ * boot path runs, in the same order, then the same tenant backfill, all inside ONE
+ * IMMEDIATE transaction so a concurrent writer can neither interleave with it nor see a
+ * half-seeded board. Idempotent: every one-shot seeder is seed_marks-gated and the two
+ * upserting ones only touch rows the product has never written, so a second call adds
+ * nothing. Safe on a database that already holds the structural rows (that is every
+ * database: ensureDb() creates them). Synchronous — no await inside the transaction.
+ */
+export function seedDemoCorpus(db: Database.Database = ensureDb()): void {
+  db.transaction(() => {
+    runDemoSeeders(db);
+    backfillTenantScope(db);
+  }).immediate();
 }
 
 /** The minimum a boot-tail needs from a connection — narrowed so the failure paths below

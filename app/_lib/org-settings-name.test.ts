@@ -11,7 +11,9 @@ import { fixtureSeedEnabled } from "./db/seed-gate.ts";
 test("the demo name is the fallback only where fixtures are seeded", () => {
   assert.equal(orgNameFallback(true), DEFAULT_ORG_NAME);
   assert.equal(orgNameFallback(false), "");
-  assert.equal(orgNameFallback(fixtureSeedEnabled({})), DEFAULT_ORG_NAME, "the default boot is the seeded demo");
+  // Operator triage T1 (2026-10-22): the default boot is no longer the seeded demo.
+  assert.equal(orgNameFallback(fixtureSeedEnabled({})), "", "the default boot is unseeded");
+  assert.equal(orgNameFallback(fixtureSeedEnabled({ KP_SEED_DEMO: "1" })), DEFAULT_ORG_NAME, "the KP_SEED_DEMO=1 opt-in is the seeded demo");
   assert.equal(orgNameFallback(fixtureSeedEnabled({ KP_EMPTY: "1" })), "", "npm run up / dev:empty");
 });
 
