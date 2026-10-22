@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4ab7e219-4e9d-432a-9971-319b738ae3e9",
+ "subject": "metric-gates",
+ "evaluatedAt": "2026-10-22T03:43:50.806716+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "lint-quality-gates",
+   "subject": "metric-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/lint/ts-ratchet.mjs:142 Suppression baselines retain per-rule totals without item identities, allowing different suppressed code to replace an existing occurrence while the gate remains green.",
+   "techniques": [
+    {
+     "technique": "counted-set-snapshot",
+     "verdict": "deviation",
+     "evidence": "scripts/lint/ts-ratchet.mjs:191 The tree counter aggregates rule counts without retaining file or suppression identities; a read-only probe confirmed that different suppressed operations produce identical counts and passing verdicts."
+    },
+    {
+     "technique": "deterministic-proxy-gate",
+     "verdict": "deviation",
+     "evidence": "scripts/perf/check-budget.mjs:516 The static graph substitutes deterministic module and source-byte counts for compilation cost, but its default 15% headroom is justified as allowing ordinary growth rather than derived from measured counter repeat variance."
+    },
+    {
+     "technique": "operation-assertion-gates",
+     "verdict": "deviation",
+     "evidence": "eslint.config.mjs:155 The cost rule has an AST selector, scopes and repair guidance, but its known-bad fixtures have no consuming runner; tracked-code searches found only their declarations, while the coverage tests inspect configured messages rather than exercise this selector."
+    },
+    {
+     "technique": "proxy-metric-counts-its-own-satisfiers",
+     "verdict": "deviation",
+     "evidence": "scripts/lint/ts-ratchet.mjs:133 Appending a bare '--' clears the unreasoned classification without supplying an explanation; the instrument neither separately counts these empty satisfiers nor distinguishes them from substantive reasons."
+    },
+    {
+     "technique": "ratchet-design",
+     "verdict": "deviation",
+     "evidence": "scripts/perf/check-budget.mjs:364 The suppression ratchets correctly report drops, but the graph-budget gate reports only ceiling breaches and missing inputs; below-ceiling shrinkage produces no actionable drop finding, and the CI test accepts the empty findings array."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T03:43:50.806716+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "metric-gates"
+   ],
+   "techniques": [
+    "counted-set-snapshot",
+    "deterministic-proxy-gate",
+    "operation-assertion-gates",
+    "proxy-metric-counts-its-own-satisfiers",
+    "ratchet-design"
+   ],
+   "deviations": 1,
+   "context": "lint-quality-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
