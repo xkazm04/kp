@@ -41,6 +41,19 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 | `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). **Host-level — not org-checked** (below). |
 | `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. **Org-scoped** (below). |
 
+The relay card says, before its URL field, what a relay is (a web address that receives each
+letter and sends it on, e.g. a Zapier/Make/n8n webhook) and that it must be a public `https://`
+name, since `assertPublicHttpsEndpoint` refuses localhost, bare IPs and `.local` names at save
+time; it also points at Settings → Integrations for the calendar and ATS connections.
+
+**Sending a letter yourself.** A letter the relay did not deliver (`queued`, `failed`,
+`bounced`; not `simulation`/`refused` rows) offers **Copy letter** (subject + body as plain
+text) and **Open in my email** (a `mailto:` built from the address, subject and body the letter
+view already holds; past ~1800 characters it opens with the subject only and copies the letter,
+saying whether the clipboard took it). Neither writes anything: the row keeps its state, and the
+view says sending it yourself is not recorded (`night/message/ChannelsNightHandSend.tsx`,
+`letterHandSend.ts`).
+
 **The stored relay belongs to the organization that saved it (F-2).**
 `comms_relay_config` is one deployment-wide row, and until this gate existed
 nothing tied it to an org — so in a multi-org deployment every message org B

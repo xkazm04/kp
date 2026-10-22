@@ -7042,6 +7042,10 @@
       "statusOff": "Nenastaveno",
       "envNote": "Nastaveno proměnnou prostředí COMMS_WEBHOOK_URL. Odeberte ji a relé budete moci spravovat tady.",
       "urlLabel": "Adresa relé (https)",
+      "whatIs": "Relé je webová adresa, která přijme každou zprávu a pošle ji kandidátovi dál: například webhook v Zapieru, Make nebo n8n, případně vaše vlastní poštovní služba.",
+      "httpsOnly": "Musí jít o veřejnou adresu https:// s názvem, třeba hooks.zapier.com. Adresu na tomto počítači (localhost), samotnou IP adresu ani název končící na .local systém nepřijme.",
+      "elsewhere": "Propojení s kalendářem a ATS najdete v Nastavení → Integrace.",
+      "elsewhereCta": "Otevřít Integrace",
       "secretLabel": "Podpisový klíč",
       "secretPlaceholder": "Volitelné: podepisuje každé doručení",
       "secretKeepPlaceholder": "Nechte prázdné a současný klíč zůstane",
@@ -9050,7 +9054,9 @@
     "tab": {
       "eyebrow": "Připojené služby",
       "title": "Integrace",
-      "intro": "Připojte externí systémy, ze kterých Kandi čte a do kterých zapisuje."
+      "intro": "Připojte externí systémy, ze kterých Kandi čte a do kterých zapisuje.",
+      "commsElsewhere": "E-maily kandidátům nastavíte v Kanálech → Doručovací relé.",
+      "commsElsewhereCta": "Otevřít doručovací relé"
     },
     "calendar": {
       "title": "Google Calendar",
@@ -16826,7 +16832,14 @@
         "title": "Co můžete udělat",
         "configureHelp": "Relé odesílá zprávy, které vzniknou po jeho nastavení. Tato zpráva zůstane jen zaznamenaná.",
         "retryHelp": "Opětovné odeslání je samostatný řádek, takže původní zprávu a opakování rozlišíte. Jako Odesláno znovu se označí, jen pokud ho relé převezme.",
-        "correctSubmit": "Odeslat znovu na opravenou adresu"
+        "correctSubmit": "Odeslat znovu na opravenou adresu",
+        "hand": {
+          "copy": "Zkopírovat zprávu",
+          "mail": "Otevřít v mém e-mailu",
+          "help": "Odešlete ji sami ze své e-mailové schránky. Kandi o tom nebude vědět: tento záznam zůstane, jak je.",
+          "cutCopied": "Zpráva je na odkaz pro e-mail příliš dlouhá, proto se e-mail otevře jen s předmětem. Text zprávy máte zkopírovaný: vložte ho do e-mailu.",
+          "cutFailed": "Zpráva je na odkaz pro e-mail příliš dlouhá a prohlížeč kopírování zablokoval. Označte text zprávy níže a vložte ho do e-mailu."
+        }
       },
       "timeline": {
         "title": "Průběh doručení",

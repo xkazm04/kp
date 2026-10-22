@@ -7042,6 +7042,10 @@
       "statusOff": "Not configured",
       "envNote": "Configured by the COMMS_WEBHOOK_URL environment variable. Remove it to manage the relay here.",
       "urlLabel": "Relay endpoint (https)",
+      "whatIs": "A relay is a web address that receives each letter and sends it on to the candidate: for example a Zapier, Make or n8n webhook, or your own mail service.",
+      "httpsOnly": "It must be a public https:// address with a name, like hooks.zapier.com. An address on this computer (localhost), a bare IP number or a .local name is not accepted.",
+      "elsewhere": "Calendar and ATS connections are in Settings → Integrations.",
+      "elsewhereCta": "Open Integrations",
       "secretLabel": "Signing secret",
       "secretPlaceholder": "Optional: signs each delivery",
       "secretKeepPlaceholder": "Leave blank to keep the current secret",
@@ -9050,7 +9054,9 @@
     "tab": {
       "eyebrow": "Connected services",
       "title": "Integrations",
-      "intro": "Connect the outside systems Kandi reads from and writes to."
+      "intro": "Connect the outside systems Kandi reads from and writes to.",
+      "commsElsewhere": "Candidate email is set up in Channels → Delivery relay.",
+      "commsElsewhereCta": "Open the delivery relay"
     },
     "calendar": {
       "title": "Google Calendar",
@@ -16826,7 +16832,14 @@
         "title": "What you can do",
         "configureHelp": "A relay sends the messages that come after it. This one stays recorded.",
         "retryHelp": "A resend is its own row, so the original and the resend stay distinguishable. It says Resent only if the relay takes it.",
-        "correctSubmit": "Resend to the corrected address"
+        "correctSubmit": "Resend to the corrected address",
+        "hand": {
+          "copy": "Copy letter",
+          "mail": "Open in my email",
+          "help": "Send it yourself from your own mailbox. Kandi does not see that: this record stays as it is.",
+          "cutCopied": "The letter is too long for a mail link, so your email opens with the subject only. The letter is on your clipboard: paste it in.",
+          "cutFailed": "The letter is too long for a mail link, and the clipboard refused it. Select the letter below and paste it into your email."
+        }
       },
       "timeline": {
         "title": "Delivery timeline",

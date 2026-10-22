@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Note, Tag, inputClass } from "@/app/_components/kit";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import type { VerdictCounts } from "../channelsNightPlumbing";
 import { relayDirty, relayTestGate, canSaveRelay, type RelayTest } from "./setupDelivery";
 import { SetupField, SetupResult } from "./SetupBits";
@@ -16,6 +18,9 @@ import { useRelaySetup } from "./useRelaySetup";
  * the endpoint and its write-only signing secret (generated here if wanted, shown once), Save, and
  * the REAL test ping whose answer is the outcome (sent / failed / not sent) and the only thing that
  * rolls the depot's shutter up. Then what the relay has carried, from the ledger's own verdicts.
+ * Before the field, in plain words: what a relay is, and that it must be a public https address
+ * (assertPublicHttpsEndpoint refuses localhost, bare IPs and .local names at save time). The other
+ * outside connections (calendar, ATS) live in Settings, and the intro says where.
  */
 export function SetupRelay({ counts, onTested, onOpenLedger }: {
   counts: VerdictCounts | null;
@@ -25,6 +30,8 @@ export function SetupRelay({ counts, onTested, onOpenLedger }: {
   const t = useTranslations("channels.relay");
   const ts = useTranslations("channelsNight.setup.relay");
   const r = useRelaySetup(onTested);
+  const router = useRouter();
+  const search = useSearchParams();
   const unreadable = r.state?.relay === "unreadable";
   const configured = r.state ? r.state.envConfigured || r.state.url.trim() !== "" : null;
   const dirty = relayDirty(r.state, r.url, r.secret);
@@ -40,6 +47,10 @@ export function SetupRelay({ counts, onTested, onOpenLedger }: {
       ) : (
         <p className="cns-intro">{t("intro")}</p>
       )}
+      <div className="cns-row">
+        <p className="cns-help">{t("elsewhere")}</p>
+        <Button label={t("elsewhereCta")} variant="link" icon="right" onClick={() => router.push(buildTabSwitchUrl("integrations", search.toString()))} />
+      </div>
       {unreadable ? <Note tone="critical">{t("unreadableNote")}</Note> : null}
       {r.state?.envConfigured ? (
         <Note tone="caution">{t("envNote")}</Note>
@@ -51,6 +62,7 @@ export function SetupRelay({ counts, onTested, onOpenLedger }: {
             if (canSaveRelay(r.state, r.url, r.busy !== null)) void r.save();
           }}
         >
+          <p className="cns-help">{t("whatIs")} {t("httpsOnly")}</p>
           <SetupField label={t("urlLabel")}>
             {({ id }) => (
               <span className="cns-row cns-row--field">

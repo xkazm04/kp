@@ -24,6 +24,9 @@ door is here.
 sense as the routes it calls: every endpoint behind this tab runs `requireOperator()`, and
 in open mode (no `KP_OPERATOR_PASSWORD`) it stays open for local dev.
 
+Candidate email is **not** here: the intro says it is set up in Channels → Delivery relay and
+links there (`?tab=channels&sec=relay`); the relay card links back.
+
 The tab is also the **landing target of the Google OAuth callback** — the callback route
 redirects to `/?tab=integrations&calendar=<code>` and the calendar panel renders that code
 as a banner, then strips the param from the URL so a reload cannot replay a stale outcome.

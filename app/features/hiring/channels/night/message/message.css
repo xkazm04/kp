@@ -42,6 +42,8 @@
 .cn-door__said { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
 .cn-door__said:empty { display: none; }
 .cn-door__said[data-adverse] { color: var(--color-red-700); }
+/* send it yourself, under the product's own door */
+.cn-door + .cn-door { padding-top: 12px; border-top: var(--k-line) solid var(--k-rule); }
 
 /* the timeline: a stamp per step on one rule; a step waiting on a person is coral, one that cannot
    happen is dashed */

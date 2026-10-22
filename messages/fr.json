@@ -7042,6 +7042,10 @@
       "statusOff": "Non configuré",
       "envNote": "Configuré par la variable d’environnement COMMS_WEBHOOK_URL. Retirez-la pour gérer le relais ici.",
       "urlLabel": "Endpoint du relais (https)",
+      "whatIs": "Un relais est une adresse web qui reçoit chaque message et le transmet au candidat : par exemple un webhook Zapier, Make ou n8n, ou votre propre service d’e-mail.",
+      "httpsOnly": "Ce doit être une adresse https:// publique avec un nom, comme hooks.zapier.com. Une adresse sur cet ordinateur (localhost), une simple adresse IP ou un nom en .local n’est pas acceptée.",
+      "elsewhere": "Les connexions au calendrier et à l’ATS se trouvent dans Paramètres → Intégrations.",
+      "elsewhereCta": "Ouvrir les intégrations",
       "secretLabel": "Secret de signature",
       "secretPlaceholder": "Facultatif : signe chaque distribution",
       "secretKeepPlaceholder": "Laissez vide pour conserver le secret actuel",
@@ -9050,7 +9054,9 @@
     "tab": {
       "eyebrow": "Services connectés",
       "title": "Intégrations",
-      "intro": "Connectez les systèmes externes que Kandi lit et alimente."
+      "intro": "Connectez les systèmes externes que Kandi lit et alimente.",
+      "commsElsewhere": "L’e-mail aux candidats se configure dans Canaux → Relais de distribution.",
+      "commsElsewhereCta": "Ouvrir le relais de distribution"
     },
     "calendar": {
       "title": "Google Calendar",
@@ -16826,7 +16832,14 @@
         "title": "Ce que vous pouvez faire",
         "configureHelp": "Un relais envoie les messages qui suivent. Celui-ci reste enregistré.",
         "retryHelp": "Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts. Il n’affiche « Renvoyé » que si le relais l’accepte.",
-        "correctSubmit": "Renvoyer à l’adresse corrigée"
+        "correctSubmit": "Renvoyer à l’adresse corrigée",
+        "hand": {
+          "copy": "Copier le message",
+          "mail": "Ouvrir dans ma messagerie",
+          "help": "Envoyez-le vous-même depuis votre boîte mail. Kandi ne le voit pas : cet enregistrement reste tel quel.",
+          "cutCopied": "Le message est trop long pour un lien e-mail : votre messagerie s’ouvre avec l’objet seulement. Le message est dans le presse-papiers : collez-le.",
+          "cutFailed": "Le message est trop long pour un lien e-mail, et le presse-papiers l’a refusé. Sélectionnez le message ci-dessous et collez-le dans votre e-mail."
+        }
       },
       "timeline": {
         "title": "Chronologie de distribution",

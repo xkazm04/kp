@@ -2,9 +2,12 @@
 
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/app/_components/kit";
 import { EYEBROW, INTRO, SECTION } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { Defer } from "@/app/_components/ui/Defer";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { IntegrationsCalendarPanel } from "./IntegrationsCalendarPanel";
 
 // connect-the-integrations — the credential surface for the two integrations W1 shipped
@@ -45,6 +48,10 @@ const IntegrationsWebhookPanel = dynamic(
 
 export function IntegrationsTab() {
   const t = useTranslations("integrations.tab");
+  const router = useRouter();
+  const search = useSearchParams();
+  // Candidate email is NOT here: it is the Channels tab's delivery relay (`?sec=relay` lands on it).
+  const openRelay = () => router.push(buildUrl({ ...clearedTabScopedParams(), tab: "channels", sec: "relay" }, search.toString()));
 
   return (
     <section className={`stagger-children ${SECTION}`}>
@@ -52,6 +59,10 @@ export function IntegrationsTab() {
         <p className={EYEBROW}>{t("eyebrow")}</p>
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+        <p className={`mt-1 flex flex-wrap items-center gap-x-3 ${INTRO}`}>
+          {t("commsElsewhere")}
+          <Button label={t("commsElsewhereCta")} variant="link" icon="right" onClick={openRelay} />
+        </p>
       </header>
 
       <IntegrationsCalendarPanel />

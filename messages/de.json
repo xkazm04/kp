@@ -7042,6 +7042,10 @@
       "statusOff": "Nicht konfiguriert",
       "envNote": "Über die Umgebungsvariable COMMS_WEBHOOK_URL konfiguriert. Entfernen Sie sie, um das Relay hier zu verwalten.",
       "urlLabel": "Relay-Endpunkt (https)",
+      "whatIs": "Ein Relay ist eine Webadresse, die jede Nachricht entgegennimmt und an den Kandidaten weiterschickt: zum Beispiel ein Zapier-, Make- oder n8n-Webhook oder Ihr eigener Maildienst.",
+      "httpsOnly": "Es muss eine öffentliche https://-Adresse mit Namen sein, etwa hooks.zapier.com. Eine Adresse auf diesem Computer (localhost), eine reine IP-Adresse oder ein .local-Name wird nicht angenommen.",
+      "elsewhere": "Kalender- und ATS-Verbindungen finden Sie unter Einstellungen → Integrationen.",
+      "elsewhereCta": "Integrationen öffnen",
       "secretLabel": "Signaturschlüssel",
       "secretPlaceholder": "Optional: signiert jede Zustellung",
       "secretKeepPlaceholder": "Leer lassen, um den aktuellen Schlüssel zu behalten",
@@ -9050,7 +9054,9 @@
     "tab": {
       "eyebrow": "Verbundene Dienste",
       "title": "Integrationen",
-      "intro": "Verbinden Sie die externen Systeme, aus denen Kandi liest und in die es schreibt."
+      "intro": "Verbinden Sie die externen Systeme, aus denen Kandi liest und in die es schreibt.",
+      "commsElsewhere": "Die E-Mail an Kandidaten richten Sie unter Kanäle → Zustell-Relay ein.",
+      "commsElsewhereCta": "Zustell-Relay öffnen"
     },
     "calendar": {
       "title": "Google Calendar",
@@ -16826,7 +16832,14 @@
         "title": "Was Sie tun können",
         "configureHelp": "Ein Relay sendet die Nachrichten, die danach kommen. Diese hier bleibt erfasst.",
         "retryHelp": "Ein erneuter Versand ist eine eigene Zeile, sodass Original und Wiederholung unterscheidbar bleiben. „Erneut gesendet“ steht nur dann da, wenn das Relay ihn annimmt.",
-        "correctSubmit": "An die korrigierte Adresse senden"
+        "correctSubmit": "An die korrigierte Adresse senden",
+        "hand": {
+          "copy": "Nachricht kopieren",
+          "mail": "In meinem E-Mail-Programm öffnen",
+          "help": "Senden Sie sie selbst aus Ihrem Postfach. Kandi sieht das nicht: Dieser Eintrag bleibt, wie er ist.",
+          "cutCopied": "Die Nachricht ist für einen Mail-Link zu lang, daher öffnet sich Ihre E-Mail nur mit dem Betreff. Die Nachricht liegt in der Zwischenablage: Fügen Sie sie ein.",
+          "cutFailed": "Die Nachricht ist für einen Mail-Link zu lang, und die Zwischenablage wurde blockiert. Markieren Sie die Nachricht unten und fügen Sie sie in Ihre E-Mail ein."
+        }
       },
       "timeline": {
         "title": "Zustellverlauf",
