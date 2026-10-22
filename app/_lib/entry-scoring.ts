@@ -18,7 +18,6 @@ import { isScorableEntry, type ScorableEntry } from "./entry-scoring-policy";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { PipelineError } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
-import { withSpawnLane } from "./llm-request-context";
 
 type RankPayload = { candidates?: { candidateId?: string; result?: { total?: number } }[] };
 
@@ -88,14 +87,13 @@ export async function scoreEntriesForJob(
   return issued;
 }
 
-/** Score one freshly filed entry, in the BACKGROUND admission lane: a candidate's
- *  response is not waiting on it, and it must not take a slot ahead of a recruiter's
- *  click (python-runner admission lanes; KP_PYTHON_BACKGROUND_WAIT_MS bounds the wait,
- *  and a refusal is the same logged, unscored outcome as any ranker failure). The
+/** Score one freshly filed entry. It assigns NO lane itself: the doors enqueue the
+ *  `score_entry` task, and the task runner (tasks.ts) runs every handler in the
+ *  BACKGROUND admission lane — a candidate's response is not waiting on it, and it must
+ *  not take a slot ahead of a recruiter's click (KP_PYTHON_BACKGROUND_WAIT_MS bounds the
+ *  wait, and a refusal is the same logged, unscored outcome as any ranker failure). The
  *  later automation pass picks up whatever this did not score. */
 export function scoreFiledEntry(entry: ScorableEntry, opts: { rank?: EntryRanker } = {}): Promise<boolean> {
   if (!isScorableEntry(entry)) return Promise.resolve(false);
-  return withSpawnLane("background", () =>
-    scoreEntriesForJob(entry.jobId as string, [{ ...entry }], { rank: opts.rank, logPrefix: "score-after-filing" }),
-  );
+  return scoreEntriesForJob(entry.jobId as string, [{ ...entry }], { rank: opts.rank, logPrefix: "score-after-filing" });
 }

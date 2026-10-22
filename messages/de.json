@@ -11981,7 +11981,8 @@
       "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}",
       "gigReport": "Auftragsbericht",
       "gigProposal": "Kundenangebot",
-      "analyzeCohort": "Kandidatenvergleich · {role}"
+      "analyzeCohort": "Kandidatenvergleich · {role}",
+      "scoreEntry": "Bewertung nach Eingang · {entry}"
     },
     "filter": {
       "clear": "Zurücksetzen"

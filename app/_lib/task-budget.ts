@@ -129,6 +129,8 @@ export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // multimodal call) plus a comparative pass run twice — the same fan-out shape as
   // group_eval. Server-only; its door (/api/analyze/cohort) carries its own limiter.
   analyze_cohort: "agent",
+  // One deterministic (LLM-free) ranker spawn for one freshly filed entry.
+  score_entry: "cheap",
 };
 
 /** The class a kind is budgeted under. A string outside the vocabulary (a row an

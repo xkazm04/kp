@@ -11981,7 +11981,8 @@
       "gigPlans": "Gig plans · {count, plural, one {# gig} other {# gigs}}",
       "gigReport": "Gig report",
       "gigProposal": "Client proposal",
-      "analyzeCohort": "Compare candidates · {role}"
+      "analyzeCohort": "Compare candidates · {role}",
+      "scoreEntry": "Score on arrival · {entry}"
     },
     "filter": {
       "clear": "Clear"

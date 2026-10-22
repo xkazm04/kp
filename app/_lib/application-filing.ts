@@ -140,8 +140,9 @@ export type ApplicationFilingInput = ProofInput & {
   /** The `re_applied` event detail. Default: the coded repeatApplication* reason. */
   repeatDetail?: (changes: string[]) => string;
   /** Schedule the role-fit SCORE of a fresh, built filing off the response path — the
-   *  door's `afterResponse(…, () => scoreFiledEntry(entry))` (entry-scoring.ts: the
-   *  deterministic ranker, a NULL-only CAS write, no decision). Called only when
+   *  door's `startTask("score_entry", { entryId }, workspaceId)` (the task runner
+   *  runs entry-scoring.ts's scoreFiledEntry in the background lane: the deterministic
+   *  ranker, a NULL-only CAS write, no decision). Called only when
    *  shouldScoreAfterFiling holds. Omitted = not scored here, and the automation pass's
    *  sweep scores it later, as it always has. The door owns the scorer import so the
    *  ranker's module graph is paid only by the doors that score, not by every route

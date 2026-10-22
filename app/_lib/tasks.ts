@@ -515,6 +515,20 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("analyzeCohort", { role: detail(p.jdTitle, p.jdSlug) ?? "" }),
   },
+  // The role-fit score of a freshly filed entry (entry-scoring.ts), enqueued by the apply
+  // and inbound-CV doors. The runner puts every handler in the BACKGROUND spawn lane, so
+  // the score never takes a slot ahead of a recruiter's click and the door assigns no lane.
+  // Imported on demand: the ranker's module graph is paid by the run, not by this hub.
+  score_entry: {
+    run: async (ctx) => {
+      const entry = getPipelineEntry(String(ctx.params.entryId), ctx.workspaceId);
+      if (!entry) return { scored: false };
+      const { scoreFiledEntry } = await import("./entry-scoring");
+      return { scored: await scoreFiledEntry(entry) };
+    },
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("scoreEntry", { entry: detail(p.entryLabel, p.entryId) ?? "" }),
+  },
 };
 
 let booted = false;

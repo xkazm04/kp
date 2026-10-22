@@ -11981,7 +11981,8 @@
       "gigPlans": "Plans de mission · {count, plural, one {# mission} other {# missions}}",
       "gigReport": "Rapport de mission",
       "gigProposal": "Proposition client",
-      "analyzeCohort": "Comparaison des candidats · {role}"
+      "analyzeCohort": "Comparaison des candidats · {role}",
+      "scoreEntry": "Score à l’arrivée · {entry}"
     },
     "filter": {
       "clear": "Effacer"

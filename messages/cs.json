@@ -11981,7 +11981,8 @@
       "gigPlans": "Plány zakázek · {count, plural, one {# zakázka} few {# zakázky} many {# zakázky} other {# zakázek}}",
       "gigReport": "Zpráva o zakázce",
       "gigProposal": "Návrh pro klienta",
-      "analyzeCohort": "Srovnání kandidátů · {role}"
+      "analyzeCohort": "Srovnání kandidátů · {role}",
+      "scoreEntry": "Skórování po příchodu · {entry}"
     },
     "filter": {
       "clear": "Zrušit filtry"

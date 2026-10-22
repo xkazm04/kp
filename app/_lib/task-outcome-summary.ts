@@ -264,6 +264,8 @@ const TABLE: Record<MappedKind, Mapper> = {
     const failed = num(r.failed);
     return [...fact("candidates", num(r.members)), ...(failed ? fact("failures", failed) : []), ...sourceLine(r.source)];
   },
+  // { scored } — the score itself is the entry's match score, shown on the board.
+  score_entry: () => [],
 };
 
 /** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed
