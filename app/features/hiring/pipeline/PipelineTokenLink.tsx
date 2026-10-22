@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { LinkReachNotice } from "@/app/_components/LinkReachNotice";
 import { Modal } from "@/app/_components/Modal";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -84,7 +85,7 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
   if (!link.data) return null;
   const url = link.data.url;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <input
         readOnly
         value={link.fullUrl}
@@ -134,6 +135,8 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
           <p className="text-base text-steel">{t("tokenLink.openConfirmBody")}</p>
         </Modal>
       ) : null}
+      {/* Who can open the link above (built on the same publicBaseUrl base). */}
+      <LinkReachNotice className="basis-full" />
     </div>
   );
 }

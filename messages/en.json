@@ -16746,6 +16746,21 @@
           "title": "{role}: waiting for the first application",
           "detail": "Configured, nothing received yet.",
           "cta": "Open the receiver"
+        },
+        "linksThisComputer": {
+          "title": "Candidate links point to this computer",
+          "detail": "A candidate's phone or laptop can't open them. Run KandiDate at an address reachable from the internet and set NEXT_PUBLIC_APP_BASE_URL to it.",
+          "cta": "Open the careers page"
+        },
+        "linksLocalNetwork": {
+          "title": "Candidate links open only on your network",
+          "detail": "Candidates outside your network can't open them. Run KandiDate at an address reachable from the internet and set NEXT_PUBLIC_APP_BASE_URL to it.",
+          "cta": "Open the careers page"
+        },
+        "linksNowhere": {
+          "title": "Candidate links point to a placeholder address",
+          "detail": "No public address is set, so the links lead nowhere. Set NEXT_PUBLIC_APP_BASE_URL to an address KandiDate runs on that candidates can reach.",
+          "cta": "Open the careers page"
         }
       },
       "chip": {
@@ -16764,6 +16779,9 @@
       "fact": {
         "careersRoles": "{count, plural, one {# open role} other {# open roles}}, a link each",
         "careersNone": "Publish a role for its link",
+        "careersLinksThisComputer": "{count, plural, one {# open role} other {# open roles}} · the links open only on this computer",
+        "careersLinksLocalNetwork": "{count, plural, one {# open role} other {# open roles}} · the links open only on your network",
+        "careersLinksNowhere": "{count, plural, one {# open role} other {# open roles}} · the links point to a placeholder address",
         "emailNone": "No role inbox yet",
         "adsNone": "No ad-form receiver yet",
         "receiversNothing": "{count, plural, one {# receiver} other {# receivers}}, nothing received yet",
@@ -18051,5 +18069,22 @@
     "loading": "Reading the evidence",
     "loadFailed": "The work-sample evidence could not be read. The other rungs still show.",
     "devcaseNote": "The same rung appears on the candidate overview, beside the debrief and the interview."
+  },
+  "linkReach": {
+    "candidates": {
+      "thisComputer": "Candidates can't open this link: it points to this computer.",
+      "localNetwork": "Only devices on your network can open this link, so candidates elsewhere can't.",
+      "nowhere": "Candidates can't open this link: it points to a placeholder address, not to this workspace."
+    },
+    "sources": {
+      "thisComputer": "Services outside this computer can't reach this address: it points to this computer.",
+      "localNetwork": "Only devices on your network can reach this address, so outside services can't.",
+      "nowhere": "Nothing can reach this address: it is a placeholder, not this workspace."
+    },
+    "howToFix": "How to fix",
+    "fix": {
+      "candidates": "Run KandiDate at an address reachable from the internet, set NEXT_PUBLIC_APP_BASE_URL to that address and restart KandiDate (a production build has to be rebuilt). The self-hosting guide explains the setup. The optional always-on edge relays incoming webhooks and mail only; it does not serve candidate pages.",
+      "sources": "Run KandiDate at an address reachable from the internet and set NEXT_PUBLIC_APP_BASE_URL to it, or pair the always-on edge and point the source at the edge's address instead. The self-hosting guide explains both."
+    }
   }
 }

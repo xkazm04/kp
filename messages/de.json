@@ -16746,6 +16746,21 @@
           "title": "{role}: wartet auf die erste Bewerbung",
           "detail": "Konfiguriert, noch nichts empfangen.",
           "cta": "Empfänger öffnen"
+        },
+        "linksThisComputer": {
+          "title": "Links für Kandidaten zeigen auf diesen Computer",
+          "detail": "Auf dem Telefon oder Laptop eines Kandidaten öffnen sie sich nicht. Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf.",
+          "cta": "Karriereseite öffnen"
+        },
+        "linksLocalNetwork": {
+          "title": "Links für Kandidaten öffnen sich nur in Ihrem Netzwerk",
+          "detail": "Kandidaten außerhalb Ihres Netzwerks können sie nicht öffnen. Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf.",
+          "cta": "Karriereseite öffnen"
+        },
+        "linksNowhere": {
+          "title": "Links für Kandidaten zeigen auf eine Platzhalteradresse",
+          "detail": "Es ist keine öffentliche Adresse gesetzt, daher führen die Links ins Leere. Setzen Sie NEXT_PUBLIC_APP_BASE_URL auf eine Adresse, unter der KandiDate läuft und die Kandidaten erreichen.",
+          "cta": "Karriereseite öffnen"
         }
       },
       "chip": {
@@ -16764,6 +16779,9 @@
       "fact": {
         "careersRoles": "{count, plural, one {# offene Stelle} other {# offene Stellen}}, je ein Link",
         "careersNone": "Für einen Link eine Stelle veröffentlichen",
+        "careersLinksThisComputer": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links öffnen sich nur auf diesem Computer",
+        "careersLinksLocalNetwork": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links öffnen sich nur in Ihrem Netzwerk",
+        "careersLinksNowhere": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links zeigen auf eine Platzhalteradresse",
         "emailNone": "Noch kein Stellen-Postfach",
         "adsNone": "Noch kein Anzeigenformular-Empfänger",
         "receiversNothing": "{count, plural, one {# Empfänger} other {# Empfänger}}, noch nichts empfangen",
@@ -18051,5 +18069,22 @@
     "loading": "Belege werden gelesen",
     "loadFailed": "Die Belege der Arbeitsprobe konnten nicht gelesen werden. Die anderen Stufen bleiben sichtbar.",
     "devcaseNote": "Dieselbe Stufe steht in der Kandidatenübersicht, neben Debriefing und Interview."
+  },
+  "linkReach": {
+    "candidates": {
+      "thisComputer": "Kandidaten können diesen Link nicht öffnen: Er zeigt auf diesen Computer.",
+      "localNetwork": "Nur Geräte in Ihrem Netzwerk können diesen Link öffnen, Kandidaten anderswo nicht.",
+      "nowhere": "Kandidaten können diesen Link nicht öffnen: Er zeigt auf eine Platzhalteradresse, nicht auf diesen Arbeitsbereich."
+    },
+    "sources": {
+      "thisComputer": "Dienste außerhalb dieses Computers erreichen diese Adresse nicht: Sie zeigt auf diesen Computer.",
+      "localNetwork": "Nur Geräte in Ihrem Netzwerk erreichen diese Adresse, externe Dienste nicht.",
+      "nowhere": "Nichts erreicht diese Adresse: Sie ist ein Platzhalter, nicht dieser Arbeitsbereich."
+    },
+    "howToFix": "So beheben Sie das",
+    "fix": {
+      "candidates": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse, setzen Sie NEXT_PUBLIC_APP_BASE_URL auf diese Adresse und starten Sie KandiDate neu (ein Produktions-Build muss neu gebaut werden). Die Anleitung zum Selbstbetrieb erklärt die Einrichtung. Der optionale dauerhaft erreichbare Rand leitet nur eingehende Webhooks und E-Mails weiter; Seiten für Kandidaten stellt er nicht bereit.",
+      "sources": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf, oder koppeln Sie den dauerhaft erreichbaren Rand und richten Sie die Quelle auf dessen Adresse. Die Anleitung zum Selbstbetrieb erklärt beides."
+    }
   }
 }

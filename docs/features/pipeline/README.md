@@ -1094,6 +1094,11 @@ falls back to one localized line pointing at the candidate.
 
 ### Opening a candidate's live link
 
+`TokenLinkPanel` also renders `LinkReachNotice` (`app/_components/LinkReachNotice.tsx`) under the
+link: when the `publicBaseUrl` base is this computer, the local network or the placeholder origin
+(`app/_lib/link-reach.ts`), one quiet line says candidates can't open it, with a "How to fix"
+disclosure. It never blocks the copy and renders nothing for a public base.
+
 `TokenLinkPanel`'s "Open as candidate" opens the LIVE capability link, and several
 of those surfaces stamp an opened/first-seen mark on first fetch — so a recruiter
 peeking burnt the candidate's own first open and the timeline then read as if they

@@ -16746,6 +16746,21 @@
           "title": "{role}: čeká na první přihlášku",
           "detail": "Nastaveno, zatím nic nepřišlo.",
           "cta": "Otevřít přijímač"
+        },
+        "linksThisComputer": {
+          "title": "Odkazy pro kandidáty vedou na tento počítač",
+          "detail": "Z telefonu ani notebooku kandidáta se neotevřou. Spusťte KandiDate na adrese dostupné z internetu a nastavte na ni NEXT_PUBLIC_APP_BASE_URL.",
+          "cta": "Otevřít kariérní stránku"
+        },
+        "linksLocalNetwork": {
+          "title": "Odkazy pro kandidáty fungují jen ve vaší síti",
+          "detail": "Kandidáti mimo vaši síť je neotevřou. Spusťte KandiDate na adrese dostupné z internetu a nastavte na ni NEXT_PUBLIC_APP_BASE_URL.",
+          "cta": "Otevřít kariérní stránku"
+        },
+        "linksNowhere": {
+          "title": "Odkazy pro kandidáty vedou na zástupnou adresu",
+          "detail": "Není nastavena žádná veřejná adresa, takže odkazy nikam nevedou. Nastavte NEXT_PUBLIC_APP_BASE_URL na adresu, na které KandiDate běží a na kterou se kandidáti dostanou.",
+          "cta": "Otevřít kariérní stránku"
         }
       },
       "chip": {
@@ -16764,6 +16779,9 @@
       "fact": {
         "careersRoles": "{count, plural, one {# otevřená pozice} few {# otevřené pozice} other {# otevřených pozic}} s odkazem",
         "careersNone": "Publikujte pozici a získáte odkaz",
+        "careersLinksThisComputer": "{count, plural, one {# otevřená pozice} few {# otevřené pozice} other {# otevřených pozic}} · odkazy fungují jen na tomto počítači",
+        "careersLinksLocalNetwork": "{count, plural, one {# otevřená pozice} few {# otevřené pozice} other {# otevřených pozic}} · odkazy fungují jen ve vaší síti",
+        "careersLinksNowhere": "{count, plural, one {# otevřená pozice} few {# otevřené pozice} other {# otevřených pozic}} · odkazy vedou na zástupnou adresu",
         "emailNone": "Zatím žádná schránka pozice",
         "adsNone": "Zatím žádný přijímač formulářů",
         "receiversNothing": "{count, plural, one {# přijímač} few {# přijímače} other {# přijímačů}}, zatím nic nepřišlo",
@@ -18051,5 +18069,22 @@
     "loading": "Načítáme důkazy",
     "loadFailed": "Důkazy z pracovní ukázky se nepodařilo načíst. Ostatní stupně se zobrazují dál.",
     "devcaseNote": "Stejný stupeň najdete v přehledu kandidáta, vedle rozboru a pohovoru."
+  },
+  "linkReach": {
+    "candidates": {
+      "thisComputer": "Kandidáti tento odkaz neotevřou: vede na tento počítač.",
+      "localNetwork": "Tento odkaz otevřou jen zařízení ve vaší síti, kandidáti odjinud ne.",
+      "nowhere": "Kandidáti tento odkaz neotevřou: vede na zástupnou adresu, ne do tohoto pracovního prostoru."
+    },
+    "sources": {
+      "thisComputer": "Služby mimo tento počítač se na tuto adresu nedostanou: vede na tento počítač.",
+      "localNetwork": "Na tuto adresu se dostanou jen zařízení ve vaší síti, vnější služby ne.",
+      "nowhere": "Na tuto adresu se nedostane nic: je to zástupná adresa, ne tento pracovní prostor."
+    },
+    "howToFix": "Jak to opravit",
+    "fix": {
+      "candidates": "Spusťte KandiDate na adrese dostupné z internetu, nastavte na ni NEXT_PUBLIC_APP_BASE_URL a KandiDate restartujte (produkční build je třeba sestavit znovu). Postup popisuje příručka k vlastnímu provozu. Volitelný trvale dostupný okraj předává jen příchozí webhooky a poštu, stránky pro kandidáty nezobrazuje.",
+      "sources": "Spusťte KandiDate na adrese dostupné z internetu a nastavte na ni NEXT_PUBLIC_APP_BASE_URL, nebo spárujte trvale dostupný okraj a zdroj nasměrujte na jeho adresu. Obojí popisuje příručka k vlastnímu provozu."
+    }
   }
 }

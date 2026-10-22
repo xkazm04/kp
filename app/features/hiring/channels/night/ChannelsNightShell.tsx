@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { LevelTransition, layerModeAt, type Crumb } from "@/app/_components/kit/scene";
+import { useCandidateLinkReach } from "@/app/_components/LinkReachNotice";
 import { commsReceiptLabels } from "../channelsCommsHelpers";
 import { useChannelData } from "../useChannelsData";
 import { useCommsFeed } from "../useCommsFeed";
@@ -44,6 +45,7 @@ export function ChannelsNightShell() {
     if (depth === 0) setReread((n) => n + 1);
   }
   const delivery = useChannelsNightDelivery(reread);
+  const linkReach = useCandidateLinkReach();
   const receipt = useMemo(() => commsReceiptLabels(tc), [tc]);
 
   const { webhooks, jobs, accepted, loadFailed, webhooksTruncated } = data;
@@ -52,9 +54,9 @@ export function ChannelsNightShell() {
   const input: PlumbingInput = useMemo(
     () => ({
       jobs, receivers: webhooks, receiversTruncated: webhooksTruncated, waiting: accepted, messages, olderExist: hasMore || truncated,
-      relay: delivery.relay, edge: delivery.edge, settled: dataSettled && (messages !== null || feed.error) && delivery.settled,
+      relay: delivery.relay, edge: delivery.edge, settled: dataSettled && (messages !== null || feed.error) && delivery.settled, linkReach,
     }),
-    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error],
+    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error, linkReach],
   );
   const model = useMemo(() => plumbingModel(input), [input]);
 

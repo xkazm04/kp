@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart3, Check, Copy, Link2, Users, Zap } from "lucide-react";
+import { LinkReachNotice } from "@/app/_components/LinkReachNotice";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { useJobPostingModalLogic } from "./jobsPostingModalLogic";
@@ -162,6 +163,8 @@ export function JobsPostingModalFooter({
           >
             {quickCopied ? <Check size={14} /> : <Zap size={14} />} {quickCopied ? t("copied") : t("quickApplyLink")}
           </button>
+          {/* Who can open those two links (the same publicBaseUrl base): nothing when public. */}
+          {!isClosed ? <LinkReachNotice className="order-last basis-full" /> : null}
         </>
       )}
       <button

@@ -1209,6 +1209,12 @@ inert on a role that is live unless every caller remembered to clear the flag by
 hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
 staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
+The footer's Apply link / Quick-apply link copies are built on `publicBaseUrl`; when that
+base is this computer, the local network or the `kandidate.example` placeholder
+(`app/_lib/link-reach.ts`), `LinkReachNotice` says under them that candidates can't open
+the links, with a "How to fix" disclosure (set `NEXT_PUBLIC_APP_BASE_URL` to an address
+candidates can reach). It never blocks the copy; a public base renders nothing.
+
 The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
 Coach panel already has, bound to `reload` — a transient 500 is recoverable
 without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`. The

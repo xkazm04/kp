@@ -21,6 +21,7 @@ import { isSuggested, type SlotSource } from "./scheduleGridSeeds";
 import type { IvStatus } from "./useScheduleTab";
 import { bookControlFor, pendingCardState, type PendingCardState } from "./schedulePendingCardState";
 import { BTN_AFFIRM, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { LinkReachNotice } from "@/app/_components/LinkReachNotice";
 
 type Tr = ReturnType<typeof useTranslations<"scheduleTab">>;
 
@@ -73,9 +74,13 @@ function PendingCardNextStep({
           {state.primary === "send_link" ? t("sendLink.action") : t("cardState.reinvite")}
         </button>
       ) : state.primary === "copy_link" ? (
-        <button type="button" onClick={() => onCopyLink(state.token)} className={`${BTN_SECONDARY} ${wide}`}>
-          <Link2 size={14} aria-hidden /> {t("cardState.copyLink")}
-        </button>
+        <>
+          <button type="button" onClick={() => onCopyLink(state.token)} className={`${BTN_SECONDARY} ${wide}`}>
+            <Link2 size={14} aria-hidden /> {t("cardState.copyLink")}
+          </button>
+          {/* The copied /schedule link is built on publicBaseUrl: say who can open it. */}
+          <LinkReachNotice className="mt-1.5" />
+        </>
       ) : state.primary === "accept_proposal" ? (
         <div role="group" aria-label={t("lifecycle.proposalsGroupAria")} className="mt-1.5 flex flex-col gap-1">
           {state.proposals.map((p) => (

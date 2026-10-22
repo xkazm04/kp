@@ -235,3 +235,37 @@ test("no open roles: the careers door is off and it is a quiet item, not a headl
   const item = rankNeeds(input).find((n) => n.key === "nothingPublished")!;
   assert.ok(item.sev < NEEDS_SHOWN);
 });
+
+test("candidate links on a base no candidate can open: careers is caution, not live, and it needs you", () => {
+  const quiet: PlumbingInput = {
+    ...LIVE, receivers: [hook("e2", "email", 61, 27), hook("b2", "boards", 88, 31, { at: "2026-09-29T11:50:00.000Z" })], messages: msgs(5, {}), edge: { ...PAIRED, pending: 0 },
+  };
+  // Not known yet (before mount) and public both leave the careers door as it was.
+  for (const linkReach of [undefined, null, "public"] as const) {
+    const input = { ...quiet, linkReach };
+    assert.equal(plumbingPlates(input).careers.condition, "live", String(linkReach));
+    assert.deepEqual(plumbingHeadline(input, rankNeeds(input)), { kind: "ok" });
+  }
+  const cases = [
+    ["this-computer", "careersLinksThisComputer", "linksThisComputer"],
+    ["local-network", "careersLinksLocalNetwork", "linksLocalNetwork"],
+    ["nowhere", "careersLinksNowhere", "linksNowhere"],
+  ] as const;
+  for (const [linkReach, fact, key] of cases) {
+    const input: PlumbingInput = { ...quiet, linkReach };
+    const careers = plumbingPlates(input).careers;
+    assert.equal(careers.condition, "reach", linkReach);
+    assert.equal(careers.chip, "published", "publishing still happened");
+    assert.equal(careers.fact, fact);
+    assert.equal(careers.n.count, roles.length);
+    const need = rankNeeds(input).find((n) => n.key === key)!;
+    assert.ok(need.sev >= NEEDS_SHOWN, "listed, never quiet");
+    assert.deepEqual(need.target, { level: 1, channel: "careers", focus: null });
+    // The one thing that needs you is the headline; never "wired and flowing".
+    assert.equal(plumbingHeadline(input, rankNeeds(input)).kind, "need");
+  }
+  // With nothing published the door stays off, but the links (schedule, interview) still need you.
+  const none: PlumbingInput = { ...quiet, jobs: [], linkReach: "this-computer" };
+  assert.equal(plumbingPlates(none).careers.condition, "off");
+  assert.ok(rankNeeds(none).some((n) => n.key === "linksThisComputer"));
+});

@@ -11,7 +11,7 @@
  * The vocabulary never flattens (docs/features/comms/README.md §2, §11):
  *   off      not configured                      dashed
  *   wait     configured, nothing yet / not pulled yet / never drained / nothing sent yet
- *   reach    received, none filed                caution
+ *   reach    received, none filed / published, but the links reach no candidate   caution
  *   fail     pull failing / secret unreadable / drain failing    red
  *   live     proven by evidence (a lead filed, a message sent, a drain done)
  *   unknown  not read (in flight, failed, denied): never a guess
@@ -20,6 +20,7 @@
 import { commsVerdict } from "@/app/_lib/comms-view.ts";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels.ts";
 import type { EdgeErrorKind } from "@/app/_lib/edge-config.ts";
+import type { LinkReach } from "@/app/_lib/link-reach.ts";
 import { isActionable, type Message } from "../channelsCommsHelpers.ts";
 import { receiverHealth } from "../receiverHealth.ts";
 import type { EdgeState, RelayHealthWord } from "./channelsNightReads.ts";
@@ -49,7 +50,19 @@ export type PlumbingInput = {
   edge: EdgeState | null;
   /** Every source's first read finished (ok or not). Until then nothing is claimed. */
   settled: boolean;
+  /** Who can open the candidate links this page builds (linkReach of publicBaseUrl, the SAME
+   *  base the careers links use); null/absent = not known yet, never read as "public". */
+  linkReach?: LinkReach | null;
 };
+
+/** The candidate-link base, when it is known NOT to reach candidates; null otherwise. */
+type PrivateReach = Exclude<LinkReach, "public">;
+function privateReach(input: PlumbingInput): PrivateReach | null {
+  const r = input.linkReach ?? null;
+  return r === null || r === "public" ? null : r;
+}
+const REACH_FACT = { "this-computer": "careersLinksThisComputer", "local-network": "careersLinksLocalNetwork", nowhere: "careersLinksNowhere" } as const;
+const REACH_NEED = { "this-computer": "linksThisComputer", "local-network": "linksLocalNetwork", nowhere: "linksNowhere" } as const;
 
 /* ------------------------------------------------------------------ the ledger, counted */
 
@@ -97,7 +110,7 @@ export type PlateChip =
   | "bookNeedsYou" | "bookNoneSent" | "bookClear" | "bookEmpty" | "notRead";
 
 export type PlateFact =
-  | "careersRoles" | "careersNone"
+  | "careersRoles" | "careersNone" | "careersLinksThisComputer" | "careersLinksLocalNetwork" | "careersLinksNowhere"
   | "emailNone" | "adsNone" | "receiversNothing" | "receiversTraffic"
   | "feedsNone" | "feedsFailing" | "feedsNotPulled" | "feedsPulling"
   | "relayQueuedNotSent" | "relayNothingDeliverable" | "relayTraffic" | "relayNoSendYet" | "relayOutboxOnly"
@@ -213,12 +226,16 @@ function rawPlates(input: PlumbingInput): Record<Exclude<NightNode, "studio">, P
   const c = input.messages ? countVerdicts(input.messages) : null;
   const jobs = input.jobs;
   const rs = input.receivers;
+  const reach = privateReach(input);
   return {
     careers:
       jobs === null
         ? UNREAD("careers")
         : jobs.length > 0
-          ? { node: "careers", condition: "live", alert: false, chip: "published", fact: "careersRoles", n: { count: jobs.length }, when: null }
+          ? reach
+            // Published is true; "live" is not: no candidate can open the links (linkReach).
+            ? { node: "careers", condition: "reach", alert: false, chip: "published", fact: REACH_FACT[reach], n: { count: jobs.length }, when: null }
+            : { node: "careers", condition: "live", alert: false, chip: "published", fact: "careersRoles", n: { count: jobs.length }, when: null }
           : { node: "careers", condition: "off", alert: false, chip: "nothingPublished", fact: "careersNone", n: {}, when: null },
     email: rs === null ? UNREAD("email") : receiverDoor("email", rs),
     ads: rs === null ? UNREAD("ads") : receiverDoor("ads", rs),
@@ -263,7 +280,8 @@ export function plumbingFigures(input: PlumbingInput): NightFigure[] {
 
 export type NeedKey =
   | "relayOffQueued" | "relayUnreadable" | "dead" | "pullFailing" | "edgeFailing" | "edgeSecretMissing" | "relayOff"
-  | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting";
+  | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting"
+  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere";
 
 export type NeedItem = {
   id: string;
@@ -326,6 +344,10 @@ export function rankNeeds(input: PlumbingInput): NeedItem[] {
   else if (edge && edgePaired && edge.hasSecret && !edge.lastErrorKind && (edge.pending ?? 0) > 0) {
     add({ id: "edge-pending", key: "edgePending", sev: 30, tone: "info", node: "edge", target: edgeTarget, n: { count: edge.pending ?? 0 } });
   }
+  // Every candidate link (apply, schedule, interview) is built on the same base, so this is
+  // listed whether or not a role is published yet; it opens the careers page, where the fix is.
+  const reach = privateReach(input);
+  if (reach) add({ id: "links-reach", key: REACH_NEED[reach], sev: 65, tone: "warn", node: "careers", target: { level: 1, channel: "careers", focus: null } });
   if (input.jobs && input.jobs.length === 0) add({ id: "no-roles", key: "nothingPublished", sev: 25, tone: "info", node: "careers", target: { level: 1, channel: "careers", focus: null } });
   for (const r of input.receivers ?? []) {
     if (receiverHealth(r).verdict === "waiting") {

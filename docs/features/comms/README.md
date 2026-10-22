@@ -1236,7 +1236,13 @@ chunk). The full architecture, the level machine and the owners' contract are in
   nothing that ranks, "Everything is wired and flowing." needs proof: every source read, the
   relay `live` (a sent row) and no channel off; otherwise the headline is the calm "Nothing
   needs you right now." with what is not proven (a relay that has sent nothing yet, the number
-  of channels off or not set up), and a source that could not be read says it is no all-clear. The
+  of channels off or not set up), and a source that could not be read says it is no all-clear.
+  **Candidate reach** (CX S39): the model also takes `linkReach` — `app/_lib/link-reach.ts` over the
+  same `publicBaseUrl(window.location.origin)` the careers links use. A base on this computer, the
+  local network or the `kandidate.example` placeholder turns a published careers door `reach`
+  (caution, "the links open only on this computer") and lists a need (severity 65, "Candidate links
+  point to this computer") that opens the careers level, where `SetupCareers` (and, for ad-form
+  endpoints, `SetupReceivers`) states the fix. A public base, or one not known yet, changes nothing. The
   head keeps "Receive a test application" (`data-sim-click="simulate-inbound"`; the block
   is `data-sim="channel-inbound"`, the guided walk's "match" target) and the "N waiting in
   the pipeline" link. Below 760px of sheet the district reads as a street of cards.

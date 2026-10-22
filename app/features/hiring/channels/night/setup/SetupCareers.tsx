@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/app/_components/kit";
+import { Button, Note } from "@/app/_components/kit";
+import { useCandidateLinkReach, useLinkReachWords } from "@/app/_components/LinkReachNotice";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -30,6 +31,8 @@ export function SetupCareers({ jobs, onArrived }: { jobs: ChannelJob[] | null; o
   const [sim, setSim] = useState<{ busy: boolean; note: { ok: boolean; text: string } | null }>({ busy: false, note: null });
   const said = (id: string) => (copiedId === id ? copyState : "idle");
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
+  // Who can open these links (the same base): said above the list, never blocking a copy.
+  const reach = useLinkReachWords(useCandidateLinkReach());
   const first = jobs?.[0] ?? null;
 
   const simulate = async () => {
@@ -46,6 +49,11 @@ export function SetupCareers({ jobs, onArrived }: { jobs: ChannelJob[] | null; o
 
   return (
     <div className="cns-body">
+      {reach ? (
+        <Note tone="caution">
+          <b>{reach.line}</b> {reach.fix}
+        </Note>
+      ) : null}
       <div className="cns-row cns-row--split">
         <p className="cns-help">{ts("help")}</p>
         <Button

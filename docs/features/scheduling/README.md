@@ -565,7 +565,7 @@ by `ScheduleTabPendingList.tsx`):
 | State | When | The card's first action |
 | --- | --- | --- |
 | `no_link` | no invite for the entry | **Send scheduling link** (`POST /api/schedule/invite`) |
-| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link |
+| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link (with `LinkReachNotice` under it when the `publicBaseUrl` base is not public: "Candidates can't open this link: it points to this computer.") |
 | `expired` | the pending link aged out | send a new link |
 | `closed` | the last invite was declined or a no-show | send a new link |
 | `proposals` | the candidate proposed times | one **Accept** per proposed time (`accept_proposal`) |

@@ -16746,6 +16746,21 @@
           "title": "{role} : en attente de la première candidature",
           "detail": "Configuré, rien de reçu pour l’instant.",
           "cta": "Ouvrir le récepteur"
+        },
+        "linksThisComputer": {
+          "title": "Les liens destinés aux candidats pointent vers cet ordinateur",
+          "detail": "Le téléphone ou l’ordinateur d’un candidat ne peut pas les ouvrir. Faites tourner KandiDate à une adresse accessible depuis Internet et indiquez-la dans NEXT_PUBLIC_APP_BASE_URL.",
+          "cta": "Ouvrir la page carrières"
+        },
+        "linksLocalNetwork": {
+          "title": "Les liens destinés aux candidats ne s’ouvrent que sur votre réseau",
+          "detail": "Les candidats hors de votre réseau ne peuvent pas les ouvrir. Faites tourner KandiDate à une adresse accessible depuis Internet et indiquez-la dans NEXT_PUBLIC_APP_BASE_URL.",
+          "cta": "Ouvrir la page carrières"
+        },
+        "linksNowhere": {
+          "title": "Les liens destinés aux candidats pointent vers une adresse fictive",
+          "detail": "Aucune adresse publique n’est définie, les liens ne mènent donc nulle part. Indiquez dans NEXT_PUBLIC_APP_BASE_URL une adresse où tourne KandiDate et que les candidats peuvent atteindre.",
+          "cta": "Ouvrir la page carrières"
         }
       },
       "chip": {
@@ -16764,6 +16779,9 @@
       "fact": {
         "careersRoles": "{count, plural, one {# poste ouvert} other {# postes ouverts}}, un lien chacun",
         "careersNone": "Publiez un poste pour obtenir son lien",
+        "careersLinksThisComputer": "{count, plural, one {# poste ouvert} other {# postes ouverts}} · les liens ne s’ouvrent que sur cet ordinateur",
+        "careersLinksLocalNetwork": "{count, plural, one {# poste ouvert} other {# postes ouverts}} · les liens ne s’ouvrent que sur votre réseau",
+        "careersLinksNowhere": "{count, plural, one {# poste ouvert} other {# postes ouverts}} · les liens pointent vers une adresse fictive",
         "emailNone": "Aucune boîte de poste pour l’instant",
         "adsNone": "Aucun récepteur de formulaire pour l’instant",
         "receiversNothing": "{count, plural, one {# récepteur} other {# récepteurs}}, rien de reçu pour l’instant",
@@ -18051,5 +18069,22 @@
     "loading": "Lecture des preuves",
     "loadFailed": "Les preuves de l'exercice pratique n'ont pas pu être lues. Les autres niveaux restent affichés.",
     "devcaseNote": "Le même niveau figure dans la vue d'ensemble du candidat, à côté du débrief et de l'entretien."
+  },
+  "linkReach": {
+    "candidates": {
+      "thisComputer": "Les candidats ne peuvent pas ouvrir ce lien : il pointe vers cet ordinateur.",
+      "localNetwork": "Seuls les appareils de votre réseau peuvent ouvrir ce lien, pas les candidats ailleurs.",
+      "nowhere": "Les candidats ne peuvent pas ouvrir ce lien : il pointe vers une adresse fictive, pas vers cet espace de travail."
+    },
+    "sources": {
+      "thisComputer": "Les services extérieurs à cet ordinateur ne peuvent pas atteindre cette adresse : elle pointe vers cet ordinateur.",
+      "localNetwork": "Seuls les appareils de votre réseau peuvent atteindre cette adresse, pas les services extérieurs.",
+      "nowhere": "Rien ne peut atteindre cette adresse : c’est une adresse fictive, pas cet espace de travail."
+    },
+    "howToFix": "Comment corriger",
+    "fix": {
+      "candidates": "Faites tourner KandiDate à une adresse accessible depuis Internet, indiquez-la dans NEXT_PUBLIC_APP_BASE_URL et redémarrez KandiDate (une version de production doit être reconstruite). Le guide d’auto-hébergement explique la mise en place. Le relais toujours actif, facultatif, ne transmet que les webhooks et les e-mails entrants ; il ne sert pas les pages destinées aux candidats.",
+      "sources": "Faites tourner KandiDate à une adresse accessible depuis Internet et indiquez-la dans NEXT_PUBLIC_APP_BASE_URL, ou associez le relais toujours actif et faites pointer la source vers son adresse. Le guide d’auto-hébergement explique les deux."
+    }
   }
 }
