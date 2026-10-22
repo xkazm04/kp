@@ -466,8 +466,10 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // integration config with an encrypted mailbox password, recording the org that saved it
   // (`owner_org_id`); the delivery boundary refuses another organization's messages
   // (comms.ts SmtpChannel). Its two bounded lists (suppressed addresses, the last few
-  // attempts) are only ever written for the owner org's own sends. Lazy-store table, and
-  // a singleton with no org_id, hence ORG_CONFIG_NOT_PORTABLE.
+  // attempts) are only ever written for the owner org's own sends. Lazy-store table.
+  // NOT yet in ORG_CONFIG_NOT_PORTABLE: that set must equal scripts/db-dump.mjs
+  // ORG_CONFIG_TABLES (rollback-drill.test.ts), and the script was outside T6's scope.
+  // Until both gain it, a --redact dump blanks only its `password` column (by name).
   "comms_smtp_config",
   // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
   // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
@@ -764,7 +766,6 @@ export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
   "ats_connections",
   "ats_delivery",
   "comms_relay_config",
-  "comms_smtp_config",
   "personas_bridge",
   "edge_config", // the edge pairing: URL + HMAC secret + this install's sealing keypair
 ]);
