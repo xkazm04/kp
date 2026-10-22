@@ -75,7 +75,7 @@ export function isPrivateAddress(ip: string): boolean {
  *  is unit-testable offline. */
 export type HostLookup = (host: string) => Promise<Array<{ address: string }>>;
 
-async function defaultHostLookup(host: string): Promise<Array<{ address: string }>> {
+export async function defaultHostLookup(host: string): Promise<Array<{ address: string }>> {
   // Lazy so node:dns never enters a client bundle (safe-url.ts, which IS imported
   // by "use client" components, must never gain this dependency — the guard lives
   // here on purpose).

@@ -7,6 +7,8 @@
 // returns a near-empty body, which the route answers as POSTING_FETCH_FAILED rather
 // than storing an empty posting.
 
+import { defaultHostLookup, isPrivateAddress, type HostLookup } from "./ats-egress-guard.ts";
+
 const BLOCK_TAGS =
   "address|article|aside|blockquote|br|div|dd|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul";
 
@@ -85,30 +87,69 @@ export const POSTING_FETCH_TIMEOUT_MS = 15_000;
 
 export class PostingFetchError extends Error {}
 
+/** Redirect hops followed by hand; the 6th redirect is refused. */
+export const POSTING_MAX_REDIRECTS = 5;
+
+/** SSRF vet of one hop: resolve the host and refuse it when it is — or resolves to —
+ *  any non-public address (loopback, private, link-local/metadata, CGNAT, ULA). A
+ *  literal IP resolves to itself, so it takes the same path. Http stays allowed, unlike
+ *  the https-only webhook guard. Resolve-and-reject, not a pin: see ats-egress-guard. */
+async function assertPublicHost(url: URL, lookupFn: HostLookup): Promise<void> {
+  const host = url.hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  let results: Array<{ address: string }>;
+  try {
+    results = await lookupFn(host);
+  } catch {
+    throw new PostingFetchError(`the host "${host}" could not be resolved`);
+  }
+  if (results.length === 0) throw new PostingFetchError(`the host "${host}" did not resolve to any address`);
+  for (const { address } of results) {
+    if (isPrivateAddress(address)) throw new PostingFetchError(`the host "${host}" is not a public address`);
+  }
+}
+
 /** Fetch a posting page and extract {title, text}. Throws PostingFetchError for every
- *  refusable condition (bad scheme, non-OK status, a content type that is not
- *  text/html or text/plain, a timeout) so the route answers ONE code rather than
- *  forwarding a network library's message. Egress in offline mode is refused by the
- *  ROUTE, up front, so the caller gets a decision instead of a blocked-fetch accident. */
-export async function fetchPostingText(url: string): Promise<{ title: string | null; text: string }> {
+ *  refusable condition (bad scheme, a non-public host at the start or at any redirect
+ *  hop, too many redirects, non-OK status, a content type that is not text/html or
+ *  text/plain, a timeout) so the route answers ONE code rather than forwarding a
+ *  network library's message. Redirects are followed by hand so each Location is
+ *  vetted before it is requested. Egress in offline mode is refused by the ROUTE, up
+ *  front, so the caller gets a decision instead of a blocked-fetch accident. */
+export async function fetchPostingText(
+  url: string,
+  lookupFn: HostLookup = defaultHostLookup,
+): Promise<{ title: string | null; text: string }> {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     throw new PostingFetchError("the URL could not be parsed");
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new PostingFetchError(`unsupported scheme ${parsed.protocol}`);
-  }
+  const signal = AbortSignal.timeout(POSTING_FETCH_TIMEOUT_MS);
   let response: Response;
-  try {
-    response = await fetch(parsed, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(POSTING_FETCH_TIMEOUT_MS),
-      headers: { accept: "text/html,text/plain;q=0.9", "user-agent": "kp-posting-import/1.0" },
-    });
-  } catch (error) {
-    throw new PostingFetchError(`the page could not be fetched: ${error instanceof Error ? error.message : String(error)}`);
+  for (let hops = 0; ; hops++) {
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new PostingFetchError(`unsupported scheme ${parsed.protocol}`);
+    }
+    await assertPublicHost(parsed, lookupFn);
+    try {
+      response = await fetch(parsed, {
+        redirect: "manual",
+        signal,
+        headers: { accept: "text/html,text/plain;q=0.9", "user-agent": "kp-posting-import/1.0" },
+      });
+    } catch (error) {
+      throw new PostingFetchError(`the page could not be fetched: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (response.status < 300 || response.status >= 400) break;
+    const location = response.headers.get("location");
+    if (!location) break; // a 3xx with no target falls to the !ok refusal below
+    if (hops >= POSTING_MAX_REDIRECTS) throw new PostingFetchError("too many redirects");
+    try {
+      parsed = new URL(location, parsed);
+    } catch {
+      throw new PostingFetchError("a redirect pointed at an unparseable URL");
+    }
   }
   if (!response.ok) throw new PostingFetchError(`the page answered HTTP ${response.status}`);
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();

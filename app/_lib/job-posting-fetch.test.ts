@@ -6,6 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { decodeEntities, htmlTitle, htmlToText, fetchPostingText, PostingFetchError } from "./job-posting-fetch.ts";
 
+const PUBLIC = async () => [{ address: "93.184.216.34" }];
+
 const PAGE = `<!doctype html>
 <html><head>
   <title>Senior Java Developer &mdash; Example&nbsp;s.r.o.</title>
@@ -68,7 +70,7 @@ test("fetchPostingText refuses a content type that is not readable text", async 
   globalThis.fetch = (async () =>
     new Response("%PDF-1.7", { status: 200, headers: { "content-type": "application/pdf" } })) as typeof fetch;
   try {
-    await assert.rejects(() => fetchPostingText("https://example.test/jobs/1"), PostingFetchError);
+    await assert.rejects(() => fetchPostingText("https://example.test/jobs/1", PUBLIC), PostingFetchError);
   } finally {
     globalThis.fetch = original;
   }
@@ -79,7 +81,7 @@ test("fetchPostingText returns the page's title and its extracted text", async (
   globalThis.fetch = (async () =>
     new Response(PAGE, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } })) as typeof fetch;
   try {
-    const { title, text } = await fetchPostingText("https://example.test/jobs/1");
+    const { title, text } = await fetchPostingText("https://example.test/jobs/1", PUBLIC);
     assert.equal(title, "Senior Java Developer — Example s.r.o.");
     assert.match(text, /payment rails/);
     assert.ok(!text.includes("dataLayer"));
@@ -92,8 +94,91 @@ test("a non-OK status is a PostingFetchError, never a stored empty posting", asy
   const original = globalThis.fetch;
   globalThis.fetch = (async () => new Response("nope", { status: 404, headers: { "content-type": "text/html" } })) as typeof fetch;
   try {
-    await assert.rejects(() => fetchPostingText("https://example.test/gone"), PostingFetchError);
+    await assert.rejects(() => fetchPostingText("https://example.test/gone", PUBLIC), PostingFetchError);
   } finally {
     globalThis.fetch = original;
   }
+});
+
+/** Stub fetch with a per-URL script; records every URL requested. */
+async function withFetch(routes: Record<string, () => Response>, run: (seen: string[]) => Promise<void>) {
+  const original = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: URL | string) => {
+    const href = String(input);
+    seen.push(href);
+    const route = routes[href];
+    if (!route) throw new Error(`unscripted ${href}`);
+    return route();
+  }) as typeof fetch;
+  try {
+    await run(seen);
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+const redirect = (to: string) => () => new Response(null, { status: 302, headers: { location: to } });
+const page = () => new Response(PAGE, { status: 200, headers: { "content-type": "text/html" } });
+
+test("a private or literal-IP start host is refused before any request", async () => {
+  await withFetch({}, async (seen) => {
+    for (const u of ["http://127.0.0.1/x", "http://169.254.169.254/latest/meta-data", "http://[::1]/x", "http://localhost/x"]) {
+      await assert.rejects(
+        () => fetchPostingText(u, async (h) => [{ address: h === "localhost" ? "127.0.0.1" : h }]),
+        PostingFetchError,
+      );
+    }
+    assert.deepEqual(seen, []);
+  });
+});
+
+test("a public host that redirects to a private address is refused at the hop", async () => {
+  const lookup = async (h: string) => [{ address: h === "careers.test" ? "93.184.216.34" : h }];
+  for (const target of ["http://127.0.0.1/admin", "http://169.254.169.254/latest/meta-data"]) {
+    await withFetch({ "https://careers.test/job": redirect(target) }, async (seen) => {
+      await assert.rejects(() => fetchPostingText("https://careers.test/job", lookup), PostingFetchError);
+      assert.deepEqual(seen, ["https://careers.test/job"]);
+    });
+  }
+});
+
+test("a public name that resolves to a private address (DNS rebinding) is refused", async () => {
+  await withFetch({}, async (seen) => {
+    await assert.rejects(
+      () => fetchPostingText("https://rebind.test/job", async () => [{ address: "93.184.216.34" }, { address: "10.0.0.5" }]),
+      PostingFetchError,
+    );
+    assert.deepEqual(seen, []);
+  });
+});
+
+test("a redirect to a non-http scheme is refused", async () => {
+  await withFetch({ "https://careers.test/job": redirect("file:///etc/passwd") }, async () => {
+    await assert.rejects(() => fetchPostingText("https://careers.test/job", PUBLIC), PostingFetchError);
+  });
+});
+
+test("more than 5 redirect hops is refused; exactly 5 is followed", async () => {
+  const chain = (n: number) => {
+    const routes: Record<string, () => Response> = {};
+    for (let i = 0; i < n; i++) routes[`https://c.test/${i}`] = redirect(`https://c.test/${i + 1}`);
+    routes[`https://c.test/${n}`] = page;
+    return routes;
+  };
+  await withFetch(chain(6), async () => {
+    await assert.rejects(() => fetchPostingText("https://c.test/0", PUBLIC), /too many redirects/);
+  });
+  await withFetch(chain(5), async () => {
+    const { text } = await fetchPostingText("https://c.test/0", PUBLIC);
+    assert.match(text, /payment rails/);
+  });
+});
+
+test("a public http fetch through a public redirect is allowed", async () => {
+  await withFetch({ "http://careers.test/a": redirect("/b"), "http://careers.test/b": page }, async (seen) => {
+    const { title } = await fetchPostingText("http://careers.test/a", PUBLIC);
+    assert.equal(title, "Senior Java Developer — Example s.r.o.");
+    assert.deepEqual(seen, ["http://careers.test/a", "http://careers.test/b"]);
+  });
 });
