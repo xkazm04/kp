@@ -1,5 +1,6 @@
 import { route } from "@/app/_lib/auth/workspace-context";
 import { withOperator } from "@/app/_lib/auth/route-guards";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -15,6 +16,8 @@ import { isShortlistState, listRoleShortlist, setShortlistState } from "@/app/_l
 // Tenant-scoped through the workspace the chain hands in; an entry another team owns, or one
 // that is not on the named role, answers SHORTLIST_ENTRY_UNKNOWN and changes nothing.
 export const GET = route(withOperator)(async (ws: string, request: Request) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const jobId = new URL(request.url).searchParams.get("job")?.trim() ?? "";
   if (!jobId || jobId.length > MAX_ENTRY_ID_LEN) return jsonRefusal("ROLE_VIEW_JOB_REQUIRED", 400);
   try {
@@ -25,6 +28,8 @@ export const GET = route(withOperator)(async (ws: string, request: Request) => {
 });
 
 export const POST = route(withOperator)(async (ws: string, request: Request) => {
+  const unauthorized = await requireOperator();
+  if (unauthorized) return unauthorized;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   const body = (await request.json().catch(() => null)) as { job?: unknown; entryId?: unknown; state?: unknown } | null;

@@ -1,5 +1,6 @@
 import { route } from "@/app/_lib/auth/workspace-context";
 import { withOperator } from "@/app/_lib/auth/route-guards";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { loadRoleDecisionView } from "@/app/_lib/role-decision-view-server";
@@ -12,6 +13,8 @@ import { loadRoleDecisionView } from "@/app/_lib/role-decision-view-server";
 // loader carries the session's workspace, and a submission another team owns reads as
 // absent. Read-only.
 export const GET = route(withOperator)(async (ws: string, request: Request) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const jobId = new URL(request.url).searchParams.get("job")?.trim() ?? "";
   if (!jobId || jobId.length > MAX_ENTRY_ID_LEN) return jsonRefusal("ROLE_VIEW_JOB_REQUIRED", 400);
   try {
