@@ -28,7 +28,8 @@ edit is not discarded.
   the per-browser `kp_org_name` cookie; when it was never set, the effective name is
   the demo's company (`DEFAULT_ORG_NAME`) **only on a fixture-seeded install** and
   empty everywhere else (`orgNameFallback`, resolved in `app/layout.tsx` from
-  `fixtureSeedEnabled()` and handed down by `BrandProvider`), so an unseeded owner
+  `fixtureSeedEnabled()` — the boot-seed env, so `KP_SEED_DEMO=1` — and handed down by
+  `BrandProvider`; a demo seeded from the first-run choice does not flip it yet), so an unseeded owner
   workspace (`npm run up`) never presents the bank as its company. The first-run
   wizard also writes the typed company into the brand display name while that is
   still the default (`persistSetupBrand`). A role created with its company blank takes
@@ -40,6 +41,17 @@ doc). There is **no
   hardcoded `"csas.cz"` behind a padlock — a demo string presented as a locked
   company fact. It is gone until a surface actually sets the column.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
+- First-run data choice (`app/setup/FirstRunDataChoice.tsx`, rendered by `app/page.tsx`)
+  — since 2026-10-22 a fresh install no longer seeds the demo corpus at boot (ADR 0002's
+  amendment), so the first entry into the default workspace asks "start empty, or
+  explore with demo data?". It shows only while the default workspace has no roles,
+  candidates, analyses, JDs or board entries, the demo was never seeded, the wizard was
+  never completed or skipped, and neither `KP_EMPTY=1` nor `KP_SEED_DEMO=1` has answered
+  it already. Both answers go to `POST /api/setup/first-run` (operator session +
+  `team:manage`) and are stored in `workspaces.demo_choice`, so it never comes back.
+  *Start empty* lands in the empty app, where the wizard below fires; *Explore with demo
+  data* runs `seedDemoCorpus()` (idempotent; a workspace that already holds data answers
+  409 `refused-has-data`) and lands on the seeded pipeline (`app/_lib/db/demo-seed.ts`).
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
   registration that provisions a brand-new org → team → owner in one

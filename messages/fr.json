@@ -18205,5 +18205,24 @@
       "candidates": "Faites tourner KandiDate à une adresse accessible depuis Internet, indiquez-la dans NEXT_PUBLIC_APP_BASE_URL et redémarrez KandiDate (une version de production doit être reconstruite). Le guide d’auto-hébergement explique la mise en place. Le relais toujours actif, facultatif, ne transmet que les webhooks et les e-mails entrants ; il ne sert pas les pages destinées aux candidats.",
       "sources": "Faites tourner KandiDate à une adresse accessible depuis Internet et indiquez-la dans NEXT_PUBLIC_APP_BASE_URL, ou associez le relais toujours actif et faites pointer la source vers son adresse. Le guide d’auto-hébergement explique les deux."
     }
+  },
+  "firstRunData": {
+    "eyebrow": "Premier démarrage",
+    "title": "Comment voulez-vous commencer ?",
+    "intro": "Cet espace de travail est vide. Partez de zéro, ou découvrez l’application remplie d’un exemple de pipeline de recrutement. Vous choisissez une seule fois ; cet écran ne reviendra pas.",
+    "empty": {
+      "action": "Commencer à vide",
+      "detail": "Uniquement vos propres postes et candidats. L’assistant de configuration vous guide dans les premières étapes."
+    },
+    "demo": {
+      "action": "Explorer avec des données de démo",
+      "detail": "Les postes, les candidats et un pipeline en cours d’une banque fictive, pour que chaque écran ait quelque chose à montrer."
+    },
+    "working": "Ouverture…",
+    "seeding": "Chargement des données de démo…",
+    "errors": {
+      "hasData": "Cet espace de travail contient déjà des données ; la démo n’a donc pas été ajoutée.",
+      "failed": "Cela n’a pas fonctionné. Veuillez réessayer."
+    }
   }
 }

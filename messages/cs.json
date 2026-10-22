@@ -18205,5 +18205,24 @@
       "candidates": "Spusťte KandiDate na adrese dostupné z internetu, nastavte na ni NEXT_PUBLIC_APP_BASE_URL a KandiDate restartujte (produkční build je třeba sestavit znovu). Postup popisuje příručka k vlastnímu provozu. Volitelný trvale dostupný okraj předává jen příchozí webhooky a poštu, stránky pro kandidáty nezobrazuje.",
       "sources": "Spusťte KandiDate na adrese dostupné z internetu a nastavte na ni NEXT_PUBLIC_APP_BASE_URL, nebo spárujte trvale dostupný okraj a zdroj nasměrujte na jeho adresu. Obojí popisuje příručka k vlastnímu provozu."
     }
+  },
+  "firstRunData": {
+    "eyebrow": "První spuštění",
+    "title": "Jak chcete začít?",
+    "intro": "Tento pracovní prostor je prázdný. Začněte s čistým štítem, nebo si aplikaci prohlédněte naplněnou ukázkovým náborovým procesem. Volíte jen jednou, tato obrazovka se už nevrátí.",
+    "empty": {
+      "action": "Začít naprázdno",
+      "detail": "Jen vaše vlastní pozice a kandidáti. Průvodce nastavením vás provede prvními kroky."
+    },
+    "demo": {
+      "action": "Prozkoumat s ukázkovými daty",
+      "detail": "Pozice, kandidáti a rozběhnutý náborový proces ukázkové banky, aby každá obrazovka měla co ukázat."
+    },
+    "working": "Otevírám…",
+    "seeding": "Načítám ukázková data…",
+    "errors": {
+      "hasData": "Tento pracovní prostor už obsahuje data, ukázková data proto nebyla přidána.",
+      "failed": "Nepodařilo se to. Zkuste to prosím znovu."
+    }
   }
 }

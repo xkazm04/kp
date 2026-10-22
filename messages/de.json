@@ -18205,5 +18205,24 @@
       "candidates": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse, setzen Sie NEXT_PUBLIC_APP_BASE_URL auf diese Adresse und starten Sie KandiDate neu (ein Produktions-Build muss neu gebaut werden). Die Anleitung zum Selbstbetrieb erklärt die Einrichtung. Der optionale dauerhaft erreichbare Rand leitet nur eingehende Webhooks und E-Mails weiter; Seiten für Kandidaten stellt er nicht bereit.",
       "sources": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf, oder koppeln Sie den dauerhaft erreichbaren Rand und richten Sie die Quelle auf dessen Adresse. Die Anleitung zum Selbstbetrieb erklärt beides."
     }
+  },
+  "firstRunData": {
+    "eyebrow": "Erster Start",
+    "title": "Wie möchten Sie beginnen?",
+    "intro": "Dieser Arbeitsbereich ist leer. Starten Sie ganz neu oder erkunden Sie die App mit einer Beispiel-Recruiting-Pipeline. Sie entscheiden einmal; dieser Bildschirm erscheint nicht wieder.",
+    "empty": {
+      "action": "Leer starten",
+      "detail": "Nur Ihre eigenen Stellen und Kandidaten. Der Einrichtungsassistent führt Sie durch die ersten Schritte."
+    },
+    "demo": {
+      "action": "Mit Demodaten erkunden",
+      "detail": "Stellen, Kandidaten und eine laufende Pipeline einer Beispielbank, damit jede Ansicht etwas zeigt."
+    },
+    "working": "Wird geöffnet…",
+    "seeding": "Demodaten werden geladen…",
+    "errors": {
+      "hasData": "Dieser Arbeitsbereich enthält bereits Daten, deshalb wurden keine Demodaten hinzugefügt.",
+      "failed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut."
+    }
   }
 }

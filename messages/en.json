@@ -18205,5 +18205,24 @@
       "candidates": "Run KandiDate at an address reachable from the internet, set NEXT_PUBLIC_APP_BASE_URL to that address and restart KandiDate (a production build has to be rebuilt). The self-hosting guide explains the setup. The optional always-on edge relays incoming webhooks and mail only; it does not serve candidate pages.",
       "sources": "Run KandiDate at an address reachable from the internet and set NEXT_PUBLIC_APP_BASE_URL to it, or pair the always-on edge and point the source at the edge's address instead. The self-hosting guide explains both."
     }
+  },
+  "firstRunData": {
+    "eyebrow": "First start",
+    "title": "How do you want to begin?",
+    "intro": "This workspace is empty. Start with a clean slate, or explore the app filled with a sample hiring pipeline. You choose once; this screen will not come back.",
+    "empty": {
+      "action": "Start empty",
+      "detail": "Your own roles and candidates only. The setup guide walks you through the first steps."
+    },
+    "demo": {
+      "action": "Explore with demo data",
+      "detail": "A sample bank's roles, candidates and a pipeline in motion, so every screen has something to show."
+    },
+    "working": "Opening…",
+    "seeding": "Loading demo data…",
+    "errors": {
+      "hasData": "This workspace already holds data, so the demo was not added on top of it.",
+      "failed": "That did not work. Please try again."
+    }
   }
 }
