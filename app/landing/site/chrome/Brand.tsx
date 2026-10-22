@@ -8,7 +8,7 @@ export function BrandMark() {
       <span className="logo" aria-hidden="true">
         {BRAND.initial}
       </span>
-      <span className="word">
+      <span className="word" aria-hidden="true">
         {BRAND.pre}
         <b>{BRAND.accent}</b>
         {BRAND.post}
