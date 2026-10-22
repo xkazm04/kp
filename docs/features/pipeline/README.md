@@ -786,12 +786,25 @@ The board's 30s poll stays paused while the modal is open.
 (`footer/CandidateFooter.tsx`). It replaced two overlapping interfaces — the Scorecard's
 own action row (Open profile / All actions / Move) and an Actions tab — and holds, in
 order: the move-to-step select (active candidates), the AI actions this step offers, the
-voice-screen and self-scheduling link buttons (active + a screening/interview step), and
-"Move to {next step}". An AI action's progress, result or localized failure, and either
-link panel, open in a tray above the bar (`footer/CandidateFooterTray.tsx`), so the tab
+voice-screen and self-scheduling link buttons (active + a screening/interview step),
+**Work sample** (active + a job, any step), and "Move to {next step}". An AI action's
+progress, result or localized failure, each link panel and the work-sample panel open in
+a tray above the bar (`footer/CandidateFooterTray.tsx`), so the tab
 being read stays in place; "Last result" reopens a closed result. Both moves use the
 guarded `set_stage` (with `expectedStage`) and refresh in place. The profile is reached
 from the Record tab's links.
+
+**Work sample** (`footer/WorkSamplePanel.tsx`, CX S43) sends the role's approved
+assignment to this candidate without a homework column — the default board has none.
+`POST /api/pipeline/[id]/work-sample` (operator + `pipeline:write` + a 30/min limiter)
+calls `sendWorkSample` (`app/_lib/stage-hooks-homework.ts`), the homework arrival's own
+`inviteToCase`: the click is the human gate, so the column's plan gate is not asked, and
+everything else holds — the send gate before publishing, one letter per (entry,
+posting), a stopped intake never reopened, the outbox's real claim. A click never
+designs a case: no approved case answers `no_case`, and the panel links to
+`/?tab=assignments&job=<jobId>`. Each answer is one line (`footer/workSample.ts`): a
+keyless send reads "queued, not sent" with the link to copy (`TokenLinkPanel`, which
+carries `LinkReachNotice`), never a green "sent".
 
 **Which AI actions a step offers** is one rule, `app/_lib/stage-ai-actions.ts`, read by
 the footer, by Settings → Hiring and by the server:

@@ -72,7 +72,7 @@ export function useTokenLink(endpoint: string) {
 // The shared link-display row: a readonly absolute-URL field, a copy button that flips
 // to a check once clicked, and an open-as-candidate external link. Renders nothing until
 // a link has been minted, so callers can drop it in unconditionally.
-export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink> }) {
+export function TokenLinkPanel({ link }: { link: Pick<ReturnType<typeof useTokenLink>, "data" | "fullUrl" | "copy" | "copied"> }) {
   const t = useTranslations("pipeline");
   // "Open as candidate" walked straight into the LIVE capability link — the same
   // one-way door the candidate has. Several of these surfaces stamp an opened-at /

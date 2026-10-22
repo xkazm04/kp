@@ -1314,6 +1314,18 @@ credential. These rules keep that honest, all sized so a real candidate never me
   their stakeholder — and spend an hour of a timed case on its answer — is not. The route
   also forwards `request.signal` into `runSessionChat`, so an abandoned generation does not
   leave a Python child running for the rest of its timeout.
+- **The door speaks the case's register, and says when no AI is there** (CX S43,
+  `app/_lib/devcase-apply-subtitle.ts`). The process sentence follows the case's role
+  family (`caseRoleFamily` → `doorRegister`): a technical family (`TECHNICAL_FAMILIES`) or
+  an unclassified case keeps `workSurface.intro` ("not just the final code"); every other
+  family reads `workSurface.introGeneral` ("your work and how you got there", a short
+  decisions note). The chat intro is `chatIntro` ("good prompts count in your favor") only
+  while `devcaseAssistantLive()` (`app/_lib/devcase-assistant-live.ts`: not `KP_OFFLINE`,
+  and LLM routing/keys configured or the Claude CLI / a Gemini key present) forecasts a
+  real AI **and** no reply has come back `deterministic`; otherwise `chatIntroStandIn`
+  says plainly that the tabs answer with a scripted note, not a real AI. The repo-link
+  path now prints `devApply.aiAllowed` ("You may use any tools, including AI"), which only
+  the live path said before.
 - **Durable submit.** The final flush is the only thing that puts the candidate's last
   edits and process events on the server — `saveDevSessionFiles` is a no-op once a session
   is `submitted`, so sealing after a failed flush would grade them on a stale tree *and*
@@ -2177,6 +2189,15 @@ unaddressable refusal (nothing sent, nothing published, the move stands), a stop
 intake refused rather than reopened (no fresh posting, no letter, the move stands), the human gate
 parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
 cases (invited → their entry; uninvited → the old resolution).
+
+**The same send, from the candidate drawer** (CX S43). A board with no homework column —
+the default one — had no way to hand a named candidate their assignment. `sendWorkSample`
+(same module) is the drawer's door to `inviteToCase`: the owner's click is the human
+gate, every other rule above holds, and it never designs a case (`no_case` → the panel
+links to Assignments filtered to the role). The `invited` and `already_invited` outcomes
+now carry the relative apply `url` so the drawer can show the link to copy. Route
+`POST /api/pipeline/[id]/work-sample`; pipeline README "Work sample"; pinned by the three
+`send work sample:` cases in the same test file.
 
 ### The voice screen is reachable from the assignment
 

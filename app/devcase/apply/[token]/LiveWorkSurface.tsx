@@ -8,6 +8,7 @@ import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTy
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft, type LiveWorkChatMessage } from "./liveWorkDraft";
 import { createLiveWorkSync, DECISIONS_FILE, type LiveWorkSyncState } from "./liveWorkSync";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE, PANEL, PANEL_SUNKEN, toggleBtn } from "@/app/_components/ui/recipes";
+import { chatIntroKey, workIntroKey, type DoorRegister } from "@/app/_lib/devcase-apply-subtitle";
 import { useTablist } from "@/app/_components/ui/useTablist";
 
 /** The captured chat channels, in strip order — literal array, derived union. */
@@ -73,6 +74,8 @@ export function LiveWorkSurface({
   seedFiles,
   note,
   timeboxHours,
+  register = "software",
+  assistantLive = true,
 }: {
   token: string;
   seedFiles: SeedFile[];
@@ -80,6 +83,10 @@ export function LiveWorkSurface({
   /** The case timebox the candidate was shown on the brief, already clamped by the
    *  page through devcase-timebox.ts. This component never carries a number of its own. */
   timeboxHours: number;
+  /** The case's role family register (devcase-apply-subtitle.ts doorRegister). */
+  register?: DoorRegister;
+  /** The page's forecast that a real AI answers the chat tabs (devcase-assistant-live.ts). */
+  assistantLive?: boolean;
 }) {
   const t = useTranslations("devApply.workSurface");
   const [activePath, setActivePath] = useState<string>(seedFiles[0]?.path ?? "");
@@ -314,7 +321,7 @@ export function LiveWorkSurface({
   return (
     <section className={`mt-6 ${PANEL} p-5`}>
       <h2 className="font-serif text-h3 text-ink">{t("heading")}</h2>
-      <p className="mt-1 max-w-prose text-sm text-steel">{t("intro")}</p>
+      <p className="mt-1 max-w-prose text-sm text-steel">{t(workIntroKey(register))}</p>
       {/* Phone advisory (sm:hidden): a timed case started on a phone is a trap —
           say so BEFORE the candidate burns their attempt, without blocking them. */}
       <p className={`mt-2 ${NOTICE()} px-3 py-2 text-sm sm:hidden`}>
@@ -414,7 +421,7 @@ export function LiveWorkSurface({
 
       <div className={`mt-5 ${PANEL_SUNKEN} p-4`}>
         <h3 className="text-sm font-semibold text-ink">{t("chatHeading")}</h3>
-        <p className="mt-1 max-w-prose text-micro text-steel">{t("chatIntro")}</p>
+        <p className="mt-1 max-w-prose text-micro text-steel">{t(chatIntroKey(assistantLive, chatMessages.some((m) => m.role === "model" && m.deterministic)))}</p>
         {/* The roles were declared here with no keyboard behind them: each tab was
             its own Tab stop and no arrow key did anything. The transcript below is
             conditional, so there is no stable panel id these tabs could control —

@@ -4,7 +4,7 @@
 // interfaces (the Scorecard's footer and the Actions tab) that offered overlapping
 // doors to the same operations.
 //
-//   [ move to step ▾ ]  [ AI actions this step offers… ]  [ voice link ] [ scheduling link ]   [ Move to {next} → ]
+//   [ move to step ▾ ]  [ AI actions this step offers… ]  [ voice link ] [ scheduling link ] [ work sample ]   [ Move to {next} → ]
 //
 // Which AI actions appear is the column's rule (app/_lib/stage-ai-actions.ts): the
 // workspace's own list from Settings → Hiring, else the product default by role —
@@ -18,6 +18,7 @@ import {
   Ban,
   Banknote,
   CalendarClock,
+  ClipboardCheck,
   ClipboardList,
   Mail,
   Mic,
@@ -131,6 +132,14 @@ export function CandidateFooter({
               <CalendarClock size={14} className="text-coral-ink" aria-hidden /> {t("scheduleLink")}
             </button>
           </>
+        ) : null}
+
+        {/* Send this role's assignment to this candidate (CX S43) — the homework column's
+            own send, for a board without one. Any step: a work sample is not tied to a column. */}
+        {active && entry.jobId ? (
+          <button type="button" aria-expanded={tray === "workSample"} onClick={() => toggle("workSample")} className={LINK_BTN}>
+            <ClipboardCheck size={14} className="text-coral-ink" aria-hidden /> {t("workSampleAction")}
+          </button>
         ) : null}
 
         {tray !== "result" && (st.result || st.error) ? (

@@ -617,6 +617,9 @@ export const REFUSAL_ERRORS = {
    *  door read a CLIENT-side snapshot, so a drawer left open while the candidate was
    *  closed out in another tab used to mint a link AND mail an interview invitation. */
   SCHEDULE_INVITE_ENTRY_INACTIVE: "That candidate is no longer active, so no invite was sent.",
+  /** POST /api/pipeline/[id]/work-sample (409): the candidate was closed out (rejected,
+   *  withdrawn) — read off the server row, not the drawer's snapshot. Nothing was sent. */
+  WORK_SAMPLE_ENTRY_INACTIVE: "That candidate is no longer active, so no work sample was sent.",
   /** The submitted meeting link is not http(s), or does not parse (400). The link is
    *  rendered as a trusted "Join" anchor and baked into calendar events, so anything
    *  else is refused rather than sanitized. */

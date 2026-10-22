@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_305 routes, 405 handlers._
+_306 routes, 406 handlers._
 
 ### `/api/agents`
 
@@ -571,6 +571,7 @@ _305 routes, 405 handlers._
 | `/api/pipeline/[id]/notes` | GET | gated |
 | `/api/pipeline/[id]/offer-letter` | GET | gated |
 | `/api/pipeline/[id]/timeline` | GET | gated |
+| `/api/pipeline/[id]/work-sample` | POST | gated |
 | `/api/pipeline/automation-counts` | GET | gated |
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |

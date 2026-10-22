@@ -2,7 +2,8 @@
 
 // What the footer's buttons produce, shown in a tray ABOVE the bar so the tab being
 // read stays in place: an AI action's progress and result (or its localized failure),
-// or one of the two tokenized candidate links with its delivery truth.
+// one of the two tokenized candidate links with its delivery truth, or the
+// "Send work sample" door (WorkSamplePanel, CX S43).
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -12,8 +13,9 @@ import { ResultView } from "../../PipelineCandidateResultView";
 import { PipelineSelfSchedulingPanel } from "../../PipelineSelfSchedulingPanel";
 import { PipelineVoiceScreenPanel } from "../../PipelineVoiceScreenPanel";
 import type { CandidateState } from "../state/useCandidateState";
+import { WorkSamplePanel } from "./WorkSamplePanel";
 
-export type TrayView = "result" | "voice" | "schedule";
+export type TrayView = "result" | "voice" | "schedule" | "workSample";
 
 export function CandidateFooterTray({
   view,
@@ -58,6 +60,8 @@ export function CandidateFooterTray({
               revokeNote={st.revokeNote}
               onRevoke={() => void st.revokeLinks()}
             />
+          ) : view === "workSample" ? (
+            <WorkSamplePanel entry={entry} />
           ) : (
             <PipelineSelfSchedulingPanel entryId={entry.id} sched={st.sched} />
           )}
