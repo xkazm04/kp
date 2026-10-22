@@ -303,7 +303,12 @@ an interview or offer column is a supported shape. Pinned by
    or `/api/automation/run`) against a `POLICY` dict (advance/hold/reject
    thresholds). An unscored entry (no match score yet) always
    holds — it is never coerced into a fabricated zero. Applied server-side by
-   `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`.
+   `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`. The pass's
+   pre-policy scoring sweep and the post-filing score of a fresh applicant
+   (conversational apply, inbound CV) share one scoring-only path,
+   `scoreEntriesForJob` in `app/_lib/entry-scoring.ts`, so with the clock off a new
+   applicant is still on the board with a score — and no decision — moments after
+   applying.
    **Aging alerts follow the board's clock.** The pass does not age entries on its
    own: `listActiveEntriesForAutomation` stamps each entry's `agingTier`
    (`none` / `aging` / `stalled`) from `app/_lib/aging-policy.ts` — the same

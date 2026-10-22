@@ -1,4 +1,5 @@
 import { fileApplication, type ProfileBuilder } from "@/app/_lib/application-filing";
+import type { PipelineEntry } from "@/app/_lib/db/core";
 import type { getJob } from "@/app/_lib/db/jobs";
 import { markSimTitle } from "@/app/_lib/sim-marker";
 import {
@@ -103,6 +104,9 @@ export async function ingestCvApplication(input: {
   jobTitle?: string;
   /** The profile builder — buildApplicantProfile unless a test injects one. */
   buildProfile?: ProfileBuilder;
+  /** Schedule the fresh entry's role-fit score off the response path (the filing
+   *  core's `deferScore`). Omitted = the automation pass scores it later. */
+  deferScore?: (entry: PipelineEntry) => void;
 }): Promise<CvIntakeResult> {
   // Everything that makes this a FILING — tenant, name hygiene, identity before the
   // build, the tenant-carrying profile build, the entry column, consent, the ack —
@@ -124,6 +128,7 @@ export async function ingestCvApplication(input: {
     proof: "channel",
     buildProfile: input.buildProfile,
     sendAck: input.sendAck,
+    deferScore: input.deferScore,
   });
 
   if (outcome.kind === "duplicate") {

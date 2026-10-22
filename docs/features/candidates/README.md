@@ -688,6 +688,14 @@ records them on its funnel session, and stores capped campaign/variant labels on
 the accepted pipeline entry, matching the quick-apply door.
 The experience answer extracts a whole-year count from English, Czech, German,
 and French unit words; sub-year amounts and bare dates stay unparsed.
+An uploaded CV counts in the keyless match: `profile_cli` runs the taxonomy's
+deterministic skill detector over the `kind: "cv"` block's text
+(`fold_cv_detected_skills` in `pipeline/jobfit/profile.py`, no LLM) and files the
+skills the applicant did not type — de-duplicated by canonical term, capped at
+`CV_DETECTED_SKILLS_LIMIT` (20), proven name/gender-neutral in
+`eval/neutrality.py` — as a separate `kind: "cv"` block titled "Skills read from
+the CV" at the CV block's own provenance (`unknown`, 0.6). Typed skills are never
+replaced; a re-normalization re-derives the block instead of stacking it.
 When a role declares no languages, the conversational applicant profile uses
 the request locale as its language fallback instead of assuming Czech and English
 for every visitor. A role's explicit language list still takes precedence.
@@ -830,6 +838,18 @@ profile builder, no Python; includes a source guard that every door files
 through the core and that the entry-stage rule, the consent block and the
 status-link mint exist once) and, over the real handler for a job owned by a
 non-default team, `app/api/apply/[id]/filing-core-door.test.ts`.
+
+**A fresh applicant arrives scored.** A door that passes `deferScore` gets the new
+entry's role-fit score computed after its response (`afterResponse` →
+`scoreFiledEntry`, `app/_lib/entry-scoring.ts`): the same deterministic, keyless
+`recruiter_cli` ranking the automation pass's sweep uses, in the background spawn
+lane, written only while `match_score` is still NULL, with the `scored` event and
+**no** stage move, approval or proposal. Only a created, built filing qualifies
+(`shouldScoreAfterFiling`, `app/_lib/entry-scoring-policy.ts`) — never a repeat, a
+quick-apply/ATS stub or a degraded intake. The conversational apply and the inbound
+CV webhook (`app/api/channels/inbound/[token]/route.ts`) pass it; the lead core and
+the ATS import file stubs, and the sim CV doors do not. A failure is logged and the
+entry stays unscored for the next pass. Pinned by `app/_lib/entry-scoring.test.ts`.
 - **Input caps precede the knockout audit.** A KO fail creates no entry but does
   persist an entry-less `ko_declined` event carrying the applicant's display
   name, and `pipeline_events` bounds the event *detail*, not the label — so the

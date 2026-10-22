@@ -15,6 +15,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
+import { scoreFiledEntry } from "@/app/_lib/entry-scoring";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { capAttribution } from "@/app/_lib/lead-payload";
 import { dispatchKnockoutDecline } from "@/app/_lib/comms-dispatch";
@@ -421,6 +422,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // response: an SMTP/relay round-trip whose failure already cannot change the
       // outcome only made a slow provider look like a broken apply form.
       defer: (task, kind) => afterResponse(kind === "reack" ? "apply-reack" : "apply-ack", task),
+      // The new applicant's role-fit score, AFTER this response (scoring only — no
+      // advance/reject proposal): the owner finds the card scored instead of blank and
+      // "awaiting match score" until a pass that is off by default happens to run.
+      deferScore: (filedEntry) => afterResponse("apply-score", () => scoreFiledEntry(filedEntry)),
       // The audit prose this door has always written: WHAT a repeat contributed.
       repeatDetail: (changes) =>
         changes.length

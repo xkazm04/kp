@@ -1,11 +1,9 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob } from "./db/jobs";
-import { actOnPipelineEntry, hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
-import { resolveCandidatePoolEntry } from "./candidate-pool";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, pythonSpawnLoad, spawnPython } from "./python-runner";
+import { actOnPipelineEntry, hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, type AutomationEntry } from "./db/pipeline";
+import { isScorableEntry, scoreEntriesForJob } from "./entry-scoring";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, pythonSpawnLoad, spawnPython } from "./python-runner";
 import { positiveNumericEnv } from "./env";
-import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 import { isAgingAlertKind } from "./aging-policy";
@@ -308,9 +306,7 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   // only miss. Since the one-thread milestone a promoted submission carries a REAL
   // profile id (devcase-run.promoteSubmission), so those entries now pass this filter
   // and get scored like anyone else — which is the point: they were unrankable before.
-  const unscored = entries.filter(
-    (e) => e.matchScore == null && !e.intakeDegraded && e.candidateId && e.jobId && !e.candidateId.startsWith("ds-")
-  );
+  const unscored = entries.filter(isScorableEntry);
   if (unscored.length === 0) return 0;
 
   // Group by job — one recruiter_cli spawn scores all of a job's newcomers.
@@ -321,58 +317,14 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
     byJob.set(e.jobId as string, list);
   }
 
-  const { deferred } = await runScoringSweep(byJob, scoringSpawnBudget(), async (jobId, group) => {
-    let issued = false;
-    try {
-      const candidates = group
-        // Each entry resolves within its OWN workspace — the global sweep spans
-        // tenants, so a candidate must never resolve against another team's store.
-        .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel, e.workspaceId))
-        .filter((c): c is NonNullable<typeof c> => c !== null);
-      if (candidates.length === 0) return false;
-
-      // Pass the DB job directly when it exists, so ingested (non-corpus) jobs
-      // score too — same contract as the candidates route. A CLI failure throws a
-      // PipelineError, caught below so the bad job is skipped and the sweep
-      // continues (the entry stays held exactly as before).
-      const job = getJob(jobId);
-      issued = true;
-      const payload = await rankPoolForJob<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(
-        jobId,
-        candidates,
-        job,
-      );
-      const scoreById = new Map<string, number>();
-      for (const row of payload.candidates ?? []) {
-        const total = row.result?.total;
-        if (row.candidateId && typeof total === "number" && Number.isFinite(total)) {
-          scoreById.set(row.candidateId, Math.round(total));
-        }
-      }
-      for (const e of group) {
-        const score = scoreById.get(e.candidateId as string);
-        if (score == null) continue;
-        if (dryRun) {
-          // Preview-only: patch the snapshot so the policy step previews the
-          // post-scoring verdict, but persist nothing — the committed run
-          // recomputes the same deterministic score and writes it then.
-          e.matchScore = score;
-        } else if (setEntryMatchScore(e.id, score, e.workspaceId)) {
-          // Patch the in-memory snapshot so THIS pass's policy step (and the
-          // fairness backstop reading the same snapshot) sees the fresh score.
-          e.matchScore = score;
-          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`, e.workspaceId);
-        }
-      }
-    } catch (error) {
-      if (error instanceof PipelineError) {
-        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${error.message}`);
-      } else {
-        console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
-      }
-    }
-    return issued;
-  });
+  // The scoring half is entry-scoring.ts's (shared with the post-filing hook): the
+  // ranker call, the NULL-only CAS write + `scored` event, and — on a dry run — the
+  // snapshot-only patch so the policy step previews the post-scoring verdict while
+  // the committed run recomputes the same deterministic score and writes it then.
+  // A ranker failure is logged there and the bad job is skipped; the entry stays held.
+  const { deferred } = await runScoringSweep(byJob, scoringSpawnBudget(), (jobId, group) =>
+    scoreEntriesForJob(jobId, group, { dryRun, logPrefix: "automation-pass" }),
+  );
 
   // The stop is recorded, never silent: a pass that leaves jobs unscored says so,
   // and the count is what tells an operator whether the derived budget is binding

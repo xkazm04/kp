@@ -13,6 +13,7 @@ model it and score its completeness for the guided intake.
 
 from __future__ import annotations
 
+import re
 from typing import Callable
 
 from pydantic import Field
@@ -20,7 +21,7 @@ from pydantic import Field
 from . import registry
 from .archetype import BAU
 from .models import _Base
-from .taxonomy import PROVENANCE_WEIGHTS
+from .taxonomy import PROVENANCE_WEIGHTS, detected_skills, resolve_term
 
 # Source of truth for the evidence/skill taxonomy shared with the frontend: the
 # TS dropdowns (app/_lib/taxonomy.generated.ts) are generated from these lists
@@ -184,6 +185,94 @@ def completeness_gaps(profile: CandidateProfileV2) -> list[dict[str, str]]:
     ]
     unmet.sort(key=lambda item: item[0], reverse=True)
     return [{"check": check, "label": label} for _weight, check, label in unmet]
+
+
+# --- Skills read from an uploaded CV (keyless intake, CX S41) -----------------
+# An applicant's uploaded CV arrives as ONE `kind: "cv"` evidence block whose
+# `skills` are the skills they TYPED; the rule-based matcher only reads `skills`
+# lists, so the CV text itself counted for nothing without an LLM. The intake fold
+# below runs the taxonomy's deterministic detector over the CV text and files the
+# skills it finds — that the applicant did not type — as a SEPARATE `kind: "cv"`
+# block with this title, so "read from the CV" stays distinguishable from "typed"
+# on the saved profile. Provenance is NOT a new rung: the block resolves through
+# `resolved_provenance()` exactly like the CV block it was read from (no "cv" kind
+# default exists, so it is "unknown", weight 0.6 — under every evidence kind that
+# carries typed skills except the bare CV block itself, and consolidation keeps a
+# typed skill's own provenance when it is stronger).
+CV_DETECTED_TITLE = "Skills read from the CV"
+# Bound on how many detected skills one CV contributes (taxonomy order, so the cap
+# is deterministic). A CV is up to 64 KB of prose; uncapped, a long one would turn
+# every taxonomy term it brushes into a skill.
+CV_DETECTED_SKILLS_LIMIT = 20
+
+
+def _is_cv_detected_block(ev: Evidence) -> bool:
+    return ev.kind == "cv" and ev.title == CV_DETECTED_TITLE
+
+
+def _skill_key(skill: str) -> str:
+    # The canonical term when the taxonomy models it (so a typed "JS" and a read
+    # "javascript" are one skill), else the matcher's own casefold key.
+    return resolve_term(skill) or skill.strip().casefold()
+
+
+def _as_written(form: str, text: str) -> str:
+    """The detected surface form in the CV's own casing when it appears literally."""
+    hit = re.search(re.escape(form), text, flags=re.IGNORECASE)
+    return hit.group(0) if hit else form
+
+
+def fold_cv_detected_skills(profile: CandidateProfileV2, limit: int = CV_DETECTED_SKILLS_LIMIT) -> list[str]:
+    """Add the skills a deterministic read of the CV-tagged evidence finds, alongside
+    the typed ones. Returns the skills added (empty when there is no CV text).
+
+    Idempotent: a previously folded block is dropped and re-derived, so the gap-answer
+    re-normalization (which runs this CLI over the saved payload) never stacks copies.
+    Typed skills are never replaced or re-labelled; only skills absent from every
+    other block and claim are added. No LLM.
+    """
+    profile.evidence = [ev for ev in profile.evidence if not _is_cv_detected_block(ev)]
+    cv_blocks = [ev for ev in profile.evidence if ev.kind == "cv" and (ev.text or "").strip()]
+    if not cv_blocks or limit <= 0:
+        return []
+
+    known = {_skill_key(c.skill) for c in profile.skill_claims}
+    for ev in profile.evidence:
+        known.update(_skill_key(s) for s in ev.skills)
+    known.discard("")
+
+    added: list[str] = []
+    for ev in cv_blocks:
+        # Over-fetch by the skills already known so typed ones never eat the cap.
+        # The detector's default (inflection-tolerant) read on purpose: a strict
+        # read drops Czech feminine agent nouns ("vývojářka" stops reaching
+        # "vývojář"), which eval/neutrality.py catches as a gendered payload.
+        for form in detected_skills(ev.text, limit=limit + len(known)):
+            key = _skill_key(form)
+            if key in known:
+                continue
+            known.add(key)
+            added.append(_as_written(form, ev.text))
+            if len(added) >= limit:
+                break
+        if len(added) >= limit:
+            break
+    if added:
+        source = cv_blocks[0]
+        profile.evidence.append(
+            Evidence(
+                kind="cv",
+                title=CV_DETECTED_TITLE,
+                text=", ".join(added),
+                skills=added,
+                # Same provenance the CV block resolves to — the read is only as
+                # strong as the document it was read from.
+                provenance=source.resolved_provenance(),
+                confidence=source.confidence,
+                recency=source.recency,
+            )
+        )
+    return added
 
 
 def normalize_profile(profile: CandidateProfileV2) -> tuple[float, list[str]]:

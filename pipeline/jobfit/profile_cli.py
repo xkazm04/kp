@@ -24,7 +24,7 @@ from pathlib import Path
 from . import registry
 from ._cli import configure_stdio, emit_error, invalid_input
 from .archetype import ARCHETYPES
-from .profile import CandidateProfileV2, completeness_gaps, normalize_profile
+from .profile import CandidateProfileV2, completeness_gaps, fold_cv_detected_skills, normalize_profile
 
 # --- Honest error taxonomy (mirrors automation_cli.py / devcase_cli.py) ------
 #   400 / invalid_input — a malformed intake draft (pydantic ValidationError) or
@@ -70,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
         profile.archetype = archetype
         profile.archetype_confidence = confidence
         profile.archetype_reasons = reasons
+        # A CV the applicant uploaded counts in the keyless match: skills a
+        # deterministic read of its text finds ride beside the typed ones, filed
+        # as their own "read from the CV" block (see fold_cv_detected_skills).
+        fold_cv_detected_skills(profile)
         # Resolves evidence provenance + stamps completeness, and returns the
         # (score, missing) it computed — no second checklist pass.
         score, missing = normalize_profile(profile)

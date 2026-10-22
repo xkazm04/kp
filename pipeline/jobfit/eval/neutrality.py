@@ -356,6 +356,15 @@ def _m(cand, job):
     return score_job(cand, job)
 
 
+def _fold_cv(profile: Any) -> dict[str, Any]:
+    from ..profile import Evidence, fold_cv_detected_skills
+
+    prose = " ".join(f"{e.title} {e.text}" for e in profile.evidence)
+    cv_text = f"{prose} Ran PostgreSQL on Kubernetes in production."
+    profile.evidence = [*profile.evidence, Evidence(kind="cv", title="CV (uploaded at application)", text=cv_text)]
+    return {"added": fold_cv_detected_skills(profile), "profile": profile}
+
+
 def _scorers() -> dict[str, Scorer]:
     from .. import automation, interview, insights, jobseeker, live_case, match_reasoning, matching
     from .. import profile as profile_mod
@@ -510,6 +519,14 @@ def _scorers() -> dict[str, Scorer]:
         "profile.normalize_profile": Scorer(
             lambda p: {"result": profile_mod.normalize_profile(p), "profile": p},
             "completeness",
+            ("profile.displayName", "profile.evidence.*.title", "profile.evidence.*.text"),
+        ),
+        # The CV read is fed the profile's own evidence prose (where a perturbation's
+        # gendered CV line lands) as the uploaded CV text, so the probe is non-vacuous:
+        # a name or a gendered form must not change which skills are read.
+        "profile.fold_cv_detected_skills": Scorer(
+            lambda p: _fold_cv(p),
+            "added",
             ("profile.displayName", "profile.evidence.*.title", "profile.evidence.*.text"),
         ),
         "soft_signals.build_soft_signal_panel": Scorer(
