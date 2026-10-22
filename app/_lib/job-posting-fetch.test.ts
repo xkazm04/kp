@@ -133,6 +133,17 @@ test("a private or literal-IP start host is refused before any request", async (
   });
 });
 
+test("an IPv4-mapped IPv6 literal of a private address is refused (the URL parser hex-encodes it)", async () => {
+  const { defaultHostLookup } = await import("./ats-egress-guard.ts");
+  await withFetch({}, async (seen) => {
+    for (const u of ["http://[::ffff:169.254.169.254]/latest/meta-data", "http://[::ffff:127.0.0.1]/x", "http://[::127.0.0.1]/x"]) {
+      // The REAL resolver: an IP literal comes back verbatim, in its hex form.
+      await assert.rejects(() => fetchPostingText(u, defaultHostLookup), PostingFetchError, u);
+    }
+    assert.deepEqual(seen, []);
+  });
+});
+
 test("a public host that redirects to a private address is refused at the hop", async () => {
   const lookup = async (h: string) => [{ address: h === "careers.test" ? "93.184.216.34" : h }];
   for (const target of ["http://127.0.0.1/admin", "http://169.254.169.254/latest/meta-data"]) {

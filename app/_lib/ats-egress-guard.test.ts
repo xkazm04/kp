@@ -70,6 +70,36 @@ test("isPrivateAddress flags every non-public range (v4, v6, IPv4-mapped)", () =
   }
 });
 
+// The HEX spellings are the ones that matter: the WHATWG URL parser serializes
+// `[::ffff:169.254.169.254]` as `[::ffff:a9fe:a9fe]`, and dns.lookup hands an IP
+// literal back verbatim, so a guard that only unwrapped the dotted form let
+// `http://[::ffff:169.254.169.254]/` through the posting import to the metadata host.
+test("isPrivateAddress unwraps every IPv4-in-IPv6 spelling and flags the v6-only special ranges", () => {
+  for (const ip of [
+    "::ffff:a9fe:a9fe", // IPv4-mapped metadata, as URL + dns.lookup spell it
+    "::ffff:7f00:1", // IPv4-mapped loopback
+    "::ffff:0:a00:1", // SIIT-translated 10.0.0.1
+    "::7f00:1", // IPv4-compatible loopback
+    "::127.0.0.1",
+    "64:ff9b::a9fe:a9fe", // NAT64 metadata
+    "64:ff9b:1::1", // local-use NAT64
+    "2002:a9fe:a9fe::1", // 6to4 around metadata
+    "2001::1", // Teredo
+    "2001:db8::1", // documentation
+    "100::1", // discard-only
+    "fec0::1", // site-local
+    "ff02::1", // multicast
+    "0:0:0:0:0:ffff:7f00:1", // uncompressed
+    "not-an-ip", // malformed fails closed
+    "1:2:3:4:5:6:7:8:9",
+  ]) {
+    assert.equal(isPrivateAddress(ip), true, `${ip} should be private`);
+  }
+  for (const ip of ["::ffff:808:808", "64:ff9b::808:808", "2002:808:808::1", "2a00:1450:4001:80b::200e"]) {
+    assert.equal(isPrivateAddress(ip), false, `${ip} should be public`);
+  }
+});
+
 test("isPrivateAddress allows genuine public addresses", () => {
   for (const ip of [
     "93.184.216.34", // example.com
