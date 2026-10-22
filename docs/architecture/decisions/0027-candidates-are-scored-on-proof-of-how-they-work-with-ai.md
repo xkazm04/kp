@@ -13,12 +13,15 @@ sources:
   - pipeline/jobfit/tests/test_devcase_ai_draft.py
   - pipeline/jobfit/tests/test_devcase_verification_acts.py
   - pipeline/jobfit/tests/test_devcase_eval.py
+  - pipeline/jobfit/tests/test_devcase_mid_archetype.py
+  - app/_lib/evidence-ladder/ladder.ts
+  - app/features/hiring/pipeline/candidate/evidence-ladder/EvidenceLadder.tsx
 ---
 
 **Status: accepted, partially implemented.** C1 to C6 below have landed. On 2026-10-18 the
 operator adopted the C6 weights as the default scorer (landed, see the dated decision
-below), and C6b "close the leaks" has landed on top of it. S1 and S2 landed on 2026-10-18;
-S3 and L1 are still the approved build order.
+below), and C6b "close the leaks" has landed on top of it. S1 and S2 landed on 2026-10-18,
+S3 on 2026-10-22; L1 is the one step of the approved build order still open.
 
 ## Context
 
@@ -62,7 +65,7 @@ block and a human at the gate.
 | C6 | proof-paying match weights as a logged preview | **landed as an opt-in preview** (`4145c47bb`, `ccc839eaa`, `5fd3430d0`, `d3f500f68`); **adopted as the default scorer** (`9ec98ac06`), see below |
 | S1 | a "Working with AI tools" BARS axis | **landed** (`6fd0f72c8`, `74b0789ec`, `c38d34620`) |
 | S2 | a supplied AI-draft critique stimulus | **landed** (`9ba252257`, `796519494`, `a1813287e`), see the watch item |
-| S3 | the evidence-ladder recruiter UI | planned |
+| S3 | the evidence-ladder recruiter UI, descriptive, no aggregate | **landed** (`6a8ba3b56`, `62325d577`, `db23594a4`), see below |
 | L1 | an offline-verifiable work-proof | planned |
 
 ### 3. Humans stay at every gate
@@ -164,6 +167,47 @@ What S2 changes is that keyless cases now grade real canaries at all, and that t
 propagated draft flaws are named in its concerns. Keep watching on the next step that moves
 the observed score.
 
+## S3 landed 2026-10-22: the evidence ladder, and a middle for the watch figure
+
+**What shipped.** The candidate overview ends with "How they work with AI": three rungs side by
+side, each with its evidence and a reasons line, or a "no evidence yet" that names why (no work
+sample, not evaluated, a repository submission so nothing was watched, no follow-ups, debrief not
+recorded, axis not rated). **Watched** counts verification acts by channel exactly as
+`evaluate.verification_acts` does (a test, an assistant check, a stakeholder check, a caught planted
+defect counted once) beside the C2 witness verdict. **Defended** shows the C4 findings tally, the
+adverse quotes, and whether a hold is open or cleared by a person. **Quoted** shows every "Working
+with AI tools" rating (S1) as given, human and AI side by side. The assembly is the pure
+`app/_lib/evidence-ladder/ladder.ts`; DevEvalPanel shows the same Watched rung from its own bundle.
+As cluster A of the tiger verdict required, the ladder is descriptive: no aggregate, no level across
+rungs, nothing feeds the match total, and it takes no action. No route and no migration were added:
+the work-sample rungs read through `GET /api/pipeline/[id]`, the case's channels read and the C4
+debrief readout.
+
+**Acceptance case: a mid-strength archetype.** S2's observed cast was strong or weak with nothing
+between, so the gamer watch figure had no middle to be read against. The observed cast now carries
+`ai_spot_check` (`verifies: "partial"`, `expected: "mid"`, observed path only): it uses the
+assistant, reads and fixes the legacy rate, but writes no test, asks for no check and ships the
+supplied draft unreviewed, so it shows one watched verification act where a verifier shows two or
+more. The fairness gate groups `verifies` by identity, so the partial verifier is in neither
+behaviour-matched group; the discrimination gate certifies that mid sits between weak and strong by
+the margin. Measured with `submission_eval --count 48 --no-llm --path observed`:
+
+| figure | before S3 | after S3 |
+|---|---|---|
+| strong / weak / gamer mean | 92.0 / 16.0 / 10.0 | 92.0 / 16.5 / 10.0 |
+| mid (partial verifier) mean | - | 59.0 |
+| gamer margin (strong - AI-no-verify) | 82.0 | 82.0 |
+| mid - gamer | - | 49.0 |
+| strong-weak discrimination | 76.0 | 75.5 |
+| judgment gap `\|ai - non_ai\|` | 0.0 | 0.0 |
+| watched verification acts: strong / mid / weak | - | 2+ / 1 / 0 |
+
+Weak moved 16.0 -> 16.5 only because the cohort mix changed (48 rows over seven archetypes instead
+of six); no row's score moved. The commit-path cast is unchanged: the keyless commit reflect has no
+step between "no habit" and "a habit", so a partial verifier is not representable there. The ladder
+test reads the observed cast's real watched evidence from a fixture the Python test pins to the live
+cast, and shows the mid row rendering apart from strong and weak.
+
 ## Alternatives that lost
 
 - **Scoring `DECISIONS.md` into judgment.** Breaks the ordinary-practice framing: writing
@@ -182,6 +226,6 @@ the observed score.
 - Later steps must keep the judgment gap at zero on the observed path and report the
   gamer-cohort figure above when S2 lands.
 - This record is **accepted** for the decision and **partial** for the build; update the
-  table as each step ships. C1 to C6, the default-scorer adoption, C6b, S1 and S2 have shipped; the
+  table as each step ships. C1 to C6, the default-scorer adoption, C6b, S1, S2 and S3 have shipped; the
   C6b best-job crossings target (at most 2 of 66, each a 1-point step) is met at 2/66.
 - Reopen if: the gamer cohort keeps rising faster than strong-weak discrimination at S2.
