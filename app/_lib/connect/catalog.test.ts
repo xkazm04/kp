@@ -125,6 +125,25 @@ test("the relay row follows the env relay and probes through the shared ping", a
   assert.deepEqual(calls, ["https://relay.example.test/hook"]);
 });
 
+// The guard vets the relay URL only. With fetch's default `redirect: "follow"` a public
+// relay answering `307 Location: http://169.254.169.254/…` had undici replay the signed
+// POST there and report the internal host's status as the relay's: an SSRF hop plus a
+// reachability oracle. This fake follows exactly as undici would unless told "manual".
+test("the relay probe never follows a redirect: the hop is a failure, not a second request", async () => {
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  calls = [];
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push(String(url));
+    if (String(url) !== "https://relay.example.test/hook") return new Response("{}", { status: 200 });
+    if (init?.redirect !== "manual") return globalThis.fetch("http://169.254.169.254/latest/meta-data", init);
+    return new Response(null, { status: 307, headers: { location: "http://169.254.169.254/latest/meta-data" } });
+  }) as typeof fetch;
+  const r = await probeConnector("comms_relay", WS);
+  assert.deepEqual(calls, ["https://relay.example.test/hook"]);
+  assert.equal(r.health, "failing");
+  assert.match(r.lastFailure?.reason ?? "", /redirect/);
+});
+
 test("under the seal every row reads sealed and probes make 0 fetches", async () => {
   process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
   setAtsConnection({

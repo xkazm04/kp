@@ -55,7 +55,14 @@ export async function probeRelay(): Promise<ProbeResult> {
   // the probe asks.
   const timeoutMs = relayTimeoutMs(COMMS_PROBE_TIMEOUT_MS);
   try {
-    const r = await fetch(relay.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
+    // `redirect: "manual"` is part of the SSRF boundary, as in ats-egress.ts: the guard
+    // vetted only this URL, and a followed 307 replays the signed POST to wherever the
+    // Location points (169.254.169.254, 127.0.0.1) and reports that host's status here.
+    const r = await fetch(relay.url, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
+    await r.body?.cancel().catch(() => undefined);
+    if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+      return { kind: "failed", reason: "relay returned a redirect; redirects are not followed — configure the final https endpoint" };
+    }
     return { kind: "http", ok: r.ok, status: r.status };
   } catch (error) {
     // `reason` is the probe's own diagnostic channel, rendered verbatim next to the
