@@ -3802,7 +3802,40 @@
         "sent": "Předáno vašemu e-mailovému relayi.",
         "queued": "Zařazeno do lokální odchozí pošty. Není nastaven žádný e-mailový relay, takže tento dopis nikdo nedostal.",
         "failed": "Relay dopis nedoručil. Odešlete jej znovu; odejde pod stejným identifikátorem zprávy.",
-        "suppressedNote": "Neodesláno. {reason, select, consent_expired {Kandidátův souhlas vypršel.} anonymized {Data kandidáta byla vymazána.} other {Tohoto kandidáta nelze kontaktovat.}}"
+        "suppressedNote": "Neodesláno. {reason, select, consent_expired {Kandidátův souhlas vypršel.} anonymized {Data kandidáta byla vymazána.} other {Tohoto kandidáta nelze kontaktovat.}}",
+        "bulk": {
+          "title": "{count, plural, one {Kontrola # prvního dopisu} few {Kontrola # prvních dopisů} other {Kontrola # prvních dopisů}}",
+          "intro": "Zatím nic nebylo odesláno. Přečtěte si každý dopis, případně jej upravte a pak dávku schvalte a odešlete.",
+          "loading": "Načítám dopisy…",
+          "close": "Zavřít",
+          "forecastTitle": "Předpověď pro celou dávku",
+          "forecastSend": "Bude předáno vašemu e-mailovému relayi: {count}",
+          "forecastQueue": "Bude zařazeno do lokální odchozí pošty, nikdo je nedostane: {count}",
+          "forecastRefuse": "Nebude odesláno: {count}. Důvod:",
+          "forecastSettled": "Již odesláno: {count}",
+          "forecastMissing": "Bez dopisu ke kontrole: {count}",
+          "reason": "{reason, select, consent_expired {souhlas vypršel} anonymized {data byla smazána} agent_population {AI agent bez schránky} no_recipient {bez příjemce} delivery_failed {doručení selhalo} other {kontaktovat nelze}}",
+          "loadFailedRow": "Tento dopis se nepodařilo načíst.",
+          "noLetter": "Pro tohoto kandidáta nebyl připraven žádný dopis.",
+          "rowSend": "Půjde do vašeho e-mailového relaye",
+          "rowQueue": "Zařadí se do lokální pošty",
+          "rowRefuse": "Nebude odesláno: {reason}",
+          "edit": "Upravit",
+          "save": "Uložit změny",
+          "saving": "Ukládám…",
+          "cancel": "Zrušit",
+          "subjectLabel": "Předmět",
+          "bodyLabel": "Dopis",
+          "running": "Odesílám… {done} z {total}",
+          "approveRelease": "{count, plural, one {Schválit a odeslat # dopis} few {Schválit a odeslat # dopisy} other {Schválit a odeslat # dopisů}}",
+          "summary": "Odesláno {released}, zařazeno {queued}, odmítnuto {refused}, změněno od přečtení {conflict}.",
+          "result": {
+            "released": "Odesláno",
+            "queued": "Zařazeno lokálně",
+            "refused": "Odmítnuto: {reason}",
+            "conflict": "Od přečtení změněno, neodesláno"
+          }
+        }
       },
       "needsYou": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}",
       "needsYouAria": "{count, plural, one {# dopis nebyl doručen a vyžaduje vaši pozornost} few {# dopisy nebyly doručeny a vyžadují vaši pozornost} other {# dopisů nebylo doručeno a vyžaduje vaši pozornost}}"
@@ -4008,6 +4041,7 @@
     "reachOut": {
       "sent": "Oslovili jsme kandidáta {name}. Je v pipeline a první zpráva je na cestě.",
       "alreadySent": "{name} je v pipeline a pro tuto roli už byl osloven, takže se nová zpráva neposílala.",
+      "held": "{name} je v pipeline. První oslovení čeká na vaše schválení a nebylo odesláno.",
       "failed": "Kandidáta {name} se nepodařilo oslovit.",
       "failedAnnounce": "Kandidáta {name} se nepodařilo oslovit. {reason}",
       "suppressed": {

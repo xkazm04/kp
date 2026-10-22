@@ -66,6 +66,9 @@ export function usePipelineBulk({
   // mode lets the recruiter act on it as a batch instead of N drawer trips.
   const [selectMode, setSelectMode] = useState(false);
   const [bulkStage, setBulkStage] = useState("");
+  // The cohort whose held outreach letters the dry-run sheet (BulkOutreachSheet) is open on.
+  const [outreachSheet, setOutreachSheet] = useState<string[] | null>(null);
+  const closeOutreachSheet = useCallback(() => setOutreachSheet(null), []);
   // Two-step confirms for the two DESTRUCTIVE bulk actions live in the reducer's single
   // confirm slot (pipelineBulkConfirm.ts): reject emails N candidates; outreach (WHEN a
   // relay is configured) relays each drafted letter immediately, so "draft N" IS
@@ -333,6 +336,19 @@ export function usePipelineBulk({
     if (started) dispatch({ type: "outreachStarted", taskId: started.id, cohort });
   };
 
+  // The run only DRAFTED held letters (comms scope C2): when it finishes, open the dry-run
+  // sheet on the candidates it drafted for, so a person reads, forecasts and releases them as
+  // a batch. Adjusted during render (once per run), not in the settle effect below, which
+  // must stay a pure dispatch.
+  const [sheetOpenedFor, setSheetOpenedFor] = useState<string | null>(null);
+  const finished = outreachTask.full;
+  if (outreachTaskId && finished && finished.id === outreachTaskId && sheetOpenedFor !== outreachTaskId) {
+    setSheetOpenedFor(outreachTaskId);
+    const res = finished.result as { results?: { id: string; ok: boolean }[] } | null;
+    const drafted = (res?.results ?? []).filter((r) => r.ok).map((r) => r.id);
+    if (drafted.length > 0) setOutreachSheet(drafted);
+  }
+
   // Settle the background draft run when it finishes: successes deselect, per-candidate
   // failures STAY selected for retry (plus any selected entry the run never attempted),
   // and the honest queued-vs-sent count lands in the shared status line. A task-level
@@ -384,6 +400,8 @@ export function usePipelineBulk({
     bulkInvite,
     bulkOutreach,
     outreachTaskActive: outreachTask.active,
+    outreachSheet,
+    closeOutreachSheet,
   };
 }
 

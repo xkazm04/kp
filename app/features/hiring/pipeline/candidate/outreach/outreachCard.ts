@@ -81,6 +81,30 @@ export async function approveLetter(letterId: string, revision: number, doFetch:
   }
 }
 
+/** Save an edited subject/body against the revision the editor read. A 409 is `stale`
+ *  (someone redrafted, approved or released it since); success returns the NEW view so
+ *  the caller approves the revision it will then have read. */
+export async function editLetter(
+  letterId: string,
+  input: { revision: number; subject: string; body: string },
+  doFetch: Fetcher = fetch
+): Promise<{ kind: "ok"; view: OutreachLetterView } | { kind: "stale" } | { kind: "error"; error: ApiErrorPayload }> {
+  try {
+    const res = await doFetch(`/api/outreach-letters/${encodeURIComponent(letterId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (res.status === 409) return { kind: "stale" };
+    const body = await readJson<Partial<OutreachLetterView> & ApiErrorPayload>(res);
+    if (res.ok && body?.letter && body.preview) return { kind: "ok", view: { letter: body.letter, preview: body.preview } };
+    return { kind: "error", error: body ?? {} };
+  } catch {
+    // best-effort: a network failure is reported as a generic error, never retried here
+    return { kind: "error", error: {} };
+  }
+}
+
 /** Release an approved letter. `queued` is the keyless truth: recorded in the local
  *  outbox, not delivered to anyone. */
 export async function releaseLetter(letterId: string, doFetch: Fetcher = fetch): Promise<CardOutcome> {
