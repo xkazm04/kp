@@ -16613,6 +16613,47 @@
         "at": "2026-10-22T21:09:02.140219+00:00",
         "reason": "reviewer (sonnet): The not-applicable anchor app/_lib/db/profiles.ts:68 is an INSERT column list, which is incidental: it doesn't show that no native document format exists, and the same statement writes a persisted payload_json blob (profiles.ts:65) that the verdict never examined for a version or a reader contract."
       }
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/observability-telemetry": {
+      "context": "ops-observability",
+      "subject": "observability-telemetry",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T21:26:06.018Z",
+      "worker": "cbf9d1ef-0331-40ee-ab9a-8e16fa07ad5a",
+      "techniques": [
+        {
+          "technique": "rotation-and-retention",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:13 Log writes are append-only to ops-warn.log with no file rotation, total footprint cap, or retention reaper."
+        },
+        {
+          "technique": "log-architecture",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:8 opsLog restricts severity to warn/error without module targeting and writes synchronously to a separate file rather than converging through a non-blocking sink."
+        },
+        {
+          "technique": "crash-record-storage",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sentry-client.ts:71 Boundary errors rely solely on remote Sentry and no-op without a DSN, lacking a dedicated local crash store on disk."
+        },
+        {
+          "technique": "pre-boot-and-foreign-capture",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:21 Subprocess runtimes write to isolated private files like pipeline.log without foreign stream capture bridging into the primary sink."
+        },
+        {
+          "technique": "remote-telemetry-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sentry-client.ts:80 Remote telemetry load and send failures are swallowed with no counter or recording into a local sink, violating pipeline assertion."
+        },
+        {
+          "technique": "diagnostic-access",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:32 While tailJsonl supports defensive reading for the operator API, there is no diagnostic bundle export or log directory reveal affordance."
+        }
+      ]
     }
   }
 }
