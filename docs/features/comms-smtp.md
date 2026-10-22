@@ -108,8 +108,9 @@ no AUTH over plain, 4xx and 5xx, timeouts, dot-stuffing, header injection),
 `version`, `owner_org_id` and two bounded JSON lists. `suppressed` holds at most 500 addresses
 (normalized to lower case). `attempts` holds the last 10 attempts with outcome, stage, reply code
 and text. The suppression list and attempt log are returned only to the owner org's operators.
-Tenancy: exempt and org-owned like `comms_relay_config` (`app/_lib/tenancy.ts`), not carried by
-an org backup.
+Tenancy: exempt and org-owned like `comms_relay_config` (`app/_lib/tenancy.ts`). It is not yet in
+`ORG_CONFIG_NOT_PORTABLE`, because that set must match `scripts/db-dump.mjs`. A `--redact` dump blanks
+its `password` column by name.
 
 ## Known gaps
 
