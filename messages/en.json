@@ -1233,7 +1233,7 @@
     "title": "How this works",
     "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states ends an application automatically; you are told which one and can ask a person to review it. Every other rejection is a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
-    "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"manage your data\" link in any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
+    "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"Your data\" link at the bottom of any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
