@@ -52,12 +52,24 @@
 //         npm run up -- --demo       the seeded demo instead
 //         npm run up -- --check      check the prerequisites, install nothing, start nothing
 //         npm run up -- --no-open    do not open a browser
+//         npm run up -- --public     candidate pages on the internet (Cloudflare quick tunnel),
+//                                    studio behind a password; see docs/architecture/self-hosting.md
 // Fixtures: scripts/__tests__/up.test.mjs (run by `npm run test:docs`).
 import { existsSync, readFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { pythonCandidates, findInterpreter } from "./schemas-gen.mjs";
+import {
+  CLOUDFLARED_INSTALL,
+  askNewPassword,
+  cloudflaredAvailable,
+  freePort,
+  killTunnel,
+  passwordFromEnvFile,
+  publicPasswordPlan,
+  startQuickTunnel,
+} from "./tunnel.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NODE_MAJOR = 24;
@@ -72,11 +84,12 @@ export function nodeMajor(version) {
 
 /** The flags this launcher understands. Unknown flags are reported, not ignored. */
 export function parseArgs(argv) {
-  const opts = { demo: false, check: false, open: true, help: false, unknown: [] };
+  const opts = { demo: false, check: false, open: true, help: false, public: false, unknown: [] };
   for (const arg of argv) {
     if (arg === "--demo") opts.demo = true;
     else if (arg === "--check") opts.check = true;
     else if (arg === "--no-open") opts.open = false;
+    else if (arg === "--public") opts.public = true;
     else if (arg === "--help" || arg === "-h") opts.help = true;
     else opts.unknown.push(arg);
   }
@@ -139,9 +152,16 @@ export function extractLocalUrl(line) {
 }
 
 /** The environment the dev server gets, per mode. Pure: env in, env out. */
-export function serverEnv(env, { demo, python }) {
+export function serverEnv(env, { demo, python, publicUrl }) {
   const out = { ...env, DEV_GUARD_MAX_NODE: env.DEV_GUARD_MAX_NODE || "150", DEV_GUARD_WATCH_PARENT: "1" };
   if (python && !env.KP_PYTHON && !env.PYTHON_CMD) out.KP_PYTHON = python;
+  if (publicUrl) {
+    // APP_BASE_URL is the server override public-base-url.ts reads first. The NEXT_PUBLIC_
+    // mirror is inlined when the dev server compiles a bundle, and `next dev` compiles
+    // after this process starts, so it is effective here (it is NOT for a prebuilt app).
+    out.APP_BASE_URL = publicUrl;
+    out.NEXT_PUBLIC_APP_BASE_URL = publicUrl;
+  }
   if (!demo) {
     out.KP_EMPTY = "1";
     if (!env.KP_DB_PATH) out.KP_DB_PATH = OWNER_DB;
@@ -162,6 +182,7 @@ const HELP = [
   "npm run up -- --demo       start the demo workspace (example jobs and candidates)",
   "npm run up -- --check      only check that Node.js and Python are ready",
   "npm run up -- --no-open    do not open the browser",
+  "npm run up -- --public     put the candidate pages on the internet (needs cloudflared and a studio password)",
 ];
 
 /** Run npm with the npm that launched us when there is one (no .cmd shim issues). */
@@ -233,6 +254,29 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   if (opts.unknown.length) fail([`Unknown option: ${opts.unknown.join(" ")}`, ...HELP]);
+
+  // --public refuses open mode before anything is installed or started.
+  let publicPassword = null; // typed this run; handed to the app's environment only, never written to disk
+  if (opts.public && !opts.check) {
+    let fileText = "";
+    for (const f of [".env.local", ".env"]) {
+      try {
+        fileText += `${readFileSync(path.join(ROOT, f), "utf8")}\n`;
+      } catch {
+        /* no such env file */
+      }
+    }
+    const fromFile = passwordFromEnvFile(fileText);
+    const plan = publicPasswordPlan({ KP_OPERATOR_PASSWORD: process.env.KP_OPERATOR_PASSWORD || fromFile }, { isTTY: Boolean(process.stdin.isTTY) });
+    if (plan.action === "refuse") fail([plan.message]);
+    if (!cloudflaredAvailable()) {
+      fail(["--public needs cloudflared (a free Cloudflare program) and it was not found. Install it, then run this again:", ...CLOUDFLARED_INSTALL.map((l) => `  ${l}`)]);
+    }
+    if (plan.action === "prompt") {
+      say("--public makes this studio reachable from the internet, so it needs a password.");
+      publicPassword = await askNewPassword().catch(() => fail(["Cancelled."]));
+    }
+  }
 
   // 1. Node
   const major = nodeMajor(process.version);
@@ -309,9 +353,22 @@ export async function main(argv = process.argv.slice(2)) {
 
   // 5. Start
   say(opts.demo ? "Starting the demo workspace (example jobs and candidates)..." : `Starting your own workspace (saved in ${process.env.KP_DB_PATH || OWNER_DB})...`);
-  const env = serverEnv(process.env, { demo: opts.demo, python });
+  let tunnel = null;
+  let appPort = null;
+  if (opts.public) {
+    appPort = await freePort(Number(process.env.PORT) || 3000);
+    say("Opening the public tunnel (Cloudflare quick tunnel)...");
+    try {
+      tunnel = await startQuickTunnel(appPort);
+    } catch (err) {
+      fail([`Could not open the tunnel: ${err && err.message ? err.message : err}`]);
+    }
+    say(`Candidate links will use ${tunnel.url} (this address changes every time you start).`);
+  }
+  const env = serverEnv(process.env, { demo: opts.demo, python, publicUrl: tunnel && tunnel.url });
+  if (publicPassword) env.KP_OPERATOR_PASSWORD = publicPassword;
   env.PATH = `${path.join(ROOT, "node_modules", ".bin")}${path.delimiter}${env.PATH || env.Path || ""}`;
-  const child = spawn(process.execPath, [path.join(ROOT, "scripts", "dev-guard.mjs"), "next", "dev"], {
+  const child = spawn(process.execPath, [path.join(ROOT, "scripts", "dev-guard.mjs"), "next", "dev", ...(appPort ? ["--port", String(appPort)] : [])], {
     cwd: ROOT,
     env,
     stdio: ["inherit", "pipe", "pipe"],
@@ -352,13 +409,30 @@ export async function main(argv = process.argv.slice(2)) {
     if (opts.open) openBrowser(url);
     say(`KandiDate is running at ${url}`);
     say('First visit: click "Sign in" at the top of the page to enter your workspace.');
+    if (tunnel) {
+      say(`PUBLIC: candidate pages (schedule, interview, apply, status) are reachable by anyone with a link at ${tunnel.url}.`);
+      say("The studio itself needs the password. Candidate links in mail and copied invites use the public address.");
+    }
     say("Press Ctrl+C to stop.");
+  }
+
+  if (tunnel) {
+    process.on("exit", () => killTunnel(tunnel.child));
+    tunnel.child.on("exit", () => {
+      say("The tunnel stopped; candidate links no longer work.");
+      killTunnel(child);
+    });
   }
 
   // Ctrl+C reaches the whole process group; dev-guard reaps the server tree and
   // exits, and we leave with it rather than racing it.
   for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"]) process.on(sig, () => {});
   child.on("exit", (code) => {
+    if (alreadyRunning && url && tunnel) {
+      killTunnel(tunnel.child);
+      say(`KandiDate is already running at ${url}, without this public address. Stop it and run "npm run up -- --public" again.`);
+      process.exit(1);
+    }
     if (alreadyRunning && url) {
       say(`KandiDate is already running at ${url} - opening it.`);
       if (opts.open) openBrowser(url);

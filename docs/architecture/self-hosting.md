@@ -225,6 +225,36 @@ and Python 3.11+, installs what is missing, and starts the app on an unseeded, p
 workspace (`data/kp-owner.sqlite`, `KP_EMPTY=1`) so the first-run wizard runs; `-- --demo`
 starts the seeded demo instead. It runs `next dev`, so it is a desk install, not a server.
 
+### 2a. `npm run up -- --public` — candidate pages on the internet from a desk install
+
+Candidate links (offer, scheduling, interview, apply, status) must open on the
+candidate's machine, and on a desk install they point at `localhost`. `--public`
+fixes that for the length of one run:
+
+1. **Open mode is refused.** With no `KP_OPERATOR_PASSWORD` (shell, `.env.local` or
+   `.env`) it asks for one in a terminal (hidden, 12+ characters, typed twice). In a
+   session with no terminal it exits non-zero with a one-line fix. A typed password is
+   handed to the app's environment for that run only and is **not written to disk**
+   (the auth layer compares a plaintext env value, so there is no hash to store); put
+   it in `.env.local` to stop being asked.
+2. **A Cloudflare quick tunnel** (`cloudflared tunnel --url http://localhost:<port>`)
+   gives a `https://….trycloudflare.com` address; `up` passes it to the app as
+   `APP_BASE_URL` (and `NEXT_PUBLIC_APP_BASE_URL`, effective because `next dev`
+   inlines it at compile time), so `publicBaseUrl()` builds every candidate link on it.
+3. **What is exposed:** the public candidate surfaces (`app/_lib/auth/public-routes.ts`)
+   are reachable by anyone who has a link. The studio and its API stay behind the
+   operator password. Traffic passes through Cloudflare.
+4. **`cloudflared` is a third-party binary you install** (`winget install --id
+   Cloudflare.cloudflared`, `brew install cloudflared`, or the Linux package). KP
+   never downloads it; without it `--public` prints these instructions and exits non-zero.
+5. **The address changes on every start.** Links already mailed to candidates from an
+   earlier run stop working; use a named domain and `APP_BASE_URL` for anything lasting.
+   Ctrl+C stops the tunnel with the app.
+
+Without `--public` and without `APP_BASE_URL`, the server logs one `[link-base]`
+warning (`app/_lib/link-base-warning.ts`) the first time a sender resolves a loopback
+or placeholder link base, naming both fixes.
+
 ```bash
 cp .env.example .env
 # edit .env — at minimum set KP_OPERATOR_PASSWORD and KP_SECRET (see §3)

@@ -15,6 +15,8 @@ const { nodeMajor, parseArgs, parseRequirements, compareInstalled, extractLocalU
   "../up.mjs"
 );
 
+const { parseTunnelUrl, publicPasswordPlan, passwordProblem, passwordFromEnvFile } = await import("../tunnel.mjs");
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 test("nodeMajor reads process.version shapes", () => {
@@ -33,7 +35,7 @@ test("the launcher's Node major is the one package.json engines admits", () => {
 });
 
 test("parseArgs knows its four flags and reports anything else", () => {
-  assert.deepEqual(parseArgs([]), { demo: false, check: false, open: true, help: false, unknown: [] });
+  assert.deepEqual(parseArgs([]), { demo: false, check: false, open: true, help: false, public: false, unknown: [] });
   const all = parseArgs(["--demo", "--check", "--no-open", "-h"]);
   assert.equal(all.demo && all.check && !all.open && all.help, true);
   assert.deepEqual(parseArgs(["--dmeo"]).unknown, ["--dmeo"]);
@@ -98,4 +100,44 @@ test("staleNodeDeps flags exact pins that are missing or drifted, and leaves ran
     "tsx missing (wants 4.20.0-beta.1)",
   ]);
   assert.deepEqual(staleNodeDeps({}, () => null), []);
+});
+
+test("--public is a flag and plain `up` stays unchanged", () => {
+  assert.equal(parseArgs(["--public"]).public, true);
+  assert.equal(parseArgs([]).public, false);
+  const plain = serverEnv({}, { demo: false, python: "python" });
+  assert.equal(plain.APP_BASE_URL, undefined);
+  assert.equal(plain.NEXT_PUBLIC_APP_BASE_URL, undefined);
+  const pub = serverEnv({}, { demo: false, python: "python", publicUrl: "https://a-b.trycloudflare.com" });
+  assert.equal(pub.APP_BASE_URL, "https://a-b.trycloudflare.com");
+  assert.equal(pub.NEXT_PUBLIC_APP_BASE_URL, "https://a-b.trycloudflare.com");
+});
+
+test("--public refuses open mode without a terminal, asks with one, passes with a password", () => {
+  const refused = publicPasswordPlan({}, { isTTY: false });
+  assert.equal(refused.action, "refuse");
+  assert.match(refused.message, /KP_OPERATOR_PASSWORD/);
+  assert.equal(publicPasswordPlan({ KP_OPERATOR_PASSWORD: "" }, { isTTY: true }).action, "prompt");
+  assert.equal(publicPasswordPlan({ KP_OPERATOR_PASSWORD: "x".repeat(12) }, { isTTY: false }).action, "have");
+});
+
+test("password rules and env-file lookup", () => {
+  assert.ok(passwordProblem("short", "short"));
+  assert.ok(passwordProblem("a-long-enough-pw", "a-long-enough-px"));
+  assert.equal(passwordProblem("a-long-enough-pw", "a-long-enough-pw"), null);
+  assert.equal(passwordFromEnvFile('A=1\nKP_OPERATOR_PASSWORD="s3cret-value"\n'), "s3cret-value");
+  assert.equal(passwordFromEnvFile("KP_OPERATOR_PASSWORD=\n"), "");
+  assert.equal(passwordFromEnvFile("# KP_OPERATOR_PASSWORD=x"), "");
+});
+
+test("parseTunnelUrl lifts the quick-tunnel address from cloudflared's stderr", () => {
+  const stderr = [
+    "2026-10-22T10:00:00Z INF Requesting new quick Tunnel on trycloudflare.com...",
+    "2026-10-22T10:00:03Z INF +--------------------------------------------------------------------------------------------+",
+    "2026-10-22T10:00:03Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |",
+    "2026-10-22T10:00:03Z INF |  https://Quiet-Fox-1234.trycloudflare.com                                                  |",
+  ].join("\n");
+  assert.equal(parseTunnelUrl(stderr), "https://quiet-fox-1234.trycloudflare.com");
+  assert.equal(parseTunnelUrl("INF Requesting new quick Tunnel on trycloudflare.com..."), null);
+  assert.equal(parseTunnelUrl("https://api.trycloudflare.com/tunnel"), "https://api.trycloudflare.com");
 });
