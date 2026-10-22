@@ -5704,7 +5704,7 @@
       "roleTitle": "Název pozice *",
       "roleTitlePlaceholder": "Senior Platform Engineer",
       "company": "Společnost",
-      "companyPlaceholder": "Česká spořitelna",
+      "companyPlaceholder": "Název vaší společnosti",
       "seniority": "Seniorita",
       "field": "Obor",
       "outputLanguage": "Jazyk popisu",
@@ -9941,7 +9941,7 @@
       },
       "logoLabel": "URL loga",
       "logoInvalid": "Zadejte adresu obrázku začínající https://.",
-      "nameHint": "Tento název vidí kandidáti v inzerátech, nabídkách a v každé zprávě, kterou jim pošlete.",
+      "nameHint": "Předvyplníme ho jako společnost u nových pozic, které tu vytvoříte, takže se objeví v jejich inzerátech. U každé pozice ho můžete změnit.",
       "currencyLabel": "Měna mezd",
       "currencyHint": "Měna, ve které zadáváte mzdová pásma. Později ji můžete změnit v Nastavení → Organizace."
     },

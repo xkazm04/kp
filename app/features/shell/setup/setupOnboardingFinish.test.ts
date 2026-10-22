@@ -196,6 +196,58 @@ test("a network fault is a refusal too — nothing was stored", async () => {
   assert.deepEqual(result, { part: "brand", status: "refused", code: null });
 });
 
+// The sidebar name. The wizard's company used to reach only the org-name cookie, so
+// the sidebar (the BRAND display name) kept saying "KandiDate" until the owner typed
+// it again on Settings → Branding. A product-default (null) display name now takes
+// the typed company; one someone already set is never replaced.
+
+/** GET answers `current` (or a failure); every PUT body is captured. */
+function brandRecorder(current: Response | (() => Promise<Response>)) {
+  const puts: Record<string, unknown>[] = [];
+  const impl = (url: string, init?: RequestInit) => {
+    if (init?.method === "PUT") {
+      puts.push(JSON.parse(String(init.body)));
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    }
+    return typeof current === "function" ? current() : Promise.resolve(current.clone());
+  };
+  return { impl, puts };
+}
+const brandRecord = (displayName: string | null) =>
+  new Response(JSON.stringify({ displayName, accentColor: null, logoUrl: null }), { status: 200 });
+const NAMED = { accentColor: null, logoUrl: "", orgName: "  Acme   Studio " } as unknown as SetupState;
+
+test("a typed company becomes the display name while the brand still has the product default", async () => {
+  const { impl, puts } = brandRecorder(brandRecord(null));
+  const result = await withFetch(impl, () => persistSetupBrand(NAMED));
+  assert.deepEqual(result, { part: "brand", status: "landed" });
+  assert.deepEqual(puts, [{ displayName: "Acme Studio", accentColor: null, logoUrl: null }]);
+});
+
+test("a display name someone already set is never replaced — and a name alone then writes nothing", async () => {
+  const { impl, puts } = brandRecorder(brandRecord("Northwind"));
+  const result = await withFetch(impl, () => persistSetupBrand(NAMED));
+  assert.deepEqual(result, { part: "brand", status: "skipped" });
+  assert.deepEqual(puts, []);
+});
+
+test("with an accent too, the existing display name rides along untouched", async () => {
+  const { impl, puts } = brandRecorder(brandRecord("Northwind"));
+  await withFetch(impl, () => persistSetupBrand({ ...NAMED, accentColor: "#0057b8" } as SetupState));
+  assert.equal(puts.length, 1);
+  assert.equal(puts[0].displayName, "Northwind");
+  assert.equal(puts[0].accentColor, "#0057b8");
+});
+
+test("an unreadable current brand writes NOTHING and refuses — a blind PUT could clobber a set name", async () => {
+  for (const current of [new Response("{}", { status: 500 }), () => Promise.reject(new Error("offline"))]) {
+    const { impl, puts } = brandRecorder(current);
+    const result = await withFetch(impl, () => persistSetupBrand({ ...NAMED, accentColor: "#0057b8" } as SetupState));
+    assert.deepEqual(result, { part: "brand", status: "refused", code: null });
+    assert.deepEqual(puts, []);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Candi's memory — a consent write the wizard used to fire and forget.
 //

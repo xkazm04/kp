@@ -49,9 +49,23 @@ export function withCurrency(amount: string, currency: string, locale: string): 
 }
 
 // The seed corpus targets Česká spořitelna (the pilot customer — see the ČS
-// seed), so an un-set org falls back to it: the JD builder and generated copy are
-// branded out of the box until an operator changes it on Settings → Organization.
+// seed), so the DEMO falls back to it: the JD builder is branded out of the box
+// there. It is the demo's name and nothing else's: an install whose fixtures are
+// NOT seeded (KP_EMPTY=1 — `npm run up`, `npm run dev:empty`) has no company until
+// its owner names one, and must never present a real bank as theirs. Which install
+// is which is a SERVER fact (`fixtureSeedEnabled`, db/seed-gate.ts) that a client
+// component cannot read, so the root layout resolves `orgNameFallback` once and
+// hands it down (BrandProvider → `useOrgNameFallback`). The constant also stays the
+// sentinel for "not a name of your own" (getting-started.ts, SetupCompanyStep).
 export const DEFAULT_ORG_NAME = "Česká spořitelna";
+
+/** The effective org name when none was set: the demo's on a fixture-seeded
+ *  install, otherwise EMPTY — every reader treats empty as "not named yet" and asks
+ *  (an empty company field) rather than inventing one. Pure: the caller passes the
+ *  seed gate's answer. */
+export function orgNameFallback(fixturesSeeded: boolean): string {
+  return fixturesSeeded ? DEFAULT_ORG_NAME : "";
+}
 
 export const MAX_ORG_NAME = 80;
 
@@ -76,16 +90,17 @@ function decodeCookieValue(raw: string): string {
 }
 
 /** A stored (possibly empty/missing/encoded) cookie value → the effective org
- *  name, falling back to the default when unset. */
-export function resolveOrgName(rawStored: string | null | undefined): string {
+ *  name, `fallback` when unset. The fallback defaults to EMPTY: the demo's name is
+ *  only ever passed in by a caller that knows fixtures are seeded (`orgNameFallback`). */
+export function resolveOrgName(rawStored: string | null | undefined, fallback = ""): string {
   const clean = sanitizeOrgName(decodeCookieValue(rawStored ?? ""));
-  return clean || DEFAULT_ORG_NAME;
+  return clean || fallback;
 }
 
 /** Client-only: the effective org name from document.cookie. SSR-safe — returns
- *  the default when document is unavailable. */
-export function readClientOrgName(): string {
-  if (typeof document === "undefined") return DEFAULT_ORG_NAME;
+ *  `fallback` when document is unavailable. Pass `useOrgNameFallback()`. */
+export function readClientOrgName(fallback = ""): string {
+  if (typeof document === "undefined") return fallback;
   const entry = document.cookie.split("; ").find((c) => c.startsWith(`${ORG_NAME_COOKIE}=`));
-  return resolveOrgName(entry ? entry.slice(ORG_NAME_COOKIE.length + 1) : null);
+  return resolveOrgName(entry ? entry.slice(ORG_NAME_COOKIE.length + 1) : null, fallback);
 }

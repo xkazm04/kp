@@ -24,7 +24,14 @@ edit is not discarded.
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
-  — company identity only: org name, app language, backup/restore. There is **no
+  — company identity only: org name, app language, backup/restore. The org name is
+  the per-browser `kp_org_name` cookie; when it was never set, the effective name is
+  the demo's company (`DEFAULT_ORG_NAME`) **only on a fixture-seeded install** and
+  empty everywhere else (`orgNameFallback`, resolved in `app/layout.tsx` from
+  `fixtureSeedEnabled()` and handed down by `BrandProvider`), so an unseeded owner
+  workspace (`npm run up`) never presents the bank as its company. The first-run
+  wizard also writes the typed company into the brand display name while that is
+  still the default (`persistSetupBrand`). There is **no
   domain row**: `organizations.domain` exists in the schema but nothing in the app
   ever writes it (`createOrganization` is called once, from `signup-service.ts`,
   with no domain), so every install has it NULL and the panel was rendering a

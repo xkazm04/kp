@@ -5704,7 +5704,7 @@
       "roleTitle": "Intitulé du poste *",
       "roleTitlePlaceholder": "Ingénieur plateforme senior",
       "company": "Entreprise",
-      "companyPlaceholder": "Česká spořitelna",
+      "companyPlaceholder": "Nom de votre entreprise",
       "seniority": "Séniorité",
       "field": "Domaine",
       "outputLanguage": "Langue de la fiche",
@@ -9941,7 +9941,7 @@
       },
       "logoLabel": "URL du logo",
       "logoInvalid": "Saisissez une URL d’image en https://.",
-      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez.",
+      "nameHint": "Nous le reprenons comme nom d'entreprise pour les nouveaux postes que vous créez ici, il apparaît donc sur leurs offres d'emploi. Vous pouvez le modifier pour chaque poste.",
       "currencyLabel": "Devise des salaires",
       "currencyHint": "La devise dans laquelle vous saisissez les fourchettes de salaire. Vous pourrez la modifier dans Paramètres → Organisation."
     },

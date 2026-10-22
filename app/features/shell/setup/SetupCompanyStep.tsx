@@ -52,11 +52,12 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   // The only honest source this client has for the workspace's own identity is
   // the org-name cookie (`kp_org_name`, org-settings.ts) — the value the
   // Organization tab wrote, i.e. a name a human on this deployment actually
-  // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is what
-  // `resolveOrgName` falls back to when nothing was ever set, and prefilling it
-  // would put a stranger's company on every generated JD, offer and candidate
-  // mail — worse than the empty required field it replaced. So an unset
-  // deployment still opens blank, deliberately.
+  // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is the
+  // demo's fallback (org-settings.ts `orgNameFallback`), and prefilling it would
+  // put a stranger's company on every role the JD builder prefills — worse than
+  // the empty required field it replaced. So this read passes NO fallback, and a
+  // cookie that literally holds the demo name is skipped too: an unset deployment
+  // opens blank, deliberately.
   //
   // A resumed draft is not at risk: restore() lands the drafted name and the
   // drafted step index in ONE commit (OnboardingExperience), so by the time this
@@ -67,7 +68,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
     seeded.current = true;
     if (typedName.trim() !== "") return;
     const stored = readClientOrgName();
-    if (stored === DEFAULT_ORG_NAME) return;
+    if (!stored || stored === DEFAULT_ORG_NAME) return;
     update({ orgName: stored });
   }, [typedName, update]);
 

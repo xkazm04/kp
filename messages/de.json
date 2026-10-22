@@ -5704,7 +5704,7 @@
       "roleTitle": "Stellenbezeichnung *",
       "roleTitlePlaceholder": "Senior Platform Engineer",
       "company": "Unternehmen",
-      "companyPlaceholder": "Česká spořitelna",
+      "companyPlaceholder": "Name Ihres Unternehmens",
       "seniority": "Seniorität",
       "field": "Fachgebiet",
       "outputLanguage": "Sprache der Stellenbeschreibung",
@@ -9941,7 +9941,7 @@
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein.",
-      "nameHint": "Diesen Namen sehen Kandidatinnen und Kandidaten in Stellenanzeigen, Angeboten und in jeder Nachricht, die Sie senden.",
+      "nameHint": "Wir tragen ihn bei neuen Stellen, die Sie hier anlegen, als Unternehmen ein, sodass er in deren Stellenanzeigen erscheint. Bei jeder Stelle können Sie ihn ändern.",
       "currencyLabel": "Gehaltswährung",
       "currencyHint": "Die Währung, in der Sie Gehaltsbänder angeben. Sie können sie später unter Einstellungen → Organisation ändern."
     },

@@ -5704,7 +5704,7 @@
       "roleTitle": "Role title *",
       "roleTitlePlaceholder": "Senior Platform Engineer",
       "company": "Company",
-      "companyPlaceholder": "Česká spořitelna",
+      "companyPlaceholder": "Your company's name",
       "seniority": "Seniority",
       "field": "Field",
       "outputLanguage": "JD language",
@@ -9941,7 +9941,7 @@
       },
       "logoLabel": "Logo URL",
       "logoInvalid": "Enter an https:// image URL.",
-      "nameHint": "This is the name candidates see on job posts, offers and every message you send them.",
+      "nameHint": "We fill it in as the company on new roles you create here, so it appears on those job posts. You can change it on any role.",
       "currencyLabel": "Salary currency",
       "currencyHint": "The currency you write salary bands in. You can change it later in Settings → Organization."
     },

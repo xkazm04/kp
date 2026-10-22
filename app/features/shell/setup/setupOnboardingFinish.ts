@@ -97,8 +97,7 @@ export async function persistOnboardingSetup(state: SetupState, only?: readonly 
   // gate landed on them (org-actions.ts), a recruiter finishing the wizard gets
   // `{ ok: false, code: "ORG_SETTINGS_FORBIDDEN" }` and nothing is written. The
   // old finish() discarded both return values, so the workspace kept the seed
-  // default as its identity on every generated JD, offer and candidate mail while
-  // the wizard closed green.
+  // default as the company the JD builder prefills while the wizard closed green.
   const name = state.orgName.trim();
   if (!parts.has("orgName") || !name) results.push({ part: "orgName", status: "skipped" });
   else {
@@ -125,9 +124,21 @@ export async function persistOnboardingSetup(state: SetupState, only?: readonly 
 }
 
 /**
- * The optional first brand touch (accent + logo), merged over the current config —
- * PUT replaces the whole record, so onboarding must not clobber a displayName set
- * elsewhere.
+ * The first brand touch (accent + logo, and the sidebar name), merged over the
+ * current config — PUT replaces the whole record, so onboarding must not clobber
+ * what was set elsewhere.
+ *
+ * THE NAME. The wizard's company name goes to the org-name cookie (setOrgName), but
+ * the sidebar and document title read the BRAND display name (BrandHeader.tsx) —
+ * so an owner who typed their company still saw "KandiDate" until they typed it
+ * again on Settings → Branding. When the display name is still the product default
+ * (null), the typed company becomes it. A display name someone already set is never
+ * replaced, and when the current record cannot be READ this writes nothing and
+ * refuses: writing blind would put null (or the company) over a name we could not
+ * see. Same door as Settings → Branding (`PUT /api/brand`, org:manage), so a seat
+ * without the capability is refused there, not here. The brand row is ONE row per
+ * deployment (brand-store.ts, `id='workspace'`, tenancy-exempt as org config), the
+ * same row Branding edits — no new storage.
  *
  * REPORTED, not fire-and-forget. This used to `await fetch(...)` and discard the
  * response inside a catch that said "brand is a nice-to-have", which was true of a
@@ -144,20 +155,29 @@ export async function persistOnboardingSetup(state: SetupState, only?: readonly 
  */
 export async function persistSetupBrand(state: SetupState): Promise<SetupPartResult> {
   const logo = state.logoUrl.trim();
-  if (!state.accentColor && !logo) return { part: "brand", status: "skipped" };
+  const name = (state.orgName ?? "").replace(/\s+/g, " ").trim();
+  if (!state.accentColor && !logo && !name) return { part: "brand", status: "skipped" };
   try {
-    const current = (await fetch("/api/brand").then((r) => (r.ok ? r.json() : null)).catch(() => null)) as {
+    const read = await fetch("/api/brand").catch(() => null);
+    const current = (read?.ok ? await read.json().catch(() => null) : null) as {
       displayName?: string | null;
       accentColor?: string | null;
       logoUrl?: string | null;
     } | null;
+    // Unknown current record: nothing is written, and the wizard does not imply it was.
+    if (!current) return { part: "brand", status: "refused", code: null };
+    const displayName = current.displayName ?? (name || null);
+    // Only a name to offer, and the brand already carries one: nothing to change.
+    if (!state.accentColor && !logo && displayName === (current.displayName ?? null)) {
+      return { part: "brand", status: "skipped" };
+    }
     const res = await fetch("/api/brand", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        displayName: current?.displayName ?? null,
-        accentColor: state.accentColor ?? current?.accentColor ?? null,
-        logoUrl: logo || current?.logoUrl || null,
+        displayName,
+        accentColor: state.accentColor ?? current.accentColor ?? null,
+        logoUrl: logo || current.logoUrl || null,
       }),
     });
     if (res.ok) return { part: "brand", status: "landed" };

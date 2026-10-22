@@ -10,6 +10,7 @@ import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { setOrgCurrency, setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { readClientOrgCurrency, readClientOrgName, type OrgCurrency } from "@/app/_lib/org-settings";
+import { useOrgNameFallback } from "@/app/_components/BrandProvider";
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
@@ -53,7 +54,10 @@ export function OrganizationTab() {
   // wizard, persists and stamps); preview mode stamps nothing, so it could never
   // finish a setup. Once finished it is the harmless preview again.
   const setupUnfinished = useSetupUnfinished();
-  const [name, setName] = useState<string>(() => readClientOrgName());
+  // The demo's name only on a fixture-seeded install (useOrgNameFallback); an
+  // unseeded workspace shows an empty field until its owner names the company.
+  const orgFallback = useOrgNameFallback();
+  const [name, setName] = useState<string>(() => readClientOrgName(orgFallback));
   const language: AppLanguage = (isLocale(appLocale) ? appLocale : "en") as AppLanguage;
 
   // Persist the org name (debounced) — feeds the JD builder company default and any

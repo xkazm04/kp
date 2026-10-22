@@ -10,10 +10,34 @@ import { DEFAULT_BRAND, type BrandConfig } from "@/app/_lib/brand-config";
 
 const BrandContext = createContext<BrandConfig>(DEFAULT_BRAND);
 
-export function BrandProvider({ brand, children }: { brand: BrandConfig; children: React.ReactNode }) {
-  return <BrandContext.Provider value={brand}>{children}</BrandContext.Provider>;
+// The org name an UNSET organization reads as (org-settings.ts `orgNameFallback`):
+// the demo's company on a fixture-seeded install, empty everywhere else. Whether
+// fixtures are seeded is a server env fact (db/seed-gate.ts) a client component
+// cannot read, so it rides the same server-seeded hand-off as the brand. The default
+// is EMPTY: a tree rendered without the provider must never invent a company.
+const OrgNameFallbackContext = createContext<string>("");
+
+export function BrandProvider({
+  brand,
+  orgNameFallback = "",
+  children,
+}: {
+  brand: BrandConfig;
+  orgNameFallback?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <BrandContext.Provider value={brand}>
+      <OrgNameFallbackContext.Provider value={orgNameFallback}>{children}</OrgNameFallbackContext.Provider>
+    </BrandContext.Provider>
+  );
 }
 
 export function useBrand(): BrandConfig {
   return useContext(BrandContext);
+}
+
+/** What `readClientOrgName` falls back to when no org name was ever set. */
+export function useOrgNameFallback(): string {
+  return useContext(OrgNameFallbackContext);
 }
