@@ -18,6 +18,10 @@ import { readBytesWithLimit } from "@/app/_lib/request-body";
 // wrapped in withSession (route-workspace-coverage: a public route is not a session
 // route), and requireOperator is what answers the 401 in a password-protected install.
 
+/** The upload cap, named at the top of the route (public-body-cap-contract). The value
+ *  lives in brand-logo.ts so the validator and the client check share it. */
+const MAX_LOGO_UPLOAD_BYTES = MAX_LOGO_BYTES;
+
 const LOGO_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 /** The served bytes are untrusted markup (an SVG). nosniff pins the type, and the CSP
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   // The cap is measured on the bytes READ; content-length is advisory.
-  const bytes = await readBytesWithLimit(request, MAX_LOGO_BYTES);
+  const bytes = await readBytesWithLimit(request, MAX_LOGO_UPLOAD_BYTES);
   if (bytes === null) return jsonRefusal("BRAND_LOGO_TOO_LARGE", 413, { maxBytes: MAX_LOGO_BYTES });
   const verdict = validateLogoUpload(bytes);
   if (!verdict.ok) return jsonRefusal(verdict.code, verdict.code === "BRAND_LOGO_TOO_LARGE" ? 413 : 400, { maxBytes: MAX_LOGO_BYTES });
