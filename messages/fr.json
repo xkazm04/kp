@@ -1504,6 +1504,7 @@
     "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
     "SCREEN_WAVE_FAILED": "Impossible d'exécuter la vague de tri. Veuillez réessayer.",
     "SCREEN_WAVE_JOB_REQUIRED": "Indiquez le poste sur lequel cette vague de tri doit s'exécuter.",
+    "ROLE_VIEW_JOB_REQUIRED": "Choisissez un poste pour voir ses candidats côte à côte.",
     "SCREEN_WAVE_APPROVAL_REQUIRED": "Vérifiez l'aperçu et approuvez cet ensemble avant de lancer la vague.",
     "SCREEN_WAVE_APPROVAL_EXPIRED": "Cette approbation a expiré. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
     "SCREEN_WAVE_APPROVAL_MISMATCH": "L'ensemble de candidats a changé depuis l'aperçu. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
@@ -1585,6 +1586,7 @@
     "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
     "DECISION_RECORDS_READ_FAILED": "Impossible de charger les registres de décision. Veuillez réessayer.",
     "JD_FRESHNESS_LOOKUP_FAILED": "Impossible de vérifier la date de dernière modification de ces fiches de poste. Veuillez réessayer.",
+    "ROLE_VIEW_LOOKUP_FAILED": "Impossible de charger les candidats de ce poste. Veuillez réessayer.",
     "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
     "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
     "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
@@ -4680,7 +4682,33 @@
       "trailLabel": "Où vous êtes",
       "ladderTitle": "Échelle des scores",
       "ladderNote": "Les personnes évaluées par adéquation, la meilleure en premier. Celles jamais évaluées sont listées dessous sans barre.",
-      "decideTitle": "Décider"
+      "decideTitle": "Décider",
+      "ws": {
+        "label": "Mise en situation",
+        "held": "en attente",
+        "cleared": "vérifiée",
+        "template": "modèle",
+        "failed": "non chargée",
+        "none": {
+          "not_sent": "non envoyée",
+          "not_submitted": "non rendue",
+          "not_evaluated": "pas encore notée"
+        },
+        "tip": {
+          "score": "Score de la mise en situation : {score} sur 100, d'après le travail rendu.",
+          "template": "Notée par le modèle intégré, pas par un modèle d'IA.",
+          "graded": "Notée par un modèle d'IA.",
+          "watched": "A vérifié son propre travail {count, plural, one {une fois} other {# fois}} en travaillant.",
+          "notWatched": "Le travail n'a pas été observé en direct.",
+          "defended": "Débrief : {supported} réponses sur {total} aux questions de suivi ont confirmé le travail.",
+          "held": "En attente : quelqu'un doit confirmer que la personne a fait ce travail elle-même avant de la faire avancer.",
+          "cleared": "Quelqu'un a confirmé que la personne a fait ce travail elle-même.",
+          "not_sent": "Aucune mise en situation n'a été envoyée à cette personne.",
+          "not_submitted": "Une mise en situation a été envoyée ; rien n'est encore revenu.",
+          "not_evaluated": "Le travail est revenu mais n'a pas encore été noté.",
+          "failed": "Les résultats de la mise en situation n'ont pas pu être chargés."
+        }
+      }
     }
   },
   "scheduleTab": {

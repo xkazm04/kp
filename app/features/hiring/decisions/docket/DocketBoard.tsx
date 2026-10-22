@@ -5,6 +5,7 @@
 // proposal, reject, open). A reject is ARMED by the caller (the 8-second commit window), never
 // written here. Absence is stated, not zeroed: an unscored row is "—", an AI that recorded no
 // proposal is "none recorded" (not "hold"), a score older than its JD says why.
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit/Button";
 import { Mark } from "@/app/_components/kit/Mark";
@@ -29,7 +30,8 @@ export type DocketRowHandlers = {
   act: (e: Entry, action: "accept" | "reject") => void;
 };
 
-export function DocketRowView({ row, h }: { row: LedgerRow; h: DocketRowHandlers }) {
+/** `aside`: an extra cell after the fit score (the role level puts the work sample there, CX S45). */
+export function DocketRowView({ row, h, aside }: { row: LedgerRow; h: DocketRowHandlers; aside?: ReactNode }) {
   const t = useTranslations("decisions");
   const enumLabel = useEnumLabel();
   const n = useNumberFormat();
@@ -53,6 +55,7 @@ export function DocketRowView({ row, h }: { row: LedgerRow; h: DocketRowHandlers
       ) : (
         <span className="dk-score dk-score--none" aria-label={t("docket.neverScored")}>—</span>
       )}
+      {aside}
       <span className="dk-prop" data-p={p}>
         {mark ? <Mark kind={mark} hollow={p === "none"} /> : null}
         {p === "offer" ? (

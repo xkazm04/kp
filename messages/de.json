@@ -1504,6 +1504,7 @@
     "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "SCREEN_WAVE_FAILED": "Die Screening-Welle konnte nicht ausgeführt werden. Bitte erneut versuchen.",
     "SCREEN_WAVE_JOB_REQUIRED": "Nennen Sie die Stelle, für die diese Screening-Welle laufen soll.",
+    "ROLE_VIEW_JOB_REQUIRED": "Wählen Sie eine Stelle, um ihre Kandidaten nebeneinander zu sehen.",
     "SCREEN_WAVE_APPROVAL_REQUIRED": "Prüfen Sie die Vorschau und genehmigen Sie diese Auswahl, bevor die Welle ausgeführt wird.",
     "SCREEN_WAVE_APPROVAL_EXPIRED": "Diese Genehmigung ist abgelaufen. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
     "SCREEN_WAVE_APPROVAL_MISMATCH": "Die Kandidatenauswahl hat sich seit der Vorschau geändert. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
@@ -1585,6 +1586,7 @@
     "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
     "DECISION_RECORDS_READ_FAILED": "Die Entscheidungsprotokolle konnten nicht geladen werden. Bitte erneut versuchen.",
     "JD_FRESHNESS_LOOKUP_FAILED": "Es konnte nicht geprüft werden, wann diese JDs zuletzt bearbeitet wurden. Bitte erneut versuchen.",
+    "ROLE_VIEW_LOOKUP_FAILED": "Die Kandidaten dieser Stelle konnten nicht geladen werden. Bitte erneut versuchen.",
     "SIM_RESET_FAILED": "Die Simulationsdaten konnten nicht gelöscht werden. Bitte erneut versuchen.",
     "SIM_INBOUND_FAILED": "Die eingehende Bewerbung konnte nicht simuliert werden. Bitte erneut versuchen.",
     "SIM_SCREEN_DRAFT_FAILED": "Die Screening-Empfehlung konnte nicht erstellt werden. Bitte erneut versuchen.",
@@ -4680,7 +4682,33 @@
       "trailLabel": "Wo Sie sind",
       "ladderTitle": "Score-Leiter",
       "ladderNote": "Bewertete Personen nach Passung, beste zuerst. Nie bewertete stehen darunter ohne Balken.",
-      "decideTitle": "Entscheiden"
+      "decideTitle": "Entscheiden",
+      "ws": {
+        "label": "Arbeitsprobe",
+        "held": "angehalten",
+        "cleared": "bestätigt",
+        "template": "Vorlage",
+        "failed": "nicht geladen",
+        "none": {
+          "not_sent": "nicht gesendet",
+          "not_submitted": "nicht zurück",
+          "not_evaluated": "noch nicht bewertet"
+        },
+        "tip": {
+          "score": "Ergebnis der Arbeitsprobe {score} von 100, aus der eingereichten Arbeit.",
+          "template": "Mit der eingebauten Vorlage bewertet, nicht von einem KI-Modell.",
+          "graded": "Von einem KI-Modell bewertet.",
+          "watched": "Hat die eigene Arbeit beim Lösen {count, plural, one {einmal} other {#-mal}} überprüft.",
+          "notWatched": "Die Arbeit wurde nicht live beobachtet.",
+          "defended": "Nachgespräch: {supported} von {total} Antworten auf Nachfragen stützten die Arbeit.",
+          "held": "Angehalten: Vor dem Weiterkommen muss jemand bestätigen, dass die Person die Arbeit selbst gemacht hat.",
+          "cleared": "Jemand hat bestätigt, dass die Person die Arbeit selbst gemacht hat.",
+          "not_sent": "Dieser Person wurde keine Arbeitsprobe gesendet.",
+          "not_submitted": "Eine Arbeitsprobe wurde gesendet; es ist noch nichts zurückgekommen.",
+          "not_evaluated": "Die Arbeit ist zurück, wurde aber noch nicht bewertet.",
+          "failed": "Die Ergebnisse der Arbeitsprobe konnten nicht geladen werden."
+        }
+      }
     }
   },
   "scheduleTab": {

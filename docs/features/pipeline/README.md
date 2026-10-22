@@ -1910,6 +1910,23 @@ beside accept (the product has accept/reject only), the column filters and pager
 old table are gone (the head's role filter and the levels replace them), and the bulk
 reject confirm still says "Reject N and notify them?" rather than listing the names.
 
+**The role decision view (CX S45).** `GET /api/decisions/role-view?job=<jobId>`
+(operator-gated, `route(withOperator)`, every read workspace-scoped) returns, for every
+ACTIVE candidate on the role (status `active` and not on the axis's terminal stage, so
+Hired drops out), the canonical match score + provenance, the work sample (transfer score
+read from `dev_submissions.transfer_score`, never the promote card's copy; `grading`
+`template` | `graded` from `devcase-cohort-rank.evaluationCurrency`; the evidence ladder
+in summary: watched acts, debrief supported/total, authorship hold `held` | `cleared` |
+`none`, AI-tools axis rated or not), and the interview scorecards (human average + count,
+the AI interview's average; not-assessed sentinels skipped). Every absent part is a null
+with a reason code (`not_sent`, `not_submitted`, `not_evaluated`, `no_scorecard`, ...),
+never 0, and nothing is folded into one number. Pure assembler
+`app/_lib/role-decision-view.ts`, loader `role-decision-view-server.ts` (a submission
+another team owns reads as absent); pinned by `role-decision-view.test.ts` and
+`role-decision-view-tenancy.test.ts`. Level 1's decide rows show its work-sample part
+beside the fit (`docket/DocketWorkSample.tsx` via `useRoleWorkSamples.ts`): "Work sample
+72 · held" or "— not sent"; grading, watched checks and the debrief are in the tip.
+
 **Decide opens the candidate modal** — the board's own modal
 (`pipeline/candidate/CandidateModal.tsx`) with a `decision` attached, so a candidate
 is looked at in ONE place whether reached from the board or the queue. The old card's

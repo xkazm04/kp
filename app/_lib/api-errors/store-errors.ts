@@ -68,6 +68,9 @@ export const STORE_ERRORS = {
   // GET /api/decisions/jd-freshness: jdLastEditedAt opens SQLite; a locked DB
   // used to become Next's framework 500 with no code, on the staleness-chip door.
   JD_FRESHNESS_LOOKUP_FAILED: "Could not check when these JDs were last edited. Please try again.",
+  // GET /api/decisions/role-view: the per-role decision view (S45) reads the board,
+  // the submissions and the scorecards; a locked DB answers this code, not a raw 500.
+  ROLE_VIEW_LOOKUP_FAILED: "Could not load this role's candidates. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",

@@ -1504,6 +1504,7 @@
     "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
     "SCREEN_WAVE_FAILED": "Screeningovou vlnu se nepodařilo spustit. Zkuste to prosím znovu.",
     "SCREEN_WAVE_JOB_REQUIRED": "Uveďte pozici, na které má screeningová vlna běžet.",
+    "ROLE_VIEW_JOB_REQUIRED": "Vyberte pozici, jejíž kandidáty chcete vidět vedle sebe.",
     "SCREEN_WAVE_APPROVAL_REQUIRED": "Nejdřív zkontrolujte náhled a schvalte tuto sadu, než vlnu spustíte.",
     "SCREEN_WAVE_APPROVAL_EXPIRED": "Toto schválení vypršelo. Znovu zobrazte náhled a schvalte aktuální sadu, než vlnu spustíte.",
     "SCREEN_WAVE_APPROVAL_MISMATCH": "Sada kandidátů se od náhledu změnila. Znovu zobrazte náhled a schvalte aktuální sadu, než vlnu spustíte.",
@@ -1585,6 +1586,7 @@
     "GROUP_EVAL_READ_FAILED": "Uložené srovnání se nepodařilo načíst. Zkuste to prosím znovu.",
     "DECISION_RECORDS_READ_FAILED": "Auditní záznamy rozhodnutí se nepodařilo načíst. Zkuste to prosím znovu.",
     "JD_FRESHNESS_LOOKUP_FAILED": "Nepodařilo se ověřit, kdy byly tyto JD naposledy upraveny. Zkuste to prosím znovu.",
+    "ROLE_VIEW_LOOKUP_FAILED": "Kandidáty této pozice se nepodařilo načíst. Zkuste to prosím znovu.",
     "SIM_RESET_FAILED": "Data simulace se nepodařilo smazat. Zkuste to prosím znovu.",
     "SIM_INBOUND_FAILED": "Příchozí přihlášku se nepodařilo simulovat. Zkuste to prosím znovu.",
     "SIM_SCREEN_DRAFT_FAILED": "Doporučení ze screeningu se nepodařilo připravit. Zkuste to prosím znovu.",
@@ -4680,7 +4682,33 @@
       "trailLabel": "Kde jste",
       "ladderTitle": "Žebříček skóre",
       "ladderNote": "Skórovaní lidé podle shody, nejlepší první. Nikdy neskórovaní jsou uvedeni níže bez sloupce.",
-      "decideTitle": "Rozhodnout"
+      "decideTitle": "Rozhodnout",
+      "ws": {
+        "label": "Pracovní ukázka",
+        "held": "pozastaveno",
+        "cleared": "ověřeno",
+        "template": "šablona",
+        "failed": "nenačteno",
+        "none": {
+          "not_sent": "neodesláno",
+          "not_submitted": "nevráceno",
+          "not_evaluated": "zatím nehodnoceno"
+        },
+        "tip": {
+          "score": "Skóre pracovní ukázky {score} ze 100, z odevzdané práce.",
+          "template": "Hodnoceno vestavěnou šablonou, ne modelem AI.",
+          "graded": "Hodnoceno modelem AI.",
+          "watched": "Kontroly vlastní práce během řešení: {count}.",
+          "notWatched": "Práce nebyla sledována živě.",
+          "defended": "Rozbor: {supported} z {total} odpovědí na doplňující otázky práci potvrdilo.",
+          "held": "Pozastaveno: než kandidáta posunete, musí někdo ověřit, že práci udělal sám.",
+          "cleared": "Někdo ověřil, že kandidát práci udělal sám.",
+          "not_sent": "Tomuto člověku nebyla odeslána žádná pracovní ukázka.",
+          "not_submitted": "Pracovní ukázka byla odeslána, zatím se nic nevrátilo.",
+          "not_evaluated": "Práce se vrátila, ale zatím nebyla ohodnocena.",
+          "failed": "Výsledky pracovní ukázky se nepodařilo načíst."
+        }
+      }
     }
   },
   "scheduleTab": {

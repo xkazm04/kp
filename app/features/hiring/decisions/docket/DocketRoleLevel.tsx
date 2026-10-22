@@ -4,11 +4,14 @@
 // who are listed without a bar because never scored is not zero), the same rows and doors as the
 // board, and beneath them the role's key-decision tools (compare a shortlist, run the screening
 // wave) when the role has them. The reading of one person is the candidate modal the rows open.
+// Each decide row also carries the work-sample result beside its fit (CX S45, role-view read).
 import { useTranslations } from "next-intl";
 import { LevelFrame, LevelTrail, KeyHints } from "@/app/_components/kit/scene";
 import type { ReactNode } from "react";
 import { DocketRowView, type DocketRowHandlers } from "./DocketBoard";
 import { proposalOf, type DocketGroup } from "./docketModel";
+import { DocketWorkSample } from "./DocketWorkSample";
+import { useRoleWorkSamples } from "./useRoleWorkSamples";
 import "./docket.css";
 
 export function DocketRoleLevel({
@@ -30,6 +33,10 @@ export function DocketRoleLevel({
   const t = useTranslations("decisions");
   const rows = group?.rows ?? [];
   const scored = rows.filter((r) => r.score != null);
+  // CX S45: the work-sample result beside each fit score, read for the role's job id (a
+  // title-only group has none, and its rows simply carry no work-sample cell).
+  const jobId = rows.find((r) => r.entry.jobId)?.entry.jobId ?? null;
+  const samples = useRoleWorkSamples(jobId, rows.map((r) => r.entry.id).join(","));
   return (
     <LevelFrame
       tone="steel"
@@ -77,9 +84,9 @@ export function DocketRoleLevel({
             ))}
           </ul>
           <h3 className="dk-tools-h">{t("docket.decideTitle")}</h3>
-          <ul className="dk-rows">
+          <ul className={samples.status === "none" ? "dk-rows" : "dk-rows dk-rows--ws"}>
             {rows.map((r) => (
-              <DocketRowView key={r.entry.id} row={r} h={h} />
+              <DocketRowView key={r.entry.id} row={r} h={h} aside={<DocketWorkSample entryId={r.entry.id} samples={samples} />} />
             ))}
           </ul>
         </>

@@ -1504,6 +1504,7 @@
     "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
     "SCREEN_WAVE_FAILED": "Could not run the screening wave. Please try again.",
     "SCREEN_WAVE_JOB_REQUIRED": "Name the role this screening wave should run on.",
+    "ROLE_VIEW_JOB_REQUIRED": "Choose a role to see its candidates side by side.",
     "SCREEN_WAVE_APPROVAL_REQUIRED": "Review the preview and approve this set before committing the wave.",
     "SCREEN_WAVE_APPROVAL_EXPIRED": "This approval has expired. Re-preview and approve the current set before committing.",
     "SCREEN_WAVE_APPROVAL_MISMATCH": "The candidate set changed since it was previewed. Re-preview and approve the current set before committing.",
@@ -1585,6 +1586,7 @@
     "GROUP_EVAL_READ_FAILED": "Could not load the saved comparison. Please try again.",
     "DECISION_RECORDS_READ_FAILED": "Could not load decision records. Please try again.",
     "JD_FRESHNESS_LOOKUP_FAILED": "Could not check when these JDs were last edited. Please try again.",
+    "ROLE_VIEW_LOOKUP_FAILED": "Could not load this role's candidates. Please try again.",
     "SIM_RESET_FAILED": "Could not clear the simulation data. Please try again.",
     "SIM_INBOUND_FAILED": "Could not simulate the incoming application. Please try again.",
     "SIM_SCREEN_DRAFT_FAILED": "Could not prepare the screening recommendation. Please try again.",
@@ -4680,7 +4682,33 @@
       "trailLabel": "Where you are",
       "ladderTitle": "Score ladder",
       "ladderNote": "Scored people by fit, highest first. People never scored are listed below without a bar.",
-      "decideTitle": "Decide"
+      "decideTitle": "Decide",
+      "ws": {
+        "label": "Work sample",
+        "held": "held",
+        "cleared": "cleared",
+        "template": "template",
+        "failed": "couldn't load",
+        "none": {
+          "not_sent": "not sent",
+          "not_submitted": "not returned",
+          "not_evaluated": "not graded yet"
+        },
+        "tip": {
+          "score": "Work sample score {score} of 100, read from the work they handed in.",
+          "template": "Graded by the built-in template, not by an AI model.",
+          "graded": "Graded by an AI model.",
+          "watched": "Checked their own work {count, plural, one {once} other {# times}} while working.",
+          "notWatched": "The work was not watched live.",
+          "defended": "Debrief: {supported} of {total} follow-up answers backed up the work.",
+          "held": "Held: a person must confirm they did this work themselves before advancing.",
+          "cleared": "A person confirmed they did this work themselves.",
+          "not_sent": "No work sample was sent to this person.",
+          "not_submitted": "A work sample was sent; nothing has come back yet.",
+          "not_evaluated": "The work came back but has not been graded yet.",
+          "failed": "The work-sample results could not be loaded."
+        }
+      }
     }
   },
   "scheduleTab": {

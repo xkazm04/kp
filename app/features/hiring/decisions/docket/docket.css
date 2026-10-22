@@ -83,3 +83,15 @@
 .dk-rung__fill[data-p="reject"] { background: var(--color-red-600); }
 .dk-rung__fill[data-p="none"] { background: transparent; border: 1.5px dashed var(--color-dial-stone); }
 .dk-tools-h { margin: 22px 0 6px; padding-bottom: 6px; border-bottom: var(--k-line) solid var(--k-ink); font-family: var(--font-serif); font-size: var(--text-h3); font-weight: 600; }
+
+/* CX S45: the role level's decide rows carry the work-sample result after the fit score */
+.dk-rows--ws .dk-row { grid-template-columns: auto minmax(0, 1fr) 78px 40px minmax(9rem, auto) 104px auto; }
+.dk-ws { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dk-ws b { font-family: var(--font-serif); font-size: var(--text-body); font-weight: 600; color: var(--k-ink); font-variant-numeric: tabular-nums; }
+[data-theme="dark"] .dk-ws b { font-weight: 800; }
+.dk-ws[data-hold="held"] .dk-ws__m { color: var(--color-coral-ink); font-weight: 600; }
+.dk-ws--none { font-style: italic; }
+@container dk (max-width: 560px) {
+  .dk-rows--ws .dk-row { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "ck name score acts" "ck stage prop acts" "ck ws ws acts"; }
+  .dk-rows--ws .dk-ws { grid-area: ws; }
+}

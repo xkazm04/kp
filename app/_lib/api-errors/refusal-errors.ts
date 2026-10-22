@@ -690,6 +690,8 @@ export const REFUSAL_ERRORS = {
   DECISION_CONFIG_STALE: "Someone saved a newer version of these rules. Reload and make your change again.",
   /** POST /api/decisions/screen-wave with no jobId (400). Nothing was ranked. */
   SCREEN_WAVE_JOB_REQUIRED: "Name the role this screening wave should run on.",
+  /** GET /api/decisions/role-view with no `job` (400). Nothing was read. */
+  ROLE_VIEW_JOB_REQUIRED: "Choose a role to see its candidates side by side.",
   /** Commit without a previewed approval token (409). */
   SCREEN_WAVE_APPROVAL_REQUIRED: "Review the preview and approve this set before committing the wave.",
   /** The approval token is older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (409). */
