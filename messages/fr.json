@@ -17985,5 +17985,33 @@
       "shared": "{n, plural, one {# commun avec la première ligne} other {# communs avec la première ligne}}",
       "modelGivenBar": "L’adéquation est notée par le modèle lui-même : points forts et faibles l’expliquent, sans points."
     }
+  },
+  "evidenceLadder": {
+    "reasons": {
+      "watchedActs": "{count, plural, =0 {Aucune vérification observée} one {# vérification observée} other {# vérifications observées}}",
+      "watchedTest": "A écrit ou modifié un test",
+      "watchedAssistant": "{count, plural, one {A demandé une fois à l'assistant de vérifier son travail} other {A demandé # fois à l'assistant de vérifier son travail}}",
+      "watchedStakeholder": "{count, plural, one {A soulevé une fois une vérification auprès du commanditaire} other {A soulevé # fois une vérification auprès du commanditaire}}",
+      "watchedPlanted": "A repéré {caught} des {graded} défauts placés, compté comme une seule vérification",
+      "witness_witnessed": "Chronologie attestée : le travail est arrivé au fil de l'eau",
+      "witness_neutral": "Chronologie en partie hors ligne, lue comme neutre",
+      "witness_unwitnessed": "Chronologie non attestée : l'essentiel du travail est arrivé d'un bloc. Un motif de suspension, jamais une pénalité",
+      "defendedSupported": "{supported} relances sur {total} étayées",
+      "defendedRevised": "{count, plural, one {# réponse a corrigé la preuve} other {# réponses ont corrigé la preuve}}",
+      "defendedNotEvidenced": "{count, plural, one {# affirmation non étayée} other {# affirmations non étayées}}",
+      "defendedNotAsked": "{count, plural, one {# relance non posée} other {# relances non posées}}",
+      "defendedHeld": "Suspendu pour la paternité jusqu'à ce qu'une personne lève la suspension",
+      "defendedCleared": "Paternité confirmée par une personne",
+      "quotedRatings": "{count, plural, one {# note, telle que donnée} other {# notes, telles que données et jamais moyennées}}",
+      "quotedNoEvidence": "Au moins une note n'a pas de commentaire"
+    },
+    "empty": {
+      "no_case": "Pas encore de preuve : aucun exercice pratique n'est rattaché à ce candidat.",
+      "not_evaluated": "Pas encore de preuve : l'exercice pratique n'a pas encore été évalué.",
+      "not_watched": "Pas encore de preuve : un rendu par dépôt, rien n'a donc été observé en direct.",
+      "no_followups": "Pas encore de preuve : l'évaluation n'a proposé aucune relance pour le débrief.",
+      "not_recorded": "Pas encore de preuve : le débrief n'a pas encore été consigné.",
+      "not_rated": "Pas encore de preuve : personne n'a encore noté le travail avec les outils d'IA."
+    }
   }
 }

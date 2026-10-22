@@ -1,0 +1,254 @@
+{
+  "_generated": "python -m pipeline.jobfit.devcase.submission_eval observed cast (ADR 0027 S3): the observed evidence the WATCHED rung reads, one row per archetype; regenerate when the cast changes",
+  "rows": {
+    "careful_verifier": {
+      "expected": "strong",
+      "bundle": {
+        "tooling": {
+          "signals": {
+            "filesOpened": 4,
+            "filesEdited": 3,
+            "readBeforeWrite": 1.0,
+            "decisionLogEntries": 2,
+            "editedTest": true,
+            "editedDecisions": true,
+            "iterationPattern": "single-pass",
+            "perturbationShown": false,
+            "editsAfterPerturbation": null,
+            "decisionsAfterPerturbation": null,
+            "promptExchanges": 0
+          }
+        },
+        "observedChecks": {
+          "promptSignals": {
+            "observed": true,
+            "assistantPrompts": 0,
+            "stakeholderQuestions": 1,
+            "clarifyingQuestions": 1,
+            "verificationAsks": 0,
+            "stakeholderVerificationAsks": 0,
+            "meanPromptChars": 0,
+            "iterationDepth": 0,
+            "briefPasteRatio": 0.0,
+            "confidence": 0.8
+          },
+          "canaryOutcomes": [
+            {
+              "id": "c1",
+              "status": "addressed"
+            },
+            {
+              "id": "c2",
+              "status": "flagged"
+            },
+            {
+              "id": "draft-d1",
+              "status": "addressed"
+            },
+            {
+              "id": "draft-d2",
+              "status": "addressed"
+            }
+          ]
+        }
+      }
+    },
+    "ai_then_verify": {
+      "expected": "strong",
+      "bundle": {
+        "tooling": {
+          "signals": {
+            "filesOpened": 4,
+            "filesEdited": 4,
+            "readBeforeWrite": 1.0,
+            "decisionLogEntries": 2,
+            "editedTest": true,
+            "editedDecisions": true,
+            "iterationPattern": "single-pass",
+            "perturbationShown": false,
+            "editsAfterPerturbation": null,
+            "decisionsAfterPerturbation": null,
+            "promptExchanges": 2
+          }
+        },
+        "observedChecks": {
+          "promptSignals": {
+            "observed": true,
+            "assistantPrompts": 2,
+            "stakeholderQuestions": 1,
+            "clarifyingQuestions": 1,
+            "verificationAsks": 1,
+            "stakeholderVerificationAsks": 0,
+            "meanPromptChars": 64,
+            "iterationDepth": 2,
+            "briefPasteRatio": 0.0,
+            "confidence": 0.8
+          },
+          "canaryOutcomes": [
+            {
+              "id": "c1",
+              "status": "addressed"
+            },
+            {
+              "id": "c2",
+              "status": "addressed"
+            },
+            {
+              "id": "draft-d1",
+              "status": "addressed"
+            },
+            {
+              "id": "draft-d2",
+              "status": "addressed"
+            }
+          ]
+        }
+      }
+    },
+    "ai_spot_check": {
+      "expected": "mid",
+      "bundle": {
+        "tooling": {
+          "signals": {
+            "filesOpened": 2,
+            "filesEdited": 1,
+            "readBeforeWrite": 1.0,
+            "decisionLogEntries": 1,
+            "editedTest": false,
+            "editedDecisions": true,
+            "iterationPattern": "single-pass",
+            "perturbationShown": false,
+            "editsAfterPerturbation": null,
+            "decisionsAfterPerturbation": null,
+            "promptExchanges": 1
+          }
+        },
+        "observedChecks": {
+          "promptSignals": {
+            "observed": true,
+            "assistantPrompts": 1,
+            "stakeholderQuestions": 0,
+            "clarifyingQuestions": 0,
+            "verificationAsks": 0,
+            "stakeholderVerificationAsks": 0,
+            "meanPromptChars": 56,
+            "iterationDepth": 1,
+            "briefPasteRatio": 0.0,
+            "confidence": 0.8
+          },
+          "canaryOutcomes": [
+            {
+              "id": "c1",
+              "status": "addressed"
+            },
+            {
+              "id": "c2",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d1",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d2",
+              "status": "propagated"
+            }
+          ]
+        }
+      }
+    },
+    "big_bang_no_verify": {
+      "expected": "weak",
+      "bundle": {
+        "tooling": {
+          "signals": {
+            "filesOpened": 0,
+            "filesEdited": 1,
+            "readBeforeWrite": 0.0,
+            "decisionLogEntries": 1,
+            "editedTest": false,
+            "editedDecisions": true,
+            "iterationPattern": "single-pass",
+            "perturbationShown": false,
+            "editsAfterPerturbation": null,
+            "decisionsAfterPerturbation": null,
+            "promptExchanges": 0
+          }
+        },
+        "observedChecks": {
+          "promptSignals": null,
+          "canaryOutcomes": [
+            {
+              "id": "c1",
+              "status": "propagated"
+            },
+            {
+              "id": "c2",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d1",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d2",
+              "status": "propagated"
+            }
+          ]
+        }
+      }
+    },
+    "ai_no_verify": {
+      "expected": "weak",
+      "bundle": {
+        "tooling": {
+          "signals": {
+            "filesOpened": 0,
+            "filesEdited": 1,
+            "readBeforeWrite": 0.0,
+            "decisionLogEntries": 0,
+            "editedTest": false,
+            "editedDecisions": false,
+            "iterationPattern": "single-pass",
+            "perturbationShown": false,
+            "editsAfterPerturbation": null,
+            "decisionsAfterPerturbation": null,
+            "promptExchanges": 1
+          }
+        },
+        "observedChecks": {
+          "promptSignals": {
+            "observed": true,
+            "assistantPrompts": 1,
+            "stakeholderQuestions": 0,
+            "clarifyingQuestions": 0,
+            "verificationAsks": 0,
+            "stakeholderVerificationAsks": 0,
+            "meanPromptChars": 86,
+            "iterationDepth": 1,
+            "briefPasteRatio": 1.0,
+            "confidence": 0.8
+          },
+          "canaryOutcomes": [
+            {
+              "id": "c1",
+              "status": "propagated"
+            },
+            {
+              "id": "c2",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d1",
+              "status": "propagated"
+            },
+            {
+              "id": "draft-d2",
+              "status": "propagated"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

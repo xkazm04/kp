@@ -17985,5 +17985,33 @@
       "shared": "{n} shared with the first row",
       "modelGivenBar": "Fit is the model's own rating: its pros and cons explain it, with no points."
     }
+  },
+  "evidenceLadder": {
+    "reasons": {
+      "watchedActs": "{count, plural, =0 {No verification acts watched} one {# verification act watched} other {# verification acts watched}}",
+      "watchedTest": "Wrote or edited a test",
+      "watchedAssistant": "{count, plural, one {Asked the assistant to check its work once} other {Asked the assistant to check its work # times}}",
+      "watchedStakeholder": "{count, plural, one {Raised a check with the stakeholder once} other {Raised a check with the stakeholder # times}}",
+      "watchedPlanted": "Caught {caught} of {graded} planted defects, counted as one act",
+      "witness_witnessed": "Timeline witnessed: the work arrived as it happened",
+      "witness_neutral": "Timeline partly offline, read as neutral",
+      "witness_unwitnessed": "Timeline not witnessed: most of the work arrived in bulk. A reason to hold, never a penalty",
+      "defendedSupported": "{supported} of {total} follow-ups supported",
+      "defendedRevised": "{count, plural, one {# answer revised the evidence} other {# answers revised the evidence}}",
+      "defendedNotEvidenced": "{count, plural, one {# claim not evidenced} other {# claims not evidenced}}",
+      "defendedNotAsked": "{count, plural, one {# follow-up not asked} other {# follow-ups not asked}}",
+      "defendedHeld": "Held for authorship until a person clears it",
+      "defendedCleared": "Authorship cleared by a person",
+      "quotedRatings": "{count, plural, one {# rating, shown as given} other {# ratings, shown as given and never averaged}}",
+      "quotedNoEvidence": "At least one rating has no notes"
+    },
+    "empty": {
+      "no_case": "No evidence yet: no work sample is attached to this candidate.",
+      "not_evaluated": "No evidence yet: the work sample has not been evaluated.",
+      "not_watched": "No evidence yet: a repository submission, so nothing was watched live.",
+      "no_followups": "No evidence yet: the evaluation set no debrief questions.",
+      "not_recorded": "No evidence yet: the debrief has not been recorded.",
+      "not_rated": "No evidence yet: no interviewer has rated working with AI tools."
+    }
   }
 }

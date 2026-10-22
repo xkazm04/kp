@@ -17,13 +17,43 @@ supplied draft unreviewed. Pinned here:
 
 from __future__ import annotations
 
+import json
+import sys
 import unittest
+from pathlib import Path
 
 from pipeline.jobfit.devcase.evaluate import verification_acts
 from pipeline.jobfit.devcase.submission_eval import MIN_DISCRIMINATION_MARGIN, run, run_one, signals
 from pipeline.jobfit.devcase.submission_scenarios import BEHAVIORS, generate_submissions
 
 MID = "ai_spot_check"
+# The WATCHED evidence the TS evidence ladder is tested against (app/_lib/evidence-ladder/
+# ladder.test.ts), one row per archetype. Pinned to the live cast below, so a cast change
+# that the ladder test would no longer reflect fails here, not silently there.
+FIXTURE = Path(__file__).resolve().parents[3] / "app" / "_lib" / "evidence-ladder" / "observed-cast.fixture.json"
+FIXTURE_ROWS = ("careful_verifier", "ai_then_verify", MID, "big_bang_no_verify", "ai_no_verify")
+
+
+def ladder_fixture() -> dict:
+    scns = {s.planted["behavior"]: s for s in generate_submissions(len(BEHAVIORS), path="observed")}
+    rows = {}
+    for b in FIXTURE_ROWS:
+        r = run_one(scns[b], None)
+        oc = r.observed_checks
+        rows[b] = {
+            "expected": scns[b].planted["expected"],
+            "bundle": {
+                "tooling": {"signals": r.tooling.get("signals")},
+                "observedChecks": {
+                    "promptSignals": oc.get("promptSignals"),
+                    "canaryOutcomes": [{k: c.get(k) for k in ("id", "status")} for c in oc.get("canaryOutcomes") or []],
+                },
+            },
+        }
+    return {
+        "_generated": "python -m pipeline.jobfit.devcase.submission_eval observed cast (ADR 0027 S3): the observed evidence the WATCHED rung reads, one row per archetype; regenerate when the cast changes",
+        "rows": rows,
+    }
 
 
 def _acts(row) -> int:
@@ -84,5 +114,18 @@ class MidArchetypeScoringTest(unittest.TestCase):
         self.assertEqual(_acts(self.rows["ai_no_verify"]), 0)
 
 
+class LadderFixtureParityTest(unittest.TestCase):
+    def test_fixture_matches_the_live_cast(self):
+        on_disk = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        self.assertEqual(
+            on_disk,
+            ladder_fixture(),
+            "the ladder fixture drifted from the cast; regenerate: python -m pipeline.jobfit.tests.test_devcase_mid_archetype --write",
+        )
+
+
 if __name__ == "__main__":
-    unittest.main()
+    if "--write" in sys.argv:
+        FIXTURE.write_text(json.dumps(ladder_fixture(), indent=2) + "\n", encoding="utf-8", newline="\n")
+    else:
+        unittest.main()

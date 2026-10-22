@@ -17985,5 +17985,33 @@
       "shared": "{n} wie in der ersten Zeile",
       "modelGivenBar": "Die Passung bewertet das Modell selbst: Pro und Contra erklären sie, ohne Punkte."
     }
+  },
+  "evidenceLadder": {
+    "reasons": {
+      "watchedActs": "{count, plural, =0 {Keine Prüfhandlung beobachtet} one {# Prüfhandlung beobachtet} other {# Prüfhandlungen beobachtet}}",
+      "watchedTest": "Hat einen Test geschrieben oder angepasst",
+      "watchedAssistant": "{count, plural, one {Hat den Assistenten einmal gebeten, seine Arbeit zu prüfen} other {Hat den Assistenten # Mal gebeten, seine Arbeit zu prüfen}}",
+      "watchedStakeholder": "{count, plural, one {Hat einmal eine Prüffrage an den Auftraggeber gerichtet} other {Hat # Mal eine Prüffrage an den Auftraggeber gerichtet}}",
+      "watchedPlanted": "{caught} von {graded} eingebauten Fehlern gefunden, zählt als eine Prüfhandlung",
+      "witness_witnessed": "Zeitverlauf bezeugt: Die Arbeit kam an, während sie entstand",
+      "witness_neutral": "Zeitverlauf teilweise offline, neutral gewertet",
+      "witness_unwitnessed": "Zeitverlauf nicht bezeugt: Der Großteil der Arbeit kam gebündelt an. Ein Grund zum Anhalten, nie ein Abzug",
+      "defendedSupported": "{supported} von {total} Nachfragen belegt",
+      "defendedRevised": "{count, plural, one {# Antwort hat den Befund korrigiert} other {# Antworten haben den Befund korrigiert}}",
+      "defendedNotEvidenced": "{count, plural, one {# Aussage nicht belegt} other {# Aussagen nicht belegt}}",
+      "defendedNotAsked": "{count, plural, one {# Nachfrage nicht gestellt} other {# Nachfragen nicht gestellt}}",
+      "defendedHeld": "Wegen Urheberschaft angehalten, bis ein Mensch freigibt",
+      "defendedCleared": "Urheberschaft von einem Menschen bestätigt",
+      "quotedRatings": "{count, plural, one {# Bewertung, wie abgegeben} other {# Bewertungen, wie abgegeben und nie gemittelt}}",
+      "quotedNoEvidence": "Mindestens eine Bewertung hat keine Notizen"
+    },
+    "empty": {
+      "no_case": "Noch keine Belege: Diesem Kandidaten ist keine Arbeitsprobe zugeordnet.",
+      "not_evaluated": "Noch keine Belege: Die Arbeitsprobe wurde noch nicht ausgewertet.",
+      "not_watched": "Noch keine Belege: eine Einreichung per Repository, live wurde also nichts beobachtet.",
+      "no_followups": "Noch keine Belege: Die Auswertung hat keine Nachfragen für das Debriefing erstellt.",
+      "not_recorded": "Noch keine Belege: Das Debriefing wurde noch nicht erfasst.",
+      "not_rated": "Noch keine Belege: Niemand aus dem Interview hat die Arbeit mit KI-Werkzeugen bewertet."
+    }
   }
 }

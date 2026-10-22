@@ -17985,5 +17985,33 @@
       "shared": "{n, plural, one {# shodný s prvním řádkem} few {# shodné s prvním řádkem} many {# shodného s prvním řádkem} other {# shodných s prvním řádkem}}",
       "modelGivenBar": "Shodu hodnotí přímo model: klady a zápory ji vysvětlují, ale bez bodů."
     }
+  },
+  "evidenceLadder": {
+    "reasons": {
+      "watchedActs": "{count, plural, =0 {Nezaznamenali jsme žádné ověření} one {Zaznamenali jsme # ověření} few {Zaznamenali jsme # ověření} other {Zaznamenali jsme # ověření}}",
+      "watchedTest": "Napsán nebo upraven test",
+      "watchedAssistant": "{count, plural, one {Asistent byl jednou požádán o kontrolu své práce} few {Asistent byl #krát požádán o kontrolu své práce} other {Asistent byl #krát požádán o kontrolu své práce}}",
+      "watchedStakeholder": "{count, plural, one {U zadavatele byl jednou vznesen kontrolní dotaz} few {U zadavatele byl #krát vznesen kontrolní dotaz} other {U zadavatele byl #krát vznesen kontrolní dotaz}}",
+      "watchedPlanted": "Odhaleno {caught} z {graded} nastražených chyb, počítá se jako jedno ověření",
+      "witness_witnessed": "Časová osa ověřena: práce přicházela průběžně",
+      "witness_neutral": "Časová osa částečně offline, čteme ji neutrálně",
+      "witness_unwitnessed": "Časová osa neověřena: většina práce přišla najednou. Důvod k pozastavení, nikdy penalizace",
+      "defendedSupported": "Doloženo {supported} z {total} doplňujících otázek",
+      "defendedRevised": "{count, plural, one {# odpověď upravila důkazy} few {# odpovědi upravily důkazy} other {# odpovědí upravilo důkazy}}",
+      "defendedNotEvidenced": "{count, plural, one {# tvrzení nedoloženo} few {# tvrzení nedoložena} other {# tvrzení nedoloženo}}",
+      "defendedNotAsked": "{count, plural, one {# otázka nepoložena} few {# otázky nepoloženy} other {# otázek nepoloženo}}",
+      "defendedHeld": "Pozastaveno kvůli autorství, dokud to člověk neuvolní",
+      "defendedCleared": "Autorství potvrdil člověk",
+      "quotedRatings": "{count, plural, one {# hodnocení, uvedeno tak, jak bylo zadáno} few {# hodnocení, uvedena tak, jak byla zadána, nikdy zprůměrována} other {# hodnocení, uvedeno tak, jak bylo zadáno, nikdy zprůměrováno}}",
+      "quotedNoEvidence": "Alespoň jedno hodnocení nemá poznámky"
+    },
+    "empty": {
+      "no_case": "Zatím bez důkazů: ke kandidátovi není připojena žádná pracovní ukázka.",
+      "not_evaluated": "Zatím bez důkazů: pracovní ukázka ještě nebyla vyhodnocena.",
+      "not_watched": "Zatím bez důkazů: odevzdáno přes repozitář, nic se tedy nesledovalo živě.",
+      "no_followups": "Zatím bez důkazů: vyhodnocení nepřipravilo žádné otázky k rozboru.",
+      "not_recorded": "Zatím bez důkazů: rozbor zatím nebyl zaznamenán.",
+      "not_rated": "Zatím bez důkazů: práci s AI nástroji zatím nikdo z pohovoru neohodnotil."
+    }
   }
 }
