@@ -85,23 +85,34 @@ def _canary(
     }
 
 
-# A figure in any of the spellings a candidate uses: 36000, 36,000, 36 000, 36.000, and for
-# round thousands 36k and 36 tis. (Czech). ``thousands`` is the leading part and ``rest``
-# the last three digits, so _k(36) matches all of those and _k(1, "800") matches 1,800.
+# A figure in any of the spellings a candidate uses: 36000, 36,000, 36 000, 36.000, 36k,
+# 36 tis. (Czech), 36 thousand; and for a figure that is not round thousands the decimal
+# k-form too, 1.8k / 1,8 tis. / 67.5k (r3: "15% of 12k is 1.8k" was not read as 1,800).
+# ``thousands`` is the leading part and ``rest`` the last three digits, so _k(36) matches all
+# of those and _k(1, "800") matches 1,800 and 1.8k.
 def _k(thousands: int, rest: str = "000") -> str:
-    short = r"|\s?k\b|\s?tis" if rest == "000" else ""
-    return rf"(?<![\d.,]){thousands}(?:[\s,.']?{rest}(?![\d]){short})"
+    dec = rest.rstrip("0")
+    frac = rf"[.,]{dec}0*" if dec else r"(?:[.,]0+)?"
+    return rf"(?<![\d.,]){thousands}(?:[\s,.']?{rest}(?![\d])|{frac}\s?(?:k\b|tis|thousand))"
 
 
-# A bare count, not a duration or a share ("45 minutes" is not 45 units).
-_NOT_A_UNIT = r"(?!\s*(?:min|mins|minutes?|minut\w*|h\b|hours?|hod\w*|%|percent|procent))"
-
-
-# Comparative words, en + cs, for a measure stated as better or worse than another.
-_COMPARE = (
-    r"(?:weak\w*|worst|poor\w*|expensive|cheap\w*|best|strong\w*|better|worse|lowest|highest"
-    r"|nejhor\w*|nejlep\w*|nejslab\w*|nejsiln\w*|dražš\w*|levněj\w*|nejdraž\w*|nejlevn\w*|horš\w*|lepš\w*)"
+# A bare count, not a duration, a share or money ("45 minutes", "45 days", "a 45-day cycle"
+# are not 45 units).
+_NOT_A_UNIT = (
+    r"(?![\s-]*(?:min|mins|minutes?|minut\w*|h\b|hrs?\b|hours?|hod\w*|days?\b|dn[íyů]\w*|den\b|weeks?\b|týdn\w*"
+    r"|months?\b|měsíc\w*|years?\b|let\b|sec\w*|s\b|%|percent|procent|eur\b|€|czk\b|kč))"
 )
+
+# What a candidate calls a qualified signup: the CSV's word, the sales jargon for it, or the
+# quality reading of it, en + cs.
+_QUAL = r"(?:qualif\w*|kvalif\w*|\bsqls?\b|sales[- ]accepted|quality\s+(?:sign-?ups?|leads?))"
+
+
+# A marketing figure within rounding of its true value: "62", "62.5", "62.50" and "63" for
+# 62.50 (r3: "about EUR 63 per qualified signup" was not read as the recomputation).
+def _near(whole: int, up: bool) -> str:
+    nxt = rf"|{whole + 1}(?:[.,]0+)?" if up else ""
+    return rf"(?<![\d.,])(?:{whole}(?:[.,]\d{{1,2}})?{nxt})(?![\d])"
 
 
 _DECISIONS_TASK = (
@@ -333,11 +344,11 @@ _CASE_DRAFTS: dict[str, dict] = {
         "10% off EUR 75,000 is EUR 67,500; the draft quotes the customer EUR 1,000 less than the offer.",
         "Do they check the figure an assistant put in a customer email, or send it as written?",
         [[r"fjord", r"discount", r"\b10\s?%", r"draft", r"e-?mail", r"order", r"sleva", r"slev", r"cen[auyě]", r"nabíd"],
-         [_k(67, "500"), r"(?<![\d.,])67[.,]5\s?k\b",
+         [_k(67, "500"),
           r"(?:off|out|short|low|understat\w*|undercharg\w*)\s+(?:by\s+)?(?:eur\s*|€\s*)?1[\s,.']?000\b",
           r"\b1[\s,.']?000\s*(?:eur\s*|€\s*)?(?:too\s+(?:low|little)|short|less|méně)",
           r"\bo\s+1[\s,.']?000\s*(?:eur\s*|€\s*)?(?:méně|víc|více|nižší)"]],
-        [[r"(?<![\d.,])66[\s,.']?500(?![\d])", r"(?<![\d.,])66[.,]5\s?k\b"]],
+        [[_k(66, "500")]],
     ),
     "operations": _draft(
         "operations", _DRAFT_OPS_PATH, "Reorder quantities", _DRAFT_OPS, "wrong_constant",
@@ -382,7 +393,7 @@ _CASE_DRAFTS: dict[str, dict] = {
          [_k(1, "800"), _k(11, "700"),
           r"(?<![\d.,])300\s*(?:eur\s*|€\s*)?(?:short|missing|unallocated|unaccounted|left|chyb\w*|nerozděl\w*|zbýv\w*)",
           r"(?:short|off|out|under)\s+(?:by\s+)?(?:eur\s*|€\s*)?300\b"]],
-        [[r"linkedin[^\n]{0,30}(?<![\d.,])1[\s,.']?500(?![\d])"]],
+        [[r"linkedin[^\n]{0,30}" + _k(1, "500")]],
     ),
 }
 
@@ -436,12 +447,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "Brightfield Logistics,Proposal,90000,40,54000",
                     "90000 x 40% is 36000, not 54000; with the correct value Brightfield drops below Fjord Marine (52500) in the ranking.",
                     "Do they recompute the weighted column, or rank on a figure that is quietly wrong?",
-                    # Brightfield next to its corrected weighted value (36000 in any spelling),
-                    # the gap (overstated by 18000), or its fall below Fjord Marine.
+                    # Brightfield next to its corrected weighted value (36000 in any spelling)
+                    # or the gap (overstated by 18000). Its fall below Fjord Marine is no
+                    # longer a catch on its own: an answer that keeps the stored 54,000 and
+                    # ranks it lower for another reason said exactly that (lite r3). A ranking
+                    # counts when the corrected figure is beside it, which the figures cover.
                     [[r"brightfield"],
-                     [_k(36), _k(18),
-                      r"(?:drops?|falls?|moves?|slips?|goes|lands?|ranks?)\s+(?:to\s+)?(?:below|under|behind|after)\s+fjord",
-                      r"(?:pod|za)\s+fjord"]],
+                     [_k(36), _k(18)]],
                     # Brightfield ranked on the stored 54000.
                     [[r"brightfield"], [_k(54)]]),
         ],
@@ -680,15 +692,20 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
                     "Email was our best channel at EUR 16.67 per signup",
                     "Per qualified signup Paid search is best at EUR 62.50 (4000 / 64) against Email at EUR 83.33 (1500 / 18); the brief's figure ignores quality.",
                     "Do they recompute on qualified signups, or build the plan on the brief's claim?",
-                    # A channel next to its cost per QUALIFIED signup (62.50 / 83.33), its
-                    # qualified share (18 of 90), or a comparison made on the qualified measure.
-                    # Naming "cost per qualified signup" is not a catch: task 3 asks for the
-                    # number to watch, and a plan built on EUR 16.67 can still name it (lite r2).
+                    # A channel next to its cost per QUALIFIED signup (62.50 / 83.33 within
+                    # rounding, 250 / 125 beside the qualified measure) or its qualified share
+                    # (18 of 90, 20% / 40% near the word for qualified). Naming "cost per
+                    # qualified signup" is not a catch: task 3 asks for the number to watch, and
+                    # a plan built on EUR 16.67 can still name it (lite r2). Nor is comparison
+                    # wording on its own: "email remains best even on qualified signups" keeps
+                    # the brief's conclusion (lite r3); a comparison counts when one of these
+                    # figures is beside it.
                     [[r"paid search", r"\bemail\b", r"e-mail", r"linkedin", r"\bcontent\b"],
-                     [r"(?<![\d.,])62[.,]5", r"(?<![\d.,])83[.,]3",
-                      r"\b18\s*(?:of|/|out of|z)\s*90\b", r"\b64\s*(?:of|/|out of|z)\s*160\b",
-                      r"\b(?:20|40)\s*%\s*(?:qualif|kvalif)", r"(?:qualif|kvalif)\w*[^.;,\n]{0,40}\b(?:20|40)\s*%",
-                      rf"(?:qualif|kvalif)\w*[^.;,\n]{{0,40}}\b{_COMPARE}", rf"\b{_COMPARE}\b[^.;,\n]{{0,40}}(?:qualif|kvalif)",
+                     [_near(62, up=True), _near(83, up=False),
+                      rf"(?<![\d.,])(?:250|125)(?![\d])[^.;\n]{{0,25}}(?:per|/)\s*{_QUAL}",
+                      r"\b(?:18\s*(?:of|/|out of|z)\s*90|64\s*(?:of|/|out of|z)\s*160|14\s*(?:of|/|out of|z)\s*70"
+                      r"|16\s*(?:of|/|out of|z)\s*40)\b",
+                      rf"\b(?:20|40)\s*%[^.;,\n]{{0,40}}{_QUAL}", rf"{_QUAL}[^.;,\n]{{0,40}}\b(?:20|40)\s*%",
                       r"only\s+18\b", r"jen\s+18\b"]],
                     # The brief's headline carried: Email best on cost per signup.
                     [[r"\bemail\b", r"e-mail"],

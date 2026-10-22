@@ -692,3 +692,66 @@ class TestCzechDelivery(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --- council-lite T13 r3: the seven defects robustness-1 named ----------------------------------
+#
+# One test per defect, each with answers written for it (the held-out set in
+# heldout/devcase_catch_heldout.json is graded separately and never reused here).
+
+
+def _grade_draft(fam: str, path: str, body: str):
+    rf, title = _ROLES[fam]
+    _, role, case, _ = _case(rf, title)
+    _family, draft, _ev = _grade_with(role, case, {path: body})
+    return draft
+
+
+class TestCouncilR3Defects(unittest.TestCase):
+    def _status(self, fam: str, body: str, path: str = "answer.md"):
+        out, _j = _grade_family(fam, path, body)
+        return out["status"]
+
+    def test_a_a_negation_scopes_to_its_own_clause_not_the_reason_after_it(self):
+        self.assertEqual(self._status("support", "# Queue\n\n2. T-1047 cannot be handled as a speed ticket since Orchid Dental rows leaked into it.\n"), "flagged")
+        self.assertEqual(self._status("operations", "# Stock\n\nSKU-104 is not fine as reported because movements only add up to 45.\n"), "flagged")
+        # the negation that IS about the catch still holds
+        self.assertNotEqual(self._status("support", "# Queue\n\n2. T-1047 is not a data leak, only a slow export.\n"), "flagged")
+
+    def test_b_a_wrapped_bullet_line_is_read_with_its_bullet(self):
+        body = ("# Queue\n\n- T-1047, filed as a low-priority export complaint from a Business customer,\n"
+                "    is really a leak: the file held rows from a company they do not know.\n- T-1046 dark mode, low.\n")
+        self.assertEqual(self._status("support", body), "flagged")
+        lazy = "# Stock\n\n* SKU-104 Hex bolt M8 opens at 40 and the log nets five units on top of that\n  so 45 on hand, under the point.\n"
+        self.assertEqual(self._status("operations", lazy), "flagged")
+
+    def test_b_a_new_item_or_a_finished_sentence_is_not_a_continuation(self):
+        # r2's guard survives: the next ticket's routing does not join T-1047's line
+        body = "# Queue\n\n- T-1047 slow export, send tips.\n- T-1048 SSO loop after the certificate change, privacy risk, on-call.\n"
+        self.assertEqual(self._status("support", body), "propagated")
+
+    def test_c_the_speed_miss_does_not_fire_on_a_negated_low_priority(self):
+        self.assertEqual(self._status("support", "# Queue\n\nT-1047 should not be treated as low priority.\n"), "unverifiable")
+
+    def test_d_durations_are_not_the_reconciled_quantity(self):
+        for dur in ("45 days", "45-day", "45 dní", "45 weeks"):
+            with self.subTest(dur=dur):
+                self.assertEqual(self._status("operations", f"# Stock\n\nSKU-104: 55 per the system, next count in {dur}.\n"), "propagated")
+        self.assertEqual(self._status("operations", "# Stock\n\nSKU-104: the log gives 45 pieces.\n"), "flagged")
+
+    def test_e_k_figures_that_are_not_round_thousands_are_read(self):
+        self.assertEqual(_grade_draft("marketing", "budget.md", "# Split\n\nLinkedIn should get 1,8 tis. EUR, i.e. 15 % of 12k.\n")["status"], "flagged")
+        self.assertEqual(_grade_draft("sales", "mail.md", "Fjord Marine at 10% off: 67.5K, the draft's sum is wrong.\n")["status"], "flagged")
+        self.assertEqual(_grade_draft("marketing", "budget.md", "# Split\n\n- LinkedIn ads 15% = 1.5k\n")["status"], "propagated")
+
+    def test_f_marketing_figures_within_rounding_and_reworded(self):
+        self.assertEqual(self._status("marketing", "# Channels\n\nEmail costs roughly 83 EUR per qualified lead.\n"), "flagged")
+        self.assertEqual(self._status("marketing", "# Channels\n\nPaid search: EUR 62 per sales-accepted signup.\n"), "flagged")
+        self.assertEqual(self._status("marketing", "# Channels\n\nLinkedIn: 20% of its signups were SQLs.\n"), "flagged")
+        self.assertEqual(self._status("marketing", "# Channels\n\nLinkedIn spend was EUR 3,500 at about EUR 250 per qualified signup.\n"), "flagged")
+
+    def test_g_comparison_wording_needs_the_corrected_figure(self):
+        self.assertEqual(self._status("sales", "# Plan\n\nBrightfield Logistics at 54,000 lands behind Fjord Marine on timing.\n"), "propagated")
+        self.assertEqual(self._status("sales", "# Plan\n\nBrightfield Logistics is 36,000 once recomputed, so it lands behind Fjord Marine.\n"), "flagged")
+        self.assertEqual(self._status("marketing", "# Plan\n\nEmail is still the best even per qualified signup, at EUR 16.67.\n"), "propagated")
+        self.assertEqual(self._status("marketing", "# Plan\n\nPer qualified signup email is the worst at EUR 83.33.\n"), "flagged")

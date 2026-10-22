@@ -88,7 +88,14 @@ def _descends_from_seed(seed_body: str, sub_body: str) -> bool:
 #     out, so echoing the queue notes ("security, privacy or billing integrity go to the
 #     on-call lead") or an instruction is not a catch.
 #   * a substance match negated earlier in its clause ("none are below 44 px") does not
-#     count.
+#     count. A clause ends at a connective too (because, since, so, and, ...): r3 found
+#     "T-1047 should not stay low priority because it exposes another client's data" read
+#     as a denial, the "not" scoping over the reason it gives. The miss evidence is scoped
+#     the same way, so "should not stay low priority" is not the speed-complaint miss.
+#   * a statement is a logical line: a list item's wrapped continuation (indented, or
+#     starting lower-case) and a hard-wrapped sentence are joined to the line they
+#     continue (r3: a privacy point on a bullet's second line was lost, and the first
+#     line's "slow" then graded the catcher as the miss).
 # A canary may carry ``missEvidence`` in the same shape: what a candidate who carried the
 # flaw writes (the stale figure, the speed-complaint reading). It is matched as written —
 # the paste IS the evidence — and so is the flawed fragment itself appearing in any file
@@ -104,7 +111,20 @@ _NEGATOR_RE = re.compile(
     r"|\b(?:aucun\w*|pas|jamais|sans)\b",  # fr
     re.IGNORECASE,
 )
-_CLAUSE_BREAK_RE = re.compile(r"[.;:!?,()\[\]|—–]|\s-\s|\b(?:but|however|ale|avšak|jenže|aber|mais)\b", re.IGNORECASE)
+_CLAUSE_BREAK_RE = re.compile(
+    r"[.;:!?,()\[\]|—–]|\s-\s"
+    r"|\b(?:but|however|because|since|so|and|which|while|whereas|although|given)\b"
+    # cs "a" (and) and fr "car" (because) are left out: they are English words too, and
+    # "not a privacy problem" must stay one negated clause.
+    r"|\b(?:ale|avšak|jenže|protože|jelikož|neboť|takže|který|která|které)\b"  # cs
+    r"|\b(?:aber|weil|denn|da|und|sodass)\b"  # de
+    r"|\b(?:mais|parce que|puisque|donc|et)\b",  # fr
+    re.IGNORECASE,
+)
+# A list item ("- ", "* ", "1. ", "2) ") and the lines that never continue one.
+_ITEM_RE = re.compile(r"^\s*(?:[-*+•]|\d+[.)])\s+")
+_BLOCK_RE = re.compile(r"^\s*(?:#|\||>|```)")
+_SENTENCE_END_RE = re.compile(r"[.!?:;]\s*$")
 
 
 def _contributed_blocks(seeded: dict[str, str], submitted: dict[str, str], chat: list[dict] | None) -> list[list[str]]:
@@ -115,10 +135,47 @@ def _contributed_blocks(seeded: dict[str, str], submitted: dict[str, str], chat:
     texts += [str(m.get("text") or "") for m in (chat or []) if isinstance(m, dict) and m.get("role") == "user"]
     blocks = []
     for text in texts:
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip() and ln.strip() not in seed_lines]
+        lines = []
+        for unit in _logical_lines(text):
+            own = [ln for ln in unit if ln not in seed_lines]
+            if own:
+                lines.append(" ".join(own))
         if lines:
             blocks.append(lines)
     return blocks
+
+
+def _logical_lines(text: str) -> list[list[str]]:
+    """The text's physical lines (stripped), grouped into the logical lines they make up: a
+    list item with its wrapped continuation, a sentence hard-wrapped onto the next line. A
+    continuation is indented or starts lower-case; a new item, a heading, a table row, a
+    quote and a blank line never continue anything."""
+    units: list[list[str]] = []
+    in_item = False  # the open unit started as a list item
+    open_unit = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            open_unit = False
+            continue
+        is_item = bool(_ITEM_RE.match(raw))
+        cont = (
+            open_unit
+            and not is_item
+            and not _BLOCK_RE.match(raw)
+            and not _BLOCK_RE.match(units[-1][0])
+            and (
+                (in_item and (raw[:1].isspace() or line[:1].islower()))
+                or (not in_item and line[:1].islower() and not _SENTENCE_END_RE.search(units[-1][-1]))
+            )
+        )
+        if cont:
+            units[-1].append(line)
+        else:
+            units.append([line])
+            in_item = is_item
+            open_unit = True
+    return units
 
 
 def seed_shingles(seeded: dict[str, str] | list[str]) -> frozenset[tuple[str, ...]]:
@@ -168,7 +225,9 @@ def _statements(lines: list[str], subject: list[re.Pattern]) -> list[str]:
     out: list[str] = []
     for i, ln in enumerate(lines):
         out.append(ln)
-        heading = ln.startswith("#") or ln.endswith(":") or len(ln) <= _HEADING_MAX_CHARS
+        # A list item is an answer, not a heading: a short bullet never absorbs the next one.
+        short = len(ln) <= _HEADING_MAX_CHARS and not _ITEM_RE.match(ln)
+        heading = ln.startswith("#") or ln.endswith(":") or short
         if heading and i + 1 < len(lines) and any(rx.search(ln) for rx in subject):
             out.append(f"{ln}\n{lines[i + 1]}")
     return out
@@ -198,13 +257,16 @@ def evidence_caught(
 
 
 def evidence_missed(groups: list[list[str]] | None, blocks: list[list[str]]) -> bool:
-    """True when one statement carries the flaw: every group matched as written."""
+    """True when one statement carries the flaw: the subject (group one) as written, every
+    later group matched as written and not negated ("should not stay low priority" does not
+    carry the low-priority reading)."""
     compiled = _compile(groups)
     if not compiled:
         return False
+    subject, substance = compiled[0], compiled[1:]
     for lines in blocks:
-        for unit in _statements(lines, compiled[0]):
-            if all(any(rx.search(unit) for rx in g) for g in compiled):
+        for unit in _statements(lines, subject):
+            if any(rx.search(unit) for rx in subject) and all(any(_affirmed(rx, unit) for rx in g) for g in substance):
                 return True
     return False
 
