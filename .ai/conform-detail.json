@@ -16311,6 +16311,47 @@
           "evidence": "app/features/shared/memberUi.ts:62 Displays a membership-role label and exposes no signing operation or request-trusting issuance mode."
         }
       ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/lazy-section-addressability": {
+      "context": "analytics-sections",
+      "subject": "lazy-section-addressability",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T02:59:42.846Z",
+      "techniques": [
+        {
+          "technique": "always-present-anchor-wrappers",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:174 The named sections are mutually exclusive views selected through query state; searches found no addressed scroll locations within their deferred panels."
+        },
+        {
+          "technique": "anchor-coverage-guard",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx:28 Navigation switches the active view rather than resolving a declared vocabulary of DOM anchors, so wrapper coverage is not the applicable guard."
+        },
+        {
+          "technique": "external-anchor-vs-internal-id",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:25 The published names select views through ?sec=; this context has no corresponding internal element handles or scroll tracker requiring a second namespace."
+        },
+        {
+          "technique": "scroll-to-hydrate-then-retry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:350 The internal editor action changes disclosure state directly; searches found no jump consumer waiting for a target inside an unmounted panel."
+        },
+        {
+          "technique": "ssr-gating-decision-tree",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:355 ComputeCostPanel is deferred without a sized placeholder; Defer.tsx:35 defaults placeholder to null and lines 101–105 emit an unsized sentinel, while defer-policy.ts:54 prevents immediate rendering for this strategy."
+        }
+      ],
+      "withdrawn": {
+        "worker": "fc883132-3c25-49c0-9113-8d916ad079a4",
+        "state": "deviation",
+        "at": "2026-10-22T03:10:00.535406+00:00",
+        "reason": "reviewer (sonnet): QualityInstrument.tsx:283 does show a `<Defer strategy=\"visible\">` with no placeholder, and Defer.tsx renders a zero-height sentinel in that case. But I could not open the standard's text to confirm it has a reserved-space requirement, and the verdict's own technique anchors say this context has no "
+      }
     }
   }
 }
