@@ -8547,7 +8547,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/docs/check-adrs.mjs:245 These gates validate file-backed documentation and synchronization mappings; context and repository searches found no topicCatalog, bodyMap, watchedSources, checkedAgainst, or reviewDate identifiers establishing the standard's typed documentation catalog precondition.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:95cdaebc076df84d",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"

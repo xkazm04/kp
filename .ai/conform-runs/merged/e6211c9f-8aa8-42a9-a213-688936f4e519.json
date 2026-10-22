@@ -1,0 +1,72 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e6211c9f-8aa8-42a9-a213-688936f4e519",
+ "subject": "docs-content-model",
+ "evaluatedAt": "2026-10-22T00:14:15.121846+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "ci-doc-gates",
+   "subject": "docs-content-model",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "scripts/docs/check-adrs.mjs:245 These gates validate file-backed documentation and synchronization mappings; context and repository searches found no topicCatalog, bodyMap, watchedSources, checkedAgainst, or reviewDate identifiers establishing the standard's typed documentation catalog precondition.",
+   "techniques": [
+    {
+     "technique": "catalog-referential-invariants",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-adrs.mjs:120 ADR metadata is parsed from the same Markdown text that holds its prose; this is not the separate topic-record/body-module catalog governed by this technique."
+    },
+    {
+     "technique": "derived-navigation-projection",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/api-reference.mjs:122 The generated inventory derives from API handler files, not a documentation topic catalog supplying navigation, neighbours, or topic counts."
+    },
+    {
+     "technique": "draft-visibility-gating",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-adrs.mjs:242 The gate enumerates Markdown decision files for validation; this context does not publish or resolve documentation topics whose drafts require production visibility gating."
+    },
+    {
+     "technique": "per-topic-freshness-metadata",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-doc-sync.mjs:126 Source globs drive change-boundary synchronization checks, which the standard explicitly separates from freshness fields on typed topic records."
+    },
+    {
+     "technique": "product-location-mapping",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:31 The mapping couples source paths to Markdown documents for synchronization; it does not declare product navigation locations on documentation topic records."
+    }
+   ],
+   "absenceTerms": [
+    "topicCatalog",
+    "bodyMap",
+    "watchedSources",
+    "checkedAgainst",
+    "reviewDate"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T00:14:15.121846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "docs-content-model"
+   ],
+   "techniques": [
+    "catalog-referential-invariants",
+    "derived-navigation-projection",
+    "draft-visibility-gating",
+    "per-topic-freshness-metadata",
+    "product-location-mapping"
+   ],
+   "deviations": 0,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

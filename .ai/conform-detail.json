@@ -15963,6 +15963,42 @@
           "evidence": "app/_components/FactorChartBody.tsx:90 Factor bars use the shared fixed [0,1] domain, normalize against declared factor maxima, and show round percentage ticks, preserving comparison across factors and candidates."
         }
       ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/docs-content-model": {
+      "context": "ci-doc-gates",
+      "subject": "docs-content-model",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T00:14:15.121Z",
+      "worker": "e6211c9f-8aa8-42a9-a213-688936f4e519",
+      "techniques": [
+        {
+          "technique": "catalog-referential-invariants",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/check-adrs.mjs:120 ADR metadata is parsed from the same Markdown text that holds its prose; this is not the separate topic-record/body-module catalog governed by this technique."
+        },
+        {
+          "technique": "derived-navigation-projection",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/api-reference.mjs:122 The generated inventory derives from API handler files, not a documentation topic catalog supplying navigation, neighbours, or topic counts."
+        },
+        {
+          "technique": "draft-visibility-gating",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/check-adrs.mjs:242 The gate enumerates Markdown decision files for validation; this context does not publish or resolve documentation topics whose drafts require production visibility gating."
+        },
+        {
+          "technique": "per-topic-freshness-metadata",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/check-doc-sync.mjs:126 Source globs drive change-boundary synchronization checks, which the standard explicitly separates from freshness fields on typed topic records."
+        },
+        {
+          "technique": "product-location-mapping",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:31 The mapping couples source paths to Markdown documents for synchronization; it does not declare product navigation locations on documentation topic records."
+        }
+      ]
     }
   }
 }
