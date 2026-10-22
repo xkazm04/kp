@@ -21,6 +21,7 @@ from .models import (
     NeedAnalysis,
     clamp_timebox_hours,
 )
+from .family_cases import family_case_for
 from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
@@ -438,6 +439,20 @@ def design_case(
                     "decisionSpace": [],
                 }
             )
+        fc = family_case_for(role_family, role.get("title"))
+        if fc is not None:
+            # Keyless non-software family (T13): a concrete case over starting files that
+            # seed_materializer ships, not the generic template below.
+            return {
+                "title": fc["title"],
+                "brief": fc["brief"].format(timebox=timebox),
+                "repoSeed": fc["repoSeed"],
+                "tasks": fc["tasks"],
+                "coverProbes": fc["coverProbes"] + det_probes[3:],
+                "timeboxHours": timebox,
+                "midFlightUpdate": fc["midFlightUpdate"],
+                "rubricDimensions": fc["rubricDimensions"],
+            }
         return {
             "title": f"{title}: a representative work-sample",
             "brief": (
@@ -543,6 +558,6 @@ def design_case(
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_CASE_KEYS)
-    result["rubricDimensions"] = _RUBRIC
+    result["rubricDimensions"] = result.get("rubricDimensions") or _RUBRIC
     result["promptVersion"] = CASE_DESIGN_PROMPT_VERSION
     return result, source

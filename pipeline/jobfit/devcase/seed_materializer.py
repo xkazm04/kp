@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from .ai_drafts import draft_for
+from .family_cases import family_case_for
 from .models import CaseScenario, RoleSpec
 from .provenance import generate_with_fallback
 
@@ -118,19 +119,31 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             f"`{draft['path']}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
         ]
     )
+    # T13: the keyless family case ships its own starting files and canaries. Matched on the
+    # case title so a case the model designed (a different title) never gets mismatched files.
+    fc = family_case_for(role.role_family, role.title)
+    if fc is not None and case.title != fc["title"]:
+        fc = None
+    family_files = [{"path": p, "contents": c} for p, c in (fc["files"] if fc else [])]
+    family_canaries = list(fc["canaries"]) if fc else []
     return {
         "caseId": case.id,
         "promptVersion": SEED_PROMPT_VERSION,
         "files": [
             {"path": "README.md", "contents": readme},
             {"path": DECISIONS_FILE, "contents": _decisions_template(case)},
+            *family_files,
             {"path": draft["path"], "contents": draft["contents"]},
         ],
-        "note": "deterministic skeleton — starting materials remain prose plus one labelled AI draft; the LLM path materializes concrete files",
+        "note": (
+            "deterministic family case — concrete starting files plus one labelled AI draft"
+            if fc
+            else "deterministic skeleton — starting materials remain prose plus one labelled AI draft; the LLM path materializes concrete files"
+        ),
         # No TEMPLATE canaries — a template flaw with no real ground truth would grade
         # candidates against noise. The only canaries here are the curated draft's, each
         # wrong in every case of its family whatever the brief says (ai_drafts.py).
-        "canaries": draft["canaries"],
+        "canaries": [*family_canaries, *draft["canaries"]],
     }
 
 
