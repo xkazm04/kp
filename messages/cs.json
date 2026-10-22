@@ -1734,6 +1734,10 @@
     "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Tento akcent je pro Studio Light příliš světlý: text tlačítek a fokusové rámečky by byly neviditelné. Zvolte tmavší barvu (kontrast alespoň 3:1).",
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Tento akcent nemá čitelnou variantu pro Spark Dark. Je příliš tmavý na to, aby se dal zesvětlit bez změny barvy, zvolte proto jasnější nebo sytější odstín.",
     "BRAND_LOGO_INVALID": "Odkaz na logo musí být URL začínající https:// a dostatečně krátká na uložení.",
+    "BRAND_LOGO_EMPTY": "Soubor s logem je prázdný.",
+    "BRAND_LOGO_TOO_LARGE": "Soubor s logem je příliš velký. Limit je 512 KB.",
+    "BRAND_LOGO_TYPE": "Logo musí být soubor PNG nebo SVG.",
+    "BRAND_LOGO_UNSAFE": "Toto SVG obsahuje něco, co logo mít nesmí: skript, externí odkazy nebo vložený obsah.",
     "BRAND_LOAD_FAILED": "Branding se nepodařilo načíst. Zkuste to prosím znovu.",
     "BRAND_SAVE_FAILED": "Branding se nepodařilo uložit. Zkuste to prosím znovu.",
     "AUTOMATION_TASK_FAILED": "Tento AI krok se u kandidáta nepodařilo spustit. Zkuste to prosím znovu.",
@@ -9487,6 +9491,16 @@
     },
     "paidPeriodEnd": "Zaplacené období končí {date}",
     "allowancesReset": "Zahrnuté limity se obnoví {date}"
+  },
+  "logoUpload": {
+    "choose": "Nahrát logo",
+    "replace": "Nahradit logo",
+    "remove": "Odebrat logo",
+    "uploading": "Nahrávám…",
+    "rules": "PNG nebo SVG, do 512 KB. Uloží se do vaší databáze a poskytuje je tato aplikace.",
+    "failed": "Logo se nepodařilo nahrát.",
+    "alt": "Vaše nahrané logo",
+    "orUrl": "Nebo použijte odkaz"
   },
   "branding": {
     "eyebrow": "White-label",

@@ -203,6 +203,13 @@ export function BrandingTab() {
               // error) — done in the event, not an effect.
               setLogoError(false);
             }}
+            onLogoUploaded={(url) => {
+              // Already stored by POST/DELETE /api/brand/logo: show it and re-baseline so
+              // the form is not left "dirty" over a change the server has.
+              setLogo(url);
+              setLogoError(false);
+              setBaseline((b) => ({ ...b, logo: url }));
+            }}
             dirty={dirty}
             saving={saving}
             status={status}

@@ -28,6 +28,7 @@ const PUBLIC_SURFACE: Record<string, string> = {
   "/api/auth/register": "account creation; cannot require a session",
   "/api/auth/switch-workspace": "workspace switch; public only via the /api/auth/ prefix, so the route must re-verify the session itself",
   "/api/billing/webhook": "Polar machine webhook; authenticated by signature",
+  "/api/brand/logo": "uploaded company logo, read by candidate pages with no session (GET only; POST/DELETE re-verify operator + org:manage)",
   "/api/channels/inbound/[token]": "inbound channel webhook; the token in the path is the credential",
   "/api/comms/callback": "mail-provider delivery callback; machine webhook",
   "/api/data/[token]": "GDPR erasure/export capability link",

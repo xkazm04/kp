@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 // The placeholder shows the product's own default accent as the example hex.
 import { CORAL } from "@/app/_lib/brand";
+import { LogoUpload } from "./LogoUpload";
 
 // Branding tab — the editor form (name/accent/logo fields + save/reset).
 // Split out of BrandingTab.tsx.
@@ -17,6 +18,7 @@ export function BrandingEditorForm({
   accentWarning,
   logo,
   onLogoChange,
+  onLogoUploaded,
   dirty,
   saving,
   status,
@@ -36,6 +38,8 @@ export function BrandingEditorForm({
   accentWarning: string | null;
   logo: string;
   onLogoChange: (v: string) => void;
+  /** An upload/removal is already stored server-side, so the form re-baselines on it. */
+  onLogoUploaded: (url: string) => void;
   dirty: boolean;
   saving: boolean;
   status: { kind: "saved" | "error"; text: string } | null;
@@ -48,6 +52,7 @@ export function BrandingEditorForm({
   disabled?: boolean;
 }) {
   const t = useTranslations("branding");
+  const tUp = useTranslations("logoUpload");
 
   return (
     <div className={`${PANEL} space-y-5 p-5`}>
@@ -106,8 +111,10 @@ export function BrandingEditorForm({
       </div>
 
       <div>
-        <label htmlFor="brand-logo" className={META_LABEL}>
-          {t("logoLabel")}
+        <p className={META_LABEL}>{t("logoLabel")}</p>
+        <LogoUpload logoUrl={logo} onChange={onLogoUploaded} disabled={disabled} />
+        <label htmlFor="brand-logo" className={`${META_LABEL} mt-3 block`}>
+          {tUp("orUrl")}
         </label>
         <input
           id="brand-logo"

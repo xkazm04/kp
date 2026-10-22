@@ -1392,6 +1392,16 @@ export const REFUSAL_ERRORS = {
    *  Both used to store as null behind a green "Saved": a truncated signed CDN URL is
    *  still a valid https URL, so it round-tripped happily and 403'd forever. */
   BRAND_LOGO_INVALID: "That logo link must be an https:// URL, short enough to store.",
+  /** The uploaded logo file is empty (400). */
+  BRAND_LOGO_EMPTY: "That logo file is empty.",
+  /** The uploaded logo is past the byte cap, measured on the bytes read (413). The cap
+   *  rides along as `maxBytes`. */
+  BRAND_LOGO_TOO_LARGE: "That logo file is too large.",
+  /** The upload is neither a PNG (by magic bytes) nor an SVG (400). */
+  BRAND_LOGO_TYPE: "A logo must be a PNG or SVG file.",
+  /** An SVG that carries script, a foreign HTML island, event handlers, an external
+   *  reference, or markup the strict reader cannot account for (400). */
+  BRAND_LOGO_UNSAFE: "That SVG contains something a logo may not (script, external links or embedded content).",
   // ---- The public text-extraction door (/perfect wave 41, db-profiles). POST
   // /api/extract-text spawns pipeline.jobfit.extract_cli per request and is reachable
   // with no session, yet it answered every failure with the ENGINE's own prose —

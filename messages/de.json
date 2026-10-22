@@ -1734,6 +1734,10 @@
     "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Dieser Akzent ist für Studio Light zu hell: Button-Text und Fokusrahmen wären unsichtbar. Wählen Sie eine dunklere Farbe (mindestens 3:1).",
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
     "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
+    "BRAND_LOGO_EMPTY": "Die Logo-Datei ist leer.",
+    "BRAND_LOGO_TOO_LARGE": "Die Logo-Datei ist zu groß. Das Limit beträgt 512 KB.",
+    "BRAND_LOGO_TYPE": "Ein Logo muss eine PNG- oder SVG-Datei sein.",
+    "BRAND_LOGO_UNSAFE": "Diese SVG enthält etwas, das ein Logo nicht enthalten darf: Skripte, externe Links oder eingebettete Inhalte.",
     "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
     "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "AUTOMATION_TASK_FAILED": "Dieser KI-Schritt konnte für diese Person nicht ausgeführt werden. Bitte erneut versuchen.",
@@ -9487,6 +9491,16 @@
     },
     "paidPeriodEnd": "Bezahlter Zeitraum endet am {date}",
     "allowancesReset": "Enthaltene Kontingente werden am {date} zurückgesetzt"
+  },
+  "logoUpload": {
+    "choose": "Logo hochladen",
+    "replace": "Logo ersetzen",
+    "remove": "Logo entfernen",
+    "uploading": "Wird hochgeladen…",
+    "rules": "PNG oder SVG, bis 512 KB. Wird in Ihrer Datenbank gespeichert und von dieser App ausgeliefert.",
+    "failed": "Das Logo konnte nicht hochgeladen werden.",
+    "alt": "Ihr hochgeladenes Logo",
+    "orUrl": "Oder stattdessen einen Link verwenden"
   },
   "branding": {
     "eyebrow": "White-Label",

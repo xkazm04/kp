@@ -95,7 +95,7 @@ const PUBLIC = FILES.filter((f) => isPublicPath(urlOf(f.rel)));
 
 test("the walk sees the tree (a walk that finds nothing would pass vacuously)", () => {
   assert.ok(FILES.length >= 280, `walked only ${FILES.length} route files`);
-  assert.equal(PUBLIC.length, 37, "the public surface is pinned by public-api-surface-contract.test.ts");
+  assert.equal(PUBLIC.length, 38, "the public surface is pinned by public-api-surface-contract.test.ts");
   assert.ok(NON_PUBLIC.filter((f) => inspectRoute(f.src).usesWrapper).length >= 250, "the migration put most routes behind the chain");
 });
 

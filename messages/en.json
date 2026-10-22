@@ -1734,6 +1734,10 @@
     "BRAND_ACCENT_ILLEGIBLE_LIGHT": "That accent is too light for Studio Light: button text and focus rings would be invisible. Pick a darker color (at least 3:1).",
     "BRAND_ACCENT_ILLEGIBLE_DARK": "That accent has no readable Spark Dark version. It is too dark to lift without becoming a different color, so pick a brighter or more saturated one.",
     "BRAND_LOGO_INVALID": "That logo link must be an https:// URL, short enough to store.",
+    "BRAND_LOGO_EMPTY": "That logo file is empty.",
+    "BRAND_LOGO_TOO_LARGE": "That logo file is too large. The limit is 512 KB.",
+    "BRAND_LOGO_TYPE": "A logo must be a PNG or SVG file.",
+    "BRAND_LOGO_UNSAFE": "That SVG contains something a logo may not: script, external links or embedded content.",
     "BRAND_LOAD_FAILED": "Couldn’t load branding. Please try again.",
     "BRAND_SAVE_FAILED": "Couldn’t save branding. Please try again.",
     "AUTOMATION_TASK_FAILED": "Could not run that AI step for this candidate. Please try again.",
@@ -9487,6 +9491,16 @@
     },
     "paidPeriodEnd": "Paid period ends {date}",
     "allowancesReset": "Included allowances reset {date}"
+  },
+  "logoUpload": {
+    "choose": "Upload a logo",
+    "replace": "Replace logo",
+    "remove": "Remove logo",
+    "uploading": "Uploading…",
+    "rules": "PNG or SVG, up to 512 KB. Stored in your database and served by this app.",
+    "failed": "Couldn't upload the logo.",
+    "alt": "Your uploaded logo",
+    "orUrl": "Or use a link instead"
   },
   "branding": {
     "eyebrow": "White-label",

@@ -978,3 +978,27 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - *(closed 2026-09-02)* `POST /api/org/invites` used to emit no error `code` on
   any of its three refusals, so the panel always painted the localized generic.
   All three now answer through `jsonRefusal` — see **Refusal codes** below.
+
+## Logo upload
+
+The company logo can be **uploaded** (PNG or SVG) as an alternative to an https URL
+(Settings → Branding and the first-run Company step; the URL field stays).
+
+- **Storage: the database, not disk.** Three additive columns on `brand_settings`
+  (`logo_data` BLOB, `logo_mime`, `logo_hash`), added by `brand-store.ts`'s lazy
+  `PRAGMA table_info` + `ALTER` guard. The logo therefore has exactly the scope of the
+  brand row it belongs to, adds no table to the tenancy manifest, and needs no
+  gitignored file under `data/` — a self-host backs up one SQLite file as before.
+  `brand_settings` is still org config and not portable across a restore.
+- **Door:** `app/api/brand/logo/route.ts`. `POST` takes the raw file body (org:manage,
+  per-IP limit, 512 KB cap measured on the bytes read → `BRAND_LOGO_TOO_LARGE`);
+  `DELETE` clears it; `GET` serves it **publicly** (exact path in `PUBLIC_API_EXACT`;
+  candidate pages have no session) with `nosniff`, a sandboxing CSP, and an `ETag`.
+  The write handlers re-verify the operator themselves.
+- **Validation:** `app/_lib/brand-logo.ts`. PNG by magic bytes. SVG through an allow-list
+  tokenizer: drawing elements only, no `on*`, every `href` a `#fragment`, no DOCTYPE,
+  CDATA, `@import` or external `url()`; refusals are `BRAND_LOGO_TYPE` /
+  `BRAND_LOGO_UNSAFE` / `BRAND_LOGO_EMPTY`.
+- **Wiring:** an upload sets `logoUrl` to `/api/brand/logo?v=<content hash>`, so the
+  existing renderers need no change and a replaced logo busts caches. Saving any other
+  logo URL through `PUT /api/brand` drops the stored bytes.

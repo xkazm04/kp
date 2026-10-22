@@ -1734,6 +1734,10 @@
     "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Cet accent est trop clair pour Studio Light : le texte des boutons et les anneaux de focus seraient invisibles. Choisissez une couleur plus foncée (au moins 3:1).",
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Cet accent n’a pas de version lisible en Spark Dark. Il est trop sombre pour être éclairci sans changer de couleur, choisissez donc une teinte plus vive ou plus saturée.",
     "BRAND_LOGO_INVALID": "Le lien du logo doit être une URL https:// assez courte pour être enregistrée.",
+    "BRAND_LOGO_EMPTY": "Le fichier du logo est vide.",
+    "BRAND_LOGO_TOO_LARGE": "Le fichier du logo est trop volumineux. La limite est de 512 Ko.",
+    "BRAND_LOGO_TYPE": "Un logo doit être un fichier PNG ou SVG.",
+    "BRAND_LOGO_UNSAFE": "Ce SVG contient un élément interdit dans un logo : script, liens externes ou contenu intégré.",
     "BRAND_LOAD_FAILED": "Impossible de charger l’image de marque. Veuillez réessayer.",
     "BRAND_SAVE_FAILED": "Impossible d’enregistrer l’image de marque. Veuillez réessayer.",
     "AUTOMATION_TASK_FAILED": "Impossible d'exécuter cette étape IA pour ce candidat. Veuillez réessayer.",
@@ -9487,6 +9491,16 @@
     },
     "paidPeriodEnd": "La période payée se termine le {date}",
     "allowancesReset": "Les quotas inclus se réinitialisent le {date}"
+  },
+  "logoUpload": {
+    "choose": "Téléverser un logo",
+    "replace": "Remplacer le logo",
+    "remove": "Retirer le logo",
+    "uploading": "Téléversement…",
+    "rules": "PNG ou SVG, jusqu’à 512 Ko. Stocké dans votre base de données et servi par cette application.",
+    "failed": "Impossible de téléverser le logo.",
+    "alt": "Votre logo téléversé",
+    "orUrl": "Ou utiliser un lien à la place"
   },
   "branding": {
     "eyebrow": "Marque blanche",

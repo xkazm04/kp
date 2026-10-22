@@ -10,6 +10,7 @@ import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl, shou
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import { getOrgName } from "@/app/_lib/org-actions";
 import { DEFAULT_ORG_NAME } from "@/app/_lib/org-settings";
+import { LogoUpload } from "@/app/features/settings/branding/LogoUpload";
 import { SETUP_PROSE } from "./setupProse";
 import { SetupCurrencyField } from "./SetupCurrencyField";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -37,6 +38,7 @@ const NAME_HINT_ID = "setup-org-name-hint";
 
 export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.company");
+  const tUp = useTranslations("logoUpload");
   const { update } = ctrl;
   const typedName = ctrl.state.orgName;
   // WHICH theme the picked color fails in, or null. The wizard used to ask
@@ -192,8 +194,10 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
         ) : null}
 
         <div className="mt-3 max-w-md">
-          <label htmlFor="setup-logo-url" className={`${META_LABEL} block`}>
-            {t("logoLabel")}
+          <p className={`${META_LABEL} block`}>{t("logoLabel")}</p>
+          <LogoUpload showPreview={false} logoUrl={ctrl.state.logoUrl} onChange={(url) => ctrl.update({ logoUrl: url })} />
+          <label htmlFor="setup-logo-url" className={`${META_LABEL} mt-3 block`}>
+            {tUp("orUrl")}
           </label>
           <TextInput
             id="setup-logo-url"
