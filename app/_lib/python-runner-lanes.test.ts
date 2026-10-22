@@ -22,7 +22,7 @@
 //
 // Hermetic: `node` stands in for PYTHON_CMD, metering is off. Each test keeps its env
 // for its WHOLE duration, because the ceiling is read live when a slot is released.
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 process.env.PYTHON_CMD = process.execPath;
@@ -42,8 +42,28 @@ const lane = (l: Lane): LaneLoad | undefined => load().lanes?.[l];
 
 /** A child that stays alive for `ms` and then exits 0 printing a JSON line. */
 const sleeper = (ms: number) => `setTimeout(()=>{process.stdout.write('{"ok":true}');},${ms});`;
-const spawnSleeper = (ms: number, signal?: AbortSignal) =>
-  spawnPython(["-e", sleeper(ms)], { timeoutMs: 20_000, signal }).result;
+/** Every sleeper a test started, so afterEach can end what the test left running. */
+const live = new Set<{ stop: AbortController; done: Promise<unknown> }>();
+const spawnSleeper = (ms: number, signal?: AbortSignal) => {
+  const stop = new AbortController();
+  const result = spawnPython(["-e", sleeper(ms)], {
+    timeoutMs: 20_000,
+    signal: signal ? AbortSignal.any([signal, stop.signal]) : stop.signal,
+  }).result;
+  live.add({ stop, done: result.catch(() => undefined) });
+  return result;
+};
+
+// The semaphore is process-wide, and a test that fails an assertion never reaches its
+// own `await holder` or `stop.abort()`: its children keep their slots into the NEXT test,
+// which then reads a lane it did not fill ({inFlight:0, queued:1} after the background-
+// bound test lost a timing race under load). Abort and drain whatever is still live, so
+// every test starts on an idle engine whatever the one before it did.
+afterEach(async () => {
+  for (const s of live) s.stop.abort();
+  await Promise.all([...live].map((s) => s.done));
+  live.clear();
+});
 const settle = <T,>(p: Promise<T>) =>
   p.then(
     (v) => ({ ok: true as const, v }),
@@ -151,6 +171,19 @@ test("a ceiling of 1 reserves nothing: a lone background spawn on an idle engine
     assert.deepEqual(lane("background"), { inFlight: 1, queued: 0 }, "admitted at once, never starved outright");
     assert.equal((await p).exitCode, 0);
   });
+});
+
+test("a test that leaves its children running (a failed assertion skips their await) ...", async () => {
+  await withEnv({ KP_PYTHON_MAX_CONCURRENT: "1", KP_PYTHON_QUEUE_WAIT_MS: "10000" }, async () => {
+    void settle(spawnSleeper(5_000));
+    void settle(spawnSleeper(10));
+    assert.deepEqual({ inFlight: load().inFlight, queued: load().queued }, { inFlight: 1, queued: 1 });
+  });
+});
+
+test("... does not hand them to the next test: it starts on an idle engine", () => {
+  assert.deepEqual({ inFlight: load().inFlight, queued: load().queued }, { inFlight: 0, queued: 0 });
+  assert.deepEqual(lane("interactive"), { inFlight: 0, queued: 0 });
 });
 
 test("the lane is assigned at the two authorities that know a request's class, and nowhere else", async () => {
