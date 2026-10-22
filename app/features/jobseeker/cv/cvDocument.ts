@@ -87,7 +87,8 @@ export type CvDocument = {
   experience: CvRole[];
   /** Dated "relevant projects" from the profile's NON-job evidence (project, thesis,
    *  course, certification) — the bridging evidence of a career change; set after the
-   *  experience. The tailoring pass keeps only those that speak to its target. [] = none. */
+   *  experience unless the tailoring pass sets `projectsFirst`. The tailoring pass keeps
+   *  only those that speak to its target. [] = none. */
   projects: CvRole[];
   /** Set only by the tailoring pass: the relevant projects print ABOVE the experience,
    *  because no paid role's title speaks to the target and the bridge is outside paid work

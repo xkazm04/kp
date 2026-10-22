@@ -12,8 +12,8 @@
 //     marked for the template to set in bold;
 //   - with `compactOffTarget` (the caller's choice, for a CV that runs over one page), a
 //     role with nothing relevant in it stays in its place as one line;
-//   - when no role's title speaks to the target, the relevant projects print above the
-//     experience (the bridge first, the history whole and in order below it);
+//   - when no role's title speaks to the target and the strongest bridge is a project, the
+//     relevant projects print above the experience (the history whole and in order below);
 //   - skill groups and the items inside them go relevant-first, nothing removed;
 //   - the CV's own headline stays; an optional objective line states the seeker's own
 //     target, labelled as what they are looking for (CV_OBJECTIVE) — a preference, never a
@@ -423,11 +423,15 @@ export function tailorCvDocument(
   const projects = byScore(scoredProjects.filter((x) => x.s > 0), (x) => x.s).map((x) => x.p);
   if (projects.length < doc.projects.length) move({ move: "projects", before: "", after: "", where: null, n: doc.projects.length - projects.length });
   // When no paid role's TITLE speaks to the target, a reader skimming the entry heads meets
-  // the past career first and the bridge last. The relevant projects then print above the
-  // experience (career-change-framing: hybrid, a relevant section above the main history);
-  // the experience itself keeps its date order. A title on target means the bridge is
-  // inside paid work, and the projects stay below it.
-  const projectsFirst = projects.length > 0 && !roles.some((r) => scoreOf(r.role, terms) > 0);
+  // the past career first and the bridge last. If the strongest bridge is also outside paid
+  // work (the best project scores at least as high as the best role, bullets included), the
+  // relevant projects print above the experience (career-change-framing: hybrid, a relevant
+  // section above the main history); the experience keeps its date order. A title on
+  // target, or a role whose bullets hold the stronger bridge, means the bridge is inside
+  // paid work: the projects stay below, and that role's relevant bullets already lead it.
+  const bestProject = Math.max(0, ...scoredProjects.filter((x) => x.s > 0).map((x) => x.s));
+  const bestRole = Math.max(0, ...roles.map((r) => relevance.get(r) ?? 0));
+  const projectsFirst = projects.length > 0 && !roles.some((r) => scoreOf(r.role, terms) > 0) && bestProject >= bestRole;
   if (projectsFirst) move({ move: "projectsFirst", before: "", after: projects[0]!.role, where: null });
 
   // Skills: groups and the items inside them relevant-first, over every item a group holds
