@@ -8,8 +8,8 @@ import { Rocket } from "lucide-react";
 import { isLocale } from "@/i18n/locales";
 import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { setOrgCurrency, setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
-import { readClientOrgCurrency, readClientOrgName, type OrgCurrency } from "@/app/_lib/org-settings";
+import { getOrgName, setOrgCurrency, setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
+import { readClientOrgCurrency, type OrgCurrency } from "@/app/_lib/org-settings";
 import { useOrgNameFallback } from "@/app/_components/BrandProvider";
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
@@ -28,7 +28,7 @@ const OrganizationBackupPanel = dynamic(
 );
 
 // Organization settings — the COMPANY's identity, and nothing else. The org NAME
-// and app LANGUAGE are real, persisted settings (name → the kp_org_name cookie;
+// and app LANGUAGE are real, persisted settings (name → organizations.name;
 // language → the app locale + workspace default). Backup & restore lives here too:
 // a whole-database dump/restore is org-level administration, not a task readout.
 //
@@ -57,7 +57,11 @@ export function OrganizationTab() {
   // The demo's name only on a fixture-seeded install (useOrgNameFallback); an
   // unseeded workspace shows an empty field until its owner names the company.
   const orgFallback = useOrgNameFallback();
-  const [name, setName] = useState<string>(() => readClientOrgName(orgFallback));
+  // The name is the org row's (organizations.name), read through a server action once
+  // on mount; until it answers the field shows the install's fallback.
+  const [name, setName] = useState<string>(orgFallback);
+  // The value the server handed us: the save effect below must not echo it back.
+  const loadedName = useRef<string | null>(null);
   const language: AppLanguage = (isLocale(appLocale) ? appLocale : "en") as AppLanguage;
 
   // Persist the org name (debounced) — feeds the JD builder company default and any
@@ -79,8 +83,29 @@ export function OrganizationTab() {
   };
   const nameHydrated = useRef(false);
   useEffect(() => {
+    let live = true;
+    void getOrgName()
+      .then((stored) => {
+        // A keystroke that landed before the answer wins; an org with no name of its
+        // own keeps the fallback already in the field.
+        if (!live || !stored || pendingName.current != null) return;
+        loadedName.current = stored;
+        setName(stored);
+      })
+      .catch((error: unknown) => {
+        console.error("org name read failed", error);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
     if (!nameHydrated.current) {
       nameHydrated.current = true;
+      return;
+    }
+    if (loadedName.current === name) {
+      loadedName.current = null;
       return;
     }
     const id = setTimeout(async () => {
@@ -159,7 +184,7 @@ export function OrganizationTab() {
 
   return (
     // Tier 1 (docs/design/loading-choreography.md): this tab has no fetch of its own
-    // (name is cookie-hydrated, language is the app locale), so everything below is
+    // (name is read once through a server action, language is the app locale), so everything below is
     // chrome — the cascade just gives tab entry the same rhythm every other tab has,
     // and there is no aria-busy to own. The member roster, which WAS this tab's
     // first-load boundary, now lives in Settings -> Workspaces.

@@ -8,7 +8,8 @@ import { ExternalLogoImage } from "@/app/_components/ExternalLogoImage";
 import { FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl, shouldRenderLogo } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
-import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
+import { getOrgName } from "@/app/_lib/org-actions";
+import { DEFAULT_ORG_NAME } from "@/app/_lib/org-settings";
 import { SETUP_PROSE } from "./setupProse";
 import { SetupCurrencyField } from "./SetupCurrencyField";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -49,27 +50,37 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   // empty field — so it can never overwrite what the operator typed, and never
   // fights them if they clear it.
   //
-  // The only honest source this client has for the workspace's own identity is
-  // the org-name cookie (`kp_org_name`, org-settings.ts) — the value the
-  // Organization tab wrote, i.e. a name a human on this deployment actually
+  // The only honest source for the workspace's own identity is the organization
+  // row (organizations.name, read through the `getOrgName` action, which also adopts
+  // a legacy `kp_org_name` cookie) — a name a human on this deployment actually
   // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is the
   // demo's fallback (org-settings.ts `orgNameFallback`), and prefilling it would
   // put a stranger's company on every role the JD builder prefills — worse than
   // the empty required field it replaced. So this read passes NO fallback, and a
-  // cookie that literally holds the demo name is skipped too: an unset deployment
+  // row that literally holds the demo name is skipped too: an unset deployment
   // opens blank, deliberately.
   //
   // A resumed draft is not at risk: restore() lands the drafted name and the
   // drafted step index in ONE commit (OnboardingExperience), so by the time this
   // step mounts the field already holds it and the seed is skipped.
   const seeded = useRef(false);
+  const latestTyped = useRef(typedName);
+  useEffect(() => {
+    latestTyped.current = typedName;
+  }, [typedName]);
   useEffect(() => {
     if (seeded.current) return;
     seeded.current = true;
     if (typedName.trim() !== "") return;
-    const stored = readClientOrgName();
-    if (!stored || stored === DEFAULT_ORG_NAME) return;
-    update({ orgName: stored });
+    void getOrgName()
+      .then((stored) => {
+        // The answer is async: whatever the operator typed meanwhile wins.
+        if (!stored || stored === DEFAULT_ORG_NAME || latestTyped.current.trim() !== "") return;
+        update({ orgName: stored });
+      })
+      .catch((error: unknown) => {
+        console.error("org name read failed", error);
+      });
   }, [typedName, update]);
 
   const logo = ctrl.state.logoUrl.trim();

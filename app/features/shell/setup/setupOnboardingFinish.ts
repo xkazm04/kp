@@ -128,7 +128,7 @@ export async function persistOnboardingSetup(state: SetupState, only?: readonly 
  * current config — PUT replaces the whole record, so onboarding must not clobber
  * what was set elsewhere.
  *
- * THE NAME. The wizard's company name goes to the org-name cookie (setOrgName), but
+ * THE NAME. The wizard's company name goes to the organization row (setOrgName), but
  * the sidebar and document title read the BRAND display name (BrandHeader.tsx) —
  * so an owner who typed their company still saw "KandiDate" until they typed it
  * again on Settings → Branding. When the display name is still the product default

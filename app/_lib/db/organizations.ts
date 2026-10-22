@@ -1,6 +1,7 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
 import { isLocale, type Locale } from "@/i18n/locales";
+import { UNNAMED_ORG_NAME } from "../org-settings";
 
 // Organizations (P0) — the top tenant boundary: the customer company. Owns the
 // subscription (billing, later) and the cross-team reference pool; each workspace
@@ -40,7 +41,7 @@ export function listOrganizations(): Organization[] {
 export function createOrganization(name: string, domain?: string | null): Organization {
   const db = ensureDb();
   const id = randomId("org");
-  const cleanName = name.trim().slice(0, 120) || "Untitled organization";
+  const cleanName = name.trim().slice(0, 120) || UNNAMED_ORG_NAME;
   const cleanDomain = domain?.trim().slice(0, 120) || null;
   const createdAt = new Date().toISOString();
   db.prepare(`INSERT INTO organizations (id, name, domain, created_at) VALUES (?, ?, ?, ?)`).run(id, cleanName, cleanDomain, createdAt);
@@ -76,4 +77,17 @@ export function setOrganizationLocale(
       db.prepare(`UPDATE workspaces SET default_locale = ? WHERE org_id = ? AND locale_override IS NULL`).run(locale, id);
     }
   }).immediate();
+}
+
+/** Write the org's display name (already sanitized by the caller). An empty name
+ *  restores the placeholder, so "clear the field" still means "not named yet" —
+ *  updateOrganization would instead keep the old name. `onlyIf` makes the write a
+ *  compare-and-swap on the name that was read (the migrate-on-read path). */
+export function setOrganizationName(id: string, name: string, onlyIf?: { currentName: string }): boolean {
+  const db = ensureDb();
+  const clean = name.trim().slice(0, 120) || UNNAMED_ORG_NAME;
+  const info = onlyIf
+    ? db.prepare(`UPDATE organizations SET name = ? WHERE id = ? AND name = ?`).run(clean, id, onlyIf.currentName)
+    : db.prepare(`UPDATE organizations SET name = ? WHERE id = ?`).run(clean, id);
+  return Number(info.changes) > 0;
 }

@@ -1,8 +1,9 @@
 // Organization settings that cross the client/server boundary and feed LLM
-// output. Mirrors the locale system (i18n/locales.ts + i18n/actions.ts): a single
-// long-lived cookie is the source of truth, read server-side when generating +
-// saving LLM output and client-side for form defaults (the JD builder company
-// field). The app LANGUAGE is not duplicated here — it IS the app locale
+// output. The org NAME lives in organizations.name (decision 2026-10-22, see
+// org-actions.ts); the `kp_org_name` cookie is only the LEGACY copy that is
+// migrated into the row on first read. The currency is still a long-lived cookie
+// (i18n/locales.ts + i18n/actions.ts is the model), read server-side when generating
+// + saving LLM output and client-side for form defaults. The app LANGUAGE is not duplicated here — it IS the app locale
 // (NEXT_LOCALE), so org language flows through the existing getServerLocale path.
 
 import { APP_CURRENCY } from "./format";
@@ -67,6 +68,17 @@ export function orgNameFallback(fixturesSeeded: boolean): string {
   return fixturesSeeded ? DEFAULT_ORG_NAME : "";
 }
 
+/** What createOrganization writes when nobody gave a name. Not a name of the org's own. */
+export const UNNAMED_ORG_NAME = "Untitled organization";
+
+/** Has this organizations.name been chosen by a human? Empty, the creation placeholder
+ *  and the seed corpus's demo name are all "not named yet" — the last because every
+ *  fresh seeded install starts on it, and a legacy `kp_org_name` cookie may replace it. */
+export function isOwnOrgName(name: string | null | undefined): boolean {
+  const n = (name ?? "").trim();
+  return n !== "" && n !== UNNAMED_ORG_NAME && n !== DEFAULT_ORG_NAME;
+}
+
 export const MAX_ORG_NAME = 80;
 
 /** Trim, collapse runs of whitespace, and clamp a raw org-name input to a
@@ -98,7 +110,7 @@ export function resolveOrgName(rawStored: string | null | undefined, fallback = 
 }
 
 /** The org name a SERVER write fills a blank company with, from the three sources a
- *  request can reach, in order: the browser's stored name (the `kp_org_name` cookie),
+ *  request can reach, in order: the org's stored name (organizations.name),
  *  the deployment's white-label display name (brand row — the first-run wizard writes
  *  it too, and it is the only one a request from another browser can see), then the
  *  seed gate's fallback (the demo's company, or empty). Pure: the caller reads the

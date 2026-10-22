@@ -7,6 +7,7 @@ import { listChannelWebhooks } from "./db/channels";
 import { listUsersByOrg } from "./db/users";
 import { listInvitesForOrg } from "./db/invites";
 import { DEFAULT_ORG_ID, getOrganization } from "./db/organizations";
+import { readOrgName } from "./org-name-server";
 import { isRelayConfigured } from "./comms-relay";
 
 // First-run progress derivation (server-side). Every field is DATA-DERIVED from
@@ -31,7 +32,7 @@ export type GettingStarted = {
    *  - `"org"` — the caller's own organization row carries a name of its own. Tenant-
    *    scoped: one org's answer can never tick another's box.
    *  - `"deployment"` — no org on the session, so the fallback is the deployment-wide
-   *    brand singleton plus the caller's own `kp_org_name` cookie. Both are correct
+   *    brand singleton plus the caller's own legacy `kp_org_name` cookie. Both are correct
    *    for the single-tenant/open-dev install this branch serves and NEITHER is
    *    per-tenant, which is exactly why the branch is named on the wire instead of
    *    being invisible.
@@ -118,6 +119,9 @@ export async function computeGettingStarted(
   const jar = await cookies();
   // "Set" means the operator stored a name — the raw cookie, not resolveOrgName
   // (whose ČS fallback would mark a untouched tenant complete).
+  // The org row is the authority (organizations.name); reading it first also migrates
+  // a legacy `kp_org_name` cookie into the row once (org-name-server.ts `readOrgName`).
+  if (orgId) await readOrgName(orgId);
   const rawName = jar.get(ORG_NAME_COOKIE)?.value;
   const brand = getBrand();
   // Only a session that actually carries an org gets the tenant-scoped branch:

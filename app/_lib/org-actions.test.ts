@@ -27,6 +27,8 @@ register(new URL("./testing/next-server-hooks.mjs", import.meta.url));
 const VIRTUAL_HEADERS = "kp-test:next-headers";
 const SESSION_COOKIE = "__Host-kp_session";
 let cookieValue: string | null = null;
+let legacyCookie: string | null = null;
+(globalThis as { __kpOrgActionLegacy?: () => string | null }).__kpOrgActionLegacy = () => legacyCookie;
 const written: { name: string; value: string }[] = [];
 (globalThis as { __kpOrgActionCookie?: () => string | null }).__kpOrgActionCookie = () => cookieValue;
 (globalThis as { __kpOrgActionSet?: (n: string, v: string) => void }).__kpOrgActionSet = (name, value) => {
@@ -46,8 +48,14 @@ registerHooks({
           export async function cookies() {
             const value = globalThis.__kpOrgActionCookie();
             return {
-              get: (name) => (name === ${JSON.stringify(SESSION_COOKIE)} && value ? { name, value } : undefined),
+              get: (name) => {
+                if (name === ${JSON.stringify(SESSION_COOKIE)} && value) return { name, value };
+                const legacy = globalThis.__kpOrgActionLegacy();
+                if (name === "kp_org_name" && legacy) return { name, value: legacy };
+                return undefined;
+              },
               set: (name, v) => globalThis.__kpOrgActionSet(name, v),
+              delete: (name) => globalThis.__kpOrgActionSet("deleted:" + name, ""),
             };
           }
           export async function headers() { return new Headers(); }
@@ -64,7 +72,8 @@ registerHooks({
 process.env.KP_SECRET = "org-actions-test-secret";
 process.env.KP_OPERATOR_PASSWORD = "org-actions-test-password";
 
-const { setOrgCurrency, setOrgLanguage, setOrgName } = await import("./org-actions.ts");
+const { getOrgName, setOrgCurrency, setOrgLanguage, setOrgName } = await import("./org-actions.ts");
+const { effectiveOrgName } = await import("./org-name-server.ts");
 const { createWorkspace, getWorkspaceDefaultLocale, setWorkspaceDefaultLocale } = await import("./db/workspaces.ts");
 const { createUser } = await import("./db/users.ts");
 const { upsertMembership } = await import("./db/memberships.ts");
@@ -119,13 +128,51 @@ test("an owner sets the language, and BOTH authorities follow", async () => {
 test("a recruiter cannot rebrand the organization either", async () => {
   signedInAs(plain);
   assert.deepEqual(await setOrgName("Not My Company"), { ok: false, code: "ORG_SETTINGS_FORBIDDEN" });
-  assert.equal(written.length, 0, "the name lives in a cookie, but writing it is still an administrator's act");
+  assert.equal(written.length, 0, "writing the name is an administrator's act");
+  assert.notEqual(getOrganization(ORG)!.name, "Not My Company", "and the org row is untouched");
 });
 
 test("an owner rebrands, sanitized", async () => {
   signedInAs(owner);
   assert.deepEqual(await setOrgName("   Acme Hiring   "), { ok: true });
-  assert.equal(written.at(-1)?.value, "Acme Hiring", "trimmed on the way in");
+  assert.equal(getOrganization(ORG)!.name, "Acme Hiring", "trimmed on the way in, stored on the org row");
+  assert.ok(!written.some((c) => c.name === "kp_org_name" && c.value !== ""), "the cookie is no longer written");
+});
+
+test("a name set in one browser is read by a second request that has no cookie", async () => {
+  signedInAs(owner);
+  assert.deepEqual(await setOrgName("Shared Name s.r.o."), { ok: true });
+  // A teammate in another browser: a session, but no kp_org_name cookie at all.
+  legacyCookie = null;
+  signedInAs(plain);
+  assert.equal(await getOrgName(), "Shared Name s.r.o.");
+  assert.equal(await effectiveOrgName(), "Shared Name s.r.o.");
+});
+
+test("migrate on read: a legacy cookie fills an unnamed org once, then is cleared", async () => {
+  const org = createOrganization("Untitled organization");
+  const ws = createWorkspace("Migrating team", org.id);
+  const boss = createUser({ orgId: org.id, email: "mig.owner@x.cz", name: "Mig Owner", status: "active", password: "owner-pw-1234" });
+  upsertMembership(boss.id, ws.id, "owner");
+  cookieValue = signSession(ws.id, Date.now(), { sub: boss.id, org: org.id });
+  written.length = 0;
+  legacyCookie = "Legacy%20Co";
+  assert.equal(await getOrgName(), "Legacy Co");
+  assert.equal(getOrganization(org.id)!.name, "Legacy Co", "written to the row");
+  assert.ok(written.some((c) => c.name === "deleted:kp_org_name"), "and the cookie cleared");
+  legacyCookie = "Other Name";
+  assert.equal(await getOrgName(), "Legacy Co", "the row is authoritative; a stale cookie never overwrites it");
+});
+
+test("migrate on read is an administrator's act: a recruiter's cookie renames nothing", async () => {
+  const org = createOrganization("Untitled organization");
+  const ws = createWorkspace("Recruiter team", org.id);
+  const rec = createUser({ orgId: org.id, email: "mig.rec@x.cz", name: "Mig Rec", status: "active", password: "plain-pw-1234" });
+  upsertMembership(rec.id, ws.id, "recruiter");
+  cookieValue = signSession(ws.id, Date.now(), { sub: rec.id, org: org.id });
+  legacyCookie = "Forged Name";
+  assert.equal(await getOrgName(), "");
+  assert.equal(getOrganization(org.id)!.name, "Untitled organization");
 });
 
 test("a language that is not one of the app's four answers its OWN code", async () => {
