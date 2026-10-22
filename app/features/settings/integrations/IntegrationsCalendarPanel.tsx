@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { CalendarCheck, ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { calendarScopeSlug } from "@/app/_lib/calendar/callback-status";
 import type { CalendarConnection } from "@/app/_lib/calendar/token-store";
 import { IntegrationsCallbackBanner } from "./IntegrationsCallbackBanner";
+import { IntegrationsCalendarSetup } from "./IntegrationsCalendarSetup";
 
 // connect-the-integrations — connect / inspect / disconnect the workspace's Google
-// Calendar. Unconfigured deployments name the env vars instead of a Connect button
-// that would 503. Connect is a top-level <a> (state cookie + 302). Disconnect is
+// Calendar. An unconfigured deployment gets the guided setup (IntegrationsCalendarSetup)
+// instead of a Connect button that would 503. Connect is a top-level <a> (state cookie + 302). Disconnect is
 // confirm-gated: the DELETE revokes at Google first, then drops the row, and
 // `revokedAtGoogle: false` is surfaced so the operator can withdraw the grant.
 
@@ -98,18 +99,7 @@ export function IntegrationsCalendarPanel() {
 
       {!data && !error ? <div className="reveal-quiet mt-3 min-h-[7rem]" aria-hidden /> : null}
 
-      {data && !data.configured ? (
-        <div className={`${PANEL_SUNKEN} mt-3 p-4`}>
-          <p className="text-base font-semibold text-ink">{t("notConfiguredTitle")}</p>
-          <p className="mt-1 text-sm text-steel">{t("notConfiguredBody")}</p>
-          <ul className="mt-2 space-y-0.5 font-mono text-sm text-ink">
-            <li>GOOGLE_OAUTH_CLIENT_ID</li>
-            <li>GOOGLE_OAUTH_CLIENT_SECRET</li>
-          </ul>
-          <p className={`${META_LABEL} mt-3`}>{t("redirectUriLabel")}</p>
-          <p className="break-all font-mono text-sm text-ink">{data.redirectUriToRegister}</p>
-        </div>
-      ) : null}
+      {data && !data.configured ? <IntegrationsCalendarSetup /> : null}
 
       {data && data.configured && !connected ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">

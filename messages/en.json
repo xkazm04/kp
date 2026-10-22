@@ -9183,9 +9183,6 @@
       "intro": "Lets Kandi check whether an interviewer is busy before it offers a slot, and write the confirmed interview into their calendar. Kandi asks only for free/busy and event access. It can see that you are busy, never why.",
       "loadFailed": "Couldn't load the calendar connection.",
       "retry": "Try again",
-      "notConfiguredTitle": "Not configured on this deployment",
-      "notConfiguredBody": "Google Calendar needs an OAuth client. Set these two environment variables, restart, and this panel will offer a Connect button. Until then, scheduling still works. It just proposes slots from your working hours instead of a real calendar.",
-      "redirectUriLabel": "Redirect URI to register in Google Cloud",
       "connect": "Connect Google Calendar",
       "connectHint": "Opens Google's consent screen. You'll come back here when it's done.",
       "accountLabel": "Connected account",
@@ -9236,7 +9233,7 @@
         },
         "not_configured": {
           "title": "Google Calendar is no longer configured",
-          "body": "The OAuth client credentials disappeared between starting and finishing. Check GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET."
+          "body": "The OAuth client disappeared between starting and finishing. Set it up again in the panel below, or check GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET."
         },
         "no_refresh_token": {
           "title": "Connection refused on purpose",
@@ -9258,6 +9255,36 @@
         "undecryptableBody": "Since {date}, Kandi can't read the stored calendar token, usually because the server's encryption key changed. Reconnect to store a fresh one.",
         "unsynced": "{count, plural, one {# upcoming interview is not on your calendar.} other {# upcoming interviews are not on your calendar.}}",
         "reconnectAction": "Reconnect now"
+      },
+      "setup": {
+        "title": "Set up Google Calendar",
+        "intro": "Kandi needs its own OAuth client from your Google Cloud project. It takes about five minutes, and you do it once.",
+        "loadFailed": "Couldn't load the setup details.",
+        "unreadable": "A client was saved here, but its secret can no longer be read, usually because the encryption key changed. Paste the client secret again.",
+        "step1": "Open the Credentials page of the Google Cloud console in a new tab, then pick or create a project:",
+        "copyConsole": "Copy the console address",
+        "step2": "Under APIs & Services, open Library, find Google Calendar API and enable it.",
+        "step3": "Under OAuth consent screen, fill in the app name and your email, then add these two scopes. They let Kandi see when you are busy and write the interview event, nothing more:",
+        "copyScope": "Copy the scope",
+        "step4": "Back on Credentials, choose Create credentials, then OAuth client ID, type Web application. Under Authorized redirect URIs, add exactly this address:",
+        "step4Exact": "Google compares it character by character, including http or https and the port.",
+        "copyRedirect": "Copy the redirect URI",
+        "copied": "Copied",
+        "step5": "Google now shows a client ID and a client secret. Paste both below and save. Kandi then opens Google's consent screen to connect your calendar.",
+        "clientIdLabel": "Client ID",
+        "clientSecretLabel": "Client secret",
+        "clientSecretKeep": "Leave blank to keep the saved secret",
+        "secretNote": "The secret is stored encrypted on this server and is never shown again. No restart is needed.",
+        "saveAndConnect": "Save and connect",
+        "saving": "Saving…",
+        "envAlternative": "Prefer configuration files? Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET in the environment instead. A client saved here takes precedence.",
+        "fail": {
+          "client_id_invalid": "That client ID doesn't look right. Copy it again from the Google Cloud console.",
+          "client_secret_invalid": "That client secret doesn't look right. Copy it again, without spaces.",
+          "client_secret_required": "Paste the client secret too.",
+          "key_unavailable": "The server could not create its encryption key because it cannot write .env.local. Set KP_CALENDAR_SECRET_KEY in the environment, then try again.",
+          "save_failed": "Couldn't save the client. Try again."
+        }
       }
     },
     "ats": {

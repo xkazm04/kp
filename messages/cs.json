@@ -9183,9 +9183,6 @@
       "intro": "Umožní Kandi ověřit, jestli má tazatel volno, ještě než nabídne termín, a zapsat potvrzený pohovor do jeho kalendáře. Kandi žádá jen o přístup k obsazenosti a událostem. Vidí, že jste zaneprázdněni, ale nikdy proč.",
       "loadFailed": "Nepodařilo se načíst připojení kalendáře.",
       "retry": "Zkusit znovu",
-      "notConfiguredTitle": "Na tomto nasazení není nakonfigurováno",
-      "notConfiguredBody": "Google Calendar vyžaduje OAuth klienta. Nastavte tyto dvě proměnné prostředí, restartujte a tento panel nabídne tlačítko pro připojení. Do té doby plánování funguje dál. Termíny jen navrhne z vaší pracovní doby místo ze skutečného kalendáře.",
-      "redirectUriLabel": "Redirect URI k registraci v Google Cloud",
       "connect": "Připojit Google Calendar",
       "connectHint": "Otevře souhlasnou obrazovku Google. Po dokončení se vrátíte sem.",
       "accountLabel": "Připojený účet",
@@ -9236,7 +9233,7 @@
         },
         "not_configured": {
           "title": "Google Calendar už není nakonfigurován",
-          "body": "Údaje OAuth klienta zmizely mezi zahájením a dokončením. Zkontrolujte GOOGLE_OAUTH_CLIENT_ID a GOOGLE_OAUTH_CLIENT_SECRET."
+          "body": "OAuth klient zmizel mezi zahájením a dokončením. Nastavte ho znovu v panelu níže, nebo zkontrolujte GOOGLE_OAUTH_CLIENT_ID a GOOGLE_OAUTH_CLIENT_SECRET."
         },
         "no_refresh_token": {
           "title": "Připojení bylo záměrně odmítnuto",
@@ -9258,6 +9255,36 @@
         "undecryptableBody": "Od {date} Kandi nedokáže přečíst uložený token kalendáře, obvykle proto, že se změnil šifrovací klíč serveru. Opětovným připojením uložíte nový.",
         "unsynced": "{count, plural, one {# nadcházející pohovor není ve vašem kalendáři.} few {# nadcházející pohovory nejsou ve vašem kalendáři.} many {# nadcházejícího pohovoru není ve vašem kalendáři.} other {# nadcházejících pohovorů není ve vašem kalendáři.}}",
         "reconnectAction": "Připojit znovu"
+      },
+      "setup": {
+        "title": "Nastavení Google Kalendáře",
+        "intro": "Kandi potřebuje vlastního OAuth klienta z vašeho projektu v Google Cloud. Zabere to asi pět minut a uděláte to jen jednou.",
+        "loadFailed": "Podrobnosti nastavení se nepodařilo načíst.",
+        "unreadable": "Klient tu uložený je, ale jeho tajný klíč už nejde přečíst, obvykle proto, že se změnil šifrovací klíč. Vložte tajný klíč klienta znovu.",
+        "step1": "V nové kartě otevřete stránku Credentials v konzoli Google Cloud a vyberte nebo vytvořte projekt:",
+        "copyConsole": "Zkopírovat adresu konzole",
+        "step2": "V části APIs & Services otevřete Library, najděte Google Calendar API a zapněte ho.",
+        "step3": "V části OAuth consent screen vyplňte název aplikace a svůj e-mail a přidejte tyto dva rozsahy. Kandi díky nim vidí, kdy máte obsazeno, a zapíše událost pohovoru, nic víc:",
+        "copyScope": "Zkopírovat rozsah",
+        "step4": "Zpět v Credentials zvolte Create credentials, potom OAuth client ID, typ Web application. Do Authorized redirect URIs přidejte přesně tuto adresu:",
+        "step4Exact": "Google ji porovnává znak po znaku, včetně http nebo https a portu.",
+        "copyRedirect": "Zkopírovat adresu přesměrování",
+        "copied": "Zkopírováno",
+        "step5": "Google teď zobrazí Client ID a Client secret. Vložte obojí níže a uložte. Kandi pak otevře souhlasovou obrazovku Googlu, kde kalendář připojíte.",
+        "clientIdLabel": "Client ID",
+        "clientSecretLabel": "Client secret",
+        "clientSecretKeep": "Ponechte prázdné, pokud chcete zachovat uložený klíč",
+        "secretNote": "Tajný klíč se na tomto serveru ukládá zašifrovaný a už se nikdy nezobrazí. Restart není potřeba.",
+        "saveAndConnect": "Uložit a připojit",
+        "saving": "Ukládání…",
+        "envAlternative": "Dáváte přednost konfiguračním souborům? Nastavte místo toho GOOGLE_OAUTH_CLIENT_ID a GOOGLE_OAUTH_CLIENT_SECRET v prostředí. Klient uložený zde má přednost.",
+        "fail": {
+          "client_id_invalid": "Tohle Client ID nevypadá správně. Zkopírujte ho znovu z konzole Google Cloud.",
+          "client_secret_invalid": "Tento Client secret nevypadá správně. Zkopírujte ho znovu, bez mezer.",
+          "client_secret_required": "Vložte také Client secret.",
+          "key_unavailable": "Server nemohl vytvořit šifrovací klíč, protože nemůže zapisovat do .env.local. Nastavte KP_CALENDAR_SECRET_KEY v prostředí a zkuste to znovu.",
+          "save_failed": "Klienta se nepodařilo uložit. Zkuste to znovu."
+        }
       }
     },
     "ats": {

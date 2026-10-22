@@ -9183,9 +9183,6 @@
       "intro": "Damit prüft Kandi vor jedem Terminvorschlag, ob eine interviewende Person belegt ist, und trägt das bestätigte Interview in deren Kalender ein. Kandi fordert nur Frei/Belegt- und Terminrechte an. Es sieht, dass Sie belegt sind, nie warum.",
       "loadFailed": "Die Kalenderverbindung konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
-      "notConfiguredTitle": "Auf dieser Installation nicht konfiguriert",
-      "notConfiguredBody": "Google Calendar benötigt einen OAuth-Client. Setzen Sie diese beiden Umgebungsvariablen, starten Sie neu, und dieses Panel bietet eine Schaltfläche zum Verbinden an. Bis dahin funktioniert die Terminplanung weiter. Sie schlägt lediglich Zeiten aus Ihren Arbeitszeiten statt aus einem echten Kalender vor.",
-      "redirectUriLabel": "In der Google Cloud zu registrierende Redirect-URI",
       "connect": "Google Calendar verbinden",
       "connectHint": "Öffnet den Google-Zustimmungsdialog. Danach kehren Sie hierher zurück.",
       "accountLabel": "Verbundenes Konto",
@@ -9236,7 +9233,7 @@
         },
         "not_configured": {
           "title": "Google Calendar ist nicht mehr konfiguriert",
-          "body": "Die OAuth-Zugangsdaten sind zwischen Start und Abschluss verschwunden. Prüfen Sie GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET."
+          "body": "Der OAuth-Client ist zwischen Start und Abschluss verschwunden. Richten Sie ihn im Bereich unten erneut ein oder prüfen Sie GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET."
         },
         "no_refresh_token": {
           "title": "Verbindung bewusst abgelehnt",
@@ -9258,6 +9255,36 @@
         "undecryptableBody": "Seit {date} kann Kandi das gespeicherte Kalender-Token nicht mehr lesen, meist weil sich der Verschlüsselungsschlüssel des Servers geändert hat. Verbinden Sie den Kalender erneut, um ein neues zu speichern.",
         "unsynced": "{count, plural, one {# anstehendes Interview fehlt in Ihrem Kalender.} other {# anstehende Interviews fehlen in Ihrem Kalender.}}",
         "reconnectAction": "Jetzt erneut verbinden"
+      },
+      "setup": {
+        "title": "Google Calendar einrichten",
+        "intro": "Kandi braucht einen eigenen OAuth-Client aus Ihrem Google-Cloud-Projekt. Das dauert etwa fünf Minuten und ist nur einmal nötig.",
+        "loadFailed": "Die Einrichtungsdetails konnten nicht geladen werden.",
+        "unreadable": "Hier ist ein Client gespeichert, aber sein Secret lässt sich nicht mehr lesen, meist weil sich der Verschlüsselungsschlüssel geändert hat. Fügen Sie das Client Secret erneut ein.",
+        "step1": "Öffnen Sie in einem neuen Tab die Seite Credentials der Google Cloud Console und wählen oder erstellen Sie ein Projekt:",
+        "copyConsole": "Adresse der Console kopieren",
+        "step2": "Öffnen Sie unter APIs & Services die Library, suchen Sie Google Calendar API und aktivieren Sie sie.",
+        "step3": "Tragen Sie unter OAuth consent screen den App-Namen und Ihre E-Mail ein und fügen Sie diese zwei Scopes hinzu. Damit sieht Kandi, wann Sie belegt sind, und trägt das Interview ein, mehr nicht:",
+        "copyScope": "Scope kopieren",
+        "step4": "Wählen Sie zurück unter Credentials Create credentials, dann OAuth client ID, Typ Web application. Fügen Sie unter Authorized redirect URIs genau diese Adresse hinzu:",
+        "step4Exact": "Google vergleicht sie Zeichen für Zeichen, einschließlich http oder https und Port.",
+        "copyRedirect": "Redirect-URI kopieren",
+        "copied": "Kopiert",
+        "step5": "Google zeigt jetzt eine Client ID und ein Client Secret. Fügen Sie beides unten ein und speichern Sie. Kandi öffnet dann den Zustimmungsbildschirm von Google, um Ihren Kalender zu verbinden.",
+        "clientIdLabel": "Client ID",
+        "clientSecretLabel": "Client Secret",
+        "clientSecretKeep": "Leer lassen, um das gespeicherte Secret zu behalten",
+        "secretNote": "Das Secret wird auf diesem Server verschlüsselt gespeichert und nie wieder angezeigt. Ein Neustart ist nicht nötig.",
+        "saveAndConnect": "Speichern und verbinden",
+        "saving": "Wird gespeichert…",
+        "envAlternative": "Lieber Konfigurationsdateien? Setzen Sie stattdessen GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET in der Umgebung. Ein hier gespeicherter Client hat Vorrang.",
+        "fail": {
+          "client_id_invalid": "Diese Client ID sieht nicht richtig aus. Kopieren Sie sie erneut aus der Google Cloud Console.",
+          "client_secret_invalid": "Dieses Client Secret sieht nicht richtig aus. Kopieren Sie es erneut, ohne Leerzeichen.",
+          "client_secret_required": "Fügen Sie auch das Client Secret ein.",
+          "key_unavailable": "Der Server konnte keinen Verschlüsselungsschlüssel anlegen, weil er .env.local nicht schreiben kann. Setzen Sie KP_CALENDAR_SECRET_KEY in der Umgebung und versuchen Sie es erneut.",
+          "save_failed": "Der Client konnte nicht gespeichert werden. Versuchen Sie es erneut."
+        }
       }
     },
     "ats": {
