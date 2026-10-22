@@ -24,8 +24,8 @@ sources:
 **Status: accepted, partially implemented.** Landed on main: the egress seal (C3,
 `d588df42a`), the message identity (C1, `c578b7704` and its follow-ups) and the
 server half of the human release (C2a, `d0c1d1345`..`9987b30f3`) and the per-candidate
-release card (C2b, first half, `02840920d`). **Decided, not built:**
-the bulk dry-run sheet (C2b, second half), then C4, C5, C6, S2, S3, L1 and L2 in the
+release card (C2b, first half, `02840920d`) and the bulk dry-run sheet (C2b, second half,
+`7e619d220`). **Decided, not built:** C4, C5, C6, S2, S3, L1 and L2 in the
 build order below.
 
 ## Context
@@ -73,7 +73,7 @@ spent), a sealed calendar read is unknown, a sealed pull skips, a probe says `se
 `sealed` is distinct from `not configured`, and the hub must show the two apart. It is
 deliberately not `KP_OFFLINE`, which would also cut the Claude CLI.
 
-### 3. Human release (C2 - C2a and the C2b release card landed, bulk sheet pending)
+### 3. Human release (C2 - C2a, the C2b release card and the C2b bulk sheet landed)
 
 Every candidate-affecting message is human-approved through a revision-bound
 compare-and-swap that names the approver. First outreach drafts instead of sending.
@@ -108,7 +108,12 @@ test hygiene: `c12e70121`.
 
 **C2b release card, landed** (`02840920d`). The candidate drawer renders the exact letter,
 its forecast and state, Approve (the rendered revision) and Release, so a held letter is
-releasable in the product. **C2b bulk dry-run sheet, decided and not built.**
+releasable in the product. **C2b bulk dry-run sheet, landed** (`7e619d220`). A batch outreach
+opens a sheet on the cohort's held letters: each letter exactly as rendered, its forecast and
+state, a cohort forecast (relay, queued keyless, refused and why), a per-letter edit through
+the revision-bound `PATCH /api/outreach-letters/[id]`, and a bulk Approve and Release that
+calls the existing per-letter approve and release doors one letter at a time and reports
+released, queued, refused or conflict for each. There is no second send path.
 
 ### 4. Bounded services
 

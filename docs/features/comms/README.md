@@ -701,6 +701,7 @@ first-contacted once.
 | Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
 | Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
 | Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
+| Edit | `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }` | a CAS on id + team + revision + `drafted`; bumps the revision; the text is cleaned and length-checked as the send gate will check it |
 | Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
 | Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
 
@@ -714,7 +715,22 @@ reload" and is never retried. **Release** is live only in `RELEASABLE_STATES` (`
 `delivery_failed`, `suppressed`). `COMMS_SUPPRESSED` and `delivery_failed` are states of
 the card, not toasts, and a keyless release reads `queued` in the local outbox, never
 "delivered". The call and state logic lives in `outreachCard.ts`
-(`outreachCard.test.ts`). The bulk dry-run sheet is still pending.
+(`outreachCard.test.ts`).
+
+**The bulk dry-run sheet (C2b, second half, `7e619d220`).** `BulkOutreachSheet`
+(same folder) opens on a cohort's held letters after a batch outreach settles
+(`usePipelineBulk` `outreachSheet`). Each row is the card's own letter view (`loadLetter`, no
+fork): the exact rendered letter, its forecast and its state. The cohort forecast counts the
+same per-letter forecasts: handed to the relay, queued keyless, refused and why. A `drafted`
+letter can be edited through `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }`
+(a CAS on the revision read; stale or no-longer-drafted answers `409 PIPELINE_MOVE_CONFLICT`;
+the edit bumps the revision, so an approval of the pre-edit text fails). **Approve and
+release** walks the cohort one letter at a time through the per-letter approve and release
+doors, each approval naming the revision the sheet rendered and `humanActor()`, so N letters
+are N relay POSTs under their own `message_id`s, and keyless N `queued` rows with no network
+call. Per letter it reports `released`, `queued`, `refused` or `conflict`; a letter edited
+after render conflicts and the rest still release. A letter already forecast as refused is
+not sent to a door. Logic and tests: `outreachBulk.ts`, `outreachBulk.test.ts`.
 
 **One message identity.** The release hands the draft's `message_id` to `sendComm`
 (§7, C1). The outbox row's `message_id`, the envelope's `messageId` and the
@@ -1513,12 +1529,14 @@ already returns alongside the entries. Both rules are pinned by
   door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
   because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
   `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
-- **Only the drawer reads a held outreach letter.** The release card is live (§8a); the
-  bulk dry-run sheet is still comms scope C2b. Until it lands, the Reach-out button reads
-  `applied: "drafted"` as the "sent" note (`useReachOut.ts` `reachOutVerdict` defaults
-  to `sent`), and the approve / release doors answer with borrowed codes
-  (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
-  their own.
+- **The bulk sheet has no mounted trigger.** `usePipelineBulk` (which opens it) has been
+  unmounted since the Orbit replaced the board's select mode, so the sheet is reachable only
+  once a bulk surface returns or the batch-outreach task outcome opens it.
+- **The approve / release / edit doors still answer with borrowed codes**
+  (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`, `FEEDBACK_LETTER_TEXT_EMPTY`)
+  rather than outreach-letter codes of their own: the vocabulary lives in
+  `app/_lib/api-errors/`, outside the comms area. The Reach-out button now reads
+  `applied: "drafted"` as held for release (`useReachOut.ts` `reachOutVerdict`).
 - **Pull-config refusals distinguish input from storage.** `PATCH` validates the
   operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
   for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
