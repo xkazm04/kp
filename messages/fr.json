@@ -17206,6 +17206,75 @@
         "nudge": "Cible de notification",
         "ledger": "Le registre de collecte",
         "noBeat": "Aucun signal pour l’instant"
+      },
+      "smtp": {
+        "title": "Envoyer depuis votre propre boîte mail",
+        "intro": "Pas de relais ? Les lettres aux candidats peuvent partir d’une boîte mail que vous avez déjà. kp se connecte par une liaison chiffrée et envoie lui-même chaque lettre.",
+        "status": {
+          "active": "Les lettres sont envoyées depuis cette boîte mail.",
+          "precedence": "Un relais est configuré, les lettres passent donc par le relais. Cette boîte mail ne sert que lorsqu’aucun relais n’est configuré.",
+          "relayOnly": "Les lettres passent par le relais. Configurez ici une boîte mail seulement si vous voulez qu’elle serve d’expéditeur lorsqu’aucun relais n’est configuré.",
+          "off": "Non configuré. Les lettres restent dans la boîte d’envoi locale et ne sont pas envoyées.",
+          "unreadable": "Une boîte mail est enregistrée, mais son mot de passe ne peut plus être lu (la clé du serveur a changé). Saisissez à nouveau le mot de passe. D’ici là, aucune lettre n’est envoyée."
+        },
+        "preset": "Fournisseur",
+        "presets": {
+          "gmail": "Gmail",
+          "seznam": "Seznam",
+          "office365": "Office 365",
+          "custom": "Autre serveur"
+        },
+        "presetHelp": {
+          "gmail": "Gmail exige un mot de passe d’application (compte Google, Sécurité, Mots de passe des applications). Votre mot de passe habituel est refusé.",
+          "seznam": "Utilisez le mot de passe de votre boîte Seznam, ou un mot de passe d’application si vous vous connectez en deux étapes.",
+          "office365": "Utilisez votre mot de passe Microsoft 365. Votre administrateur devra peut-être autoriser la connexion SMTP pour cette boîte.",
+          "custom": "Demandez à votre fournisseur de messagerie le nom du serveur SMTP et le port. Seules les connexions chiffrées sont autorisées."
+        },
+        "host": "Serveur SMTP",
+        "port": "Port",
+        "security": "Chiffrement",
+        "securityTls": "TLS (port 465)",
+        "securityStarttls": "STARTTLS (port 587)",
+        "address": "Adresse e-mail",
+        "addressHelp": "Les lettres partent de cette adresse, et la lettre de test y est envoyée.",
+        "fromName": "Nom de l’expéditeur (facultatif)",
+        "password": "Mot de passe",
+        "passwordPlaceholder": "Mot de passe d’application",
+        "passwordKeep": "Laissez vide pour conserver le mot de passe enregistré",
+        "version": "v{version}",
+        "save": "Enregistrer",
+        "saved": "Enregistré.",
+        "saveFailed": "Impossible d’enregistrer l’expéditeur d’e-mails.",
+        "test": "Envoyer un test",
+        "testHint": "Envoie une lettre à {address}.",
+        "gate": {
+          "ok": "Prêt pour le test.",
+          "busy": "En cours…",
+          "noSender": "Enregistrez d’abord une adresse et un mot de passe.",
+          "unreadable": "Saisissez à nouveau le mot de passe avant le test.",
+          "unsaved": "Enregistrez vos modifications avant le test."
+        },
+        "outcome": {
+          "sent": "Envoyé.",
+          "failed": "Non envoyé.",
+          "refused": "Refusé."
+        },
+        "testOk": "Le serveur a accepté la lettre ({code}). Vérifiez {address}.",
+        "testFailed": "Le serveur a répondu {code} à l’étape {stage} : {text}",
+        "testNoReply": "Aucune réponse du serveur à l’étape {stage} : {text}",
+        "testSealed": "L’envoi est désactivé sur ce serveur (KP_NO_COMMS_EGRESS).",
+        "recent": "Tentatives récentes",
+        "recentEmpty": "Aucune tentative pour l’instant.",
+        "attemptTest": "Lettre de test",
+        "attempt": {
+          "sent": "envoyé",
+          "retry": "nouvel essai prévu",
+          "failed": "échec",
+          "refused": "refusé"
+        },
+        "suppressed": "{count, plural, one {# adresse refusée} other {# adresses refusées}} définitivement par le serveur",
+        "suppressedHelp": "Aucune lettre n’est envoyée à ces adresses. Retirez-en une dès que l’adresse est corrigée.",
+        "unsuppress": "Retirer"
       }
     }
   },

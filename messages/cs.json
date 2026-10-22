@@ -17206,6 +17206,75 @@
         "nudge": "Cíl upozornění",
         "ledger": "Přehled vyzvednutí",
         "noBeat": "Zatím žádný signál"
+      },
+      "smtp": {
+        "title": "Odesílat z vlastní schránky",
+        "intro": "Nemáte relay? Dopisy kandidátům mohou odcházet ze schránky, kterou už máte. kp se přihlásí přes šifrované spojení a každý dopis odešle sám.",
+        "status": {
+          "active": "Dopisy se odesílají z této schránky.",
+          "precedence": "Je nastavený relay, dopisy proto odcházejí přes něj. Tato schránka se použije jen tehdy, když relay nastavený není.",
+          "relayOnly": "Dopisy odcházejí přes relay. Schránku tu nastavte jen tehdy, pokud ji chcete jako odesílatele pro případ, že relay nastavený není.",
+          "off": "Nenastaveno. Dopisy zůstávají v místní odchozí poště a neodesílají se.",
+          "unreadable": "Schránka je uložená, ale její heslo už nejde přečíst (změnil se klíč serveru). Zadejte heslo znovu. Do té doby se dopisy neodesílají."
+        },
+        "preset": "Poskytovatel",
+        "presets": {
+          "gmail": "Gmail",
+          "seznam": "Seznam",
+          "office365": "Office 365",
+          "custom": "Jiný server"
+        },
+        "presetHelp": {
+          "gmail": "Gmail vyžaduje heslo aplikace (účet Google, Zabezpečení, Hesla aplikací). Běžné heslo odmítne.",
+          "seznam": "Použijte heslo ke schránce na Seznamu, nebo heslo aplikace, pokud se přihlašujete dvoufázově.",
+          "office365": "Použijte heslo k Microsoft 365. Správce možná bude muset pro tuto schránku povolit přihlášení přes SMTP.",
+          "custom": "Název SMTP serveru a port vám sdělí poskytovatel pošty. Povolená jsou jen šifrovaná spojení."
+        },
+        "host": "SMTP server",
+        "port": "Port",
+        "security": "Šifrování",
+        "securityTls": "TLS (port 465)",
+        "securityStarttls": "STARTTLS (port 587)",
+        "address": "E-mailová adresa",
+        "addressHelp": "Z této adresy se dopisy odesílají a přijde na ni i zkušební dopis.",
+        "fromName": "Jméno odesílatele (nepovinné)",
+        "password": "Heslo",
+        "passwordPlaceholder": "Heslo aplikace",
+        "passwordKeep": "Nechte prázdné, chcete-li ponechat uložené heslo",
+        "version": "v{version}",
+        "save": "Uložit",
+        "saved": "Uloženo.",
+        "saveFailed": "Nastavení odesílání e-mailů se nepodařilo uložit.",
+        "test": "Poslat zkušební dopis",
+        "testHint": "Pošle jeden dopis na {address}.",
+        "gate": {
+          "ok": "Připraveno k vyzkoušení.",
+          "busy": "Pracuji…",
+          "noSender": "Nejdřív uložte adresu a heslo.",
+          "unreadable": "Před zkouškou zadejte heslo znovu.",
+          "unsaved": "Před zkouškou uložte změny."
+        },
+        "outcome": {
+          "sent": "Odesláno.",
+          "failed": "Neodesláno.",
+          "refused": "Odmítnuto."
+        },
+        "testOk": "Server dopis přijal ({code}). Zkontrolujte {address}.",
+        "testFailed": "Server odpověděl {code} v kroku {stage}: {text}",
+        "testNoReply": "Server v kroku {stage} neodpověděl: {text}",
+        "testSealed": "Odesílání je na tomto serveru vypnuté (KP_NO_COMMS_EGRESS).",
+        "recent": "Poslední pokusy",
+        "recentEmpty": "Zatím žádné pokusy.",
+        "attemptTest": "Zkušební dopis",
+        "attempt": {
+          "sent": "odesláno",
+          "retry": "zkusí se znovu",
+          "failed": "selhalo",
+          "refused": "odmítnuto"
+        },
+        "suppressed": "{count, plural, one {# adresa, kterou} few {# adresy, které} many {# adresy, které} other {# adres, které}} server trvale odmítl",
+        "suppressedHelp": "Na tyto adresy se dopisy neodesílají. Jakmile adresu opravíte, odeberte ji.",
+        "unsuppress": "Odebrat"
       }
     }
   },

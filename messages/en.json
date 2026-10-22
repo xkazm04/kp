@@ -17206,6 +17206,75 @@
         "nudge": "Nudge target",
         "ledger": "The drain ledger",
         "noBeat": "No heartbeat yet"
+      },
+      "smtp": {
+        "title": "Send from your own mailbox",
+        "intro": "No relay? Candidate letters can go out from a mailbox you already have. kp signs in over an encrypted connection and sends each letter itself.",
+        "status": {
+          "active": "Letters are being sent from this mailbox.",
+          "precedence": "A relay is set up, so letters go through the relay. This mailbox is used only when no relay is set.",
+          "relayOnly": "Letters go through the relay. Set up a mailbox here only if you want it as the sender when no relay is set.",
+          "off": "Not set up. Letters stay in the local outbox and are not sent.",
+          "unreadable": "A mailbox is saved, but its password can no longer be read (the server key changed). Enter the password again. Until then letters are not sent."
+        },
+        "preset": "Provider",
+        "presets": {
+          "gmail": "Gmail",
+          "seznam": "Seznam",
+          "office365": "Office 365",
+          "custom": "Other server"
+        },
+        "presetHelp": {
+          "gmail": "Gmail needs an app password (Google account, Security, App passwords). Your normal password is refused.",
+          "seznam": "Use your Seznam mailbox password, or an app password if you sign in with two steps.",
+          "office365": "Use your Microsoft 365 password. Your administrator may need to allow SMTP sign-in for this mailbox.",
+          "custom": "Ask your mail provider for the SMTP server name and port. Only encrypted connections are allowed."
+        },
+        "host": "SMTP server",
+        "port": "Port",
+        "security": "Encryption",
+        "securityTls": "TLS (port 465)",
+        "securityStarttls": "STARTTLS (port 587)",
+        "address": "Email address",
+        "addressHelp": "Letters are sent from this address, and the test letter goes to it.",
+        "fromName": "Sender name (optional)",
+        "password": "Password",
+        "passwordPlaceholder": "App password",
+        "passwordKeep": "Leave blank to keep the saved password",
+        "version": "v{version}",
+        "save": "Save",
+        "saved": "Saved.",
+        "saveFailed": "Could not save the email sender.",
+        "test": "Send test",
+        "testHint": "Sends one letter to {address}.",
+        "gate": {
+          "ok": "Ready to test.",
+          "busy": "Working…",
+          "noSender": "Save an address and a password first.",
+          "unreadable": "Enter the password again before testing.",
+          "unsaved": "Save your changes before testing."
+        },
+        "outcome": {
+          "sent": "Sent.",
+          "failed": "Not sent.",
+          "refused": "Refused."
+        },
+        "testOk": "The server accepted the letter ({code}). Check {address}.",
+        "testFailed": "The server answered {code} at {stage}: {text}",
+        "testNoReply": "No answer from the server at {stage}: {text}",
+        "testSealed": "Sending is switched off on this server (KP_NO_COMMS_EGRESS).",
+        "recent": "Recent attempts",
+        "recentEmpty": "No attempts yet.",
+        "attemptTest": "Test letter",
+        "attempt": {
+          "sent": "sent",
+          "retry": "will retry",
+          "failed": "failed",
+          "refused": "refused"
+        },
+        "suppressed": "{count, plural, one {# address} other {# addresses}} the server refused for good",
+        "suppressedHelp": "Letters to these addresses are not sent. Remove one once the address is fixed.",
+        "unsuppress": "Remove"
       }
     }
   },

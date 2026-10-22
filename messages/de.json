@@ -17206,6 +17206,75 @@
         "nudge": "Benachrichtigungsziel",
         "ledger": "Das Abholjournal",
         "noBeat": "Noch kein Lebenszeichen"
+      },
+      "smtp": {
+        "title": "Aus dem eigenen Postfach senden",
+        "intro": "Kein Relay? Briefe an Kandidaten können aus einem Postfach versendet werden, das Sie bereits haben. kp meldet sich über eine verschlüsselte Verbindung an und versendet jeden Brief selbst.",
+        "status": {
+          "active": "Briefe werden aus diesem Postfach versendet.",
+          "precedence": "Ein Relay ist eingerichtet, daher gehen Briefe über das Relay. Dieses Postfach wird nur verwendet, wenn kein Relay eingerichtet ist.",
+          "relayOnly": "Briefe gehen über das Relay. Richten Sie hier nur dann ein Postfach ein, wenn es als Absender dienen soll, falls kein Relay eingerichtet ist.",
+          "off": "Nicht eingerichtet. Briefe bleiben im lokalen Postausgang und werden nicht versendet.",
+          "unreadable": "Ein Postfach ist gespeichert, aber sein Passwort lässt sich nicht mehr lesen (der Serverschlüssel hat sich geändert). Geben Sie das Passwort erneut ein. Bis dahin werden keine Briefe versendet."
+        },
+        "preset": "Anbieter",
+        "presets": {
+          "gmail": "Gmail",
+          "seznam": "Seznam",
+          "office365": "Office 365",
+          "custom": "Anderer Server"
+        },
+        "presetHelp": {
+          "gmail": "Gmail braucht ein App-Passwort (Google-Konto, Sicherheit, App-Passwörter). Ihr normales Passwort wird abgelehnt.",
+          "seznam": "Verwenden Sie das Passwort Ihres Seznam-Postfachs oder ein App-Passwort, wenn Sie sich in zwei Schritten anmelden.",
+          "office365": "Verwenden Sie Ihr Microsoft-365-Passwort. Ihre Administration muss die SMTP-Anmeldung für dieses Postfach eventuell erlauben.",
+          "custom": "Servername und Port für SMTP erfahren Sie bei Ihrem Mail-Anbieter. Nur verschlüsselte Verbindungen sind erlaubt."
+        },
+        "host": "SMTP-Server",
+        "port": "Port",
+        "security": "Verschlüsselung",
+        "securityTls": "TLS (Port 465)",
+        "securityStarttls": "STARTTLS (Port 587)",
+        "address": "E-Mail-Adresse",
+        "addressHelp": "Briefe werden von dieser Adresse versendet, und der Testbrief geht an sie.",
+        "fromName": "Absendername (optional)",
+        "password": "Passwort",
+        "passwordPlaceholder": "App-Passwort",
+        "passwordKeep": "Leer lassen, um das gespeicherte Passwort zu behalten",
+        "version": "v{version}",
+        "save": "Speichern",
+        "saved": "Gespeichert.",
+        "saveFailed": "Der E-Mail-Versand konnte nicht gespeichert werden.",
+        "test": "Testbrief senden",
+        "testHint": "Sendet einen Brief an {address}.",
+        "gate": {
+          "ok": "Bereit zum Testen.",
+          "busy": "Wird bearbeitet…",
+          "noSender": "Speichern Sie zuerst eine Adresse und ein Passwort.",
+          "unreadable": "Geben Sie das Passwort vor dem Test erneut ein.",
+          "unsaved": "Speichern Sie Ihre Änderungen vor dem Test."
+        },
+        "outcome": {
+          "sent": "Gesendet.",
+          "failed": "Nicht gesendet.",
+          "refused": "Abgelehnt."
+        },
+        "testOk": "Der Server hat den Brief angenommen ({code}). Prüfen Sie {address}.",
+        "testFailed": "Der Server antwortete {code} bei {stage}: {text}",
+        "testNoReply": "Keine Antwort vom Server bei {stage}: {text}",
+        "testSealed": "Der Versand ist auf diesem Server ausgeschaltet (KP_NO_COMMS_EGRESS).",
+        "recent": "Letzte Versuche",
+        "recentEmpty": "Noch keine Versuche.",
+        "attemptTest": "Testbrief",
+        "attempt": {
+          "sent": "gesendet",
+          "retry": "neuer Versuch folgt",
+          "failed": "fehlgeschlagen",
+          "refused": "abgelehnt"
+        },
+        "suppressed": "{count, plural, one {# Adresse} other {# Adressen}}, die der Server dauerhaft abgelehnt hat",
+        "suppressedHelp": "An diese Adressen werden keine Briefe versendet. Entfernen Sie eine, sobald die Adresse korrigiert ist.",
+        "unsuppress": "Entfernen"
       }
     }
   },

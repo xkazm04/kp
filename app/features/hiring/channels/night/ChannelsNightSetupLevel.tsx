@@ -17,6 +17,7 @@ import { SetupEdge } from "./setup/SetupEdge";
 import { SetupFeeds } from "./setup/SetupFeeds";
 import { SetupReceivers } from "./setup/SetupReceivers";
 import { SetupRelay } from "./setup/SetupRelay";
+import { SetupSmtp } from "./setup/SetupSmtp";
 import { SetupStepper } from "./setup/SetupStepper";
 import { usePlateWords } from "./useChannelsNightWords";
 import "./setup/setup.css";
@@ -83,7 +84,10 @@ export function ChannelsNightSetupLevel({ channel, focus, plates, counts, data, 
         ) : channel === "feeds" ? (
           <SetupFeeds data={data} focus={focus} onGo={onGo} />
         ) : channel === "relay" ? (
-          <SetupRelay counts={counts} onTested={setRelayTest} onOpenLedger={(el, verdict) => onOpenLedger(channel, el, { verdict })} />
+          <>
+            <SetupRelay counts={counts} onTested={setRelayTest} onOpenLedger={(el, verdict) => onOpenLedger(channel, el, { verdict })} />
+            <SetupSmtp />
+          </>
         ) : (
           <SetupEdge />
         )}
