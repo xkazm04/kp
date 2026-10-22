@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { googleOAuthConfig, revokeToken } from "@/app/_lib/calendar/google-oauth";
+import { revokeToken } from "@/app/_lib/calendar/google-oauth";
+import { googleOAuthConfigFor } from "@/app/_lib/calendar/google-client-store";
 import { deleteCalendarConnection, getCalendarConnection, getRefreshToken } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { countUnsyncedUpcomingInvites } from "@/app/_lib/schedule-store";
@@ -14,7 +15,7 @@ export const GET = withWorkspace(async (workspaceId: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const base = publicBaseUrl(null);
-  const configured = googleOAuthConfig(base) !== null;
+  const configured = googleOAuthConfigFor(workspaceId, base) !== null;
   const connection = getCalendarConnection(workspaceId);
   return NextResponse.json({
     configured,

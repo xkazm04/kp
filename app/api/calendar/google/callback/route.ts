@@ -3,7 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { decodeOAuthState, exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calendar/google-oauth";
+import { decodeOAuthState, exchangeCode, missingScopes } from "@/app/_lib/calendar/google-oauth";
+import { googleOAuthConfigFor } from "@/app/_lib/calendar/google-client-store";
 import { saveCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import type { CalendarCallbackStatus } from "@/app/_lib/calendar/callback-status";
@@ -67,7 +68,7 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const code = searchParams.get("code") ?? "";
   if (!code) return back(base, "no_code");
 
-  const config = googleOAuthConfig(base);
+  const config = googleOAuthConfigFor(ws, base);
   if (!config) return back(base, "not_configured");
 
   try {

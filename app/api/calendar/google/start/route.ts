@@ -6,13 +6,13 @@ import {
   createPkceVerifier,
   encodeOAuthState,
   googleConsentUrl,
-  googleOAuthConfig,
   pkceChallenge,
 } from "@/app/_lib/calendar/google-oauth";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { withSession } from "@/app/_lib/auth/workspace-context";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { googleOAuthConfigFor } from "@/app/_lib/calendar/google-client-store";
 
 // W1.4 — begin the Google Calendar authorization.
 //
@@ -39,7 +39,9 @@ const STATE_TTL_SECONDS = 600;
 // the redirect URI legitimately retries a handful of times.
 const OAUTH_START_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export const GET = withSession(async (request: NextRequest) => {
+// withWorkspace, not withSession: the OAuth client can be the one THIS workspace's owner
+// saved in Settings > Integrations (google-client-store.ts), so the door needs the tenant.
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AFTER the operator gate, and before the state mint + Set-Cookie, so a refused
@@ -49,11 +51,11 @@ export const GET = withSession(async (request: NextRequest) => {
   }
 
   const base = publicBaseUrl(null);
-  const config = googleOAuthConfig(base);
+  const config = googleOAuthConfigFor(ws, base);
   if (!config) {
     // A precise, actionable 503 rather than a redirect into a Google error page: the fix
-    // is two env vars, and the operator should be told that rather than left reading
-    // Google's "invalid client" screen.
+    // is the guided setup in Settings > Integrations (or the two env vars), and the
+    // operator should be told that rather than left reading Google's "invalid client" screen.
     return NextResponse.json(
       {
         error: "Google Calendar is not configured on this deployment.",

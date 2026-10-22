@@ -1,14 +1,13 @@
-import { publicBaseUrl } from "../public-base-url";
 import type { BusyInterval } from "./free-busy";
 import {
   accessTokenExpired,
-  googleOAuthConfig,
   GoogleOAuthError,
   refreshAccessToken,
   type GoogleOAuthConfig,
 } from "./google-oauth";
 import { getCachedAccessToken, getCalendarConnection, getRefreshToken, markCalendarHealth, updateAccessToken } from "./token-store";
 import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
+import { googleOAuthConfigFor } from "./google-client-store";
 
 // W1.4 — the Google Calendar calls themselves. Everything that decides anything lives in
 // free-busy.ts (pure) and google-oauth.ts (pure); this file is the network edge.
@@ -59,7 +58,7 @@ function readStoredToken<T>(workspaceId: string, read: (id: string) => T | null)
  *  the integration is not usable, for ANY reason — unconfigured, never connected, revoked,
  *  a credential that no longer decrypts, or a refresh that failed. */
 async function accessTokenFor(workspaceId: string): Promise<{ token: string; config: GoogleOAuthConfig } | null> {
-  const config = googleOAuthConfig(publicBaseUrl(null));
+  const config = googleOAuthConfigFor(workspaceId);
   if (!config) return null;
   const connection = getCalendarConnection(workspaceId);
   if (!connection?.connected) return null;
@@ -112,7 +111,7 @@ function healed<T>(workspaceId: string, was: string, auth: T): T {
  * below is what tells it apart from an outage.
  */
 export function isCalendarConnected(workspaceId: string): boolean {
-  if (!googleOAuthConfig(publicBaseUrl(null))) return false;
+  if (!googleOAuthConfigFor(workspaceId)) return false;
   return !!getCalendarConnection(workspaceId)?.connected;
 }
 

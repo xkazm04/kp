@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "../db-path";
-import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats-secret";
+import { atsSecretKeyConfigured, decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats-secret";
+import { calendarSecretKeyConfigured, decryptCalendarSecret, encryptCalendarSecret } from "./calendar-secret";
 import { DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import type { GoogleTokens } from "./google-oauth";
 import { addColumns } from "../db/add-columns";
@@ -60,6 +61,12 @@ const asHealth = (v: string | null): CalendarGrantHealth =>
   (CALENDAR_GRANT_HEALTH as readonly string[]).includes(v ?? "") ? (v as CalendarGrantHealth) : "ok";
 
 let _db: Database.Database | null = null;
+/** The calendar_connections connection, shared with google-client-store.ts (the owner's
+ *  OAuth client lives on its own `provider = 'google_client'` row of this table, so it is
+ *  scoped and erased exactly like the grant). Every query here filters provider = 'google'. */
+export function calendarConnectionsDb(): Database.Database {
+  return db();
+}
 function db(): Database.Database {
   if (_db) return _db;
   const d = openStore();
@@ -82,6 +89,9 @@ function db(): Database.Database {
   // store, so no core.ts migrator: add each column here, tolerating "duplicate column" on
   // every boot after the first. NULL health on a legacy row reads as 'ok' — today's meaning.
   addColumns(d, "calendar_connections", ["health TEXT", "health_at TEXT"]);
+  // The OAuth client saved through Settings > Integrations (google-client-store.ts). Only
+  // the 'google_client' row carries them; client_secret is ciphertext (calendar-secret.ts).
+  addColumns(d, "calendar_connections", ["client_id TEXT", "client_secret TEXT"]);
   _db = d;
   return d;
 }
@@ -136,9 +146,41 @@ export function getCalendarConnection(workspaceId: string = DEFAULT_WORKSPACE_ID
   };
 }
 
+// WHICH KEY SEALS A TOKEN. The ATS/session key (KP_ATS_SECRET_KEY, else KP_SECRET) whenever
+// one is set, exactly as before, so every token already stored keeps decrypting. Only an
+// install with neither falls through to the calendar key (calendar-secret.ts), which the
+// guided setup generates without a restart: without this fallback the OAuth callback that
+// follows a keyless save would fail to store the grant it had just been given.
+const sealToken = (plaintext: string): string =>
+  atsSecretKeyConfigured() ? encryptAtsSecret(plaintext) : encryptCalendarSecret(plaintext);
+
+/** Open a sealed token under the ATS key, then the calendar key. A token sealed under the
+ *  calendar key on a keyless install still opens after the owner later sets KP_SECRET. When
+ *  neither opens it, the FIRST key's failure is rethrown (the caller marks 'undecryptable'). */
+function openToken(stored: string): string {
+  let first: unknown = null;
+  if (atsSecretKeyConfigured()) {
+    try {
+      return decryptAtsSecret(stored);
+    } catch (err) {
+      first = err;
+    }
+  }
+  if (calendarSecretKeyConfigured()) {
+    try {
+      return decryptCalendarSecret(stored);
+    } catch (err) {
+      throw first ?? err;
+    }
+  }
+  if (first) throw first;
+  // No key at all: the same error the ATS reader has always thrown here.
+  return decryptAtsSecret(stored);
+}
+
 const decryptOrNull = (stored: string | null): string | null => {
   if (stored === null) return null;
-  return isEncryptedAtsSecret(stored) ? decryptAtsSecret(stored) : stored;
+  return isEncryptedAtsSecret(stored) ? openToken(stored) : stored;
 };
 
 /** Server-internal: the DECRYPTED refresh token. Never crosses the API boundary. */
@@ -168,7 +210,7 @@ export function saveCalendarConnection(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): CalendarConnection {
   const existing = readRow(workspaceId);
-  const refresh = input.tokens.refreshToken ? encryptAtsSecret(input.tokens.refreshToken) : existing?.refresh_token ?? null;
+  const refresh = input.tokens.refreshToken ? sealToken(input.tokens.refreshToken) : existing?.refresh_token ?? null;
   db()
     .prepare(
       `INSERT INTO calendar_connections
@@ -186,7 +228,7 @@ export function saveCalendarConnection(
       input.accountEmail ?? existing?.account_email ?? null,
       input.calendarId ?? existing?.calendar_id ?? "primary",
       refresh,
-      encryptAtsSecret(input.tokens.accessToken),
+      sealToken(input.tokens.accessToken),
       input.tokens.expiresAt,
       JSON.stringify(input.tokens.scopes),
       JSON.stringify(input.missingScopes ?? []),
@@ -202,7 +244,7 @@ export function updateAccessToken(tokens: GoogleTokens, workspaceId: string = DE
       `UPDATE calendar_connections SET access_token = ?, access_expires_at = ?
        WHERE workspace_id = ? AND provider = 'google'`
     )
-    .run(encryptAtsSecret(tokens.accessToken), tokens.expiresAt, workspaceId);
+    .run(sealToken(tokens.accessToken), tokens.expiresAt, workspaceId);
 }
 
 /** Record what the calendar edge observed about the grant. Only a CHANGE is written, and
