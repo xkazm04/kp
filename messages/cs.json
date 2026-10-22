@@ -3711,7 +3711,10 @@
         "noSkills": "K dovednostem nejsou žádné podklady.",
         "loading": "Načítá se rozpad skóre…",
         "noAnalysis": "K této pozici chybí analýza, k dispozici je jen skóre z nástěnky.",
-        "matchError": "Podrobnosti skóre teď nejsou k dispozici."
+        "matchError": "Podrobnosti skóre teď nejsou k dispozici.",
+        "ruleBased": "Shoda podle pravidel · bez AI",
+        "ruleBasedWeighs": "Porovnává dovednosti, praxi a jazyky s požadavky role.",
+        "boardShows": "Karta na nástěnce ukazuje {score} ({source})."
       },
       "footer": {
         "aria": "Akce s kandidátem",
@@ -6406,7 +6409,8 @@
     "snapshot": "snímek při zařazení",
     "freshMatch": "spočítáno tímto během párování",
     "freshMatchTitle": "Spočítáno teď, tímto během párování, proti aktuálnímu textu role. Ke kandidátovi se neukládá, takže nástěnka náboru může poctivě ukazovat jiné číslo: skóre zachycené při zařazení kandidáta.",
-    "transfer": "z pracovní ukázky"
+    "transfer": "z pracovní ukázky",
+    "scoredLater": "podle pravidel, ohodnoceno po zařazení · {date}"
   },
   "match": {
     "band": {

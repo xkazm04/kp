@@ -749,6 +749,28 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 The Scorecard breakdown resolves the ranker's `labelCode` through the shared
 `match.dims.*` translations, with its English label as a fallback for older rows.
 
+**The score always names its source (2026-10-22).** When the role ranking answers
+(`map/useCellMatchData.ts` → `GET /api/jobs/[id]/candidates`, the keyless rule-based
+`recruiter_cli` ranker — no `--weights-llm`, no embeddings), the big number is that live
+total and is captioned `pipeline.candidate.scorecard.ruleBased` ("Rule-based match · no AI")
+with one line on what it weighs (`ruleBasedWeighs`: skills, experience, languages against
+the role). When it does not, the board's own number speaks with its provenance through
+`ScoreProvenanceLabel`. If the live total and the board card's number round differently,
+one more line says what the card shows and from where (`boardShows`, derived by the pure
+`boardDiffersOf` in `scorecard/candidateDetailModel.ts`, pinned by
+`candidateDetailModel.test.ts`); equal numbers add nothing, and an unscored card is not a
+second number.
+
+A stored `match_score` the arrival scorer or the automation sweep filled AFTER the add
+(`app/_lib/entry-scoring.ts`) is no longer labelled "snapshot at add": the fill-only write
+that wins always logs a `scored` pipeline event, so `withCanonicalScores`
+(`app/_lib/match-score-resolve.ts`) reads the earliest one per entry
+(`scoredAtByEntryIds`, `app/_lib/db/pipeline.ts`, one chunked workspace-scoped read, asked
+only for entries whose shown number is the stored column) and `getCanonicalMatchScore`
+returns provenance `{ source: "scored", at }`, rendered as `scoreProvenance.scoredLater`
+("rule-based, scored after add · date"). No schema change; an entry with no such event keeps
+`snapshot`. Pinned by `match-score.test.ts` and `match-score-resolve.test.ts`.
+
 Mechanics. `usePipelineTabState` holds one `CandidateView` (`candidateView.ts`: entry,
 cohort, tab) and `orbit/PipelineOrbitView.tsx` mounts `CandidateModal` through `next/dynamic`.
 The frame is portalled to `<body>` at `z-50` — later portals paint on top, so it sits

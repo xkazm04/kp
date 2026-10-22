@@ -77,8 +77,13 @@ export function compareByMatchScoreDesc(a: Scoreable, b: Scoreable): number {
 //      when the analysis is genuinely job-matched (the caller resolves
 //      entry.jobId → jd slug via jd-limits.ts and joins by exact candidate
 //      label; see match-score-resolve.ts). Provenance: { source: "analysis" }.
-//   2. the entry's own `matchScore` snapshot — producer (B).
-//      Provenance: { source: "snapshot" }.
+//   2. the entry's own `matchScore` — producer (B). Provenance depends on WHO
+//      wrote the column: { source: "snapshot" } when it was stamped at add time,
+//      { source: "scored", at } when the arrival scorer or the automation sweep
+//      filled it AFTER the add (entry-scoring.ts — the fill-only write that wins
+//      always logs a `scored` pipeline event beside it, and that event's
+//      timestamp is the fact the caller passes in as `scoredAt`; nothing else
+//      writes match_score after the insert, so the event is a faithful marker).
 //   3. null — never a fabricated 0 (see the null-score policy above).
 //
 // Numbers that are genuinely a DIFFERENT concept — the draft-time pricing basis
@@ -104,6 +109,9 @@ export type AnalysisFit = {
 export type MatchScoreProvenance =
   | { source: "analysis"; at: string; slug: string | null }
   | { source: "snapshot" }
+  // The stored score was filled AFTER the add by the rule-based ranker (arrival
+  // scorer or automation sweep); `at` is the `scored` event's timestamp.
+  | { source: "scored"; at: string }
   // ONE THREAD — the work-sample TRANSFER score (dev_submissions.transfer_score),
   // reachable from an entry through its dev_submission_id link. NOT a match score
   // and never produced by getCanonicalMatchScore; see the score-kind block below.
@@ -115,7 +123,7 @@ export type CanonicalMatchScore = { score: number; provenance: MatchScoreProvena
  *  THIS job > the entry's snapshot > null. `analysisForThisJob` must already be
  *  job-matched by the caller — passing a label-only (cross-job) analysis here
  *  would re-create the exact conflation this module exists to end. */
-export function getCanonicalMatchScore<T extends Scoreable>(
+export function getCanonicalMatchScore<T extends Scoreable & { scoredAt?: string | null }>(
   entry: T,
   analysisForThisJob?: AnalysisFit | null
 ): CanonicalMatchScore {
@@ -127,7 +135,11 @@ export function getCanonicalMatchScore<T extends Scoreable>(
     };
   }
   if (entry.matchScore != null && Number.isFinite(entry.matchScore)) {
-    return { score: entry.matchScore, provenance: { source: "snapshot" } };
+    const provenance: MatchScoreProvenance =
+      typeof entry.scoredAt === "string" && entry.scoredAt !== ""
+        ? { source: "scored", at: entry.scoredAt }
+        : { source: "snapshot" };
+    return { score: entry.matchScore, provenance };
   }
   return null;
 }

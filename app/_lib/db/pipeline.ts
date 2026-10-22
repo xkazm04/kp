@@ -3247,6 +3247,29 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
   return res.changes > 0;
 }
 
+/** When each named entry's stored match score was filled AFTER the add: the
+ *  earliest `scored` event per entry (entry-scoring.ts logs one beside every
+ *  setEntryMatchScore write that wins; nothing else writes match_score after the
+ *  insert). An entry absent from the map had its score stamped at add time, or has
+ *  none. One chunked read per call, workspace-scoped. */
+export function scoredAtByEntryIds(ids: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, string> {
+  const out = new Map<string, string>();
+  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id !== ""))];
+  if (unique.length === 0) return out;
+  const db = ensureDb();
+  for (const part of chunk(unique, SQL_IN_CHUNK)) {
+    const rows = db
+      .prepare(
+        `SELECT entry_id, MIN(created_at) AS at FROM pipeline_events
+          WHERE kind = 'scored' AND workspace_id = ? AND entry_id IN (${part.map(() => "?").join(",")})
+          GROUP BY entry_id`
+      )
+      .all(workspaceId, ...part) as Array<{ entry_id: string; at: string | null }>;
+    for (const r of rows) if (r.at) out.set(r.entry_id, r.at);
+  }
+  return out;
+}
+
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
 /** Set (or clear) the pending approval on an entry.
  *

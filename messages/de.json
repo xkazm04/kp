@@ -3711,7 +3711,10 @@
         "noSkills": "Keine Nachweise zu Kompetenzen vorhanden.",
         "loading": "Score-Aufschlüsselung wird geladen…",
         "noAnalysis": "Für diese Stelle liegt keine Analyse vor, nur der Score vom Board.",
-        "matchError": "Score-Details sind gerade nicht verfügbar."
+        "matchError": "Score-Details sind gerade nicht verfügbar.",
+        "ruleBased": "Regelbasierter Abgleich · ohne KI",
+        "ruleBasedWeighs": "Gewichtet Fähigkeiten, Erfahrung und Sprachen gegenüber der Rolle.",
+        "boardShows": "Die Karte auf dem Board zeigt {score} ({source})."
       },
       "footer": {
         "aria": "Aktionen zur Bewerbung",
@@ -6406,7 +6409,8 @@
     "snapshot": "Snapshot beim Hinzufügen",
     "freshMatch": "von diesem Matching-Lauf berechnet",
     "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde.",
-    "transfer": "aus der Arbeitsprobe"
+    "transfer": "aus der Arbeitsprobe",
+    "scoredLater": "regelbasiert, nach dem Hinzufügen bewertet · {date}"
   },
   "match": {
     "band": {

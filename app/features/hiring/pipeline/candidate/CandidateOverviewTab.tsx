@@ -54,6 +54,10 @@ export function CandidateOverviewTab({
   // speaks, and a work-sample TRANSFER score must never read as a match score.
   const board = model.hasAnalysis ? null : model.display;
   const caption = board?.kind === "transfer" ? tDrawer("transfer") : t("score");
+  // The score always carries its source: the board's own provenance when the board
+  // number speaks, else the live ranking — the keyless rule-based ranker, no AI.
+  const detail = board ? provenanceText(board.provenance) : model.hasAnalysis ? t("ruleBased") : null;
+  const differs = model.boardDiffers;
   const fit = model.salary.fit;
   const fitNote = fit === "unknown" ? null : t(`salaryFit.${fit}`);
 
@@ -83,10 +87,23 @@ export function CandidateOverviewTab({
               model={model}
               size="xl"
               caption={caption}
-              detail={board ? provenanceText(board.provenance) : null}
+              detail={detail}
             />
             <FitTierBadge tier={model.fitTier} score={model.raw} labels={tierLabels} />
           </div>
+          {model.hasAnalysis && model.score != null ? (
+            <div className="-mt-2 space-y-1 text-meta text-steel">
+              <p>{t("ruleBasedWeighs")}</p>
+              {differs ? (
+                <p>
+                  {t("boardShows", {
+                    score: differs.score,
+                    source: provenanceText(differs.provenance) ?? "—",
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <ScoreMeter model={model} />
           <div>
             <p className={META_LABEL}>{t("salary")}</p>

@@ -3,7 +3,13 @@
 // re-derives.
 
 import { clampPercent, scoreTone, type ScoreTone } from "@/app/_lib/format";
-import { displayScoreOf, type DisplayScore } from "@/app/_lib/match-score";
+import {
+  canonicalScoreOf,
+  displayScoreOf,
+  provenanceOf,
+  type DisplayScore,
+  type MatchScoreProvenance,
+} from "@/app/_lib/match-score";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { Confidence, MatchResultView, ScoreDimension } from "@/app/features/shared/matchTypes";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
@@ -25,8 +31,12 @@ export type CandidateDetailModel = {
   matched: string[];
   unproven: string[];
   missing: string[];
-  /** True when the role ranking carried this candidate (bars + skills exist). */
+  /** True when the role ranking carried this candidate (bars + skills exist). The
+   *  ranking is the keyless rule-based ranker, so `score` is then a rule-based total. */
   hasAnalysis: boolean;
+  /** The board card's own number and where it came from, ONLY when the drawer shows a
+   *  different (live-ranking) number — so two numbers are never left unexplained. */
+  boardDiffers: { score: number; provenance: MatchScoreProvenance } | null;
   /** Stand-in expectation (mapSalary.ts) — always labelled as an estimate. */
   salary: SalaryPoint;
   stage: StageDef | null;
@@ -58,8 +68,26 @@ export function candidateDetailModel(
     unproven: match?.unprovenSkills ?? [],
     missing: match?.missingSkills ?? [],
     hasAnalysis: match !== undefined,
+    boardDiffers: boardDiffersOf(entry, match, raw),
     salary: salaryPointOf(entry, roleBand),
     stage,
     nextStage,
   };
+}
+
+/** The card reads canonicalScoreOf (match-only: analysis fit, else the stored score);
+ *  the drawer leads with the live ranking's total. Returns the card's number when the
+ *  two round to different values; null when they agree, when the ranking did not
+ *  answer (the drawer then shows the card's own number), or when the card is unscored. */
+export function boardDiffersOf(
+  entry: Entry,
+  match: MatchResultView | undefined,
+  raw: number | null,
+): CandidateDetailModel["boardDiffers"] {
+  if (match === undefined || raw == null) return null;
+  const card = canonicalScoreOf(entry);
+  if (card == null || !Number.isFinite(card)) return null;
+  const cardShown = Math.round(clampPercent(card));
+  if (cardShown === Math.round(clampPercent(raw))) return null;
+  return { score: cardShown, provenance: provenanceOf(entry) ?? { source: "snapshot" } };
 }

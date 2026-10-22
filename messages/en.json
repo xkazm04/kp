@@ -3711,7 +3711,10 @@
         "noSkills": "No skills evidence on file.",
         "loading": "Loading the score breakdown…",
         "noAnalysis": "No analysis for this role on file. The board score is all there is.",
-        "matchError": "Score detail is unavailable right now."
+        "matchError": "Score detail is unavailable right now.",
+        "ruleBased": "Rule-based match · no AI",
+        "ruleBasedWeighs": "Weighs skills, experience and languages against the role.",
+        "boardShows": "The board card shows {score} ({source})."
       },
       "footer": {
         "aria": "Candidate actions",
@@ -6406,7 +6409,8 @@
     "snapshot": "snapshot at add",
     "freshMatch": "scored by this match run",
     "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added.",
-    "transfer": "from the work sample"
+    "transfer": "from the work sample",
+    "scoredLater": "rule-based, scored after add · {date}"
   },
   "match": {
     "band": {

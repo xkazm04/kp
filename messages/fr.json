@@ -3711,7 +3711,10 @@
         "noSkills": "Aucune preuve de compétences au dossier.",
         "loading": "Chargement du détail du score…",
         "noAnalysis": "Aucune analyse pour ce poste, seul le score du tableau est disponible.",
-        "matchError": "Le détail du score est indisponible pour le moment."
+        "matchError": "Le détail du score est indisponible pour le moment.",
+        "ruleBased": "Correspondance par règles · sans IA",
+        "ruleBasedWeighs": "Pondère compétences, expérience et langues par rapport au poste.",
+        "boardShows": "La carte du tableau affiche {score} ({source})."
       },
       "footer": {
         "aria": "Actions sur la candidature",
@@ -6406,7 +6409,8 @@
     "snapshot": "instantané à l’ajout",
     "freshMatch": "calculé par cette exécution de matching",
     "freshMatchTitle": "Calculé maintenant, par cette exécution de matching, sur le texte actuel du poste. Il n’est jamais stocké sur le candidat, donc le tableau du pipeline peut honnêtement afficher un autre nombre : le score figé au moment de l’ajout.",
-    "transfer": "d’après l’exercice"
+    "transfer": "d’après l’exercice",
+    "scoredLater": "par règles, noté après l’ajout · {date}"
   },
   "match": {
     "band": {
