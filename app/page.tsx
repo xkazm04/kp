@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
+import { isOpenMode, openEntryOffered } from "@/app/_lib/auth/open-entry";
 import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
@@ -63,7 +65,12 @@ export default async function Home({
   // so the hero's primary CTA can send a refused (gated-deploy) visitor to a
   // surface where a stranger can actually finish. Pure env read — the anonymous
   // landing stays DB-free.
-  if (!entered) return <SparkHome signupOpen={signupEnabled()} />;
+  if (!entered) {
+    // Local open-mode install: the landing leads into the app (cx T2). Password mode,
+    // hosted and public-link visits keep today's labels and Sign in flow.
+    const openEntry = openEntryOffered({ openMode: isOpenMode(), host: (await headers()).get("host") });
+    return <SparkHome signupOpen={signupEnabled()} openEntry={openEntry} />;
+  }
   // First-run gate: a principal (user, or workspace in open mode) that has never
   // completed/skipped the setup wizard gets it as an overlay on first entry.
   // `?onboarding=1` is the single-load dev escape hatch (KP_FORCE_ONBOARDING=1

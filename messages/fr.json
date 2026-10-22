@@ -783,7 +783,8 @@
       "sections": "Sections de la page",
       "top": "Haut de page",
       "about": "À propos de l’app",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "openWorkspace": "Ouvrir votre espace de travail"
     },
     "hero": {
       "badge": "Recrutement automatisé, validé par un humain",
@@ -791,6 +792,7 @@
       "proof": "Open source, AGPL-3.0. Tourne sur votre machine, avec vos modèles : tout le produit, gratuit et sans aucune limite. Les offres payantes achètent les serveurs de quelqu'un d'autre.",
       "proofCta": "Hébergez-le vous-même",
       "ctaPrimary": "Recruter gratuitement",
+      "ctaOpen": "Ouvrir votre espace de travail",
       "ctaPending": "Ouverture de votre espace de travail…",
       "ctaDemo": "Voir la démo en direct",
       "mascotAlt": "Kandi, la mascotte de KandiDate, qui exulte sous un CV validé"

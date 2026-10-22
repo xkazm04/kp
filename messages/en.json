@@ -783,7 +783,8 @@
       "sections": "Page sections",
       "top": "Back to top",
       "about": "About the app",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "openWorkspace": "Open your workspace"
     },
     "hero": {
       "badge": "Automated hiring, human-approved",
@@ -791,6 +792,7 @@
       "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
       "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
+      "ctaOpen": "Open your workspace",
       "ctaPending": "Opening your workspace…",
       "ctaDemo": "Watch the live demo",
       "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV"

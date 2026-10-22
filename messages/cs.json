@@ -783,7 +783,8 @@
       "sections": "Sekce stránky",
       "top": "Nahoru",
       "about": "O aplikaci",
-      "signIn": "Přihlásit se"
+      "signIn": "Přihlásit se",
+      "openWorkspace": "Otevřít váš pracovní prostor"
     },
     "hero": {
       "badge": "Automatizovaný nábor, schvaluje člověk",
@@ -791,6 +792,7 @@
       "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
       "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
+      "ctaOpen": "Otevřít váš pracovní prostor",
       "ctaPending": "Otevíráme váš pracovní prostor…",
       "ctaDemo": "Spustit živou ukázku",
       "mascotAlt": "Kandi, maskot KandiDate, jásá pod schváleným CV"

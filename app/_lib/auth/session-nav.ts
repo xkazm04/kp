@@ -5,6 +5,7 @@
 // sidebar's sign-out calls leaveWorkspace().
 
 import { track } from "../analytics/track";
+import { clearEntryMarker, writeEntryMarker } from "./open-entry";
 
 /** Enter the workspace from the public landing. Posts to the login endpoint with
  *  NO credentials:
@@ -49,6 +50,15 @@ export async function enterWorkspace(plan?: string, opts?: EnterWorkspaceOptions
       headers: { "content-type": "application/json" },
       body: "{}",
     });
+    // Open-mode entry (`open: true`): remember this browser so a later visit without
+    // the cookie goes straight back in (open-entry.ts). Password mode never sets it.
+    if (r.ok) {
+      try {
+        if ((await r.json())?.open === true) writeEntryMarker();
+      } catch {
+        /* best-effort: an unreadable body only means no marker is written */
+      }
+    }
     window.location.assign(r.ok ? `/${query}` : `${fallback}${query}`);
   } catch {
     // Network/offline — fall back to the sign-in form (keep the plan intent).
@@ -60,6 +70,7 @@ export async function enterWorkspace(plan?: string, opts?: EnterWorkspaceOptions
  *  Best-effort — a failed logout POST still navigates home, where the gate re-reads
  *  the (now absent or soon-expired) cookies. */
 export async function leaveWorkspace(): Promise<void> {
+  clearEntryMarker(); // an explicit sign-out must not bounce straight back in
   try {
     await fetch("/api/auth/logout", { method: "POST" });
   } catch {
