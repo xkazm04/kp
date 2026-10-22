@@ -701,7 +701,9 @@ literals is a shrinking holdout list in that test, never a new entry.
 
 Both are backstops, not deadlines, and both **kill the child and reject**:
 
-- `timeoutMs` — 10 minutes by default (`PYTHON_CMD` picks the interpreter).
+- `timeoutMs` — 10 minutes by default (`PYTHON_CMD`, then `KP_PYTHON`, names the
+  interpreter; unset, the first of the platform's candidates to answer `--version` at
+  3.11+ is probed once and cached — `app/_lib/python-runner-resolve.test.ts`).
 - `maxBufferBytes` — 64 MB of combined stdout+stderr, `PYTHON_MAX_BUFFER_MB` to
   override. Without it a chatty child accumulates its whole output in the Node
   heap and can OOM the server process, taking down every route rather than the

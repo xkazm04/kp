@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -21,9 +21,106 @@ async function ingestUsageLog(logPath: string, roleRunId: string | null = null):
   }
 }
 
-// Read per spawn, so a test's stand-in applies without re-importing the runner.
-function pythonCmd(): string {
-  return process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+// ── Interpreter resolution ─────────────────────────────────────────────────────
+// Mirrors scripts/schemas-gen.mjs so the build and the runtime agree on which Python
+// they mean. A NAMED interpreter wins outright and is NOT probed: PYTHON_CMD (the
+// runtime's historical name, and the stand-in ~10 tests set) first, then KP_PYTHON (the
+// name AGENTS.md documents). The order is the REVERSE of schemas-gen.mjs on purpose: a
+// developer who exported KP_PYTHON for the build must not override a test's PYTHON_CMD
+// stand-in. It is read
+// per spawn, so a test's stand-in (`node`, a bogus binary) applies without
+// re-importing the runner. Otherwise the platform's candidates are probed with
+// `--version` ONCE and the winner is cached for the process lifetime — the runner
+// spawns per request, and a probe per request would double every spawn. A miss is
+// not cached, so an owner who installs Python mid-session is picked up on the next
+// request without a restart. The probe is what skips the Windows Store `python`
+// placeholder: it exists on PATH, exits non-zero and prints a Store message.
+
+/** One way to invoke an interpreter: the binary plus any argv it needs first (`py -3`). */
+export interface PythonCandidate {
+  cmd: string;
+  prefixArgs: string[];
+}
+
+/** A `--version` probe's outcome, shaped like spawnSync's result. */
+export interface PythonProbeResult {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: unknown;
+}
+export type PythonProbe = (cmd: string, args: string[]) => PythonProbeResult;
+
+/** The floor CI pins above (3.12) and every hint names: 3.11+. */
+const PYTHON_MIN_VERSION = 311;
+
+export const PYTHON_NOT_FOUND_SENTENCE =
+  "Python 3.11+ was not found on PATH; install it from python.org or set KP_PYTHON.";
+
+export function pythonAutoCandidates(platform: NodeJS.Platform = process.platform): PythonCandidate[] {
+  return platform === "win32"
+    ? [
+        { cmd: "python", prefixArgs: [] },
+        { cmd: "python3", prefixArgs: [] },
+        { cmd: "py", prefixArgs: ["-3"] },
+      ]
+    : [
+        { cmd: "python3", prefixArgs: [] },
+        { cmd: "python", prefixArgs: [] },
+      ];
+}
+
+/** `major*100 + minor` from a `Python x.y.z` banner; `null` when there is none. */
+export function parsePythonVersion(text: string | null | undefined): number | null {
+  const m = /Python\s+(\d+)\.(\d+)/.exec(String(text ?? ""));
+  return m ? Number(m[1]) * 100 + Number(m[2]) : null;
+}
+
+/** Process-lifetime memo of the auto-discovered interpreter. Only a hit is stored. */
+export interface PythonResolutionCache {
+  winner?: PythonCandidate;
+}
+
+/** Pure resolver: the named override, else the cached winner, else the first candidate
+ *  whose `--version` probe exits 0 at 3.11+. `null` when nothing qualifies. */
+export function resolvePythonCandidate(deps: {
+  env: Record<string, string | undefined>;
+  platform: NodeJS.Platform;
+  probe: PythonProbe;
+  cache: PythonResolutionCache;
+}): PythonCandidate | null {
+  const named = deps.env.PYTHON_CMD?.trim() || deps.env.KP_PYTHON?.trim();
+  if (named) return { cmd: named, prefixArgs: [] };
+  if (deps.cache.winner) return deps.cache.winner;
+  for (const candidate of pythonAutoCandidates(deps.platform)) {
+    let res: PythonProbeResult;
+    try {
+      res = deps.probe(candidate.cmd, [...candidate.prefixArgs, "--version"]);
+    } catch {
+      continue; // a probe that throws is a candidate that is not there
+    }
+    // ENOENT is res.error; the Store placeholder answers non-zero with no banner.
+    if (res.error || res.status !== 0) continue;
+    // Python < 3.4 printed the banner on stderr; read both.
+    const version = parsePythonVersion(`${res.stdout ?? ""}\n${res.stderr ?? ""}`);
+    if (version == null || version < PYTHON_MIN_VERSION) continue;
+    deps.cache.winner = candidate;
+    return candidate;
+  }
+  return null;
+}
+
+const runtimePythonCache: PythonResolutionCache = {};
+const runtimePythonProbe: PythonProbe = (cmd, args) =>
+  spawnSync(cmd, args, { encoding: "utf8", timeout: 10_000, windowsHide: true, shell: false });
+
+function pythonCmd(): PythonCandidate | null {
+  return resolvePythonCandidate({
+    env: process.env,
+    platform: process.platform,
+    probe: runtimePythonProbe,
+    cache: runtimePythonCache,
+  });
 }
 
 // LLM-usage metering is ON BY DEFAULT: every spawn gets a per-call sidecar path so
@@ -532,7 +629,16 @@ function runPythonChild(
   usageLogPath: string,
   llmRequestId: string | null,
 ): Promise<SpawnResult> {
-  const child = spawn(pythonCmd(), args, {
+  const python = pythonCmd();
+  if (!python) {
+    // No interpreter qualified: say WHAT is missing, once, in plain words — to the
+    // terminal the owner is watching and to ops-warn.log. The caller still gets the
+    // same spawn_failed kind (ENGINE_FAILED on the wire); no new client code.
+    console.error(`[python-runner] ${PYTHON_NOT_FOUND_SENTENCE}`);
+    logSpawnFailure("spawn_failed", args, PYTHON_NOT_FOUND_SENTENCE);
+    return Promise.reject(new SpawnFailure("spawn_failed", "Python process could not be started"));
+  }
+  const child = spawn(python.cmd, [...python.prefixArgs, ...args], {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
     // redundant and made Turbopack's file tracer over-include the project root.

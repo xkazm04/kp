@@ -220,6 +220,11 @@ for, which is exactly why the subscription is the control.
 
 ## 2. Quick start (Docker Compose)
 
+*One person on one computer, no Docker:* `npm run up` (`scripts/up.mjs`) checks Node 24
+and Python 3.11+, installs what is missing, and starts the app on an unseeded, persistent
+workspace (`data/kp-owner.sqlite`, `KP_EMPTY=1`) so the first-run wizard runs; `-- --demo`
+starts the seeded demo instead. It runs `next dev`, so it is a desk install, not a server.
+
 ```bash
 cp .env.example .env
 # edit .env — at minimum set KP_OPERATOR_PASSWORD and KP_SECRET (see §3)
@@ -263,7 +268,7 @@ rather than letting a burst starve the Node server every route shares.
 | `KP_PYTHON_QUEUE_WAIT_MS` | `20000` | How long a call waits for a slot before the route answers **503 `ENGINE_BUSY`**. Well inside a normal client deadline; an unbounded queue would only convert an overload into sockets held open past the point their users gave up. |
 | `KP_PYTHON_BACKGROUND_WAIT_MS` | `600000` | How long BACKGROUND work (a task-runner handler, the automation clock's pass) waits for a slot before it is refused `ENGINE_BUSY`. Long because nobody is holding a socket open and the task has a 15-minute budget; bounded so a wedged engine still answers the task. See the lane rule below. |
 | `PYTHON_MAX_BUFFER_MB` | `64` | Combined stdout+stderr a child may buffer before it is killed. |
-| `PYTHON_CMD` | `python3` (`python` on Windows) | The interpreter. |
+| `PYTHON_CMD` / `KP_PYTHON` | probed: `python3`, `python` (Windows: `python`, `python3`, `py -3`) | The interpreter. A named one (`PYTHON_CMD` first) is used as-is; otherwise the first candidate answering `--version` at 3.11+ is cached for the process, so the Windows Store `python` stub is skipped. None found: `ops-warn.log` says so in one sentence, the client still gets `ENGINE_FAILED`. |
 
 Two operational properties to know:
 
