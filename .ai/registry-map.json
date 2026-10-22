@@ -14838,7 +14838,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:95 Tooltip Escape dismissal does not stop propagation, allowing the containing modal's document listener to close a second layer on the same keypress.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:7848e4396b8a86da",
+          "evaluatedRevision": 5
         },
         {
           "subject": "agent-memory",
