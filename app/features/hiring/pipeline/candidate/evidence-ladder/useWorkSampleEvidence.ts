@@ -65,7 +65,7 @@ export function useWorkSampleEvidence(entryId: string): WorkSampleEvidence {
       const submissionId = typeof entry.devSubmissionId === "string" && entry.devSubmissionId ? entry.devSubmissionId : null;
       // An assignment sent but nothing submitted yet is a work sample with no evaluation.
       if (!submissionId) return settle({ status: "ready", submission: caseId !== null, evaluation: null, debrief: null, register: "software" });
-      const [channels, debrief, record] = await Promise.all([
+      const [channels, record, debrief] = await Promise.all([
         caseId ? readJson(`/api/devcase/${encodeURIComponent(caseId)}/channels`, signal) : Promise.resolve(null),
         // Wording only: an unread record falls back to the software wording, the register
         // an unclassified case reads, and never fails the rung.
