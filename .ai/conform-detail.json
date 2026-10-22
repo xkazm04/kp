@@ -16654,6 +16654,47 @@
           "evidence": "app/_lib/ops-telemetry.ts:32 While tailJsonl supports defensive reading for the operator API, there is no diagnostic bundle export or log directory reveal affordance."
         }
       ]
+    },
+    "d971fbfa-7db0-4a18-b766-e667707e30fb/outbound-notifications": {
+      "context": "channels-comms-api",
+      "subject": "outbound-notifications",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T21:40:35.507Z",
+      "worker": "388bcf8a-d495-47f5-930d-85115deb22e9",
+      "techniques": [
+        {
+          "technique": "channel-adapter-traits",
+          "verdict": "deviation",
+          "evidence": "app/_lib/connect/probes.ts:52 The relay test independently builds, signs and sends its envelope outside CommsChannel.send, duplicating the production adapter's transport responsibilities."
+        },
+        {
+          "technique": "channel-health-tracking",
+          "verdict": "deviation",
+          "evidence": "app/_lib/connect/probes.ts:66 The test returns its outcome without recording a delivery ledger entry; production sends record outcomes, but this test ritual bypasses that accounting."
+        },
+        {
+          "technique": "compose-at-the-locale-layer",
+          "verdict": "conformant",
+          "evidence": "app/_lib/comms-dispatch.ts:420 Inbound application acknowledgements resolve the stored candidate locale before composing catalog-based subjects and bodies; resend preserves the already composed message."
+        },
+        {
+          "technique": "destination-guard-integrity",
+          "verdict": "deviation",
+          "evidence": "app/_lib/connect/probes.ts:61 assertRelayEndpointResolved runs first, but fetch receives the hostname rather than a pinned validated address; refusing redirects does not close that DNS rebinding window."
+        },
+        {
+          "technique": "inbound-counterparts",
+          "verdict": "not-applicable",
+          "evidence": "app/api/channels/inbound/[token]/route.ts:24 These receivers ingest applications and provider receipts; duplicate applications can halt outreach, but this is not a conversation bridge that mirrors messages and answers in-thread."
+        },
+        {
+          "technique": "subscription-patterns",
+          "verdict": "not-applicable",
+          "evidence": "app/api/channels/webhooks/route.ts:91 The managed records bind inbound receivers to a channel, role and language; outbound comms use direct sends rather than event-pattern subscriptions."
+        }
+      ]
     }
   }
 }

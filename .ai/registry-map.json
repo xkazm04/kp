@@ -7977,7 +7977,11 @@
           "revision": 3,
           "changedAt": "2026-08-31",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/connect/probes.ts:61 The relay test checks DNS before calling ordinary fetch, allowing a second resolution to bypass the destination check despite production delivery using a pinned transport.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:fa75c38baf3e6de1",
+          "evaluatedRevision": 3
         },
         {
           "subject": "mcp-tools",
