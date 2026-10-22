@@ -256,6 +256,7 @@ export function normalizeAddress(a: string): string {
  * `expectedVersion` is the version the caller READ; a write built on an older one is
  * refused under the write lock (CommsSmtpStaleError) instead of clobbering a newer save.
  * The two lists are kept across a save: they are facts about addresses, not settings.
+ * A save by ANOTHER org starts them empty: they are the owner's to read.
  */
 export function setSmtpConfig(input: {
   preset?: unknown;
@@ -328,6 +329,10 @@ export function setSmtpConfig(input: {
     if (nextPassword === undefined && current?.password && host !== null && smtpDestinationMoved(current, { host, address, ownerOrgId })) {
       throw new CommsSmtpError("Re-enter the password: the server, the address or the owning organization changed.", "password");
     }
+    // The two lists name candidate addresses, and only the owner org reads them (the GET
+    // door's projection). A save that hands the sender to another org starts them empty,
+    // or the new owner would read whom the last one wrote to.
+    const sameOwner = !current || (current.owner_org_id ?? null) === ownerOrgId;
     db()
       .prepare(
         `INSERT INTO comms_smtp_config (id, preset, host, port, security, address, from_name, password, version, owner_org_id, suppressed, attempts, updated_at)
@@ -335,7 +340,7 @@ export function setSmtpConfig(input: {
          ON CONFLICT(id) DO UPDATE SET preset = excluded.preset, host = excluded.host, port = excluded.port,
            security = excluded.security, address = excluded.address, from_name = excluded.from_name,
            password = excluded.password, version = excluded.version, owner_org_id = excluded.owner_org_id,
-           updated_at = excluded.updated_at`
+           suppressed = excluded.suppressed, attempts = excluded.attempts, updated_at = excluded.updated_at`
       )
       .run(
         preset,
@@ -347,8 +352,8 @@ export function setSmtpConfig(input: {
         nextPassword === undefined ? (current?.password ?? null) : nextPassword,
         version + 1,
         ownerOrgId,
-        current?.suppressed ?? null,
-        current?.attempts ?? null,
+        sameOwner ? (current?.suppressed ?? null) : null,
+        sameOwner ? (current?.attempts ?? null) : null,
         new Date().toISOString()
       );
   });

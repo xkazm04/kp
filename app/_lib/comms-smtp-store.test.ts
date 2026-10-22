@@ -201,3 +201,19 @@ test("a kept password never follows the sender to another server, login or org",
   assert.equal(moved.host, "mail.b.cz");
   assert.equal(getSmtpPrivateConfig()?.password, "a-new-one");
 });
+
+test("another org taking the sender over does not inherit whom the last owner wrote to", () => {
+  setSmtpConfig({ preset: "gmail", address: "owner@gmail.com", password: PASSWORD, ownerOrgId: "org-a" });
+  suppressSmtpAddress("jana@example.cz", 550, "5.1.1 User unknown");
+  recordSmtpAttempt({ kind: "offer", to: "petr@example.cz", messageId: "m1", outcome: "sent", stage: null, code: 250, text: "ok" });
+  // The same owner saving again keeps both lists: they are facts about its addresses.
+  setSmtpConfig({ preset: "gmail", address: "owner@gmail.com", fromName: "A", ownerOrgId: "org-a" });
+  assert.equal(getSmtpConfig().suppressed.length, 1);
+  // org-b saves (with its own password: the kept-password rule asks for one) and becomes
+  // the owner the GET door hands the lists to.
+  const taken = setSmtpConfig({ preset: "gmail", address: "b@gmail.com", password: "org-b-password", ownerOrgId: "org-b" });
+  assert.equal(taken.ownerOrgId, "org-b");
+  assert.deepEqual(taken.suppressed, [], "org-a's bounced candidates are not org-b's to read");
+  assert.deepEqual(taken.attempts, [], "nor whom org-a wrote to");
+  assert.equal(JSON.stringify(rawRow()).includes("example.cz"), false, "gone from the row, not just from the view");
+});
