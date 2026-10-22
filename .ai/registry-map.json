@@ -22934,7 +22934,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/matchLabels.ts:43 Searches found no adapter, fingerprint, lossLedger, or reimport references in the shared context; these modules localize the repository's own scoring output, so the standard's foreign-format import precondition does not hold.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:4981ff0ea8a59c1b",
+          "evaluatedRevision": 1
         },
         {
           "subject": "selection-score-calibration",

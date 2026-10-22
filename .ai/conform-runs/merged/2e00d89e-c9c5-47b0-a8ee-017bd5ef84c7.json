@@ -1,0 +1,89 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2e00d89e-c9c5-47b0-a8ee-017bd5ef84c7",
+ "subject": "import-normalization",
+ "evaluatedAt": "2026-10-22T01:58:30.119146+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "match-score-shared-types",
+   "subject": "import-normalization",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/matchLabels.ts:43 Searches found no adapter, fingerprint, lossLedger, or reimport references in the shared context; these modules localize the repository's own scoring output, so the standard's foreign-format import precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "adapter-capability-tables",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchLabels.ts:82 Resolves an internal scoring key to localized text; no foreign entity types are adapted."
+    },
+    {
+     "technique": "durable-intermediate-representation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchTypes.ts:26 Consumes a computed score breakdown; this context performs no expensive source parsing or parse-artifact reuse."
+    },
+    {
+     "technique": "format-detection",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchLabels.ts:19 Selects a known internal translation namespace, with no upload classification or parser selection."
+    },
+    {
+     "technique": "import-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchLabels.ts:58 Checks parallel label arrays for display compatibility; it does not parse foreign documents or create imported entities."
+    },
+    {
+     "technique": "intermediate-representation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchTypes.ts:95 The shared view derives from the application's canonical scoring result, rather than staging foreign entities for validation and commit."
+    },
+    {
+     "technique": "lossy-conversion-disclosure",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchLabels.ts:85 Localizes a score dimension with its existing label as fallback; no foreign-format semantic conversion occurs."
+    },
+    {
+     "technique": "overlay-merge-absence-semantics",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchTypes.ts:146 Copies the current complete weight vector into slider state; it does not merge a partial imported overlay."
+    },
+    {
+     "technique": "review-before-commit",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/matchTypes.ts:137 Detects score-weight slider changes; this context has no import proposal, entity selection, collision policy, or import commit."
+    }
+   ],
+   "absenceTerms": [
+    "adapter",
+    "fingerprint",
+    "lossLedger",
+    "reimport"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T01:58:30.119146+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "import-normalization"
+   ],
+   "techniques": [
+    "adapter-capability-tables",
+    "durable-intermediate-representation",
+    "format-detection",
+    "import-validation",
+    "intermediate-representation",
+    "lossy-conversion-disclosure",
+    "overlay-merge-absence-semantics",
+    "review-before-commit"
+   ],
+   "deviations": 0,
+   "context": "match-score-shared-types",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
