@@ -16567,6 +16567,52 @@
         "at": "2026-10-22T04:34:13.267578+00:00",
         "reason": "reviewer (sonnet): The verdict says the billing code reads stored usage without dispatching model work, but spend/SpendVoiceFacts.tsx:63 POSTs /api/voice/readiness, whose route (app/api/voice/readiness/route.ts:59-72) runs probeVoiceProviders and mints a credential at OpenAI Realtime or ElevenLabs. The context therefo"
       }
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/native-document-format": {
+      "context": "profile-editor",
+      "subject": "native-document-format",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T21:08:39.540Z",
+      "techniques": [
+        {
+          "technique": "format-generations-are-declared",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:44 The versioned recovery envelope belongs to a browser tab, rather than a portable document with future readers."
+        },
+        {
+          "technique": "format-is-the-engines-input",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/route.ts:114 The Python input file is temporary request transport and is cleaned up; it is not the application's saved document."
+        },
+        {
+          "technique": "ignorable-extensions-must-be-declared",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/route.ts:83 This path writes application-owned JSON input, without extending a separately defined document vocabulary."
+        },
+        {
+          "technique": "one-writer-per-fact",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/route.ts:118 The duplicated projections identified here are database columns, outside this subject's document-format boundary."
+        },
+        {
+          "technique": "reference-or-embed",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/profileEditorPayload.ts:45 Evidence links are profile payload fields; this editor does not package a native document with referenced or embedded assets."
+        },
+        {
+          "technique": "serialization-is-locale-free",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:199 This serializes browser recovery state, rather than a native document exchanged between application versions."
+        }
+      ],
+      "withdrawn": {
+        "worker": "48b34706-2bec-474f-a23e-cbbc9c0ef252",
+        "state": "not-applicable",
+        "at": "2026-10-22T21:09:02.140219+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor app/_lib/db/profiles.ts:68 is an INSERT column list, which is incidental: it doesn't show that no native document format exists, and the same statement writes a persisted payload_json blob (profiles.ts:65) that the verdict never examined for a version or a reader contract."
+      }
     }
   }
 }

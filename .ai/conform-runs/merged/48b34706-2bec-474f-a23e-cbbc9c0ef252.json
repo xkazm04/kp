@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "48b34706-2bec-474f-a23e-cbbc9c0ef252",
+  "subject": "native-document-format",
+  "evaluatedAt": "2026-10-22T21:08:39.540887+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "native-document-format",
+      "context": "profile-editor",
+      "reason": "withdrawn after review: reviewer (sonnet): The not-applicable anchor app/_lib/db/profiles.ts:68 is an INSERT column list, which is incidental: it doesn't show that no native document format exists, and the same statement writes a persisted payload_json blob (profiles.ts:65) that the verdict never examined for a version or a reader contract."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T21:08:39.540887+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "native-document-format"
+      ],
+      "techniques": [
+        "format-generations-are-declared",
+        "format-is-the-engines-input",
+        "ignorable-extensions-must-be-declared",
+        "one-writer-per-fact",
+        "reference-or-embed",
+        "serialization-is-locale-free"
+      ],
+      "deviations": 0,
+      "context": "profile-editor",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
