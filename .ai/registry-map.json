@@ -3456,7 +3456,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/metric-pack.ts:247 With recruiters present, zero open roles produces an unavailable capacity metric instead of the defined measured zero.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:0882b3d1e1490739",
+          "evaluatedRevision": 3
         },
         {
           "subject": "eval-harness",

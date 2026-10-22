@@ -16142,6 +16142,47 @@
           "evidence": "app/features/shell/palette/PreviewEntities.tsx:136 The renderer displays a supplied nullable source identifier and creates no historical record whose provenance must be captured."
         }
       ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/honest-measurement-presentation": {
+      "context": "analytics-computation",
+      "subject": "honest-measurement-presentation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T01:37:52.323Z",
+      "worker": "381cea27-522e-47c5-883d-76f7f2b24564",
+      "techniques": [
+        {
+          "technique": "a-capped-table-says-what-it-dropped",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:517 The role aggregation cuts at 12 even across ties; its consumer discloses the cap and omitted role count, but neither includes boundary ties nor explains their tie-breaking."
+        },
+        {
+          "technique": "a-dash-means-not-measured-never-zero",
+          "verdict": "deviation",
+          "evidence": "app/_lib/metric-pack.ts:247 For positive recruiter counts, zero open roles is a defined zero ratio; this branch instead returns null, which the pack renders as a dash."
+        },
+        {
+          "technique": "absent-delta-when-there-is-no-comparison",
+          "verdict": "conformant",
+          "evidence": "app/_lib/analytics-deltas.ts:134 An absent prior stage supplies null rather than a fabricated baseline; gatedDiff also withholds movements when either sample is below its floor."
+        },
+        {
+          "technique": "every-band-declares-its-no-data-answer",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/metric-pack.ts:43 The supplied computation modules define publication/sample states rather than numeric performance severity bands; forecast low/high bounds are uncertainty intervals."
+        },
+        {
+          "technique": "headline-may-not-outrun-its-qualifier",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:361 The pack's publication claim requires every metric to clear its measurement policy; thin and unavailable rows retain explicit statuses, bases and caveats."
+        },
+        {
+          "technique": "no-verdict-colour-without-a-goal-someone-set",
+          "verdict": "deviation",
+          "evidence": "app/_lib/source-analytics.ts:131 Pause recommendations judge lead share against a built-in fair-share factor of 0.5 without a team-set or adopted goal; their direct consumer presents them in an amber recommendation panel."
+        }
+      ]
     }
   }
 }
