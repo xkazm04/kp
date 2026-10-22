@@ -76,7 +76,9 @@ function cssUnsafe(css: string): boolean {
 
 function svgUnsafe(text: string): boolean {
   let src = text.replace(/^﻿/, "");
-  src = src.replace(/^\s*<\?xml[^>]*\?>/, "");
+  // The xml DECLARATION only: `<?xml` must end the target name, or `<?xml-stylesheet ...?>`
+  // (an XSLT/CSS processing instruction that fetches) would be stripped unseen as one.
+  src = src.replace(/^\s*<\?xml(?:\s[^>]*)?\?>/, "");
   // Comments carry no semantics; strip them (a `<` inside one is not markup).
   src = src.replace(/<!--[\s\S]*?-->/g, "");
   const TAG = /<(\/)?([A-Za-z_][\w.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/)?>/g;

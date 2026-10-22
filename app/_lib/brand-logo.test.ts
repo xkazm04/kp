@@ -57,6 +57,19 @@ test("hostile SVGs are refused as unsafe", () => {
   for (const i of [0, 1, 2, 3, 5, 6]) assert.equal((validateLogoUpload(hostile[i][1]) as { code: string }).code, "BRAND_LOGO_UNSAFE");
 });
 
+test("the prolog strip takes only an xml declaration, never a processing instruction named like one", () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg"></svg>`;
+  for (const pi of [
+    `<?xml-stylesheet type="text/xsl" href="https://evil.example/x.xsl"?>`,
+    `<?xml-stylesheet type="text/css" href="data:text/css,*{}"?>`,
+    `<?xmlfoo?>`,
+  ]) {
+    assert.deepEqual(validateLogoUpload(enc(pi + svg)), { ok: false, code: "BRAND_LOGO_UNSAFE" }, pi);
+  }
+  assert.deepEqual(validateLogoUpload(enc(`<?xml version="1.0" encoding="UTF-8"?>${svg}`)), { ok: true, mime: "image/svg+xml" });
+  assert.deepEqual(validateLogoUpload(enc(`<?xml?>${svg}`)), { ok: true, mime: "image/svg+xml" });
+});
+
 test("non-markup, non-PNG bytes are a wrong type, not an unsafe one", () => {
   assert.deepEqual(validateLogoUpload(enc("GIF89a")), { ok: false, code: "BRAND_LOGO_TYPE" });
   assert.deepEqual(validateLogoUpload(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), { ok: false, code: "BRAND_LOGO_TYPE" });
