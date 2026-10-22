@@ -175,10 +175,18 @@ export async function fetchBusy(
   const entry = calendars?.[calendarId];
   // A per-calendar error (deleted calendar, lost access) is "we do not know", not "free".
   if (!entry || (Array.isArray(entry.errors) && entry.errors.length > 0)) return null;
-  const busy = Array.isArray(entry.busy) ? entry.busy : [];
-  return busy
-    .filter((b): b is { start: string; end: string } => !!b && typeof b === "object" && typeof (b as BusyInterval).start === "string" && typeof (b as BusyInterval).end === "string")
-    .map((b) => ({ start: b.start, end: b.end }));
+  // A missing or non-array `busy` is a malformed answer, not an empty calendar; only a
+  // well-formed [] means free. One malformed entry makes the WHOLE answer unknown — dropping
+  // it would shorten the list and overstate free time.
+  if (!Array.isArray(entry.busy)) return null;
+  const out: BusyInterval[] = [];
+  for (const b of entry.busy as unknown[]) {
+    if (!b || typeof b !== "object") return null;
+    const { start, end } = b as Partial<BusyInterval>;
+    if (typeof start !== "string" || typeof end !== "string") return null;
+    out.push({ start, end });
+  }
+  return out;
 }
 
 /** A bodiless request (DELETE). Returns the HTTP status, or 0 when the request never
