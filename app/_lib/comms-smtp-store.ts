@@ -364,10 +364,14 @@ export function setSmtpConfig(input: {
 
 /** Read-modify-write one JSON list column under the write lock. A no-op before any
  *  sender row exists (there is nothing to attach the list to). */
-function updateList<T>(column: "suppressed" | "attempts", fn: (list: T[]) => T[]): void {
+function updateList<T>(column: "suppressed" | "attempts", fn: (list: T[]) => T[], ownerMay?: (ownerOrgId: string | null) => boolean): void {
   const tx = db().transaction((): void => {
-    const row = db().prepare(`SELECT ${column} AS v FROM comms_smtp_config WHERE id = 1`).get() as { v: string | null } | undefined;
+    const row = db().prepare(`SELECT ${column} AS v, owner_org_id AS owner FROM comms_smtp_config WHERE id = 1`).get() as
+      | { v: string | null; owner: string | null }
+      | undefined;
     if (!row) return;
+    // Checked under the same lock as the write, so the owner cannot change in between.
+    if (ownerMay && !ownerMay(row.owner)) return;
     const next = fn(parseList<T>(row.v));
     db().prepare(`UPDATE comms_smtp_config SET ${column} = ? WHERE id = 1`).run(JSON.stringify(next));
   });
@@ -388,15 +392,23 @@ export function suppressSmtpAddress(address: string, code: number | null, text: 
   );
 }
 
-/** Take an address off the list (an owner who fixed the address, or a mailbox that is back). */
-export function unsuppressSmtpAddress(address: string): boolean {
+/** Take an address off the list (an owner who fixed the address, or a mailbox that is back).
+ *  `ownerMay`, when given, is asked about the row's owner org under the write lock: a caller
+ *  that is not the owner removes nothing and gets `false`, the same answer as an address
+ *  that was never listed, so the door is neither a way to edit another org's list nor a way
+ *  to ask whether an address is on it. */
+export function unsuppressSmtpAddress(address: string, ownerMay?: (ownerOrgId: string | null) => boolean): boolean {
   const key = normalizeAddress(address);
   let removed = false;
-  updateList<SmtpSuppression>("suppressed", (list) => {
-    const next = list.filter((s) => s.address !== key);
-    removed = next.length !== list.length;
-    return next;
-  });
+  updateList<SmtpSuppression>(
+    "suppressed",
+    (list) => {
+      const next = list.filter((s) => s.address !== key);
+      removed = next.length !== list.length;
+      return next;
+    },
+    ownerMay
+  );
   return removed;
 }
 

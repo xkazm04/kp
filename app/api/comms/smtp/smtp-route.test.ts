@@ -111,3 +111,14 @@ test("unsuppress takes an address off the list without a version", async () => {
   assert.equal(body.removed, true);
   assert.equal(body.config.suppressed.length, 0);
 });
+
+test("unsuppress from an org that does not own the sender: nothing removed, and nothing learned", async () => {
+  const { setSmtpConfig, suppressSmtpAddress, smtpSuppressionFor } = await import("../../../_lib/comms-smtp-store.ts");
+  // The sender belongs to another org; the caller here is the open-mode default org.
+  setSmtpConfig({ preset: "gmail", address: "owner@gmail.com", password: PASSWORD, ownerOrgId: "org-elsewhere" });
+  suppressSmtpAddress("jana@example.cz", 550, "5.1.1 unknown");
+  const hit = (await (await POST(post({ unsuppress: "jana@example.cz" }))).json()) as { removed: boolean };
+  const miss = (await (await POST(post({ unsuppress: "nobody@example.cz" }))).json()) as { removed: boolean };
+  assert.ok(smtpSuppressionFor("jana@example.cz"), "the owner's list is untouched");
+  assert.deepEqual([hit.removed, miss.removed], [false, false], "a listed and an unlisted address answer alike: no membership oracle");
+});

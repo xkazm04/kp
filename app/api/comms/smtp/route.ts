@@ -29,8 +29,12 @@ const SMTP_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 /** The suppression list and the attempt log name candidate addresses: they are the
  *  OWNER org's to read. Another org's operator sees the sender's settings and nothing
  *  about whom it wrote to. */
+function ownedBy(ownerOrgId: string | null, callerOrg: string): boolean {
+  return (ownerOrgId ?? DEFAULT_ORG_ID) === callerOrg;
+}
+
 function projectFor(config: CommsSmtpPublic, callerOrg: string): CommsSmtpPublic {
-  if ((config.ownerOrgId ?? DEFAULT_ORG_ID) === callerOrg) return config;
+  if (ownedBy(config.ownerOrgId, callerOrg)) return config;
   return { ...config, suppressed: [], attempts: [] };
 }
 
@@ -72,9 +76,10 @@ export const POST = withSession(async (request: NextRequest) => {
   }
   try {
     // Taking an address off the suppression list is its own small act, not a save: it
-    // touches no setting and needs no version.
+    // touches no setting and needs no version. The owner org's act only: another org's
+    // call removes nothing and answers like a miss (no edit, no membership oracle).
     if (typeof body.unsuppress === "string") {
-      const removed = unsuppressSmtpAddress(body.unsuppress);
+      const removed = unsuppressSmtpAddress(body.unsuppress, (owner) => ownedBy(owner, ownerOrgId));
       return NextResponse.json({ ok: true, removed, config: projectFor(getSmtpConfig(), ownerOrgId) });
     }
     // The owner is stamped from the session, never taken from the body (F-2's rule).

@@ -13,7 +13,9 @@ delivery contract (statuses, the send gate, the outbox) is in [comms/README.md](
 - `GET /api/comms/smtp`: the public view (`hasPassword`, never the password), the sender's
   health (`configured | unconfigured | unreadable`) and `active` (`relay | smtp | none`).
 - `POST /api/comms/smtp`: save (version-checked, `org:manage`, 30/10 min per IP), or
-  `{ "unsuppress": "<address>" }` to take an address off the suppression list.
+  `{ "unsuppress": "<address>" }` to take an address off the suppression list. Only the owner
+  org can do that. From any other org the call removes nothing and answers `removed: false`,
+  the same answer as an address that was never on the list.
 - `POST /api/comms/smtp/test`: one test letter from the mailbox to the same mailbox, answered
   with the real outcome (`ok`, the server's reply `code` and `text`, the `stage`). `org:manage`,
   20/10 min per IP. Under `KP_NO_COMMS_EGRESS=1` it answers `sealed` and dials nothing.
