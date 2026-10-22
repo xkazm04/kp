@@ -297,4 +297,8 @@ test("a title on target, a paid role holding the stronger bridge, or no project:
   const noBridge = tailorCvDocument({ ...TEACHING_ONLY, projects: [] }, { target: "Data Analyst", demand: ANALYST_DEMAND });
   assert.ok(!noBridge.doc.projectsFirst);
   assert.ok(!noBridge.moves.some((m) => m.move === "projectsFirst"));
+  // The pass owns the flag: re-tailoring a projects-first sheet where the experience should
+  // lead clears it.
+  const reTailored = tailorCvDocument({ ...TEACHER, projectsFirst: true }, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!reTailored.doc.projectsFirst);
 });

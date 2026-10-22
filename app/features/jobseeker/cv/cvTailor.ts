@@ -489,7 +489,7 @@ export function tailorCvDocument(
   ];
 
   return {
-    doc: { ...doc, summary, objective, experience: roles, projects, ...(projectsFirst ? { projectsFirst } : {}), skills: groups, improvements: [...doc.improvements, ...moves], questions },
+    doc: { ...doc, summary, objective, experience: roles, projects, projectsFirst: projectsFirst || undefined, skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
     coverage: { target, source: demand.source, postings: demand.postings, asOf: demand.asOf ?? null, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,
