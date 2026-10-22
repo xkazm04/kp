@@ -1915,7 +1915,8 @@ of the JD's ingested job (`jdJobId`, `app/_lib/jd-limits.ts`).
   and the manual `POST /api/devcase` — get the same link without either remembering to.
 - **Verified, not assumed.** JD → Job ingest is best-effort (a save can answer
   `jobIngested: false`, see [the jobs doc](../jobs/README.md)), so `resolveCaseJobId`
-  checks the `jobs` row EXISTS and stores NULL when it does not. A case can therefore
+  checks the `jobs` row EXISTS and stores NULL when it does not.
+  An explicit `need.jobId` (a job with no saved JD) is checked first, team-scoped, and wins over the slug. A case can therefore
   know its JD (`jdSlug`) while having no job to link to — a real state, which the case
   detail header states out loud rather than rendering as "unlinked".
 - **Read back joined.** Every dev-case read (`getDevCase`, `listDevCases`,
@@ -2109,8 +2110,9 @@ On arrival, for the entry's job:
 1. **The job's newest approved case** (`listDevCasesForJob`, workspace-scoped, status
    `approved`) is the assignment to send.
 2. **No case yet?** The column's plan step gate decides. `auto` creates a lifecycle from
-   a need built off the job's **saved JD** (`need.jdSlug`, which is what
-   `resolveCaseJobId` re-derives so the designed case is linked back to this job and the
+   a need built off the job's **saved JD**, or off the job row itself when it has none
+   (`need.jobId` is always set, `need.jdSlug` only when a JD exists; `resolveCaseJobId`
+   verifies the id and stores it, so the designed case is linked back to this job and the
    next arrival finds it rather than designing a second one), runs it, and comes back
    around to send the result. `human` creates the lifecycle with `auto: false`, so it
    parks at its own `awaiting_approval` gate — **the column's gate governs the
