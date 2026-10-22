@@ -49,7 +49,7 @@ import {
   revExists,
 } from './diff.mjs';
 import { SECRET_PATTERNS, isExempt as isSecretExempt } from '../security/secret-scan.mjs';
-import { codeOnlyLine, withoutCommentsLine } from './source-mask.mjs';
+import { codeOnlyLine, withoutComments, withoutCommentsLine, commentSyntaxFor } from './source-mask.mjs';
 
 /** One trailer, for callers that only need to know whether the range has one. */
 export const EXEMPTION_RE = /^\s*Gate-exemption:\s*(.+)$/im;
@@ -67,6 +67,35 @@ const TARGETED_RE = /^([A-Za-z][\w-]*)\s+at\s+(\S+?)(?::(\d+))?\s*(?:[-–—]|:
 const normalizePath = (p) => String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '');
 
 /** Parse one trailer's text. `targeted` false means it named no finding. */
+/**
+ * A route written `route(withOperator, withCapability("x"))(handler)` is gated by its chain
+ * (app/_lib/auth/route-guards.ts): withOperator calls requireOperator and returns its 401,
+ * withCapability answers 401 to an anonymous caller (requireCapability) and 403 otherwise.
+ * Counts only when the name is IMPORTED from the route-guards module and USED inside a
+ * `route(...)` call, in code: a mention in a comment or a string, or a locally re-declared
+ * function of the same name, does not.
+ */
+export function chainsGuard(body, filePath) {
+  const syntax = commentSyntaxFor(filePath);
+  const src = withoutComments(body, { syntax });
+  const imported = new Set();
+  const importRe = /import\s*\{([^}]*)\}\s*from\s*["'][^"']*route-guards["']/g;
+  const rest = src.replace(importRe, (_m, names) => {
+    for (const n of names.split(',')) {
+      const [orig, alias] = n.trim().split(/\s+as\s+/);
+      if (orig === 'withOperator' || orig === 'withCapability') imported.add(alias ?? orig);
+    }
+    return '';
+  });
+  if (!imported.size) return false;
+  const code = rest.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
+  for (const name of imported) {
+    const use = new RegExp(`\\broute\\s*\\([^;]*?(?<![\\w.])${name}\\b(?!\\s*=)`);
+    if (use.test(code)) return true;
+  }
+  return false;
+}
+
 export function parseExemption(text) {
   const raw = String(text ?? '').trim();
   const m = TARGETED_RE.exec(raw);
@@ -474,7 +503,7 @@ export function runRules(files, context = {}) {
     if (file.isNew && /^app\/api\/.+\/route\.ts$/.test(p)) {
       const body = file.added.map((a) => a.text).join('\n');
       const isTokenRoute = /\[token\]|\[erasureToken\]/.test(p);
-      const guards = /requireOperator|isOperator|requireWorkspace/.test(body);
+      const guards = /requireOperator|isOperator|requireWorkspace/.test(body) || chainsGuard(body, p);
       const allowlisted = allowlistCovers(publicRoutes, p);
       if (!guards && !allowlisted && !isTokenRoute) {
         out.push(

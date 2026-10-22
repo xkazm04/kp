@@ -452,6 +452,51 @@ check('an EDITED (not new) route is not re-litigated', () => {
   assert.ok(!has(f, 'route-auth-posture'));
 });
 
+const IMPORT_GUARDS = 'import { route, withOperator, withCapability } from "@/app/_lib/auth/route-guards";';
+const chained = (added) =>
+  rules(diff({ path: 'app/api/widgets/route.ts', added, isNew: true }), { publicRoutesSource: ROUTES_SRC });
+
+check('a route chained through an imported withOperator passes', () => {
+  const f = chained([IMPORT_GUARDS, 'export const GET = route(withOperator, withRateLimit({}))(async () => Response.json({}));']);
+  assert.ok(!has(f, 'route-auth-posture'));
+});
+
+check('a route chained through an imported withCapability passes', () => {
+  const f = chained([IMPORT_GUARDS, 'export const POST = route(withCapability("pipeline:write"))(async () => Response.json({}));']);
+  assert.ok(!has(f, 'route-auth-posture'));
+});
+
+check('withOperator only in a comment or a string still blocks', () => {
+  const f = chained([
+    IMPORT_GUARDS,
+    '// TODO: route(withOperator)(handler)',
+    'const note = "route(withOperator)";',
+    'export async function GET() { return Response.json({}); }',
+  ]);
+  assert.equal(sev(f, 'route-auth-posture'), 'blocking');
+});
+
+check('an imported but unused withOperator still blocks', () => {
+  const f = chained([IMPORT_GUARDS, 'export async function GET() { return Response.json({}); }']);
+  assert.equal(sev(f, 'route-auth-posture'), 'blocking');
+});
+
+check('a locally re-declared withOperator does not count', () => {
+  const f = chained([
+    'const withOperator = (next) => next;',
+    'export const GET = route(withOperator)(async () => Response.json({}));',
+  ]);
+  assert.equal(sev(f, 'route-auth-posture'), 'blocking');
+});
+
+check('withOperator imported from some other module does not count', () => {
+  const f = chained([
+    'import { withOperator } from "./my-guards";',
+    'export const GET = route(withOperator)(async () => Response.json({}));',
+  ]);
+  assert.equal(sev(f, 'route-auth-posture'), 'blocking');
+});
+
 check('allowlistCovers matches by prefix and exact path', () => {
   assert.equal(allowlistCovers(ROUTES_SRC, 'app/api/apply/[id]/route.ts'), true);
   assert.equal(allowlistCovers(ROUTES_SRC, 'app/api/auth/route.ts'), true);
