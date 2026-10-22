@@ -12,6 +12,8 @@
 //     marked for the template to set in bold;
 //   - with `compactOffTarget` (the caller's choice, for a CV that runs over one page), a
 //     role with nothing relevant in it stays in its place as one line;
+//   - when no role's title speaks to the target, the relevant projects print above the
+//     experience (the bridge first, the history whole and in order below it);
 //   - skill groups and the items inside them go relevant-first, nothing removed;
 //   - the CV's own headline stays; an optional objective line states the seeker's own
 //     target, labelled as what they are looking for (CV_OBJECTIVE) — a preference, never a
@@ -420,6 +422,13 @@ export function tailorCvDocument(
   const scoredProjects = doc.projects.map((p) => ({ p, s: Math.max(scoreOf(p.role, terms), ...[...p.bullets, ...(p.trimmed ?? [])].map((b) => scoreOf(bulletText(b), terms))) }));
   const projects = byScore(scoredProjects.filter((x) => x.s > 0), (x) => x.s).map((x) => x.p);
   if (projects.length < doc.projects.length) move({ move: "projects", before: "", after: "", where: null, n: doc.projects.length - projects.length });
+  // When no paid role's TITLE speaks to the target, a reader skimming the entry heads meets
+  // the past career first and the bridge last. The relevant projects then print above the
+  // experience (career-change-framing: hybrid, a relevant section above the main history);
+  // the experience itself keeps its date order. A title on target means the bridge is
+  // inside paid work, and the projects stay below it.
+  const projectsFirst = projects.length > 0 && !roles.some((r) => scoreOf(r.role, terms) > 0);
+  if (projectsFirst) move({ move: "projectsFirst", before: "", after: projects[0]!.role, where: null });
 
   // Skills: groups and the items inside them relevant-first, over every item a group holds
   // (the ones the cap held back included); each group keeps its printed count. No bold.
@@ -476,7 +485,7 @@ export function tailorCvDocument(
   ];
 
   return {
-    doc: { ...doc, summary, objective, experience: roles, projects, skills: groups, improvements: [...doc.improvements, ...moves], questions },
+    doc: { ...doc, summary, objective, experience: roles, projects, ...(projectsFirst ? { projectsFirst } : {}), skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
     coverage: { target, source: demand.source, postings: demand.postings, asOf: demand.asOf ?? null, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,

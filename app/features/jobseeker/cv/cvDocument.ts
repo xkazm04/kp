@@ -60,7 +60,7 @@ export type CvOwnerQuestion = {
  *  only — never a new word. */
 export type CvTailorMove = {
   kind: "tailor";
-  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective" | "projects";
+  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective" | "projects" | "projectsFirst";
   before: string;
   after: string;
   where: string | null;
@@ -89,6 +89,11 @@ export type CvDocument = {
    *  course, certification) — the bridging evidence of a career change; set after the
    *  experience. The tailoring pass keeps only those that speak to its target. [] = none. */
   projects: CvRole[];
+  /** Set only by the tailoring pass: the relevant projects print ABOVE the experience,
+   *  because no paid role's title speaks to the target and the bridge is outside paid work
+   *  (registry career-change-framing: a relevant section above the main history). The
+   *  experience keeps its date order below it. */
+  projectsFirst?: boolean;
   skills: CvSkillGroup[];
   education: CvEducation[];
   /** "Czech – native", "English – C1": the level on the common European scale when the

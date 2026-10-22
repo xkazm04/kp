@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCvDocument, CV_OBJECTIVE } from "./cvDocument";
 import { demandFor, tailorCvDocument, tailorTargetsOf, targetKindOf } from "./cvTailor";
+import { REFERENCE_CVS } from "./__fixtures__/referenceCvs";
+import { checkRoundTrip, cvReadingLines } from "./cvRoundTrip";
 
 // A SYNTHETIC career changer, nobody real: eight years of analyst and QA work, then an AI
 // consultancy. The CV is written the way they lived it — the past first everywhere — and
@@ -257,4 +259,29 @@ test("tailoring re-ranks every bullet a role holds: a relevant line the budget h
   assert.equal(role.bullets.length + role.trimmed!.length, 7);
   // The questions follow the tailored sheet.
   assert.ok(out.doc.questions.some((q) => q.kind === "no_outcome" && q.text === "Tried an LLM prototype."));
+});
+
+// career-change-framing: the bridge is outside paid work when no role's TITLE speaks to the
+// target. The reference career changer (a teacher moving into data analysis) then reads its
+// projects first; the history stays whole and in date order below them.
+const TEACHER = REFERENCE_CVS.find((r) => r.id === "career-change")!.doc;
+const ANALYST_DEMAND = { source: "postings" as const, postings: 3, skills: [{ skill: "SQL", count: 3 }, { skill: "Power BI", count: 2 }, { skill: "Python", count: 2 }] };
+
+test("no role title on target and a relevant project: the projects print above the experience", () => {
+  const out = tailorCvDocument(TEACHER, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.equal(out.doc.projectsFirst, true);
+  assert.ok(out.moves.some((m) => m.move === "projectsFirst"));
+  const lines = cvReadingLines(out.doc);
+  assert.ok(lines.indexOf("Projects") < lines.indexOf("Experience"), lines.join("\n"));
+  assert.deepEqual(out.doc.experience.map((r) => r.role), TEACHER.experience.map((r) => r.role));
+  // The exported sheet still checks against its model in the new order.
+  assert.deepEqual(checkRoundTrip(out.doc, lines.join("\n")).findings, []);
+});
+
+test("a role title on target, or no relevant project: the experience leads as before", () => {
+  const onTarget = tailorCvDocument(DOC, { target: "AI Engineer", postings: POSTINGS });
+  assert.ok(!onTarget.doc.projectsFirst);
+  const noBridge = tailorCvDocument({ ...TEACHER, projects: [] }, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!noBridge.doc.projectsFirst);
+  assert.ok(!noBridge.moves.some((m) => m.move === "projectsFirst"));
 });
