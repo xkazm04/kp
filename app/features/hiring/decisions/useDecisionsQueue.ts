@@ -24,6 +24,7 @@ import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 import { foldBatchDecide, foldDecideResponse, type DecideAction, type DecideOutcome } from "./decisionsDecideOutcome";
+import { rosterGroups } from "./docket/roleOverviewModel";
 import {
   applyReinstateOutcome,
   foldReinstateResponse,
@@ -534,6 +535,14 @@ export function useDecisionsQueue() {
     return [...map.values()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
+  // CX S46: every role with an ACTIVE candidate (not only those with something waiting), over
+  // all of its active people - the level-0 roster and the full cohort the overview's shortlist
+  // hands to Group evaluation. Terminal = the workspace axis's terminal stage (Hired).
+  const roleRoster = useMemo<Group[]>(() => {
+    const terminal = new Set(axis.filter((s) => s.role === "terminal").map((s) => s.id));
+    return rosterGroups(entries ?? [], terminal, t("unassignedRole"), locale);
+  }, [entries, axis, locale, t]);
+  const stageOrder = useMemo(() => axis.map((s) => s.id), [axis]);
   const roleKeys = groups.map((g) => g.roleKey).join(",");
   const visibleGroups = groups.filter((g) => !activeFilter || g.roleKey === activeFilter);
 
@@ -640,6 +649,7 @@ export function useDecisionsQueue() {
   // paid run read as "No evaluation yet" or spun forever.
   const groupEval = useGroupEvalOpen({
     groups,
+    roleGroups: roleRoster,
     isRoleEvaluated: (roleKey) => Boolean(evaluated[roleKey]),
     markEvaluated: (roleKey) => setEvaluated((s) => ({ ...s, [roleKey]: new Date().toISOString() })),
     governance: () => ({ selected: evalMode, userChose: evalModeChosen.current }),
@@ -674,6 +684,7 @@ export function useDecisionsQueue() {
     selectedReviewIds, toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
     visibleGroups,
+    roleRoster, stageOrder,
     act, decide,
     staleSinceOf,
     peersOf, peerFactsOf,

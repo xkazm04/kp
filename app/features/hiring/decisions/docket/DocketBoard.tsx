@@ -18,7 +18,7 @@ import type { LedgerRow } from "../ledger/decisionsLedgerModel";
 import { proposalOf, type DocketGroup, type DocketProposal } from "./docketModel";
 import "./docket.css";
 
-const PROPOSAL_MARK: Record<DocketProposal, MarkKind | null> = { advance: "ok", hold: "wait", reject: "fail", offer: null, none: "unknown" };
+export const PROPOSAL_MARK: Record<DocketProposal, MarkKind | null> = { advance: "ok", hold: "wait", reject: "fail", offer: null, none: "unknown" };
 
 export type DocketRowHandlers = {
   selectMode: boolean;

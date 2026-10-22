@@ -41,19 +41,26 @@ export type GroupEvalOpen = {
   governanceMismatch: GovernanceCacheMismatch | null;
   /** Is a run for this role in flight? (the row's busy spinner) */
   isBusy: (roleKey: string) => boolean;
-  open: (g: Group, rerun?: boolean, selection?: string[]) => void;
+  /** `scope: "role"`: `g` is the role's full active cohort (the S46 overview's shortlist),
+   *  so the live group is re-read from `roleGroups` rather than the key-decision groups. */
+  open: (g: Group, rerun?: boolean, selection?: string[], scope?: GroupEvalScope) => void;
   rerun: () => void;
   close: () => void;
 };
 
+export type GroupEvalScope = "queue" | "role";
+
 export function useGroupEvalOpen({
   groups,
+  roleGroups = [],
   isRoleEvaluated,
   markEvaluated,
   governance,
   applyMode,
 }: {
   groups: readonly Group[];
+  /** Every role's full active cohort (CX S46), for a `scope: "role"` open. */
+  roleGroups?: readonly Group[];
   isRoleEvaluated: (roleKey: string) => boolean;
   markEvaluated: (roleKey: string) => void;
   /** The governance control as the recruiter sees it, read at the moment it matters. */
@@ -63,6 +70,8 @@ export function useGroupEvalOpen({
   const t = useTranslations("decisions");
   const { startTask } = useTasks();
   const [state, setState] = useState(initialGroupEvalOpenState);
+  // Which population the open role's live group is read from (see GroupEvalOpen.open).
+  const [scope, setScope] = useState<GroupEvalScope>("queue");
   // The machine's state of record, read and written only by `send` (handlers,
   // promise callbacks, the watch effect) — never during render. `state` mirrors it
   // for rendering.
@@ -121,11 +130,12 @@ export function useGroupEvalOpen({
   }, [taskId, watchStatus, watchFull, resultUnavailable]);
 
   const role = state.plan?.role ?? null;
-  const group = role ? groups.find((g) => g.roleKey === role.roleKey) ?? null : null;
+  const group = role ? (scope === "role" ? roleGroups : groups).find((g) => g.roleKey === role.roleKey) ?? null : null;
   const ready = state.phase.kind === "ready" ? state.phase : null;
 
-  const open = (g: Group, rerun = false, selection?: string[]) => {
+  const open = (g: Group, rerun = false, selection?: string[], openScope: GroupEvalScope = "queue") => {
     const gov = governance();
+    setScope(openScope);
     send({
       type: "open",
       plan: planOpen(g, { rerun, selection, roleEvaluated: isRoleEvaluated(g.roleKey), governanceMode: gov.selected }),
@@ -146,7 +156,7 @@ export function useGroupEvalOpen({
     rerun: () => {
       // selection-memory-rerun — replay the original explicit selection; planOpen
       // filters it against the CURRENT cohort, and the server re-validates.
-      if (group) open(group, true, rerunSelection(state));
+      if (group) open(group, true, rerunSelection(state), scope);
     },
     close: () => {
       send({ type: "close" });

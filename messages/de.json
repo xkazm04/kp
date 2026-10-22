@@ -4708,6 +4708,52 @@
           "not_evaluated": "Die Arbeit ist zurück, wurde aber noch nicht bewertet.",
           "failed": "Die Ergebnisse der Arbeitsprobe konnten nicht geladen werden."
         }
+      },
+      "overview": {
+        "title": "Alle auf dieser Stelle",
+        "note": "Jede Spalte wird für sich gelesen, nichts wird addiert. Wer keinen Wert hat, steht am Ende.",
+        "cols": {
+          "tick": "Shortlist",
+          "candidate": "Kandidat",
+          "stage": "Phase",
+          "match": "Passung",
+          "workSample": "Arbeitsprobe",
+          "interview": "Interview",
+          "proposal": "KI-Vorschlag"
+        },
+        "sortBy": "Sortieren nach {column}",
+        "tick": "{name} auf die Shortlist",
+        "tickCap": "Ein Vergleich umfasst höchstens {cap} Personen.",
+        "compare": "{count, plural, =0 {Shortlist vergleichen} one {# auf der Shortlist vergleichen} other {# auf der Shortlist vergleichen}}",
+        "compareTip": "Markieren Sie 2 bis {cap} Personen, um sie in der Gruppenbewertung zu vergleichen. Die Shortlist gilt nur auf dieser Seite.",
+        "clear": "Shortlist leeren",
+        "matchNone": "nicht bewertet",
+        "prov": {
+          "analysis": "CV-Analyse",
+          "scored": "regelbasiert",
+          "snapshot": "beim Hinzufügen",
+          "transfer": "Arbeitsprobe"
+        },
+        "ivCount": "{count, plural, one {# Bewertungsbogen} other {# Bewertungsbögen}}",
+        "ivNone": {
+          "no_scorecard": "kein Bewertungsbogen",
+          "no_ratings": "noch keine Noten"
+        },
+        "ivAi": "KI {avg}",
+        "ivTip": "Durchschnitt der Interviewenden auf einer Skala von 1 bis {scale}, aus {count, plural, one {# Bewertungsbogen} other {# Bewertungsbögen}}.",
+        "aiTip": "Der eigene Durchschnitt des KI-Interviews auf einer Skala von 1 bis {scale}, getrennt von den Interviewenden.",
+        "proposalNone": "nichts wartet",
+        "offer": "Angebot",
+        "openAria": "{name} öffnen",
+        "loadFailed": "Die Personen auf dieser Stelle konnten nicht geladen werden.",
+        "noJob": "Diese Stelle hat keinen Stelleneintrag, daher lassen sich ihre Personen nicht nebeneinander lesen.",
+        "empty": "Auf dieser Stelle ist niemand aktiv."
+      },
+      "roster": {
+        "title": "Alle offenen Stellen",
+        "note": "Öffnen Sie eine Stelle, um alle darauf zu sehen, auch wenn nichts auf Sie wartet.",
+        "active": "{count, plural, one {# aktiv} other {# aktiv}}",
+        "waiting": "{count, plural, one {# wartet} other {# warten}}"
       }
     }
   },

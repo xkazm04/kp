@@ -3,7 +3,8 @@
 // The Docket surface: level 0 (head, the board of role groups, the key-decision rows, then the
 // reconsider queue and the feedback letters the shell hands in as `extras`) and level 1 (one role),
 // each inside a kit LevelTransition so a role opens as a circle growing from the touched element
-// and closes back onto it. Owns the 8-second commit window overlay (a rejecting row leaves at
+// and closes back onto it. Below the board, "Every open role" (CX S46) lists each role with an
+// active candidate, so a role where nothing waits can still be walked into. Owns the 8-second commit window overlay (a rejecting row leaves at
 // once; the strip names who and counts the seconds; the write happens only when the window
 // closes) and the batch bar, exactly as the section it replaces did.
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
@@ -11,6 +12,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { NOTICE } from "@/app/_components/ui/recipes";
 import { KitTipLayer } from "@/app/_components/kit/KitTipLayer";
+import { ListRow, Section } from "@/app/_components/kit";
 import { LevelTransition, layerModeAt } from "@/app/_components/kit/scene";
 import { Empty } from "../DecisionsShared";
 import { DecisionsBatchBar, type DecisionsBatchBarProps } from "../DecisionsBatchBar";
@@ -58,7 +60,12 @@ type Props = DecisionsBatchBarProps & {
   evaluated: Record<string, string>;
   isBusy: (roleKey: string) => boolean;
   onCandidate: (e: Entry) => void;
-  onGroupEval: (g: Group, selection?: string[]) => void;
+  /** `scope: "role"` = a selection over the role's full active cohort (the S46 shortlist). */
+  onGroupEval: (g: Group, selection?: string[], scope?: "queue" | "role") => void;
+  /** Every role with an active candidate, over those candidates (roleOverviewModel.rosterGroups). */
+  roleRoster: readonly Group[];
+  /** The workspace axis's stage ids, in order (the overview's Stage sort). */
+  stageOrder: readonly string[];
   onScreenWave: (jobId: string, title: string) => void;
   armIds: readonly string[] | null | undefined;
   armJobId: string | null | undefined;
@@ -96,6 +103,19 @@ export function DocketSurface(p: Props) {
     onDecide: p.onDecide,
     // The reject doors ARM the shared commit window; the accept door applies the proposal at once.
     act: (e, action) => (action === "reject" ? armDecision({ entryId: e.id, action, label: e.candidateLabel, expectedStage: e.stage }) : p.act(e, action)),
+  };
+
+  // CX S46: the roles at level 0 (respecting the head's role filter) and how many wait in each.
+  const roster = useMemo(() => p.roleRoster.filter((g) => !p.activeFilter || g.roleKey === p.activeFilter), [p.roleRoster, p.activeFilter]);
+  const waitingByRole = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of p.pending) m.set(roleKeyOf(e), (m.get(roleKeyOf(e)) ?? 0) + 1);
+    return m;
+  }, [p.pending]);
+  // A person opened from the overview: the same door the decide rows use (the candidate modal).
+  const openCandidate = (entryId: string) => {
+    const e = p.visibleAiReviews.find((x) => x.id === entryId) ?? p.entries?.find((x) => x.id === entryId);
+    if (e) p.onDecide(e);
   };
 
   const toolsFor = (roleKey: string): ReactNode => {
@@ -177,6 +197,25 @@ export function DocketSurface(p: Props) {
           </section>
         </>
       )}
+      {p.entries != null && !p.error && roster.length > 0 ? (
+        <div className="mt-6">
+          <Section title={t("docket.roster.title")} count={roster.length} state={t("docket.roster.note")}>
+            {roster.map((g) => {
+              const waiting = waitingByRole.get(g.roleKey) ?? 0;
+              return (
+                <ListRow
+                  key={g.roleKey}
+                  rowKey={g.roleKey}
+                  name={g.roleTitle}
+                  meta={waiting > 0 ? t("docket.roster.waiting", { count: waiting }) : null}
+                  fig={<span className="nums">{t("docket.roster.active", { count: g.entries.length })}</span>}
+                  onSelect={() => nav.push(g.roleKey, document.activeElement instanceof HTMLElement ? document.activeElement : null)}
+                />
+              );
+            })}
+          </Section>
+        </div>
+      ) : null}
       <div className="mt-6 space-y-6">{p.extras}</div>
     </div>
   );
@@ -185,8 +224,32 @@ export function DocketSurface(p: Props) {
     if (depth === 0) return level0;
     const key = entryKey ?? "";
     const group = groups.find((g) => g.key === key) ?? null;
-    const title = group?.title ?? p.visibleGroups.find((g) => g.roleKey === key)?.roleTitle ?? p.pending.find((e) => roleKeyOf(e) === key)?.jobTitle ?? t("unassignedRole");
-    return <DocketRoleLevel group={group} roleTitle={title} rootLabel={rootLabel} onBack={nav.pop} tools={toolsFor(key)} {...handlers} />;
+    const rosterGroup = p.roleRoster.find((g) => g.roleKey === key) ?? null;
+    const title =
+      group?.title ??
+      p.visibleGroups.find((g) => g.roleKey === key)?.roleTitle ??
+      p.pending.find((e) => roleKeyOf(e) === key)?.jobTitle ??
+      rosterGroup?.roleTitle ??
+      t("unassignedRole");
+    const jobId = rosterGroup?.jobId ?? p.visibleGroups.find((g) => g.roleKey === key)?.jobId ?? null;
+    return (
+      <DocketRoleLevel
+        group={group}
+        roleTitle={title}
+        rootLabel={rootLabel}
+        onBack={nav.pop}
+        tools={toolsFor(key)}
+        jobId={jobId}
+        rosterRev={(rosterGroup?.entries ?? []).map((e) => `${e.id}:${e.stage}`).join(",")}
+        stageOrder={p.stageOrder}
+        onOpenCandidate={openCandidate}
+        // The shortlist compares inside the role's FULL active cohort (not only the key-decision
+        // subset), so Group evaluation's coverage reads "N of everyone active on the role".
+        onCompare={(ids) => (rosterGroup ? p.onGroupEval(rosterGroup, ids, "role") : undefined)}
+        compareBusy={p.isBusy(key)}
+        {...handlers}
+      />
+    );
   };
 
   const depth = nav.stack.length - 1;

@@ -1927,6 +1927,33 @@ another team owns reads as absent); pinned by `role-decision-view.test.ts` and
 beside the fit (`docket/DocketWorkSample.tsx` via `useRoleWorkSamples.ts`): "Work sample
 72 · held" or "— not sent"; grading, watched checks and the debrief are in the tip.
 
+**Everyone on this role (CX S46).** Level 1 now ends with a kit `Section` "Everyone on this
+role" (`docket/DocketRoleOverview.tsx`): a `DataTable` of EVERY active candidate from the same
+role-view read (fetched once per level by `useRoleDecisionView` in `useRoleWorkSamples.ts`; the
+decide rows' work-sample cell folds the same read through `workSamplesOf`). Columns: Candidate,
+Stage, Interview (the interviewers' average + scorecard count, the AI interview's average kept
+apart), Match (number + short provenance, the full provenance in the tip), Work sample (number ·
+held/cleared · template, or "—" with its reason) and AI proposal (what waits, or "— none
+waiting"); their order is the measure's track order, so a narrow sheet folds Interview first,
+then Stage and AI proposal, and Candidate, Match and Work sample never fold. Sortable by ONE
+column at a time (a head button, `aria-sort` on the head cell via the kit's new `Column.sort`);
+there is no total column, and the section's one line says each column is read on its own.
+Unscored sorts last in both directions, never as 0; ties keep the view's order
+(`docket/roleOverviewModel.ts`, pinned by `roleOverviewModel.test.ts`). A row (or its name)
+opens the candidate modal through the decide rows' own door; nothing on the table decides. A
+person with no recommendation waiting opens the same modal without a verdict, its footer
+carrying the stage actions (`useDecisionsCandidate.ts` keeps such a view open while the person
+is on the board's read). Each row carries a shortlist tick (page state only, capped at
+`GROUP_EVAL_CAP`; a kept shortlist needs a schema and is not built); with 2+ ticked, "Compare N
+shortlisted" opens Group evaluation with that explicit selection over the role's FULL active
+cohort (`useGroupEvalOpen` `scope: "role"`, whose live group is read from the queue hook's
+`roleRoster` instead of the key-decision groups, so the coverage note says "N of everyone
+active"). **Every open role** is reachable: level 0 lists, under the board (and under the
+caught-up state), each role with at least one active candidate (`rosterGroups`: status active,
+not on the axis's terminal stage, the role view's own rule) with its active and waiting counts,
+and a row walks into that role's level even when no proposal and no tool waits there. A
+title-only role (no job id) says its people cannot be read side by side.
+
 **Decide opens the candidate modal** — the board's own modal
 (`pipeline/candidate/CandidateModal.tsx`) with a `decision` attached, so a candidate
 is looked at in ONE place whether reached from the board or the queue. The old card's

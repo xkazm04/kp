@@ -23,6 +23,8 @@ export type Column = {
   /** Two-line primary cell: the row's one weight-600 name + a quiet small line. */
   primary?: boolean;
   quiet?: boolean;
+  /** A sortable column's state, set as `aria-sort` on its head cell (its `head` carries the control). */
+  sort?: "ascending" | "descending" | "none";
 };
 
 type Props<T> = {
@@ -114,6 +116,7 @@ export function DataTable<T>({
           key={c.id}
           className={`k-th${c.numeric ? " is-num" : ""}${foldClass(c.track)}`}
           role="columnheader"
+          aria-sort={c.sort}
           style={{ gridColumn: columnTrack(c.track) }}
           data-tip={c.tip}
           tabIndex={c.tip ? 0 : undefined}

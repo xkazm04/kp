@@ -95,3 +95,17 @@
   .dk-rows--ws .dk-row { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "ck name score acts" "ck stage prop acts" "ck ws ws acts"; }
   .dk-rows--ws .dk-ws { grid-area: ws; }
 }
+
+/* CX S46: "Everyone on this role" - the role level's side-by-side table (kit DataTable). The
+   name is the row's one weight-600 emphasis; every figure is a plain tabular numeral beside a
+   quiet qualifier, and an absence is a quiet "—" with its reason. */
+.dk .dk-sort.k-btn { height: auto; min-height: 0; padding: 0; gap: 2px; border: 0; background: transparent; font: inherit; color: inherit; text-decoration: none; cursor: pointer; }
+.dk .dk-sort.k-btn:hover { color: var(--k-ink); }
+.dk .dk-sort.is-on.k-btn { color: var(--color-coral-ink); }
+.dk .dk-ov__name.k-btn { display: block; justify-content: flex-start; height: auto; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; font: inherit; font-weight: 600; color: var(--k-ink); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-decoration: underline; text-decoration-color: var(--k-rule-strong); text-underline-offset: 3px; }
+.dk .dk-ov__name.k-btn:hover { text-decoration-color: currentColor; }
+.dk-cell, .dk-cell--none { display: inline-flex; align-items: baseline; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dk-cell .nums { font-variant-numeric: tabular-nums; }
+.dk-cell__q { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
+.dk-cell[data-hold="held"] .dk-cell__m { color: var(--color-coral-ink); }
+.dk-cell--none { font-size: var(--text-micro); color: var(--k-quiet); font-style: italic; }

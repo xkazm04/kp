@@ -4708,6 +4708,52 @@
           "not_evaluated": "The work came back but has not been graded yet.",
           "failed": "The work-sample results could not be loaded."
         }
+      },
+      "overview": {
+        "title": "Everyone on this role",
+        "note": "Each column is read on its own and nothing is added up. Anyone not scored sorts last.",
+        "cols": {
+          "tick": "Shortlist",
+          "candidate": "Candidate",
+          "stage": "Stage",
+          "match": "Match",
+          "workSample": "Work sample",
+          "interview": "Interview",
+          "proposal": "AI proposal"
+        },
+        "sortBy": "Sort by {column}",
+        "tick": "Shortlist {name}",
+        "tickCap": "A comparison holds at most {cap} people.",
+        "compare": "{count, plural, =0 {Compare shortlist} one {Compare # shortlisted} other {Compare # shortlisted}}",
+        "compareTip": "Tick 2 to {cap} people to compare them in Group evaluation. The shortlist lives only on this page.",
+        "clear": "Clear shortlist",
+        "matchNone": "not scored",
+        "prov": {
+          "analysis": "CV analysis",
+          "scored": "rule-based",
+          "snapshot": "at add",
+          "transfer": "work sample"
+        },
+        "ivCount": "{count, plural, one {# scorecard} other {# scorecards}}",
+        "ivNone": {
+          "no_scorecard": "no scorecard",
+          "no_ratings": "no ratings yet"
+        },
+        "ivAi": "AI {avg}",
+        "ivTip": "Interviewers' average on a 1 to {scale} scale, over {count, plural, one {# scorecard} other {# scorecards}}.",
+        "aiTip": "The AI interview's own average on a 1 to {scale} scale, kept apart from the interviewers'.",
+        "proposalNone": "none waiting",
+        "offer": "offer",
+        "openAria": "Open {name}",
+        "loadFailed": "The people on this role could not be loaded.",
+        "noJob": "This role has no job record, so its people cannot be read side by side.",
+        "empty": "Nobody is active on this role."
+      },
+      "roster": {
+        "title": "Every open role",
+        "note": "Open a role to see everyone on it, even when nothing waits for you.",
+        "active": "{count, plural, one {# active} other {# active}}",
+        "waiting": "{count, plural, one {# waiting} other {# waiting}}"
       }
     }
   },

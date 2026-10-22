@@ -4708,6 +4708,52 @@
           "not_evaluated": "Le travail est revenu mais n'a pas encore été noté.",
           "failed": "Les résultats de la mise en situation n'ont pas pu être chargés."
         }
+      },
+      "overview": {
+        "title": "Toutes les personnes sur ce poste",
+        "note": "Chaque colonne se lit seule et rien n'est additionné. Les personnes sans score sont classées en dernier.",
+        "cols": {
+          "tick": "Présélection",
+          "candidate": "Candidat",
+          "stage": "Étape",
+          "match": "Adéquation",
+          "workSample": "Mise en situation",
+          "interview": "Entretien",
+          "proposal": "Proposition IA"
+        },
+        "sortBy": "Trier par {column}",
+        "tick": "Présélectionner {name}",
+        "tickCap": "Une comparaison compte au plus {cap} personnes.",
+        "compare": "{count, plural, =0 {Comparer la présélection} one {Comparer # présélectionné} other {Comparer # présélectionnés}}",
+        "compareTip": "Cochez de 2 à {cap} personnes pour les comparer dans l'évaluation de groupe. La présélection n'existe que sur cette page.",
+        "clear": "Vider la présélection",
+        "matchNone": "sans score",
+        "prov": {
+          "analysis": "analyse du CV",
+          "scored": "par règles",
+          "snapshot": "à l'ajout",
+          "transfer": "mise en situation"
+        },
+        "ivCount": "{count, plural, one {# grille} other {# grilles}}",
+        "ivNone": {
+          "no_scorecard": "aucune grille",
+          "no_ratings": "pas encore de notes"
+        },
+        "ivAi": "IA {avg}",
+        "ivTip": "Moyenne des recruteurs sur une échelle de 1 à {scale}, sur {count, plural, one {# grille} other {# grilles}}.",
+        "aiTip": "La moyenne propre de l'entretien IA sur une échelle de 1 à {scale}, tenue à part de celle des recruteurs.",
+        "proposalNone": "rien en attente",
+        "offer": "offre",
+        "openAria": "Ouvrir {name}",
+        "loadFailed": "Les personnes sur ce poste n'ont pas pu être chargées.",
+        "noJob": "Ce poste n'a pas de fiche d'emploi, ses personnes ne peuvent donc pas être lues côte à côte.",
+        "empty": "Personne n'est actif sur ce poste."
+      },
+      "roster": {
+        "title": "Tous les postes ouverts",
+        "note": "Ouvrez un poste pour voir toutes les personnes dessus, même quand rien ne vous attend.",
+        "active": "{count, plural, one {# actif} other {# actifs}}",
+        "waiting": "{count, plural, one {# en attente} other {# en attente}}"
       }
     }
   },

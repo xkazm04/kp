@@ -4708,6 +4708,52 @@
           "not_evaluated": "Práce se vrátila, ale zatím nebyla ohodnocena.",
           "failed": "Výsledky pracovní ukázky se nepodařilo načíst."
         }
+      },
+      "overview": {
+        "title": "Všichni na této pozici",
+        "note": "Každý sloupec se čte samostatně a nic se nesčítá. Kdo nemá skóre, řadí se na konec.",
+        "cols": {
+          "tick": "Užší výběr",
+          "candidate": "Kandidát",
+          "stage": "Fáze",
+          "match": "Shoda",
+          "workSample": "Pracovní úkol",
+          "interview": "Pohovor",
+          "proposal": "Návrh AI"
+        },
+        "sortBy": "Seřadit podle: {column}",
+        "tick": "Přidat do užšího výběru: {name}",
+        "tickCap": "Srovnání pojme nejvýše {cap} lidí.",
+        "compare": "{count, plural, =0 {Porovnat užší výběr} one {Porovnat # vybraného} few {Porovnat # vybrané} other {Porovnat # vybraných}}",
+        "compareTip": "Zaškrtněte 2 až {cap} lidí a porovnejte je ve skupinovém hodnocení. Užší výběr platí jen na této stránce.",
+        "clear": "Zrušit užší výběr",
+        "matchNone": "bez skóre",
+        "prov": {
+          "analysis": "analýza CV",
+          "scored": "pravidlové",
+          "snapshot": "při přidání",
+          "transfer": "pracovní úkol"
+        },
+        "ivCount": "{count, plural, one {# hodnocení} few {# hodnocení} other {# hodnocení}}",
+        "ivNone": {
+          "no_scorecard": "bez hodnocení",
+          "no_ratings": "zatím bez známek"
+        },
+        "ivAi": "AI {avg}",
+        "ivTip": "Průměr hodnotitelů na škále 1 až {scale} z {count, plural, one {# hodnocení} few {# hodnocení} other {# hodnocení}}.",
+        "aiTip": "Vlastní průměr pohovoru s AI na škále 1 až {scale}, vedený odděleně od hodnotitelů.",
+        "proposalNone": "nic nečeká",
+        "offer": "nabídka",
+        "openAria": "Otevřít: {name}",
+        "loadFailed": "Lidi na této pozici se nepodařilo načíst.",
+        "noJob": "Tato pozice nemá záznam o pracovním místě, takže její lidi nelze zobrazit vedle sebe.",
+        "empty": "Na této pozici není nikdo aktivní."
+      },
+      "roster": {
+        "title": "Všechny otevřené pozice",
+        "note": "Otevřete pozici a uvidíte na ní všechny, i když na vás nic nečeká.",
+        "active": "{count, plural, one {# aktivní} few {# aktivní} other {# aktivních}}",
+        "waiting": "{count, plural, one {# čeká} few {# čekají} other {# čeká}}"
       }
     }
   },
