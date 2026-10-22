@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_304 routes, 404 handlers._
+_305 routes, 405 handlers._
 
 ### `/api/agents`
 
@@ -238,6 +238,12 @@ _304 routes, 404 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/compliance` | GET | gated |
+
+### `/api/connect`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/connect` | GET | gated |
 
 ### `/api/data`
 

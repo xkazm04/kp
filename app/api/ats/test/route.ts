@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deliver, getAtsRecordResult } from "@/app/_lib/ats-egress";
+import { getAtsRecordResult, type deliver } from "@/app/_lib/ats-egress";
+import { probeAtsWebhook } from "@/app/_lib/connect/probes";
 import { egressSealed, SEALED } from "@/app/_lib/egress-seal";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
@@ -55,9 +56,8 @@ export const POST = withWorkspace(async (workspaceId: string, request: NextReque
     if (!record) return jsonRefusal("ATS_CANDIDATE_NOT_FOUND", 404);
     data = record;
   }
-  const result = await deliver("ping", data);
-  if (result.delivered) {
-    return NextResponse.json({ ok: true, status: result.status });
-  }
-  return NextResponse.json({ ok: false, reason: result.reason }, { status: 400 });
+  // The ping itself lives in connect/probes.ts so the connector catalog sends the SAME one.
+  const result = await probeAtsWebhook(data);
+  if (result.kind === "http") return NextResponse.json({ ok: true, status: result.status });
+  return NextResponse.json({ ok: false, reason: result.kind === "failed" || result.kind === "not_configured" ? result.reason : SEALED }, { status: 400 });
 });

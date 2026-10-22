@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveRelay } from "@/app/_lib/comms-relay";
-import { egressSealed, SEALED } from "@/app/_lib/egress-seal";
-import { buildCommEnvelope } from "@/app/_lib/comms-envelope";
-import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "@/app/_lib/ats-webhook";
+import { SEALED } from "@/app/_lib/egress-seal";
+import { probeRelay } from "@/app/_lib/connect/probes";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { assertRelayEndpointResolved, COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
 import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Send a signed `relay.test` envelope to the ACTIVE relay (env → stored config)
@@ -37,52 +34,12 @@ export const POST = withSession(async (request: NextRequest) => {
   if (!rateLimit(`comms-relay-test:${clientIpFrom(request.headers)}`, PROBE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
-  // The egress seal answers BEFORE the relay is resolved: resolveRelay() reads "no relay"
-  // under the seal, and "sealed" must not be reported as "not configured".
-  if (egressSealed()) return NextResponse.json({ ok: false, sealed: true, reason: SEALED }, { status: 409 });
-  const relay = resolveRelay();
-  if (!relay) {
-    return NextResponse.json({ ok: false, reason: "No relay configured." }, { status: 400 });
-  }
-  // Re-vet at fetch time with the SAME resolved guard the delivery path uses
-  // (comms.ts WebhookChannel.deliver), for env and stored relays alike: the delivery
-  // vets both, so a probe that skipped either answered `ok` for an endpoint every real
-  // message dead-letters on — and a string-only check let a name that resolves into
-  // private space (DNS rebinding, 169.254.169.254) take a signed POST and report its
-  // HTTP status back, a reachability oracle on the deployment's own network.
-  try {
-    await assertRelayEndpointResolved(relay.url);
-  } catch (e) {
-    return NextResponse.json({ ok: false, reason: e instanceof Error ? e.message : "Relay URL not allowed." }, { status: 400 });
-  }
-  const envelope = buildCommEnvelope(
-    { to: "relay-test", subject: "kp relay test", body: "Test ping from the kp delivery relay configuration.", kind: "relay.test" },
-    null,
-    new Date().toISOString()
-  );
-  const body = JSON.stringify(envelope);
-  // Same construction as a real relay delivery (comms.ts), so a receiver wired up
-  // against this ping is wired up against production traffic.
-  const headers: Record<string, string> = { "Content-Type": "application/json", [TIMESTAMP_HEADER]: envelope.sentAt };
-  if (relay.secret) headers[SIGNATURE_HEADER] = signWebhookBody(relay.secret, body, envelope.sentAt);
-  // Bounded like a real delivery (comms.ts), tighter: a human is watching a button, and
-  // a relay that cannot answer a ping inside the window has failed the very question
-  // the probe asks. Without this the handler hung for as long as the receiver liked.
-  const timeoutMs = relayTimeoutMs(COMMS_PROBE_TIMEOUT_MS);
-  try {
-    const r = await fetch(relay.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
-    return NextResponse.json({ ok: r.ok, status: r.status });
-  } catch (error) {
-    // `reason` is the probe's own diagnostic channel, rendered verbatim by the relay
-    // card next to the endpoint the operator just typed — that is the whole point of a
-    // test ping, so it stays prose. A timeout gets a sentence the platform's generic
-    // abort message does not give.
-    const reason =
-      error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")
-        ? `timeout after ${timeoutMs}ms`
-        : error instanceof Error
-          ? error.message
-          : "network error";
-    return NextResponse.json({ ok: false, reason }, { status: 400 });
-  }
+  // The probe itself lives in connect/probes.ts so the connector catalog sends the SAME
+  // ping; this route only maps its result to the response the Channels card renders. The
+  // egress seal answers inside it BEFORE the relay is resolved: "sealed" must not be
+  // reported as "not configured".
+  const result = await probeRelay();
+  if (result.kind === "sealed") return NextResponse.json({ ok: false, sealed: true, reason: SEALED }, { status: 409 });
+  if (result.kind === "http") return NextResponse.json({ ok: result.ok, status: result.status });
+  return NextResponse.json({ ok: false, reason: result.reason }, { status: 400 });
 });
