@@ -1,0 +1,39 @@
+{
+  "schema": "conform-run/1",
+  "worker": "549e39e8-a5bd-47ef-8b23-2cb8668508fb",
+  "subject": "model-call-outcome-integrity",
+  "evaluatedAt": "2026-10-22T04:33:43.319963+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "model-call-outcome-integrity",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The verdict says the billing code reads stored usage without dispatching model work, but spend/SpendVoiceFacts.tsx:63 POSTs /api/voice/readiness, whose route (app/api/voice/readiness/route.ts:59-72) runs probeVoiceProviders and mints a credential at OpenAI Realtime or ElevenLabs. The context therefo"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T04:33:43.319963+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "model-call-outcome-integrity"
+      ],
+      "techniques": [
+        "credential-posture-at-the-call-door",
+        "declared-call-site-identity",
+        "elimination-reasons-are-a-closed-vocabulary",
+        "enforcement-demotion-on-translation-loss",
+        "one-deadline-across-attempts",
+        "spend-precedes-the-error",
+        "the-measurement-runs-the-served-configuration",
+        "unattempted-is-not-failed"
+      ],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

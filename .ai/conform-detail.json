@@ -16511,6 +16511,62 @@
           "evidence": "app/_components/useDialogA11y.ts:16 The dialog/drawer registry stores only symbols and excludes independently opened tooltips, so it cannot provide typed, queryable ownership across overlay families."
         }
       ]
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/model-call-outcome-integrity": {
+      "context": "billing-plan-and-spend",
+      "subject": "model-call-outcome-integrity",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T04:33:43.319Z",
+      "techniques": [
+        {
+          "technique": "credential-posture-at-the-call-door",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 Displays reported engine availability; it does not choose model credentials or construct a child environment."
+        },
+        {
+          "technique": "declared-call-site-identity",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:52 Groups existing records by their supplied purpose; no model-call signature or identity declaration is owned here."
+        },
+        {
+          "technique": "elimination-reasons-are-a-closed-vocabulary",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:43 Counts previously recorded deterministic serves without selecting candidates or performing fallback."
+        },
+        {
+          "technique": "enforcement-demotion-on-translation-loss",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/useSpendData.ts:84 Receives an application usage payload; no structured-output contract is translated for a model vendor."
+        },
+        {
+          "technique": "one-deadline-across-attempts",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:178 The retry schedule polls billing entitlement after checkout; it is not a model-attempt ladder."
+        },
+        {
+          "technique": "spend-precedes-the-error",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:51 Sums persisted costs without writing attempt usage or propagating model-call errors."
+        },
+        {
+          "technique": "the-measurement-runs-the-served-configuration",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:117 Builds a historical spend breakdown; no benchmark participant or production configuration comparison runs here."
+        },
+        {
+          "technique": "unattempted-is-not-failed",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:47 Preserves an upstream failure count without interpreting model output, stop conditions, or completion ceilings."
+        }
+      ],
+      "withdrawn": {
+        "worker": "549e39e8-a5bd-47ef-8b23-2cb8668508fb",
+        "state": "not-applicable",
+        "at": "2026-10-22T04:34:13.267578+00:00",
+        "reason": "reviewer (sonnet): The verdict says the billing code reads stored usage without dispatching model work, but spend/SpendVoiceFacts.tsx:63 POSTs /api/voice/readiness, whose route (app/api/voice/readiness/route.ts:59-72) runs probeVoiceProviders and mints a credential at OpenAI Realtime or ElevenLabs. The context therefo"
+      }
     }
   }
 }
