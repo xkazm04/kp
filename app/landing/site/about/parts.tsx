@@ -276,11 +276,15 @@ export function HeroMap() {
                     className={cls}
                     data-go={i}
                     style={style}
-                    aria-label={t("map.go", { n: i + 1, name: names[i] })}
                     onClick={() => goTo(i)}
                   >
-                    <span className="st-disc">{pad2(i + 1)}</span>
-                    <span className="st-lbl">{names[i]}</span>
+                    <span className="st-disc" aria-hidden="true">
+                      {pad2(i + 1)}
+                    </span>
+                    <span className="st-lbl" aria-hidden="true">
+                      {names[i]}
+                    </span>
+                    <span className="sr-only">{t("map.go", { n: i + 1, name: names[i] })}</span>
                   </button>
                 );
               })}
