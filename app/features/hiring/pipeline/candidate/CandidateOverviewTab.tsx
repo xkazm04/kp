@@ -4,7 +4,8 @@
 // leads it: a degraded intake to capture, or, for someone this workspace hired, how
 // the hire worked out. Then a summary rail (score with its kind and provenance, the
 // confidence meter, fit tier, estimated salary against the band, the route across
-// the axis) beside the weighted breakdown and the skills evidence. Every action on
+// the axis) beside the weighted breakdown and the skills evidence, and under them the
+// evidence ladder of how they work with AI (evidence-ladder/). Every action on
 // the candidate lives in the modal's footer (footer/CandidateFooter.tsx).
 
 import { useTranslations } from "next-intl";
@@ -17,6 +18,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { useMapMoney } from "../map/useMapMoney";
 import { PipelineDegradedIntakeBanner } from "../PipelineDegradedIntakeBanner";
 import { PipelineHireOutcomeCard } from "../PipelineHireOutcomeCard";
+import { EvidenceLadder } from "./evidence-ladder/EvidenceLadder";
 import { OutreachReleaseCard } from "./outreach/OutreachReleaseCard";
 import type { CandidateState } from "./state/useCandidateState";
 import type { CandidateDetailModel } from "./scorecard/candidateDetailModel";
@@ -105,6 +107,9 @@ export function CandidateOverviewTab({
           <SkillGroups model={model} layout="columns" />
         </div>
       </div>
+
+      {/* How they work with AI (ADR 0027 S3): three rungs, descriptive, no score. */}
+      <EvidenceLadder entryId={entry.id} humanScorecards={st.humanScs} aiInterview={st.ivOutcome} />
     </div>
   );
 }

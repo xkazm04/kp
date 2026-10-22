@@ -18012,6 +18012,30 @@
       "no_followups": "No evidence yet: the evaluation set no debrief questions.",
       "not_recorded": "No evidence yet: the debrief has not been recorded.",
       "not_rated": "No evidence yet: no interviewer has rated working with AI tools."
-    }
+    },
+    "title": "How they work with AI",
+    "intro": "Three rungs of evidence, each read on its own. No score, no total, and nothing here changes the match.",
+    "gateNote": "This view informs your decision. It takes no action.",
+    "rung": {
+      "watched": "Watched in the case",
+      "defended": "Defended in the debrief",
+      "quoted": "Quoted in the interview"
+    },
+    "rungHint": {
+      "watched": "Verification acts the live session recorded, on any channel.",
+      "defended": "The interviewer's recorded finding for each follow-up.",
+      "quoted": "The working with AI tools rating, as each interviewer gave it."
+    },
+    "rating": "{rating} of {max}",
+    "byAi": "AI interview",
+    "byHuman": "Interviewer",
+    "finding": {
+      "revised": "Revised",
+      "not_evidenced": "Not evidenced"
+    },
+    "followup": "Follow-up {index}",
+    "loading": "Reading the evidence",
+    "loadFailed": "The work-sample evidence could not be read. The other rungs still show.",
+    "devcaseNote": "The same rung appears on the candidate overview, beside the debrief and the interview."
   }
 }

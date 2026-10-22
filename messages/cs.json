@@ -18012,6 +18012,30 @@
       "no_followups": "Zatím bez důkazů: vyhodnocení nepřipravilo žádné otázky k rozboru.",
       "not_recorded": "Zatím bez důkazů: rozbor zatím nebyl zaznamenán.",
       "not_rated": "Zatím bez důkazů: práci s AI nástroji zatím nikdo z pohovoru neohodnotil."
-    }
+    },
+    "title": "Jak pracuje s AI",
+    "intro": "Tři stupně důkazů, každý čtený samostatně. Žádné skóre, žádný součet a nic z toho nemění shodu.",
+    "gateNote": "Tento přehled slouží vašemu rozhodnutí. Sám nic neprovede.",
+    "rung": {
+      "watched": "Sledováno v zadání",
+      "defended": "Obhájeno v rozboru",
+      "quoted": "Citováno z pohovoru"
+    },
+    "rungHint": {
+      "watched": "Ověření, která zaznamenala živá relace, z jakéhokoli kanálu.",
+      "defended": "Zaznamenané zjištění tazatele ke každé doplňující otázce.",
+      "quoted": "Hodnocení práce s AI nástroji tak, jak ho zadal každý tazatel."
+    },
+    "rating": "{rating} z {max}",
+    "byAi": "AI pohovor",
+    "byHuman": "Tazatel",
+    "finding": {
+      "revised": "Upraveno",
+      "not_evidenced": "Nedoloženo"
+    },
+    "followup": "Otázka {index}",
+    "loading": "Načítáme důkazy",
+    "loadFailed": "Důkazy z pracovní ukázky se nepodařilo načíst. Ostatní stupně se zobrazují dál.",
+    "devcaseNote": "Stejný stupeň najdete v přehledu kandidáta, vedle rozboru a pohovoru."
   }
 }

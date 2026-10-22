@@ -18012,6 +18012,30 @@
       "no_followups": "Noch keine Belege: Die Auswertung hat keine Nachfragen für das Debriefing erstellt.",
       "not_recorded": "Noch keine Belege: Das Debriefing wurde noch nicht erfasst.",
       "not_rated": "Noch keine Belege: Niemand aus dem Interview hat die Arbeit mit KI-Werkzeugen bewertet."
-    }
+    },
+    "title": "Wie die Person mit KI arbeitet",
+    "intro": "Drei Stufen von Belegen, jede für sich gelesen. Kein Score, keine Summe, und nichts hier verändert den Match.",
+    "gateNote": "Diese Ansicht unterstützt Ihre Entscheidung. Sie löst nichts aus.",
+    "rung": {
+      "watched": "Beobachtet in der Aufgabe",
+      "defended": "Verteidigt im Debriefing",
+      "quoted": "Zitiert im Interview"
+    },
+    "rungHint": {
+      "watched": "Prüfhandlungen, die die Live-Sitzung erfasst hat, auf jedem Kanal.",
+      "defended": "Der erfasste Befund der interviewenden Person zu jeder Nachfrage.",
+      "quoted": "Die Bewertung der Arbeit mit KI-Werkzeugen, wie jede interviewende Person sie abgab."
+    },
+    "rating": "{rating} von {max}",
+    "byAi": "KI-Interview",
+    "byHuman": "Interviewer",
+    "finding": {
+      "revised": "Korrigiert",
+      "not_evidenced": "Nicht belegt"
+    },
+    "followup": "Nachfrage {index}",
+    "loading": "Belege werden gelesen",
+    "loadFailed": "Die Belege der Arbeitsprobe konnten nicht gelesen werden. Die anderen Stufen bleiben sichtbar.",
+    "devcaseNote": "Dieselbe Stufe steht in der Kandidatenübersicht, neben Debriefing und Interview."
   }
 }

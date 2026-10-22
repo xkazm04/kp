@@ -18012,6 +18012,30 @@
       "no_followups": "Pas encore de preuve : l'évaluation n'a proposé aucune relance pour le débrief.",
       "not_recorded": "Pas encore de preuve : le débrief n'a pas encore été consigné.",
       "not_rated": "Pas encore de preuve : personne n'a encore noté le travail avec les outils d'IA."
-    }
+    },
+    "title": "Comment cette personne travaille avec l'IA",
+    "intro": "Trois niveaux de preuve, chacun lu pour lui-même. Pas de score, pas de total, et rien ici ne modifie la correspondance.",
+    "gateNote": "Cette vue éclaire votre décision. Elle ne déclenche aucune action.",
+    "rung": {
+      "watched": "Observé pendant l'exercice",
+      "defended": "Défendu au débrief",
+      "quoted": "Cité en entretien"
+    },
+    "rungHint": {
+      "watched": "Les vérifications enregistrées par la session en direct, quel que soit le canal.",
+      "defended": "La conclusion consignée par l'intervieweur pour chaque relance.",
+      "quoted": "La note sur le travail avec les outils d'IA, telle que chaque intervieweur l'a donnée."
+    },
+    "rating": "{rating} sur {max}",
+    "byAi": "Entretien IA",
+    "byHuman": "Intervieweur",
+    "finding": {
+      "revised": "Corrigé",
+      "not_evidenced": "Non étayé"
+    },
+    "followup": "Relance {index}",
+    "loading": "Lecture des preuves",
+    "loadFailed": "Les preuves de l'exercice pratique n'ont pas pu être lues. Les autres niveaux restent affichés.",
+    "devcaseNote": "Le même niveau figure dans la vue d'ensemble du candidat, à côté du débrief et de l'entretien."
   }
 }
