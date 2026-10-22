@@ -70,6 +70,19 @@ test("the prolog strip takes only an xml declaration, never a processing instruc
   assert.deepEqual(validateLogoUpload(enc(`<?xml?>${svg}`)), { ok: true, mime: "image/svg+xml" });
 });
 
+test("a CSS escape cannot spell a fetch the url()/@import checks would refuse", () => {
+  const hostile: Array<[string, Uint8Array]> = [
+    ["escaped url( in <style>", wrap(`<style>.a{background:u\\72l(https://evil.example/x)}</style>`)],
+    ["escaped @import string", wrap(`<style>@\\69mport "https://evil.example/x.css";</style>`)],
+    ["escape via entity in <style>", wrap(`<style>.a{background:u&#92;72l(https://evil.example/x)}</style>`)],
+    ["escaped url( in style attr", wrap(`<rect style="fill:u\\72l(https://evil.example/x)"/>`)],
+    ["escaped url( in presentation attr", wrap(`<rect fill="u\\72l(https://evil.example/x)"/>`)],
+  ];
+  for (const [name, bytes] of hostile) assert.deepEqual(validateLogoUpload(bytes), { ok: false, code: "BRAND_LOGO_UNSAFE" }, name);
+  // Ordinary function values stay accepted.
+  assert.equal(validateLogoUpload(wrap(`<g transform="translate(1,2) rotate(3)"><rect fill="url(#g)"/></g>`)).ok, true);
+});
+
 test("non-markup, non-PNG bytes are a wrong type, not an unsafe one", () => {
   assert.deepEqual(validateLogoUpload(enc("GIF89a")), { ok: false, code: "BRAND_LOGO_TYPE" });
   assert.deepEqual(validateLogoUpload(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), { ok: false, code: "BRAND_LOGO_TYPE" });

@@ -64,9 +64,12 @@ function decodeEntities(s: string): string | null {
   return bad ? null : out;
 }
 
-/** CSS that imports, runs script-ish values, or fetches anything but a `#fragment`. */
+/** CSS that imports, runs script-ish values, or fetches anything but a `#fragment`.
+ *  Any backslash is refused outright: a CSS escape (`u\72l(`, `@\69mport`) spells a
+ *  fetch the checks below cannot see, and a logo has no use for one. */
 function cssUnsafe(css: string): boolean {
-  const c = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\\/g, "");
+  if (css.includes("\\")) return true;
+  const c = css.replace(/\/\*[\s\S]*?\*\//g, "");
   if (/@import|expression\s*\(|javascript:|behavior\s*:|-moz-binding/i.test(c)) return true;
   for (const m of c.matchAll(/url\s*\(\s*(['"]?)\s*([^)'"]*)/gi)) {
     if (!m[2].startsWith("#")) return true;
@@ -125,8 +128,9 @@ function svgUnsafe(text: string): boolean {
       } else if (/javascript:|vbscript:|data:text\/html/i.test(value)) {
         return true;
       }
-      if (attr === "style" && cssUnsafe(value)) return true;
-      if (/^url\s*\(/i.test(value.trim()) && cssUnsafe(value)) return true;
+      // style, and any value a CSS parser could read as a function or an escape (a
+      // presentation attribute like fill= is parsed as CSS, escapes included).
+      if ((attr === "style" || /[(\\]/.test(value)) && cssUnsafe(value)) return true;
     }
     if (!selfClose) stack.push(name);
     else if (stack.length === 0) rootClosed = true;
