@@ -270,3 +270,14 @@ test("'Role for Employer, Inc.' names the employer whole, and dates set two line
     ]
   );
 });
+
+test("a self-rating meter is neither re-drawn nor read as a level: the word survives, the graphic is dropped", () => {
+  const withSkills = (lines: string[]) =>
+    buildCvDocument({ profile: PROFILE, preferences: { targetTitles: ["Platform Engineer"] }, cvSourceText: TEXT.replace("Postgres (senior)\nKafka (medior)", lines.join("\n")) });
+  const items = (lines: string[]) => withSkills(lines).skills[0]!.items.filter((i) => /^(Postgre|Kafka)/.test(i.name));
+  assert.deepEqual(items(["Postgres ●●●●○", "Kafka ★★★☆☆"]), [{ name: "PostgreSQL", level: null }, { name: "Kafka", level: null }]);
+  assert.deepEqual(items(["Postgres 85%", "Kafka (4/5)"]), [{ name: "PostgreSQL", level: null }, { name: "Kafka", level: null }]);
+  assert.deepEqual(items(["Postgres (senior) ●●●●○", "Kafka ●●●○○ (medior)"]), [{ name: "PostgreSQL", level: "senior" }, { name: "Kafka", level: "medior" }]);
+  // A meter in the name must not read as "listed only" evidence the owner never gave.
+  assert.ok(!withSkills(["Postgres 85%", "Kafka"]).questions.some((q) => q.kind === "listed_only" && /%/.test(q.text)));
+});

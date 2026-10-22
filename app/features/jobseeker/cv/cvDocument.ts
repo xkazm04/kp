@@ -501,6 +501,9 @@ export function withoutRoleHead(line: string, role: string, log: CvImprovement[]
 
 const LEVEL_WORD = /\s*\((junior|medior|mid|senior|lead|expert|advanced|intermediate|basic|beginner|native|fluent)\)\s*$/i;
 
+/** A trailing self-rating meter: a run of dots/stars/blocks, a percentage, or "n/5" ("(4/5)"). */
+const METER = /\s*\(?(?:[●○◐◑◒◓⬤★☆■□▪▫◆◇]{2,}|\d{1,3}\s*%|\d(?:\.\d)?\s*\/\s*(?:5|10))\)?\s*$/u;
+
 function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] {
   const groups: CvSkillGroup[] = [];
   for (const b of blocks) {
@@ -512,8 +515,11 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
       .flatMap((l) => (b.kind === "skills" && l.includes(",") ? l.split(/\s*,\s*/) : [l]))
       .filter((l) => l && l.length <= 48 && !isPersonalData(l))
       .map((l) => {
-        const m = LEVEL_WORD.exec(l);
-        const name = polishTerms((m ? l.slice(0, m.index) : l).trim(), log);
+        // A meter (pips, stars, "85%", "4/5") is never re-drawn and never turned into a word:
+        // the owner's own level WORD survives, a bare graphic is dropped (evidenced-skills-over-self-ratings).
+        const bare = l.replace(METER, "");
+        const m = LEVEL_WORD.exec(bare);
+        const name = polishTerms((m ? bare.slice(0, m.index) : bare).replace(METER, "").trim(), log);
         return { name, level: m ? m[1]!.toLowerCase() : null };
       })
       .filter((i) => i.name);
