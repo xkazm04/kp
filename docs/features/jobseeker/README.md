@@ -647,7 +647,10 @@ above the experience when no role title speaks to the target and the best projec
 as relevant as the best role, bullets included (`projectsFirst`: a career changer whose bridge
 is outside paid work). Dates are typeset per
 market ("present" / "dosud" / "heute" / "aujourd'hui"). No photo, birth date or marital
-status is ever emitted, and a "PERSONAL DETAILS" block is never read as skills. The owner
+status is ever emitted, and a "PERSONAL DETAILS" block is never read as skills. Above the
+first section there is no such block, so a header line stating nationality, gender, place of
+birth, religion or health (`isPersonalData` in `cvContent.ts`: each market's own label, and the
+European format's label-and-value with no colon) is never taken for the headline. The owner
 questions (`no_outcome`, `missing_metric`, `listed_only`, `self_descriptor`) are shown only in
 the designer, each quoting the line it is about.
 
