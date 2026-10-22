@@ -31,8 +31,8 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 
 ## 1. Channel selection
 
-`getCommsChannel()` (`comms.ts`) picks the channel via `resolveRelay()`
-(`comms-relay.ts`), which resolves **env → stored config → nothing**:
+`getCommsChannel()` (`comms.ts`) picks the channel via `resolveTransport()`
+(`comms-relay.ts`), which resolves **relay env → relay stored config → SMTP sender → nothing**:
 
 | Source | Condition | Channel | What happens |
 |---|---|---|---|
@@ -40,6 +40,10 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 | — | Neither env nor stored config set | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
 | `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). **Host-level — not org-checked** (below). |
 | `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. **Org-scoped** (below). |
+| `smtp` | No relay, and a mailbox is saved on the Channels tab (`night/setup/SetupSmtp.tsx`) | `SmtpChannel` | Sends each letter itself from the owner's mailbox over SMTP (TLS or STARTTLS). `sent` only on the server's 250 after DATA. **Org-scoped.** Full contract: [comms-smtp.md](../comms-smtp.md). |
+
+`isRelayConfigured()` answers "can a letter leave" (a relay **or** the SMTP sender), so every
+`sent`/`queued` claim stays true with either transport. With both configured the relay wins.
 
 The relay card says, before its URL field, what a relay is (a web address that receives each
 letter and sends it on, e.g. a Zapier/Make/n8n webhook) and that it must be a public `https://`

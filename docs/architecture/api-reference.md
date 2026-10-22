@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_311 routes, 416 handlers._
+_313 routes, 419 handlers._
 
 ### `/api/agents`
 
@@ -225,6 +225,8 @@ _311 routes, 416 handlers._
 | `/api/comms/capability` | GET | gated |
 | `/api/comms/relay` | GET, POST | gated |
 | `/api/comms/relay/test` | POST | gated |
+| `/api/comms/smtp` | GET, POST | gated |
+| `/api/comms/smtp/test` | POST | gated |
 
 ### `/api/companion`
 
