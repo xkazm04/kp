@@ -90,12 +90,55 @@ identically-incomplete catalogs are in perfect parity with each other.)
 An unrecognized code still renders (generic error copy plus the raw value) rather than a
 blank banner.
 
+### Guided setup (no env, no restart)
+
+An unconfigured deployment renders `IntegrationsCalendarSetup` instead of a Connect button
+that would bounce off the start route's 503. It walks the owner through the Google Cloud
+console in five numbered steps: the Credentials page address as plain text to open (kp
+never fetches or frames it), enabling the Google Calendar API, the two scopes for the
+consent screen, and the exact redirect URI to register, each with a copy control. Then it
+takes the client id and secret, `POST`s them to `/api/calendar/google/client`, and on
+success navigates straight to the Connect door (`/api/calendar/google/start`).
+
+- **Where the client lives.** `google-client-store.ts` keeps it on its own
+  `provider = 'google_client'` row of `calendar_connections`, not in a new table: it
+  inherits that table's workspace scope, erasure and export class with no new tenancy
+  entry, the grant's queries (all `provider = 'google'`) never see it, and a Disconnect
+  keeps it, so reconnecting does not mean re-pasting the client.
+- **Precedence.** `googleOAuthConfig(baseUrl, env, stored)` takes the stored client first
+  and falls back to the env pair, so an env-only deployment behaves exactly as before.
+  Every caller resolves it through `googleOAuthConfigFor(workspace)`; the start door is
+  `withWorkspace` for that reason. A stored client whose secret no longer decrypts falls
+  back to env (or "not configured") and the setup asks for the secret again.
+- **The secret is write-only.** `GET /api/calendar/google/client` answers `configured`,
+  `source` (`stored` / `env` / null), the client id (public by design: it is in every
+  consent URL), `savedUnreadable`, the redirect URI and the scopes. No response, error or
+  log line carries the secret: refusals are reason codes (`client_id_invalid`,
+  `client_secret_invalid`, `client_secret_required`, `key_unavailable`, `save_failed`) and
+  the one failure log names only the error's kind. A blank secret on a re-save keeps the
+  stored one. The door is operator-gated and asks `org:manage`, like the ATS credentials.
+- **Sealed at rest, keyed without a restart.** The secret is AES-256-GCM under
+  `KP_CALENDAR_SECRET_KEY`, falling back to `KP_SECRET` (`calendar-secret.ts`, the
+  `ats-secret.ts` shape, with `KP_CALENDAR_SECRET_KEY_PREVIOUS` /
+  `KP_SECRET_PREVIOUS` read-only rotation keys). When neither is set,
+  `ensureCalendarSecretKey` (`calendar-key.ts`) runs after the input validates: it adopts a
+  value already in `.env.local`, or generates 32 random bytes, appends them to `.env.local`
+  and sets them in the running process, so this save and the OAuth callback seconds later
+  both work without a restart. It never overwrites a value and never writes `KP_SECRET`,
+  which also signs sessions and edge requests (`calendar-key.test.ts` proves the auth
+  posture is unchanged). A key it cannot persist (read-only filesystem) is not set at all
+  and the save answers `key_unavailable`: set `KP_CALENDAR_SECRET_KEY` yourself.
+- **Grant tokens on a keyless install.** `token-store.ts` still seals tokens under
+  `KP_ATS_SECRET_KEY` / `KP_SECRET` whenever one is set, so every stored token keeps
+  decrypting. Only with neither does it seal under the calendar key, and reading tries the
+  ATS key and then the calendar key, so such a token still opens after `KP_SECRET` is set
+  later.
+
 ### Without credentials
 
-With no `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, `googleOAuthConfig()`
-returns null and the panel renders a *Not configured on this deployment* block naming the
-two variables and the exact redirect URI to register in Google Cloud — no Connect button
-that would bounce off the start route's 503. **Scheduling keeps working:**
+With no stored client and no `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`,
+`googleOAuthConfig()` returns null and the panel shows the guided setup above.
+**Scheduling keeps working:**
 `proposeFreeSlots` (`app/_lib/calendar/available-slots.ts`) falls back to
 `proposeSlots`'s local arithmetic and reports `calendarChecked: false`, so a caller never
 claims a slot was calendar-confirmed when nothing was checked.
@@ -610,6 +653,7 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 | --- | --- |
 | `app/features/settings/integrations/IntegrationsTab.tsx` | Tab shell; calendar panel eager, every other panel deferred |
 | `app/features/settings/integrations/IntegrationsCalendarPanel.tsx` | Connect / status / partial-grant / disconnect |
+| `app/features/settings/integrations/IntegrationsCalendarSetup.tsx` | Guided OAuth-client setup: steps, copyable redirect URI, client id + secret, save and connect |
 | `app/features/settings/integrations/IntegrationsCallbackBanner.tsx` | Renders one OAuth callback outcome |
 | `app/features/settings/integrations/IntegrationsAtsPanel.tsx` | List + save/remove orchestration |
 | `app/features/settings/integrations/IntegrationsAtsForm.tsx` | Add/update form |
@@ -622,6 +666,9 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 | `app/_lib/calendar/callback-status.ts` | Canonical callback vocabulary + tone + scope slug |
 | `app/_lib/calendar/google-oauth.ts` | Scopes, consent URL, token exchange, revoke, `missingScopes` |
 | `app/_lib/calendar/token-store.ts` | Encrypted per-workspace grant; `getCalendarConnection` never returns a token |
+| `app/_lib/calendar/google-client-store.ts` | The saved OAuth client (sealed secret) + `googleOAuthConfigFor`, stored before env |
+| `app/_lib/calendar/calendar-secret.ts`, `calendar-key.ts` | AES-256-GCM under `KP_CALENDAR_SECRET_KEY` (else `KP_SECRET`); the generate-once key into `.env.local` |
+| `app/api/calendar/google/client/route.ts` | GET configured + client id, POST save (operator + `org:manage`, secret write-only) |
 | `app/_lib/calendar/free-busy.ts`, `available-slots.ts` | Busy-interval reasoning; slot proposal that degrades |
 | `app/_lib/calendar/google-calendar.ts` | `fetchBusy` (null = unknown, `[]` = checked and clear) |
 | `app/_lib/ats/connections-store.ts` | Per-provider credentials + `ATS_PROVIDERS` |
@@ -638,6 +685,9 @@ it omits the live count while the tab is hidden and resumes when it is visible.
   not per recruiter: a team schedules against a shared hiring calendar. Columns:
   `account_email`, `calendar_id` (default `primary`), encrypted `refresh_token` /
   `access_token`, `access_expires_at`, `scopes_json`, `missing_scopes_json`, `connected_at`.
+  The saved OAuth client is a second row per workspace, `provider = 'google_client'`, using
+  the additive `client_id` and encrypted `client_secret` columns (and `connected_at` as its
+  saved-at); it carries no token and is never read as a connection.
 - `ats_connections` — PK `provider`. `base_url`, encrypted `api_token`, `field_map_json`,
   `enabled`, `version` (optimistic-concurrency token, bumped on every accepted write;
   back-filled to `0` by an `ALTER TABLE` on stores created before it existed),

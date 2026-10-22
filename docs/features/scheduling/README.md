@@ -884,8 +884,10 @@ with zero links minted, workspace B cannot invite workspace A's entry, and a
 non-default workspace can invite its own cohort — the last of which was broken
 outright while the routes relied on `getPipelineEntry`'s default workspace.
 
-The calendar integration is entirely optional. Without
-`GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, or with no connected
+The calendar integration is entirely optional. Without an OAuth client (saved
+through the guided setup in Settings > Integrations, or
+`GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` in env; see
+`docs/features/integrations/README.md`), or with no connected
 account, every offer reports `not_connected` and the pre-integration slot list
 is served unchanged. Every booking then records `not_connected` and no event is written — the `.ics`
 and "add to calendar" links remain the whole story, exactly as before the
