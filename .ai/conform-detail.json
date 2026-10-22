@@ -16265,6 +16265,52 @@
         "at": "2026-10-22T02:16:51.628784+00:00",
         "reason": "reviewer (sonnet): The picker at ScheduleInterviewPrepQuestions.tsx:98 does offer every chronology block, but the transcript technique rests on a form-seeding claim I could not find (ScheduleHumanScorecardForm.tsx has no author or seed logic), and line 44 only lists all scorecards; I did not open the PATCH route to co"
       }
+    },
+    "4d77902f-0200-452b-b884-3c53c8f90bfb/issuance-policy-ladder": {
+      "context": "member-ui-helpers",
+      "subject": "issuance-policy-ladder",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T02:33:12.343Z",
+      "worker": "175ad1bc-e1fa-40e7-bb85-0f5fd0505823",
+      "techniques": [
+        {
+          "technique": "bounds-as-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:93 Counts active seats; no request, role or issuer bounds are composed."
+        },
+        {
+          "technique": "explicit-forbid-beats-allow-any",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:125 Builds capability display rows without evaluating issuance allowlists or forbids."
+        },
+        {
+          "technique": "float-references-resolve-at-use",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:117 Maps an imported authorization vocabulary to display keys, without referencing an issuing key or issuance policy."
+        },
+        {
+          "technique": "program-role-returns-the-artifact",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:67 Retrieves translated role descriptions; no programmable issuance role is present."
+        },
+        {
+          "technique": "require-one-constraint",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:59 Lists membership roles for dropdowns rather than defining or validating artifact-shaping roles."
+        },
+        {
+          "technique": "stamped-instants-name-their-clock",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:100 Clock is a presentation icon; the helper stamps no instant into an issued artifact."
+        },
+        {
+          "technique": "verbatim-is-a-separate-privilege",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:62 Displays a membership-role label and exposes no signing operation or request-trusting issuance mode."
+        }
+      ]
     }
   }
 }

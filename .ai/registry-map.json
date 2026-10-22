@@ -23536,7 +23536,11 @@
           "revision": 3,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:124 Searches found no issuance-policy terms in the context files or shared directory; the inspected helpers produce presentation metadata and seat counts rather than shape issued credentials.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:fc31943d5d78e4d2",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

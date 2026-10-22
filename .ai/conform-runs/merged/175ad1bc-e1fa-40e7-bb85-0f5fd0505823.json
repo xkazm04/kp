@@ -1,0 +1,83 @@
+{
+ "schema": "conform-run/1",
+ "worker": "175ad1bc-e1fa-40e7-bb85-0f5fd0505823",
+ "subject": "issuance-policy-ladder",
+ "evaluatedAt": "2026-10-22T02:33:12.343312+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "member-ui-helpers",
+   "subject": "issuance-policy-ladder",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/memberUi.ts:124 Searches found no issuance-policy terms in the context files or shared directory; the inspected helpers produce presentation metadata and seat counts rather than shape issued credentials.",
+   "techniques": [
+    {
+     "technique": "bounds-as-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:93 Counts active seats; no request, role or issuer bounds are composed."
+    },
+    {
+     "technique": "explicit-forbid-beats-allow-any",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:125 Builds capability display rows without evaluating issuance allowlists or forbids."
+    },
+    {
+     "technique": "float-references-resolve-at-use",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:117 Maps an imported authorization vocabulary to display keys, without referencing an issuing key or issuance policy."
+    },
+    {
+     "technique": "program-role-returns-the-artifact",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:67 Retrieves translated role descriptions; no programmable issuance role is present."
+    },
+    {
+     "technique": "require-one-constraint",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:59 Lists membership roles for dropdowns rather than defining or validating artifact-shaping roles."
+    },
+    {
+     "technique": "stamped-instants-name-their-clock",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:100 Clock is a presentation icon; the helper stamps no instant into an issued artifact."
+    },
+    {
+     "technique": "verbatim-is-a-separate-privilege",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:62 Displays a membership-role label and exposes no signing operation or request-trusting issuance mode."
+    }
+   ],
+   "absenceTerms": [
+    "issuer",
+    "issuance",
+    "allowed_principals",
+    "not_after"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T02:33:12.343312+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "issuance-policy-ladder"
+   ],
+   "techniques": [
+    "bounds-as-modes",
+    "explicit-forbid-beats-allow-any",
+    "float-references-resolve-at-use",
+    "program-role-returns-the-artifact",
+    "require-one-constraint",
+    "stamped-instants-name-their-clock",
+    "verbatim-is-a-separate-privilege"
+   ],
+   "deviations": 0,
+   "context": "member-ui-helpers",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
