@@ -26,7 +26,9 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from .models import RUBRIC_DIMENSIONS
+from .ai_drafts import DRAFT_DIR
+from .ai_drafts import _md as _draft_md
+from .models import CASE_DRAFT_CANARY_PREFIX, RUBRIC_DIMENSIONS
 
 # Catalog ids and devcase-vocabulary aliases -> case family. ``sales_marketing`` is one
 # catalog family but two cases; it is split by the role title in ``resolve_case_family``.
@@ -248,6 +250,150 @@ LinkedIn ads,3500,1900,70,14
 Content,2000,1500,40,16
 """
 
+# --- the case's own AI draft -----------------------------------------------------------
+#
+# Every case ships one truthfully labelled, unreviewed AI draft (ADR 0027 S2). It used to be
+# chosen by role family alone (ai_drafts.draft_for), so the sales case shipped a campaign
+# summary and the operations case a reorder plan for an SKU absent from its inventory; no
+# task mentioned it, and the AI-collaboration axis read the same for every candidate
+# (council-lite T13 r2). A family case now carries a draft authored FOR it, over its own
+# materials, which a task names and asks the candidate to use, fix or discard. Each draft
+# carries one slip with a single checkable ground truth, written the way an assistant
+# writes it (no hint beyond the label). Pasting the draft carries the slip into the work;
+# correcting it states the right figure — the grader tells the two apart, and evaluate.py
+# reads that on the tooling axis.
+
+_DRAFT_SALES_PATH = f"{DRAFT_DIR}/AI_DRAFT_fjord_marine_email.md"
+_DRAFT_SALES = """
+Subject: Fjord Marine contract: next steps
+
+Hi Ingrid,
+
+Thanks again for the verbal yes on the EUR 75,000 order. To help your lawyer close it this month, we can offer 10% off for signature by 31 October, which brings the order to EUR 66,500.
+
+I have attached the updated order form. Would Thursday at 10:00 suit you for a short call to go through any open points?
+
+Best regards,
+"""
+
+_DRAFT_OPS_PATH = f"{DRAFT_DIR}/AI_DRAFT_reorder_quantities.md"
+_DRAFT_OPS = """
+Rule used: order enough to bring each SKU back to three times its reorder point.
+
+| SKU | Reorder point | On hand | Order |
+| --- | --- | --- | --- |
+| SKU-102 Stretch film | 40 | 35 | 3 x 40 - 35 = 85 |
+| SKU-105 Label roll | 100 | 90 | 3 x 100 - 90 = 190 |
+"""
+
+_DRAFT_SUPPORT_PATH = f"{DRAFT_DIR}/AI_DRAFT_reply_T-1043.md"
+_DRAFT_SUPPORT = """
+Hi,
+
+Thank you for reporting that the dashboard stays blank after login in Chrome. Your ticket reached us at 08:30, and your Enterprise plan has a 4-hour first-response window, so you will hear back from our engineers by 13:30 at the latest.
+
+In the meantime, please clear the browser cache and try a private window; Safari can be used as a workaround.
+
+Kind regards,
+Support team
+"""
+
+_DRAFT_DESIGN_PATH = f"{DRAFT_DIR}/AI_DRAFT_flow_revision.md"
+_DRAFT_DESIGN = """
+- Step 3 is split into two screens: 3a (first name, last name, phone) and 3b (postcode, birth date), so no screen has more than three fields.
+- Messages under a field name the field and the fix, for example "Enter a postcode with 5 digits".
+- Layout: the 320 px wide buttons and fields sit centred on the 360 px screen with 16 px side margins.
+"""
+
+_DRAFT_MKT_PATH = f"{DRAFT_DIR}/AI_DRAFT_budget_split.md"
+_DRAFT_MKT = """
+Based on last campaign's cost per signup:
+
+- Email: 60%, EUR 7,200
+- Paid search: 25%, EUR 3,000
+- LinkedIn ads: 15%, EUR 1,500
+
+Total: EUR 12,000, the full budget.
+"""
+
+
+def _draft(fam: str, path: str, title: str, body: str, kind: str, fragment: str, truth: str, reveals: str,
+           evidence: list[list[str]], miss: list[list[str]]) -> dict:
+    return {
+        "path": path,
+        "contents": _draft_md(title, body),
+        "canary": _canary(f"{CASE_DRAFT_CANARY_PREFIX}{fam}", kind, path, fragment, truth, reveals, evidence, miss),
+    }
+
+
+_CASE_DRAFTS: dict[str, dict] = {
+    "sales": _draft(
+        "sales", _DRAFT_SALES_PATH, "Next-step email: Fjord Marine", _DRAFT_SALES, "wrong_constant",
+        "which brings the order to EUR 66,500",
+        "10% off EUR 75,000 is EUR 67,500; the draft quotes the customer EUR 1,000 less than the offer.",
+        "Do they check the figure an assistant put in a customer email, or send it as written?",
+        [[r"fjord", r"discount", r"\b10\s?%", r"draft", r"e-?mail", r"order", r"sleva", r"slev", r"cen[auyě]", r"nabíd"],
+         [_k(67, "500"), r"(?<![\d.,])67[.,]5\s?k\b",
+          r"(?:off|out|short|low|understat\w*|undercharg\w*)\s+(?:by\s+)?(?:eur\s*|€\s*)?1[\s,.']?000\b",
+          r"\b1[\s,.']?000\s*(?:eur\s*|€\s*)?(?:too\s+(?:low|little)|short|less|méně)",
+          r"\bo\s+1[\s,.']?000\s*(?:eur\s*|€\s*)?(?:méně|víc|více|nižší)"]],
+        [[r"(?<![\d.,])66[\s,.']?500(?![\d])", r"(?<![\d.,])66[.,]5\s?k\b"]],
+    ),
+    "operations": _draft(
+        "operations", _DRAFT_OPS_PATH, "Reorder quantities", _DRAFT_OPS, "wrong_constant",
+        "3 x 100 - 90 = 190",
+        "3 x 100 - 90 is 210, not 190; the SKU-105 order would come in 20 units short of the draft's own rule.",
+        "Do they recompute an assistant's order quantities before placing them?",
+        [[r"sku[- ]?105", r"label roll", r"štítk", r"etiket"],
+         [r"(?<![\d.,-])210(?![\d])",
+          r"(?:short|low|under\w*|off|out)\s+(?:by\s+)?20\b",
+          r"\b20\s+(?:units?\s+|ks\s+|kus\w*\s+)?(?:too\s+(?:few|low|little)|short|more|méně|chyb\w*)",
+          r"\bo\s+20\s+(?:ks|kus\w*|méně|víc|více)"]],
+        [[r"sku[- ]?105", r"label roll", r"štítk", r"etiket"], [r"(?<![\d.,-])190(?![\d])"]],
+    ),
+    "support": _draft(
+        "support", _DRAFT_SUPPORT_PATH, "Reply to T-1043 (Dashboard blank after login)", _DRAFT_SUPPORT, "wrong_constant",
+        "so you will hear back from our engineers by 13:30",
+        "08:30 plus the 4-hour first-response window is 12:30; the reply promises the customer an hour past the SLA.",
+        "Do they check the commitment an assistant wrote into a customer reply?",
+        [[r"t[- ]?1043", r"dashboard", r"draft", r"repl", r"odpově", r"\bsla\b", r"deadline", r"respon"],
+         [r"\b12[:.]30\b", r"\b12\s*h\s*30\b",
+          r"(?:an|one|1)\s+hour\s+(?:late|past|over|beyond|after|too\s+late)",
+          r"(?:o\s+)?hodinu\s+(?:pozd\w*|později|navíc|víc|déle)"]],
+        [[r"\b13[:.]30\b"]],
+    ),
+    "design": _draft(
+        "design", _DRAFT_DESIGN_PATH, "Signup flow: proposed revision", _DRAFT_DESIGN, "wrong_constant",
+        "with 16 px side margins",
+        "(360 - 320) / 2 is 20 px a side; with 16 px margins the 320 px components are not centred on a 360 px screen.",
+        "Do they check the layout arithmetic an assistant proposes against the screen and the component widths?",
+        [[r"margin", r"okraj", r"\brand", r"marge", r"\b320\b", r"cent(?:er|re|r)"],
+         [r"(?<![\d.,])20\s*px", r"(?<![\d.,])20\s+(?:on|each|per|na)\b",
+          r"\(\s*360\s*[-−–]\s*320\s*\)\s*/\s*2", r"\b8\s*px\s*(?:short|off|missing|unaccounted|chyb\w*)",
+          r"(?:off|out|short)\s+by\s+8\b", r"(?<![\d.,])352(?![\d])"]],
+        [[r"margin", r"okraj"], [r"(?<![\d.,])16\s*px"]],
+    ),
+    "marketing": _draft(
+        "marketing", _DRAFT_MKT_PATH, "Budget split for the spring launch", _DRAFT_MKT, "wrong_constant",
+        "LinkedIn ads: 15%, EUR 1,500",
+        "15% of EUR 12,000 is EUR 1,800; the three lines add up to EUR 11,700, not the EUR 12,000 the draft states.",
+        "Do they add up an assistant's budget before adopting it?",
+        [[r"linkedin", r"total", r"celkem", r"\bsum", r"součet", r"budget", r"rozpočet", r"draft"],
+         [_k(1, "800"), _k(11, "700"),
+          r"(?<![\d.,])300\s*(?:eur\s*|€\s*)?(?:short|missing|unallocated|unaccounted|left|chyb\w*|nerozděl\w*|zbýv\w*)",
+          r"(?:short|off|out|under)\s+(?:by\s+)?(?:eur\s*|€\s*)?300\b"]],
+        [[r"linkedin[^\n]{0,30}(?<![\d.,])1[\s,.']?500(?![\d])"]],
+    ),
+}
+
+
+def case_draft(fam: str) -> dict:
+    """The case's own AI draft in ai_drafts.draft_for's shape: ``{path, contents, canaries}``.
+    Fresh copies every call."""
+    d = copy.deepcopy(_CASE_DRAFTS[fam])
+    return {"path": d["path"], "contents": d["contents"], "canaries": [d["canary"]]}
+
+
 _MID_AFTER = 20
 
 
@@ -258,10 +404,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             "You have just taken over a small open pipeline. Using the export and the playbook notes, decide "
             "where the next week of outreach should go and write the first email. Scope it to ~{timebox:g}h."
         ),
-        "repoSeed": "pipeline.csv (the open pipeline export) and pipeline_notes.md (how the team prioritises).",
+        "repoSeed": (
+            "pipeline.csv (the open pipeline export), pipeline_notes.md (how the team prioritises) and "
+            f"{_DRAFT_SALES_PATH} (an AI assistant's first draft of the email)."
+        ),
         "tasks": [
             "Qualify and rank the accounts in pipeline.csv: which three get outreach this week, and why.",
-            "Draft the next-step email for the top account.",
+            f"Write the next-step email for the top account. {_DRAFT_SALES_PATH} is an AI assistant's first draft of it: use it, fix it or discard it.",
             "Say what you would check or ask before sending anything, and what is still unknown.",
             _DECISIONS_TASK,
         ],
@@ -311,10 +460,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             "from them. Reconcile the sheet against the movement log and say what to reorder. Scope it to "
             "~{timebox:g}h."
         ),
-        "repoSeed": "inventory.csv (opening and reported quantities), movements.csv (every movement since month start) and stock_notes.md.",
+        "repoSeed": (
+            "inventory.csv (opening and reported quantities), movements.csv (every movement since month start), "
+            f"stock_notes.md and {_DRAFT_OPS_PATH} (an AI assistant's draft of the order quantities)."
+        ),
         "tasks": [
             "Reconcile each SKU: opening quantity plus movements against the reported on-hand figure.",
-            "Produce the reorder list from your reconciled quantities and the reorder points.",
+            f"Produce the reorder list from your reconciled quantities and the reorder points. {_DRAFT_OPS_PATH} is an AI assistant's draft of the order quantities: use it, fix it or discard it.",
             "Write the short note you would send the warehouse lead about anything that does not reconcile.",
             _DECISIONS_TASK,
         ],
@@ -365,10 +517,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             "Eight tickets are open and you are the only person on the queue this shift. Triage them, "
             "reply to the ones you can close, and route the rest. Scope it to ~{timebox:g}h."
         ),
-        "repoSeed": "tickets.csv (the open queue snapshot) and queue_notes.md (how routing works).",
+        "repoSeed": (
+            "tickets.csv (the open queue snapshot), queue_notes.md (how routing works) and "
+            f"{_DRAFT_SUPPORT_PATH} (an AI assistant's draft reply to T-1043)."
+        ),
         "tasks": [
             "Triage tickets.csv into an order of work, with a one-line reason per ticket.",
-            "Write the customer reply for the three tickets you would answer first.",
+            f"Write the customer reply for the three tickets you would answer first. An AI assistant has drafted the reply to T-1043 in {_DRAFT_SUPPORT_PATH}: use it, fix it or discard it.",
             "Name every ticket you would route to someone else, to whom, and what you would tell them.",
             _DECISIONS_TASK,
         ],
@@ -428,10 +583,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             "A five-step signup flow has been through review. Critique it against the stated constraints "
             "and the component sizes, then revise it. Scope it to ~{timebox:g}h."
         ),
-        "repoSeed": "flow_spec.md (the flow), constraints.md, components.csv (exported component sizes) and design_notes.md.",
+        "repoSeed": (
+            "flow_spec.md (the flow), constraints.md, components.csv (exported component sizes), design_notes.md "
+            f"and {_DRAFT_DESIGN_PATH} (an AI assistant's draft revision)."
+        ),
         "tasks": [
             "Critique flow_spec.md against constraints.md: list each violation with the step it is on.",
-            "Revise the flow so it meets the constraints; describe the changed screens in words or a sketch.",
+            f"Revise the flow so it meets the constraints; describe the changed screens in words or a sketch. {_DRAFT_DESIGN_PATH} is an AI assistant's draft revision: use it, fix it or discard it.",
             "Say how you would test the revision with five users and what result would make you change it again.",
             _DECISIONS_TASK,
         ],
@@ -490,10 +648,13 @@ FAMILY_CASES: dict[str, dict[str, Any]] = {
             "campaign to decide the budget split and the first two weeks of activity. Scope it to "
             "~{timebox:g}h."
         ),
-        "repoSeed": "campaign_brief.md (goal, budget, audience, last-campaign summary) and results.csv (last campaign by channel).",
+        "repoSeed": (
+            "campaign_brief.md (goal, budget, audience, last-campaign summary), results.csv (last campaign by "
+            f"channel) and {_DRAFT_MKT_PATH} (an AI assistant's proposed budget split)."
+        ),
         "tasks": [
             "Analyse results.csv: which channels earned their spend, and on what measure.",
-            "Propose the budget split for the EUR 12,000 and the first two weeks of activity.",
+            f"Propose the budget split for the EUR 12,000 and the first two weeks of activity. {_DRAFT_MKT_PATH} is an AI assistant's proposed split: use it, fix it or discard it.",
             "State the one number you would watch in week one and what would make you move budget.",
             _DECISIONS_TASK,
         ],

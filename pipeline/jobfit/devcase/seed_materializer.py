@@ -22,7 +22,7 @@ import re
 from typing import Any
 
 from .ai_drafts import draft_for
-from .family_cases import family_case_for
+from .family_cases import case_draft, family_case_for
 from .models import CaseScenario, RoleSpec
 from .provenance import generate_with_fallback
 
@@ -86,17 +86,37 @@ def _decisions_template(case: CaseScenario) -> str:
     return "\n".join(lines)
 
 
+def _family_case(case: CaseScenario, role: RoleSpec) -> dict | None:
+    """The keyless family case this seed belongs to — only for a case carrying the explicit
+    ``familyCase`` marker design_case stamps on it, and only for the family this role
+    resolves to. A title match used to decide this, and a model reply with no title
+    inherited the family title, so the family files shipped beside model tasks (T13)."""
+    fc = family_case_for(role.role_family, role.title) if case.family_case else None
+    return fc if fc is not None and case.family_case == fc["family"] else None
+
+
+def _draft_for_case(case: CaseScenario, role: RoleSpec) -> dict:
+    """The labelled AI draft this case ships: the family case's own draft (authored over its
+    materials, named by one of its tasks), else the curated draft for the role family."""
+    fc = _family_case(case, role)
+    return case_draft(fc["family"]) if fc else draft_for(role.role_family)
+
+
 def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
     """Template seed — never fails, and honest about what it is: the prose
     materials become README context plus the forced decisions log. No fake code
     is fabricated deterministically (a wrong-language stub would be worse than
     none); the LLM path is what makes the seed concrete.
 
-    S2 (ADR 0027): the one exception is the supplied AI draft — a CURATED file per
-    role family (ai_drafts.py), truthfully labelled as unreviewed AI output the
-    candidate may use, fix or discard, whose flaws carry real ground truth. It is
-    the keyless path's only source of canaries."""
-    draft = draft_for(role.role_family)
+    Two exceptions carry real ground truth. A keyless family case (T13, family_cases.py)
+    ships its own starting files and their planted trap. And every seed ships ONE supplied
+    AI draft (S2, ADR 0027), truthfully labelled as unreviewed AI output the candidate may
+    use, fix or discard: for a family case it is the case's own draft, authored over the
+    case's materials and named by one of its tasks (council-lite T13 r2: a family-only
+    draft had nothing to do with the case); otherwise the curated draft for the role family
+    (ai_drafts.py)."""
+    fc = _family_case(case, role)
+    draft = _draft_for_case(case, role)
     title = case.title or role.title or "Work sample"
     readme = "\n".join(
         [
@@ -119,13 +139,6 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             f"`{draft['path']}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
         ]
     )
-    # T13: the keyless family case ships its own starting files and canaries — only for a case
-    # carrying the explicit `familyCase` marker design_case stamps on it (and only for the
-    # family this role resolves to). A title match used to decide this, and a model reply with
-    # no title inherited the family title, so the family files shipped beside model tasks.
-    fc = family_case_for(role.role_family, role.title) if case.family_case else None
-    if fc is not None and case.family_case != fc["family"]:
-        fc = None
     family_files = [{"path": p, "contents": c} for p, c in (fc["files"] if fc else [])]
     family_canaries = list(fc["canaries"]) if fc else []
     return {
@@ -143,8 +156,8 @@ def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
             else "deterministic skeleton — starting materials remain prose plus one labelled AI draft; the LLM path materializes concrete files"
         ),
         # No TEMPLATE canaries — a template flaw with no real ground truth would grade
-        # candidates against noise. The only canaries here are the curated draft's, each
-        # wrong in every case of its family whatever the brief says (ai_drafts.py).
+        # candidates against noise. The only canaries here are the family case's trap and
+        # the draft's, each with a single checkable ground truth.
         "canaries": [*family_canaries, *draft["canaries"]],
     }
 
@@ -198,7 +211,7 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
     out = deterministic_seed(case, role)
     if not isinstance(payload, dict):
         return out
-    draft = draft_for(role.role_family)
+    draft = _draft_for_case(case, role)
     files: list[dict[str, str]] = []
     # The draft path is reserved: a model file there would shadow the labelled draft.
     seen: set[str] = {draft["path"].casefold()}

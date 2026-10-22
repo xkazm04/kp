@@ -164,6 +164,13 @@ class RubricDimension(_Base):
     description: str = ""
 
 
+# Canary-id prefix of the AI draft a keyless family case ships for itself
+# (family_cases._CASE_DRAFTS). evaluate.py reads those verdicts on the tooling axis —
+# corrected vs pasted — and only those: the per-family curated drafts of ai_drafts.py
+# ("draft-d1", …) keep their judgment-only reading.
+CASE_DRAFT_CANARY_PREFIX = "draft-case-"
+
+
 # Canonical, ORDERED rubric for the five durable capabilities — the single source of
 # truth for dimension order, human labels, weights (sum to 1.0) and descriptions. design.py
 # seeds CaseScenario.rubricDimensions from this; evaluate.py echoes it (annotated with the

@@ -9,10 +9,12 @@ from pipeline.jobfit.devcase.design import design_case, design_role
 from pipeline.jobfit.devcase.evaluation_pipeline import EvaluationInputs, run_evaluation
 from pipeline.jobfit.devcase.family_cases import (
     FAMILY_CASES,
+    case_draft,
     resolve_case_family,
 )
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
 from pipeline.jobfit.devcase.models import (
+    CASE_DRAFT_CANARY_PREFIX,
     RUBRIC_DIMENSIONS,
     CaseScenario,
     DevNeed,
@@ -371,24 +373,25 @@ def _case_for_need(need: DevNeed):
 
 
 def _grade_with(role: dict, case: dict, edits: dict[str, str], chat: list[dict] | None = None):
-    """The family trap's verdict and the evaluation, through the real grader."""
+    """The family trap's verdict, the draft's verdict and the evaluation, through the real grader."""
     seed = _seed(role, case)
     submitted = {f["path"]: f["contents"] for f in seed["files"]}
     submitted.update(edits)
     files = [{"path": p, "contents": c} for p, c in submitted.items()]
     outcomes = canary_outcomes(seed, files, chat)
     family = next(o for o in outcomes if o["id"].startswith("case-"))
+    draft = next(o for o in outcomes if o["id"].startswith(CASE_DRAFT_CANARY_PREFIX))
     run = run_evaluation(
         EvaluationInputs(commits=[], case=case, role=role, probes=case["coverProbes"], seed=seed, files=files, chat=chat),
         provider=None,
     )
-    return family, run.result["evaluation"]
+    return family, draft, run.result["evaluation"]
 
 
 def _grade_family(fam: str, path: str, body: str):
     rf, title = _ROLES[fam]
     _, role, case, _ = _case(rf, title)
-    family, ev = _grade_with(role, case, {path: body})
+    family, _draft, ev = _grade_with(role, case, {path: body})
     return family, ev["dimensionScores"]["judgment"]
 
 
@@ -435,7 +438,7 @@ class TestCouncilR2TrickyAnswers(unittest.TestCase):
     def test_support_catch_in_czech_on_the_czech_role(self):
         role, case, _ = _case_for_need(_CS_SUPPORT_NEED)
         self.assertEqual(case["familyCase"], "support")
-        family, ev = _grade_with(role, case, {"triage.md": (
+        family, _draft, ev = _grade_with(role, case, {"triage.md": (
             "# Třídění\n\n1. T-1047: v exportu jsou řádky cizího klienta (Orchid Dental) - to je incident ochrany dat, "
             "eskaluji vedoucímu směny.\n")})
         self.assertEqual(family["status"], "flagged", family)
@@ -527,8 +530,108 @@ class TestUnverifiableIsNotAMiss(unittest.TestCase):
             with self.subTest(family=fam):
                 rf, title = _ROLES[fam]
                 _, role, case, _ = _case(rf, title)
-                family, _ev = _grade_with(role, case, {path: body})
+                family, draft, ev = _grade_with(role, case, {path: body})
                 self.assertEqual(family["status"], "unverifiable", family)
+                self.assertEqual(draft["status"], "unverifiable", draft)
+                self.assertFalse([c for c in ev["concerns"] if "shipped unexamined" in c], ev["concerns"])
+                self.assertEqual(ev["dimensionScores"]["judgment"], 0)
+                self.assertEqual(ev["dimensionScores"]["tooling"], 50)
+
+
+# --- MUST-ADDRESS 3: the AI draft belongs to the case and moves the AI-collaboration axis -------
+
+# Per family: the candidate pastes the draft's figure, or corrects it.
+_DRAFT_PASTE = {
+    "sales": ("email.md", "Hi Ingrid,\n\nTo help your lawyer close it this month, we can offer 10% off for signature by "
+                          "31 October, which brings the order to EUR 66,500.\n"),
+    "operations": ("reorder.md", "# Reorder\n\n- SKU-102 Stretch film: order 85\n- SKU-105 Label roll: order 190\n"),
+    "support": ("replies.md", "## T-1043\n\nYour ticket reached us at 08:30, so you will hear back from our engineers by 13:30 at the latest.\n"),
+    "design": ("revision.md", "# Revision\n\n- Layout: the 320 px wide buttons and fields sit centred on the 360 px screen with 16 px side margins.\n"),
+    "marketing": ("campaign_plan.md", "# Budget\n\n- Paid search: 60%, EUR 7,200\n- Email: 25%, EUR 3,000\n- LinkedIn ads: 15%, EUR 1,500\n"),
+}
+_DRAFT_CORRECT = {
+    "sales": ("email.md", "Hi Ingrid,\n\nWe can offer 10% off for signature by 31 October, which brings the order to EUR 67,500.\n"),
+    "operations": ("reorder.md", "# Reorder\n\n- SKU-102 Stretch film: order 85\n- SKU-105 Label roll: 3 x 100 - 90 = 210, not the draft's 190\n"),
+    "support": ("replies.md", "## T-1043\n\nYour ticket reached us at 08:30, so you will hear back from us by 12:30 at the latest.\n"),
+    "design": ("revision.md", "# Revision\n\n- Layout: 320 px components centred on the 360 px screen leave 20 px side margins.\n"),
+    "marketing": ("campaign_plan.md", "# Budget\n\n- Paid search: 60%, EUR 7,200\n- Email: 25%, EUR 3,000\n- LinkedIn ads: 15%, EUR 1,800\n"),
+}
+
+
+class TestTheCaseOwnsItsAiDraft(unittest.TestCase):
+    def test_each_case_ships_its_own_draft_and_a_task_names_it(self):
+        paths = set()
+        for fam, (rf, title) in _ROLES.items():
+            with self.subTest(family=fam):
+                _, role, case, _ = _case(rf, title)
+                seed = _seed(role, case)
+                files = {f["path"]: f["contents"] for f in seed["files"]}
+                draft = case_draft(fam)
+                self.assertEqual(files.get(draft["path"]), draft["contents"])
+                self.assertIn("UNREVIEWED AI-GENERATED DRAFT", draft["contents"])
+                self.assertTrue(any(draft["path"] in t for t in case["tasks"]), case["tasks"])
+                self.assertIn(draft["path"], case["repoSeed"])
+                self.assertIn(draft["path"], files["README.md"])
+                # exactly one draft, and it is the case's: the family-generic draft is gone
+                self.assertEqual(sum("UNREVIEWED AI-GENERATED DRAFT" in c for c in files.values()), 1)
+                (canary,) = [c for c in seed["canaries"] if c["id"].startswith(CASE_DRAFT_CANARY_PREFIX)]
+                self.assertEqual(canary["path"], draft["path"])
+                self.assertEqual(draft["contents"].count(_fragment(canary["flaw"])), 1)
+                self.assertIsNone(_HINT_RE.search(draft["contents"]))
+                # the seed's own text never satisfies the draft's catch evidence
+                lines = [ln.strip() for body in files.values() for ln in body.splitlines() if ln.strip()]
+                self.assertFalse(evidence_caught(canary["catchEvidence"], [lines]), fam)
+                paths.add(draft["path"])
+        self.assertEqual(len(paths), 5)
+
+    def test_the_drafts_ground_truth_is_actually_true(self):
+        self.assertEqual(75000 * 0.9, 67500)
+        self.assertEqual(3 * 100 - 90, 210)
+        self.assertEqual((360 - 320) // 2, 20)
+        self.assertEqual(12000 * 15 // 100, 1800)
+        self.assertEqual(7200 + 3000 + 1500, 11700)
+        # support: 08:30 + 4h
+        self.assertEqual((8 * 60 + 30 + 4 * 60) // 60, 12)
+        # the draft's own rule matches the materials: SKU-105 has reorder point 100 and 90 on hand
+        inv = dict(FAMILY_CASES["operations"]["files"])["inventory.csv"]
+        self.assertIn("SKU-105,Label roll,300,90,100", inv)
+
+    def test_correcting_the_draft_scores_differently_from_pasting_it(self):
+        scores = {}
+        for fam, (rf, title) in _ROLES.items():
+            with self.subTest(family=fam):
+                _, role, case, _ = _case(rf, title)
+                _f, pasted, ev_paste = _grade_with(role, case, dict([_DRAFT_PASTE[fam]]))
+                _f, fixed, ev_fix = _grade_with(role, case, dict([_DRAFT_CORRECT[fam]]))
+                self.assertEqual(pasted["status"], "propagated", pasted)
+                self.assertEqual(fixed["status"], "flagged", fixed)
+                t_paste, t_fix = ev_paste["dimensionScores"]["tooling"], ev_fix["dimensionScores"]["tooling"]
+                self.assertGreater(t_fix, t_paste)
+                self.assertIn("Checked the supplied AI draft and corrected its error before using it", ev_fix["strengths"])
+                self.assertIn("Carried the supplied AI draft's error into the work unchecked", ev_paste["concerns"])
+                scores[fam] = (t_paste, t_fix)
+        # keyless fluency is 0.5: pasted 25, corrected 75, untouched 50 (TestUnverifiableIsNotAMiss)
+        self.assertEqual(set(scores.values()), {(25, 75)})
+
+    def test_editing_the_draft_file_in_place_is_graded_too(self):
+        rf, title = _ROLES["sales"]
+        _, role, case, _ = _case(rf, title)
+        draft = case_draft("sales")
+        fixed = draft["contents"].replace("EUR 66,500", "EUR 67,500")
+        kept = draft["contents"] + "\nReviewed, sending as is.\n"
+        _f, out_fixed, ev_fixed = _grade_with(role, case, {draft["path"]: fixed})
+        _f, out_kept, ev_kept = _grade_with(role, case, {draft["path"]: kept})
+        self.assertEqual(out_fixed["status"], "addressed")
+        self.assertEqual(out_kept["status"], "propagated")
+        self.assertGreater(ev_fixed["dimensionScores"]["tooling"], ev_kept["dimensionScores"]["tooling"])
+
+    def test_software_keeps_its_curated_draft_and_tooling_reading(self):
+        _, role, case, _ = _case("software_engineering", "Backend Engineer")
+        seed = _seed(role, case)
+        self.assertFalse([c for c in seed["canaries"] if c["id"].startswith(CASE_DRAFT_CANARY_PREFIX)])
+        files = [*seed["files"], {"path": "notes.md", "contents": "Done.\n"}]
+        run = run_evaluation(EvaluationInputs(commits=[], case=case, role=role, probes=case["coverProbes"], seed=seed, files=files), provider=None)
+        self.assertEqual(run.result["evaluation"]["dimensionScores"]["tooling"], 50)
 
 
 if __name__ == "__main__":

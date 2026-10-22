@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from ..i18n import language_directive, normalize_lang
-from .models import RUBRIC_DIMENSIONS, rubric_composite
+from .models import CASE_DRAFT_CANARY_PREFIX, RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import fenced_untrusted, generate_with_fallback, str_list as _str_list
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v2"  # v2: the evaluation context is character-budgeted (the prompt text can change — bump so any version-keyed cache regenerates)
@@ -47,6 +47,15 @@ MISSING_DIMENSION_SCORE = 50
 _CANARY_GRADED = frozenset({"addressed", "flagged", "propagated"})
 _CANARY_CAUGHT = frozenset({"addressed", "flagged"})
 CANARY_VERIFY_WEIGHT = 0.5
+
+# The AI-collaboration reading of a keyless family case (council-lite T13 r2: tooling sat at
+# 50 for every candidate, the one who corrected the AI's draft included). The case ships its
+# own AI draft (models.CASE_DRAFT_CANARY_PREFIX), and its verdict says how the candidate
+# worked WITH the assistant's output: corrected (caught) moves tooling up by this much,
+# pasted with its slip (propagated) moves it down by the same, and a draft the candidate
+# never used (unverifiable) leaves it where the trace put it. Using the draft is never
+# scored by itself — only whether its claim was checked.
+AI_DRAFT_TOOLING_SWING = 0.25
 
 # Observed verification, channel-neutral (tiger C1, 2026-10-17). One verification act earns
 # the same credit whichever channel carried it; OBSERVED_VERIFY_ACTS_FOR_FULL acts earn the
@@ -172,6 +181,18 @@ _DET: dict[str, dict[str, str]] = {
         "cs": "{missed} z {total} známých chyb ve výchozím kódu zůstalo v odevzdané práci bez povšimnutí",
         "de": "{missed} von {total} bekannten Fehlern im Ausgangscode wurden ungeprüft übernommen",
         "fr": "{missed} des {total} défauts connus du code de départ ont été livrés sans examen",
+    },
+    "ai_draft_corrected": {
+        "en": "Checked the supplied AI draft and corrected its error before using it",
+        "cs": "Dodaný návrh od AI ověřil(a) a před použitím opravil(a) jeho chybu",
+        "de": "Hat den gelieferten KI-Entwurf geprüft und seinen Fehler vor der Verwendung korrigiert",
+        "fr": "A vérifié le brouillon IA fourni et corrigé son erreur avant de l'utiliser",
+    },
+    "ai_draft_pasted": {
+        "en": "Carried the supplied AI draft's error into the work unchecked",
+        "cs": "Chybu z dodaného návrhu od AI převzal(a) do práce bez ověření",
+        "de": "Hat den Fehler des gelieferten KI-Entwurfs ungeprüft in die Arbeit übernommen",
+        "fr": "A repris sans vérification l'erreur du brouillon IA fourni",
     },
     "eval_summary": {
         "en": "Deterministic estimate from the trace: tooling {tooling}, judgment {judgment}, framing {framing}.",
@@ -539,9 +560,14 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         assessed = [o for o in outcomes if isinstance(o.get("handledWell"), bool)]
         detected_any = any(o.get("detected") for o in outcomes)
         handled = (sum(1 for o in assessed if o.get("handledWell")) / len(assessed)) if assessed else 0.0
+        # The case's own AI draft, corrected or pasted (AI_DRAFT_TOOLING_SWING). Unverifiable
+        # is no signal, so a candidate who never touched the draft reads as before.
+        drafts = [c for c in graded if str(c.get("id") or "").startswith(CASE_DRAFT_CANARY_PREFIX)]
+        draft_share = (sum(1 for c in drafts if c.get("status") in _CANARY_CAUGHT) / len(drafts)) if drafts else None
+        tool = fluency if draft_share is None else min(1.0, max(0.0, fluency + AI_DRAFT_TOOLING_SWING * (2 * draft_share - 1)))
         dims = {
             "framing": _pct(0.55 * rbw + 0.45 * 0.5),
-            "tooling": _pct(fluency),
+            "tooling": _pct(tool),
             # Judgment rests on the probe-handling mean ONLY when handling was actually
             # graded; with no graded probes (observed path, or none at all) it rests on
             # verification alone rather than a structurally-suppressed 0.5*handled for an
@@ -569,6 +595,10 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
             strengths.append(_t("canaries_caught", lang, caught=caught, total=len(graded)))
         if len(graded) > caught:
             concerns.append(_t("canaries_missed", lang, missed=len(graded) - caught, total=len(graded)))
+        if draft_share is not None:
+            (strengths if draft_share > 0.5 else concerns).append(
+                _t("ai_draft_corrected" if draft_share > 0.5 else "ai_draft_pasted", lang)
+            )
         # Empty findings stay empty (no '—' sentinel) — `hasFindings` lets the UI render a
         # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.
         return {
