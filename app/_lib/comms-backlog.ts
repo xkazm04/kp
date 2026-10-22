@@ -2,7 +2,6 @@ import { getOutboxEntry, listOutboxFiltered, type OutboxEntry } from "./db/devca
 import { getPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { CommsBodyRejectedError, CommsSuppressedError, commsSendSuppression, sendComm } from "./comms";
 import { entryContactability } from "./comms-contactability";
-import { REFUSED_COMMS_CHANNEL, SIM_COMMS_CHANNEL } from "./comms-resend-outcome";
 import { isDeliverableAddress } from "./comms-recipient";
 import { relayHealth } from "./comms-relay";
 
@@ -68,11 +67,17 @@ export type BacklogResult =
   | { id: string; outcome: "sent" | "failed" | "queued"; detail?: string | null }
   | { id: string; outcome: "skipped"; reason: BacklogSkipReason; detail?: string | null };
 
-/** A queued row that was meant for a real inbox: not a simulation, not a refused
- *  recipient, and carrying what a resend needs. Pure. */
+/** The channel name of the local outbox (comms.ts OutboxChannel): the ONLY writer of a
+ *  row that is queued for want of a sender. */
+const LOCAL_OUTBOX_CHANNEL = "outbox";
+
+/** A queued row that was meant for a real inbox and waited only for a sender: written by
+ *  the local outbox channel (an allow-list, not a deny-list: a devcase feedback DRAFT is
+ *  also `queued`, on the posting's channel, while it waits for the recruiter to read it,
+ *  and must never leave on a backlog confirmation), carrying what a resend needs. Pure. */
 export function isBacklogRow(row: OutboxEntry): boolean {
   if (row.status !== "queued") return false;
-  if (row.channel === SIM_COMMS_CHANNEL || row.channel === REFUSED_COMMS_CHANNEL) return false;
+  if (row.channel !== LOCAL_OUTBOX_CHANNEL) return false;
   return Boolean(row.recipient && row.subject && row.body && row.kind);
 }
 

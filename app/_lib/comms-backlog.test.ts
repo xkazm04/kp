@@ -183,6 +183,18 @@ test("simulation and already-sent rows are refused by a confirmation even if nam
   assert.equal(posts.length, 0);
 });
 
+test("a queued draft waiting for review (devcase feedback) is neither offered nor sent", async () => {
+  // app/api/devcase/feedback/route.ts files an AI-drafted letter `queued` on the posting's
+  // channel while it waits for the recruiter to read it. That is not a letter that waited
+  // for a SENDER; only the local outbox channel's rows are.
+  const draft = row({ kind: "feedback", channel: "email" });
+  const devcase = row({ kind: "feedback", channel: "devcase" });
+  const posts = relay();
+  assert.deepEqual(backlogOffer(WS).letters.filter((l) => l.id === draft.id || l.id === devcase.id), []);
+  assert.deepEqual((await confirmBacklogSend(WS, [draft.id, devcase.id], ACTOR)).map(word), ["not_offered", "not_offered"]);
+  assert.equal(posts.length, 0);
+});
+
 test("another workspace's letter is not found, and nothing is sent", async () => {
   const foreign = row({ workspaceId: "backlog-other-ws" });
   const posts = relay();
