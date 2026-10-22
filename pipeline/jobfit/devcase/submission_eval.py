@@ -291,21 +291,28 @@ def _overreliance_from_tool_use(done: list[Row]) -> list[Row]:
         return bool(r.tooling.get("overRelianceFlags") or [])
 
     def _peer_flagged(r: Row) -> bool:
-        verifies = bool(r.planted.get("verifies"))
+        verifies = r.planted.get("verifies")
         return any(
             _flagged(p)
             for p in flag_rows
-            if not p.planted.get("usesAI") and bool(p.planted.get("verifies")) == verifies
+            if not p.planted.get("usesAI") and p.planted.get("verifies") is verifies
         )
 
-    return [r for r in flag_rows if r.planted.get("usesAI") and _flagged(r) and not _peer_flagged(r)]
+    # Only a row with a behaviour-matched peer can be judged: the S3 partial verifier
+    # (`verifies` = "partial") has no non-AI twin in the cast, so a flag on it says nothing
+    # about AI use either way and is left out rather than read as a violation.
+    matched = [r for r in flag_rows if isinstance(r.planted.get("verifies"), bool)]
+    return [r for r in matched if r.planted.get("usesAI") and _flagged(r) and not _peer_flagged(r)]
 
 
 def fairness(rows: list[Row]) -> dict[str, Any]:
     done = [r for r in rows if r.source != "error" and r.evaluation]
-    verifiers = [r for r in done if r.planted.get("verifies")]
-    non_verifiers = [r for r in done if not r.planted.get("verifies")]
-    ai_verifiers = [r for r in done if r.planted.get("verifies") and r.planted.get("usesAI")]
+    # `verifies` is compared by identity: the mid archetype carries "partial" (ADR 0027 S3),
+    # which belongs to neither behaviour-matched group, and a truthiness test would file it
+    # with the verifiers and read its lower judgment as an AI penalty.
+    verifiers = [r for r in done if r.planted.get("verifies") is True]
+    non_verifiers = [r for r in done if r.planted.get("verifies") is False]
+    ai_verifiers = [r for r in done if r.planted.get("verifies") is True and r.planted.get("usesAI")]
     # The AI check's control group is the BEHAVIOUR-MATCHED peer: a verifier who did
     # not use AI. Measuring AI-verifiers against non-verifiers instead (as this did
     # until 2026-08-21) folds in the verification lead the gate above deliberately
@@ -314,7 +321,7 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     # while the true penalty is 20. This is the same peer-matching rule
     # _overreliance_from_tool_use already applies ("the only thing that differs is
     # that AI was used").
-    non_ai_verifiers = [r for r in done if r.planted.get("verifies") and not r.planted.get("usesAI")]
+    non_ai_verifiers = [r for r in done if r.planted.get("verifies") is True and not r.planted.get("usesAI")]
 
     def mean_j(rs):
         return round(sum(r.judgment for r in rs) / len(rs), 1) if rs else None
@@ -382,29 +389,46 @@ def discrimination(rows: list[Row]) -> dict[str, Any]:
     # Aggregate strong rows can all be other behaviours. Keep the named
     # careful-verifier control in the discrimination landscape before certifying it.
     verifier_persona = [r for r in done if r.planted.get("behavior") == "careful_verifier"]
+    # ADR 0027 S3 - the mid-strength cohort (a partial verifier). Reported, and certified to
+    # sit strictly between weak and strong, so the gamer watch figure has a middle to be
+    # read against: a scorer that lifted the gamer would close the mid-gamer gap first.
+    mid = [r for r in done if r.planted.get("expected") == "mid"]
 
     def mean_o(rs):
         return round(sum(r.overall for r in rs) / len(rs), 1) if rs else None
 
-    s_mean, w_mean, g_mean = mean_o(strong), mean_o(weak), mean_o(gamer)
+    s_mean, w_mean, g_mean, m_mean = mean_o(strong), mean_o(weak), mean_o(gamer), mean_o(mid)
     # Both directions require a meaningful margin (was: ANY positive gap) and a
     # minimum sample, so a near-tie or a tiny run is inconclusive, not a pass.
     strong_beats_weak = _lead_verdict(s_mean, w_mean, len(strong), len(weak), MIN_DISCRIMINATION_MARGIN)
     gamer_below_strong = _lead_verdict(s_mean, g_mean, len(strong), len(gamer), MIN_DISCRIMINATION_MARGIN)
-    status = _gate_status(
-        [
-            (strong_beats_weak, _evaluable(len(strong), len(weak))),
-            (gamer_below_strong, _evaluable(len(strong), len(gamer))),
-            (True if verifier_persona else None, bool(verifier_persona)),
-        ]
-    )
+    # The mid cohort is optional (a hand-built row set may carry none): absent, it neither
+    # passes nor withholds; present, it must clear the margin on BOTH sides.
+    mid_between = None
+    if mid:
+        above_weak = _lead_verdict(m_mean, w_mean, len(mid), len(weak), MIN_DISCRIMINATION_MARGIN)
+        below_strong = _lead_verdict(s_mean, m_mean, len(strong), len(mid), MIN_DISCRIMINATION_MARGIN)
+        mid_between = None if above_weak is None or below_strong is None else (above_weak and below_strong)
+    checks = [
+        (strong_beats_weak, _evaluable(len(strong), len(weak))),
+        (gamer_below_strong, _evaluable(len(strong), len(gamer))),
+        (True if verifier_persona else None, bool(verifier_persona)),
+    ]
+    if mid:
+        checks.append((mid_between, _evaluable(len(strong), len(mid), len(weak))))
+    status = _gate_status(checks)
     sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer), "verifier_persona": len(verifier_persona)}
+    if mid:
+        sample["mid"] = len(mid)
     return {
         "strong_mean": s_mean,
         "weak_mean": w_mean,
         "margin": round(s_mean - w_mean, 1) if (s_mean is not None and w_mean is not None) else None,
         "gamer_mean": g_mean,
         "gamer_margin": round(s_mean - g_mean, 1) if (s_mean is not None and g_mean is not None) else None,
+        "mid_mean": m_mean,
+        "mid_gamer_margin": round(m_mean - g_mean, 1) if (m_mean is not None and g_mean is not None) else None,
+        "mid_between": mid_between,
         "sample": sample,
         "thresholds": {"min_group_n": MIN_GROUP_N, "discrimination_margin": MIN_DISCRIMINATION_MARGIN},
         "cohort_warnings": _cohort_warnings(sample),
@@ -436,7 +460,7 @@ def instrument_stamp(rows: list[Row], *, llm: bool) -> dict[str, Any]:
     ``castFingerprint`` hashes the scenario ids + labels, so a cast that was regenerated or
     re-enriched shows up as a different cohort rather than as an instrument change.
     """
-    cast = "|".join(f"{r.id}" for r in rows)
+    cast = "|".join(f"{r.id}:{r.label}" for r in rows)
     return {
         "synthetic": True,
         "mode": "llm" if llm else "deterministic",
@@ -540,6 +564,11 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict
         f"- strong beats weak: {_verdict_str(d['strong_beats_weak'])} · gamer (AI-no-verify) {d['gamer_mean']} "
         f"below strong by {d['gamer_margin']}: {_verdict_str(d['gamer_below_strong'])} · samples {d['sample']}"
     )
+    if d.get("mid_mean") is not None:
+        L.append(
+            f"- mid (partial verifier) {d['mid_mean']} between weak and strong by >= {MIN_DISCRIMINATION_MARGIN:g}: "
+            f"{_verdict_str(d['mid_between'])} · above the gamer by {d['mid_gamer_margin']}"
+        )
     if d.get("cohort_warnings"):
         L.append(f"- minimum-cohort-size warning: {'; '.join(d['cohort_warnings'])}")
     fails = [r for r in rows if not r.reliable]

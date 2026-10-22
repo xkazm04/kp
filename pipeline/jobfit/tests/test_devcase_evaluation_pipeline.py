@@ -206,8 +206,9 @@ class TestObservedFamily(unittest.TestCase):
                 self.assertFalse(any(e["kind"] == "edit" and "test" in e["path"] for e in s.events))
 
     def test_template_is_fixed_per_behavior(self):
-        a = generate_submissions(12, path="observed")
-        for x, y in zip(a[:6], a[6:]):
+        n = len(BEHAVIORS)
+        a = generate_submissions(2 * n, path="observed")
+        for x, y in zip(a[:n], a[n:]):
             self.assertEqual(x.planted["behavior"], y.planted["behavior"])
             self.assertEqual((x.events, x.files, x.chat, x.seed), (y.events, y.files, y.chat, y.seed))
 

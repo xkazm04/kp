@@ -26,6 +26,9 @@ first, edit a test, keep DECISIONS warm, fix or flag the canaries and fix the dr
 non-verifiers edit unread and ship the flaws, the AI-no-verify gamer submitting the draft as it
 came): they pin that the observed scorer
 separates the archetypes, not how well it reads an adversary — case-sim rounds do that.
+The observed cast also carries one MID-strength archetype (ADR 0027 S3, ``ai_spot_check``,
+``verifies="partial"``, ``expected="mid"``): one watched verification act where a verifier
+shows two or more. It has no commit trace, so the commit cast is unchanged.
 """
 
 from __future__ import annotations
@@ -72,8 +75,23 @@ BEHAVIORS: dict[str, dict[str, Any]] = {
         "trace": ["add the complete feature", "scaffold the whole solution with assistant"],
         "general": ["add the complete deliverable", "generate the whole thing with an assistant"],
     },
+    # ADR 0027 S3 - the MID-strength archetype, OBSERVED PATH ONLY. Without it the observed
+    # cast was strong or weak and nothing between, so no figure could show the scorer (or the
+    # evidence ladder) telling a partial verifier from either end. It uses the assistant,
+    # reads the legacy module and fixes its planted rate, but writes no test, asks for no
+    # check, ships the draft as it came and keeps a one-line log: one watched verification
+    # act, not two. `verifies` is "partial", so the fairness gate's behaviour-matched groups
+    # (verifier vs non-verifier, AI vs non-AI verifier) never see it. It carries no commit
+    # trace: the keyless commit reflect has no step between "no habit" and "a habit" (a
+    # strong verifier already sits at 50 judgment there), so a partial verifier is not
+    # representable on that path, and leaving it out keeps the commit cast byte-identical.
+    "ai_spot_check": {
+        "verifies": "partial", "usesAI": True, "expected": "mid", "observedOnly": True,
+    },
 }
 _BEHAVIOR_KEYS = list(BEHAVIORS)
+# The commit path's cast: every behaviour that has a commit trace.
+_COMMIT_BEHAVIOR_KEYS = [k for k, v in BEHAVIORS.items() if not v.get("observedOnly")]
 
 # --- the observed (Live Work Surface) family: ONE fixed template per BEHAVIOR ---------------
 _LEGACY, _CONFIG, _TEST, _DECISIONS = "src/legacy.py", "src/config.py", "tests/test_legacy.py", "DECISIONS.md"
@@ -157,6 +175,14 @@ _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
         ["legacy_oneshot", "draft_asis"],
         [{"channel": "assistant", "role": "user", "text": _BRIEF}],
     ),
+    "ai_spot_check": (
+        [("open", _LEGACY), ("prompt", "assistant"), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "draft_asis", "decisions"],
+        [
+            {"channel": "assistant", "role": "user", "text": "Draft a per-market rate table for rate() and ceil_rate()"},
+            {"channel": "assistant", "role": "model", "text": "Here is a draft."},
+        ],
+    ),
 }
 # The frozen one-shot baseline: what a bare model ships unattended.
 _BASELINE = {"solutions": [{"files": [_FILES["legacy_oneshot"]]}]}
@@ -219,7 +245,7 @@ def generate_submissions(n: int = 60, domain: str = "it", path: str = "commit") 
         dom = _DOMAIN_KEYS[i % len(_DOMAIN_KEYS)] if domain == "mixed" else domain
         fams = DOMAINS[dom]["families"]
         fam_keys = list(fams)
-        behavior = _pick(_BEHAVIOR_KEYS, i)
+        behavior = _pick(_BEHAVIOR_KEYS if observed else _COMMIT_BEHAVIOR_KEYS, i)
         spec_b = BEHAVIORS[behavior]
         fam = _pick(fam_keys, i)
         spec = fams[fam]
@@ -233,7 +259,7 @@ def generate_submissions(n: int = 60, domain: str = "it", path: str = "commit") 
             "mustHaves": stack,
             "responsibilities": spec["resp"][: 2 + (i % 3)],
         }
-        trace = spec_b["trace"] if dom == "it" else spec_b["general"]
+        trace = (spec_b["trace"] if dom == "it" else spec_b["general"]) if not observed else []
         extra: dict[str, Any] = _observed(behavior) if observed else {}
         out.append(
             SubScenario(
