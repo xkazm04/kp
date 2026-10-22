@@ -66,7 +66,7 @@ from . import registry
 from .llm import degradation as _vocabulary
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig, gross_period_phrase
-from .matching import MatchCandidate, ko_filter, score_job
+from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import (
     ASPIRATION_MAX_CHARS,
@@ -140,7 +140,13 @@ POLICY: dict[str, int] = {
     "screening_auto_days": 2,
     "stale_days": 21,
     "aging_days": 30,
-    "rematch_floor": 55,
+    # The promising-fit floor, not a number of its own: rematch asks the same
+    # question as the rediscovery admission gate (app/_lib/rediscover.ts, at/above
+    # FIT_PROMISING_FLOOR) and the scorer's own band, so it reads the band's
+    # constant and admits at/above it. A free 55 here sat outside
+    # test_fit_threshold_sync.py, and its `<=` refused a total of exactly 55 that
+    # fit_tier_for calls "promising" and the TS sweep admits.
+    "rematch_floor": FIT_PROMISING_THRESHOLD,
     "rematch_max": 2,
     "screen_advance_conf": 80,
     # --- AI-screening strictness by pipeline VOLUME (the one place the thresholds
@@ -2678,7 +2684,7 @@ def rematch_candidate(
     lang: str = "en",
     provider: Any | None = None,
 ) -> dict:
-    """Find the best ALTERNATIVE open role for a candidate (top-1, >floor).
+    """Find the best ALTERNATIVE open role for a candidate (top-1, >=floor).
 
     Pure ranking — this proposes the alternative; it does NOT touch pipeline state.
     What rematch does to the SOURCE entry (close the current entry so the candidate
@@ -2715,8 +2721,8 @@ def rematch_candidate(
         scored.append((result.total, job, result))
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    if not scored or scored[0][0] <= POLICY["rematch_floor"]:
-        return {"found": False, "reason": f"no alternative above the {POLICY['rematch_floor']} floor"}
+    if not scored or scored[0][0] < POLICY["rematch_floor"]:
+        return {"found": False, "reason": f"no alternative at or above the {POLICY['rematch_floor']} floor"}
 
     total, job, result = scored[0]
     # `_note_degradation` is the same thread-local `_generate` writes, so a rematch

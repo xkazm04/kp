@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readFileSync } from "node:fs";
 import { isFairnessProtected, isKnownArchetype, normalizeArchetype, shieldsFromAutoReject } from "./archetypes";
 import { parseRegistryDocument, registryWriteGeneration } from "./archetype-registry";
 import { archetypeRegistryPath, setRegistryFilePathOverride } from "./archetype-registry-file";
@@ -11,19 +11,17 @@ import { archetypeRegistryPath, setRegistryFilePathOverride } from "./archetype-
 // answers from a copy bundled at BUILD time. The file is rewritten at runtime by the
 // archetype manager (archetype-registry.ts writeRegistry: new custom archetypes, a
 // custom archetype's shield switched on, a built-in reweighted), so every TS decision
-// that keyed on the bundle lagged the engine it sits beside until the next deploy:
-// the auto-reject shield called a registered archetype "unknown", and the scored-grid
-// cache served a pre-reweight grid. Every server reader that DECIDES or CACHES on the
+// that keyed on the bundle lagged the engine until the next deploy: the auto-reject
+// shield called a registered archetype "unknown", the scored-grid cache served a stale grid. Every server reader that DECIDES or CACHES on the
 // registry reads through here:
 //   - screen-wave.ts          the auto-reject eligibility + unknown-archetype audit
 //   - automation-fairness.ts  the TS re-check of Python's reject decisions
 //   - api/matrix/route.ts     the grid cache key (archetypeRegistryDigest)
 //   - analyze-run.ts          the analysis cache key, through the leaf
 //                             archetype-registry-file.ts (same path, same bytes digest)
-// archetypes.ts keeps its client-safe exports (labels, display grouping) unchanged.
 //
 // Contract:
-//   - memoised on (path, mtime, size, registryWriteGeneration), so a read is one stat;
+//   - memoised on (path, mtime, size, registryWriteGeneration); stamp and read share one descriptor;
 //   - validated through the SAME parser the manager and Python's import-time guard
 //     enforce (archetype-registry.ts parseRegistryDocument), so this reader trusts
 //     exactly what Python will score with;
@@ -76,9 +74,8 @@ function build(digest: string, known: ReadonlySet<string>, shielded: ReadonlySet
     },
     isFairnessProtected(archetype) {
       const id = normalizeArchetype(archetype);
-      // Bundled gate first: it is true for every id the bundle shields AND for every
-      // id it does not know — the latter is re-decided below only when the live file
-      // knows the id, which is what lets a registered custom archetype be classified.
+      // Bundled gate first: true for every id the bundle shields AND every id it does
+      // not know; the latter is re-decided only when the live file knows the id.
       if (isKnownArchetype(id)) return isFairnessProtected(id) || shielded.has(id);
       if (known.has(id)) return shielded.has(id);
       return true;
@@ -92,19 +89,21 @@ const UNREADABLE: LiveArchetypes = build(UNREADABLE_REGISTRY_DIGEST, new Set(), 
  *  (a screening wave) takes ONE snapshot so every row is judged by the same file. */
 export function readLiveArchetypes(): LiveArchetypes {
   const file = livePath();
-  let stamp: string;
+  let fd: number;
   try {
-    const st = statSync(file);
-    stamp = `${file}\u0000${st.mtimeMs}\u0000${st.size}\u0000${registryWriteGeneration()}`;
+    fd = openSync(file, "r");
   } catch {
     // fail closed: no file -> the bundled gate answers, live-only ids stay shielded
     memo = null;
     return UNREADABLE;
   }
-  if (memo && memo.stamp === stamp) return memo.live;
+  let stamp = "";
   let live: LiveArchetypes = UNREADABLE;
   try {
-    const bytes = readFileSync(file);
+    const st = fstatSync(fd);
+    stamp = `${file}\u0000${st.mtimeMs}\u0000${st.size}\u0000${registryWriteGeneration()}`;
+    if (memo && memo.stamp === stamp) return memo.live;
+    const bytes = readFileSync(fd);
     const reg = parseRegistryDocument(bytes.toString("utf8"));
     const known = new Set<string>();
     const shielded = new Set<string>();
@@ -117,6 +116,8 @@ export function readLiveArchetypes(): LiveArchetypes {
   } catch {
     // fail closed: unreadable / invalid JSON / fails the validator -> the bundled gate
     live = UNREADABLE;
+  } finally {
+    closeSync(fd);
   }
   memo = { stamp, live };
   return live;

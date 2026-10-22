@@ -52,7 +52,7 @@
 // PURE CORE: `evaluateSweep` / `renderGate` are filesystem-free and covered by
 // gate.test.mjs. Only `main` touches disk.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GLYPH_NA, glyph, parseArgs, verdictBanner } from "./lib.mjs";
@@ -385,12 +385,17 @@ export function loadRuns(benchRoot) {
   const out = [];
   for (const entry of readdirSync(runsDir).sort()) {
     const file = path.join(runsDir, entry, "result.json");
-    if (!existsSync(file) || !statSync(file).isFile()) continue;
     let result;
     try {
-      result = JSON.parse(readFileSync(file, "utf8"));
+      const fd = openSync(file, "r");
+      try {
+        if (!fstatSync(fd).isFile()) continue;
+        result = JSON.parse(readFileSync(fd, "utf8")); // judged and read on one descriptor
+      } finally {
+        closeSync(fd);
+      }
     } catch {
-      continue; // a half-written record from an interrupted run is not a verdict
+      continue; // absent, or a half-written record from an interrupted run: not a verdict
     }
     out.push({
       scenario: result?.scenario?.name ?? null,

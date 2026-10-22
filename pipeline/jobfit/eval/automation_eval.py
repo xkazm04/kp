@@ -172,7 +172,7 @@ def _check_scorecard(out: dict, s: Scenario) -> list[str]:
 def _check_rematch(out: dict, s: Scenario) -> list[str]:
     if not isinstance(out.get("found"), bool):
         return ["missing 'found'"]
-    if out["found"] and out.get("score", 0) <= automation.POLICY["rematch_floor"]:
+    if out["found"] and out.get("score", 0) < automation.POLICY["rematch_floor"]:
         return ["FAIRNESS: re-match below floor"]
     return []
 
