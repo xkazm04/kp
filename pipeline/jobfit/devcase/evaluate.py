@@ -544,8 +544,13 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # weigh the same), plus a decision log kept warm. MAX with the commit-derived
         # value, never instead of it.
         sig = tooling.get("signals") if isinstance(tooling.get("signals"), dict) else None
+        # The case's own AI draft is a tooling signal only (AI_DRAFT_TOOLING_SWING): its
+        # canaries stay out of every verification term, so correcting the draft cannot
+        # lift judgment and transfer and outscore catching the planted flaw.
+        all_outcomes = [c for c in ((extras or {}).get("canaryOutcomes") or []) if isinstance(c, dict)]
+        planted_outcomes = [c for c in all_outcomes if not str(c.get("id") or "").startswith(CASE_DRAFT_CANARY_PREFIX)]
         if sig:
-            acts = verification_acts(sig, (extras or {}).get("promptSignals"), (extras or {}).get("canaryOutcomes"))
+            acts = verification_acts(sig, (extras or {}).get("promptSignals"), planted_outcomes)
             obs_verif = (
                 OBSERVED_VERIFY_ACT_WEIGHT * min(1.0, acts / OBSERVED_VERIFY_ACTS_FOR_FULL)
                 + (OBSERVED_LOG_WARM_WEIGHT if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
@@ -562,10 +567,12 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # verification above, never instead of it, and capped at CANARY_VERIFY_WEIGHT:
         # case-sim round 3 showed canaries are not durable against a candidate who asks a
         # model to sweep for traps, so they lift like one watched habit, never decide alone.
-        graded = [c for c in ((extras or {}).get("canaryOutcomes") or []) if isinstance(c, dict) and c.get("status") in _CANARY_GRADED]
+        graded = [c for c in all_outcomes if c.get("status") in _CANARY_GRADED]
         caught = sum(1 for c in graded if c.get("status") in _CANARY_CAUGHT)
-        if graded:
-            verif = max(verif, CANARY_VERIFY_WEIGHT * caught / len(graded))
+        planted_graded = [c for c in planted_outcomes if c.get("status") in _CANARY_GRADED]
+        if planted_graded:
+            planted_caught = sum(1 for c in planted_graded if c.get("status") in _CANARY_CAUGHT)
+            verif = max(verif, CANARY_VERIFY_WEIGHT * planted_caught / len(planted_graded))
         # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
         # strings or None) so `.get` can't raise — mirrors mint_followups and
         # assess_tooling, the sibling consumers that already guard.

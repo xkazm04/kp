@@ -319,6 +319,8 @@ source of them, and on the LLM path the draft's canaries ride beside the model's
 (the draft path is reserved, so a model file cannot shadow it). Grading is the existing
 channel-neutral rule: fixed or flagged counts as caught, left in place as propagated.
 Using the draft is neither rewarded nor penalised; only checking its claims counts.
+The draft's verdict feeds the keyless **tooling** dimension only; its canaries stay out of the
+verification term, so correcting the draft cannot lift judgment or transfer above catching a planted flaw.
 Pinned by `pipeline/jobfit/tests/test_devcase_ai_draft.py`. Gap: the draft text is
 English-only, like the rest of the deterministic seed.
 
