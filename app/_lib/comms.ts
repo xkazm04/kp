@@ -302,8 +302,20 @@ class WebhookChannel implements CommsChannel {
       try {
         // A FRESH signal per attempt: AbortSignal.timeout starts counting when it is
         // created, so one hoisted signal would give attempt 3 no budget at all.
-        const r = await fetch(this.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
+        // `redirect: "manual"` is part of the SSRF boundary: only the URL dialled above was
+        // vetted, and a followed 307/308 would re-POST the signed envelope (candidate PII)
+        // to an unvetted, possibly internal host — on every attempt of the ladder.
+        const r = await fetch(this.url, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
+        // A manual redirect surfaces as an opaque-redirect (status 0) or a 3xx. Permanent:
+        // retrying only repeats it, so dead-letter at once with no backoff.
+        if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+          return {
+            status: "failed",
+            attempts: attempt,
+            detail: `relay answered with a redirect (http ${r.status}); redirects are refused`,
+          };
+        }
         detail = `http ${r.status}`;
         // Permanent (caller/config) error — retrying changes nothing, dead-letter now.
         if (!isRetryableHttpStatus(r.status)) return { status: "failed", attempts: attempt, detail };

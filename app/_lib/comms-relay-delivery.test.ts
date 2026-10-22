@@ -157,3 +157,42 @@ test("an unresolvable relay host is refused rather than posted to", async () => 
   assert.equal(row.status, "failed");
   assert.match(String(row.failureDetail), /could not be resolved/);
 });
+
+// --- redirects ------------------------------------------------------------------
+
+/** Install a relay that records the init of every fetch and answers with `answer`. */
+function installRedirectingRelay(answer: () => unknown) {
+  const inits: RequestInit[] = [];
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(PUBLIC_LOOKUP);
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    inits.push(init);
+    return answer();
+  }) as unknown as typeof fetch;
+  return inits;
+}
+
+test("the relay fetch does not follow redirects (part of the SSRF boundary)", async () => {
+  const inits = installRedirectingRelay(() => new Response(null, { status: 200 }));
+  await sendComm(MSG);
+  assert.equal(inits.length, 1);
+  assert.equal(inits[0].redirect, "manual");
+});
+
+test("a 307 answer is a permanent failure after ONE fetch, with a readable reason", async () => {
+  const inits = installRedirectingRelay(
+    () => new Response(null, { status: 307, headers: { Location: "http://169.254.169.254/latest" } })
+  );
+  const row = await sendComm(MSG);
+  assert.equal(inits.length, 1, "a redirect must not be retried");
+  assert.equal(row.status, "failed");
+  assert.match(String(row.failureDetail), /redirect \(http 307\); redirects are refused/);
+});
+
+test("an opaqueredirect-shaped answer is a permanent failure after ONE fetch", async () => {
+  const inits = installRedirectingRelay(() => ({ ok: false, status: 0, type: "opaqueredirect" }));
+  const row = await sendComm(MSG);
+  assert.equal(inits.length, 1);
+  assert.equal(row.status, "failed");
+  assert.match(String(row.failureDetail), /redirects are refused/);
+});
