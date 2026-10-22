@@ -14089,6 +14089,7 @@
         "emphasis": "{n, plural, one {# term that matters for {target} set in bold} other {# terms that matter for {target} set in bold}}",
         "compact": "{where} set on one line: nothing in it speaks to {target}",
         "objective": "“{after}” added under your headline, as what you are looking for",
+        "projectsFirst": "Your projects now come before your experience: no job title on it speaks to {target}, and “{after}” does",
         "projects": "{n, plural, one {# project that does not speak to {target} left off} other {# projects that do not speak to {target} left off}}"
       },
       "coverage": {

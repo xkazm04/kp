@@ -14089,6 +14089,7 @@
         "emphasis": "{n, plural, one {# pojem důležitý pro pozici {target} je tučně} few {# pojmy důležité pro pozici {target} jsou tučně} many {# pojmu důležitého pro pozici {target} je tučně} other {# pojmů důležitých pro pozici {target} je tučně}}",
         "compact": "Role {where} je na jednom řádku: nic v ní se netýká pozice {target}",
         "objective": "Pod titulek přibyl řádek „{after}“ jako to, co hledáte",
+        "projectsFirst": "Projekty jsou nyní nad praxí: žádná z pracovních pozic se netýká pozice {target}, „{after}“ ano",
         "projects": "{n, plural, one {# projekt, který se netýká pozice {target}, vynechán} few {# projekty, které se netýkají pozice {target}, vynechány} many {# projektu, které se netýkají pozice {target}, vynecháno} other {# projektů, které se netýkají pozice {target}, vynecháno}}"
       },
       "coverage": {

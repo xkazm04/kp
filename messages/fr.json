@@ -14089,6 +14089,7 @@
         "emphasis": "{n, plural, one {# terme important pour {target} mis en gras} other {# termes importants pour {target} mis en gras}}",
         "compact": "{where} tient sur une ligne : rien n’y concerne {target}",
         "objective": "« {after} » ajouté sous votre titre, comme ce que vous cherchez",
+        "projectsFirst": "Vos projets passent avant votre expérience : aucun intitulé de poste ne correspond à {target}, « {after} » oui",
         "projects": "{n, plural, one {# projet sans lien avec {target} écarté} other {# projets sans lien avec {target} écartés}}"
       },
       "coverage": {

@@ -14089,6 +14089,7 @@
         "emphasis": "{n, plural, one {# für {target} wichtiger Begriff fett gesetzt} other {# für {target} wichtige Begriffe fett gesetzt}}",
         "compact": "{where} einzeilig gesetzt: Nichts darin betrifft {target}",
         "objective": "„{after}“ unter Ihrer Überschrift ergänzt, als das, was Sie suchen",
+        "projectsFirst": "Ihre Projekte stehen jetzt vor der Berufserfahrung: kein Jobtitel dort passt zu {target}, „{after}“ schon",
         "projects": "{n, plural, one {# Projekt ohne Bezug zu {target} ausgelassen} other {# Projekte ohne Bezug zu {target} ausgelassen}}"
       },
       "coverage": {
