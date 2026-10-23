@@ -32644,7 +32644,11 @@
           "revision": 7,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 The test requires unavailable CV corroboration to produce the same empty findings list as a completed clean check, losing the required not-inspected outcome.",
+          "evaluatedAt": "2026-10-23",
+          "evaluatedAgainst": "sha256-b2:51087132dbd1c9fb",
+          "evaluatedRevision": 7
         }
       ],
       "governance": "governed"

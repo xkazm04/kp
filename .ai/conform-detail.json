@@ -16695,6 +16695,43 @@
           "evidence": "app/api/channels/webhooks/route.ts:91 The managed records bind inbound receivers to a channel, role and language; outbound comms use direct sends rather than event-pattern subscriptions."
         }
       ]
+    },
+    "8b2d6213-b08e-4a6a-b1bd-485ef0ccbd89/prompt-safety": {
+      "context": "tests-pipeline-automation",
+      "subject": "prompt-safety",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-23",
+      "evaluatedTs": "2026-10-23T21:18:02.347Z",
+      "worker": "c91d206d-f874-49a4-abe7-32d44b3078c6",
+      "techniques": [
+        {
+          "technique": "cross-language-rule-parity",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_constant_sync.py:110 The surrounding test binds generated prompt limits to Python values and verifies that TypeScript re-exports them without independent declarations."
+        },
+        {
+          "technique": "input-caps-and-clamps",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:75 Real prompt builders are tested with oversized JD, company and CV blocks, requiring class-specific ceilings and visible truncation markers."
+        },
+        {
+          "technique": "inspection-coverage-is-a-verdict",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 Required-licence corroboration silently skips unreadable CV text; its result cannot distinguish not inspected from inspected without findings."
+        },
+        {
+          "technique": "payoff-removal",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation.py:1230 A model-issued early-career rejection is structurally rewritten to hold after generation, preventing that response from winning an automated rejection."
+        },
+        {
+          "technique": "untrusted-span-fencing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:199 Breakout payloads pass through real prompt builders, and disabling marker defusing must make the same fence-integrity assertion fail."
+        }
+      ],
+      "registryProposal": "Align the golden path's mandatory fresh-nonce wording with untrusted-span-fencing's explicit allowance for fixed markers stripped from every payload."
     }
   }
 }
