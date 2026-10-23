@@ -93,7 +93,7 @@
 .dk-ws--none { font-style: italic; }
 @container dk (max-width: 560px) {
   .dk-rows--ws .dk-row { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "ck name score acts" "ck stage prop acts" "ck ws ws acts"; }
-  .dk-rows--ws .dk-ws { grid-area: ws; }
+  .dk-rows--ws .dk-ws { grid-area: ws; display: block; min-width: 0; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 }
 
 /* CX S46: "Everyone on this role" - the role level's side-by-side table (kit DataTable). The
