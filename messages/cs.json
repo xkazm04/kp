@@ -1241,6 +1241,8 @@
   },
   "errors": {
     "generic": "Něco se pokazilo. Zkuste to prosím znovu.",
+    "ENOTFOUND": "Tuto adresu se nepodařilo najít. Zkontrolujte odkaz a zkuste to znovu.",
+    "EADDRNOTPUBLIC": "Tato adresa vede do soukromé sítě, proto jsme ji nekontaktovali.",
     "OFFER_RESPOND_FAILED": "Nepodařilo se zaznamenat vaši odpověď. Zkuste to prosím znovu.",
     "SCHEDULE_CONFIRM_FAILED": "Nepodařilo se potvrdit tento termín. Zkuste to prosím znovu.",
     "SCHEDULE_INVITE_FAILED": "Nepodařilo se vytvořit odkaz pro plánování. Zkuste to prosím znovu.",

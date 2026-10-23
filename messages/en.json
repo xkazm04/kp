@@ -1241,6 +1241,8 @@
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
+    "ENOTFOUND": "That address could not be found. Check the URL and try again.",
+    "EADDRNOTPUBLIC": "That address points to a private network, so it was not contacted.",
     "OFFER_RESPOND_FAILED": "Could not record your response. Please try again.",
     "SCHEDULE_CONFIRM_FAILED": "Could not confirm that slot. Please try again.",
     "SCHEDULE_INVITE_FAILED": "Could not create the scheduling link. Please try again.",

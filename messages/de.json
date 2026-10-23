@@ -1241,6 +1241,8 @@
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "ENOTFOUND": "Diese Adresse wurde nicht gefunden. Prüfen Sie die URL und versuchen Sie es erneut.",
+    "EADDRNOTPUBLIC": "Diese Adresse führt in ein privates Netzwerk und wurde deshalb nicht aufgerufen.",
     "OFFER_RESPOND_FAILED": "Ihre Rückmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_CONFIRM_FAILED": "Der Termin konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_INVITE_FAILED": "Der Terminlink konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",

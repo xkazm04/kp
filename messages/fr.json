@@ -1241,6 +1241,8 @@
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "ENOTFOUND": "Cette adresse est introuvable. Vérifiez l’URL et réessayez.",
+    "EADDRNOTPUBLIC": "Cette adresse pointe vers un réseau privé, elle n’a donc pas été contactée.",
     "OFFER_RESPOND_FAILED": "Impossible d’enregistrer votre réponse. Veuillez réessayer.",
     "SCHEDULE_CONFIRM_FAILED": "Impossible de confirmer ce créneau. Veuillez réessayer.",
     "SCHEDULE_INVITE_FAILED": "Impossible de créer le lien de planification. Veuillez réessayer.",
