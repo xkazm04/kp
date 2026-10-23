@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BTN_PRIMARY, META_LABEL, NOTICE, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL, NOTICE, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { IconAction } from "@/app/_components/IconAction";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -101,7 +101,7 @@ export function IntegrationsCalendarSetup() {
       {calendarSetupLoad(data, error) === "failed" ? (
         <div role="alert" className={`${NOTICE("critical")} mt-3 flex flex-wrap items-center gap-3 p-3`}>
           <p className="text-meta">{error}</p>
-          <button type="button" onClick={reload} className="text-meta font-medium underline">
+          <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3`}>
             {t("retry")}
           </button>
         </div>
