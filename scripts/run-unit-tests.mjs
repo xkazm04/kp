@@ -104,7 +104,8 @@
 // launcher started BY a test (gate-exit-code.test.ts, the bench driver) does not
 // wait on its own parent. A slot whose owner is dead, or older than
 // SLOT_STALE_MS, is taken over. KP_TEST_SLOT=0 opts out; KP_TEST_SLOT_DIR moves
-// the lock (the fixture in app/_lib/testing/unit-db.test.ts uses it).
+// the lock (the fixture in app/_lib/testing/unit-db.test.ts uses it). The lock code lives in
+// scripts/test-slot.mjs, shared with `npm run typecheck` and `npm run build`.
 //
 // Args: none → the full suite (the default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
@@ -112,6 +113,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { acquireSuiteSlot } from "./test-slot.mjs";
 
 import {
   checkRegister,
@@ -351,82 +353,7 @@ function run(workdir) {
   return failures.length && !outcome.blocking ? 0 : firstCode;
 }
 
-// A suite that has run this long is not running any more: even three contending
-// suites finished in ~14 minutes. Past it, a lock is a leftover, whoever's pid it names.
-const SLOT_STALE_MS = 45 * 60 * 1000;
-const SLOT_POLL_MS = 1000;
-
-function sleepSync(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
-/** The slot's owner record, or null when it is missing or half-written. */
-function readSlotOwner(dir) {
-  try {
-    const owner = JSON.parse(fs.readFileSync(path.join(dir, "owner.json"), "utf8"));
-    return Number.isInteger(owner.pid) && Number.isFinite(owner.at) ? owner : null;
-  } catch {
-    return null; // a holder between mkdir and its write — judged by the dir's age below
-  }
-}
-
-function pidAlive(pid) {
-  try {
-    process.kill(pid, 0); // signal 0 = existence probe; sends nothing
-    return true;
-  } catch (e) {
-    return e.code === "EPERM"; // exists, owned by someone else
-  }
-}
-
-/** Take the machine-wide slot, waiting while a live run holds it. Returns the
- *  release function, or null when this run must not take one. */
-function acquireSuiteSlot() {
-  if (process.env.KP_TEST_SLOT === "0" || process.env.KP_TEST_SLOT_HELD) return null;
-  const dir = process.env.KP_TEST_SLOT_DIR || path.join(os.tmpdir(), "kp-test-unit-slot");
-  let announced = false;
-  for (;;) {
-    try {
-      fs.mkdirSync(dir);
-      fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid, cwd: REPO_ROOT, at: Date.now() }));
-      break;
-    } catch (e) {
-      if (e.code !== "EEXIST") {
-        console.error(`test:unit — could not take the suite slot at ${dir} (${e.code}); running without it.`);
-        return null;
-      }
-    }
-    const owner = readSlotOwner(dir);
-    let since = owner?.at;
-    if (since === undefined) {
-      try {
-        since = fs.statSync(dir).mtimeMs;
-      } catch {
-        continue; // released between our mkdir and this stat — take it on the next pass
-      }
-    }
-    const stale = Date.now() - since > SLOT_STALE_MS || (owner !== null && !pidAlive(owner.pid));
-    if (stale) {
-      // Remove only the lock we judged: a waiter that got there first has written a new owner.
-      if (JSON.stringify(readSlotOwner(dir)) === JSON.stringify(owner)) {
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
-      continue;
-    }
-    if (!announced) {
-      announced = true;
-      const who = owner ? `pid ${owner.pid} in ${owner.cwd}` : "a run that is starting";
-      console.log(`test:unit — another suite is running on this machine (${who}); waiting for it, so the two do not starve each other's timing-bound tests…`);
-    }
-    sleepSync(SLOT_POLL_MS);
-  }
-  process.env.KP_TEST_SLOT_HELD = String(process.pid);
-  return () => {
-    if (readSlotOwner(dir)?.pid === process.pid) fs.rmSync(dir, { recursive: true, force: true });
-  };
-}
-
-const releaseSlot = acquireSuiteSlot();
+const releaseSlot = acquireSuiteSlot({ label: "test:unit", repoRoot: REPO_ROOT });
 const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "kp-flake-"));
 let code = 1;
 try {

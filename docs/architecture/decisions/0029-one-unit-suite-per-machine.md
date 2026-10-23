@@ -8,6 +8,7 @@ superseded-by: null
 tags: [testing, gates, concurrency]
 sources:
   - scripts/run-unit-tests.mjs
+  - scripts/test-slot.mjs
   - app/_lib/testing/unit-db.test.ts
 ---
 
@@ -67,6 +68,19 @@ new bug, not this one. `unit-db.test.ts` pins the guarantee from outside: two
 real launchers started together must not overlap (against the old launcher it
 fails: "the second suite started 1373 ms before the first finished"), a nested
 launcher never waits, and a dead owner's slot is taken over.
+
+## Amendment 2026-10-23: typecheck and build hold the slot too
+
+`npm run typecheck` and `npm run build` ran beside a suite and starved the wall-clock-bound
+tests (polar-gateway, google-oauth, llm-request-context, rediscovery-sweep-bounds) the same
+way a second suite did. They now take the same slot: the lock code moved out of
+`run-unit-tests.mjs` into `scripts/test-slot.mjs` (one lock, not two), and `typecheck` and
+`build` are `node scripts/test-slot.mjs <label> npm run <name>:run`, wrapping the old command
+unchanged (`typecheck:run`, `build:run`). Behaviour is the same as for the suite: a live owner
+makes them wait, a dead or 45-minute-old owner is taken over, `KP_TEST_SLOT=0` opts out, and a
+slot that cannot be taken prints a warning and runs anyway. `scripts/test-slot.test.mjs`
+(part of `npm run test:docs`) pins the wait, the reclaim, the exit-code pass-through and the
+warn-and-run fallback.
 
 ## What would change our mind
 
