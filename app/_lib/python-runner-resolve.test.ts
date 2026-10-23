@@ -137,6 +137,6 @@ test("a probe that throws is treated as an absent candidate", () => {
 
 test("the not-found sentence names the floor, the fix and the override", () => {
   assert.match(PYTHON_NOT_FOUND_SENTENCE, /Python 3\.11\+/);
-  assert.match(PYTHON_NOT_FOUND_SENTENCE, /python\.org/);
+  assert.deepEqual(PYTHON_NOT_FOUND_SENTENCE.match(/[a-z0-9-]+\.org\b/g), ["python.org"]);
   assert.match(PYTHON_NOT_FOUND_SENTENCE, /KP_PYTHON/);
 });

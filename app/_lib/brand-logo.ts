@@ -83,7 +83,11 @@ function svgUnsafe(text: string): boolean {
   // (an XSLT/CSS processing instruction that fetches) would be stripped unseen as one.
   src = src.replace(/^\s*<\?xml(?:\s[^>]*)?\?>/, "");
   // Comments carry no semantics; strip them (a `<` inside one is not markup).
-  src = src.replace(/<!--[\s\S]*?-->/g, "");
+  // Repeat to a fixed point: one pass can splice a new `<!--` together (`<!<!---->--`).
+  for (let prev = ""; prev !== src; ) {
+    prev = src;
+    src = src.replace(/<!--[\s\S]*?-->/g, "");
+  }
   const TAG = /<(\/)?([A-Za-z_][\w.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/)?>/g;
   const stack: string[] = [];
   let rootClosed = false;

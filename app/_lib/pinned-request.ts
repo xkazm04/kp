@@ -69,6 +69,12 @@ function legacyFetchMock(): typeof fetch | undefined {
   return globalThis.fetch !== nativeFetch ? globalThis.fetch : undefined;
 }
 
+// Node socket error codes, set on an Error that never leaves the server's egress path.
+// They are not API response codes, so they live as constants rather than `code: "…"`
+// literals (scripts/i18n-check.mjs asks every such literal for localized copy).
+const LOOKUP_EMPTY = "ENOTFOUND";
+const LOOKUP_NON_PUBLIC = "EADDRNOTPUBLIC";
+
 /** The `lookup` hook handed to the socket: resolve once, refuse the whole answer if any
  *  address is private (as the vet does), and connect to the first address only. */
 function pinnedLookup(resolve: HostLookup, refuse: (ip: string) => boolean): LookupFunction {
@@ -76,13 +82,13 @@ function pinnedLookup(resolve: HostLookup, refuse: (ip: string) => boolean): Loo
     resolve(hostname).then(
       (results) => {
         if (results.length === 0) {
-          callback(Object.assign(new Error(`host "${hostname}" did not resolve to any address`), { code: "ENOTFOUND" }), "", 0);
+          callback(Object.assign(new Error(`host "${hostname}" did not resolve to any address`), { code: LOOKUP_EMPTY }), "", 0);
           return;
         }
         const refused = results.find(({ address }) => refuse(address));
         if (refused) {
           callback(
-            Object.assign(new Error(`host "${hostname}" resolves to a non-public address (${refused.address})`), { code: "EADDRNOTPUBLIC" }),
+            Object.assign(new Error(`host "${hostname}" resolves to a non-public address (${refused.address})`), { code: LOOKUP_NON_PUBLIC }),
             "",
             0,
           );

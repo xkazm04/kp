@@ -87,3 +87,10 @@ test("non-markup, non-PNG bytes are a wrong type, not an unsafe one", () => {
   assert.deepEqual(validateLogoUpload(enc("GIF89a")), { ok: false, code: "BRAND_LOGO_TYPE" });
   assert.deepEqual(validateLogoUpload(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), { ok: false, code: "BRAND_LOGO_TYPE" });
 });
+
+test("a comment that splices itself back together after one strip is still a comment, not markup", () => {
+  // One pass over `<!<!---->--` leaves `<!--`; the stripper repeats until nothing changes,
+  // so the remainder `<!-- x -->` is removed as well and the SVG stays plain.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg"><!<!---->-- x --><g/></svg>`;
+  assert.deepEqual(validateLogoUpload(enc(svg)), { ok: true, mime: "image/svg+xml" });
+});

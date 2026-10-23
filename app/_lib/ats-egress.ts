@@ -531,7 +531,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
         : `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
       finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal }, lease);
       console.error(
-        `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason}`
+        `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason.replace(/[\r\n]+/g, " ")}`
       );
       return;
     }
@@ -552,11 +552,11 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       return;
     }
     if (!result.delivered) {
-      console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason}`);
+      console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason.replace(/[\r\n]+/g, " ")}`);
     }
   } catch (e) {
     const reason = e instanceof Error ? e.message : "dispatch failed";
-    console.error(`[ats] dispatch ${event} failed for ${entryId}:`, reason);
+    console.error(`[ats] dispatch ${event} failed for ${entryId}:`, reason.replace(/[\r\n]+/g, " "));
     try {
       if (deliveryId !== null) finalizeAtsDelivery(deliveryId, { delivered: false, reason }, lease);
     } catch {
