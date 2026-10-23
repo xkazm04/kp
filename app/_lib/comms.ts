@@ -347,7 +347,7 @@ class WebhookChannel implements CommsChannel {
   private async alertDeadLetter(msg: OutboundMessage, attempts: number, detail: string): Promise<void> {
     // One log line per event: a recipient, ref or relay detail carrying a line break must not forge a second.
     const oneLine = (v: string) => v.replace(/[\r\n]+/g, " ");
-    console.error(`[comms] DEAD-LETTER: ${msg.kind} to "${oneLine(msg.to)}" (ref=${oneLine(msg.ref ?? "—")}) failed after ${attempts} attempt(s): ${oneLine(detail)}`);
+    console.error(`[comms] DEAD-LETTER: ${oneLine(String(msg.kind))} to "${oneLine(msg.to)}" (ref=${oneLine(msg.ref ?? "—")}) failed after ${attempts} attempt(s):${oneLine(detail)}`);
     await logComms({ kind: msg.kind, recipient: msg.to, ref: msg.ref ?? null, channel: this.name, status: "failed", attempts, detail });
   }
 }
@@ -465,7 +465,8 @@ class SmtpChannel implements CommsChannel {
   }
 
   private async alertDeadLetter(msg: OutboundMessage, attempts: number, detail: string): Promise<void> {
-    console.error(`[comms] DEAD-LETTER: ${msg.kind} to "${msg.to}" (ref=${msg.ref ?? "—"}) failed after ${attempts} attempt(s) over smtp: ${detail}`);
+    const oneLine = (v: string) => v.replace(/[\r\n]+/g, " ");
+    console.error(`[comms] DEAD-LETTER: ${oneLine(String(msg.kind))} to "${oneLine(msg.to)}" (ref=${oneLine(msg.ref ?? "—")}) failed after ${attempts} attempt(s) over smtp: ${oneLine(detail)}`);
     await logComms({ kind: msg.kind, recipient: msg.to, ref: msg.ref ?? null, channel: this.name, status: "failed", attempts, detail });
   }
 }

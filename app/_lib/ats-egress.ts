@@ -490,6 +490,9 @@ function crossOrgRefusal(ownerOrgId: string | null, entryId: string, tenant: str
 export async function dispatchAtsEvent(event: AtsEventType, entryId: string, workspaceId?: string): Promise<void> {
   let deliveryId: number | null = null;
   let lease = "";
+  // Log-line copies: the ids and event name reach console.error, and a line break in one must not forge a second line.
+  const logEvent = String(event).replace(/[\r\n]+/g, " ");
+  const logEntry = String(entryId).replace(/[\r\n]+/g, " ");
   try {
     const cfg = getAtsConfig();
     if (!cfg.webhookUrl || !cfg.events.includes(event)) return;
@@ -517,7 +520,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     const crossOrg = crossOrgRefusal(cfg.ownerOrgId, entryId, tenant);
     if (crossOrg) {
       finalizeAtsDelivery(deliveryId, { delivered: false, reason: crossOrg, terminal: true }, lease);
-      console.error(`[ats] ${event} webhook refused for ${entryId} (recorded #${deliveryId}, terminal): ${crossOrg}`);
+      console.error(`[ats] ${logEvent} webhook refused for ${logEntry} (recorded #${deliveryId}, terminal): ${crossOrg}`);
       return;
     }
     const { record, refusal } = getAtsRecordResult(entryId, tenant, openedAt.toISOString());
@@ -531,7 +534,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
         : `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
       finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal }, lease);
       console.error(
-        `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason.replace(/[\r\n]+/g, " ")}`
+        `[ats] ${logEvent} webhook not delivered for ${logEntry} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason.replace(/[\r\n]+/g, " ")}`
       );
       return;
     }
@@ -548,15 +551,15 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       return;
     }
     if (!finalizeAtsDelivery(deliveryId, toOutcome(result), lease)) {
-      console.error(`[ats] ${event} #${deliveryId}: outcome dropped, lease reclaimed`);
+      console.error(`[ats] ${logEvent} #${deliveryId}: outcome dropped, lease reclaimed`);
       return;
     }
     if (!result.delivered) {
-      console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason.replace(/[\r\n]+/g, " ")}`);
+      console.error(`[ats] ${logEvent} webhook not delivered for ${logEntry} (recorded #${deliveryId} for retry): ${result.reason.replace(/[\r\n]+/g, " ")}`);
     }
   } catch (e) {
     const reason = e instanceof Error ? e.message : "dispatch failed";
-    console.error(`[ats] dispatch ${event} failed for ${entryId}:`, reason.replace(/[\r\n]+/g, " "));
+    console.error(`[ats] dispatch ${logEvent} failed for ${logEntry}:`, reason.replace(/[\r\n]+/g, " "));
     try {
       if (deliveryId !== null) finalizeAtsDelivery(deliveryId, { delivered: false, reason }, lease);
     } catch {
