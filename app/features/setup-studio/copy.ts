@@ -30,6 +30,8 @@ export const COPY = {
   emptyTitle: "No setup session attached",
   emptyBody:
     "This page is the app-native face of the installer. The installer itself runs in your terminal, outside the app, so it can keep working even while the app is restarting.",
+  emptyOptional:
+    "You do not need this to use KandiDate. It is an optional guide for connecting extras such as an AI engine, email or voice. The normal setup — company, team and hiring board — is the short one you get after clicking Sign in on the front page.",
   emptyHowTitle: "Start it from the repository folder",
   emptyHowNote:
     "The command prints a link with a one-time token in it. Open that link and it hands you straight back here.",
