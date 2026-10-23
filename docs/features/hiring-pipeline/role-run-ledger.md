@@ -223,3 +223,12 @@ Start and advance share one rate limit (30 / 10 min / IP). Every pass stops at t
 - **A withdrawn or lapsed candidate has no ungated way to end a branch.** The status
   vocabulary cannot tell "the candidate left" from "we ended it", so the table routes
   every branch end through a gate.
+
+## A gate commit takes one pass
+
+`POST /api/role-runs/[id]/gate/commit` now continues the run: after a successful commit
+(`commitRoleRunStageGateAndContinue`, `app/_lib/role-run-commit-continue.ts`) it takes ONE live
+pass, so an approved or declined gate no longer waits for someone to re-trigger. The response adds
+`continued` (`advanced`, `busy`, `not_found` or `failed`) and `awaiting`. A refused commit still
+refuses with the same code and takes no pass; a pass that fails after a commit leaves the commit
+standing. The commit still mints nothing on the board: no invite, no offer.

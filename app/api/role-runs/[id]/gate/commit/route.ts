@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RoleRunGateNotParkedError, commitRoleRunStageGate, type GateDecision } from "@/app/_lib/role-run-engine";
+import { RoleRunGateNotParkedError, type GateDecision } from "@/app/_lib/role-run-engine";
 import { ScreenWaveApprovalError, isRoleRunGate } from "@/app/_lib/role-run-gates";
+import { commitRoleRunStageGateAndContinue } from "@/app/_lib/role-run-commit-continue";
 import { resolveRoleRunGateSubject } from "@/app/_lib/role-run-gate-preview";
 import { SCREEN_WAVE_APPROVAL_CODES } from "@/app/_lib/screen-wave-refusal-codes";
 import { getRoleRun } from "@/app/_lib/db/role-runs";
@@ -21,8 +22,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //
 // The subject set is re-derived from the parked artifact, never taken from the body, so
 // a branch whose parked artifact changed since the preview is refused "mismatch".
-// Ledger-only today: this commit does not mint an invite or an offer (ADR 0011, 2026-10-07
-// amendment).
+// Ledger-only: this commit mints no invite or offer on the board (ADR 0011, 2026-10-07
+// amendment). It does continue the run: one live pass follows a successful commit, so
+// nobody has to re-trigger; a refused commit takes no pass.
 
 // Same key and budget as ../preview: a commit is always preceded by a preview.
 const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
@@ -52,7 +54,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, { par
     const subject = resolveRoleRunGateSubject(id, body.gate, branchRef, ws);
     const token = typeof body.approvalToken === "string" ? body.approvalToken.trim() : "";
     const approver = await resolveApprover();
-    const artifact = commitRoleRunStageGate(
+    const { status, pass } = await commitRoleRunStageGateAndContinue(
       {
         runId: id,
         branchRef,
@@ -65,7 +67,15 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, { par
       },
       ws
     );
-    return NextResponse.json({ runId: id, gate: body.gate, branchRef, decision, status: artifact.status });
+    return NextResponse.json({
+      runId: id,
+      gate: body.gate,
+      branchRef,
+      decision,
+      status,
+      continued: pass.outcome,
+      awaiting: pass.outcome === "advanced" ? pass.awaiting : [],
+    });
   } catch (error) {
     // The five approval refusals ask the recruiter for five different things; the
     // machine-readable `reason` rides beside the registered code so a client can branch.

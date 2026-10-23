@@ -25,7 +25,10 @@ export const MAX_PASSES = 20;
 export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, simDeps, cycle, live }) {
   const { getOrCreateRoleRun, listStageArtifacts } = await import("@/app/_lib/db/role-runs");
   const { DEFAULT_WORKSPACE_ID } = await import("@/app/_lib/db/workspaces");
-  const { advanceRoleRun, commitRoleRunStageGate, DEFAULT_STAGE_RUNNERS } = await import("@/app/_lib/role-run-engine");
+  const { advanceRoleRun, DEFAULT_STAGE_RUNNERS } = await import("@/app/_lib/role-run-engine");
+  // The product's own door: a gate commit followed by ONE pass, so the harness measures what a
+  // recruiter's click does rather than a commit that leaves the run waiting for a re-trigger.
+  const { commitRoleRunStageGateAndContinue } = await import("@/app/_lib/role-run-commit-continue");
   const { ROLE_RUN_STAGES, nextStageFor } = await import("@/app/_lib/role-run-stages");
   const { GATE_STAGE, roleRunGateToken } = await import("@/app/_lib/role-run-gates");
   const { roleRunCoverage, gateDwell, roleRunGoalOneSteps } = await import("@/app/_lib/role-run-metrics");
@@ -38,6 +41,9 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
   const { run } = getOrCreateRoleRun({ jobId, cycle: cycle ?? `demo-${Date.now()}` }, ws);
   let status = run.status;
   let passes = 0;
+  // The newest pass a COMMIT took (not one the harness started). The loop consumes it as its
+  // next pass, so the run moving on a commit's own pass is not a retrigger.
+  let commitPass = null;
   let failure = null;
   // Every decision the stand-in took, in order: { gate, branchRef, action, reason }. Empty
   // unless a stand-in flag is on.
@@ -80,7 +86,10 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
       const policyVersion = typeof recorded === "string" && recorded ? recorded : FALLBACK_POLICY[gate];
       if (!policyVersion) throw new Error(`no live policy version for the ${gate} gate`);
       const now = Date.now();
-      commitRoleRunStageGate(
+      // The simulated interview must be sealed BEFORE S5 runs, so the one commit it depends on
+      // takes no pass of its own (only when interviews can be played: a cap of 0 plays none); the harness-started pass after it is then a real retrigger.
+      const holdForInterview = Boolean(simulator && simulator.cap > 0 && gate === "interview_invite" && decision.action === "approve");
+      const committed = await commitRoleRunStageGateAndContinue(
         {
           runId: run.id,
           branchRef,
@@ -92,8 +101,11 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
           approver: STAND_IN_APPROVER,
           now,
         },
-        ws
+        ws,
+        { advance: { runners }, continueRun: !holdForInterview }
       );
+      if (committed.pass.outcome === "advanced") commitPass = { ...committed.pass, produced: committed.pass.produced + (commitPass?.produced ?? 0) };
+      else if (committed.pass.outcome === "failed") throw new Error(committed.pass.error);
       standInDecisions.push({ gate, branchRef, ...decision });
       intervene("gate_commit", { pass: passes, gate, branchRef });
       resolved += 1;
@@ -128,13 +140,21 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
   try {
     while (passes < MAX_PASSES && status === "running") {
       passes += 1;
-      // A pass after the first that followed a gate commit is a re-trigger: somebody (here, the
-      // harness) had to start the engine again for the run to move.
-      if (passes > 1 && interventions.filter((i) => i.code === "gate_commit").length > commitsBeforePass) intervene("retrigger", { pass: passes });
-      commitsBeforePass = interventions.filter((i) => i.code === "gate_commit").length;
-      // The chosen runner set passed whole and nothing else: a runner that needs a key, Python
-      // or the network surfaces as a throw here, and the reading says so instead of stubbing it.
-      const result = await advanceRoleRun(run.id, { runners }, ws);
+      let result;
+      const commits = interventions.filter((i) => i.code === "gate_commit").length;
+      if (commitPass) {
+        // The commit's own pass moved the run; the harness starts nothing, so nothing is counted.
+        result = { status: commitPass.runStatus, awaiting: commitPass.awaiting, produced: { length: commitPass.produced } };
+        commitPass = null;
+      } else {
+        // A pass the harness starts after a gate commit is a re-trigger: somebody had to start
+        // the engine again for the run to move.
+        if (passes > 1 && commits > commitsBeforePass) intervene("retrigger", { pass: passes });
+        // The chosen runner set passed whole and nothing else: a runner that needs a key, Python
+        // or the network surfaces as a throw here, and the reading says so instead of stubbing it.
+        result = await advanceRoleRun(run.id, { runners }, ws);
+      }
+      commitsBeforePass = commits;
       status = result.status;
       const resolvedNow = standInMode ? await resolveAwaiting(result.awaiting) : 0;
       if (result.produced.length === 0 && resolvedNow === 0) break;

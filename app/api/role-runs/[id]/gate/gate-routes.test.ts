@@ -10,7 +10,7 @@ import { ensureDb } from "../../../../_lib/db/core.ts";
 import { insertJob } from "../../../../_lib/job-ingest.ts";
 import { createPipelineEntry } from "../../../../_lib/db/pipeline.ts";
 import { advanceRoleRun } from "../../../../_lib/role-run-engine.ts";
-import { getOrCreateRoleRun, latestStageArtifact } from "../../../../_lib/db/role-runs.ts";
+import { getOrCreateRoleRun, latestStageArtifact, listStageArtifacts } from "../../../../_lib/db/role-runs.ts";
 import { roleRunGateToken, verifyRoleRunGateToken } from "../../../../_lib/role-run-gates.ts";
 import { resolveRoleRunGateSubject } from "../../../../_lib/role-run-gate-preview.ts";
 import { consumeScreenWaveApprovalToken, resetScreenWaveApprovalSpendForTests } from "../../../../_lib/screen-wave-approval.ts";
@@ -72,7 +72,10 @@ test("commit resolves the branch; a client-supplied approver is ignored", async 
   const { token } = await (await previewReq(runId, { gate: "rejection", branchRef })).json();
   const res = await commitReq(runId, { gate: "rejection", branchRef, decision: "approved", approvalToken: token, approvedBy: "Mallory" });
   assert.equal(res.status, 200);
-  assert.equal((await res.json()).status, "complete");
+  const out = await res.json();
+  assert.equal(out.status, "complete");
+  assert.equal(out.continued, "advanced", "a successful commit takes one pass");
+  assert.ok(Array.isArray(out.awaiting));
   const resolved = latestStageArtifact(runId, "screen", branchRef);
   const ref = (resolved?.payload as { approverRef?: string }).approverRef;
   assert.ok(ref && ref.length > 0);
@@ -133,4 +136,13 @@ test("malformed bodies are 400 and an unknown run is 404, both coded", async () 
   const missing = await previewReq("rr-does-not-exist", { gate: "rejection", branchRef });
   assert.equal(missing.status, 404);
   assert.equal((await missing.json()).code, "ROLE_RUN_NOT_FOUND");
+});
+
+test("a refused commit takes no pass and reports none", async () => {
+  const { runId, branchRef } = await parkedRun();
+  const before = listStageArtifacts(runId).length;
+  const res = await commitReq(runId, { gate: "rejection", branchRef, decision: "approved" });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).continued, undefined);
+  assert.equal(listStageArtifacts(runId).length, before);
 });
