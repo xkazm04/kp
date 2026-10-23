@@ -1224,6 +1224,19 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "jobVisibleToWorkspace(id, ws)",
   },
   {
+    // F3 of security scan a214eded. The only door that SENDS an approved first-contact
+    // email; its drafting sibling below has been throttled since 2026-09-02. Per-IP,
+    // same 60/10min budget as that sibling.
+    rel: "./outreach-letters/[id]/release/route.ts",
+    key: "`outreach-release:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its arguments: `releaseOutreachLetter(` also appears in the import.
+    expensive: "releaseOutreachLetter(id, ws",
+    // The capability refusal runs first, so a caller who may not send spends no budget.
+    servedBefore: 'requireCapabilityCoded("pipeline:write"',
+  },
+  {
     rel: "./jobs/[id]/candidates/outreach/route.ts",
     key: "`jobs-outreach:${clientIpFrom(request.headers)}`",
     limit: 60,
