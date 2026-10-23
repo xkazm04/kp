@@ -13,7 +13,8 @@ export function ExternalLogoImage(props: Props) {
   // The editors pass raw typed text, so vet it here with the store's own rule. A value the
   // store would refuse gets `data:,` (empty, fails to decode): onError still fires and the
   // caller falls back, exactly as when the load 404ed.
-  const safeSrc = sanitizeLogoUrl(src) ?? "data:,";
+  const vetted = sanitizeLogoUrl(src);
+  const safeSrc = vetted !== null && (vetted.startsWith("https://") || vetted.startsWith("http://") || vetted.startsWith("/")) ? vetted : "data:,";
   // eslint-disable-next-line @next/next/no-img-element -- operator-provided external logo host
   return <img src={safeSrc} alt={alt} {...rest} {...EXTERNAL_LOGO_IMG_ATTRS} />;
 }
