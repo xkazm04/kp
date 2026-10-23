@@ -1,7 +1,7 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
 import { isLocale, type Locale } from "@/i18n/locales";
-import { UNNAMED_ORG_NAME } from "../org-settings";
+import { UNNAMED_ORG_NAME } from "../org-name-placeholder";
 
 // Organizations (P0) — the top tenant boundary: the customer company. Owns the
 // subscription (billing, later) and the cross-team reference pool; each workspace

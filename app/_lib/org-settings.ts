@@ -7,6 +7,7 @@
 // (NEXT_LOCALE), so org language flows through the existing getServerLocale path.
 
 import { APP_CURRENCY } from "./format";
+import { UNNAMED_ORG_NAME } from "./org-name-placeholder";
 
 export const ORG_NAME_COOKIE = "kp_org_name";
 export const ORG_CURRENCY_COOKIE = "kp_org_currency";
@@ -68,8 +69,7 @@ export function orgNameFallback(fixturesSeeded: boolean): string {
   return fixturesSeeded ? DEFAULT_ORG_NAME : "";
 }
 
-/** What createOrganization writes when nobody gave a name. Not a name of the org's own. */
-export const UNNAMED_ORG_NAME = "Untitled organization";
+export { UNNAMED_ORG_NAME };
 
 /** Has this organizations.name been chosen by a human? Empty, the creation placeholder
  *  and the seed corpus's demo name are all "not named yet" — the last because every
