@@ -12,11 +12,11 @@ import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { createPipelineEntry, listPipelineEventsForEntry } from "../../_lib/db/pipeline.ts";
-import { outreachLetterDraft } from "../../_lib/db/outreach-letters.ts";
+import { outreachLetterById, outreachLetterDraft, OUTREACH_SUBJECT_MAX_LENGTH } from "../../_lib/db/outreach-letters.ts";
 import { listOutboxFiltered } from "../../_lib/db/devcase.ts";
 import { DEFAULT_WORKSPACE_ID as WS } from "../../_lib/db/workspaces.ts";
 
-const { GET } = await import("./[id]/route.ts");
+const { GET, PATCH } = await import("./[id]/route.ts");
 const { POST: APPROVE } = await import("./[id]/approve/route.ts");
 const { POST: RELEASE } = await import("./[id]/release/route.ts");
 
@@ -159,4 +159,67 @@ test("by-entry answers nulls for an application with no letter, and 404 for a fo
   const foreign = draftedLetter("team-olr-gamma");
   assert.equal((await BY_ENTRY(req(`/api/outreach-letters/by-entry/${foreign.entry.id}`), entryCtx(foreign.entry.id))).status, 404);
   assert.equal((await BY_ENTRY(req(`/api/outreach-letters/by-entry/nope`), entryCtx("nope"))).status, 404);
+});
+
+// The SUBJECT had no gate: the body is cleaned and capped (outreach-body.ts) but the subject
+// went to the relay as written — by the model from a CV, or by a person through PATCH.
+const patch = (id: string, body: unknown) =>
+  new NextRequest(`http://localhost/api/outreach-letters/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+  });
+
+const RLO = String.fromCharCode(0x202e); // a right-to-left override, the spoofed-extension trick
+
+test("PATCH stores the subject cleaned onto one line: no markup, no line break, no bidi override", async () => {
+  const { letter } = draftedLetter();
+  const res = await PATCH(
+    patch(letter.id, {
+      revision: 1,
+      subject: "Hello <a href=\"https://evil.example\">click</a>\r\nBcc: victim@example.cz " + RLO + "exe.pdf",
+      body: "Dear candidate, a new text.",
+    }),
+    ctx(letter.id)
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { letter: { subject: string; revision: number }; preview: { subject: string } };
+  assert.equal(body.letter.revision, 2);
+  assert.equal(body.letter.subject, "Hello click Bcc: victim@example.cz exe.pdf");
+  assert.equal(body.preview.subject, body.letter.subject, "the letter a release would send carries the cleaned subject");
+});
+
+test("PATCH refuses an over-long subject with 422 and writes nothing", async () => {
+  const { letter } = draftedLetter();
+  const res = await PATCH(
+    patch(letter.id, { revision: 1, subject: "x".repeat(OUTREACH_SUBJECT_MAX_LENGTH + 1), body: "Dear candidate." }),
+    ctx(letter.id)
+  );
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as { code: string }).code, "OUTREACH_BODY_TOO_LONG");
+  const now = outreachLetterById(letter.id, WS)!;
+  assert.equal(now.revision, 1);
+  assert.equal(now.subject, letter.subject);
+});
+
+test("a model-drafted subject is cleaned and clipped before it is held, so release can only send that", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "olr-subject",
+    candidateLabel: "Subject Candidate",
+    jobId: "olr-job-subject",
+    jobTitle: "Platform Engineer",
+    locale: "en",
+    contact: "subject@example.cz",
+    stage: "Screened",
+    workspaceId: WS,
+  });
+  const injected = "<img src=\"https://track.example/p.gif\">A role\nfor you " + "y".repeat(OUTREACH_SUBJECT_MAX_LENGTH);
+  const { letter } = outreachLetterDraft({ entryId: entry.id, subject: injected, body: "Dear candidate.", lang: "en" }, WS);
+  assert.ok(letter.subject!.startsWith("A role for you y"), letter.subject!);
+  assert.ok(!/[<>\n]/.test(letter.subject!));
+  assert.equal(letter.subject!.length, OUTREACH_SUBJECT_MAX_LENGTH);
+  // A re-draft of the same raw text is not an edit: the cleaned value compares equal.
+  const again = outreachLetterDraft({ entryId: entry.id, subject: injected, body: "Dear candidate.", lang: "en" }, WS);
+  assert.equal(again.changed, false);
+  assert.equal(again.letter.revision, 1);
 });

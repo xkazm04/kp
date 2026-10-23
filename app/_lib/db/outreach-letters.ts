@@ -1,4 +1,5 @@
 import { randomId } from "../random-id";
+import { cleanOutreachBody } from "../outreach-body";
 import { ensureDb } from "./core";
 
 // The first-contact OUTREACH letter store (comms scope C2, "approve before first
@@ -30,6 +31,31 @@ import { ensureDb } from "./core";
 // carve-out (outreach-letters-tenancy.test.ts). Names are module-prefixed
 // (`outreachLetter*`) because the route-layer tenancy ratchet matches store functions by
 // text. None defaults its workspace.
+
+/** Longest outreach SUBJECT the store keeps. A subject is one line a mail client shows in
+ *  a list; 300 characters is several times any real one. */
+export const OUTREACH_SUBJECT_MAX_LENGTH = 300;
+
+/**
+ * The plain-text subject line, cleaned the way the body is (outreach-body.ts: markup
+ * stripped, invisible/bidi code points removed) and then folded onto ONE line. The body
+ * had a send gate and the subject had none: the model writes it from a CV it read, and a
+ * person can now edit it (PATCH ../[id]), so a smuggled `<a href>`, a bidi override or a
+ * line break reached the relay under the operator's name. Every write below stores it
+ * through this function, so a release can only send a cleaned subject. Not length-capped
+ * here — the edit door refuses an over-long one and the draft door clips the model's.
+ */
+export function cleanOutreachSubject(value: string): string {
+  return cleanOutreachBody(value).replace(/\s+/g, " ").trim();
+}
+
+/** The model's draft subject, cleaned and clipped to the cap. Clipping is safe here and
+ *  not on the body: a held draft is read by a person before anything leaves, and no footer
+ *  hangs off a subject. */
+function draftSubject(value: string): string {
+  const clean = cleanOutreachSubject(value);
+  return clean.length > OUTREACH_SUBJECT_MAX_LENGTH ? clean.slice(0, OUTREACH_SUBJECT_MAX_LENGTH - 1).trimEnd() + "…" : clean;
+}
 
 export const OUTREACH_LETTER_STATES = ["drafted", "approved", "released", "delivery_failed", "suppressed", "discarded"] as const;
 export type OutreachLetterState = (typeof OUTREACH_LETTER_STATES)[number];
@@ -135,6 +161,7 @@ export function outreachLetterDraft(
 ): { letter: OutreachLetter; created: boolean; changed: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
+  input = { ...input, subject: draftSubject(input.subject) };
   // ON CONFLICT names the uniqueness target, so ONLY the one-letter-per-application
   // collision is absorbed — `INSERT OR IGNORE` would also swallow a CHECK violation.
   const ins = db
@@ -171,6 +198,7 @@ export function outreachLetterEdit(
   workspaceId: string
 ): { letter: OutreachLetter; changed: boolean } | null {
   const now = new Date().toISOString();
+  input = { ...input, subject: cleanOutreachSubject(input.subject) };
   const res = ensureDb()
     .prepare(
       `UPDATE outreach_letters

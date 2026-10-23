@@ -23,7 +23,12 @@ import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/ap
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { cleanOutreachBody, outreachBodyRefusal, OUTREACH_BODY_MAX_LENGTH } from "@/app/_lib/outreach-body";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
-import { outreachLetterById, outreachLetterEdit } from "@/app/_lib/db/outreach-letters";
+import {
+  cleanOutreachSubject,
+  outreachLetterById,
+  outreachLetterEdit,
+  OUTREACH_SUBJECT_MAX_LENGTH,
+} from "@/app/_lib/db/outreach-letters";
 import { outreachLetterView } from "../letter-view";
 
 export const GET = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -50,13 +55,15 @@ export const GET = withWorkspace(async (ws: string, request: Request, { params }
 //   404 PIPELINE_ENTRY_NOT_FOUND       not in this team
 //   409 PIPELINE_MOVE_CONFLICT + { state, revision }   stale revision, or no longer drafted
 //                                      (approved / released / erased), or no revision named
-//   413 PAYLOAD_TOO_LARGE · 422 OUTREACH_BODY_TOO_LONG · 422 FEEDBACK_LETTER_TEXT_EMPTY
+//   413 PAYLOAD_TOO_LARGE · 422 FEEDBACK_LETTER_TEXT_EMPTY
+//   422 OUTREACH_BODY_TOO_LONG         the body, or the subject (over OUTREACH_SUBJECT_MAX_LENGTH)
 //   500 OUTREACH_FAILED · 401 / 403 FORBIDDEN_CAPABILITY
 //
 // An edit bumps the revision, so an approval that names the pre-edit revision is refused
 // by the approve door's own CAS: nobody approves text they did not read. The text is
 // cleaned and length-checked the way the send gate will check it (outreach-body.ts), so a
-// letter that could never be released is refused here, while it can still be fixed.
+// letter that could never be released is refused here, while it can still be fixed. The
+// subject gets the same cleaning folded onto one line (cleanOutreachSubject) and its own cap.
 const MAX_EDIT_BODY_BYTES = OUTREACH_BODY_MAX_LENGTH * 4 + 4096;
 
 export const PATCH = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -79,10 +86,10 @@ export const PATCH = withWorkspace(async (ws: string, request: NextRequest, { pa
     if (typeof input.subject !== "string" || typeof input.body !== "string") {
       return jsonRefusal("FEEDBACK_LETTER_TEXT_EMPTY", 422);
     }
-    const subject = input.subject.trim();
+    const subject = cleanOutreachSubject(input.subject);
     const body = cleanOutreachBody(input.body).trim();
     if (!subject || !body) return jsonRefusal("FEEDBACK_LETTER_TEXT_EMPTY", 422);
-    if (outreachBodyRefusal(body)) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
+    if (outreachBodyRefusal(body) || subject.length > OUTREACH_SUBJECT_MAX_LENGTH) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
 
     const edited = outreachLetterEdit(id, { revision, subject, body }, ws);
     if (!edited) {
