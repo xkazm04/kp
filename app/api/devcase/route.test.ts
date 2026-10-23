@@ -1,5 +1,5 @@
 import { test, before, after } from "node:test";
-import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "../../_lib/testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
@@ -16,7 +16,7 @@ import { mkdtempSync } from "node:fs";
 // `before()` — after this assignment — so `npm run test:unit` never touches the real DB.
 const DB_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-devcase-"));
 process.env.KP_DB_PATH = path.join(DB_DIR, "kp.sqlite");
-after(() => removeTempDirs(DB_DIR));
+after(() => removeTempDirsInHook([DB_DIR]));
 delete process.env.DATABASE_URL;
 
 let POST: (typeof import("./route.ts"))["POST"];

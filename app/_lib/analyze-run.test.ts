@@ -18,7 +18,7 @@
 // MUST be the first project import (it sets KP_DB_PATH before any db-path import).
 // Run: node scripts/run-unit-tests.mjs "app/_lib/analyze-run.test.ts"
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { removeTempDirs } from "./testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "./testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
@@ -114,7 +114,7 @@ const { currentPeriod } = await import("./billing/plans.ts");
 const { ensureDb } = await import("./db/core.ts");
 
 after(() => cleanupUnitDb());
-after(() => removeTempDirs(...tempBaseDirs));
+after(() => removeTempDirsInHook(tempBaseDirs));
 
 // A minimal payload that clears analysisSchema. Deliberately thin: this file is about
 // ordering and deadlines, not about the analysis shape.
