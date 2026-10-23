@@ -22,7 +22,7 @@
 //   - log the key. The only thing written anywhere is the file line itself.
 
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { calendarSecretKeyConfigured } from "./calendar-secret";
 
@@ -59,11 +59,15 @@ export function ensureCalendarSecretKey(
 
   const file = opts.envFile ?? defaultEnvLocalPath();
   let text = "";
+  // One read, no separate existence check: a check-then-write leaves a window in which
+  // another process creates the file and this write replaces it (CodeQL js/file-system-race).
+  let existed = true;
   try {
-    text = existsSync(file) ? readFileSync(file, "utf8") : "";
-  } catch {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") existed = false;
     // An unreadable file is one we must not rewrite either: we cannot know what it holds.
-    return { ok: false, reason: "persist_failed" };
+    else return { ok: false, reason: "persist_failed" };
   }
 
   const lines = text.split(/\r?\n/);
@@ -97,8 +101,12 @@ export function ensureCalendarSecretKey(
       eol;
   }
   try {
-    writeFileSync(file, next, { encoding: "utf8", mode: 0o600 });
-  } catch {
+    // A file that did not exist is created exclusively ("wx"), so a file another process
+    // made since our read is never overwritten.
+    writeFileSync(file, next, { encoding: "utf8", mode: 0o600, flag: existed ? "w" : "wx" });
+  } catch (error) {
+    // Lost the creation race: the file exists now, so read it again (it may carry a key).
+    if (!existed && (error as NodeJS.ErrnoException)?.code === "EEXIST") return ensureCalendarSecretKey(opts);
     return { ok: false, reason: "persist_failed" };
   }
   env[CALENDAR_KEY_ENV] = key;
