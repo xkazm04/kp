@@ -4368,7 +4368,16 @@
         "sealFailed": "ponechán/a: záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
         "reinstated": "ponechán/a: personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
         "holdoutSealFailed": "ponechán/a, ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi",
-        "recruiterSpared": "ponecháno: v tomto náhledu jste kandidáta vyřadili z vlny, vlna ho tedy nezamítne (shoda {score}, práh {threshold})"
+        "recruiterSpared": "ponecháno: v tomto náhledu jste kandidáta vyřadili z vlny, vlna ho tedy nezamítne (shoda {score}, práh {threshold})",
+        "score_above_floor": "navrženo postoupení: shoda {score} dosahuje prahu {floor}",
+        "score_below_floor": "navrženo podržení: skóre shody nedosahuje prahu {floor}",
+        "not_active": "navrženo zamítnutí: kandidát už na této pozici není aktivní",
+        "policy_advance": "navrženo postoupení podle automatizačních pravidel",
+        "policy_reject": "navrženo zamítnutí podle automatizačních pravidel, rozhodne člověk",
+        "policy_hold": "podrženo podle automatizačních pravidel",
+        "policy_none": "pravidla nenavrhují žádnou změnu, podrženo ke kontrole",
+        "wouldBeQueuedForApproval": "navrženo zamítnutí podle automatizačních pravidel, čeká na schválení člověkem",
+        "fairnessWouldRefuse": "automatické zamítnutí zastavila pojistka férovosti, podrženo pro recruitera"
       },
       "spare": "Ušetřit",
       "unspare": "Vrátit",

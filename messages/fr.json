@@ -4368,7 +4368,16 @@
         "sealFailed": "conservé·e : l'enregistrement de décision infalsifiable n'a pas pu être scellé, le refus automatique n'a donc pas été appliqué",
         "reinstated": "conservé·e : un refus automatique précédent a été annulé par un recruteur, la machine ne le répète pas",
         "holdoutSealFailed": "conservé·e, mais l'enregistrement du témoin d'étalonnage n'a pas pu être scellé : cette personne n'est pas dans le bras propre",
-        "recruiterSpared": "conservé·e : vous l’avez retiré·e de la vague dans cet aperçu, la vague ne le ou la rejettera donc pas (correspondance {score}, seuil {threshold})"
+        "recruiterSpared": "conservé·e : vous l’avez retiré·e de la vague dans cet aperçu, la vague ne le ou la rejettera donc pas (correspondance {score}, seuil {threshold})",
+        "score_above_floor": "avance proposée : la correspondance {score} atteint le seuil de {floor}",
+        "score_below_floor": "maintien proposé : le score de correspondance n’atteint pas le seuil de {floor}",
+        "not_active": "rejet proposé : la personne n’est plus active sur ce poste",
+        "policy_advance": "avance proposée par les règles d’automatisation",
+        "policy_reject": "rejet proposé par les règles d’automatisation, une personne décide",
+        "policy_hold": "maintenu par les règles d’automatisation",
+        "policy_none": "les règles ne proposent aucun changement, maintenu pour examen",
+        "wouldBeQueuedForApproval": "rejet proposé par les règles d’automatisation, en attente de validation par une personne",
+        "fairnessWouldRefuse": "rejet automatique arrêté par le garde-fou d’équité, maintenu pour un·e recruteur·se"
       },
       "spare": "Épargner",
       "unspare": "Annuler",

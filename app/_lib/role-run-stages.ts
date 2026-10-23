@@ -496,7 +496,15 @@ export type ScorecardPayload = {
 export type OfferTermsRef = { band: string; currency: string; ttlDays: number };
 
 export type OfferDraftPayload = {
-  drafts: { entryId: string; terms: OfferTermsRef; ttlDays: number; rationaleRef: string }[];
+  drafts: {
+    entryId: string;
+    terms: OfferTermsRef;
+    ttlDays: number;
+    rationaleRef: string;
+    /** What `rationaleRef` was drawn from, as CODES only: the S5 recommendation on this
+     *  branch ("unrated" when there is none) and the band reference of the terms. */
+    basis: { source: "scorecard"; recommendation: string; band: string };
+  }[];
 };
 
 /** The payload type for each kind, so a reader can narrow off the artifact's kind. */

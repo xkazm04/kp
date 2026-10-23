@@ -4368,7 +4368,16 @@
         "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
         "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
         "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm",
-        "recruiterSpared": "beibehalten: Sie haben diese Person in dieser Vorschau aus der Welle genommen, die Welle lehnt sie daher nicht ab (Match {score}, Schwelle {threshold})"
+        "recruiterSpared": "beibehalten: Sie haben diese Person in dieser Vorschau aus der Welle genommen, die Welle lehnt sie daher nicht ab (Match {score}, Schwelle {threshold})",
+        "score_above_floor": "Weiterleitung vorgeschlagen: Match {score} erreicht die Schwelle von {floor}",
+        "score_below_floor": "Halten vorgeschlagen: Der Match-Wert erreicht die Schwelle von {floor} nicht",
+        "not_active": "Ablehnung vorgeschlagen: Die Person ist für diese Stelle nicht mehr aktiv",
+        "policy_advance": "Weiterleitung nach den Automatisierungsregeln vorgeschlagen",
+        "policy_reject": "Ablehnung nach den Automatisierungsregeln vorgeschlagen, ein Mensch entscheidet",
+        "policy_hold": "Nach den Automatisierungsregeln gehalten",
+        "policy_none": "Die Regeln schlagen keine Änderung vor, zur Prüfung gehalten",
+        "wouldBeQueuedForApproval": "Ablehnung nach den Automatisierungsregeln vorgeschlagen, wartet auf die Freigabe durch einen Menschen",
+        "fairnessWouldRefuse": "Automatische Ablehnung vom Fairness-Schutz gestoppt, für Recruiter gehalten"
       },
       "spare": "Verschonen",
       "unspare": "Rückgängig",

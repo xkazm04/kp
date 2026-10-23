@@ -149,6 +149,10 @@ test("one role runs JD → offer draft, stopping at exactly three gates", async 
   const draft = latestStageArtifact(run.id, "offer_draft", strong)?.payload as OfferDraftPayload;
   assert.equal(draft.drafts[0].entryId, strong);
   assert.ok(draft.drafts[0].ttlDays > 0, "the draft carries real offer-policy terms");
+  // The rationale has a basis, as codes: no interview session was seeded here, so the
+  // honest recommendation is "unrated", not a fabricated one (ADR 0008).
+  assert.deepEqual(draft.drafts[0].basis, { source: "scorecard", recommendation: "unrated", band: "job_posted_range" });
+  assert.match(draft.drafts[0].rationaleRef, /^[0-9a-f]+$/);
 
   // GATE 3 — offer. The run DRAFTED; it never minted. The draft carries no offer
   // reference, because there is no offer yet: createOffer is called by the gate commit,

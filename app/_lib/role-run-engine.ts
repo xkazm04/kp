@@ -264,15 +264,22 @@ const runScorecard: StageRunner = (ctx) => {
  *  the job's own posted range, not a number this stage invents. */
 const runOfferDraft: StageRunner = (ctx) => {
   const ttlDays = resolveOfferTtlDays(null);
+  // The basis the draft drew on: the S5 card on THIS branch, as codes. A branch with no
+  // card, or one whose card is unrated, records "unrated" rather than a reason nobody
+  // gave (ADR 0008); names and prose never enter the ledger (ADR 0011 section 5).
+  const card = (latestStageArtifact(ctx.run.id, "scorecard", ctx.branchRef, ctx.workspaceId)?.payload as ScorecardPayload | undefined)?.cards?.[0];
+  const recommendation = card?.recommendation ?? "unrated";
+  const terms = { band: "job_posted_range", currency: "EUR", ttlDays };
   return {
     status: "awaiting_approval",
     payload: {
       drafts: [
         {
           entryId: ctx.branchRef ?? "",
-          terms: { band: "job_posted_range", currency: "EUR", ttlDays },
+          terms,
           ttlDays,
-          rationaleRef: hashOf(ctx.run.id, ctx.branchRef, "offer-rationale"),
+          rationaleRef: hashOf(ctx.run.id, ctx.branchRef, "offer-rationale", recommendation, terms.band),
+          basis: { source: "scorecard", recommendation, band: terms.band },
         },
       ],
     } satisfies OfferDraftPayload,

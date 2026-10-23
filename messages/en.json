@@ -4368,7 +4368,16 @@
         "sealFailed": "kept: the tamper-evident decision record could not be sealed, so the auto-rejection was not applied",
         "reinstated": "kept: a recruiter reversed an earlier auto-rejection, so the machine will not re-reject them",
         "holdoutSealFailed": "kept, but the calibration holdout record could not be sealed, so this candidate is not in the clean arm",
-        "recruiterSpared": "kept: you spared them in this preview, so the wave will not reject them (match {score}, threshold {threshold})"
+        "recruiterSpared": "kept: you spared them in this preview, so the wave will not reject them (match {score}, threshold {threshold})",
+        "score_above_floor": "advance proposed: match {score} reaches the floor of {floor}",
+        "score_below_floor": "hold proposed: the match score does not reach the floor of {floor}",
+        "not_active": "rejection proposed: the candidate is no longer active on this role",
+        "policy_advance": "advance proposed by the automation policy",
+        "policy_reject": "rejection proposed by the automation policy, a person decides",
+        "policy_hold": "held by the automation policy",
+        "policy_none": "the policy proposes no change, held for review",
+        "wouldBeQueuedForApproval": "rejection proposed by the automation policy, waiting for a person to approve",
+        "fairnessWouldRefuse": "automatic rejection stopped by the fairness backstop, held for a recruiter"
       },
       "spare": "Spare",
       "unspare": "Undo",

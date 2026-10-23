@@ -280,7 +280,15 @@ export type ReasonsCoverage = {
    *  one). Their own bucket: neither a hit nor a miss, because no scorecard exists to
    *  have no reasons — and never silently dropped. */
   completedUnscored: number;
+  /** The role-run arm: S2 screen proposals in the run ledger, each resolved through the
+   *  same renderer a rejection is. Its own arm and OUTSIDE `total` and `byKind`, so
+   *  adding it cannot move a number already being reported. */
+  roleRun: ReasonsArm;
 };
+
+/** One S2 proposal as the run ledger stores it (ScreenPayload.decisions[number]): a code
+ *  and numbers, no prose. */
+export type RoleRunScreenProposal = { entryId: string; reasonCode: string; reasonParams: Record<string, string | number> };
 
 function arm(checked: number, withReasons: number): ReasonsArm {
   return {
@@ -297,7 +305,9 @@ export function countReasonsCoverage(
   catalog: ReasonsCatalog,
   matchCatalog?: MatchReasonsTranslator,
   /** Count of completed sessions with no scorecard (the meter reads it from the database). */
-  completedUnscored = 0
+  completedUnscored = 0,
+  /** S2 screen proposals from the role-run ledger; absent = the arm is unmeasured. */
+  roleRunScreens: readonly RoleRunScreenProposal[] = []
 ): ReasonsCoverage {
   const checked = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
   const hit = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
@@ -315,6 +325,12 @@ export function countReasonsCoverage(
     if (result.ok) hit[v.kind] += 1;
     else misses.push({ kind: v.kind, id: v.id, why: result.why });
   }
+  let roleRunHit = 0;
+  for (const p of roleRunScreens) {
+    const result = reasonsBlockOf({ kind: "rejection", id: p.entryId, reason: { reasonCode: p.reasonCode, reasonParams: p.reasonParams } }, catalog);
+    if (result.ok) roleRunHit += 1;
+    else misses.push({ kind: "rejection", id: p.entryId, why: `role-run screen: ${result.why}` });
+  }
   const totalChecked = REASONS_VERDICT_KINDS.reduce((n, k) => n + checked[k], 0);
   const totalHit = REASONS_VERDICT_KINDS.reduce((n, k) => n + hit[k], 0);
   return {
@@ -330,6 +346,7 @@ export function countReasonsCoverage(
     scorecardFractions,
     scorecardAxes: scorecardFractions.reduce((t, f) => ({ assessed: t.assessed + f.assessed, axes: t.axes + f.axes }), { assessed: 0, axes: 0 }),
     completedUnscored,
+    roleRun: arm(roleRunScreens.length, roleRunHit),
   };
 }
 
