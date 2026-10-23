@@ -78,3 +78,8 @@ export function foldedExtras(template: string): string {
   if (cur) tracks.push(cur);
   return [tracks[0] ?? "minmax(0,1fr)", ...tracks.slice(1).map(() => "0px")].join(" ");
 }
+
+/** The pager's "N rows in the DOM" footer: on unless the caller opts out with `domFooter={false}`. */
+export function showDomFooter(domFooter?: boolean): boolean {
+  return domFooter !== false;
+}

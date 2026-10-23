@@ -19,6 +19,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { CheckSquare, Square } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { ABSENT, Button, Mark, Section } from "@/app/_components/kit";
+import { DomCount } from "@/app/_components/kit/DomCount";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
@@ -284,6 +285,9 @@ export function DocketRoleOverview({
                 </div>
               </div>
             ))}
+            <div className="k-pager" data-role="kit-pager">
+              <DomCount count={rows.length} />
+            </div>
           </div>
         )}
       </div>
