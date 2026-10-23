@@ -605,7 +605,7 @@ carry: location, seniority, status, target hires, and the roles nobody is on yet
 `orbit/pipelineOrbit.css`. The region carries `data-sim="pipeline-board"`, the guided walk's
 "hired" chapter target.
 
-**Held first-contact letter (comms C2b).** The candidate modal's Overview tab opens with `candidate/outreach/OutreachReleaseCard.tsx` when the application has a held outreach letter: the exact letter and forecast, Approve (the rendered revision; a 409 reads "reload"), and Release (only in `RELEASABLE_STATES`; keyless it reads queued). Logic and API calls: `outreachCard.ts` (`outreachCard.test.ts`). Contract: `docs/features/comms/README.md` §8a.
+**Held first-contact letter (comms C2b).** The candidate modal's Overview tab opens with `candidate/outreach/OutreachReleaseCard.tsx` when the application has a held outreach letter: the exact letter and forecast, Approve (the rendered revision; a 409 reads "reload"), and Release (only in `RELEASABLE_STATES`; keyless it reads queued). Logic and API calls: `outreachCard.ts` (`outreachCard.test.ts`). Contract: `docs/features/comms/README.md` §8a. The bulk sheet for a picked cohort is described under [Bulk actions today](#bulk-actions-today).
 
 **The Overview ("The Orbit, Lit", 2026-09-30).** The page opens one level ABOVE the orbit, on the
 owner's pick of the `/contest orbit-overview` (B/1; it replaced the 2026-09-29 /prototype "Core").
@@ -1246,6 +1246,7 @@ The bulk paths that ship:
 - **The Decisions tab's own batch bar** (`app/features/hiring/decisions/DecisionsBatchBar.tsx`,
   state in `useDecisionsQueue`): batch accept / reject of awaiting reviews through
   `POST /api/pipeline/batch`, folded by `decisionsDecideOutcome.ts`.
+- **Batch outreach from the role bench** (`orbit/ladder/OrbitLadderCompare.tsx`, comms C2b, `74b8e2beb`): the bench's checkboxes are the picked cohort; *Draft outreach for N picked* starts the `batch_outreach` task (`candidate/outreach/useBatchOutreach.ts`), which only DRAFTS held letters. When it finishes, `BulkOutreachSheet` opens on the drafted entries: each letter as the release card renders it (`loadLetter`), its forecast and state, a cohort forecast (send / queue / refuse with reasons), a revision-bound edit (`PATCH /api/outreach-letters/[id]`) and *Approve and release*, which runs the per-letter approve and release doors one at a time and reports released / queued / refused / conflict per letter. Logic: `outreachBulk.ts` (`outreachBulk.test.ts`, `useBatchOutreach.test.ts`).
 - **`POST /api/pipeline/batch`** itself is unchanged: operator gate, `pipeline:write`, per-id
   isolation, and `dryRun: true` answering what a move would set off (`planArrival`) while writing
   nothing. Its only client is the Decisions bar.

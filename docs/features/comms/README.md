@@ -714,7 +714,23 @@ reload" and is never retried. **Release** is live only in `RELEASABLE_STATES` (`
 `delivery_failed`, `suppressed`). `COMMS_SUPPRESSED` and `delivery_failed` are states of
 the card, not toasts, and a keyless release reads `queued` in the local outbox, never
 "delivered". The call and state logic lives in `outreachCard.ts`
-(`outreachCard.test.ts`). The bulk dry-run sheet is still pending.
+(`outreachCard.test.ts`).
+
+**The bulk dry-run sheet (C2b, second half, `74b8e2beb`).** The role bench in the Orbit
+(`orbit/ladder/OrbitLadderCompare.tsx`) drafts held letters for its picked cohort
+(`useBatchOutreach.ts` starts `batch_outreach`) and then opens `BulkOutreachSheet`. It reads each
+letter through the release card's own lookup, so the text is the exact rendered letter, and
+shows a per-letter forecast and state plus a cohort forecast (send / queue / refuse, with the
+refusal reasons; counts are derived from the same per-letter forecast the rows show). *Edit*
+calls `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }`, a CAS on id + team +
+revision + `drafted` that bumps the revision (`outreachLetterEdit`); a stale revision answers
+`409 PIPELINE_MOVE_CONFLICT`. *Approve and release* posts each letter's rendered revision to
+the approve door and then the release door, one letter at a time, naming `humanActor()`; there
+is no second send path. A letter edited elsewhere after the sheet rendered it is refused with a
+409, reported `conflict`, and the rest of the cohort still releases. Per letter the sheet
+reports released, queued (keyless: local outbox, 0 network calls), refused or conflict. Pinned by
+`outreachBulk.test.ts` against the real doors with a counting fixture relay: N letters make N relay
+POSTs, each carrying its draft's `messageId`, and the timeline names the approver.
 
 **One message identity.** The release hands the draft's `message_id` to `sendComm`
 (§7, C1). The outbox row's `message_id`, the envelope's `messageId` and the
@@ -1513,12 +1529,10 @@ already returns alongside the entries. Both rules are pinned by
   door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
   because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
   `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
-- **Only the drawer reads a held outreach letter.** The release card is live (§8a); the
-  bulk dry-run sheet is still comms scope C2b. Until it lands, the Reach-out button reads
-  `applied: "drafted"` as the "sent" note (`useReachOut.ts` `reachOutVerdict` defaults
-  to `sent`), and the approve / release doors answer with borrowed codes
+- **The outreach-letter doors answer with borrowed codes**
   (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
-  their own.
+  their own; the vocabulary lives in `app/_lib/api-errors/`, which needs four catalog entries per
+  code. The Reach-out button now reads `applied: "drafted"` as `held` (`reachOutVerdict`).
 - **Pull-config refusals distinguish input from storage.** `PATCH` validates the
   operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
   for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
