@@ -9303,6 +9303,7 @@
         "title": "Nastavení Google Kalendáře",
         "intro": "Kandi potřebuje vlastního OAuth klienta z vašeho projektu v Google Cloud. Zabere to asi pět minut a uděláte to jen jednou.",
         "loadFailed": "Podrobnosti nastavení se nepodařilo načíst.",
+        "retry": "Zkusit znovu",
         "unreadable": "Klient tu uložený je, ale jeho tajný klíč už nejde přečíst, obvykle proto, že se změnil šifrovací klíč. Vložte tajný klíč klienta znovu.",
         "step1": "V nové kartě otevřete stránku Credentials v konzoli Google Cloud a vyberte nebo vytvořte projekt:",
         "copyConsole": "Zkopírovat adresu konzole",

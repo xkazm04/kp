@@ -7,6 +7,7 @@ import { BTN_PRIMARY, META_LABEL, NOTICE, PANEL_SUNKEN } from "@/app/_components
 import { IconAction } from "@/app/_components/IconAction";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { calendarSetupLoad } from "./calendarSetupState";
 
 // T8 — the guided Google Calendar setup. Walks the owner through creating an OAuth client
 // in the Google Cloud console (numbered steps, the exact redirect URI with a copy control,
@@ -54,7 +55,7 @@ function CopyValue({ value, label }: { value: string; label: string }) {
 
 export function IntegrationsCalendarSetup() {
   const t = useTranslations("integrations.calendar.setup");
-  const { data } = useJsonFetch<ClientStatus>(CLIENT_URL, t("loadFailed"));
+  const { data, error, reload } = useJsonFetch<ClientStatus>(CLIENT_URL, t("loadFailed"));
   const [clientId, setClientId] = useState<string | null>(null);
   const [secret, setSecret] = useState("");
   const [saving, setSaving] = useState(false);
@@ -96,6 +97,15 @@ export function IntegrationsCalendarSetup() {
     <div className={`${PANEL_SUNKEN} mt-3 p-4`}>
       <p className="text-body font-semibold text-ink">{t("title")}</p>
       <p className="mt-1 text-meta text-steel">{t("intro")}</p>
+
+      {calendarSetupLoad(data, error) === "failed" ? (
+        <div role="alert" className={`${NOTICE("critical")} mt-3 flex flex-wrap items-center gap-3 p-3`}>
+          <p className="text-meta">{error}</p>
+          <button type="button" onClick={reload} className="text-meta font-medium underline">
+            {t("retry")}
+          </button>
+        </div>
+      ) : null}
 
       {data?.savedUnreadable ? (
         <div role="alert" className={`${NOTICE("critical")} mt-3 p-3`}>

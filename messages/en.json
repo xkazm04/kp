@@ -9303,6 +9303,7 @@
         "title": "Set up Google Calendar",
         "intro": "Kandi needs its own OAuth client from your Google Cloud project. It takes about five minutes, and you do it once.",
         "loadFailed": "Couldn't load the setup details.",
+        "retry": "Try again",
         "unreadable": "A client was saved here, but its secret can no longer be read, usually because the encryption key changed. Paste the client secret again.",
         "step1": "Open the Credentials page of the Google Cloud console in a new tab, then pick or create a project:",
         "copyConsole": "Copy the console address",

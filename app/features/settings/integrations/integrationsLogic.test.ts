@@ -111,3 +111,11 @@ test("Send test is offered only for a STORED endpoint the field still matches", 
   // it is an unsaved change like any other.
   assert.equal(webhookTestable(saved, ""), false);
 });
+
+import { calendarSetupLoad } from "./calendarSetupState.ts";
+
+test("calendar setup: a failed status read is 'failed', never an empty-looking ready form", () => {
+  assert.equal(calendarSetupLoad(null, null), "loading");
+  assert.equal(calendarSetupLoad({ configured: false }, null), "ready");
+  assert.equal(calendarSetupLoad(null, "Couldn't load the setup details."), "failed");
+});
