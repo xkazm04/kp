@@ -3,6 +3,7 @@ import { producerRunners } from "./role-run-producers/index.ts";
 import { roleSpecProducer } from "./role-run-producers/role-spec.ts";
 import { slateProducer } from "./role-run-producers/slate.ts";
 import { screenProducer } from "./role-run-producers/screen.ts";
+import { caseProducer } from "./role-run-producers/case.ts";
 import { getRoleRun, listRoleRuns } from "./db/role-runs.ts";
 import { listWorkspaces } from "./db/workspaces.ts";
 import { opsLog } from "./ops-telemetry.ts";
@@ -29,7 +30,7 @@ import { opsLog } from "./ops-telemetry.ts";
 
 /** The runner set the live engine uses: producers over the keyless floor. */
 export function liveRoleRunRunners(): Partial<StageRunners> {
-  return producerRunners([roleSpecProducer(), slateProducer(), screenProducer()]);
+  return producerRunners([roleSpecProducer(), slateProducer(), screenProducer(), caseProducer()]);
 }
 
 const FLIGHTS_KEY = "__kpRoleRunFlights";
