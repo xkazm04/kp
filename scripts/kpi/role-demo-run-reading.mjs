@@ -463,3 +463,23 @@ export function formatSimulatedInterviews(rows) {
     return `${r.branchRef}: ${r.skipped ?? "not rated"}${counts}`;
   });
 }
+
+/** The closed vocabulary of acts the harness performs outside the engine's ledger. */
+export const INTERVENTION_CODES = ["gate_commit", "simulated_interview", "retrigger", "other"];
+
+/** The two a person is allowed under goal 1: the Art. 22 gate commit (the stand-in's) and the
+ *  labelled simulated interview. Everything else is an intervention outside the allowance. */
+export const ALLOWED_INTERVENTIONS = ["gate_commit", "simulated_interview"];
+
+/**
+ * Count the harness's intervention log by code. A code outside the closed vocabulary is folded
+ * into `other` rather than dropped, so an unknown act can only ever raise the outside-allowed
+ * count. `interventionsOutsideAllowed` is everything except the two allowed codes.
+ * @param {Array<{ code: string }>} log
+ */
+export function summarizeInterventions(log) {
+  const counts = Object.fromEntries(INTERVENTION_CODES.map((c) => [c, 0]));
+  for (const { code } of log) counts[INTERVENTION_CODES.includes(code) ? code : "other"] += 1;
+  const interventionsOutsideAllowed = INTERVENTION_CODES.filter((c) => !ALLOWED_INTERVENTIONS.includes(c)).reduce((n, c) => n + counts[c], 0);
+  return { counts, interventionsOutsideAllowed, total: log.length };
+}

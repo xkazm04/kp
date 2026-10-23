@@ -19,9 +19,10 @@ export const MAX_PASSES = 20;
  *   simCap?: number,
  *   simDeps?: import("../../app/_lib/interview-sim/role-demo").RoleDemoSimDeps,
  *   cycle?: string,
+ *   live?: boolean,
  * }} input
  */
-export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, simDeps, cycle }) {
+export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, simDeps, cycle, live }) {
   const { getOrCreateRoleRun, listStageArtifacts } = await import("@/app/_lib/db/role-runs");
   const { DEFAULT_WORKSPACE_ID } = await import("@/app/_lib/db/workspaces");
   const { advanceRoleRun, commitRoleRunStageGate, DEFAULT_STAGE_RUNNERS } = await import("@/app/_lib/role-run-engine");
@@ -29,6 +30,9 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
   const { GATE_STAGE, roleRunGateToken } = await import("@/app/_lib/role-run-gates");
   const { roleRunCoverage, gateDwell, roleRunGoalOneSteps } = await import("@/app/_lib/role-run-metrics");
   const { createRoleDemoSimulator } = await import("@/app/_lib/interview-sim/role-demo");
+  // --live: the producers over the keyless floor, the set a live trigger composes. Without it
+  // the engine's DEFAULT_STAGE_RUNNERS, unchanged.
+  const runners = live ? (await import("@/app/_lib/role-run-live")).liveRoleRunRunners() : DEFAULT_STAGE_RUNNERS;
 
   const ws = workspaceId ?? DEFAULT_WORKSPACE_ID;
   const { run } = getOrCreateRoleRun({ jobId, cycle: cycle ?? `demo-${Date.now()}` }, ws);
@@ -41,6 +45,11 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
   // A branch the policy left parked shows up in every later pass's `awaiting`; it is decided
   // (and counted) once.
   const decidedLeft = new Set();
+  // The harness's own log of every act it performs outside the engine, as closed codes
+  // (INTERVENTION_CODES in the reading half). The ledger cannot see these; this is the only
+  // place they are visible.
+  const interventions = [];
+  const intervene = (code, detail) => interventions.push({ code, ...detail });
   // The invite and offer gates have no policy version in the ledger — the engine records one
   // only on the screen — so they sign with the labels the engine's own tests use.
   const FALLBACK_POLICY = { interview_invite: "invite-1", offer: "offer-1" };
@@ -86,10 +95,15 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
         ws
       );
       standInDecisions.push({ gate, branchRef, ...decision });
+      intervene("gate_commit", { pass: passes, gate, branchRef });
       resolved += 1;
       // The ordering the simulated interview depends on: S5 runs in the pass AFTER this
       // commit, so the interview is held and sealed here, before the loop advances again.
-      if (simulator && gate === "interview_invite" && decision.action === "approve") await simulator.run(branchRef);
+      if (simulator && gate === "interview_invite" && decision.action === "approve") {
+        const row = await simulator.run(branchRef);
+        // Only an interview that was actually played is an act; a refusal or a capped branch spent nothing.
+        if (row.skipped === null) intervene("simulated_interview", { pass: passes, branchRef });
+      }
     }
     return resolved;
   };
@@ -110,12 +124,17 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
     return owed ? owed.next.kind : null;
   };
 
+  let commitsBeforePass = 0;
   try {
     while (passes < MAX_PASSES && status === "running") {
       passes += 1;
-      // DEFAULT_STAGE_RUNNERS passed whole and nothing else: a runner that needs a key, Python
+      // A pass after the first that followed a gate commit is a re-trigger: somebody (here, the
+      // harness) had to start the engine again for the run to move.
+      if (passes > 1 && interventions.filter((i) => i.code === "gate_commit").length > commitsBeforePass) intervene("retrigger", { pass: passes });
+      commitsBeforePass = interventions.filter((i) => i.code === "gate_commit").length;
+      // The chosen runner set passed whole and nothing else: a runner that needs a key, Python
       // or the network surfaces as a throw here, and the reading says so instead of stubbing it.
-      const result = await advanceRoleRun(run.id, { runners: DEFAULT_STAGE_RUNNERS }, ws);
+      const result = await advanceRoleRun(run.id, { runners }, ws);
       status = result.status;
       const resolvedNow = standInMode ? await resolveAwaiting(result.awaiting) : 0;
       if (result.produced.length === 0 && resolvedNow === 0) break;
@@ -132,6 +151,8 @@ export async function runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, s
     passes,
     capped: passes >= MAX_PASSES && status === "running",
     failure,
+    runnerSet: live ? "live" : "default",
+    interventions,
     stageOrder: [...ROLE_RUN_STAGES],
     artifacts: artifacts.map((a) => ({ kind: a.kind, branchRef: a.branchRef, status: a.status, seq: a.seq, producedAt: a.producedAt, payload: a.payload })),
     coverage: roleRunCoverage(artifacts),
