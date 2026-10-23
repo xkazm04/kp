@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const { nodeMajor, parseArgs, parseRequirements, compareInstalled, extractLocalUrl, serverEnv, staleNodeDeps } = await import(
+const { nodeMajor, parseArgs, parseRequirements, compareInstalled, extractLocalUrl, serverEnv, staleNodeDeps, healthVerdict, checkVerdict } = await import(
   "../up.mjs"
 );
 
@@ -165,4 +165,22 @@ test("parseTunnelUrl lifts the quick-tunnel address from cloudflared's stderr", 
   assert.equal(parseTunnelUrl(stderr), "https://quiet-fox-1234.trycloudflare.com");
   assert.equal(parseTunnelUrl("INF Requesting new quick Tunnel on trycloudflare.com..."), null);
   assert.equal(parseTunnelUrl("https://api.trycloudflare.com/tunnel"), "https://api.trycloudflare.com");
+});
+
+test("healthVerdict: an app answering with a server error is not 'running'", () => {
+  for (const ok of [200, 204, 401, 404, 503]) assert.equal(healthVerdict(ok), "serving", String(ok));
+  for (const bad of [500, 502, 504]) assert.equal(healthVerdict(bad), "broken", String(bad));
+});
+
+test("the launcher only announces 'running' after a serving health answer", () => {
+  const src = readFileSync(path.join(REPO_ROOT, "scripts", "up.mjs"), "utf8");
+  assert.match(src, /healthVerdict\(res\.status\) === "serving"/);
+  assert.match(src, /health === "broken"/);
+});
+
+test("checkVerdict ends --check with what the first run will do", () => {
+  assert.match(checkVerdict({ hasNodeModules: true, staleNode: [], pyMissing: 0 }), /^Ready\. Run "npm run up"/);
+  const fresh = checkVerdict({ hasNodeModules: false, staleNode: [], pyMissing: 2 });
+  assert.match(fresh, /install the app's packages and install the Python packages/);
+  assert.match(fresh, /Nothing else is needed from you/);
 });

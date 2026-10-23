@@ -151,6 +151,26 @@ export function extractLocalUrl(line) {
   return m ? m[1].replace(/\/+$/, "") : null;
 }
 
+/** What an /api/health answer means for the owner. Any answer below 500 means the app is
+ *  serving, and so does 503 (a readiness verdict, e.g. a stalled clock). Any OTHER 5xx
+ *  is the error page Next serves when the app failed to compile or to open its
+ *  database: the server is listening but nothing works, and announcing "running" then
+ *  sends the owner to a blank "Internal Server Error" page with no hint where to look. */
+export function healthVerdict(status) {
+  return Number(status) < 500 || Number(status) === 503 ? "serving" : "broken";
+}
+
+/** The closing line of `--check`: ready, or exactly what runs first. The package lines
+ *  above it are facts; an owner needs the verdict ("can I start it?") spelled out. */
+export function checkVerdict({ hasNodeModules, staleNode, pyMissing }) {
+  const todo = [];
+  if (!hasNodeModules || staleNode.length > 0) todo.push("install the app's packages");
+  if (pyMissing > 0) todo.push("install the Python packages");
+  return todo.length === 0
+    ? "Ready. Run \"npm run up\" to start."
+    : `Ready to start. The first \"npm run up\" will ${todo.join(" and ")} (a few minutes), then start the app. Nothing else is needed from you.`;
+}
+
 /** The environment the dev server gets, per mode. Pure: env in, env out. */
 export function serverEnv(env, { demo, python, publicUrl }) {
   const out = { ...env, DEV_GUARD_MAX_NODE: env.DEV_GUARD_MAX_NODE || "150", DEV_GUARD_WATCH_PARENT: "1" };
@@ -229,12 +249,15 @@ function openBrowser(url) {
 async function waitForHealth(url) {
   const started = Date.now();
   let nextNote = started + 30_000;
+  let broken = 0; // consecutive error answers (compiling can briefly answer 500 once)
   while (Date.now() - started < START_TIMEOUT_MS) {
     try {
       // Any HTTP answer means the server is serving: a 503 is a readiness verdict
       // (e.g. a stalled clock), not "not started yet".
-      await fetch(`${url}/api/health`);
-      return true;
+      const res = await fetch(`${url}/api/health`);
+      if (healthVerdict(res.status) === "serving") return true;
+      broken += 1;
+      if (broken >= 3) return "broken";
     } catch {
       /* not listening yet — keep polling */
     }
@@ -311,7 +334,7 @@ export async function main(argv = process.argv.slice(2)) {
   const pyNeedsInstall = py.missing.length > 0;
   const driftNote = () =>
     py.mismatched.length > 0 &&
-    say(`Note: these Python packages differ from requirements.txt: ${py.mismatched.join(", ")}. To match it: ${python} -m pip install -r requirements.txt`);
+    say(`Note: these Python packages are at other versions than requirements.txt asks for: ${py.mismatched.join(", ")}. The app still runs on them; you do not need to act. (To match exactly: ${python} -m pip install -r requirements.txt)`);
 
   if (opts.check) {
     say(
@@ -324,6 +347,7 @@ export async function main(argv = process.argv.slice(2)) {
     say(pyNeedsInstall ? `Python packages - ${py.missing.length} not installed yet (pip will run): ${py.missing.join(", ")}` : "Python packages - installed");
     driftNote();
     say(`Workspace - ${opts.demo ? "demo (data/kp.sqlite)" : `your own (${process.env.KP_DB_PATH || OWNER_DB})`}`);
+    say(checkVerdict({ hasNodeModules, staleNode, pyMissing: py.missing.length }));
     say("Check finished. Nothing was installed or started.");
     return;
   }
@@ -401,7 +425,13 @@ export async function main(argv = process.argv.slice(2)) {
     if (announced) return;
     announced = true;
     say(`Waiting for ${url} to answer...`);
-    if (!(await waitForHealth(url))) {
+    const health = await waitForHealth(url);
+    if (health === "broken") {
+      say("The app started but cannot serve pages: it is answering with an error. The messages above say why (look for the first line that says Error).");
+      say('Fix that, press Ctrl+C and run "npm run up" again. Your saved data is not affected.');
+      return;
+    }
+    if (!health) {
       say(`The app did not answer within ${START_TIMEOUT_MS / 60000} minutes. The messages above say why.`);
       return;
     }
