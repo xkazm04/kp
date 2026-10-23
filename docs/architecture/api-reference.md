@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_313 routes, 419 handlers._
+_314 routes, 421 handlers._
 
 ### `/api/agents`
 
@@ -204,6 +204,7 @@ _313 routes, 419 handlers._
 | --- | --- | --- |
 | `/api/calendar/google` | GET, DELETE | gated |
 | `/api/calendar/google/callback` | GET | gated |
+| `/api/calendar/google/client` | GET, POST | gated |
 | `/api/calendar/google/start` | GET | gated |
 
 ### `/api/channels`
