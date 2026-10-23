@@ -4,6 +4,7 @@ import { listOutboxFiltered } from "./db/devcase";
 import {
   RELEASABLE_STATES,
   outreachLetterById,
+  outreachLetterClaimRelease,
   outreachLetterDraft,
   outreachLetterMarkFailed,
   outreachLetterMarkReleased,
@@ -113,6 +114,13 @@ export async function releaseOutreachLetter(letterId: string, workspaceId: strin
   if (messageDelivered(entry.id, letter.messageId, workspaceId)) {
     const closed = outreachLetterMarkReleased(letter.id, workspaceId) ?? letter;
     return { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: closed.state } };
+  }
+
+  // The cross-process line: claim the row (CAS on the updated_at this release read) before
+  // anything leaves. The loser — or a release inside a live claim's lease — sends nothing.
+  if (!outreachLetterClaimRelease(letter, workspaceId)) {
+    const now = outreachLetterById(letter.id, workspaceId) ?? letter;
+    return { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: now.state } };
   }
 
   releasing.add(letter.id);

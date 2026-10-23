@@ -258,6 +258,47 @@ export function outreachLetterMarkSuppressed(letterId: string, workspaceId: stri
   return moveFromReleasable(letterId, workspaceId, `state = 'suppressed', updated_at = ?`, [new Date().toISOString()]);
 }
 
+/** How long a release claim holds the letter. A release that dies mid-send leaves its claim
+ *  behind; once this much time has passed the letter can be released again (the retry
+ *  re-sends the same message id, which the receiver dedupes). */
+export const RELEASE_LEASE_MS = 60_000;
+
+// A claim is written into `updated_at` (no schema change: there is no `releasing` state or
+// column). Every other writer stamps `Z`; a claim stamps the same instant with a `+00:00`
+// offset, which still parses as a date but tells a claim from an approval or a dead-letter
+// move — both of which also leave a fresh `updated_at` and must stay releasable at once.
+const CLAIM_SUFFIX = "+00:00";
+function claimStamp(ms: number): string {
+  return new Date(ms).toISOString().replace(/Z$/, CLAIM_SUFFIX);
+}
+
+/** True while another release holds the letter: its claim is younger than the lease. */
+export function outreachLetterClaimActive(letter: OutreachLetter, nowMs: number = Date.now()): boolean {
+  if (!letter.updatedAt.endsWith(CLAIM_SUFFIX)) return false;
+  const at = Date.parse(letter.updatedAt);
+  return Number.isFinite(at) && nowMs - at < RELEASE_LEASE_MS;
+}
+
+/**
+ * Take the release claim before any send: a compare-and-swap that succeeds only if the row
+ * is still releasable AND its `updated_at` is the value the release read, and that writes a
+ * fresh claim stamp. Null means another release won (or the row moved) and nothing may be
+ * sent; a claim still inside the lease is refused the same way.
+ */
+export function outreachLetterClaimRelease(letter: OutreachLetter, workspaceId: string, nowMs: number = Date.now()): OutreachLetter | null {
+  if (outreachLetterClaimActive(letter, nowMs)) return null;
+  let stamp = claimStamp(nowMs);
+  if (stamp === letter.updatedAt) stamp = claimStamp(nowMs + 1);
+  const res = ensureDb()
+    .prepare(
+      `UPDATE outreach_letters SET updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND state IN (${RELEASABLE_SQL}) AND updated_at = ?
+          AND erased_at IS NULL AND body IS NOT NULL`
+    )
+    .run(stamp, letter.id, workspaceId, letter.updatedAt);
+  return res.changes === 0 ? null : outreachLetterById(letter.id, workspaceId);
+}
+
 function moveFromReleasable(letterId: string, workspaceId: string, set: string, args: string[]): OutreachLetter | null {
   const res = ensureDb()
     .prepare(`UPDATE outreach_letters SET ${set} WHERE id = ? AND workspace_id = ? AND state IN (${RELEASABLE_SQL})`)

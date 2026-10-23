@@ -10,7 +10,14 @@ import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { anonymizeEntry, createPipelineEntry, getPipelineEntry, hasEvent, listPipelineEventsForEntry } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
-import { outreachLetterApprove, outreachLetterById, outreachLetterDraft } from "./db/outreach-letters.ts";
+import {
+  RELEASE_LEASE_MS,
+  outreachLetterApprove,
+  outreachLetterById,
+  outreachLetterClaimRelease,
+  outreachLetterDraft,
+} from "./db/outreach-letters.ts";
+import { ensureDb } from "./db/core.ts";
 import { draftOutreachLetter, releaseOutreachLetter } from "./outreach-release.ts";
 import { haltOutreach } from "./outreach-state-store.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
@@ -223,4 +230,44 @@ test("a dead letter the Comms Center already resent is not released a second tim
   assert.equal(!out.ok && out.status, 409);
   assert.equal(releasePosts.length, 0, "the letter already reached the person — nothing is sent twice");
   assert.equal(outreachLetterById(letter.id, WS)!.state, "released", "…and the row is closed truthfully");
+});
+
+test("two releases started from the same read: one claim wins, the loser gets 409 and sends nothing", async () => {
+  const posts = fixtureRelay(200);
+  const { letter } = await approvedLetter();
+  // Two processes read the same row, then both try to claim it.
+  const first = outreachLetterClaimRelease(letter, WS);
+  const second = outreachLetterClaimRelease(letter, WS);
+  assert.ok(first);
+  assert.equal(second, null);
+  assert.equal(posts.length, 0);
+});
+
+test("concurrent releases of one letter send exactly once", async () => {
+  const posts = fixtureRelay(200);
+  const { letter } = await approvedLetter();
+  const [a, b] = await Promise.all([releaseOutreachLetter(letter.id, WS, APPROVER), releaseOutreachLetter(letter.id, WS, APPROVER)]);
+  assert.equal(posts.length, 1);
+  assert.equal([a, b].filter((r) => r.ok).length, 1);
+  const loser = [a, b].find((r) => !r.ok)!;
+  assert.equal(!loser.ok && loser.status, 409);
+  assert.equal(!loser.ok && loser.code, "PIPELINE_MOVE_CONFLICT");
+});
+
+test("a release inside a live claim's lease is refused; after the lease it succeeds with the same message id", async () => {
+  const posts = fixtureRelay(200);
+  const { letter } = await approvedLetter();
+  // Another process claimed and died (or is still sending).
+  const claimed = outreachLetterClaimRelease(letter, WS)!;
+  const inside = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.deepEqual(inside, { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: "approved" } });
+  assert.equal(posts.length, 0);
+
+  // Age the claim past the lease.
+  const old = new Date(Date.now() - RELEASE_LEASE_MS - 1000).toISOString().replace(/Z$/, "+00:00");
+  ensureDb().prepare(`UPDATE outreach_letters SET updated_at = ? WHERE id = ?`).run(old, claimed.id);
+  const after = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.equal(after.ok && after.letter.state, "released");
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].body.messageId, letter.messageId);
 });
