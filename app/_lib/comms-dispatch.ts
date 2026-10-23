@@ -13,6 +13,7 @@ import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName, recipientRefusal } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
+import { warnLinkBaseOnce } from "./link-base-warning.ts";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator, type CommsTranslator } from "./comms-translator";
 import { namespaceTranslator } from "./catalog-translator";
@@ -105,7 +106,15 @@ function candidateLocale(locale: string | null | undefined, workspaceId?: string
 // NEXT_PUBLIC_APP_BASE_URL set; when nothing resolves, warn loudly instead of
 // silently shipping a dead link (the footer still renders — never silently drop
 // a legal affordance).
-async function candidateLinkBase(): Promise<string> {
+let fallbackOriginWarned = false;
+
+/** Test seam: the once-per-process latch of the fallback-origin warning. */
+export function resetCandidateLinkBaseWarnForTests(): void {
+  fallbackOriginWarned = false;
+}
+
+/** Exported for the link-base test; callers inside this module use it directly. */
+export async function candidateLinkBase(): Promise<string> {
   let origin: string | null = null;
   try {
     // next/headers is request-scoped: inside a route handler it yields the real
@@ -122,12 +131,16 @@ async function candidateLinkBase(): Promise<string> {
   } catch {
     /* no ambient request (scheduler/heartbeat) — rely on the env override */
   }
-  const base = publicBaseUrl(origin);
+  const fallback = publicOriginIsFallback(origin);
+  // Not a fallback: warnLinkBaseOnce logs once per process when the configured or request
+  // base is loopback. A fallback gets the [comms] line below instead, never both.
+  const base = fallback ? publicBaseUrl(origin) : warnLinkBaseOnce(origin);
   // publicBaseUrl now always returns an absolute origin (it falls back to the canonical
   // site default rather than the old ""), so a candidate link is never a dead relative
   // path. But a fallback means nothing deployment-specific was configured — the link uses
   // the DEFAULT origin, which may be wrong for this deploy — so still warn loudly.
-  if (publicOriginIsFallback(origin)) {
+  if (fallback && !fallbackOriginWarned) {
+    fallbackOriginWarned = true;
     console.warn(
       "[comms] no public origin configured — candidate links use the default site origin, which may be wrong for this deploy. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
     );
