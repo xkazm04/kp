@@ -30907,7 +30907,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/skill-profile.ts:46 Searches found no public-work terms in app/skill, while repository-wide matches exist elsewhere; this page presents a credential derived from a graded assessment rather than reviewing public output.",
+          "evaluatedAt": "2026-10-23",
+          "evaluatedAgainst": "sha256-b2:6f71b19cdb7de542",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
