@@ -3126,6 +3126,10 @@
       "cmpCount": "{count, number} of up to {max, number}",
       "cmpSiblings": "Top two of this stage",
       "cmpClear": "Clear",
+      "cmpOutreach": "Draft outreach for {count, plural, one {# picked person} other {# picked people}}",
+      "cmpOutreachRunning": "Drafting letters…",
+      "cmpOutreachNone": "No letter was drafted: those candidates were already contacted or may not be contacted.",
+      "cmpOutreachFailed": "The letters could not be drafted. Try again.",
       "cmpEmpty": "Tick two or more people in the ladder to line them up here.",
       "cmpTooMany": "Only the first {max, number} picked are compared.",
       "cmpStage": "Stage",
@@ -3802,7 +3806,40 @@
         "sent": "Handed to your mail relay.",
         "queued": "Queued in the local outbox. No mail relay is configured, so nobody has received this letter.",
         "failed": "The relay could not deliver the letter. Release again to retry; it is sent under the same message id.",
-        "suppressedNote": "Not sent. {reason, select, consent_expired {The candidate's consent has expired.} anonymized {The candidate's data was erased.} other {This candidate may not be contacted.}}"
+        "suppressedNote": "Not sent. {reason, select, consent_expired {The candidate's consent has expired.} anonymized {The candidate's data was erased.} other {This candidate may not be contacted.}}",
+        "bulk": {
+          "title": "{count, plural, one {Review # first-contact letter} other {Review # first-contact letters}}",
+          "intro": "Nothing has been sent yet. Read each letter, edit it if needed, then approve and release the batch.",
+          "loading": "Loading the letters…",
+          "close": "Close",
+          "forecastTitle": "Cohort forecast",
+          "forecastSend": "Will be handed to your mail relay: {count}",
+          "forecastQueue": "Will be queued in the local outbox, nobody receives them: {count}",
+          "forecastRefuse": "Will not be sent: {count}. Why:",
+          "forecastSettled": "Already released: {count}",
+          "forecastMissing": "No letter to review: {count}",
+          "reason": "{reason, select, consent_expired {consent expired} anonymized {data erased} agent_population {AI agent, no mailbox} no_recipient {no recipient} delivery_failed {delivery failed} other {may not be contacted}}",
+          "loadFailedRow": "Could not load this letter.",
+          "noLetter": "No letter was drafted for this candidate.",
+          "rowSend": "Will go to your mail relay",
+          "rowQueue": "Will be queued locally",
+          "rowRefuse": "Will not be sent: {reason}",
+          "edit": "Edit",
+          "save": "Save changes",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "subjectLabel": "Subject",
+          "bodyLabel": "Letter",
+          "running": "Releasing… {done} of {total}",
+          "approveRelease": "{count, plural, one {Approve and release # letter} other {Approve and release # letters}}",
+          "summary": "Released {released}, queued {queued}, refused {refused}, changed since you read them {conflict}.",
+          "result": {
+            "released": "Released",
+            "queued": "Queued locally",
+            "refused": "Refused: {reason}",
+            "conflict": "Changed since you read it, not sent"
+          }
+        }
       },
       "needsYou": "{count, plural, one {# needs you} other {# need you}}",
       "needsYouAria": "{count, plural, one {# letter was not delivered and needs you} other {# letters were not delivered and need you}}"
@@ -4008,6 +4045,7 @@
     "reachOut": {
       "sent": "Reached out to {name}. They are in the pipeline and a first-touch message is on its way.",
       "alreadySent": "{name} is in the pipeline and was already contacted for this role, so no new message was sent.",
+      "held": "{name} is in the pipeline. The first-touch letter is held for your approval and has not been sent.",
       "failed": "Couldn't reach out to {name}.",
       "failedAnnounce": "Couldn't reach out to {name}. {reason}",
       "suppressed": {

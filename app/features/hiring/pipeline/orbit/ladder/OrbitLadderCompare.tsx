@@ -2,6 +2,8 @@
 
 import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { Button } from "@/app/_components/kit";
+import { BulkOutreachSheet } from "../../candidate/outreach/BulkOutreachSheet";
+import { useBatchOutreach } from "../../candidate/outreach/useBatchOutreach";
 import { ladderPeople, type OrbitPerson } from "../orbitModel";
 import { Bead, OrbitMark } from "../OrbitMarks";
 import { cx } from "../orbitCx";
@@ -32,6 +34,12 @@ export function OrbitLadderCompare(l: LadderProps) {
     if (mine.length === 0 && r.act > 0) l.onPick(siblings());
   });
   useEffect(() => openOnSiblings(), [r.key, l.stage]);
+
+  // Batch outreach for the picked cohort: the task only drafts held letters, then the bulk
+  // dry-run sheet opens on them (comms scope C2b). Nothing is sent from this button.
+  const outreach = useBatchOutreach();
+  const pickedHere = l.picked.filter((id) => r.people.some((p) => p.id === id));
+  const nameOf = Object.fromEntries(r.people.map((p) => [p.id, p.name]));
 
   const bestScore = Math.max(...mine.map((p) => p.score ?? -1));
   const longest = Math.max(...mine.map((p) => daysOn(p, l.now) ?? -1));
@@ -96,8 +104,17 @@ export function OrbitLadderCompare(l: LadderProps) {
           <div className="ob-bench__acts">
             <h3>{t("cmpTitle")} <small>{t("cmpCount", { count: mine.length, max: COMPARE_MAX })}</small></h3>
             <Button label={t("cmpSiblings")} variant="secondary" size="sm" onClick={() => l.onPick(siblings())} disabled={r.act === 0} />
+            <Button
+              label={outreach.running ? t("cmpOutreachRunning") : t("cmpOutreach", { count: pickedHere.length })}
+              variant="secondary"
+              size="sm"
+              onClick={() => void outreach.start(pickedHere)}
+              disabled={pickedHere.length === 0 || outreach.running}
+            />
             <Button label={t("cmpClear")} variant="ghost" size="sm" onClick={() => l.onPick([])} disabled={!mine.length} />
           </div>
+          {outreach.phase === "failed" ? <p role="alert" className="ob-note">{t("cmpOutreachFailed")}</p> : null}
+          {outreach.phase === "none" ? <p role="status" className="ob-note">{t("cmpOutreachNone")}</p> : null}
           {l.picked.length > COMPARE_MAX ? <p className="ob-note">{t("cmpTooMany", { max: COMPARE_MAX })}</p> : null}
           {mine.length < 2 ? (
             <p className="ob-bench__empty">{t("cmpEmpty")}</p>
@@ -131,6 +148,7 @@ export function OrbitLadderCompare(l: LadderProps) {
           )}
         </section>
       </div>
+      {outreach.sheet ? <BulkOutreachSheet entryIds={outreach.sheet} labels={nameOf} onClose={outreach.closeSheet} /> : null}
     </div>
   );
 }

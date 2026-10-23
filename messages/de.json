@@ -3126,6 +3126,10 @@
       "cmpCount": "{count, number} von höchstens {max, number}",
       "cmpSiblings": "Die zwei Besten dieser Phase",
       "cmpClear": "Leeren",
+      "cmpOutreach": "Anschreiben für {count, plural, one {# ausgewählte Person} other {# ausgewählte Personen}} entwerfen",
+      "cmpOutreachRunning": "Schreiben werden entworfen…",
+      "cmpOutreachNone": "Es wurde kein Schreiben entworfen: Diese Kandidaten wurden schon kontaktiert oder dürfen nicht kontaktiert werden.",
+      "cmpOutreachFailed": "Die Schreiben konnten nicht entworfen werden. Versuchen Sie es erneut.",
       "cmpEmpty": "Markieren Sie zwei oder mehr Personen in der Leiter, um sie hier nebeneinanderzustellen.",
       "cmpTooMany": "Nur die ersten {max, number} ausgewählten werden verglichen.",
       "cmpStage": "Phase",
@@ -3802,7 +3806,40 @@
         "sent": "An Ihr Mail-Relay übergeben.",
         "queued": "Im lokalen Postausgang abgelegt. Es ist kein Mail-Relay konfiguriert, daher hat niemand diesen Brief erhalten.",
         "failed": "Das Relay konnte den Brief nicht zustellen. Senden Sie erneut; er geht unter derselben Nachrichten-ID raus.",
-        "suppressedNote": "Nicht gesendet. {reason, select, consent_expired {Die Einwilligung der Person ist abgelaufen.} anonymized {Die Daten der Person wurden gelöscht.} other {Diese Person darf nicht kontaktiert werden.}}"
+        "suppressedNote": "Nicht gesendet. {reason, select, consent_expired {Die Einwilligung der Person ist abgelaufen.} anonymized {Die Daten der Person wurden gelöscht.} other {Diese Person darf nicht kontaktiert werden.}}",
+        "bulk": {
+          "title": "{count, plural, one {# Erstanschreiben prüfen} other {# Erstanschreiben prüfen}}",
+          "intro": "Es wurde noch nichts gesendet. Lesen Sie jeden Brief, bearbeiten Sie ihn bei Bedarf, geben Sie den Stapel dann frei und senden Sie ihn.",
+          "loading": "Briefe werden geladen…",
+          "close": "Schließen",
+          "forecastTitle": "Prognose für den Stapel",
+          "forecastSend": "Werden an Ihr Mail-Relay übergeben: {count}",
+          "forecastQueue": "Landen im lokalen Postausgang, niemand erhält sie: {count}",
+          "forecastRefuse": "Werden nicht gesendet: {count}. Grund:",
+          "forecastSettled": "Bereits gesendet: {count}",
+          "forecastMissing": "Kein Brief zu prüfen: {count}",
+          "reason": "{reason, select, consent_expired {Einwilligung abgelaufen} anonymized {Daten gelöscht} agent_population {KI-Agent ohne Postfach} no_recipient {kein Empfänger} delivery_failed {Zustellung fehlgeschlagen} other {darf nicht kontaktiert werden}}",
+          "loadFailedRow": "Dieser Brief konnte nicht geladen werden.",
+          "noLetter": "Für diese Person wurde kein Brief entworfen.",
+          "rowSend": "Geht an Ihr Mail-Relay",
+          "rowQueue": "Landet im lokalen Postausgang",
+          "rowRefuse": "Wird nicht gesendet: {reason}",
+          "edit": "Bearbeiten",
+          "save": "Änderungen speichern",
+          "saving": "Speichern…",
+          "cancel": "Abbrechen",
+          "subjectLabel": "Betreff",
+          "bodyLabel": "Brief",
+          "running": "Wird gesendet… {done} von {total}",
+          "approveRelease": "{count, plural, one {# Brief freigeben und senden} other {# Briefe freigeben und senden}}",
+          "summary": "Gesendet {released}, im Postausgang {queued}, abgelehnt {refused}, seit dem Lesen geändert {conflict}.",
+          "result": {
+            "released": "Gesendet",
+            "queued": "Lokal eingereiht",
+            "refused": "Abgelehnt: {reason}",
+            "conflict": "Seit dem Lesen geändert, nicht gesendet"
+          }
+        }
       },
       "needsYou": "{count, plural, one {# braucht Sie} other {# brauchen Sie}}",
       "needsYouAria": "{count, plural, one {# Nachricht wurde nicht zugestellt und braucht Ihre Aufmerksamkeit} other {# Nachrichten wurden nicht zugestellt und brauchen Ihre Aufmerksamkeit}}"
@@ -4008,6 +4045,7 @@
     "reachOut": {
       "sent": "{name} wurde angeschrieben. Die Person ist in der Pipeline und eine erste Nachricht ist unterwegs.",
       "alreadySent": "{name} ist in der Pipeline und wurde für diese Rolle bereits kontaktiert, deshalb ging keine neue Nachricht raus.",
+      "held": "{name} ist in der Pipeline. Das Erstanschreiben wartet auf Ihre Freigabe und wurde nicht gesendet.",
       "failed": "{name} konnte nicht angeschrieben werden.",
       "failedAnnounce": "{name} konnte nicht angeschrieben werden. {reason}",
       "suppressed": {

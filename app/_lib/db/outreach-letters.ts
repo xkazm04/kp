@@ -159,6 +159,35 @@ export function outreachLetterDraft(
 }
 
 /**
+ * A person edits the text of a still-`drafted` letter. A compare-and-swap on (id, team,
+ * revision, `drafted`, not erased): the edit applies only to the revision the editor read,
+ * and bumps it, so an approval of the revision they read before the edit fails the same
+ * CAS. Identical text is not an edit (null result is for a stale or closed row only; the
+ * unchanged letter is returned with `changed: false`).
+ */
+export function outreachLetterEdit(
+  letterId: string,
+  input: { revision: number; subject: string; body: string },
+  workspaceId: string
+): { letter: OutreachLetter; changed: boolean } | null {
+  const now = new Date().toISOString();
+  const res = ensureDb()
+    .prepare(
+      `UPDATE outreach_letters
+          SET subject = ?, body = ?, revision = revision + 1, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND revision = ? AND state = 'drafted' AND erased_at IS NULL
+          AND (subject IS NOT ? OR body IS NOT ?)`
+    )
+    .run(input.subject, input.body, now, letterId, workspaceId, input.revision, input.subject, input.body);
+  const letter = outreachLetterById(letterId, workspaceId);
+  if (res.changes === 1 && letter) return { letter, changed: true };
+  // No change written: either identical text on the revision that was read (fine), or
+  // the revision/state moved on (stale).
+  if (letter && letter.revision === input.revision && letter.state === "drafted" && !letter.erasedAt) return { letter, changed: false };
+  return null;
+}
+
+/**
  * A person approves ONE revision. A compare-and-swap on (id, team, revision, `drafted`,
  * not erased): a stale revision, a letter someone else already approved, or an erased row
  * all return null and write nothing.

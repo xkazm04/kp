@@ -38,7 +38,7 @@ import type { PipelineAddInput } from "./useAddToPipeline";
 // hook folds those through `useErrorMessage`/`capabilityAwareReason` in the
 // reader's language; the English still exists where it belongs, in the log.
 export type ReachOutResult =
-  | { ok: true; note: "sent" | "already_sent" }
+  | { ok: true; note: "sent" | "already_sent" | "held" }
   | ReachOutFailure;
 
 export type ReachOutFailure = {
@@ -67,6 +67,9 @@ const suppressed = (kind: "anonymized" | "suppressed"): ReachOutFailure => ({
 
 export function reachOutVerdict(applied: unknown): ReachOutResult {
   if (applied === "already_sent") return { ok: true, note: "already_sent" };
+  // The outreach doors only DRAFT (comms scope C2): a held letter waits for a person to
+  // approve and release it, so "a message is on its way" would be a green lie.
+  if (applied === "drafted") return { ok: true, note: "held" };
   if (applied === "suppressed_anonymized") return suppressed("anonymized");
   if (typeof applied === "string" && applied.startsWith("suppressed")) {
     // The server collapses every non-consent refusal (an expired consent, a
@@ -152,7 +155,7 @@ export function useReachOut(jobId: string, source?: string | null) {
       // the affordance settles into its done state either way — but only a real
       // dispatch may claim a message is on its way.
       setReached((s) => new Set(s).add(c.candidateId));
-      setAnnounce(t(result.note === "sent" ? "sent" : "alreadySent", { name: c.candidateLabel }));
+      setAnnounce(t(result.note === "sent" ? "sent" : result.note === "held" ? "held" : "alreadySent", { name: c.candidateLabel }));
     } else {
       // A DELIVERY refusal (the 200 said the dispatch was declined) has its own
       // sentence; anything else folds code + capability through the catalog.
