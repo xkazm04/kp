@@ -554,6 +554,8 @@ jobs:
       # degraded-gracefully product property. Open dev mode (no
       # KP_OPERATOR_PASSWORD) + boot-time fixture seeding give the specs a
       # deterministic seeded tenant on a fresh DB.
+      # KP_SEED_DEMO=1 is REQUIRED here: fixture seeding is off by default since
+      # 2026-10-22 (app/_lib/db/seed-gate.ts), and the specs read the seeded corpus.
       # KP_ALLOW_OPEN=1 is REQUIRED here: a production build FAILS CLOSED
       # without KP_OPERATOR_PASSWORD (proxy.ts), and the boot curl below
       # would read the refusal redirect as ready.
@@ -566,7 +568,7 @@ jobs:
       # A socket idle past 130 s can still race.
       - name: Start production server (port 3101)
         run: |
-          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
+          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 KP_SEED_DEMO=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
