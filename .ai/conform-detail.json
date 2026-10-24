@@ -19110,6 +19110,75 @@
       "evaluatedTs": "2026-10-24T23:36:05.325Z",
       "worker": "2de1340c-50f3-4e0d-a46c-c4b86e97632b",
       "techniques": []
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/candidate-identity-and-staleness": {
+      "context": "profile-editor",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T23:51:33.807Z",
+      "worker": "d675ea5d-de7f-43a0-98dc-9e3ea38e69c7",
+      "techniques": [
+        {
+          "technique": "rebuild-overwrites-manual-edits-warning",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/useProfileTabDeepLinks.ts:118 Where divergence IS known the path conforms: a field-level merge with merge as the default, contested fields named (ProfileTabRebuildWarnModal.tsx:80), an edit date, keep/replace options, and the AI draft preserving human-typed fields (profileDraftMerge.ts:114). The unknown-baseline legacy case is the gap."
+        }
+      ]
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/candidate-identity-and-staleness": {
+      "context": "cv-analysis-archetypes",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T23:51:33.807Z",
+      "worker": "d675ea5d-de7f-43a0-98dc-9e3ea38e69c7",
+      "techniques": [
+        {
+          "technique": "label-collision-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/match-score-resolve.ts:45 The module's own comment (line 19) calls the exact label join strict, but a filename label is not an identity. The newest-per-key fold is the 'prefer the newer record' failure."
+        },
+        {
+          "technique": "content-addressed-document-identity",
+          "verdict": "conformant",
+          "evidence": "app/_lib/analyze-run.ts:373 The analysis key is a length-framed SHA-256 over raw CV bytes plus JD text/bytes, lang, blind mode (line 381), archetype-registry digest (line 383) and LLM route. The saved row's cv_hash is matched to the delivered variant (cvHashForLabel, line 224), not to variants[0]."
+        }
+      ]
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/candidate-identity-and-staleness": {
+      "context": "profile-roster-matrix",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T23:51:33.807Z",
+      "worker": "d675ea5d-de7f-43a0-98dc-9e3ea38e69c7",
+      "techniques": [
+        {
+          "technique": "retired-outranks-stale-status-precedence",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:58 The precedence it does have is right: retired over stale in one pure function (line 105), and facets in severity order listing only present values (line 137). But the anonymised state is missing, and the Rebuild button (ProfileRosterRow.tsx:124) is still rendered under a 'Retired' badge."
+        },
+        {
+          "technique": "cross-role-footprint-linking",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The modal's 'footprint across the roles' lists each analysis of the CV with score and date, but never the role/JD it was scored against (CandidateAnalysisRef carries only slug/score/createdAt) and no staleness state."
+        },
+        {
+          "technique": "content-addressed-document-identity",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:58 Rows are folded by cv_hash (candidate-population.ts), but the surface shows one name for the whole digest group (newest analysis's label). The decision rule says the fold must keep every name the group holds."
+        },
+        {
+          "technique": "rebuild-overwrites-manual-edits-warning",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRosterTypes.ts:21 The bulk refresh skips anything not provably unedited and routes it to review, which is the technique's bulk rule."
+        }
+      ],
+      "registryProposal": "In kp, 'retired' means the routed archetype was archived. That state has a remedy (re-route), so it is advisory, not terminal. The technique could warn that a borrowed terminal word on a remediable state turns 'actions follow the displayed state' into a contradiction, as it does here, where a Rebuild button sits under a 'Retired' badge."
     }
   }
 }

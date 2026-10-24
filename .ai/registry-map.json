@@ -9606,7 +9606,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/match-score-resolve.ts:45 The canonical match score stamped on every pipeline entry is joined on (case-folded candidate label, jd slug) and keeps the newest row per key, so two different people uploaded as 'CV.pdf' to one JD share one score. Last write wins on identity, and the board card, drawer and offer card show one person's fit for another.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "test-harness",
@@ -26668,7 +26672,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/useProfileTabDeepLinks.ts:118 ProfileTab's rebuild path treats an UNPROVABLE divergence (legacy rows with NULL updated_at/lineage_stamped_at report diverged:false, profiles.ts:261-263) as 'unedited' and hydrates the editor wholesale from the newer analysis, with no warning, merge or named fields. A hand-corrected legacy profile is overwritten on save, which breaks the 'never silently / treat pre-existing records as possibly-edited' rule.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "native-document-format",
@@ -26914,7 +26922,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:58 The roster's closed status vocabulary has no terminal identity state, and anonymizeProfile (profiles.ts:369) keeps the row with only a masked label and no marker, so an erased person's profile is listed as 'current' with a Match action instead of reading as no-one-to-act-on.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
