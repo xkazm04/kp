@@ -10419,12 +10419,11 @@
           "changedAt": "2026-10-15",
           "confidence": "probable",
           "state": "conformant",
-          "evidence": "app/_lib/db/core.ts:166 The SQLite boot sequence establishes structural integrity checks, atomic migration and table rebuild boundaries, and a centralized row-decode seam with counted health telemetry.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:b67182492821d592",
-          "evaluatedRevision": 18,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/db/core.ts:168 core.ts owns the single decode seam: absent and unreadable are separate answers, and every corrupt or invalid column is counted in getRowHealth() before the value is returned. Around it sit atomic table rebuilds, bound-parameter seed marks and real-engine tests on an isolated store, and none of the techniques checked here is breached.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19,
+          "revisionsBehind": 1
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
@@ -11024,13 +11023,12 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "conformant",
-          "evidence": "app/_lib/db/pipeline.ts:3539 Pipeline repository operations encapsulate multi-statement state transitions and audit logging in immediate transactions with compare-and-swap stage guards while deferring side-effect hooks until after commit.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:b67182492821d592",
-          "evaluatedRevision": 18,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline-core.ts:66 The pipeline store declares its row shape and mapper twice (PipelineRow and rowToEntry in both pipeline.ts and pipeline-core.ts), and the same goes for the event-sort allowlist and the listPipelineEvents family (pipeline.ts and pipeline-events.ts). A field or column added to one copy can silently round-trip as its default through the other, even though the transactions and CAS guards are exemplary.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19,
+          "revisionsBehind": 1
         },
         {
           "subject": "pipeline-stage-modelling",
@@ -18350,7 +18348,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:47 Raw serialized store columns (jds.analysis_json, jds.build_input_json) cross the wire under their snake_case column names and are re-parsed in client code. A corrupt blob collapses to null and is never recorded, so the drawer shows it as a JD with no artifacts instead of a damaged row.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "test-harness",
@@ -32906,7 +32908,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:23 The one test in this context that touches the store builds its SQLite schema from a hand-maintained DDL subset and inserts fixtures raw. It is green against a schema that core.ts's migrator never produced, and drifts silently when pipeline_entries or seed_marks change.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         }
       ],
       "governance": "governed"

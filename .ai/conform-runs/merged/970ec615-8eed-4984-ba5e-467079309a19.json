@@ -1,0 +1,227 @@
+{
+ "schema": "conform-run/1",
+ "worker": "970ec615-8eed-4984-ba5e-467079309a19",
+ "subject": "data-access",
+ "evaluatedAt": "2026-10-24T05:50:18.463583+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "db-core-migrations",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/db/core.ts:168 core.ts owns the single decode seam: absent and unreadable are separate answers, and every corrupt or invalid column is counted in getRowHealth() before the value is returned. Around it sit atomic table rebuilds, bound-parameter seed marks and real-engine tests on an isolated store, and none of the techniques checked here is breached.",
+   "techniques": [
+    {
+     "technique": "row-mapping",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/core.ts:168 One seam returns absent/ok/unreadable and records corrupt and invalid columns in a counted ledger (getRowHealth), so a skip can never be silent. The safeRowParse back-compat wrapper still feeds the same ledger."
+    },
+    {
+     "technique": "layering-rules",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/core.ts:103 The validator is typed structurally so core never imports zod or the generated schemas. Its other imports are leaf or domain modules (tenancy, workspace-lock, pipeline-stages types)."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/core.ts:2870 PK-widening rebuilds drop any orphaned scratch table and run inside db.transaction, so a killed boot rolls back whole instead of wedging. seedDemoCorpus runs under .immediate()."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/seed-marks.ts:20 Values are bound. The interpolated identifiers in migrations come from closed literal lists (for example the created_at/stage_changed_at ALTER loop)."
+    },
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/core.ts:3400 Seed and import writes take a row array and run inside one transaction instead of one write per caller loop."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/core-migrations.test.ts:10 Tests run against real SQLite on a throwaway file per process, built through ensureDb() (the production migration road). row-health.test.ts drills corrupt and invalid columns and asserts the counter, not just the result."
+    },
+    {
+     "technique": "cross-driver-invariant-parity",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/pg-portability.ts:9 Only SQLite exists. pg-portability is a dialect audit for a future port, and a postgres backend fails fast in db-path, so no second driver sits behind the surface."
+    },
+    {
+     "technique": "operator-defined-tables",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/core.ts:321 The schema is fixed DDL in code. No operator-authored record types are materialized at runtime."
+    }
+   ]
+  },
+  {
+   "context": "db-pipeline-store",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/pipeline-core.ts:66 The pipeline store declares its row shape and mapper twice (PipelineRow and rowToEntry in both pipeline.ts and pipeline-core.ts), and the same goes for the event-sort allowlist and the listPipelineEvents family (pipeline.ts and pipeline-events.ts). A field or column added to one copy can silently round-trip as its default through the other, even though the transactions and CAS guards are exemplary.",
+   "techniques": [
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/pipeline.ts:492 Unknown approval_kind text passes through as a union member by cast, which is the banned silent third option. The mapper also exists twice (pipeline-core.ts:66 is a twin), and parseGithubEvidence parses JSON directly, logging but bypassing the counted readRowColumn ledger."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/pipeline-core.ts:160 Values are bound and ORDER BY goes through an allowlist, but the allowlist and the IN-clause builder (eventKindClause) are each defined twice (pipeline.ts:206/226 and pipeline-core.ts:140/160). The vocabulary has no single authority."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:3727 Read\u2192compute\u2192write runs under .immediate() with expectedStage/expectedApprovalKind CAS. Cross-store work (dev_outcomes, interview revoke) and the stage hook run after commit."
+    },
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:3085 Set-shaped read, chunked IN-query (SQL_IN_CHUNK) returning a keyed map, so callers holding many ids don't loop the singular read."
+    },
+    {
+     "technique": "layering-rules",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/pipeline.ts:32 Stage arrival correctly uses an injected hook registry (stage-hook-registry). Recording deletion (fs plus decision-config-store), dev-outcomes and dev-control (which imports auth/session) are direct upward imports rather than hooks."
+    },
+    {
+     "technique": "existence-authority-written-last",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:2920 Erasure scrubs and stamps the DB row (the authority readers gate on) inside the transaction, and unlinks the audio files only after commit. A failed unlink is logged and later caught by the retention sweep."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:167 The board payload is an explicit allowlist projection (BOARD_ENTRY_FIELDS), so a new column reaches the browser only on purpose."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline-store.test.ts:8 Real SQLite on an isolated per-process store, with fixtures created through createPipelineEntry/actOnPipelineEntry (the front door)."
+    }
+   ]
+  },
+  {
+   "context": "tests-scoring-fairness",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:23 The one test in this context that touches the store builds its SQLite schema from a hand-maintained DDL subset and inserts fixtures raw. It is green against a schema that core.ts's migrator never produced, and drifts silently when pipeline_entries or seed_marks change.",
+   "techniques": [
+    {
+     "technique": "repo-testing",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:23 Real engine and a fresh temp DB per test (good), but the schema is a second hand-written authority rather than the production migration road. Fixtures are raw INSERTs (line 44), not the front door. The comment defends the narrow fixture, but the technique names exactly this as the drift source."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:44 Values are bound with ? placeholders."
+    }
+   ]
+  },
+  {
+   "context": "jd-ledger",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:47 Raw serialized store columns (jds.analysis_json, jds.build_input_json) cross the wire under their snake_case column names and are re-parsed in client code. A corrupt blob collapses to null and is never recorded, so the drawer shows it as a JD with no artifacts instead of a damaged row.",
+   "techniques": [
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:47 Serialized payload columns are parsed downstream of the seam, cast without validation, and a parse failure returns null silently (same in readBuildIntent at line 131). Corrupt and absent share one answer and nothing is counted."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:98 The client receives the stored row's raw column (analysis_json) rather than a decoded projection shaped for the ledger."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "data-access",
+   "context": "models-keys-and-routing",
+   "reason": "evidence leans on db/llm.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:50:18.463583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "cross-driver-invariant-parity",
+    "layering-rules",
+    "operator-defined-tables",
+    "query-construction",
+    "repo-testing",
+    "row-mapping",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 0,
+   "context": "db-core-migrations",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:50:18.463583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "existence-authority-written-last",
+    "layering-rules",
+    "query-construction",
+    "read-models-and-projections",
+    "repo-testing",
+    "row-mapping",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 1,
+   "context": "db-pipeline-store",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:50:18.463583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "query-construction",
+    "repo-testing"
+   ],
+   "deviations": 1,
+   "context": "tests-scoring-fairness",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:50:18.463583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "read-models-and-projections",
+    "row-mapping"
+   ],
+   "deviations": 1,
+   "context": "jd-ledger",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
