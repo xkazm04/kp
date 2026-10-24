@@ -1570,24 +1570,40 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T00:06:40.160Z",
-      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:58:14.879Z",
+      "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:44 Operative state represents background job execution context rather than agent working memory."
+          "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context."
         },
         {
           "technique": "decay-and-forgetting",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/task-maintenance.ts:17 Retention sweeps delete terminal task rows in SQLite rather than decaying agent beliefs."
+          "evidence": "app/_lib/task-maintenance.ts:17 Retention sweeps delete terminal task rows in SQLite rather than decaying agent beliefs.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "episodic-capture",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/task-outcome-summary.ts:1 Outcome summaries format background task execution results for the UI rather than capturing agent conversation episodes."
+          "evidence": "app/_lib/task-outcome-summary.ts:1 Outcome summaries format background task execution results for the UI rather than capturing agent conversation episodes.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 Grep across task-automation-engine files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this module implements an in-process background task queue backed by SQLite rather than an agent memory system.",
+          "evaluatedAt": "2026-10-13T00:06:40.160Z",
+          "worker": "08401036-214f-421d-91d4-621f9d917a26",
+          "reason": "replaced by bf1d1018-9a32-4702-a36b-79f96d75b51b"
         }
       ]
     },
@@ -1638,19 +1654,30 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T00:06:40.160Z",
-      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:58:14.879Z",
+      "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsCoachApply.ts:5 The coach pre-stages job description parameter suggestions in a recruiter UI form rather than managing an agent's operative working memory."
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:5 The coach pre-stages job description parameter suggestions in a recruiter UI form rather than managing an agent's operative working memory.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "coverage-instrumentation",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage."
+          "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 Grep across jobs-ai-coach-fit files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context implements a read-only client UI panel staging URL suggestions for recruiter JD editing rather than carrying forward agent memory.",
+          "evaluatedAt": "2026-10-13T00:06:40.160Z",
+          "worker": "08401036-214f-421d-91d4-621f9d917a26",
+          "reason": "replaced by bf1d1018-9a32-4702-a36b-79f96d75b51b"
         }
       ]
     },

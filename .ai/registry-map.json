@@ -19259,12 +19259,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 Grep across jobs-ai-coach-fit files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context implements a read-only client UI panel staging URL suggestions for recruiter JD editing rather than carrying forward agent memory.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 4,
-          "stale": true
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter to edit. A search of app/features/library/jobs for recall/episod/consolidat/belief found nothing; the 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51,
+          "revisionsBehind": 4
         },
         {
           "subject": "agent-instruction-files",
@@ -31539,12 +31538,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:44 Grep across task-automation-engine files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this module implements an in-process background task queue backed by SQLite rather than an agent memory system.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 4,
-          "stale": true
+          "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51,
+          "revisionsBehind": 4
         },
         {
           "subject": "prompt-assembly",

@@ -1,0 +1,114 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-10-24T02:58:14.879108+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "task-automation-engine",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
+   "techniques": [
+    {
+     "technique": "working-memory",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state."
+    },
+    {
+     "technique": "consolidation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context."
+    }
+   ],
+   "absenceTerms": [
+    "belief",
+    "workingMemory"
+   ]
+  },
+  {
+   "context": "jobs-ai-coach-fit",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter to edit. A search of app/features/library/jobs for recall/episod/consolidat/belief found nothing; the 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
+   "techniques": [],
+   "absenceTerms": [
+    "recall",
+    "episod",
+    "consolidat",
+    "belief"
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/devcase-session-evidence.ts:7 The devcase evaluation panels render an AI-produced evaluation and the candidate's session transcript and file tree as reviewer evidence. A search of app/features/tools/devcases for recall/episod/consolidat/belief found nothing; 'memory' appears only as in-memory filter or eval-bundle wording, so no agent memory pipeline lives here.",
+   "techniques": [],
+   "absenceTerms": [
+    "recall",
+    "episod",
+    "consolidat",
+    "belief"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-memory",
+   "context": "platform-auth-api",
+   "reason": "evidence leans on export/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "agent-memory",
+   "context": "hiring-decisions-api",
+   "reason": "evidence leans on records/route.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T02:58:14.879108+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "consolidation",
+    "working-memory"
+   ],
+   "deviations": 0,
+   "context": "task-automation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T02:58:14.879108+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-ai-coach-fit",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T02:58:14.879108+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
