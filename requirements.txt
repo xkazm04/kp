@@ -10,14 +10,12 @@ numpy==2.5.4
 # spoken-interview eval run fails at import without it. It was previously only
 # ever present transitively.
 #
-# CEILINGED AT 16.x BY google-genai, which declares `websockets<17.0`. 17.0.1 is
-# released and dependabot offers it, but taking it would mean pinning google-genai
-# back below 2.20.0 — the Gemini adapter is load-bearing and websockets 17 buys us
-# nothing here. Revisit when google-genai widens the range.
-websockets==16.1.1
+# google-genai bounds this: 2.31.x and 2.32.x declare `websockets<17.0`; 2.33.0 widened
+# the range to `<18.0`, which is what lets 17.x in. Keep the two bumped together.
+websockets==17.1
 
 pydantic==2.14.1
-google-genai==2.31.0
+google-genai==2.33.0
 python-dotenv==1.2.4
 defusedxml==0.7.1
 # Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) — adapters import these
