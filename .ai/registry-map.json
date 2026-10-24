@@ -28592,7 +28592,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/security/__tests__/check-actions.test.mjs:198 Five whole-tree checks in check-actions.test.mjs (lines 198, 288, 391, 479, 524) walk .github/workflows with no floor on how many workflow files they read, so an empty or moved directory reports a clean tree in the voice of a clean tree; the sibling secret-scan test does declare one (files.length > 100).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "agent-instruction-files",

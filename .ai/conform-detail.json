@@ -17037,6 +17037,47 @@
           "evidence": "app/_lib/db/skill-profiles.ts:376 Verifies credential integrity, not ownership of an external public account; the technique explicitly excludes general identity proofing."
         }
       ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/test-harness": {
+      "context": "security-agent-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:35:44.478Z",
+      "worker": "1f6fd842-c1a7-483e-9ab2-efd06cfa6570",
+      "techniques": [
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "deviation",
+          "evidence": "scripts/security/__tests__/check-actions.test.mjs:198 The real-tree walks over .github/workflows select their population by readdir and never assert it is non-zero, so zero selected exits green. dispatch.test.mjs:373 and secret-scan.test.mjs:161 show the floor this file lacks."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/security/__tests__/check-actions.test.mjs:524 The text-reading conformance walk handles line endings properly (the \\r?\\n split at line 293 is explained in the asserting file), but it misses the rule that the walk declares a floor."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/security/__tests__/secret-scan.test.mjs:66 Every credential row is driven by a seeded literal of its real shape and must fire. Near-misses are pinned not to fire, and a bijection check (line 57) stops a new row from shipping unexercised."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/__tests__/budget.test.mjs:53 Each budget case writes into its own mkdtemp directory, and those directories are reaped on exit. Nothing is inherited from the repo or from a prior case."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/__tests__/injection.test.mjs:33 The file names the decision it cannot cover (model resistance) and narrows its claim to the guard refusing an obedient model's plan."
+        },
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "not-applicable",
+          "evidence": "scripts/agent/__tests__/injection.test.mjs:18 No remote service is recorded or replayed. The model is replaced by a hand-authored worst-case plan, which is the honest-fake case the technique excludes."
+        }
+      ]
     }
   }
 }
