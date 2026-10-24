@@ -3128,29 +3128,42 @@
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:52:14.483Z",
-      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:43:19.833Z",
+      "worker": "000497eb-d5e5-44d1-8653-0be07b409624",
       "techniques": [
         {
           "technique": "session-registry",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/devcase-transitions.ts:54 Manages candidate devcase editorial stages rather than fleet agent sessions."
+          "evidence": "app/_lib/devcase-transitions.ts:54 Manages candidate devcase editorial stages rather than fleet agent sessions.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "parallel-dispatch",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/devcase-orchestrator.ts:99 Pass limit governs polling passes over human candidate submissions rather than concurrent agent workers."
+          "evidence": "app/_lib/devcase-orchestrator.ts:99 Pass limit governs polling passes over human candidate submissions rather than concurrent agent workers.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "completion-claim-verification",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/devcase-orchestrator.ts:42 Governs candidate benchmark score promotion rather than agent completion receipts."
+          "evidence": "app/_lib/devcase-orchestrator.ts:42 Governs candidate benchmark score promotion rather than agent completion receipts.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "soft-budget-under-the-hard-cap",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/devcase-timebox.ts:24 Enforces human assessment SLA window rather than agent model turn or token budgets."
+          "evidence": "app/_lib/devcase-timebox.ts:24 Enforces human assessment SLA window rather than agent model turn or token budgets.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:76 The devcase module manages candidate take-home assessment workflow stages and editorial review rather than an autonomous agent fleet, so fleet orchestration techniques do not apply.",
+          "evaluatedAt": "2026-10-13T09:52:14.483Z",
+          "worker": "6722369d-d615-4671-830b-6d926a031895",
+          "reason": "replaced by 000497eb-d5e5-44d1-8653-0be07b409624"
         }
       ]
     },
@@ -3158,30 +3171,70 @@
       "context": "interview-simulator",
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
-      "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:52:14.483Z",
-      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:43:19.833Z",
+      "worker": "000497eb-d5e5-44d1-8653-0be07b409624",
       "techniques": [
         {
-          "technique": "session-registry",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/types.ts:82 In-memory simulation result termination reason, not a fleet session registry entry."
+          "technique": "parallel-dispatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/runner.ts:229 Concurrency is capped at opts.workers over one shared queue. Each conversation writes only its own `${s.id}.json`, so write sets are disjoint by construction."
         },
         {
-          "technique": "parallel-dispatch",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/runner.ts:226 Sim test batch worker pool sizing over static evaluation fixtures rather than fleet session parallel dispatch."
+          "technique": "result-harvest",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/runner.ts:232 The run record counts ran, errored and skipped. runConversation never throws, so every roster member lands with an endedBy."
+        },
+        {
+          "technique": "inherited-state-provenance",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/runner.ts:190 A prior dump is reused only when the instrument and situation identity match. Stale or errored dumps are re-run fresh, never handed to the new attempt."
+        },
+        {
+          "technique": "durable-fleet-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/runner.ts:221 Each result is persisted atomically the moment it finishes, and the index is rebuilt from disk, so an interrupted run resumes."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/types.ts:66 One closed end-state vocabulary. It keeps cap-fired (max_turns) and provider failure (error) apart from protocol ends."
+        },
+        {
+          "technique": "completion-claim-verification",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/detectors.ts:319 Parent-side deterministic detectors read the record, not the interviewer's own claim. An undecidable record is not_evaluable, never a pass."
         },
         {
           "technique": "soft-budget-under-the-hard-cap",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/types.ts:85 Sim trajectory call count meter rather than model-driven loop dual budget."
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/detectors.ts:323 There are two limits: the clock and agenda in the brief, and the harness maxCalls cap. A cap-fired run is treated as truncated and fails 'completed'. Caveat: the cap is sized from the clock budget rather than the reverse, and no aggregate cap-fired fraction is printed."
+        },
+        {
+          "technique": "worker-trajectory-anatomy",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/engine.ts:255 The recovery budget is set at dispatch, in model calls, and it kills the run (ends max_turns). The judge deliberately does not get the private brief (judge.ts:7), which is in tension with 'give the watcher the spec'."
         },
         {
           "technique": "lifecycle-signals",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/clock.ts:44 Synthetic frozen epoch used for deterministic in-memory simulation clock instead of real-time lifecycle sweeper."
+          "evidence": "app/_lib/interview-sim/runner.ts:219 Each session is an awaited in-process promise that always resolves with an endedBy. Nothing can go silent, so there is nothing for a sweeper to find."
+        },
+        {
+          "technique": "heterogeneous-model-panels",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/engine.ts:481 The two models play different roles (interviewer and candidate). They do not answer one question as a panel."
+        }
+      ],
+      "registryProposal": "worker-trajectory-anatomy says to give the supervisor the worker's brief. An evaluation harness here deliberately keeps the private brief from its judge, so a judge built from the brief cannot grade the brief's own wording (judge.ts:7). The technique could name instrument-contamination as the case where the watcher gets the requirements but not the brief text.",
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:24 The interview simulator is an in-memory evaluation test harness validating conversational voice director policies against synthetic personas rather than a runtime fleet of autonomous agent workers.",
+          "evaluatedAt": "2026-10-13T09:52:14.483Z",
+          "worker": "6722369d-d615-4671-830b-6d926a031895",
+          "reason": "replaced by 000497eb-d5e5-44d1-8653-0be07b409624"
         }
       ]
     },
@@ -3236,34 +3289,55 @@
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:52:14.483Z",
-      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:43:19.833Z",
+      "worker": "000497eb-d5e5-44d1-8653-0be07b409624",
       "techniques": [
         {
           "technique": "soft-budget-under-the-hard-cap",
           "verdict": "deviation",
-          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Enforces an upper ceiling of 1000 model turns without a smaller soft budget derived from it for graceful worker self-termination."
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Only one limit (the enforced cap). There is no derived budget in the brief and no cap-fired instrument. Mitigation: Personas authors the final agent brief."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/[id]/refresh/route.ts:104 Push and pull both go through the one transitionHiredAgent door, which compare-and-swaps on the status the decision was computed from and writes a ledger row."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/report/[token]/route.ts:134 Push reports are the primary signal, with poll refresh as the fallback. A liveness receipt is stamped before parsing, and silence is derived at read time as check_reporter (agentsWorkforceLogic.ts, outside this context), not written as a death."
+        },
+        {
+          "technique": "absent-status-passthrough",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/[id]/refresh/route.ts:93 A poll word with no mapping leaves the row unchanged. Nothing invents a status."
+        },
+        {
+          "technique": "durable-fleet-state",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/dispatch/mint.ts:91 The durable row is minted before the outbound call. A bridge failure moves it to failed through the door (mint.ts:120), so no dispatch is lost from the roster."
         },
         {
           "technique": "outbound-compute-plane",
           "verdict": "conformant",
-          "evidence": "app/api/agents/report/[token]/route.ts:13 Workers run on external compute and report status inbound via an unguessable CSPRNG token route rather than requiring direct control-plane ingress."
-        },
-        {
-          "technique": "session-registry",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/agents.ts:373 Defines agent status transitions but does not track process incarnation tokens, generation fencing, or resource leases."
-        },
-        {
-          "technique": "lifecycle-signals",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/agents.ts:46 Stores report timestamp for reachability but lacks an active background sweeper that transitions silent agents from alive to suspected or lost."
+          "evidence": "app/api/agents/report/[token]/route.ts:13 Workers run on external compute and report status inbound via an unguessable CSPRNG token route rather than requiring direct control-plane ingress.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "parallel-dispatch",
           "verdict": "deviation",
-          "evidence": "app/api/agents/dispatch/mint.ts:27 Applies client IP rate limiting to agent minting without checking fleet-wide concurrency caps or write scope collision domains."
+          "evidence": "app/api/agents/dispatch/mint.ts:27 Applies client IP rate limiting to agent minting without checking fleet-wide concurrency caps or write scope collision domains.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The agents dispatch endpoint enforces a hard model turn ceiling without provisioning a derived soft budget in worker specifications or measuring cap-fired rates.",
+          "evaluatedAt": "2026-10-13T09:52:14.483Z",
+          "worker": "6722369d-d615-4671-830b-6d926a031895",
+          "reason": "replaced by 000497eb-d5e5-44d1-8653-0be07b409624"
         }
       ]
     },
@@ -3272,24 +3346,36 @@
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:52:14.483Z",
-      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:43:19.833Z",
+      "worker": "000497eb-d5e5-44d1-8653-0be07b409624",
       "techniques": [
         {
           "technique": "hibernation-and-resume",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/setup/setupDraft.ts:27 Browser localStorage form draft caching for UI onboarding rather than fleet session hibernation."
+          "evidence": "app/features/shell/setup/setupDraft.ts:27 Browser localStorage form draft caching for UI onboarding rather than fleet session hibernation.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "session-registry",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/setup/setupSteps.ts:88 Selects relevant UI wizard form step list for the user rather than maintaining a fleet session registry."
+          "evidence": "app/features/shell/setup/setupSteps.ts:88 Selects relevant UI wizard form step list for the user rather than maintaining a fleet session registry.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "lifecycle-signals",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals."
+          "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:51 The setup wizard is an interactive UI client onboarding flow that guides an operator through workspace configuration rather than managing an autonomous agent fleet.",
+          "evaluatedAt": "2026-10-13T09:52:14.483Z",
+          "worker": "6722369d-d615-4671-830b-6d926a031895",
+          "reason": "replaced by 000497eb-d5e5-44d1-8653-0be07b409624"
         }
       ]
     },

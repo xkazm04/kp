@@ -2806,12 +2806,11 @@
           "changedAt": "2026-10-15",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The agents dispatch endpoint enforces a hard model turn ceiling without provisioning a derived soft budget in worker specifications or measuring cap-fired rates.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
-          "evaluatedRevision": 25,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The dispatch door sends the executor a hard maxTurns ceiling, and nothing in it derives a smaller budget for the agent's mission or system prompt. Execution reports only carry success or failure, so the fraction of runs where the cap fired cannot be measured and a cap-truncated run counts as a normal one.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 3
         },
         {
           "subject": "agent-runtime-assembly",
@@ -13645,12 +13644,11 @@
           "changedAt": "2026-10-15",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_lib/devcase-orchestrator.ts:76 The devcase module manages candidate take-home assessment workflow stages and editorial review rather than an autonomous agent fleet, so fleet orchestration techniques do not apply.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
-          "evaluatedRevision": 25,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/_lib/devcase-orchestrator.ts:27 Fleet orchestration does not apply here. The devcase module drives one case through a stage machine inside a single background task, calling one LLM or Python step at a time, and its 'sessions' are human candidate attempts gated by session keys rather than a fleet of autonomous agent sessions. A search of app/_lib found no hibernation, session-registry, spawn-many or agent-session constructs.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 3
         },
         {
           "subject": "agent-memory",
@@ -17344,13 +17342,12 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "not-applicable",
-          "evidence": "app/_lib/interview-sim/types.ts:24 The interview simulator is an in-memory evaluation test harness validating conversational voice director policies against synthetic personas rather than a runtime fleet of autonomous agent workers.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
-          "evaluatedRevision": 25,
-          "revisionsBehind": 3,
-          "stale": true
+          "state": "conformant",
+          "evidence": "app/_lib/interview-sim/runner.ts:229 Contrary to the stale not-applicable verdict, the simulator is a fleet of model-driven sessions: a capped worker pool fans situations out, each writes its own dump file, and the run index accounts for ran/skipped/errored, so most of the subject's techniques are realized here.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -30176,12 +30173,11 @@
           "changedAt": "2026-10-15",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/shell/setup/setupSteps.ts:51 The setup wizard is an interactive UI client onboarding flow that guides an operator through workspace configuration rather than managing an autonomous agent fleet.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
-          "evaluatedRevision": 25,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/features/shell/setup/setupSteps.ts:51 This is a client-side onboarding wizard over a fixed step list: it persists a draft and probes the companion's state. It never dispatches, registers or supervises agent sessions; a search of the setup directory found no fleet, worker, heartbeat, hibernation or session-registry constructs.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 3
         },
         {
           "subject": "prompt-assembly",
