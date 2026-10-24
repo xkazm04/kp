@@ -18645,6 +18645,22 @@
           "evidence": "app/features/shell/setup/setupPipelineEdit.ts:73 An occupied column cannot be removed in the wizard, and the added work-sample id is minted against live and retired ids (setupPipelinePresets.ts:62), so it never reuses a tombstone. The lean preset drops columns without that occupancy check, but the server's stage-migration refuses an unmapped occupied removal."
         }
       ]
+    },
+    "a7075610-e714-4a96-82ec-6999c4f8945e/browser-credential-boundary": {
+      "context": "jobs-table-core",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:36:12.420Z",
+      "worker": "cb59cc12-c77b-4756-b1f9-ae2e7ea2cdda",
+      "techniques": [
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:161 No env value is read in the jobs directory; the browser reaches data only through same-origin routes."
+        }
+      ]
     }
   }
 }

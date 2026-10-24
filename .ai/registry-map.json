@@ -20190,7 +20190,11 @@
           "revision": 3,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:161 The client calls only same-origin /api routes on its session cookie and holds no dependency credential. A grep of app/features/library/jobs for NEXT_PUBLIC, process.env, apiKey/api_key and Authorization found nothing, so there is no credential-boundary decision in this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",
