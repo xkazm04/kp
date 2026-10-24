@@ -8474,7 +8474,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/__tests__/toolchain-pin.test.mjs:68 The toolchain pin makes package.json advertise a Node floor of 24.0.0 but only checks that the workflows agree on the major. Every workflow installs a floating `node-version: 24` (ci.yml notes the verified v24.14), so no lane ever builds at the floor the test writes into engines.node, and that floor stays prose.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "docs-content-model",
@@ -11807,7 +11811,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:12 The context is pure reducers and data shaping, importing only react and in-repo types and contracts, and a grep of app/features/hiring/decisions for lockfile, extractall, pickle, gitleaks and child_process found nothing, so there is no dependency, archive, secret or manifest crossing for the subject to govern.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -11954,7 +11962,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/schemas-gen.mjs:63 schemas-gen accepts Python 3.11 as the floor, and the shipped Docker image runs bookworm's 3.11 (Dockerfile:10), but every CI Python step pins 3.12. The advertised floor, which is also the production runtime, is never built or tested, so a transitive floor rise would first show up in a self-host image build.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-runtime-assembly",
@@ -21250,7 +21262,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/jobseeker/sourcesApi.ts:7 These files are browser views over the jobseeker sources/scans API (imports are React, recipes, lucide and app types only), and a grep of app/features/jobseeker for lockfile, extractall, pickle, gitleaks and child_process found no hits, so none of the supply-chain crossings (dependency graph, archives, secrets in history, permission manifests) happens in this code. Source tiering is about data rights, not third-party code. The LLM-proposed extraction rules are evaluated server-side, outside this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -24086,7 +24102,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/repo-scan/route.ts:20 POST /api/repo-scan clones any github.com repository and runs a Claude CLI session with cwd set to the clone. In repo_scan mode the CLI keeps default setting sources, so the cloned repo's own project settings (including hooks, which headless -p runs do not gate behind a trust prompt) are loaded and can execute. A surface built and described as read-only therefore runs content from a stranger's tree.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-runtime-assembly",

@@ -1,0 +1,170 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+ "subject": "supply-chain",
+ "evaluatedAt": "2026-10-24T04:59:28.929988+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobseeker-sources-scans",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/jobseeker/sourcesApi.ts:7 These files are browser views over the jobseeker sources/scans API (imports are React, recipes, lucide and app types only), and a grep of app/features/jobseeker for lockfile, extractall, pickle, gitleaks and child_process found no hits, so none of the supply-chain crossings (dependency graph, archives, secrets in history, permission manifests) happens in this code. Source tiering is about data rights, not third-party code. The LLM-proposed extraction rules are evaluated server-side, outside this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "lockfile",
+    "extractall",
+    "pickle",
+    "gitleaks",
+    "child_process"
+   ]
+  },
+  {
+   "context": "decisions-screen-wave-logic",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:12 The context is pure reducers and data shaping, importing only react and in-repo types and contracts, and a grep of app/features/hiring/decisions for lockfile, extractall, pickle, gitleaks and child_process found nothing, so there is no dependency, archive, secret or manifest crossing for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "lockfile",
+    "extractall",
+    "pickle",
+    "gitleaks",
+    "child_process"
+   ]
+  },
+  {
+   "context": "ci-doc-gates",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/docs/__tests__/toolchain-pin.test.mjs:68 The toolchain pin makes package.json advertise a Node floor of 24.0.0 but only checks that the workflows agree on the major. Every workflow installs a floating `node-version: 24` (ci.yml notes the verified v24.14), so no lane ever builds at the floor the test writes into engines.node, and that floor stays prose.",
+   "techniques": [
+    {
+     "technique": "toolchain-floor-drift",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/__tests__/toolchain-pin.test.mjs:68 The claimed floor is the major's .0.0, but CI resolves the latest 24.x. Nothing builds at the declared minimum or with a consumer's resolution."
+    },
+    {
+     "technique": "reading-is-not-running",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/api-reference.mjs:283 The one evaluating read imports this repo's own module. The author is the repo itself, not someone else's tree, so the technique's boundary is not crossed."
+    }
+   ]
+  },
+  {
+   "context": "dev-toolchain",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/schemas-gen.mjs:63 schemas-gen accepts Python 3.11 as the floor, and the shipped Docker image runs bookworm's 3.11 (Dockerfile:10), but every CI Python step pins 3.12. The advertised floor, which is also the production runtime, is never built or tested, so a transitive floor rise would first show up in a self-host image build.",
+   "techniques": [
+    {
+     "technique": "toolchain-floor-drift",
+     "verdict": "deviation",
+     "evidence": "scripts/schemas-gen.mjs:60 The comment calls 3.11 CI's floor, but CI pins python-version \"3.12\" everywhere. The floor claim has no lane that builds it."
+    },
+    {
+     "technique": "secret-scanning-architecture",
+     "verdict": "deviation",
+     "evidence": "scripts/hooks/install.mjs:45 The installed hook set is commit-msg and pre-push only. The pre-commit hook never blocks, and pre-push exits early unless the push targets main. No commit-rung staged-diff secret scan exists, so a credential on a feature-branch push reaches the remote before CI's whole-tree security:secrets runs."
+    }
+   ]
+  },
+  {
+   "context": "org-management-api",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/repo-scan/route.ts:20 POST /api/repo-scan clones any github.com repository and runs a Claude CLI session with cwd set to the clone. In repo_scan mode the CLI keeps default setting sources, so the cloned repo's own project settings (including hooks, which headless -p runs do not gate behind a trust prompt) are loaded and can execute. A surface built and described as read-only therefore runs content from a stranger's tree.",
+   "techniques": [
+    {
+     "technique": "reading-is-not-running",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/claude_cli.py:670 Generate and web_research get --setting-sources project inside a neutral temp cwd. repo_scan gets defaults inside the cloned tree, so project-level settings and hooks from the scanned repo are honoured. There is no digest approval and no loud refusal. The heuristic walk itself reads package.json and pyproject statically, which is conformant."
+    },
+    {
+     "technique": "permission-manifest-scoping",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/claude_cli.py:579 The agent's tool grant is validated against a write denylist and refuses to widen. A bare Bash grant raises. The secret-file deny list is one list with three consumers (repo_scan.py:202)."
+    }
+   ],
+   "registryProposal": "reading-is-not-running could name agent CLIs explicitly: running a coding agent with cwd inside a cloned tree loads that tree's project settings and hooks by default, which is the 'rules that travel with the tree' sighting in its most common current form. The decision rule would be to isolate setting sources, or disable project hooks, for any agent session over a tree the operator did not write."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:59:28.929988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobseeker-sources-scans",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:59:28.929988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "decisions-screen-wave-logic",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:59:28.929988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "reading-is-not-running",
+    "toolchain-floor-drift"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:59:28.929988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "secret-scanning-architecture",
+    "toolchain-floor-drift"
+   ],
+   "deviations": 1,
+   "context": "dev-toolchain",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:59:28.929988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "permission-manifest-scoping",
+    "reading-is-not-running"
+   ],
+   "deviations": 1,
+   "context": "org-management-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

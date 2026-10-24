@@ -17812,6 +17812,90 @@
           "evidence": "app/features/settings/hiring/composerState.ts:64 A consequential policy write gets ceremony: a removal that would strand candidates is blocked until it is mapped or the occupancy is known."
         }
       ]
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/supply-chain": {
+      "context": "jobseeker-sources-scans",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:59:28.929Z",
+      "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+      "techniques": []
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/supply-chain": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:59:28.929Z",
+      "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+      "techniques": []
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/supply-chain": {
+      "context": "ci-doc-gates",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:59:28.929Z",
+      "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+      "techniques": [
+        {
+          "technique": "toolchain-floor-drift",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/__tests__/toolchain-pin.test.mjs:68 The claimed floor is the major's .0.0, but CI resolves the latest 24.x. Nothing builds at the declared minimum or with a consumer's resolution."
+        },
+        {
+          "technique": "reading-is-not-running",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/api-reference.mjs:283 The one evaluating read imports this repo's own module. The author is the repo itself, not someone else's tree, so the technique's boundary is not crossed."
+        }
+      ]
+    },
+    "c914a994-2658-490a-9f11-41768247fa0d/supply-chain": {
+      "context": "dev-toolchain",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:59:28.929Z",
+      "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+      "techniques": [
+        {
+          "technique": "toolchain-floor-drift",
+          "verdict": "deviation",
+          "evidence": "scripts/schemas-gen.mjs:60 The comment calls 3.11 CI's floor, but CI pins python-version \"3.12\" everywhere. The floor claim has no lane that builds it."
+        },
+        {
+          "technique": "secret-scanning-architecture",
+          "verdict": "deviation",
+          "evidence": "scripts/hooks/install.mjs:45 The installed hook set is commit-msg and pre-push only. The pre-commit hook never blocks, and pre-push exits early unless the push targets main. No commit-rung staged-diff secret scan exists, so a credential on a feature-branch push reaches the remote before CI's whole-tree security:secrets runs."
+        }
+      ]
+    },
+    "05973fce-bf4d-4d6f-8788-05e2ce7534a6/supply-chain": {
+      "context": "org-management-api",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:59:28.929Z",
+      "worker": "d4e4ec2f-5977-42b6-8634-2bc2c91c69cc",
+      "techniques": [
+        {
+          "technique": "reading-is-not-running",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/claude_cli.py:670 Generate and web_research get --setting-sources project inside a neutral temp cwd. repo_scan gets defaults inside the cloned tree, so project-level settings and hooks from the scanned repo are honoured. There is no digest approval and no loud refusal. The heuristic walk itself reads package.json and pyproject statically, which is conformant."
+        },
+        {
+          "technique": "permission-manifest-scoping",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/claude_cli.py:579 The agent's tool grant is validated against a write denylist and refuses to widen. A bare Bash grant raises. The secret-file deny list is one list with three consumers (repo_scan.py:202)."
+        }
+      ],
+      "registryProposal": "reading-is-not-running could name agent CLIs explicitly: running a coding agent with cwd inside a cloned tree loads that tree's project settings and hooks by default, which is the 'rules that travel with the tree' sighting in its most common current form. The decision rule would be to isolate setting sources, or disable project hooks, for any agent session over a tree the operator did not write."
     }
   }
 }
