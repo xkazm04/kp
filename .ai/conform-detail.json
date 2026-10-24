@@ -4409,19 +4409,49 @@
       "subject": "hitl-approval",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T21:41:18.821Z",
-      "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:57:06.585Z",
+      "worker": "018ce148-e184-47ee-870a-c76aa2ecccd4",
       "techniques": [
         {
           "technique": "gate-state-machines",
           "verdict": "deviation",
-          "evidence": "scripts/review/constitution-check.mjs:114 Blocking gate findings are waived by commit message trailers parsed from the change range itself, violating the separation between work authority and approval authority."
+          "evidence": "scripts/review/constitution-check.mjs:736 The waiver comes from text the gated party writes, and .github/rulesets/main.json has no required-review rule, so nothing independent of the author drives pending→open. The 2026-09-05 change narrowed what a waiver covers but did not change who may issue one."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:132 A grant now matches only its (rule, file, optional line) tuple. A shapeless or unmatched trailer is reported and never widens to the whole range."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:670 Each waived finding is rendered with the stated reason, and the trailer persists in git log next to the commit's author."
         },
         {
           "technique": "fail-loud-classification-default",
           "verdict": "deviation",
-          "evidence": "scripts/review/agent-review.mjs:268 When Anthropic API credentials and Claude CLI are both unavailable, the judgement lens prints a notice and exits 0 instead of failing closed or holding."
+          "evidence": "scripts/review/agent-review.mjs:222 Any severity the model returns other than exactly 'blocking' (e.g. 'Blocking', 'high', missing) falls through to the mildest bucket, 'note', with no marker. renderMarkdown (lines 226-227) does the same, so a malformed severity is waved through quietly."
+        },
+        {
+          "technique": "fail-closed-profile-for-headless",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:271 When no reviewer can be asked, the lens exits 0 (and line 255 also returns 0 when there is no comparable base). The required 'Agent review (judgement)' check therefore passes on an unjudged change. The loud stdout is honest, but the verdict is allow, not deny. Contrast constitution-check, which returns 2 for a check that did not run."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:89 A blocking verdict must name the specific rule or ADR it breaks. That rule comes from a rubric assembled from the repo's own written rules (rubric.mjs), so there is a named thing to compare against."
+        }
+      ],
+      "registryProposal": "fail-closed-profile-for-headless is written for agent tool approval. It does not say whether an automated review lens that cannot run may resolve to allow when a sibling deterministic gate has already run. kp argues that it may. The technique should state explicitly whether 'another gate covered it' is an acceptable fallback or still counts as unknown-treated-as-safe.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:114 The constitution check downgrades blocking rule findings when a commit trailer in the git range matches the rule, allowing the authoring agent to unilaterally open its own gate via commit text.",
+          "evaluatedAt": "2026-10-13T21:41:18.821Z",
+          "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+          "reason": "replaced by 018ce148-e184-47ee-870a-c76aa2ecccd4"
         }
       ]
     },
@@ -17563,6 +17593,47 @@
           "evaluatedAt": "2026-09-22",
           "worker": null,
           "reason": "replaced by d6fe23ff-820d-4167-844f-9f9f5ce92405"
+        }
+      ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/hitl-approval": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:57:06.585Z",
+      "worker": "018ce148-e184-47ee-870a-c76aa2ecccd4",
+      "techniques": [
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:25 No parse-failure flag is returned, and the consumer CandidateDecisionBar renders `isOffer && parsed ?` and `parsed?.recommendation` silently. An unreadable payload is not raised to a loud state and not marked."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:32 The commit echoes a signed preview token and spare list. If the set differs, the server refuses with 'mismatch' and the reducer forces a fresh preview, so approval binds to the exact set shown."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:33 Staleness is checked at commit time: a token already spent means the wave already landed. The modal reloads the queue instead of re-running or mis-narrating."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:34 A commit that names no approver is blocked for the life of the modal. The decider's identity is required, and its absence is never treated as fixable by re-previewing."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:150 Changing the target (a new exclusion) re-closes the approval and forces a fresh token. The committed view is frozen (line 145), and a new event type without a transition is a type error."
+        },
+        {
+          "technique": "review-queues",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsQueueTypes.ts:55 One predicate drives the header count, the role-filter counts and the empty state, so the badge cannot disagree with the rendered cards."
         }
       ]
     }

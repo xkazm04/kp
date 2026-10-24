@@ -11731,7 +11731,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:25 An approval payload (screening, queued-reject, scorecard or offer) that will not parse collapses to the same null as 'no detail at all', with no marker. The decision card for an adverse-action gate then renders with no body and no signal that its payload was unreadable.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "hiring-policy-defaults-and-tiering",
@@ -27693,12 +27697,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "scripts/review/constitution-check.mjs:114 The constitution check downgrades blocking rule findings when a commit trailer in the git range matches the rule, allowing the authoring agent to unilaterally open its own gate via commit text.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:bc33acb280c8df96",
-          "evaluatedRevision": 21,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "scripts/review/constitution-check.mjs:736 The blocking verdict is computed against waivers read from the range's own commit messages, which the authoring agent writes itself. The ruleset requires no human approval, so the gated party can still open its own gate for any non-secret rule by naming that rule.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-instruction-files",
