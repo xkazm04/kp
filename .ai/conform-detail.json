@@ -6459,33 +6459,27 @@
       "context": "shell-companion",
       "subject": "companion-runtime",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T04:04:17.963Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:54:05.044Z",
+      "worker": "e79e8553-d1d7-4046-a7ce-f890c898d558",
       "techniques": [
         {
           "technique": "headless-turn-stream",
           "verdict": "deviation",
-          "evidence": "app/features/shell/companion/useCompanionThread.ts:119 Client hook fetches a full non-streaming HTTP JSON response instead of consuming a headless stream of typed turn events."
+          "evidence": "app/features/shell/companion/useCompanionThread.ts:22 The second-arrival policy (coalesce) is declared, but it lives in the surface. The technique names a lock keyed on a transport or window artifact as no protection."
         },
         {
           "technique": "action-catalog-single-source",
           "verdict": "deviation",
-          "evidence": "app/features/shell/companion/CompanionProposalCard.tsx:73 Proposal card renders action summaries via dynamic fallback rather than build-time exhaustive typing over the single-source catalog."
+          "evidence": "app/features/shell/companion/CompanionProposalCard.tsx:13 The surface ships in the same bundle as COMPANION_ACTIONS but keeps its own hand-written list of outcome keys. Labels resolve through a t.has fallback to 'action.unknown' (line 73), and no test pins catalog summary or outcome keys to message keys, so a new action's missing label renders as unknown instead of failing."
         },
         {
           "technique": "host-seam-contracts",
-          "verdict": "deviation",
-          "evidence": "app/features/shell/companion/useCompanionRuntime.ts:24 The runtime seam is conflated with a client-side React UI state container rather than an isolated host capability contract."
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/useCompanionRuntime.ts:24 The second surface (footer candi panel) uses the same hoisted thread and does not re-implement the exchange, which avoids the parity trap. It proves only a second mouth inside one host."
         }
-      ],
-      "registryProposal": "In applications with client-side localization catalogs, exhaustive typing over the single-source catalog is frequently bypassed in favour of dynamic key lookups with fallbacks (e.g. t.has).",
-      "withdrawn": {
-        "worker": "32542591-3f59-45c8-a0f5-f8359d805e86",
-        "state": "deviation",
-        "at": "2026-10-15T04:05:26.276515+00:00",
-        "reason": "reviewer (sonnet): The deviation anchors on app/features/shell/companion/useCompanionThread.ts:119, which does not appear in the shell-companion context's path list in registry-map.json (it occurs only in the evidence text), so the verdict is about a file outside this context."
-      }
+      ]
     },
     "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/companion-runtime": {
       "context": "companion-appmaster",
@@ -18454,6 +18448,58 @@
           "evidence": "app/features/tools/devcases/DevVoiceScreenPanel.tsx:66 The session lives only in component state. Every remount re-enters the loading spinner for data that was just shown."
         }
       ]
+    },
+    "9e9394dd-7db6-4f2a-b864-614fb416d9e9/companion-runtime": {
+      "context": "tests-companion-voice",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:54:05.044Z",
+      "worker": "e79e8553-d1d7-4046-a7ce-f890c898d558",
+      "techniques": [
+        {
+          "technique": "metered-llm-seam",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_actions.py:260 The use case is a required positional argument (good), but the leg is named for the feature, not the situation. Background and interactive legs share 'assistant' (asserted at line 262 and in test_companion_cli.py:81). The task id and task-budget 'cheap' class partly compensate."
+        },
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_actions.py:118 The Python side is tested with a synthetic shipped catalog. No catalog means nothing is accepted, and line 210 shows nothing is taught either, so the far side names no action."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_cli.py:63 run_turn is exercisable with no UI, network or real model, but the brain store is found through a process-global env var, and the model leg is replaced by mock.patch of a module global rather than injected at construction. The technique names the env-var-located store half as not isolated."
+        }
+      ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/companion-runtime": {
+      "context": "db-org-users-channels",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:54:05.044Z",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/companion.ts:398 Repo grep finds no caller of createProposal. Live producers validate with coerceCompanionAction before appendTurnWithProposals, so the gap is latent, not live."
+        },
+        {
+          "technique": "signal-economy-contract",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/companion.ts:475 The open-proposal count is a separate bucket, and attention.ts:45-51 deliberately keeps it out of the Decisions badge (which cannot clear it) and surfaces it on the dock beside Accept/Decline, so the count is shown where its affordance lives."
+        }
+      ],
+      "withdrawn": {
+        "worker": "e79e8553-d1d7-4046-a7ce-f890c898d558",
+        "state": "deviation",
+        "at": "2026-10-24T21:57:29.743818+00:00",
+        "reason": "reviewer (sonnet): The anchor and both technique anchors are in app/_lib/db/companion.ts, the companion store. That file is not among this context's files (users, workspaces, organizations, memberships, org-benchmarks, channels), and none of them call it. The code facts do check out (createProposal has no caller and t"
+      }
     }
   }
 }

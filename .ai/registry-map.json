@@ -29473,7 +29473,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/useCompanionThread.ts:22 The only rule of one active turn per conversation is a per-tab client state machine, so the lock is keyed on a window, not on conversation identity, and the same thread open in two tabs gets two locks and no protection.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7a0b336cac31d173",
+          "evaluatedRevision": 4
         },
         {
           "subject": "companion-identity",
@@ -31852,7 +31856,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_actions.py:260 The test pins the digest leg, which runs as a background task with nobody at the screen, to the same 'assistant' leg kind as the interactive reply, so the model tier, routing row and use-case axis cannot tell a background leg from a waited-on one.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7a0b336cac31d173",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-instruction-files",
