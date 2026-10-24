@@ -13844,7 +13844,11 @@
           "revision": 10,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The catalog walker that enforces the forbidden 'case' variant deletes the innermost brace groups instead of expanding them, so the text of every plural/select branch is erased before the rule runs: '{n, plural, one {# case} other {# cases}}' reduces to '{n, plural, one other }' (verified), which leaves 39 plural/select messages in the guarded namespaces outside the ban, and the walker prints no strings-checked count that would show the gap.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
+          "evaluatedRevision": 10
         },
         {
           "subject": "prompt-assembly",
@@ -21644,7 +21648,11 @@
           "revision": 10,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet protocol counts code-suppression debt (eslint/ts/ruff), and the perf and design scripts budget wall-clock time and tokens. A search of scripts/lint, scripts/perf and scripts/design for termbase, messages/en.json, copy-contract, createTranslator and useTranslations found nothing, so no copy is extracted or gated in this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
+          "evaluatedRevision": 10
         },
         {
           "subject": "mcp-tools",
@@ -27756,7 +27764,11 @@
           "revision": 10,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent drift over code diffs. A search of scripts/review for termbase, messages/en.json, copy-contract, createTranslator, useTranslations and copy:check found nothing; the only i18n hit is a path in a sensitive-file list (constitution-check.mjs:197). No catalog copy is gated here.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
+          "evaluatedRevision": 10
         },
         {
           "subject": "hitl-approval",

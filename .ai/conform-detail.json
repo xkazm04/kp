@@ -18775,6 +18775,57 @@
           "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:42 The voice channel is a projection of the same thread (voiceHistory.ts derives entries from thread.turns) with no store of its own."
         }
       ]
+    },
+    "9b7307a3-ad7a-4237-9364-3503d0720eec/copy-quality-gates": {
+      "context": "devcase-outbox",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:56:51.948Z",
+      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+      "techniques": [
+        {
+          "technique": "rendered-string-extraction",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 Placeholders and plural branches are deleted, not expanded into samples, so branch text never reaches the prose rule. The walker reports no coverage count. The sibling i18n test does render with real values (devcase-studio-i18n.test.ts:272), but this walker does not."
+        },
+        {
+          "technique": "copy-contract-before-drafting",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:173 A one-concept-one-rendering termbase ruling is recorded in docs/features/README.md. Its forbidden variants are held by a checker, not by a writer prompt."
+        },
+        {
+          "technique": "layered-mechanical-gate",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:193 The termbase forbidden-variant rule (an L1 class) blocks in test:unit from day one. Its allowlist must stay empty, and a separate test fails on a stale exemption."
+        },
+        {
+          "technique": "format-aware-check-catalog",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/devcase-studio-i18n.test.ts:347 Skeleton checks run per locale: rich-tag parity here, and unresolved-placeholder detection on rendered output at line 278. There is no precondition graph, which is reasonable at this scale."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/copy-quality-gates": {
+      "context": "review-gates",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:56:51.948Z",
+      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+      "techniques": []
+    },
+    "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/copy-quality-gates": {
+      "context": "lint-quality-gates",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:56:51.948Z",
+      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+      "techniques": []
     }
   }
 }
