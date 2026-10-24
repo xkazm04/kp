@@ -15450,12 +15450,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_components/glyph/glyphs/jobsGlyph.ts:1 Glyphs are traced SVG icon paths for navigation; a search of app/_components/glyph for viseme, faceSignal, talking-head, lipSync and saccade found no speaking face.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:f96c1d7ea0398677",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:4 The glyphs are traced SVG navigation icons with entrance and ambient motion presets. Nothing in them speaks or follows a voice. A search of app/_components/glyph for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:72517c45ca8e4198",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "narrative-scroll-surface",
@@ -29606,12 +29605,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:19 Voice mode is a text strip of answers with play/stop; a search of app/features/shell/companion/voice for viseme, faceSignal, talking-head, lipSync and saccade found no face.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:f96c1d7ea0398677",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:19 Companion voice mode is a text strip of spoken answers with play/stop and a history ticker, and it draws no face. A search of app/features/shell/companion/voice for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing, and a search for level, analyser and rms found no level-driven visual either.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:72517c45ca8e4198",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -33422,12 +33420,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_components/voice/InterviewPresence.tsx:11 The call's only visual is a loudness-following ring plus a phase label; a search of app/_components/voice for viseme, faceSignal, talking-head, lipSync and saccade found no portrait, rig or mouth timeline.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:f96c1d7ea0398677",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/voice/InterviewPresence.tsx:11 The live call's only visual presence is a ring that follows the audio level, plus a phase label. motion-route-selection's 'When not to use this' covers exactly this case ('a still frame plus a reactive layer — a glow that follows the voice level — there is no route to select'). A case-insensitive search of app/_components/voice for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:72517c45ca8e4198",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -33882,12 +33879,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "packages/voice-stt/README.md:3 The package turns captured audio into a transcript; a search of packages/voice-stt for viseme, faceSignal, talking-head, lipSync and saccade found none. whisper-cpp.ts:222 uses \"named mouth\" only to refuse an invented speaker label.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:f96c1d7ea0398677",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-stt/README.md:3 The package turns captured audio into a transcript (the input direction) and renders no presence at all. A search of packages/voice-stt for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing. The word 'mouth' does appear once, in whisper-cpp.ts:222, where a comment explains why the adapter refuses to invent a speaker label.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:72517c45ca8e4198",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "module-design",
@@ -34086,12 +34082,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "packages/voice-tts/README.md:4 The package synthesizes and plays audio and draws nothing; a search of packages/voice-tts for viseme, faceSignal, talking-head, lipSync and saccade found none (kokoro's grapheme-to-phoneme note is a missing language pack, not a mouth map).",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:f96c1d7ea0398677",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-tts/README.md:4 The package synthesizes and plays audio through a headless hook and draws nothing, so no avatar consumes its output. A search of packages/voice-tts for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing. Any per-sound timeline would be a voice-io concern, not this subject's.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:72517c45ca8e4198",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "multi-provider-gateway-plane",
