@@ -2720,12 +2720,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/agents/dispatch/route.ts:18 Searches of app/api/agents and app/api/companion for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; dispatch is an HTTP persona request to Personas, and these routes are not a tool-protocol door.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/api/agents/dispatch/route.ts:18 I searched app/api/agents and app/api/companion for mcp, json-rpc, tools/list, tools/call and modelcontextprotocol and found nothing; dispatch sends a persona request to Personas over HTTP and the companion routes are ordinary session-gated HTTP handlers, so no protocol door exists (and so no first-party agent bypassing one).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "companion-runtime",
@@ -4107,12 +4106,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 A search of app/features/tools/analyze for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; this module posts a CV form to the app's own HTTP route, so there is no tool-protocol host or server for these techniques to govern.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 I searched app/features/tools/analyze for mcp, json-rpc/jsonrpc, tools/list, tools/call and modelcontextprotocol and found nothing; the module's only network edge posts a CV form to the app's own /api/analyze route, so there is no tool-protocol host, client or server here.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "test-harness",
@@ -9640,12 +9638,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:26 The same search of app/features/tools/analyze found no mcp, json-rpc, tools/list, tools/call, or Model Context Protocol hits; this module turns pasted text into a browser File for the CV intake gate, and its only network calls are the shared same-origin form posts in AnalyzeApi.ts.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:26 The same search of app/features/tools/analyze for mcp, json-rpc, tools/list, tools/call and modelcontextprotocol found nothing; this module turns pasted text into a browser File for the intake gate, and its network calls are the same-origin form posts in AnalyzeApi.ts, so no tool protocol is involved.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "test-harness",
@@ -17217,12 +17214,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/_lib/interview-sim/tool-line.ts:3 A search of app/_lib/interview-sim for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; the tool channel is a text stand-in for native function calling, which this subject excludes as a private provider contract.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/_lib/interview-sim/tool-line.ts:3 I searched app/_lib/interview-sim for mcp, json-rpc, tools/list, tools/call and modelcontextprotocol and found nothing; its tool channel is a text stand-in for the providers' native function calling, and the golden path explicitly excludes that private model-vendor contract from this subject.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "voice-io",
@@ -24857,12 +24853,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/pipeline/command/route.ts:46 A search of app/api/pipeline for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; the command route is an operator HTTP preview and execute bar, not a tool-protocol server.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/api/pipeline/command/route.ts:46 I searched app/api/pipeline for mcp, json-rpc, tools/list, tools/call and modelcontextprotocol and found nothing; the command route is an operator HTTP preview-and-execute bar over the shared guarded board actions, not a tool-protocol server that a model discovers.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "quality-gates",

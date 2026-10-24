@@ -1417,14 +1417,24 @@
       "subject": "mcp-tools",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T23:10:58.277Z",
-      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:08:05.463Z",
+      "worker": "a3585795-ce10-469b-9925-718bbcedda8b",
       "techniques": [
         {
           "technique": "transport-selection",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:396 The other outbound call is the same shape, a same-origin form POST, not a child-process tool server or a network listener."
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:396 The other outbound call is the same shape, a same-origin form POST, not a child-process tool server or a network listener.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 A search of app/features/tools/analyze for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; this module posts a CV form to the app's own HTTP route, so there is no tool-protocol host or server for these techniques to govern.",
+          "evaluatedAt": "2026-10-12T23:10:58.277Z",
+          "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+          "reason": "replaced by a3585795-ce10-469b-9925-718bbcedda8b"
         }
       ]
     },
@@ -1433,29 +1443,49 @@
       "subject": "mcp-tools",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T23:10:58.277Z",
-      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
-      "techniques": []
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:08:05.463Z",
+      "worker": "a3585795-ce10-469b-9925-718bbcedda8b",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:26 The same search of app/features/tools/analyze found no mcp, json-rpc, tools/list, tools/call, or Model Context Protocol hits; this module turns pasted text into a browser File for the CV intake gate, and its only network calls are the shared same-origin form posts in AnalyzeApi.ts.",
+          "evaluatedAt": "2026-10-12T23:10:58.277Z",
+          "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+          "reason": "replaced by a3585795-ce10-469b-9925-718bbcedda8b"
+        }
+      ]
     },
     "903990c9-54d2-4ed6-af82-defd5db63d49/mcp-tools": {
       "context": "pipeline-api",
       "subject": "mcp-tools",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T23:10:58.277Z",
-      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:08:05.463Z",
+      "worker": "a3585795-ce10-469b-9925-718bbcedda8b",
       "techniques": [
         {
           "technique": "command-audit-by-position",
           "verdict": "not-applicable",
-          "evidence": "app/api/pipeline/command/execute.ts:18 Confirmed commands call an in-process pipeline action, so there is no host-spawned command string to classify by token position."
+          "evidence": "app/api/pipeline/command/execute.ts:18 Confirmed commands call an in-process pipeline action, so there is no host-spawned command string to classify by token position.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "enumeration-without-a-scope",
           "verdict": "not-applicable",
-          "evidence": "app/api/pipeline/events/route.ts:20 The event list is scoped to the caller's team, so it is not a listing whose access check has no scope."
+          "evidence": "app/api/pipeline/events/route.ts:20 The event list is scoped to the caller's team, so it is not a listing whose access check has no scope.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/pipeline/command/route.ts:46 A search of app/api/pipeline for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; the command route is an operator HTTP preview and execute bar, not a tool-protocol server.",
+          "evaluatedAt": "2026-10-12T23:10:58.277Z",
+          "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+          "reason": "replaced by a3585795-ce10-469b-9925-718bbcedda8b"
         }
       ]
     },
@@ -1464,19 +1494,30 @@
       "subject": "mcp-tools",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T23:10:58.277Z",
-      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:08:05.463Z",
+      "worker": "a3585795-ce10-469b-9925-718bbcedda8b",
       "techniques": [
         {
           "technique": "egress-argument-gating",
           "verdict": "not-applicable",
-          "evidence": "app/api/agents/catalog/route.ts:13 Egress here is this route opening a socket to Personas for a connector catalog, not a model tool call gated over a third-party argument schema."
+          "evidence": "app/api/agents/catalog/route.ts:13 Egress here is this route opening a socket to Personas for a connector catalog, not a model tool call gated over a third-party argument schema.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "first-party-agent-is-a-principal",
           "verdict": "not-applicable",
-          "evidence": "app/api/companion/[id]/message/route.ts:24 The companion route is an operator chat exchange persisted to the thread; it does not call tools through a protocol door."
+          "evidence": "app/api/companion/[id]/message/route.ts:24 The companion route is an operator chat exchange persisted to the thread; it does not call tools through a protocol door.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/agents/dispatch/route.ts:18 Searches of app/api/agents and app/api/companion for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; dispatch is an HTTP persona request to Personas, and these routes are not a tool-protocol door.",
+          "evaluatedAt": "2026-10-12T23:10:58.277Z",
+          "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+          "reason": "replaced by a3585795-ce10-469b-9925-718bbcedda8b"
         }
       ]
     },
@@ -1485,32 +1526,44 @@
       "subject": "mcp-tools",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T23:10:58.277Z",
-      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:08:05.463Z",
+      "worker": "a3585795-ce10-469b-9925-718bbcedda8b",
       "techniques": [
         {
           "technique": "fluent-syntax-bounded-grammar",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/tool-line.ts:5 The <<tool JSON>> line is the harness stand-in for function calling, not a tool-server command grammar the host executes."
+          "evidence": "app/_lib/interview-sim/tool-line.ts:5 The <<tool JSON>> line is the harness stand-in for function calling, not a tool-server command grammar the host executes.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "untrusted-result-handling",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/engine.ts:80 Results are harness lines inside the stand-in prompt, not server output crossing a protocol trust boundary."
+          "evidence": "app/_lib/interview-sim/engine.ts:80 Results are harness lines inside the stand-in prompt, not server output crossing a protocol trust boundary.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "tool-schema-design",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/engine.ts:82 Schemas are pasted into the provider stand-in preamble; the golden path puts that private function-calling format outside this subject."
+          "evidence": "app/_lib/interview-sim/engine.ts:82 Schemas are pasted into the provider stand-in preamble; the golden path puts that private function-calling format outside this subject.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "server-composition",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/interview-sim/detectors.ts:469 Unknown names are a post-hoc scoring check over a transcript, not a tool-server registry and dispatch door."
+          "evidence": "app/_lib/interview-sim/detectors.ts:469 Unknown names are a post-hoc scoring check over a transcript, not a tool-server registry and dispatch door.",
+          "carriedFrom": "2026-10-12"
         }
       ],
-      "registryProposal": "The golden path already excludes a model's private function-calling format. interview-simulator matches this subject only by vocabulary (tool lines, JSON-schema parameters, a detector named tool_protocol). That exclusion is doing the work; the pairing is technique-shaped resonance, not a hole in the standard."
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/interview-sim/tool-line.ts:3 A search of app/_lib/interview-sim for mcp, json-rpc, tools/list, tools/call, and Model Context Protocol found no matches; the tool channel is a text stand-in for native function calling, which this subject excludes as a private provider contract.",
+          "evaluatedAt": "2026-10-12T23:10:58.277Z",
+          "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+          "reason": "replaced by a3585795-ce10-469b-9925-718bbcedda8b"
+        }
+      ]
     },
     "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/agent-memory": {
       "context": "task-automation-engine",
