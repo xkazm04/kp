@@ -18237,6 +18237,57 @@
           "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:197 The language goes into the engine config (-l, and language_code on AssemblyAI). An English-only model asked for another language is refused rather than returning fluent wrong-language text."
         }
       ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/codebase-scanning": {
+      "context": "cv-analyze-intake",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:20:55.619Z",
+      "worker": "5a49eda5-86ef-457f-8416-c924bbe04f3b",
+      "techniques": [
+        {
+          "technique": "ingestion-budget",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:71 Choosing which files of the foreign repo to read, and capping that, happens behind /api/github-analysis, which belongs to another context. This file only forwards a profile handle and the JD text."
+        },
+        {
+          "technique": "llm-assisted-scanning",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:89 The context validates the finished analysis against a schema and displays it. It neither runs nor contains a model scan."
+        }
+      ]
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/codebase-scanning": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:20:55.619Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "5a49eda5-86ef-457f-8416-c924bbe04f3b",
+        "state": "not-applicable",
+        "at": "2026-10-24T06:21:13.586160+00:00",
+        "reason": "reviewer (sonnet): The anchor pipelineBoardMove.ts:33 is the moveOutcome doc comment and code, which does not show that a scanner is absent; it is an incidental line, and the context's other files were not traced."
+      }
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/codebase-scanning": {
+      "context": "llm-config-provider",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:20:55.619Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "5a49eda5-86ef-457f-8416-c924bbe04f3b",
+        "state": "not-applicable",
+        "at": "2026-10-24T06:21:13.677893+00:00",
+        "reason": "reviewer (sonnet): The anchor llm-config.ts:27 is a comment about keeping a provider list in sync with Python, which does not show that scanning is absent; I also could not confirm that llm-capabilities-lockstep.test.ts is a quality-gates blocking test."
+      }
     }
   }
 }

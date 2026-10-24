@@ -1,0 +1,135 @@
+{
+  "schema": "conform-run/1",
+  "worker": "5a49eda5-86ef-457f-8416-c924bbe04f3b",
+  "subject": "codebase-scanning",
+  "evaluatedAt": "2026-10-24T06:20:55.619265+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "cv-analyze-intake",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:71 The context is client-side intake and delivery code. Its 'GitHub repository scanning' is one POST to a server route whose parsed result it renders. A search of app/features/tools/analyze for sensor, ruleset, false positive, reachability and knip found nothing, so this context contains no scanner, rule, sensor or ingestion picker for the subject to govern.",
+      "techniques": [
+        {
+          "technique": "ingestion-budget",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:71 Choosing which files of the foreign repo to read, and capping that, happens behind /api/github-analysis, which belongs to another context. This file only forwards a profile handle and the JD text."
+        },
+        {
+          "technique": "llm-assisted-scanning",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:89 The context validates the finished analysis against a schema and displays it. It neither runs nor contains a model scan."
+        }
+      ],
+      "absenceTerms": [
+        "sensor",
+        "ruleset",
+        "false positive",
+        "reachability",
+        "knip"
+      ]
+    },
+    {
+      "context": "devcase-eval",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/useDevSubmissionRow.ts:89 The context renders evaluation panels and calls server routes. Reading the candidate's repo is delegated to /api/github-analysis. A search of app/features/tools/devcases for sensor, ruleset, false positive, reachability and knip found nothing; the only source-reading test here (DevCompareSubmissions.source.test.ts) is a blocking assertion, which the golden path assigns to quality-gates, not to scanning.",
+      "techniques": [
+        {
+          "technique": "ingestion-budget",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/useDevSubmissionRow.ts:89 Any budgeted fetch of the foreign repo happens server-side, outside this context."
+        },
+        {
+          "technique": "llm-assisted-scanning",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:79 A display component for an evaluation the pipeline produced. No model sensor runs here."
+        }
+      ],
+      "absenceTerms": [
+        "sensor",
+        "ruleset",
+        "false positive",
+        "reachability",
+        "knip"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "codebase-scanning",
+      "context": "devcase-outbox-need",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "codebase-scanning",
+      "context": "pipeline-move-bulk-operations",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor pipelineBoardMove.ts:33 is the moveOutcome doc comment and code, which does not show that a scanner is absent; it is an incidental line, and the context's other files were not traced."
+    },
+    {
+      "subject": "codebase-scanning",
+      "context": "llm-config-provider",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor llm-config.ts:27 is a comment about keeping a provider list in sync with Python, which does not show that scanning is absent; I also could not confirm that llm-capabilities-lockstep.test.ts is a quality-gates blocking test."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T06:20:55.619265+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "codebase-scanning"
+      ],
+      "techniques": [
+        "ingestion-budget",
+        "llm-assisted-scanning"
+      ],
+      "deviations": 0,
+      "context": "cv-analyze-intake",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T06:20:55.619265+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "codebase-scanning"
+      ],
+      "techniques": [
+        "ingestion-budget",
+        "llm-assisted-scanning"
+      ],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T06:20:55.619265+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "codebase-scanning"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-move-bulk-operations",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T06:20:55.619265+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "codebase-scanning"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "llm-config-provider",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

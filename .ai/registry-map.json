@@ -9759,7 +9759,11 @@
           "revision": 12,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:71 The context is client-side intake and delivery code. Its 'GitHub repository scanning' is one POST to a server route whose parsed result it renders. A search of app/features/tools/analyze for sensor, ruleset, false positive, reachability and knip found nothing, so this context contains no scanner, rule, sensor or ingestion picker for the subject to govern.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:06416fce13bc2342",
+          "evaluatedRevision": 12
         },
         {
           "subject": "agent-instruction-files",
