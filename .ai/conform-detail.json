@@ -1109,14 +1109,38 @@
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T22:15:58.163Z",
-      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T00:09:23.855Z",
+      "worker": "7b637d9a-2305-45d0-bd82-564ec2f0a4b3",
       "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/reasoning-cache-key.ts:86 The digest documents its own recomputation well (axes listed in the header) but leaves out the identity of the model the prompt was shaped for, which the standard puts IN the digest. The usage ledger also stores no prompt digest or version: llm-usage-ledger.ts LlmUsageInput has tokens and cost but no fingerprint, which is the standard's 'unrecorded send'."
+        },
         {
           "technique": "layered-composition",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/match_reasoning.py:556 Traced from runReasoning through reasoning_cli; locale instruction is a post-return suffix rather than an assembler input."
+          "evidence": "pipeline/jobfit/match_reasoning.py:556 The family this runtime spawns (reasoning_cli) appends the language directive to the string build_prompt returned, so part of the delivered prompt sits outside its assembler. The earlier verdict still holds at the same line."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reasoning-run.ts:105 The locale enters as a validated, closed-vocabulary input with a declared default before it reaches argv and the key. Nothing ambient."
+        },
+        {
+          "technique": "history-compaction",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-run.ts:171 Each reasoning call is a one-shot subprocess with no carried transcript, so there is no history layer to compact."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/match_reasoning.py:556 The reasoning runner appends a language directive after build_prompt returns, leaving part of the delivered prompt outside that assembler.",
+          "evaluatedAt": "2026-10-12T22:15:58.163Z",
+          "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+          "reason": "replaced by 7b637d9a-2305-45d0-bd82-564ec2f0a4b3"
         }
       ]
     },
@@ -1125,24 +1149,49 @@
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T22:15:58.163Z",
-      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T00:09:23.855Z",
+      "worker": "7b637d9a-2305-45d0-bd82-564ec2f0a4b3",
       "techniques": [
-        {
-          "technique": "consumer-coupled-decoration",
-          "verdict": "conformant",
-          "evidence": "app/_lib/interview-sim/judge.ts:165 Turn-number decoration has concrete consumers: the judge cites it, and verifyFacts resolves the number against the original turn."
-        },
         {
           "technique": "context-budgeting",
           "verdict": "deviation",
-          "evidence": "app/_lib/interview-sim/engine.ts:257 View.messages returns every accumulated message; this call checks maxCalls but does not size the assembled system plus history against a model window."
+          "evidence": "app/_lib/interview-sim/engine.ts:257 The budget is counted in calls, not in the unit the window enforces. At the configured caps a real overflow is unlikely, but no allocation exists."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/engine.ts:111 One assembler function per side. The stable system text (brief, then harness preamble) is fixed for the call, and all per-turn churn goes in messages."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/engine.ts:82 The tool layer is rendered from the same DIRECTOR_TOOL_DEFS that production declares to the provider, not from hand-written prose."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/baseline-diff.ts:138 The instrument identity digests the brief and the director files (instrument.ts DIRECTOR_VERSION_FILES) but not engine.ts. An edit to INTERVIEWER_HARNESS_PREAMBLE, which every interviewer call reads, therefore changes behaviour under an unchanged instrument key."
         },
         {
           "technique": "task-envelope",
           "verdict": "conformant",
-          "evidence": "app/_lib/interview-sim/judge.ts:199 The judge task locates evidence in numbered turns, specifies the JSON artifact and complete question roster, and requires checking quotes against those turns."
+          "evidence": "app/_lib/interview-sim/providers.ts:76 The task line states the finished artifact exactly (done criterion). The role lines in the preambles change permissions and behaviour rather than claiming competence."
+        },
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:165 Turn-number decoration has concrete consumers: the judge cites it, and verifyFacts resolves the number against the original turn.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/engine.ts:257 The simulator sends its complete accumulated conversation with a call-count guard but no assembled token budget, response reservation, or overflow ladder.",
+          "evaluatedAt": "2026-10-12T22:15:58.163Z",
+          "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+          "reason": "replaced by 7b637d9a-2305-45d0-bd82-564ec2f0a4b3"
         }
       ]
     },
@@ -1151,19 +1200,39 @@
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T22:15:58.163Z",
-      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T00:09:23.855Z",
+      "worker": "7b637d9a-2305-45d0-bd82-564ec2f0a4b3",
       "techniques": [
         {
-          "technique": "consumer-coupled-decoration",
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/automation-cache-key.ts:193 Otherwise exemplary input coverage (profile bytes, job JSON, evidence, scorecard, volume bucket, locale). The model identity the standard requires is missing, and the house's analyze key already carries it as llmRoute."
+        },
+        {
+          "technique": "variable-interpolation",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/automation.py:625 The retained object-key wrapper has named consumers: rejection instructions address interview.weakestCompetencies and offer instructions address interview; the renderer documents this coupling."
+          "evidence": "app/_lib/automation-cache-key.ts:17 One declared set decides both which tasks receive the evidence input and which tasks key on it, so the declared input set and its consumers cannot drift apart."
         },
         {
           "technique": "context-budgeting",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/automation.py:655 Traced through tasks, automation-run and automation_cli into screening: the count cap silently discards additional unproven requirements."
+          "evidence": "pipeline/jobfit/automation.py:661 The screening fact base this engine drives caps unproven requirements at 8 with no omitted count or notice; the caller at ~line 1090 adds none. The earlier verdict still holds, shifted from 655 to 661."
+        },
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/automation.py:625 The retained object-key wrapper has named consumers: rejection instructions address interview.weakestCompetencies and offer instructions address interview; the renderer documents this coupling.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/automation.py:655 Screening receives at most eight unproven requirements without an omission count or notice, so a bounded fact base can appear complete.",
+          "evaluatedAt": "2026-10-12T22:15:58.163Z",
+          "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+          "reason": "replaced by 7b637d9a-2305-45d0-bd82-564ec2f0a4b3"
         }
       ]
     },

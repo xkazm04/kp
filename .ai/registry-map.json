@@ -17171,12 +17171,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/_lib/interview-sim/engine.ts:257 The simulator sends its complete accumulated conversation with a call-count guard but no assembled token budget, response reservation, or overflow ladder.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/interview-sim/engine.ts:257 Every call sends the whole accumulated View for that speaker. The only bound is a call/turn count (maxCalls 120, maxCandidateTurns 50), with no token budget, no total check and no degradation ladder, so what fits is left to luck rather than allocation.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "eval-harness",
@@ -22006,12 +22005,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/match_reasoning.py:556 The reasoning runner appends a language directive after build_prompt returns, leaving part of the delivered prompt outside that assembler.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/reasoning-cache-key.ts:86 The reasoning verdict cache is keyed on six axes, but none is the model or provider route that produced the verdict, so after an operator re-routes the reasoning use case, the previous model's rationale keeps being served for the full 168h TTL. The house's own analyze key (app/_lib/cache-key.ts llmRoute) names this exact defect and fixes it there.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -31546,12 +31544,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/automation.py:655 Screening receives at most eight unproven requirements without an omission count or notice, so a bounded fact base can appear complete.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/automation-cache-key.ts:193 The automation cache key separates LLM output from template output but not one model from another, so a provider or model re-route keeps serving the previous model's screening, prep and letters for the 168h TTL.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "fleet-orchestration",
