@@ -15248,7 +15248,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:139 The candidates doc lists repo-activity.ts in its GitHub-evidence surface table, but the map entry that owns that row lists github-summary.ts and app/_lib/github/** and omits app/_lib/repo-activity.ts, so changing the recruiter-facing activity windows owes no doc (evaluate() returns UNMAPPED).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -27697,7 +27701,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:602 The only doc-map entry that targets docs/development/change-review.md watches scripts/docs/** alone, so a change to scripts/review/** (new constitution rule, renamed lens, changed exit code) never owes the document that describes these lenses rule by rule; evaluate() returns UNMAPPED for scripts/review/constitution-check.mjs and gate-check.mjs.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "prompt-assembly",

@@ -18284,6 +18284,58 @@
         "at": "2026-10-24T06:21:13.677893+00:00",
         "reason": "reviewer (sonnet): The anchor llm-config.ts:27 is a comment about keeping a provider list in sync with Python, which does not show that scanning is absent; I also could not confirm that llm-capabilities-lockstep.test.ts is a quality-gates blocking test."
       }
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/docs-sync": {
+      "context": "review-gates",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:43:05.976Z",
+      "worker": "f899d293-ac50-4e9c-b8a1-b294611404ee",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:602 change-review.md names constitution-check.mjs, agent-review.mjs, rubric.mjs, source-mask.mjs, gate-check.mjs and workflow-yaml.mjs (lines 12-545), but no sourceGlob covers scripts/review/**. The entry's own _comment at :599 says the doc 'already names ... the review lenses', which records the coupling as lore instead of data."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:700 With no comparable base the run exits 2 and prints 'NOTHING was reviewed'. A narrowed range is announced. The agent lens is advisory by a written decision (agent-review.mjs:25-28) and prints THE JUDGEMENT LENS DID NOT RUN when it skips."
+        },
+        {
+          "technique": "dated-corrections",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:30 The correction is dated and in place, and it keeps the old behaviour visible: free-prose trailers used to downgrade every non-secret finding. It also states the observed consequence."
+        },
+        {
+          "technique": "source-as-data-without-the-app",
+          "verdict": "conformant",
+          "evidence": "scripts/review/workflow-yaml.mjs:19 A dependency-free reader built for jobs that never ran npm ci. A partial read surfaces as a blocking unparsed-workflow finding instead of passing quietly. rubric.mjs's markdown scrape is guarded by agent-review.test.mjs:153 (each section must be longer than 200 chars), not by an 'at least one' floor."
+        },
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "conformant",
+          "evidence": "scripts/review/rubric.mjs:64 The judgement lens hands the doc-sync obligation to a reviewer that reads the git range (diffForRange/messagesForRange), not a transcript. It is advisory only; the blocking doc gate lives in scripts/docs."
+        }
+      ]
+    },
+    "3a572009-313e-4210-b608-2c84f4e5eb34/docs-sync": {
+      "context": "github-repo-intelligence",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:43:05.976Z",
+      "worker": "f899d293-ac50-4e9c-b8a1-b294611404ee",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "docs/features/candidates/README.md:1470 The doc claims repo-activity.ts and the map does not watch it. app/_lib/source-repo.ts is also UNMAPPED. app/_lib/github/** and repo-scan*.ts are mapped (to candidates and app-master respectively)."
+        }
+      ]
     }
   }
 }
