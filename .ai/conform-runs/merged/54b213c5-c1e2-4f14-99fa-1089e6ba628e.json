@@ -1,0 +1,186 @@
+{
+ "schema": "conform-run/1",
+ "worker": "54b213c5-c1e2-4f14-99fa-1089e6ba628e",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-10-24T01:16:48.003543+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-tts-package",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "packages/voice-tts/src/text/segment.ts:2 Chunk sizing and the clip cap rest on one unmeasured 'CPU engine runs at ~2x real time' sentence (repeated at types.ts:30). Every local adapter (Piper, Kokoro) still spawns a fresh process that reloads the model per call. The registry comment admits that 'a persistent engine worker would lift it', so the process boundary is part of every utterance's first-audio time.",
+   "techniques": [
+    {
+     "technique": "real-time-synthesis-budget",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/text/segment.ts:2 The standard says no honest sentence of the form 'processor engines run at about X' exists. No real-time factor or first-audio time is recorded per tier, and spawn-per-call (piper.ts runSidecar) is kept rather than a resident engine."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/types.ts:38 absent, broken and ready are three distinct probe states. Capabilities (languages, onDevice, maxClipChars) are declared on each adapter and the registry branches on them, not on engine names."
+    },
+    {
+     "technique": "portable-provider-package",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/node/resolve-bin.ts:11 A shared per-user engine home and a TtsHost seam (env, homeDir, cwd, log). The package does not import from the host app, and the route forwards the x-tts-fallback-from header."
+    },
+    {
+     "technique": "speech-ready-text",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/validate.ts:23 One pure door strips markup before any engine sees the text and does not expand numbers. The chunker handles decimals, abbreviations, ordinal dots and the first-chunk clause rule, and the maximum chunk size is the adapter's declared maxClipChars."
+    },
+    {
+     "technique": "tts-pipeline",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:9 Utterance identity (a generation token), abort reaching in-flight chunks, and truncation reported as 'stopped after N of M'."
+    },
+    {
+     "technique": "voice-ux-integration",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:23 Un-gestured playback that the browser refuses shows up as a visible `blocked` state with resume(), not as silent success."
+    }
+   ]
+  },
+  {
+   "context": "voice-stt-package",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "packages/voice-stt/src/registry.ts:102 Cloud transcription is refused only when the caller sets needs.onDevice. useStt defaults onDevice=false, and KP_STT_PROVIDERS unset allows every provider, so when whisper.cpp is absent the resolver falls through to AssemblyAI. That turns a residency guarantee into a fallback decision, with no stored consent from the speaker and no in-the-moment ask.",
+   "techniques": [
+    {
+     "technique": "on-device-vs-cloud",
+     "verdict": "deviation",
+     "evidence": "packages/voice-stt/src/registry.ts:102 The local-to-cloud rung is crossed by fallback logic unless the operator locks the allowed set. It is logged, but no consent gate exists in the package."
+    },
+    {
+     "technique": "stt-pipeline",
+     "verdict": "deviation",
+     "evidence": "packages/voice-stt/src/react/useStt.ts:325 An empty final transcript is dropped silently once the phase moves to `transcribed`. It is never surfaced as 'heard audio, produced no words', and the hook has no level reading to tell silence from an engine anomaly."
+    },
+    {
+     "technique": "decode-time-vocabulary-biasing",
+     "verdict": "deviation",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:220 The whisper.cpp adapter keeps segment text verbatim. A repo-wide search found no BLANK_AUDIO or no-speech handling, so the engine's no-speech marker is never reduced to a typed outcome and can arrive as a one-word transcript."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "packages/voice-stt/src/registry.ts:150 Resolution is gated by capabilities (onDevice, diarization, redaction, language) before probing, and fallback is logged with the engine it fell back from."
+    },
+    {
+     "technique": "portable-provider-package",
+     "verdict": "conformant",
+     "evidence": "packages/voice-stt/src/registry.test.ts:15 The package's tests run against a fake host object, with no network or model files."
+    }
+   ]
+  },
+  {
+   "context": "voice-interview-components",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The browser builds the prompt, language and asr overrides by hand, separately from the OVERRIDE_INTENT declaration in scripts/setup-eleven-agent.mjs that unlocks them. Adding an override here is not tied to unlocking it, and onConnect goes live without confirming the overrides took effect. The code's own comment says that otherwise 'the platform silently ignores it'.",
+   "techniques": [
+    {
+     "technique": "duplex-agent-sessions",
+     "verdict": "deviation",
+     "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The sender is not derived from the unlock declaration. The --check drift gate verifies the live account against OVERRIDE_INTENT, but nothing pins this sender to that list. Late-connect teardown (line 111) and the close verdict are handled correctly."
+    },
+    {
+     "technique": "stt-pipeline",
+     "verdict": "conformant",
+     "evidence": "app/_components/voice/micErrorText.ts:32 'No device' is classified separately from 'denied' and from 'busy', each with its own recovery copy. useMicTest shows a live level meter before the call."
+    },
+    {
+     "technique": "voice-ux-integration",
+     "verdict": "conformant",
+     "evidence": "app/_components/voice/availability-gate.ts:37 A failed availability probe no longer reads as available, so Start never lies; the unknown state gets its own copy and a retry."
+    },
+    {
+     "technique": "portable-provider-package",
+     "verdict": "conformant",
+     "evidence": "app/_components/voice/TtsComparePanel.tsx:16 Compare-by-ear uses one fixed sentence per shipped locale."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "app/_components/voice/transport/elevenlabs.ts:31 The shell identifies the serving transport by its handle, not by an engine-name branch."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-io",
+   "context": "eval-voice",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-session",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T01:16:48.003543+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "engine-abstraction",
+    "portable-provider-package",
+    "real-time-synthesis-budget",
+    "speech-ready-text",
+    "tts-pipeline",
+    "voice-ux-integration"
+   ],
+   "deviations": 1,
+   "context": "voice-tts-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:16:48.003543+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "decode-time-vocabulary-biasing",
+    "engine-abstraction",
+    "on-device-vs-cloud",
+    "portable-provider-package",
+    "stt-pipeline"
+   ],
+   "deviations": 1,
+   "context": "voice-stt-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:16:48.003543+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "duplex-agent-sessions",
+    "engine-abstraction",
+    "portable-provider-package",
+    "stt-pipeline",
+    "voice-ux-integration"
+   ],
+   "deviations": 1,
+   "context": "voice-interview-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -33281,14 +33281,13 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/_components/voice/transport/elevenlabs.ts:150 startElevenLabsSession sends prompt and asr.keywords overrides and still treats onConnect as a live call, so an agent that has not unlocked those overrides runs the account defaults with no error.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The browser builds the prompt, language and asr overrides by hand, separately from the OVERRIDE_INTENT declaration in scripts/setup-eleven-agent.mjs that unlocks them. Adding an override here is not tied to unlocking it, and onConnect goes live without confirming the overrides took effect. The code's own comment says that otherwise 'the platform silently ignores it'.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
           "source": "conform",
           "adoptedFrom": "9de4d799-279c-429b-a0ca-2afecf4543b1",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "voice-interview-fidelity",
@@ -33734,12 +33733,11 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "packages/voice-stt/src/registry.ts:102 Cloud transcription is refused only when the caller sets needs.onDevice, and useStt defaults that flag to false, so a missing local model falls through to AssemblyAI.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "packages/voice-stt/src/registry.ts:102 Cloud transcription is refused only when the caller sets needs.onDevice. useStt defaults onDevice=false, and KP_STT_PROVIDERS unset allows every provider, so when whisper.cpp is absent the resolver falls through to AssemblyAI. That turns a residency guarantee into a fallback decision, with no stored consent from the speaker and no in-the-moment ask.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
+          "revisionsBehind": 3
         },
         {
           "subject": "agent-runtime-assembly",
@@ -33941,12 +33939,11 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "packages/voice-tts/src/text/segment.ts:2 Chunk size is justified by one unsourced CPU speed sentence, and the registry still starts a new local process that reloads the model on every call.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "packages/voice-tts/src/text/segment.ts:2 Chunk sizing and the clip cap rest on one unmeasured 'CPU engine runs at ~2x real time' sentence (repeated at types.ts:30). Every local adapter (Piper, Kokoro) still spawns a fresh process that reloads the model per call. The registry comment admits that 'a persistent engine worker would lift it', so the process boundary is part of every utterance's first-audio time.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
+          "revisionsBehind": 3
         },
         {
           "subject": "prompt-assembly",

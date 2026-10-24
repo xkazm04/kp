@@ -1753,64 +1753,70 @@
       "subject": "voice-io",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T02:20:44.632Z",
-      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:16:48.003Z",
+      "worker": "54b213c5-c1e2-4f14-99fa-1089e6ba628e",
       "techniques": [
         {
           "technique": "duplex-agent-sessions",
           "verdict": "deviation",
-          "evidence": "app/_components/voice/transport/elevenlabs.ts:150 The file states the unlock is a separate dashboard flag (OVERRIDE_INTENT) and that a locked override is ignored; nothing in this start path reads back whether the override was applied."
-        },
-        {
-          "technique": "decode-time-vocabulary-biasing",
-          "verdict": "deviation",
-          "evidence": "app/_components/voice/transport/elevenlabs.ts:149 Keywords are sent as a session override, and a silent drop is not reported on the result, so the product cannot tell that the job vocabulary never reached the decoder."
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The sender is not derived from the unlock declaration. The --check drift gate verifies the live account against OVERRIDE_INTENT, but nothing pins this sender to that list. Late-connect teardown (line 111) and the close verdict are handled correctly."
         },
         {
           "technique": "stt-pipeline",
           "verdict": "conformant",
-          "evidence": "app/_components/voice/useMicTest.ts:19 Permission denial, missing device, busy device, and a permitted-but-silent meter are separate states, and MicTestPanel announces the verdict in a persistent aria-live region beside a level bar."
+          "evidence": "app/_components/voice/micErrorText.ts:32 'No device' is classified separately from 'denied' and from 'busy', each with its own recovery copy. useMicTest shows a live level meter before the call."
         },
         {
           "technique": "voice-ux-integration",
           "verdict": "conformant",
-          "evidence": "app/_components/voice/VoiceStatusPill.tsx:40 The per-turn speaking cue stays visual; the unstable-connection and phase pills are the live regions, and VoiceLiveControls keeps mic mute and interviewer-output mute as pressed toggles."
-        },
-        {
-          "technique": "engine-abstraction",
-          "verdict": "conformant",
-          "evidence": "app/_components/voice/VoiceInterview.tsx:43 After the single start() dispatch, mute, levels, directives, and end go through CallTransport capabilities rather than engine branches."
+          "evidence": "app/_components/voice/availability-gate.ts:37 A failed availability probe no longer reads as available, so Start never lies; the unknown state gets its own copy and a retry."
         },
         {
           "technique": "portable-provider-package",
           "verdict": "conformant",
-          "evidence": "app/_components/voice/TtsComparePanel.tsx:35 The compare surface speaks one sample sentence per shipped locale and prints probe state and fallback; candidates do not see engine names."
+          "evidence": "app/_components/voice/TtsComparePanel.tsx:16 Compare-by-ear uses one fixed sentence per shipped locale."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:31 The shell identifies the serving transport by its handle, not by an engine-name branch."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:149 Keywords are sent as a session override, and a silent drop is not reported on the result, so the product cannot tell that the job vocabulary never reached the decoder.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "transcript-normalization",
           "verdict": "conformant",
-          "evidence": "app/_components/voice/useTranscriptPersistence.ts:1 The interview transcript is persisted as the call record; this module has no cleanup rewrite before save, which is the evidence rule."
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:1 The interview transcript is persisted as the call record; this module has no cleanup rewrite before save, which is the evidence rule.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "transcript-handoff-receipts",
           "verdict": "not-applicable",
-          "evidence": "app/_components/voice/VoiceTranscript.tsx:79 The accepted transcript is rendered in the interview log on this page; nothing in these files pastes or types into another application."
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:79 The accepted transcript is rendered in the interview log on this page; nothing in these files pastes or types into another application.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "voice-setup-experience",
           "verdict": "not-applicable",
-          "evidence": "app/_components/voice/useMicTest.ts:1 This surface checks the microphone before dialing; it does not install an engine, pick a voice by ear, or keep setup receipts."
+          "evidence": "app/_components/voice/useMicTest.ts:1 This surface checks the microphone before dialing; it does not install an engine, pick a voice by ear, or keep setup receipts.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "unattended-caller-attribution",
           "verdict": "not-applicable",
-          "evidence": "app/_components/voice/VoiceLiveControls.tsx:41 Mute and end are controls on the interview surface the candidate is looking at; these files do not expose synthesis to a process the product does not host."
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:41 Mute and end are controls on the interview surface the candidate is looking at; these files do not expose synthesis to a process the product does not host.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "tts-pipeline",
           "verdict": "not-applicable",
-          "evidence": "app/_components/voice/VoiceInterview.tsx:694 Playback, output mute, and teardown belong to the duplex transport, not to an utterance queue in this UI."
+          "evidence": "app/_components/voice/VoiceInterview.tsx:694 Playback, output mute, and teardown belong to the duplex transport, not to an utterance queue in this UI.",
+          "carriedFrom": "2026-10-13"
         }
       ],
       "superseded": [
@@ -1820,6 +1826,13 @@
           "evaluatedAt": "2026-09-22",
           "worker": null,
           "reason": "replaced by bcee8cec-f63e-4301-8803-a25550497567"
+        },
+        {
+          "state": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:150 startElevenLabsSession sends prompt and asr.keywords overrides and still treats onConnect as a live call, so an agent that has not unlocked those overrides runs the account defaults with no error.",
+          "evaluatedAt": "2026-10-13T02:20:44.632Z",
+          "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+          "reason": "replaced by 54b213c5-c1e2-4f14-99fa-1089e6ba628e"
         }
       ]
     },
@@ -1964,96 +1977,123 @@
       "subject": "voice-io",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T02:20:44.632Z",
-      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:16:48.003Z",
+      "worker": "54b213c5-c1e2-4f14-99fa-1089e6ba628e",
       "techniques": [
         {
           "technique": "on-device-vs-cloud",
           "verdict": "deviation",
-          "evidence": "packages/voice-stt/src/registry.ts:102 Default order is whisper.cpp then AssemblyAI, and registry tests expect an absent local engine to serve the cloud engine with fallbackFrom set. That crossing is fallback logic, not a consent ask. Residency is an opt-in refusal rather than the default."
+          "evidence": "packages/voice-stt/src/registry.ts:102 The local-to-cloud rung is crossed by fallback logic unless the operator locks the allowed set. It is logged, but no consent gate exists in the package."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:325 An empty final transcript is dropped silently once the phase moves to `transcribed`. It is never surfaced as 'heard audio, produced no words', and the hook has no level reading to tell silence from an engine anomaly."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:220 The whisper.cpp adapter keeps segment text verbatim. A repo-wide search found no BLANK_AUDIO or no-speech handling, so the engine's no-speech marker is never reduced to a typed outcome and can arrive as a one-word transcript."
         },
         {
           "technique": "engine-abstraction",
           "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:152 A missing binary or model is absent with a setup hint; a tiny file is broken. Callers are told to branch on capabilities, and the closed id list is STT_PROVIDER_IDS."
+          "evidence": "packages/voice-stt/src/registry.ts:150 Resolution is gated by capabilities (onDevice, diarization, redaction, language) before probing, and fallback is logged with the engine it fell back from."
         },
         {
           "technique": "portable-provider-package",
           "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/types.ts:1 SttHost is env, home, cwd, and a log sink; createStt is the only dispatch door; preference typos throw; fallbackFrom names the engine that was asked for."
-        },
-        {
-          "technique": "stt-pipeline",
-          "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/react/useStt.ts:225 The hook stops microphone tracks when a capture ends or the component unmounts, and a hard maxSeconds cap ends the take."
+          "evidence": "packages/voice-stt/src/registry.test.ts:15 The package's tests run against a fake host object, with no network or model files."
         },
         {
           "technique": "voice-ux-integration",
           "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/react/useStt.ts:163 STT_UNAVAILABLE sticks until a probe finds a ready engine, so the control does not invite another recording into a known refusal."
+          "evidence": "packages/voice-stt/src/react/useStt.ts:163 STT_UNAVAILABLE sticks until a probe finds a ready engine, so the control does not invite another recording into a known refusal.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "transcript-handoff-receipts",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/react/useStt.ts:208 The transcript is handed to the host callback for the product's own composer. A search of this package found no clipboard or synthetic keystrokes."
-        },
-        {
-          "technique": "decode-time-vocabulary-biasing",
-          "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The whisper.cpp invocation and the AssemblyAI adapter take no phrase list or prompt. A search of this package found no bias parameter."
+          "evidence": "packages/voice-stt/src/react/useStt.ts:208 The transcript is handed to the host callback for the product's own composer. A search of this package found no clipboard or synthetic keystrokes.",
+          "carriedFrom": "2026-10-13"
         }
       ],
-      "registryProposal": "portable-provider-package tells the package to walk requested, then preferred, then the first ready engine and to show the fallback. on-device-vs-cloud says a local-to-cloud step for transcription needs a consent ask and must not be fallback logic alone. A package that does the first by default breaks the second. The standard should say which rule wins when the allowed set contains both."
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:102 Cloud transcription is refused only when the caller sets needs.onDevice, and useStt defaults that flag to false, so a missing local model falls through to AssemblyAI.",
+          "evaluatedAt": "2026-10-13T02:20:44.632Z",
+          "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+          "reason": "replaced by 54b213c5-c1e2-4f14-99fa-1089e6ba628e"
+        }
+      ]
     },
     "85aca759-e385-4fdf-8ad6-b2fbe9540b37/voice-io": {
       "context": "voice-tts-package",
       "subject": "voice-io",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T02:20:44.632Z",
-      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:16:48.003Z",
+      "worker": "54b213c5-c1e2-4f14-99fa-1089e6ba628e",
       "techniques": [
         {
           "technique": "real-time-synthesis-budget",
           "verdict": "deviation",
-          "evidence": "packages/voice-tts/src/text/segment.ts:2 types.ts describes the same 1200 characters as about twice real time and about 35s to first audio, so the two comments disagree, and neither records device, runtime, or run count. registry.ts says a one-shot process reloads the model per call. Kokoro and Piper declare streaming false."
-        },
-        {
-          "technique": "voice-setup-experience",
-          "verdict": "deviation",
-          "evidence": "packages/voice-tts/src/providers/kokoro.ts:26 Speaker ids are integers into voices.bin. The comment says Heart was checked by ear and the other two were derived from alphabetical order. A search of this package found no test that pins the pair to the model pack."
-        },
-        {
-          "technique": "speech-ready-text",
-          "verdict": "conformant",
-          "evidence": "packages/voice-tts/src/validate.ts:23 Chat text passes one pure speechReady door before any adapter, and that door strips markup and does not expand numbers. segmentSpeech splits on sentence ends with abbreviation, decimal, and ordinal-dot exceptions, and the first chunk may end on a clause."
-        },
-        {
-          "technique": "tts-pipeline",
-          "verdict": "conformant",
-          "evidence": "packages/voice-tts/src/react/utterance.ts:125 A generation counter is taken before the chunk awaits, stop bumps it, and a late chunk is not played. useTts stop pauses the element, clears its src, and runs on unmount. A failed middle chunk reports how far playback got."
+          "evidence": "packages/voice-tts/src/text/segment.ts:2 The standard says no honest sentence of the form 'processor engines run at about X' exists. No real-time factor or first-audio time is recorded per tier, and spawn-per-call (piper.ts runSidecar) is kept rather than a resident engine."
         },
         {
           "technique": "engine-abstraction",
           "verdict": "conformant",
-          "evidence": "packages/voice-tts/src/types.ts:18 One TtsProvider interface, a closed TTS_PROVIDER_IDS list, and probes that separate absent, broken, and ready. An unknown preference id throws instead of being dropped."
+          "evidence": "packages/voice-tts/src/types.ts:38 absent, broken and ready are three distinct probe states. Capabilities (languages, onDevice, maxClipChars) are declared on each adapter and the registry branches on them, not on engine names."
         },
         {
           "technique": "portable-provider-package",
           "verdict": "conformant",
-          "evidence": "packages/voice-tts/src/node/resolve-bin.ts:9 Binaries resolve override, then the shared sidecar home, then PATH. TtsHost is the only host seam, and speak returns fallbackFrom and unsupportedLanguage."
+          "evidence": "packages/voice-tts/src/node/resolve-bin.ts:11 A shared per-user engine home and a TtsHost seam (env, homeDir, cwd, log). The package does not import from the host app, and the route forwards the x-tts-fallback-from header."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/validate.ts:23 One pure door strips markup before any engine sees the text and does not expand numbers. The chunker handles decimals, abbreviations, ordinal dots and the first-chunk clause rule, and the maximum chunk size is the adapter's declared maxClipChars."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/react/useTts.ts:9 Utterance identity (a generation token), abort reaching in-flight chunks, and truncation reported as 'stopped after N of M'."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/react/useTts.ts:23 Un-gestured playback that the browser refuses shows up as a visible `blocked` state with resume(), not as silent success."
+        },
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "deviation",
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:26 Speaker ids are integers into voices.bin. The comment says Heart was checked by ear and the other two were derived from alphabetical order. A search of this package found no test that pins the pair to the model pack.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "on-device-vs-cloud",
           "verdict": "conformant",
-          "evidence": "packages/voice-tts/src/providers/elevenlabs.ts:23 Cloud versus local is a declared capability. A language the serving engine does not declare is still returned with unsupportedLanguage set, so a Czech clip spoken in an English voice is visible."
+          "evidence": "packages/voice-tts/src/providers/elevenlabs.ts:23 Cloud versus local is a declared capability. A language the serving engine does not declare is still returned with unsupportedLanguage set, so a Czech clip spoken in an English voice is visible.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "authored-voice-identity",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/kokoro.ts:17 Voices are catalog ids into a shipped pack. A search of this package found no description, sample, or clone authoring path."
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:17 Voices are catalog ids into a shipped pack. A search of this package found no description, sample, or clone authoring path.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "packages/voice-tts/src/text/segment.ts:2 Chunk size is justified by one unsourced CPU speed sentence, and the registry still starts a new local process that reloads the model on every call.",
+          "evaluatedAt": "2026-10-13T02:20:44.632Z",
+          "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+          "reason": "replaced by 54b213c5-c1e2-4f14-99fa-1089e6ba628e"
         }
       ]
     },
