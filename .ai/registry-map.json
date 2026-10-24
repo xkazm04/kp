@@ -21901,8 +21901,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "app/api/llm/test/route.ts:57 These routes administer LLM config, keys, usage and activity and shell out to the Python layer for any provider call. A search of app/api/llm, app/api/automation and app/api/sim found no failover, finish_reason, text/event-stream or fallbackFrom, so no candidate selection, response translation or stream framing happens in this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"
@@ -22297,8 +22301,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "conformant",
+          "priorNotApplicable": 2,
+          "evidence": "pipeline/jobfit/llm/base.py:198 One shared table normalizes every upstream's token-cap termination (OpenAI \"length\", Anthropic \"max_tokens\", Gemini \"MAX_TOKENS\") into LLMResult.truncated, while the raw reason is kept, so a cut-off answer is never reported as a normal completion; the rest of the subject's machinery (candidate tree, failover loop, streams, echoed state) does not exist here because each use case resolves to exactly one non-streaming provider.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "eval-harness",
@@ -23195,8 +23203,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "app/features/insights/matrix/focus/useMatchTabRun.ts:145 A UI panel that calls the app's own /api/match route and renders the results. A search of the focus directory found no failover, finish_reason, text/event-stream, adapter or upstream; the only 'provider' hit is a React TasksProvider import. So no upstream plane exists in this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "comparative-shortlist-evaluation",
@@ -34209,8 +34221,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "conformant",
+          "priorNotApplicable": 2,
+          "evidence": "packages/voice-tts/src/registry.ts:208 Every served clip carries the provider that served it plus the provider that was asked for (fallbackFrom) and any language it could not honour, so a probe-driven substitution is visible on the record rather than silent.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "agent-runtime-assembly",

@@ -1,0 +1,256 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2de1340c-50f3-4e0d-a46c-c4b86e97632b",
+ "subject": "multi-provider-gateway-plane",
+ "evaluatedAt": "2026-10-24T23:36:05.325556+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-layer",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "pipeline/jobfit/llm/base.py:198 One shared table normalizes every upstream's token-cap termination (OpenAI \"length\", Anthropic \"max_tokens\", Gemini \"MAX_TOKENS\") into LLMResult.truncated, while the raw reason is kept, so a cut-off answer is never reported as a normal completion; the rest of the subject's machinery (candidate tree, failover loop, streams, echoed state) does not exist here because each use case resolves to exactly one non-streaming provider.",
+   "techniques": [
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/adapters/openai_api.py:27 Outbound differences across the OpenAI-compatible family (endpoint, key env vars, keyless rule) are declared class attributes; inbound parsing is explicit per-adapter code in _call; cross-upstream termination mapping is one shared table (base.py:198)."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:221 The raw upstream termination reason is kept beside the normalized truncated property, and content_filter/error finishes raise instead of collapsing to success (openai_api.py:171). The per-request strictness switch is excused: all callers are first-party, so there is one consumer population."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:51 The MTOK_PRICES prefix join feeds a cost total, where a miss is the expensive error, so broad family-prefix matching is the correct setting and its reason is stated at the table."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:3 The bench records llm vs deterministic per row, so the production fallback substitution stays visible in the measured sample rather than being silently absorbed; selection itself has no per-request fallback to another model."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/adapters/__init__.py:14 ADAPTERS is a request-path dispatch table keyed by declared name (where uniform is right per the technique); there is no inventory aggregate built over the adapters."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/adapters/gateway.py:13 No in-process failover loop over candidates; one provider per use case, and cross-seat fallback is delegated to the external lt-gateway."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/config.py:63 Flat per-use-case row with a wildcard and one provider each; there is no strategy tree or second policy scope."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/base.py:310 Every adapter returns one settled LLMResult; nothing is streamed through the layer."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/base.py:114 Policy refusals (offline_policy, consumer_terms_policy) are typed in-process reasons read by code, so the technique's own exclusion for consumers that can parse the body applies."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/adapters/anthropic_api.py:36 Single-turn stateless prompts; no upstream state is round-tripped through a client."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/adapters/openai_api.py:3 Several implementations share the OpenAI wire protocol, but the operator declares the provider per config row; nothing discovers endpoints or imports an inventory from them."
+    }
+   ]
+  },
+  {
+   "context": "voice-tts-package",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "packages/voice-tts/src/registry.ts:208 Every served clip carries the provider that served it plus the provider that was asked for (fallbackFrom) and any language it could not honour, so a probe-driven substitution is visible on the record rather than silent.",
+   "techniques": [
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/registry.ts:208 The decided (asked) and served providers sit on the same response, so the fallback is self-describing (the technique's visible-substitution case)."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/registry.ts:146 Serving an engine that does not speak the requested language is allowed as a loss but flagged, never a silent lie; there is no multi-population strictness switch to judge."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/registry.ts:156 The status inventory probes all members concurrently, and each row reports absent vs broken vs ready per member; members are consumed identically, so a uniform collection passes the technique's deciding question."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "conformant",
+     "evidence": "packages/voice-tts/src/providers/piper.ts:57 The installed-voice to language presence join excludes an entry failing the predicate (no metadata) before it contributes any language key."
+    },
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/types.ts:9 Three upstreams, which falls under the technique's own exclusion: write both directions as code."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/registry.ts:110 One flat ordered candidate list under one policy; there is no subtree policy to inherit."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/registry.ts:126 The candidate walk advances only on a probe's health state; a synthesis failure is not retried against other candidates, so no sweep can burn the list."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/elevenlabs.ts:23 No adapter streams; a streaming host segments text and calls per chunk."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/types.ts:153 Refusals cross the package boundary as typed codes read by code; there is no integer-matching consumer inside the package."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/types.ts:82 Stateless synthesis; no upstream token is echoed back through a client."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/piper.ts:69 Each adapter is a distinct product reached through its own transport (cloud API, local binary, ONNX); no shared wire protocol hides which implementation answers."
+    }
+   ]
+  },
+  {
+   "context": "llm-api",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/llm/test/route.ts:57 These routes administer LLM config, keys, usage and activity and shell out to the Python layer for any provider call. A search of app/api/llm, app/api/automation and app/api/sim found no failover, finish_reason, text/event-stream or fallbackFrom, so no candidate selection, response translation or stream framing happens in this context.",
+   "techniques": [
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "app/api/llm/test/verdict.ts:82 A single-candidate canary with no loop. Note: any unclassified failure, including a plane-side spawn traceback, is reported as 'the provider rejected the test'."
+    }
+   ],
+   "absenceTerms": [
+    "failover",
+    "finish_reason",
+    "text/event-stream",
+    "fallbackFrom"
+   ]
+  },
+  {
+   "context": "matrix-focus",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/matrix/focus/useMatchTabRun.ts:145 A UI panel that calls the app's own /api/match route and renders the results. A search of the focus directory found no failover, finish_reason, text/event-stream, adapter or upstream; the only 'provider' hit is a React TasksProvider import. So no upstream plane exists in this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "failover",
+    "finish_reason",
+    "text/event-stream",
+    "adapter",
+    "upstream"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "multi-provider-gateway-plane",
+   "context": "jobseeker-ats-adapters",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T23:36:05.325556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "llm-layer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:36:05.325556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "voice-tts-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:36:05.325556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "router-versus-candidate-failure"
+   ],
+   "deviations": 0,
+   "context": "llm-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:36:05.325556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "matrix-focus",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
