@@ -56,6 +56,10 @@ function readEnv() {
 /** Set KEY=value in .env: replace the existing line or append. Preserves
  *  everything else byte-for-byte. */
 function writeEnvKey(key, value) {
+  // The value comes from an API response and lands in .env: a line break would add a second variable.
+  if (typeof value !== "string" || /[\r\n]/.test(value)) {
+    throw new Error(`refusing to write ${key}: the value is not a single-line string`);
+  }
   const raw = fs.readFileSync(ENV_PATH, "utf-8");
   const lines = raw.split(/\r?\n/);
   const idx = lines.findIndex((l) => l.startsWith(`${key}=`));
