@@ -21430,13 +21430,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "scripts/lint/ratchet.mjs:2 The ratchet protocol unifies suppression ceilings across linters and perf budgets with automated tightening and fail-closed measurement guards.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
-          "evaluatedRevision": 53,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:250 The ruff ratchet lifts only the config-level ignore list and runs without --ignore-noqa, so inline `# noqa` comments still suppress. pipeline/ carries 118 of them, including 15 F401 and 12 E731 in selected rule families (ruff.toml ignore = [] is empty). None of these are counted, and moving a suppression from the list to an inline comment clears the ratchet.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -24871,7 +24870,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/error-message-hygiene.test.ts:27 The error-hygiene guard hand-lists 10 routes, but git ls-files shows 18 route.ts files under app/api/pipeline. notes, offer-letter, work-sample, automation-counts, command/reverse, events/recent, rejected and stage-sla are not checked by this guard. They are compliant today, but the gap is silent, and the file's own comment records that this snapshot already went stale once.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "voice-io",
@@ -25695,7 +25698,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineMovePath.test.ts:34 The refusal slice runs from `if (!r.ok)` to the first `moved?.entry`, and so includes the comment at usePipelineBoardData.ts:295 ('the success path used to `await load()`'). Deleting the real `await load();` from the refusal branch would leave this guard green: the comment explaining the rule satisfies its own detector.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "test-harness",
@@ -27538,13 +27545,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "scripts/review/constitution-check.mjs:12 The review gate framework combines fast deterministic AST and diff scanning with partitioned LLM agent evaluation and GitHub ruleset enforcement.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
-          "evaluatedRevision": 53,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:506 The route-auth-posture rule tests the RAW added text for guard names (only chainsGuard masks comments). So a new route whose only mention of requireOperator is a comment or an unused import passes, while correctly gated routes (capability gates, withWorkspace) get refused; git log has five Gate-exemption waivers for exactly that.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54,
+          "revisionsBehind": 1
         },
         {
           "subject": "supply-chain",
@@ -29004,13 +29010,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "not-applicable",
-          "evidence": "app/_lib/api-response.ts:15 Shared API utilities provide HTTP JSON response helpers and rate limiting for web endpoints, not software engineering quality gate machinery.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
-          "evaluatedRevision": 53,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "app/_lib/app-currency-literal.test.ts:43 The context does contain a blocking source-scan gate: test:unit fails on a stranded CZK literal outside an allowlist. The earlier not-applicable verdict is refuted. Its patterns accept only the double-quoted spelling, so `currency: 'CZK'` or a template literal passes; no quote-style gate exists in package.json or eslint config to close that.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54,
+          "revisionsBehind": 1
         },
         {
           "subject": "client-fetch-cache",
