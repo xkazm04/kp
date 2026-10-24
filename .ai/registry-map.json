@@ -6785,7 +6785,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/apply-intake.ts:33 The shared honeypot contract defines a trip as a silent, unrecorded drop rather than a quarantine for review. Nobody can see autofill trips, and the false-positive check the technique requires cannot be done.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:829940bcb64cbbe0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",

@@ -6706,47 +6706,43 @@
       "context": "candidate-apply-flow",
       "subject": "application-intake-and-conversion",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T21:09:39.593Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:31:15.754Z",
+      "worker": "276085e2-93f3-41d1-8942-2f9029ee0a9f",
       "techniques": [
         {
           "technique": "eligibility-gate-versus-bot-defence",
           "verdict": "deviation",
-          "evidence": "app/_lib/apply-intake.ts:39 Checks company_url, which is recognized by autofill heuristics, and records no trip metrics or false-positive telemetry."
-        },
-        {
-          "technique": "tonally-neutral-eligibility-questions",
-          "verdict": "conformant",
-          "evidence": "app/_lib/apply.ts:58 Refuses to render the archetype self-declaration question when fewer than two options exist, preventing coerced declarations."
+          "evidence": "app/_lib/apply-intake.ts:33 A trip means drop: no record, no quarantine lane, no trip-rate count."
         },
         {
           "technique": "always-live-submit-that-names-the-blocker",
           "verdict": "conformant",
-          "evidence": "app/_lib/apply-intake.ts:131 Single-sources the status code contract separating transient retryable server failures from actionable client correction errors."
+          "evidence": "app/_lib/apply-intake.ts:131 The retry-vs-restart failure class is an explicit, named contract. APPLY_EMAIL_RE (line 105) is the one rule shared by client and server."
         },
         {
           "technique": "merge-dont-drop-on-reapplication",
           "verdict": "conformant",
-          "evidence": "app/_lib/apply-intake.ts:352 Ensures prefilled facts from a verified lead take precedence over stale stored draft answers so passed gates are not overwritten."
+          "evidence": "app/_lib/apply-intake.ts:89 Address-first identity with a name fallback. Write authority lives in application-filing.ts, outside this context."
         },
         {
           "technique": "speed-to-lead-acknowledgement",
           "verdict": "conformant",
-          "evidence": "app/_lib/candidate-link-locale.ts:14 Pins candidate-facing links to the candidate's language so outbound communications open in the correct locale outside application session context."
+          "evidence": "app/_lib/candidate-link-locale.ts:14 Emailed candidate links pin the language they were written in."
+        },
+        {
+          "technique": "tonally-neutral-eligibility-questions",
+          "verdict": "deviation",
+          "evidence": "app/_lib/apply.ts:243 No knockout prompt states its stakes or that the answer will be checked. The copy reads 'Are you legally authorized…' and 'Does that work for you?', and the consequence appears only after a decline. The one-option guard (MIN_ARCHETYPE_OPTIONS_TO_OFFER, line 58) is held."
         },
         {
           "technique": "recoverable-decline-and-no-dead-ends",
           "verdict": "conformant",
-          "evidence": "app/_lib/apply.ts:305 Maps knockout step identifiers to plain-words must-have requirement names so adverse decisions explain what requirement ended the application."
+          "evidence": "app/_lib/apply.ts:305 Maps knockout step identifiers to plain-words must-have requirement names so adverse decisions explain what requirement ended the application.",
+          "carriedFrom": "2026-10-15"
         }
-      ],
-      "withdrawn": {
-        "worker": "79f72322-9979-4946-be4e-88f216a35380",
-        "state": "deviation",
-        "at": "2026-10-15T21:10:22.216370+00:00",
-        "reason": "reviewer (sonnet): app/_lib/apply-intake.ts:39 only reads the company_url key, and nothing in the code shows autofill populating it; both forms set autoComplete=\"off\" and the tests pin that. The 'no trip metrics' claim is an absence claim the cited line does not show."
-      }
+      ]
     },
     "07674871-c817-4ade-8ddf-22cc01b8493d/interview-run-of-show": {
       "context": "interview-planning-rubric",
