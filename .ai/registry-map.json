@@ -2350,7 +2350,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/about/stage/stages.ts:29 In this context 'stage' means an animation beat in an explainer scene, not a pipeline column. A search of app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis and PIPELINE_STAGES found no hits, so the context neither reads nor edits a board axis.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "voice-io",
@@ -24782,7 +24786,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The per-column meaning line on the empty board is keyed by the five shipped stage ids (Accepted, Screened, Interview, Offer, Hired). Any column a team adds or composes gets the generic fallback 'nothing here yet', and no line exists per role.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "quality-gates",
@@ -30111,7 +30119,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never a per-stage one, and add() at setupPipelineEdit.ts:96 creates a column with no sentence. So every custom column shows the generic custom-role sentence, which is the case the technique says to prompt against.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "prompt-assembly",

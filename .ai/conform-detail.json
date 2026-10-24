@@ -18578,6 +18578,73 @@
         "at": "2026-10-24T22:12:40.680794+00:00",
         "reason": "reviewer (sonnet): The deviation anchors scripts/onboard-ui/server.mjs and engine.mjs are not among the context's paths, which are app/features/setup-studio/*.ts(x) and app/setup/studio/page.tsx. The KP_ONBOARD_PORT parse and the +1 retry in listen() are real, but they belong to the onboard-ui script, not this context"
       }
+    },
+    "23edc789-314a-44a3-b30f-ee7353edfab4/pipeline-stage-modelling": {
+      "context": "about-product",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:26:00.183Z",
+      "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+      "techniques": []
+    },
+    "01ce0010-7ed5-4f5c-9374-dd1283978131/pipeline-stage-modelling": {
+      "context": "pipeline-actions-events",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:26:00.183Z",
+      "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+      "techniques": [
+        {
+          "technique": "one-sentence-meaning-per-stage",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The meaning comes from shipped-id catalog keys with a placeholder fallback, and is neither authored per stage nor defaulted per role. The en copy ('the offer', 'slots and scorecards') describes the column rather than what the candidate is waiting for."
+        },
+        {
+          "technique": "retired-stage-tombstones-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineEventCatalog.ts:87 A board-shape move is its own event kind with its own glyph (:223), not 'moved'. The comment at :83-86 states the reason the technique gives."
+        },
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/empty/pipelineEmptyMoves.ts:41 The inflow lane is resolved by the entry role, not by index 0 or a name. agingBucket resolves terminal by role on the axis too, but boardSignature falls back to DEFAULT_STAGE_AXIS when a caller omits the axis (pipelineRenderDiet.ts:163), and usePipelineBoardData, outside this context, omits it."
+        }
+      ]
+    },
+    "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7/pipeline-stage-modelling": {
+      "context": "shell-setup-pipeline",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:26:00.183Z",
+      "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+      "techniques": [
+        {
+          "technique": "one-sentence-meaning-per-stage",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 The meaning is per role and none is per stage; stage creation never requires a sentence."
+        },
+        {
+          "technique": "entry-and-terminal-role-requirements",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelineEdit.ts:64 Entry and terminal cannot be removed or re-roled, and canMove only swaps middle columns, so 'entry first, terminal last' holds by construction. axisProblems is surfaced as well."
+        },
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.ts:42 Presets edit the loaded axis by role, and activePipelinePreset compares id:role and not labels (:94). An added step defaults to inert 'custom' rather than a plausible role (setupPipelineEdit.ts:93-96)."
+        },
+        {
+          "technique": "retired-stage-tombstones-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelineEdit.ts:73 An occupied column cannot be removed in the wizard, and the added work-sample id is minted against live and retired ids (setupPipelinePresets.ts:62), so it never reuses a tombstone. The lean preset drops columns without that occupancy check, but the server's stage-migration refuses an unmapped occupied removal."
+        }
+      ]
     }
   }
 }
