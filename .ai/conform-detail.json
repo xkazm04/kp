@@ -18926,6 +18926,32 @@
           "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:165 The gate outcome comes from the server and is only disclosed here."
         }
       ]
+    },
+    "07674871-c817-4ade-8ddf-22cc01b8493d/interview-calendar-integrity": {
+      "context": "interview-planning-rubric",
+      "subject": "interview-calendar-integrity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T23:23:06.299Z",
+      "worker": "abdbf623-9ab6-45bf-9d0b-433557ffd493",
+      "techniques": [
+        {
+          "technique": "real-duration-conflict-window",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-planned-minutes.ts:74 One duration source shared by mint, grid book and conflict check (good), but an unknown length falls to QUICK_SCREEN_MIN=5 on the normal path, not a documented legacy fallback."
+        }
+      ]
+    },
+    "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0/interview-calendar-integrity": {
+      "context": "db-jobs-devcase-interviews",
+      "subject": "interview-calendar-integrity",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T23:23:06.299Z",
+      "worker": "abdbf623-9ab6-45bf-9d0b-433557ffd493",
+      "techniques": []
     }
   }
 }

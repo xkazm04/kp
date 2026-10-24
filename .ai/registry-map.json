@@ -10698,7 +10698,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/interviews.ts:451 interview_sessions stores tokenized voice-interview runs with no slot time, calendar event handle or free/busy state; a case-insensitive search of app/_lib/db for freeBusy, fetchBusy, slotStillFree, calendarEvent and busyInterval found nothing (the scheduled-interview calendar state lives in app/_lib/schedule-store.ts and app/_lib/calendar/).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",
@@ -16957,7 +16961,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-planned-minutes.ts:74 plannedInterviewMinutes is the single source for the invite's durationMin, which every conflict check reads. But an entry with no follow-ups, no kit and no grounded prep gets the 5-minute quick-screen floor, so the interview is conflict-checked against the interviewer's calendar as a 5-minute interval: the silent, undershooting default the technique says produces confident, wrong all-clears.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
