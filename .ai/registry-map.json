@@ -11514,7 +11514,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:27 The screen-wave modal opens with auto-reject ON and sends it as a per-run override that screen-wave.ts:159 spreads over the stored workspace rule, so a recruiter can enable auto-reject for one job even where the organisation left the switch off; the bulk tool has its own enablement that was never reviewed as one.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad70b9a8defe881d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "bulk-adverse-action-governance",
@@ -11780,7 +11784,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:32 When the commit is refused because the approval no longer matches the live policy and cohort, the pure wave reducer sends the recruiter back to a fresh preview, never a merge or a bare warning, so an approval is only ever redeemed against the rulebook the reviewer actually saw.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad70b9a8defe881d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "voice-io",
@@ -16290,7 +16298,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/hiring/pipelineComposerModel.ts:210 The shipped 'lean' preset sets the screening gate to auto ahead of an AI round, and setStepGate and the schema validator accept 'auto' on any column, offer included. No gate is declared required, so the human screen and human-approved offer can be assembled away by choosing a preset or flipping a column.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad70b9a8defe881d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "hitl-approval",
@@ -28297,7 +28309,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:165 This context renders prep, transcripts and scorecards, and only discloses a gate move the server decided. A search of app/features/hiring/schedule for the policy vocabulary (autoRejectEnabled, policyVersion, familyFloors, SCREENING_DEFAULT, effectiveFloor) found zero hits, so it ships no default, threshold, toggle or tier of hiring policy.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad70b9a8defe881d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "interview-story-portfolio",
