@@ -1,0 +1,163 @@
+{
+  "schema": "conform-run/1",
+  "worker": "2021454a-96f1-4840-9526-159f07ce5c6f",
+  "subject": "agent-runtime-assembly",
+  "evaluatedAt": "2026-10-24T03:17:22.945376+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "voice-interview-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/interview/connect/route.ts:82 The listed routes mint provider credentials, gate the session lifecycle (single-live, revoke, expiry) and store transcripts while the browser talks to the provider directly. They hold no hook chain, no contributed code and no in-process loop, and a search of app/api/interview for checkpoint, subagent, mutator and plugin found zero matches.",
+      "techniques": [
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:156 This is a call-session lifecycle (a stale in_progress row past the grace window can be re-dialed), not recovery of outstanding agent or tool calls in a runtime. It belongs to the job/session record, not this subject."
+        }
+      ],
+      "absenceTerms": [
+        "checkpoint",
+        "subagent",
+        "mutator",
+        "plugin"
+      ]
+    },
+    {
+      "context": "voice-stt-package",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "packages/voice-stt/package.json:5 This is a standalone speech-to-text adapter library with no model loop, tool calls, hooks or contributed code. 'assembly' here only means the AssemblyAI provider, and a search of packages/voice-stt for checkpoint, subagent, mutator and plugin found zero matches.",
+      "techniques": [],
+      "absenceTerms": [
+        "checkpoint",
+        "subagent",
+        "mutator",
+        "plugin"
+      ]
+    },
+    {
+      "context": "voice-interview-components",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_components/voice/VoiceInterview.tsx:743 The browser hosts the realtime model's director tool calls. When the director cannot be reached, it answers in the tool's place with a fixed string that is designed to be indistinguishable from the server's own result, so neither the model nor the record learns that the call never executed.",
+      "techniques": [
+        {
+          "technique": "substituted-result-attribution",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:743 The fallback answers without entering the continuation (the director). Its result does not name the producer, and director-channel.ts:38 states it MUST read like the server's own result because the model cannot tell them apart. The director never sees the call, so the record has no entry for it either."
+        }
+      ],
+      "registryProposal": "The technique assumes the model should be told a result was substituted. This repo deliberately hides the substitution from the model so a spoken interview doesn't derail, which suggests the 'tell the model' channel needs a carve-out for real-time voice. The record and operator channels would still owe the marking."
+    },
+    {
+      "context": "candidate-apply-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/intake/[id]/message/route.ts:99 Each intake route admits one model exchange (a Python spawn through app/_lib/intake-run.ts) and persists its result with a compare-and-swap, so there is no hook chain, no contributed code and no multi-call loop. A search of app/api/apply and app/api/intake for checkpoint, subagent, mutator and plugin found zero matches.",
+      "techniques": [
+        {
+          "technique": "additive-input-at-the-call-boundary",
+          "verdict": "not-applicable",
+          "evidence": "app/api/intake/[id]/message/route.ts:179 A unit is one model call with no mid-unit boundary to inject at. A concurrent message is refused by the CAS (INTAKE_BRIEF_MOVED) rather than joined or promoted."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/intake/[id]/message/route.ts:171 The conversation is stored as one full transcript array per row. There is no graph-engine checkpoint store, no delta mode and no fork to custody."
+        }
+      ],
+      "absenceTerms": [
+        "checkpoint",
+        "subagent",
+        "mutator",
+        "plugin"
+      ],
+      "registryProposal": "additive-input-at-the-call-boundary does not say what a single-call dialog unit should do with a second input that arrives while the first call is in flight: refusing it through optimistic concurrency, as here, versus queueing it as the next unit ('complete and promote')."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "workspace-config-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The technique anchor app/api/tasks/[id]/retry/route.ts:42 is only a comment about a 'crash-interrupted row' and does not show 'interrupted' as a first-class status separate from 'failed'. The 'interrupted' assignments are in app/_lib/tasks.ts, outside this context. The golden-path boundary 'the job "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T03:17:22.945376+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "indeterminate-closure-on-interruption"
+      ],
+      "deviations": 0,
+      "context": "voice-interview-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T03:17:22.945376+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "indeterminate-closure-on-interruption"
+      ],
+      "deviations": 0,
+      "context": "workspace-config-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T03:17:22.945376+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "voice-stt-package",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T03:17:22.945376+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "substituted-result-attribution"
+      ],
+      "deviations": 1,
+      "context": "voice-interview-components",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T03:17:22.945376+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "additive-input-at-the-call-boundary",
+        "checkpoint-mode-custody"
+      ],
+      "deviations": 0,
+      "context": "candidate-apply-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

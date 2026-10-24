@@ -33115,12 +33115,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/interview/connect/route.ts:83 Grep of app/api/interview/ for assembly, checkpoint, mutator, subagent, and extension returned zero matches, as this route suite acts as an HTTP credential-minting and session-lifecycle gateway for browser-to-provider WebRTC calls rather than an in-process agent runtime assembly.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
-          "evaluatedRevision": 27,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/api/interview/connect/route.ts:82 The listed routes mint provider credentials, gate the session lifecycle (single-live, revoke, expiry) and store transcripts while the browser talks to the provider directly. They hold no hook chain, no contributed code and no in-process loop, and a search of app/api/interview for checkpoint, subagent, mutator and plugin found zero matches.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -33350,13 +33349,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "not-applicable",
-          "evidence": "app/_components/voice/VoiceInterview.tsx:30 A search of app/_components/voice/ for agent runtime assembly constructs confirmed that all hooks are React component hooks and data-channel transport callbacks, as this module implements the client-side browser WebRTC/audio UI rather than an in-process agent runtime.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
-          "evaluatedRevision": 27,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:743 The browser hosts the realtime model's director tool calls. When the director cannot be reached, it answers in the tool's place with a fixed string that is designed to be indistinguishable from the server's own result, so neither the model nor the record learns that the call never executed.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 1
         },
         {
           "subject": "talking-avatar",
@@ -33764,12 +33762,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "packages/voice-stt/package.json:5 A search across packages/voice-stt/ for agent runtime assembly constructs confirmed that 'assembly' refers only to AssemblyAI and 'hook' only to the useStt React browser binding, as this standalone library provides speech-to-text transcription rather than an LLM agent assembly.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
-          "evaluatedRevision": 27,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-stt/package.json:5 This is a standalone speech-to-text adapter library with no model loop, tool calls, hooks or contributed code. 'assembly' here only means the AssemblyAI provider, and a search of packages/voice-stt for checkpoint, subagent, mutator and plugin found zero matches.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 1
         },
         {
           "subject": "self-describing-model-packages",
@@ -34252,11 +34249,7 @@
           "confidence": "strong",
           "state": "not-applicable",
           "evidence": "app/api/tasks/route.ts:23 A search across workspace configuration routes for agent runtime assembly constructs found zero occurrences; this API suite exposes background task job tracking and tenant settings rather than an LLM agent execution assembly.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
-          "evaluatedRevision": 27,
-          "revisionsBehind": 1,
-          "stale": true
+          "evaluatedAt": "2026-10-13"
         },
         {
           "subject": "prompt-assembly",
