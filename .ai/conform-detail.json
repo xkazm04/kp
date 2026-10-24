@@ -12858,39 +12858,50 @@
       "subject": "silver-medalist-rediscovery",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T02:34:11.655Z",
-      "worker": "ef5188f2-2fc4-42a9-8148-298802e5b3ef",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:16:18.181Z",
+      "worker": "784ee38e-adb1-46e6-ab3b-12a5a3640c18",
       "techniques": [
-        {
-          "technique": "band-limited-prior-depth-boost",
-          "verdict": "deviation",
-          "evidence": "app/_lib/rediscovery-rank.ts:41 The boost is capped, but depends only on stage; older assessments receive the same boost as recent ones, contrary to the ageing rule."
-        },
         {
           "technique": "disclose-how-far-they-got-last-time",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/automation.py:1234 Tracing postReachOut through the outreach route and automation runner reaches this generic draft; no prior role, date, stage or outcome is supplied."
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:256 Only a source tag is sent; no role, date, stage or outcome reaches the draft. pipeline/jobfit/automation.py draft_outreach writes a cold first-contact letter."
+        },
+        {
+          "technique": "band-limited-prior-depth-boost",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsRediscoveryFeedRow.tsx:80 The boost is shown to the recruiter as a named, localized 'reached {stage}' reason whenever depth > 0, rather than folded into the score."
+        },
+        {
+          "technique": "read-time-relevance-refilter",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsRediscoverPanel.tsx:229 The panel shows how many eligible people the result cap dropped. Gap: jobsRediscoverySweepNote's SweepBody ignores the route's `truncated` count, so a deferred-role sweep is not disclosed in the feed."
+        },
+        {
+          "technique": "person-level-consent-collapse",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:266 The gate's refusal is shown explicitly, with its reason, and is never shown as a send. The collapse itself is server-side."
         },
         {
           "technique": "fit-floor-for-readmission",
           "verdict": "deviation",
-          "evidence": "app/_lib/rediscovery-alert-store.ts:133 Current-role scoring and the shared numeric floor exist, but persisted matches do not record which floor value admitted them, as the standard requires."
-        },
-        {
-          "technique": "person-level-consent-collapse",
-          "verdict": "deviation",
-          "evidence": "app/_lib/rediscovery-alert-store.ts:466 Grants union and anonymisation dominates, but a missing-table consent lookup returns no suppressions instead of failing closed and logging the refusal."
+          "evidence": "app/_lib/rediscovery-alert-store.ts:133 Current-role scoring and the shared numeric floor exist, but persisted matches do not record which floor value admitted them, as the standard requires.",
+          "carriedFrom": "2026-10-18"
         },
         {
           "technique": "prior-outcome-taxonomy",
           "verdict": "deviation",
-          "evidence": "app/_lib/rediscover.ts:114 Active and hired people in another role can qualify as elsewhere priors, although the standard excludes both populations."
-        },
+          "evidence": "app/_lib/rediscover.ts:114 Active and hired people in another role can qualify as elsewhere priors, although the standard excludes both populations.",
+          "carriedFrom": "2026-10-18"
+        }
+      ],
+      "superseded": [
         {
-          "technique": "read-time-relevance-refilter",
-          "verdict": "deviation",
-          "evidence": "app/_lib/rediscovery-relevance.ts:18 The feed checks publication and target-role pipeline presence, alongside a separate consent gate, but does not reassess current fit or exclude activity and hires elsewhere."
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:251 The feed's reach-out action ultimately uses a first-contact draft without prior-process facts, preventing the required rediscovery disclosure.",
+          "evaluatedAt": "2026-10-18T02:34:11.655Z",
+          "worker": "ef5188f2-2fc4-42a9-8148-298802e5b3ef",
+          "reason": "replaced by 784ee38e-adb1-46e6-ab3b-12a5a3640c18"
         }
       ]
     },
@@ -12899,41 +12910,60 @@
       "subject": "silver-medalist-rediscovery",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T02:34:11.655Z",
-      "worker": "ef5188f2-2fc4-42a9-8148-298802e5b3ef",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:16:18.181Z",
       "techniques": [
+        {
+          "technique": "read-time-relevance-refilter",
+          "verdict": "deviation",
+          "evidence": "app/api/rediscovery/alerts/route.ts:29 Positives: the read is filtered at render time, and the POST returns `truncated` and `failedJobs` (:84). The refilter predicate it serves misses hire/active-elsewhere and fit re-checks."
+        },
         {
           "technique": "band-limited-prior-depth-boost",
           "verdict": "deviation",
-          "evidence": "app/_lib/rediscover.ts:91 The alerts sweep uses bounded stage-based boosts without any prior-assessment age input, so the required ageing is absent."
+          "evidence": "app/_lib/rediscover.ts:91 The alerts sweep uses bounded stage-based boosts without any prior-assessment age input, so the required ageing is absent.",
+          "carriedFrom": "2026-10-18"
         },
         {
           "technique": "disclose-how-far-they-got-last-time",
           "verdict": "not-applicable",
-          "evidence": "app/api/rediscovery/alerts/route.ts:84 These routes return rankings, reasoning, registry data and alerts; they do not compose or send a candidate's first re-approach message."
+          "evidence": "app/api/rediscovery/alerts/route.ts:84 These routes return rankings, reasoning, registry data and alerts; they do not compose or send a candidate's first re-approach message.",
+          "carriedFrom": "2026-10-18"
         },
         {
           "technique": "fit-floor-for-readmission",
           "verdict": "deviation",
-          "evidence": "app/_lib/rediscovery-alert-store.ts:134 The sweep applies the shared floor before boosting, but its persisted alert values omit the admission floor required for historical explanation."
+          "evidence": "app/_lib/rediscovery-alert-store.ts:134 The sweep applies the shared floor before boosting, but its persisted alert values omit the admission floor required for historical explanation.",
+          "carriedFrom": "2026-10-18"
         },
         {
           "technique": "person-level-consent-collapse",
           "verdict": "deviation",
-          "evidence": "app/_lib/outreach-state-store.ts:135 The alerts gate aggregates opt-outs across candidate entries, but this missing-table lookup exception returns an empty opt-out set instead of withholding candidates."
+          "evidence": "app/_lib/outreach-state-store.ts:135 The alerts gate aggregates opt-outs across candidate entries, but this missing-table lookup exception returns an empty opt-out set instead of withholding candidates.",
+          "carriedFrom": "2026-10-18"
         },
         {
           "technique": "prior-outcome-taxonomy",
           "verdict": "deviation",
-          "evidence": "app/_lib/rediscover.ts:106 Any other-role rejection qualifies without checking that assessment occurred, so pre-assessment screen-outs are not structurally excluded."
-        },
-        {
-          "technique": "read-time-relevance-refilter",
-          "verdict": "deviation",
-          "evidence": "app/_lib/rediscover.ts:324 The live read filters stored alerts by role, pipeline presence and consent, but does not recompute fit against an edited brief or enforce a read-time age horizon."
+          "evidence": "app/_lib/rediscover.ts:106 Any other-role rejection qualifies without checking that assessment occurred, so pre-assessment screen-outs are not structurally excluded.",
+          "carriedFrom": "2026-10-18"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
+          "evaluatedAt": "2026-10-18T02:34:11.655Z",
+          "worker": "ef5188f2-2fc4-42a9-8148-298802e5b3ef",
+          "reason": "replaced by 784ee38e-adb1-46e6-ab3b-12a5a3640c18"
+        }
+      ],
+      "withdrawn": {
+        "worker": "784ee38e-adb1-46e6-ab3b-12a5a3640c18",
+        "state": "deviation",
+        "at": "2026-10-24T21:17:27.047127+00:00",
+        "reason": "reviewer (sonnet): The cited route does gate on consent and publish state. `filterRelevantAlerts` deliberately leaves out the active-elsewhere check (its doc comment says so). The fit-floor re-check does exist, in the POST sweep's `reconcileRediscoveryAlerts`, which retracts alerts. I could not find the 'refilter rule"
+      }
     },
     "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/test-input-generation": {
       "context": "pipeline-move-bulk-operations",

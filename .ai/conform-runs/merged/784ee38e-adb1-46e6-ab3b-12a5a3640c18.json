@@ -1,0 +1,84 @@
+{
+  "schema": "conform-run/1",
+  "worker": "784ee38e-adb1-46e6-ab3b-12a5a3640c18",
+  "subject": "silver-medalist-rediscovery",
+  "evaluatedAt": "2026-10-24T21:16:18.181247+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "jobs-rediscovery",
+      "subject": "silver-medalist-rediscovery",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:251 The feed's Reach out posts only id, label, archetype, score and source:'rediscovery'. No prior facts are sent, and the outreach route drafts with the generic draft_outreach ('first-contact ... inviting this candidate to apply'), so the candidate's first message never says how far they got last time.",
+      "techniques": [
+        {
+          "technique": "disclose-how-far-they-got-last-time",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:256 Only a source tag is sent; no role, date, stage or outcome reaches the draft. pipeline/jobfit/automation.py draft_outreach writes a cold first-contact letter."
+        },
+        {
+          "technique": "band-limited-prior-depth-boost",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsRediscoveryFeedRow.tsx:80 The boost is shown to the recruiter as a named, localized 'reached {stage}' reason whenever depth > 0, rather than folded into the score."
+        },
+        {
+          "technique": "read-time-relevance-refilter",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsRediscoverPanel.tsx:229 The panel shows how many eligible people the result cap dropped. Gap: jobsRediscoverySweepNote's SweepBody ignores the route's `truncated` count, so a deferred-role sweep is not disclosed in the feed."
+        },
+        {
+          "technique": "person-level-consent-collapse",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:266 The gate's refusal is shown explicitly, with its reason, and is never shown as a send. The collapse itself is server-side."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "silver-medalist-rediscovery",
+      "context": "candidate-rediscovery",
+      "reason": "evidence leans on db/pipeline.ts, which is not a tracked file"
+    },
+    {
+      "subject": "silver-medalist-rediscovery",
+      "context": "candidate-matching-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The cited route does gate on consent and publish state. `filterRelevantAlerts` deliberately leaves out the active-elsewhere check (its doc comment says so). The fit-floor re-check does exist, in the POST sweep's `reconcileRediscoveryAlerts`, which retracts alerts. I could not find the 'refilter rule"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T21:16:18.181247+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "silver-medalist-rediscovery"
+      ],
+      "techniques": [
+        "band-limited-prior-depth-boost",
+        "disclose-how-far-they-got-last-time",
+        "person-level-consent-collapse",
+        "read-time-relevance-refilter"
+      ],
+      "deviations": 1,
+      "context": "jobs-rediscovery",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T21:16:18.181247+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "silver-medalist-rediscovery"
+      ],
+      "techniques": [
+        "read-time-relevance-refilter"
+      ],
+      "deviations": 1,
+      "context": "candidate-matching-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

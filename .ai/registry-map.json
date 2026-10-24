@@ -7317,11 +7317,7 @@
           "confidence": "strong",
           "state": "deviation",
           "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:02b33939b6fbed96",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evaluatedAt": "2026-10-18"
         },
         {
           "subject": "eval-harness",
@@ -20017,12 +20013,11 @@
           "changedAt": "2026-10-21",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:251 The feed's reach-out action ultimately uses a first-contact draft without prior-process facts, preventing the required rediscovery disclosure.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:02b33939b6fbed96",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:251 The feed's Reach out posts only id, label, archetype, score and source:'rediscovery'. No prior facts are sent, and the outreach route drafts with the generic draft_outreach ('first-contact ... inviting this candidate to apply'), so the candidate's first message never says how far they got last time.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:97a511057c0bde11",
+          "evaluatedRevision": 2,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-memory",
