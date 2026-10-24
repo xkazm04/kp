@@ -5321,22 +5321,17 @@
       "context": "analytics-metrics",
       "subject": "table",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T00:32:59.670Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:16:10.726Z",
+      "worker": "3941e532-4f16-4b7c-b201-51be5c092cff",
       "techniques": [
         {
           "technique": "export-escapes-for-its-consumer",
           "verdict": "deviation",
-          "evidence": "app/_lib/export-utils.ts:17 The encoder used by funnelCsvRows exports omits leading LF and full-width formula symbols; its string guard also lacks the required signed-number and formatted-phone exemptions."
+          "evidence": "app/_lib/export-utils.ts:17 One shared encoder, guard applied before quoting, typed numbers exempt: all good. But the trigger set has no \\n and no full-width forms, and text that looks like a signed number or a phone number gets prefixed. analyticsFunnelCsv.test.ts only checks a leading '='."
         }
-      ],
-      "withdrawn": {
-        "worker": "95d463f0-a56d-418b-828e-a6ffd4ba75a6",
-        "state": "deviation",
-        "at": "2026-10-15T00:33:48.627565+00:00",
-        "reason": "reviewer (sonnet): toCsv in export-utils.ts does lack leading LF and full-width triggers, but funnelCsvRows emits only translated enum stage labels, numbers, percent strings, an em dash and provenance values, so I could not confirm any operator-supplied text reaches this export."
-      }
+      ]
     },
     "6e4380dc-8992-4f22-8017-d42ce053a5ca/comparative-shortlist-evaluation": {
       "context": "jobs-candidates-compare",
@@ -17896,6 +17891,119 @@
         }
       ],
       "registryProposal": "reading-is-not-running could name agent CLIs explicitly: running a coding agent with cwd inside a cloned tree loads that tree's project settings and hooks by default, which is the 'rules that travel with the tree' sighting in its most common current form. The decision rule would be to isolate setting sources, or disable project hooks, for any agent session over a tree the operator did not write."
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/table": {
+      "context": "analytics-dashboard",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:16:10.726Z",
+      "worker": "3941e532-4f16-4b7c-b201-51be5c092cff",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:51 Applying a client filter per keystroke means the count must be announced (SC 4.1.3). ColumnFilter has no aria-live either. Export does read the applied rows, which is correct."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:516 There is no immutable identity term, so roles tied on both keys keep map-insertion order. Which roles survive the BY_JOB_CAP=12 cut is then decided by accident."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:37 This is the legitimate labelled hybrid: find within the loaded rows, the count says 'shown of loaded', and a no-match hands the query off to the board."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:53 The server cap is stated with its true total, plus a way out to the hidden roles."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:151 The chrome renders first. The placeholder is delayed and invisible, the error is a separate role=alert with retry, and a refresh keeps the existing data on screen."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:107 A native named table with at most 12 rows and links in the cells. No grid is needed."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:65 Job titles from the roles export go through the shared encoder, whose trigger set leaves out LF and the full-width forms (see notes)."
+        }
+      ]
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/table": {
+      "context": "cv-analyze-workspace",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:16:10.726Z",
+      "worker": "3941e532-4f16-4b7c-b201-51be5c092cff",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 All-server free text committed by debounce. Latest-wins generation tokens, losers' failures being dropped, and one-action clearAll (line 150) are all correct."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:161 A filter change should clear to empty-loading. Here the rows from the abandoned predicate stay visible. The first-load reveal-quiet hold (line 186) and the typed empty states are correct."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:125 The keyset cursor is (created_at, slug), the next page is dropped if the query changed, and the 'showing first N' note is polite-live."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/analyses.ts:252 Total order with the unique slug as the tiebreaker, on the same tier as the cursor."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryFilterBar.tsx:102 The server filters the whole workspace before its window. The count is the server's answer and is announced."
+        }
+      ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/table": {
+      "context": "schedule-calendar-invites",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:16:10.726Z",
+      "worker": "3941e532-4f16-4b7c-b201-51be5c092cff",
+      "techniques": [
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:117 Same for today and closed. schedule-store.ts:383 also ends on created_at DESC, not on an id."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleTab.tsx:203 The hold before settle is invisible for 150ms. The error is a separate alert, and the empty relay only renders once entries have settled."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx:97 The agenda read is capped at 200, and the cut is announced as a status message instead of silently dropping rows."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleCalendar.tsx:174 A native table role with mostly read-only cells, and a few chip buttons in the tab order. Fine for a sparse week grid."
+        }
+      ]
     }
   }
 }

@@ -3596,7 +3596,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:51 The by-role quick-find re-filters rows on every keystroke, but its result count is a plain paragraph with no status role or live region, so the change is silent to screen-reader users. The server-side role ranking also has no identity tiebreaker.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "settings",
@@ -3782,7 +3786,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/export-utils.ts:17 The funnel and reliability CSVs in this context go through the shared toCsv encoder. Its formula guard leaves out the line feed and the full-width ＝＋－＠ forms that the technique's trigger set names, and it has no strict-numeric or phone-shape exemption for text cells.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "delivery-analytics",
@@ -9887,7 +9895,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 History search commits a server round trip on a 250ms debounce instead of an explicit submit. A filter change also leaves the previous predicate's rows on screen until the new answer arrives.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -27939,7 +27951,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:117 Agenda buckets sort by slot time with no identity tiebreaker, and the server order behind them breaks ties by created_at, a timestamp. Invites sharing a slot therefore have no total order.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "candidate-self-scheduling",

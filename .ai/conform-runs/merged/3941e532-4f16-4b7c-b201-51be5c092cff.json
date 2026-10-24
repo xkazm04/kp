@@ -1,0 +1,255 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3941e532-4f16-4b7c-b201-51be5c092cff",
+ "subject": "table",
+ "evaluatedAt": "2026-10-24T05:16:10.726866+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "analytics-metrics",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/export-utils.ts:17 The funnel and reliability CSVs in this context go through the shared toCsv encoder. Its formula guard leaves out the line feed and the full-width \uff1d\uff0b\uff0d\uff20 forms that the technique's trigger set names, and it has no strict-numeric or phone-shape exemption for text cells.",
+   "techniques": [
+    {
+     "technique": "export-escapes-for-its-consumer",
+     "verdict": "deviation",
+     "evidence": "app/_lib/export-utils.ts:17 One shared encoder, guard applied before quoting, typed numbers exempt: all good. But the trigger set has no \\n and no full-width forms, and text that looks like a signed number or a phone number gets prefixed. analyticsFunnelCsv.test.ts only checks a leading '='."
+    }
+   ]
+  },
+  {
+   "context": "devcase-workspace",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/useDevTabData.ts:48 The free-text title filter commits to a server round trip after a 250ms debounce instead of on an explicit act, and the rows enter with an index-scaled stagger that also replays on load-more.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/useDevTabData.ts:48 This is all-server (GET /api/devcase), so the technique wants an explicit commit for free text. The debounce is the guess it names. The window does reset on a filter change (line 56), and there is no single clear-all control."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevCasesTable.tsx:157 The entrance delay is positional and has no cap. After load-more raises the limit to 150 or 500, newly mounted rows wait 1.5\u201315s to appear, and the cascade is not tied to the first-load edge. The invisible hold before the first settle (line 70) and the typed empty states are correct."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/casesPage.ts:20 The store owns filter and window together. Facets come from the whole workspace."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/api/devcase/route.ts:69 Fetches limit+1 to learn hasMore, and the table states the cut as 'most recent N'."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/devcase-ledger.ts:163 The default sort is total, with row identity as the tiebreaker, on the same tier as the window."
+    }
+   ]
+  },
+  {
+   "context": "analytics-dashboard",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:51 The by-role quick-find re-filters rows on every keystroke, but its result count is a plain paragraph with no status role or live region, so the change is silent to screen-reader users. The server-side role ranking also has no identity tiebreaker.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:51 Applying a client filter per keystroke means the count must be announced (SC 4.1.3). ColumnFilter has no aria-live either. Export does read the applied rows, which is correct."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:516 There is no immutable identity term, so roles tied on both keys keep map-insertion order. Which roles survive the BY_JOB_CAP=12 cut is then decided by accident."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:37 This is the legitimate labelled hybrid: find within the loaded rows, the count says 'shown of loaded', and a no-match hands the query off to the board."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:53 The server cap is stated with its true total, plus a way out to the hidden roles."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:151 The chrome renders first. The placeholder is delayed and invisible, the error is a separate role=alert with retry, and a refresh keeps the existing data on screen."
+    },
+    {
+     "technique": "grid-keyboard-model",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:107 A native named table with at most 12 rows and links in the cells. No grid is needed."
+    },
+    {
+     "technique": "export-escapes-for-its-consumer",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:65 Job titles from the roles export go through the shared encoder, whose trigger set leaves out LF and the full-width forms (see notes)."
+    }
+   ]
+  },
+  {
+   "context": "cv-analyze-workspace",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 History search commits a server round trip on a 250ms debounce instead of an explicit submit. A filter change also leaves the previous predicate's rows on screen until the new answer arrives.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 All-server free text committed by debounce. Latest-wins generation tokens, losers' failures being dropped, and one-action clearAll (line 150) are all correct."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:161 A filter change should clear to empty-loading. Here the rows from the abandoned predicate stay visible. The first-load reveal-quiet hold (line 186) and the typed empty states are correct."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:125 The keyset cursor is (created_at, slug), the next page is dropped if the query changed, and the 'showing first N' note is polite-live."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/analyses.ts:252 Total order with the unique slug as the tiebreaker, on the same tier as the cursor."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/history/HistoryFilterBar.tsx:102 The server filters the whole workspace before its window. The count is the server's answer and is announced."
+    }
+   ]
+  },
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:117 Agenda buckets sort by slot time with no identity tiebreaker, and the server order behind them breaks ties by created_at, a timestamp. Invites sharing a slot therefore have no total order.",
+   "techniques": [
+    {
+     "technique": "sorting",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:117 Same for today and closed. schedule-store.ts:383 also ends on created_at DESC, not on an id."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleTab.tsx:203 The hold before settle is invisible for 150ms. The error is a separate alert, and the empty relay only renders once entries have settled."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx:97 The agenda read is capped at 200, and the cut is announced as a status message instead of silently dropping rows."
+    },
+    {
+     "technique": "grid-keyboard-model",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleCalendar.tsx:174 A native table role with mostly read-only cells, and a few chip buttons in the tab order. Fine for a sparse week grid."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:16:10.726866+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "export-escapes-for-its-consumer"
+   ],
+   "deviations": 1,
+   "context": "analytics-metrics",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:16:10.726866+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "filtering",
+    "loading-and-empty-states",
+    "pagination",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "devcase-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:16:10.726866+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "export-escapes-for-its-consumer",
+    "filtering",
+    "grid-keyboard-model",
+    "loading-and-empty-states",
+    "pagination",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:16:10.726866+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "filtering",
+    "loading-and-empty-states",
+    "pagination",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "cv-analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:16:10.726866+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "grid-keyboard-model",
+    "loading-and-empty-states",
+    "pagination",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
