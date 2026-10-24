@@ -7947,35 +7947,35 @@
       "subject": "optional-dependency-degradation",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T04:30:52.001Z",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:11:20.083Z",
       "techniques": [
         {
           "technique": "absent-degrades-malformed-fails-fast",
           "verdict": "deviation",
-          "evidence": "app/_lib/offline.ts:58 Catches parse errors on malformed endpoint URLs and returns null, degrading malformed configurations instead of failing fast."
-        },
-        {
-          "technique": "guarded-singleton-accessor",
-          "verdict": "deviation",
-          "evidence": "app/_lib/llm-config.ts:275 Returns undefined for unconfigured keys rather than throwing a typed exception, allowing callers to proceed without handling absent configuration."
+          "evidence": "app/_lib/offline.ts:15 Boolean switch: an unrecognised present value takes the default (online) instead of failing at boot. offline.test.ts:9 only tests recognised falsey spellings; no test for the typo."
         },
         {
           "technique": "misconfiguration-never-reaches-a-fallback",
           "verdict": "conformant",
-          "evidence": "app/_lib/provider-key-precedence.ts:50 Configured stored keys that cannot be decrypted propagate errors loudly rather than silently falling back to lower-priority environment keys."
+          "evidence": "app/_lib/provider-key-precedence.ts:59 If a stored BYOM/platform row won't decrypt, decrypt() throws. It never falls through to the env-var key, so a bad KP_SECRET can't land on a fallback credential (also llm-config.ts buildLlmConfigEnv docs)."
         },
         {
           "technique": "probe-the-grant-not-the-config",
           "verdict": "conformant",
-          "evidence": "app/_lib/llm-config.ts:403 Builds an isolated probe environment with empty useCases and only the probed provider key to verify the specific grant directly."
+          "evidence": "app/_lib/llm-config.ts:403 The Test button probes exactly the (provider, scope) row and its baseUrl, not the precedence-resolved config, so a green test is about the credential that will actually be called."
+        },
+        {
+          "technique": "guarded-singleton-accessor",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-secret.ts:45 The master key is resolved at first use and throws a named error when absent; nothing is built at module scope. Not memoised, but it is a cheap hash, so no poisoned cell. LightTrack (llm-lighttrack.ts:112) is the exempted telemetry no-op sink."
         }
       ],
       "withdrawn": {
-        "worker": "5057e0f7-4922-4d08-b918-05546829dc89",
+        "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
         "state": "deviation",
-        "at": "2026-10-16T04:31:13.047911+00:00",
-        "reason": "reviewer (sonnet): The deviation rests on hostOf in app/_lib/offline.ts, which is not among the context's llm-* files. It is also the wrong target: hostOf only builds an offline-mode allowlist, and its doc comment says a malformed value 'simply fails to widen the allowlist rather than throwing', so it fails closed. It"
+        "at": "2026-10-24T22:12:40.513088+00:00",
+        "reason": "reviewer (sonnet): The deviation anchor app/_lib/offline.ts:15 (KP_OFFLINE parsing) is not among the context's 12 paths in .ai/registry-map.json, which are llm-config.ts, llm-*.test.ts, llm-lighttrack, llm-model-defaults, llm-quality*. provider-key-precedence.ts and llm-secret.ts are also outside it. The line does say"
       }
     },
     "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/plan-entitlements": {
@@ -18499,6 +18499,84 @@
         "state": "deviation",
         "at": "2026-10-24T21:57:29.743818+00:00",
         "reason": "reviewer (sonnet): The anchor and both technique anchors are in app/_lib/db/companion.ts, the companion store. That file is not among this context's files (users, workspaces, organizations, memberships, org-benchmarks, channels), and none of them call it. The code facts do check out (createProposal has no caller and t"
+      }
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/optional-dependency-degradation": {
+      "context": "db-core-migrations",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:11:20.083Z",
+      "techniques": [
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-gate.ts:5 The switch's parse failure returns the default. Low blast radius (the default is the blank DB plus the first-run choice), but it is literally the idiom the technique names."
+        },
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:290 Configuration errors out of openStore() (unknown KP_DB_BACKEND, Postgres URL) keep their own message and stop boot. They are not relabelled or degraded. db-path-backend.test.ts pins the absent → sqlite branch."
+        },
+        {
+          "technique": "guarded-singleton-accessor",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:310 Lazy memoised connection, opened on first ensureDb() and never at module load. The memo is set (core.ts:3041) only after the quick_check, migrations and assertTenancyReady pass, so a failed boot is not cached."
+        }
+      ],
+      "withdrawn": {
+        "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
+        "state": "deviation",
+        "at": "2026-10-24T22:12:40.595957+00:00",
+        "reason": "reviewer (sonnet): The deviation anchor app/_lib/db/seed-gate.ts:5 is not among the context's paths, which are core.ts, the core-*/db-path/pg-portability/rollback tests, and pg-portability.ts. The seed-gate truthy() parsing is real, but the verdict belongs to another context."
+      }
+    },
+    "3becf910-9c37-4542-a1b9-a176f76c72d1/optional-dependency-degradation": {
+      "context": "group-eval-shared",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:11:20.083Z",
+      "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
+      "techniques": [
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:65 Malformed persisted DATA degrading to an honest 'could not assess' is data validation (error-handling / failure-not-empty-success), not a configuration value."
+        }
+      ]
+    },
+    "3f292c0f-e802-49de-8c2e-46bf992416d7/optional-dependency-degradation": {
+      "context": "setup-studio",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:11:20.083Z",
+      "techniques": [
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/server.mjs:513 Parse failure → default, and no provenance carried into listen(), so a supplied port also gets the +1 retry at line 463. The printed URL softens the effect but does not name the ignored value."
+        },
+        {
+          "technique": "capability-honest-refusal",
+          "verdict": "conformant",
+          "evidence": "app/features/setup-studio/useWizardSession.ts:642 Separates a denial from an outage at the call that observed it: a readable 403 becomes 'denied' (bad link, not worth retrying), and a thrown fetch becomes 'absent' (installer gone), so a dead session no longer renders as a live shell."
+        },
+        {
+          "technique": "probe-the-grant-not-the-config",
+          "verdict": "conformant",
+          "evidence": "scripts/onboard-ui/engine.mjs:855 The assessment phase makes each group's verify probe conditional on the service actually answering, treating a configured variable as wiring only. The rule lives in the engine's agent brief, and the model executes the probe."
+        }
+      ],
+      "withdrawn": {
+        "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
+        "state": "deviation",
+        "at": "2026-10-24T22:12:40.680794+00:00",
+        "reason": "reviewer (sonnet): The deviation anchors scripts/onboard-ui/server.mjs and engine.mjs are not among the context's paths, which are app/features/setup-studio/*.ts(x) and app/setup/studio/page.tsx. The KP_ONBOARD_PORT parse and the +1 retry in listen() are real, but they belong to the onboard-ui script, not this context"
       }
     }
   }

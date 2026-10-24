@@ -15828,7 +15828,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalArm.ts:14 The context holds pure types, a URL-param grammar (\"arm\" is a list of candidate ids, not a provider/arm roster from config) and a validator for a stored fairness data blob. It reads no environment and configures no external dependency, and a grep of app/features/shared for process.env, API_KEY, NOT_CONFIGURED and isConfigured returned no hits.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         },
         {
           "subject": "test-harness",
