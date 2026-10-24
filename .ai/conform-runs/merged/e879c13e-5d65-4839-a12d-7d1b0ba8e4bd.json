@@ -1,0 +1,195 @@
+{
+  "schema": "conform-run/1",
+  "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+  "subject": "companion-identity",
+  "evaluatedAt": "2026-10-24T22:50:08.342230+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "shell-companion",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/shell/companion/CompanionDockBody.tsx:189 The dock decides whether an answer 'was written to memory' from the index-lane skip list, not from whether the episode document landed. append_episode records the optional Personas lane as skipped whenever the desktop app's DB is absent, which the docs call normal, so on a kp-only install every turn prints 'This answer was not written to memory.' even though the markdown episode and the brain-local index (the only lane recall reads) were both written.",
+      "techniques": [
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:189 The check on the self reads index-lane status, not the document. Any skipped optional lane (the Personas DB absent, which companion_brain.py raises as FileNotFoundError into `skipped`) is shown as a memory-write failure."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:232 Memoryless mode is stated in one quiet line from its own payload field (memoryEnabled), and the line names where the switch is ('turn it on in setup')."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/CompanionDockProvider.tsx:47 Dock, voice strip and control-dock input share one thread created above them, so no surface owns a private conversation store."
+        },
+        {
+          "technique": "anchored-identity-diffs",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/companion/CompanionProposalCard.tsx:16 Proposal cards carry world actions from the catalog, not self-model edits. Searching the repo found no write path to identity.md other than ensure_brain's seed skeleton."
+        }
+      ]
+    },
+    {
+      "context": "agents-api",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:140 When an accepted companion action fails, the route puts the proposal back to open and leaves only a server log line. A broken capability therefore leaves no durable evidence and cannot be told apart from one never tried, and no ledger anywhere tracks working, broken and unexercised per catalog action.",
+      "techniques": [
+        {
+          "technique": "capability-exercise-ledger",
+          "verdict": "deviation",
+          "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:140 The executor is the one place real exercises happen. Success is stamped per proposal and failure is erased back to 'open', so 'when did it stop' cannot be answered and there is no three-state record."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "app/api/companion/brain/route.ts:78 The disk is re-probed at execution, birth runs before the consent stamp, there is no 'decline' action (lines 29-32), and consent is recorded per workspace."
+        }
+      ]
+    },
+    {
+      "context": "tests-companion-voice",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "pipeline/jobfit/tests/test_companion_brain.py:137 The suite pins markdown-first writes and per-lane skip notes but has no rebuild-from-scratch round-trip test, because no rebuild exists. So the standard's blunt test (rebuild the index and confirm every reference resolves) has never been run, and an index-only drift would pass green.",
+      "techniques": [
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:137 Write order and lane reporting are tested. The total rebuild that the technique makes the ground-truth path is neither implemented nor tested."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:82 These tests check that the probe creates nothing, that the episode count is capped, and that a foreign constitution reads as 'personas'."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:254 A thread-tagged episode is recalled by its workspace, so the thread is provenance, not a partition. The scope is the tenant, which the technique allows."
+        },
+        {
+          "technique": "constitution-self-model-split",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:66 Pins seed-if-absent and never-overwrite for both constitution.md and identity.md. The version-bump upgrade path is not tested because it is not implemented; see notes."
+        }
+      ]
+    },
+    {
+      "context": "shell-companion-voice",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:137 Voice mode receives the thread, which carries memoryEnabled, but never reads or renders it. When the dock is in voice mode it replaces the window that holds the 'Memory off' line, so an operator speaking to a memoryless Candi is not told she will not remember.",
+      "techniques": [
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:137 The ticker gets busy, error, proposals and chrome but no memory state. A search for 'memory' over the voice/ directory finds nothing, so the memoryless mode is silent on this surface."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:42 The voice channel is a projection of the same thread (voiceHistory.ts derives entries from thread.turns) with no store of its own."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "companion-identity",
+      "context": "db-org-users-channels",
+      "reason": "withdrawn after review: reviewer (sonnet): app/_lib/db/companion.ts is mapped to the context nearest named db-jobs-devcase-interviews, not db-org-users-channels. The code claims themselves (no rebuild, upsertBrainEntry only called from a test, count-based implicit consent) are true, but they belong to another context."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T22:50:08.342230+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-identity"
+      ],
+      "techniques": [
+        "anchored-identity-diffs",
+        "brain-adoption-consent",
+        "disk-truth-db-index",
+        "one-mind-many-mouths"
+      ],
+      "deviations": 1,
+      "context": "shell-companion",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:50:08.342230+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-identity"
+      ],
+      "techniques": [
+        "brain-adoption-consent",
+        "capability-exercise-ledger"
+      ],
+      "deviations": 1,
+      "context": "agents-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:50:08.342230+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-identity"
+      ],
+      "techniques": [
+        "brain-adoption-consent",
+        "disk-truth-db-index",
+        "one-mind-many-mouths"
+      ],
+      "deviations": 1,
+      "context": "db-org-users-channels",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:50:08.342230+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-identity"
+      ],
+      "techniques": [
+        "brain-adoption-consent",
+        "constitution-self-model-split",
+        "disk-truth-db-index",
+        "one-mind-many-mouths"
+      ],
+      "deviations": 1,
+      "context": "tests-companion-voice",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:50:08.342230+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "companion-identity"
+      ],
+      "techniques": [
+        "brain-adoption-consent",
+        "one-mind-many-mouths"
+      ],
+      "deviations": 1,
+      "context": "shell-companion-voice",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

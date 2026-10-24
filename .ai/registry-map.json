@@ -29509,7 +29509,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:189 The dock decides whether an answer 'was written to memory' from the index-lane skip list, not from whether the episode document landed. append_episode records the optional Personas lane as skipped whenever the desktop app's DB is absent, which the docs call normal, so on a kp-only install every turn prints 'This answer was not written to memory.' even though the markdown episode and the brain-local index (the only lane recall reads) were both written.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "conversation-orchestration",
@@ -29684,7 +29688,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:137 Voice mode receives the thread, which carries memoryEnabled, but never reads or renders it. When the dock is in voice mode it replaces the window that holds the 'Memory off' line, so an operator speaking to a memoryless Candi is not told she will not remember.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "mcp-tools",
@@ -31860,7 +31868,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:137 The suite pins markdown-first writes and per-lane skip notes but has no rebuild-from-scratch round-trip test, because no rebuild exists. So the standard's blunt test (rebuild the index and confirm every reference resolves) has never been run, and an index-only drift would pass green.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "companion-runtime",

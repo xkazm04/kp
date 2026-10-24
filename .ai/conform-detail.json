@@ -18661,6 +18661,120 @@
           "evidence": "app/features/library/jobs/useJobsList.ts:161 No env value is read in the jobs directory; the browser reaches data only through same-origin routes."
         }
       ]
+    },
+    "3fbaa8cf-25f9-4c19-9b05-f06cd4aac151/companion-identity": {
+      "context": "shell-companion",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:50:08.342Z",
+      "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+      "techniques": [
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:189 The check on the self reads index-lane status, not the document. Any skipped optional lane (the Personas DB absent, which companion_brain.py raises as FileNotFoundError into `skipped`) is shown as a memory-write failure."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:232 Memoryless mode is stated in one quiet line from its own payload field (memoryEnabled), and the line names where the switch is ('turn it on in setup')."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/CompanionDockProvider.tsx:47 Dock, voice strip and control-dock input share one thread created above them, so no surface owns a private conversation store."
+        },
+        {
+          "technique": "anchored-identity-diffs",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/companion/CompanionProposalCard.tsx:16 Proposal cards carry world actions from the catalog, not self-model edits. Searching the repo found no write path to identity.md other than ensure_brain's seed skeleton."
+        }
+      ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/companion-identity": {
+      "context": "db-org-users-channels",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:50:08.342Z",
+      "techniques": [
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/companion.ts:568 The derived index names a rebuild that is not implemented. upsertBrainEntry is called only by a test."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/companion.ts:620 Implicit consent is keyed to kp's own workspace-tagged writes (one indexed COUNT), never to a brain merely being present."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/companion.ts:125 A proposal (unit of work) links to a conversation through a nullable reference rather than being owned by it, so digest-born work needs no invented thread."
+        }
+      ],
+      "withdrawn": {
+        "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+        "state": "deviation",
+        "at": "2026-10-24T22:51:31.924422+00:00",
+        "reason": "reviewer (sonnet): app/_lib/db/companion.ts is mapped to the context nearest named db-jobs-devcase-interviews, not db-org-users-channels. The code claims themselves (no rebuild, upsertBrainEntry only called from a test, count-based implicit consent) are true, but they belong to another context."
+      }
+    },
+    "9e9394dd-7db6-4f2a-b864-614fb416d9e9/companion-identity": {
+      "context": "tests-companion-voice",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:50:08.342Z",
+      "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+      "techniques": [
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:137 Write order and lane reporting are tested. The total rebuild that the technique makes the ground-truth path is neither implemented nor tested."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:82 These tests check that the probe creates nothing, that the episode count is capped, and that a foreign constitution reads as 'personas'."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:254 A thread-tagged episode is recalled by its workspace, so the thread is provenance, not a partition. The scope is the tenant, which the technique allows."
+        },
+        {
+          "technique": "constitution-self-model-split",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:66 Pins seed-if-absent and never-overwrite for both constitution.md and identity.md. The version-bump upgrade path is not tested because it is not implemented; see notes."
+        }
+      ]
+    },
+    "97ecbe06-1f46-4d39-8cfc-9f811d2ec98d/companion-identity": {
+      "context": "shell-companion-voice",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T22:50:08.342Z",
+      "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+      "techniques": [
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:137 The ticker gets busy, error, proposals and chrome but no memory state. A search for 'memory' over the voice/ directory finds nothing, so the memoryless mode is silent on this surface."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:42 The voice channel is a projection of the same thread (voiceHistory.ts derives entries from thread.turns) with no store of its own."
+        }
+      ]
     }
   }
 }
