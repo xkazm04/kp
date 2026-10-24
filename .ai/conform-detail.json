@@ -3252,34 +3252,44 @@
       "subject": "module-design",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T11:14:03.231Z",
-      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:47:06.040Z",
+      "worker": "e7f876de-8ef8-4017-a65a-0452f5b44df1",
       "techniques": [
         {
-          "technique": "concurrency-at-the-edge",
-          "verdict": "conformant",
-          "evidence": "app/features/hiring/decisions/decisionsLatestWins.ts:42 Stale-response coordination is represented by tickets; the gate performs no network calls or scheduling."
-        },
-        {
-          "technique": "declarative-or-sequential",
-          "verdict": "conformant",
-          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:99 Explicit event branches express the state machine directly, including notice lifetime and refusal transitions."
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 Type assertion over untrusted JSON with no stated invariant, and `parsed` leaves the module as a typed value. decisionsQueueLoad.ts:42 has the same shape (`p.entries as Entry[]` after Array.isArray only)."
         },
         {
           "technique": "io-free-core",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:98 The reducer consumes state and event values and returns state without I/O, clocks, randomness or waiting."
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:12 The wave lifecycle is a pure transition function. The hook is the driver at the edge, and the tests run it with no doubles."
         },
         {
-          "technique": "marked-unverifiable-region",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The assertion is greppable, but neither the surrounding catch nor the comments establish that every parsed value satisfies ParsedApproval."
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:98 An explicit state machine written as an exhaustive switch with a `never` default, which is the technique's sharpest case for sequential form."
         },
         {
           "technique": "module-depth",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:60 Two ordinary inputs buy tied ranking, median, comparison margin and unscored accounting without exposing the calculation procedure."
+          "evidence": "app/features/hiring/decisions/decisionsQueueLoad.ts:12 A small fold interface that hides the failure-shape decision and leaves translation with the hook."
+        },
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsLatestWins.ts:42 Stale-response coordination is represented by tickets; the gate performs no network calls or scheduling.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The approval parser asserts ParsedApproval after checking only JSON syntax, without a shape check or a written invariant establishing that type.",
+          "evaluatedAt": "2026-10-13T11:14:03.231Z",
+          "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+          "reason": "replaced by e7f876de-8ef8-4017-a65a-0452f5b44df1"
         }
       ]
     },
@@ -3288,34 +3298,50 @@
       "subject": "module-design",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T11:14:03.231Z",
-      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:47:06.040Z",
+      "worker": "e7f876de-8ef8-4017-a65a-0452f5b44df1",
       "techniques": [
         {
-          "technique": "concurrency-at-the-edge",
-          "verdict": "conformant",
-          "evidence": "app/_lib/request-body.ts:50 Racing a stream read against the whole-body deadline is the reader's policy; removing it would require recreating coordination."
-        },
-        {
-          "technique": "declarative-or-sequential",
-          "verdict": "conformant",
-          "evidence": "app/_lib/sanity-checks.ts:48 One classification pass builds two required output collections using explicit sequential code."
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/_lib/request-body.ts:118 The cast is described in the doc block, but enclosure depends on callers. The stated invariant is false for at least one caller, which falls under the technique's 'verified alternative exists' debt case. By contrast, api-response.ts:81-82 brands before it casts and states why."
         },
         {
           "technique": "io-free-core",
           "verdict": "conformant",
-          "evidence": "app/_lib/cache-key.ts:76 Cache identity is computed from supplied values; registry digests and model routing arrive as inputs rather than being fetched."
+          "evidence": "app/_lib/rate-limit.ts:44 Time is passed in as a parameter instead of being read from a clock inside the limiter."
         },
         {
-          "technique": "marked-unverifiable-region",
-          "verdict": "deviation",
-          "evidence": "app/_lib/request-body.ts:118 The null guard proves only non-nullness, not T; documented validation by callers happens after the helper has exposed the asserted type."
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "app/_lib/api-response.ts:52 The auth gate is injected, which keeps the pure response vocabulary free of the DB-backed auth layer."
         },
         {
           "technique": "module-depth",
           "verdict": "conformant",
-          "evidence": "app/_lib/api-response.ts:2177 safeJsonError takes a registered code and hides safe-message selection, error-envelope construction and server-side logging from route callers."
+          "evidence": "app/_lib/request-body.ts:90 One deep helper owns the byte cap, the timeout and the parse for twenty routes. Its only defect is the type-assertion half covered above."
+        },
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/_lib/request-body.ts:50 Racing a stream read against the whole-body deadline is the reader's policy; removing it would require recreating coordination.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/sanity-checks.ts:48 One classification pass builds two required output collections using explicit sequential code.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/request-body.ts:118 The generic body reader exposes arbitrary non-null parsed JSON as T before any shape validation, leaving the type assertion outside a checked boundary.",
+          "evaluatedAt": "2026-10-13T11:14:03.231Z",
+          "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+          "reason": "replaced by e7f876de-8ef8-4017-a65a-0452f5b44df1"
         }
       ]
     },
@@ -3324,34 +3350,50 @@
       "subject": "module-design",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T11:14:03.231Z",
-      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:47:06.040Z",
+      "worker": "e7f876de-8ef8-4017-a65a-0452f5b44df1",
       "techniques": [
         {
-          "technique": "concurrency-at-the-edge",
-          "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/registry.ts:233 The queue implements the explicit one-local-transcription-at-a-time policy; removing it would require another serialization mechanism."
-        },
-        {
-          "technique": "declarative-or-sequential",
-          "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:226 Loaded transcript rows pass through a pure map/filter transformation, with file reads before it and logging after it."
-        },
-        {
-          "technique": "io-free-core",
-          "verdict": "conformant",
-          "evidence": "packages/voice-stt/src/browser/wav-encode.ts:41 Audio arithmetic consumes constructible PCM arrays; browser decoding remains in encodeWavFromBlob outside this computational core."
-        },
-        {
-          "technique": "marked-unverifiable-region",
+          "technique": "seams-and-adapters",
           "verdict": "deviation",
-          "evidence": "packages/voice-stt/src/node/spawn.ts:69 The generic file reader asserts arbitrary JSON as T without a checked shape or a per-use invariant establishing T."
+          "evidence": "packages/voice-stt/src/registry.ts:41 Breaks the single-door rule: a path to the concern exists that does not go through the door. A grep of app/ found no host using it today."
         },
         {
           "technique": "module-depth",
           "verdict": "deviation",
-          "evidence": "packages/voice-stt/src/registry.ts:41 Returning the underlying provider makes the registry's validation, residency selection, length limits and serialization optional at the public boundary."
+          "evidence": "packages/voice-stt/src/registry.ts:169 This is the escape hatch that returns the underlying thing, which module-depth names as making the abstraction optional."
+        },
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/registry.ts:114 Serializing the local sidecars is what the module is for, so the coordination belongs inside it."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/registry.ts:131 resolve() is one pass that produces several outputs (the provider, lastGap and lastNotReady), so an explicit loop is the right form."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/browser/wav-encode.ts:41 Audio arithmetic consumes constructible PCM arrays; browser decoding remains in encodeWavFromBlob outside this computational core.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:69 The generic file reader asserts arbitrary JSON as T without a checked shape or a per-use invariant establishing T.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:41 The public get API exposes a raw registered provider whose transcribe method can bypass registry validation, allowed-provider filtering, clip limits and local serialization.",
+          "evaluatedAt": "2026-10-13T11:14:03.231Z",
+          "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+          "reason": "replaced by e7f876de-8ef8-4017-a65a-0452f5b44df1"
         }
       ]
     },
@@ -3360,34 +3402,51 @@
       "subject": "module-design",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T11:14:03.231Z",
-      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:47:06.040Z",
+      "worker": "e7f876de-8ef8-4017-a65a-0452f5b44df1",
       "techniques": [
-        {
-          "technique": "declarative-or-sequential",
-          "verdict": "conformant",
-          "evidence": "app/_lib/db/core.ts:2746 Boot uses sequential effectful statements, with schema-before-seeding and seeding-before-backfills ordering explicitly documented nearby."
-        },
         {
           "technique": "marked-unverifiable-region",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/core.ts:182 The unchecked path establishes JSON syntax but no invariant proving T, despite the same function providing a checked safeParse path."
-        },
-        {
-          "technique": "mirror-type-at-the-edge",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/db/core.ts:3017 Boot maintenance needs the connection's effectful verb, so a data mirror would not replace its required capability."
+          "evidence": "app/_lib/db/core.ts:184 The region is not enclosed (checking is opt-in) and carries no invariant. The observe-mode cast at line 196 has a written rationale; this one has none."
         },
         {
           "technique": "module-depth",
           "verdict": "conformant",
-          "evidence": "app/_lib/db/core.ts:307 One entry point provides a booted connection while hiding integrity checking, schema creation, migrations, seed ordering and maintenance."
+          "evidence": "app/_lib/db/core.ts:163 Depth is placed: the seam hides record-keeping and exposes the fail-whole vs degrade choice that callers legitimately make."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/seed-gate.ts:24 The seed decision takes its environment as a value, so it is tested without process.env doubles."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:2746 Boot uses sequential effectful statements, with schema-before-seeding and seeding-before-backfills ordering explicitly documented nearby.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "mirror-type-at-the-edge",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3017 Boot maintenance needs the connection's effectful verb, so a data mirror would not replace its required capability.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "seams-and-adapters",
           "verdict": "conformant",
-          "evidence": "app/_lib/db/core.ts:3006 The boot tail accepts a minimal connection capability plus injected prune and health operations; tests exercise fault adapters and a real SQLite boot path."
+          "evidence": "app/_lib/db/core.ts:3006 The boot tail accepts a minimal connection capability plus injected prune and health operations; tests exercise fault adapters and a real SQLite boot path.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:182 The decoder exposes an unvalidated parsed value as an ok T, making its checked validator path optional instead of enclosing the assertion.",
+          "evaluatedAt": "2026-10-13T11:14:03.231Z",
+          "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+          "reason": "replaced by e7f876de-8ef8-4017-a65a-0452f5b44df1"
         }
       ]
     },
@@ -17278,6 +17337,57 @@
         "at": "2026-10-24T02:26:57.842171+00:00",
         "reason": "reviewer (sonnet): The anchor (decisionsScreenWaveMachine.ts:98) is a reducer line that says nothing about whether an instruction file is present. The \"no file\" claim comes only from a grep, not from the cited line."
       }
+    },
+    "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/module-design": {
+      "context": "lint-quality-gates",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:47:06.040Z",
+      "worker": "e7f876de-8ef8-4017-a65a-0452f5b44df1",
+      "techniques": [
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:57 The shared half was chosen deliberately as a protocol rather than a base class, which removes the leaked duplicate ladder."
+        },
+        {
+          "technique": "locality-and-leverage",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:76 The change class is named, and the split is judged by where that change lands."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:86 The decision is a pure function. I/O (load, measure, write, log) is injected into runRatchetCli."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:97 An ordered ladder of early returns where the order is the algorithm, so sequential form is right."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:291 The one external dependency has an injectable fetch seam."
+        },
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:288 Async is confined to the API edge. evaluate, tighten and render are synchronous and pure."
+        },
+        {
+          "technique": "scoreable-designs-are-built-not-argued",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/devbench.mjs:2 Dev-performance claims are settled by one harness with per-variant committed baselines rather than by argument."
+        },
+        {
+          "technique": "host-primitive-facade",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/devbench.mjs:40 These scripts run on a single host (a Node CLI) and use the raw child_process directly. No second execution host exists, so the facade's precondition does not hold."
+        }
+      ]
     }
   }
 }

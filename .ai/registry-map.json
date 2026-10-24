@@ -10364,12 +10364,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/db/core.ts:182 The decoder exposes an unvalidated parsed value as an ok T, making its checked validator path optional instead of enclosing the assertion.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
-          "evaluatedRevision": 17,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/db/core.ts:184 readRowColumn and safeRowParse are the declared decode seam, but the validator is optional, so the common path returns unvalidated JSON as an `ok` T with no invariant at the site. Almost all of the ~160 safeRowParse call sites in app/ pass no validator (a rough grep), so the unverified population sits behind the very interface that was meant to check it.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -11782,12 +11781,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The approval parser asserts ParsedApproval after checking only JSON syntax, without a shape check or a written invariant establishing that type.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
-          "evaluatedRevision": 17,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The approval payload is asserted to be ParsedApproval after a JSON syntax check only, with no shape check and no written invariant at the site, and the result is returned as `parsed` to the card. Some fields get typeof guards afterwards, but the assertion itself is neither enclosed nor justified, so this unverifiable region fails properties 2 and 4.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18,
+          "revisionsBehind": 1
         },
         {
           "subject": "supply-chain",
@@ -21467,7 +21465,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:57 The two ratchets share one pure verdict ladder, renderer and CLI. Language-specific load, measure and write are injected, and the one intended divergence is pinned by fixtures. Each cited technique is realized here and none is violated.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "perf-instrumentation",
@@ -29101,12 +29103,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/request-body.ts:118 The generic body reader exposes arbitrary non-null parsed JSON as T before any shape validation, leaving the type assertion outside a checked boundary.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
-          "evaluatedRevision": 17,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/request-body.ts:118 readJsonWithLimit hands any non-null parsed JSON to the caller as T. The doc comment's claim that every route validates its shape is only a convention: app/api/apply/[id]/route.ts:213 reads `body.answers` as Record<string, unknown> without a shape check. So the region is enclosed by convention rather than construction, while a verified alternative (returning `unknown`) costs almost nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18,
+          "revisionsBehind": 1
         },
         {
           "subject": "browser-credential-boundary",
@@ -33857,12 +33858,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "packages/voice-stt/src/registry.ts:41 The public get API exposes a raw registered provider whose transcribe method can bypass registry validation, allowed-provider filtering, clip limits and local serialization.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
-          "evaluatedRevision": 17,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-stt/src/registry.ts:41 The dispatch door's public interface returns the raw registered adapter, so a host can call provider.transcribe directly and skip validateRequest, the allowed-provider filter, the clip and byte ceilings and local serialization. index.ts:6-7 also exports the adapter classes, so 'hosts never call an adapter directly' (registry.ts:1) holds only by convention.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18,
+          "revisionsBehind": 1
         },
         {
           "subject": "quality-gates",
