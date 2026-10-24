@@ -1,0 +1,120 @@
+{
+ "schema": "conform-run/1",
+ "worker": "396020c9-8522-4ee3-9c19-0854452a1f30",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-10-24T01:54:24.570954+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "app-master-bench",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/app-master-bench/gate.mjs:16 The regression verdict for each scenario comes from a single run (N=1). There are no repeated trials, no declared N and no measured variance (tolerance is a fixed fraction of each bar), so one noisy live night can pass or fail the gate, and the standard says a single run proves nothing in either direction.",
+   "techniques": [
+    {
+     "technique": "reliability-aggregation",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/gate.mjs:16 Gate verdict is one run per scenario with no trial count attached. Within that run, gate.mjs:73 also takes the busiest night (a max over nights), which is an optimistic any-of-N style reduction reported without N."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/scenarios.mjs:338 Scenario identity is the name alone. Searching run.mjs, scenarios.mjs and gate.mjs for createHash/sha256/scenario version found nothing, so edits to a scenario file (e.g. kp-c1-night, Aug 31) are compared against a baseline recorded 2026-08-26 as if they were one series. The expected-properties half is realized: each scenario has an `expect` block, and kp-rung0.json:3 states its seeded stage."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:27 Mock mode (--stub-personas) is marked on the record, the gate refuses stub runs with a `stub` verdict, and report.mjs:152 labels stub rows CANNED, so a mocked score never reaches a real trend."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:297 The gate counts its failure families (missing/fail/stub/stale/unmetered/unbaselined) separately beside the pass count, and an unmeasured metric is a problem, never a zero (gate.mjs:120)."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/expectations.mjs:359 Rank and decline checks are deterministic assertions. The part that needs taste (was a decline reason true) is explicitly left to a human spot-check rather than handed to a judge."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:138 Each baselined metric is a threshold with a direction, declared once in baseline.json before the run. This is a pure regression gate, so it has no optimized metric to declare."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "scripts/app-master-bench/expectations.mjs:12 No model judge anywhere in the bench: a grep for judge/rubric/pairwise/holdout in the non-test .mjs files found only a stub rationale string. Every check is a coded expectation."
+    }
+   ]
+  },
+  {
+   "context": "matrix-focus",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/matrix/focus/MatrixCandidateFocus.tsx:14 This context is a product UI for candidate-to-role match results with deterministic reasons, and nothing in it runs or scores models against scenarios. A case-insensitive grep of app/features/insights/matrix/focus for judge, harness, rubric, trials and passRate returned no hits ('eval' occurs only as the product feature 'group eval').",
+   "techniques": [],
+   "absenceTerms": [
+    "judge",
+    "harness",
+    "rubric",
+    "trials",
+    "passRate"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "app-master-bench-scenarios",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "cv-analysis-archetypes",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T01:54:24.570954+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "eval-economics",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "reliability-aggregation",
+    "scenario-design"
+   ],
+   "deviations": 1,
+   "context": "app-master-bench",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:54:24.570954+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "matrix-focus",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

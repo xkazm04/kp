@@ -4435,7 +4435,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/gate.mjs:16 The regression verdict for each scenario comes from a single run (N=1). There are no repeated trials, no declared N and no measured variance (tolerance is a fixed fraction of each bar), so one noisy live night can pass or fail the gate, and the standard says a single run proves nothing in either direction.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "test-harness",
@@ -22944,7 +22948,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatrixCandidateFocus.tsx:14 This context is a product UI for candidate-to-role match results with deterministic reasons, and nothing in it runs or scores models against scenarios. A case-insensitive grep of app/features/insights/matrix/focus for judge, harness, rubric, trials and passRate returned no hits ('eval' occurs only as the product feature 'group eval').",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "translation-pipeline-topology",
