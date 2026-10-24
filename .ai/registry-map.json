@@ -33217,7 +33217,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/interview/connect/route.ts:512 Connect sends a per-job ASR keyword-bias list to the served session, and no null-audio control was run on it; the floor list it pads with (asr-keywords.mjs BASE_ASR_KEYWORDS) also boosts both 'React' and 'Rust', a pair the code's own comment says the recogniser swaps, so the step meant to fix substituted skills can add phantom skills unmeasured.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -33846,7 +33850,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The on-device whisper.cpp adapter, which its own header says is built for first-round interview audio, runs the recogniser with no speech-detection (VAD) gate and drops nothing that lands in non-speech stretches, so text written over a candidate's silence comes back as transcript.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",

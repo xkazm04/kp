@@ -18185,6 +18185,58 @@
           "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:98 The client receives the stored row's raw column (analysis_json) rather than a decoded projection shaped for the ledger."
         }
       ]
+    },
+    "0f0b2b00-f446-41b0-af7a-d927592c28de/voice-interview-fidelity": {
+      "context": "voice-interview-api",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:08:16.775Z",
+      "worker": "f12f20ca-62e7-417a-a273-dc4f6cd00ca2",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/api/interview/connect/route.ts:512 Vocabulary biasing ships with no null-audio control. A repo-wide grep found no phantom/null-audio check. The confusable pair React/Rust is boosted together without a measured decision."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "app/api/interview/connect/route.ts:439 The candidate's language is passed into the provider connect config. openai.ts:207-209 then sets the transcription language, so the setting is config and not only prompt text. Per-turn drift detection lives in app/_lib/voice/language-lock.ts, outside this context."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/api/interview/complete/route.ts:162 The persistence cap keeps head and tail and adds an in-band omission marker (interview-transcript.ts:97-110). It cuts on turn boundaries and never drops the final turns. The split is even, which the technique allows."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "deviation",
+          "evidence": "app/api/interview/complete/route.ts:424 Scoring is gated only on status, candidate mode and a non-empty transcript. No entity-restricted error rate or deletion check runs before the scorecard is built. The lexicon exists only in the interview-sim harness."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/voice-interview-fidelity": {
+      "context": "voice-stt-package",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:08:16.775Z",
+      "worker": "f12f20ca-62e7-417a-a273-dc4f6cd00ca2",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 Step 5 (do not transcribe what was not detected as speech) is not realised. Neither the adapter nor useStt has VAD or silence gating."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:197 The language goes into the engine config (-l, and language_code on AssemblyAI). An English-only model asked for another language is refused rather than returning fluent wrong-language text."
+        }
+      ]
     }
   }
 }
