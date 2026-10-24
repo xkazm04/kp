@@ -1,0 +1,156 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5b854e15-c705-4501-96aa-6ae8fd35e642",
+ "subject": "client-fetch-cache",
+ "evaluatedAt": "2026-10-24T21:32:34.490052+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-client-hooks",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/useLoader.ts:54 The shared fetch hooks (useLoader, useJsonFetch, useInfiniteScroll) each issue a raw fetch per hook instance into component state. They have no keyed in-flight registry, no fresh or stale window, and nothing that outlives the view, so the fetch layer this context provides gives callers no dedup or warmth.",
+   "techniques": [
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useLoader.ts:54 A newer call aborts this instance's own previous request (latest-wins). Two instances on the same URL both fetch; there is no fetch-layer join keyed by request identity."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useJsonFetch.ts:75 Every effect run fetches unconditionally, with no fresh window or stale ceiling. The failure half is realized: useLoader.ts:65 sets failed and keeps the last good data and its lastUpdated stamp."
+    },
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useJsonFetch.ts:55 Results live only in component state, so every remount starts at null and paints cold, though the app held the data moments earlier."
+    },
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/useJsonFetch.ts:102 There is no keyed cache. The URL is only an effect dependency, not a cache key."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "conformant",
+     "evidence": "app/_lib/use-slot-label.ts:26 The locale-keyed formatter registry is built once per locale, over a bounded population. The map itself is the re-exported SLOT_PAIRS in date-format.ts:47."
+    }
+   ]
+  },
+  {
+   "context": "architecture-diagrams-explorer",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/diagrams/readDiagramSource.ts:39 The module-scoped source cache is keyed by filename alone, although readDiagramSource(file, baseDir) takes a baseDir that changes the answer. In production, a second call with a different baseDir would be served the first directory's content. This is latent today because page.tsx always passes the default.",
+   "techniques": [
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "deviation",
+     "evidence": "app/diagrams/readDiagramSource.ts:39 baseDir is an axis that changes the answer and is left out of the key (a collision-class defect)."
+    },
+    {
+     "technique": "admission-hypothesis",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/readDiagramSource.ts:24 The bet is stated where the cache is built: immutable build artifacts are re-read on every request. Only successful reads are admitted (line 52), and the population is bounded by the DIAGRAMS list."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "not-applicable",
+     "evidence": "app/diagrams/readDiagramSource.ts:37 Content is immutable at runtime in production and development bypasses the cache, so there is no freshness window to design."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "not-applicable",
+     "evidence": "app/diagrams/readDiagramSource.ts:45 The read is synchronous, so there is never a concurrent flight to join."
+    }
+   ]
+  },
+  {
+   "context": "devcase-lifecycle",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevVoiceScreenPanel.tsx:88 When a re-read of the voice-screen session fails (including the reload after minting a link), the session already on screen is replaced with null and the panel renders 'no screen on file'. The failed revalidation evicts stale truth and presents the failure as an empty success.",
+   "techniques": [
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevVoiceScreenPanel.tsx:88 This breaks 'never evict on failed revalidation' and the failure-not-empty-success law. A non-ok response also nulls the session (line 82)."
+    },
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevVoiceScreenPanel.tsx:66 The session lives only in component state. Every remount re-enters the loading spinner for data that was just shown."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "client-fetch-cache",
+   "context": "profile-roster-matrix",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "client-fetch-cache",
+   "context": "workspace-member-admin",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T21:32:34.490052+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "shared-client-hooks",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T21:32:34.490052+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "admission-hypothesis",
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "swr-design"
+   ],
+   "deviations": 1,
+   "context": "architecture-diagrams-explorer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T21:32:34.490052+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "devcase-lifecycle",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

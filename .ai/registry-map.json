@@ -5079,7 +5079,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/diagrams/readDiagramSource.ts:39 The module-scoped source cache is keyed by filename alone, although readDiagramSource(file, baseDir) takes a baseDir that changes the answer. In production, a second call with a different baseDir would be served the first directory's content. This is latent today because page.tsx always passes the default.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "test-harness",
@@ -13270,7 +13274,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/devcases/DevVoiceScreenPanel.tsx:88 When a re-read of the voice-screen session fails (including the reload after minting a link), the session already on screen is replaced with null and the panel renders 'no screen on file'. The failed revalidation evicts stale truth and presents the failure as an empty success.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "eval-harness",
@@ -29352,7 +29360,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/useLoader.ts:54 The shared fetch hooks (useLoader, useJsonFetch, useInfiniteScroll) each issue a raw fetch per hook instance into component state. They have no keyed in-flight registry, no fresh or stale window, and nothing that outlives the view, so the fetch layer this context provides gives callers no dedup or warmth.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "data-access",
