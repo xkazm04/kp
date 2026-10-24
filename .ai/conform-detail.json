@@ -2509,26 +2509,29 @@
       "context": "billing-plan-and-spend",
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
-      "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:33:45.367Z",
+      "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
       "techniques": [
         {
           "technique": "availability-probe",
-          "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:171 Displays engine readiness indicators from ops state in the UI rather than probing CLI binary availability or credentials."
+          "verdict": "deviation",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:144 Two-valued mapping of a PATH-existence boolean (engine-preflight.ts probeClaudeCli, existsSync per PATH dir) to 'available'; the technique requires installed vs authorized as separate answers and an 'unknown' that renders as unknown. The tooltip at :171 ('claude CLI resolves on PATH') names the true measurement, but the visible state word does not."
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:11 Renders the customer subscription card in settings rather than configuring agent process auth selection."
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.test.ts:51 The context only folds metered rows per provider for display; it builds no child environment."
         },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:43 Separates deterministic fallback metrics in usage reporting rather than managing an execution fallback ladder."
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:43 Separates deterministic fallback metrics in usage reporting rather than managing an execution fallback ladder.",
+          "carriedFrom": "2026-10-13"
         }
       ],
+      "registryProposal": "availability-probe could say explicitly that the rule binds the surface that RENDERS the probe, not only the probe: a host whose probe is honestly install-only must label the state 'installed', not 'available'.",
       "superseded": [
         {
           "state": "not-applicable",
@@ -2537,13 +2540,7 @@
           "worker": null,
           "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
         }
-      ],
-      "withdrawn": {
-        "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
-        "state": "not-applicable",
-        "at": "2026-10-13T08:00:02.185785+00:00",
-        "reason": "reviewer (sonnet): The anchor (spendUsageFold.test.ts:51) is a deterministic-fallback unit test and doesn't show the precondition is absent. SpendEngineFacts.tsx:171 surfaces the 'claude CLI resolves on PATH' readiness state in this context, which is agent-CLI availability territory, so the not-applicable is contradic"
-      }
+      ]
     },
     "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/agent-cli-transport": {
       "context": "billing-subscriptions",
@@ -17496,6 +17493,76 @@
           "technique": "host-primitive-facade",
           "verdict": "not-applicable",
           "evidence": "scripts/perf/devbench.mjs:40 These scripts run on a single host (a Node CLI) and use the raw child_process directly. No second execution host exists, so the facade's precondition does not hold."
+        }
+      ]
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/agent-cli-transport": {
+      "context": "candidate-matching",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:33:45.367Z",
+      "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:69 Gates on the provider's (usable, reason) record (registry.py:189 distinguishes offline_policy vs not_installed) before any token spend."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:87 Deterministic floor is recorded with its reason, and source/narrativeLang travel in the output; group_compare._coerce reports a backfilled answer as deterministic rather than llm."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/match_reasoning.py:40 Second parse (model text to caller schema) pins the answer by shape so a trailing object smuggled through CV text cannot win the extraction; mirrored by GROUP_COMPARE_EXPECTED_KEYS."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:30 Context never constructs the child env; it imports the provider from the single door that owns the strip."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/group_compare.py:403 One-shot stateless call; grep for resume/session_id/thread_id over the context's files found nothing."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "group_compare_cli.py:53-64 and reasoning_cli.py:60-71 both call resolve_provider/provider_availability/emit_deterministic from the shared .llm door (imported, never re-derived) and print {\"result\"/\"comparison\", \"source\"} so the served rung travels with every response; deviation would be a call site rolling its own subprocess/env logic instead, which does not happen here. match_cli.py and matrix_cli.py carry no LLM call at all.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by d6fe23ff-820d-4167-844f-9f9f5ce92405"
+        }
+      ]
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/agent-cli-transport": {
+      "context": "db-analytics-billing-llm",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:33:45.367Z",
+      "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:275 Parses the host's own NDJSON ledger, not the CLI envelope."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/billing/* (checkout, portal, webhook routes) and app/_lib/db/billing.ts are the Polar payment-provider integration; no agent-CLI surface. The matcher scored this on 'billing/api' vocabulary overlap only.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by d6fe23ff-820d-4167-844f-9f9f5ce92405"
         }
       ]
     }

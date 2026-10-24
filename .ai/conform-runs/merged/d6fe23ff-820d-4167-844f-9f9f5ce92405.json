@@ -1,0 +1,168 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
+ "subject": "agent-cli-transport",
+ "evaluatedAt": "2026-10-24T03:33:45.367051+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "billing-plan-and-spend",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel renders the Claude CLI engine as a two-valued 'available'/'unavailable' word from a boolean that only records whether a `claude` file exists on PATH, so an installed but logged-out (or offline-sealed) CLI reads 'Claude CLI available' \u2014 installed and authorized are collapsed into one claim and unknown authorization renders as a confident yes.",
+   "techniques": [
+    {
+     "technique": "availability-probe",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:144 Two-valued mapping of a PATH-existence boolean (engine-preflight.ts probeClaudeCli, existsSync per PATH dir) to 'available'; the technique requires installed vs authorized as separate answers and an 'unknown' that renders as unknown. The tooltip at :171 ('claude CLI resolves on PATH') names the true measurement, but the visible state word does not."
+    },
+    {
+     "technique": "subscription-auth-selection",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/spend/spendUsageFold.test.ts:51 The context only folds metered rows per provider for display; it builds no child environment."
+    }
+   ],
+   "registryProposal": "availability-probe could say explicitly that the rule binds the surface that RENDERS the probe, not only the probe: a host whose probe is honestly install-only must label the state 'installed', not 'available'."
+  },
+  {
+   "context": "candidate-matching",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "pipeline/jobfit/group_compare_cli.py:69 The matching LLM call sites take their provider from the shared .llm door, gate on its availability record before calling, pin the answer by expected keys, and label every deterministic serve with a named descent reason, so the transport discipline holds without any call site rebuilding spawn or env logic.",
+   "techniques": [
+    {
+     "technique": "availability-probe",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/group_compare_cli.py:69 Gates on the provider's (usable, reason) record (registry.py:189 distinguishes offline_policy vs not_installed) before any token spend."
+    },
+    {
+     "technique": "fallback-ladder",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/group_compare_cli.py:87 Deterministic floor is recorded with its reason, and source/narrativeLang travel in the output; group_compare._coerce reports a backfilled answer as deterministic rather than llm."
+    },
+    {
+     "technique": "output-normalization",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/match_reasoning.py:40 Second parse (model text to caller schema) pins the answer by shape so a trailing object smuggled through CV text cannot win the extraction; mirrored by GROUP_COMPARE_EXPECTED_KEYS."
+    },
+    {
+     "technique": "subscription-auth-selection",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/group_compare_cli.py:30 Context never constructs the child env; it imports the provider from the single door that owns the strip."
+    },
+    {
+     "technique": "thread-custody-across-resume",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/group_compare.py:403 One-shot stateless call; grep for resume/session_id/thread_id over the context's files found nothing."
+    }
+   ]
+  },
+  {
+   "context": "db-analytics-billing-llm",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/llm.ts:275 The context is a repository layer that ingests the usage ledger the Python side writes after a spawn (cost-metering) and stores Polar billing/analytics rows; a search of its files for --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits, so it neither spawns, probes, authenticates nor parses an agent CLI.",
+   "techniques": [
+    {
+     "technique": "output-normalization",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/llm.ts:275 Parses the host's own NDJSON ledger, not the CLI envelope."
+    }
+   ],
+   "absenceTerms": [
+    "--print",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "stream-json",
+    "--resume"
+   ]
+  },
+  {
+   "context": "channels-comms-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/channels/inbound/[token]/route.ts:19 These are comms outbox, relay-health, delivery-callback and inbound channel routes. The only child process they name is a Python CV extractor, and a search of app/api/comms and app/api/channels for claude, --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits. The 'relay probe' here checks an email relay, not an agent binary.",
+   "techniques": [],
+   "absenceTerms": [
+    "claude",
+    "--print",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "stream-json"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-cli-transport",
+   "context": "devcase-orchestration",
+   "reason": "absence contradicted: app/_lib/interview-sim/providers.test.ts:19 contains 'ANTHROPIC_API_KEY' (5 hit(s) in the context's directories)"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T03:33:45.367051+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [
+    "availability-probe",
+    "subscription-auth-selection"
+   ],
+   "deviations": 1,
+   "context": "billing-plan-and-spend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:33:45.367051+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [
+    "availability-probe",
+    "fallback-ladder",
+    "output-normalization",
+    "subscription-auth-selection",
+    "thread-custody-across-resume"
+   ],
+   "deviations": 0,
+   "context": "candidate-matching",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:33:45.367051+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [
+    "output-normalization"
+   ],
+   "deviations": 0,
+   "context": "db-analytics-billing-llm",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:33:45.367051+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "channels-comms-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

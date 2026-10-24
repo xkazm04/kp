@@ -6019,11 +6019,12 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "not-applicable",
-          "evidence": "not-applicable: app/features/settings/billing/spend/spendUsageFold.test.ts:51 is this context's whole contact with the transport - \"claude_cli\" appears as a metered provider row folded into a spend panel. Reading a transport's cost rows is cost-metering (already paired here at 1099.4); the transport itself is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
+          "state": "deviation",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel renders the Claude CLI engine as a two-valued 'available'/'unavailable' word from a boolean that only records whether a `claude` file exists on PATH, so an installed but logged-out (or offline-sealed) CLI reads 'Claude CLI available' — installed and authorized are collapsed into one claim and unknown authorization renders as a confident yes.",
+          "evaluatedAt": "2026-10-24",
           "source": "conform",
-          "stale": true
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9
         },
         {
           "subject": "cost-metering",
@@ -7234,14 +7235,13 @@
           "changedAt": "2026-10-02",
           "confidence": "probable",
           "state": "conformant",
-          "evidence": "group_compare_cli.py:53-64 and reasoning_cli.py:60-71 both call resolve_provider/provider_availability/emit_deterministic from the shared .llm door (imported, never re-derived) and print {\"result\"/\"comparison\", \"source\"} so the served rung travels with every response; deviation would be a call site rolling its own subprocess/env logic instead, which does not happen here. match_cli.py and matrix_cli.py carry no LLM call at all.",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evidence": "pipeline/jobfit/group_compare_cli.py:69 The matching LLM call sites take their provider from the shared .llm door, gate on its availability record before calling, pin the answer by expected keys, and label every deterministic serve with a named descent reason, so the transport discipline holds without any call site rebuilding spawn or env logic.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9,
           "source": "conform",
           "adoptedFrom": "b02c9ae5-749e-43ff-a0ac-2befb7871370",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "regulated-credential-gating",
@@ -10293,18 +10293,17 @@
           ],
           "grounding": "use_when",
           "state": "not-applicable",
-          "evidence": "app/api/billing/* (checkout, portal, webhook routes) and app/_lib/db/billing.ts are the Polar payment-provider integration; no agent-CLI surface. The matcher scored this on 'billing/api' vocabulary overlap only.",
+          "evidence": "app/_lib/db/llm.ts:275 The context is a repository layer that ingests the usage ledger the Python side writes after a spawn (cost-metering) and stores Polar billing/analytics rows; a search of its files for --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits, so it neither spawns, probes, authenticates nor parses an agent CLI.",
           "confidence": "probable",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "revision": 9,
           "changedAt": "2026-10-02",
           "source": "conform",
           "adoptedFrom": "9768b616-8967-44b6-a919-cde6898667db",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
