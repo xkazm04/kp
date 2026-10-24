@@ -17187,6 +17187,97 @@
       "evaluatedTs": "2026-10-24T01:54:24.570Z",
       "worker": "396020c9-8522-4ee3-9c19-0854452a1f30",
       "techniques": []
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/agent-instruction-files": {
+      "context": "security-agent-gates",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
+      "techniques": [
+        {
+          "technique": "single-source-topology",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:388 Forked digest of the canonical rules inside an instruction surface, with nothing checking it against the canonical file; dispatch.test.mjs pins the protected set to CI gates but never pins SYSTEM_PROMPT."
+        },
+        {
+          "technique": "principal-tier-gating",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:228 Tier is decided from author_association, which the workflow gets from the GitHub API and the actor cannot write; a missing value becomes 'none' and is refused (fail closed). The untrusted-label clause (line 410) is backed by this gate, not relied on alone."
+        },
+        {
+          "technique": "enforcement-demotion",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:291 'Do not edit the gates' is a hard refusal in guardPlan, not prose; injection.test.mjs checks that an obedient model's plan is refused before any file is written."
+        },
+        {
+          "technique": "inherited-default-ownership",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:9 The terminal action (no commit, no push, no merge) is owned in code, not left to a harness default, and lines 33-37 handle the default-GITHUB_TOKEN 'green-by-absence' default explicitly."
+        },
+        {
+          "technique": "context-reset-redelivery",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:474 The constitution and the untrusted label are sent again into each fresh, stateless context instead of assuming round 1's copy survives."
+        },
+        {
+          "technique": "restraint-amplifier-balance",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:385 The restraints come paired with an outlet (decline with what is missing) and a checkable amplifier: a required 'risks' field (line 512)."
+        },
+        {
+          "technique": "capability-before-steering",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:58 The 'patches against unseen paths' failure is fixed by giving the model a capability (a read round), not by adding a steering line."
+        }
+      ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/agent-instruction-files": {
+      "context": "platform-auth-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
+        "state": "not-applicable",
+        "at": "2026-10-24T02:26:57.716714+00:00",
+        "reason": "reviewer (sonnet): The anchor (app/api/auth/login/route.ts:68) is an ordinary request-body line in a route handler, so it does not show that no instruction file exists. The absence claim rests only on a grep that left out CLAUDE.md."
+      }
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/agent-instruction-files": {
+      "context": "workspace-config-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
+        "state": "not-applicable",
+        "at": "2026-10-24T02:26:57.769056+00:00",
+        "reason": "reviewer (sonnet): The anchor (app/api/me/getting-started/route.ts:17) is an incidental session-check line that does not show the precondition is absent. The grep terms also omitted CLAUDE.md."
+      }
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/agent-instruction-files": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
+        "state": "not-applicable",
+        "at": "2026-10-24T02:26:57.842171+00:00",
+        "reason": "reviewer (sonnet): The anchor (decisionsScreenWaveMachine.ts:98) is a reducer line that says nothing about whether an instruction file is present. The \"no file\" claim comes only from a grep, not from the cited line."
+      }
     }
   }
 }

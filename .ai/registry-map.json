@@ -28615,7 +28615,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:388 The dispatch system prompt carries a second, hand-maintained copy of six constitution rules beside the verbatim constitution it appends (line 477), and no test compares that copy with .claude/CLAUDE.md; its 'never touch' list already names fewer paths than PROTECTED_PREFIXES refuses.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "quality-gates",
