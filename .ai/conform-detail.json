@@ -5940,14 +5940,23 @@
       "subject": "translation-quality-measurement",
       "bundle": "localization",
       "state": "deviation",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T03:01:23.199Z",
-      "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:32:53.119Z",
+      "worker": "e291da95-8fb4-4ef8-becf-bcb5dc677b18",
       "techniques": [
         {
           "technique": "per-pair-engine-selection",
           "verdict": "deviation",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 modelsRoutingSections.ts:31 includes posting_translate; posting_translate_cli.py:104 resolves its provider without source or target language, and llm-quality.ts:142 explicitly declares translation unmeasured."
+          "evidence": "app/features/settings/models/modelsRoutingSections.ts:31 The routing registry has no per-language dimension for posting_translate, so switching one pair's engine is impossible without forking."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The routing panel assigns one posting_translate pin by use case, and its traced consumer resolves that pin without a language pair, preventing per-pair engine selection.",
+          "evaluatedAt": "2026-10-15T03:01:23.199Z",
+          "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+          "reason": "replaced by e291da95-8fb4-4ef8-becf-bcb5dc677b18"
         }
       ]
     },
@@ -6022,121 +6031,154 @@
       "subject": "translation-quality-measurement",
       "bundle": "localization",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T03:01:23.199Z",
-      "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:32:53.119Z",
       "techniques": [
         {
           "technique": "context-sufficiency-signals",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ts-ratchet.mjs:191 Inputs are source files scanned for suppression directives."
+          "evidence": "scripts/lint/ts-ratchet.mjs:191 Inputs are source files scanned for suppression directives.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "cost-and-licence-of-measurement",
           "verdict": "not-applicable",
-          "evidence": "scripts/perf/ci-budget.mjs:145 The budget governs CI job duration; no translation-quality model is chosen."
+          "evidence": "scripts/perf/ci-budget.mjs:145 The budget governs CI job duration; no translation-quality model is chosen.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "deterministic-checks-before-estimates",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ts-ratchet.mjs:141 These deterministic rules recognize code suppressions, without translated text to validate."
+          "evidence": "scripts/lint/ts-ratchet.mjs:141 These deterministic rules recognize code suppressions, without translated text to validate.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "engine-quality-from-reviewer-corrections",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ts-ratchet.mjs:148 The counted changes concern TypeScript directives, without machine-pretranslation review records."
+          "evidence": "scripts/lint/ts-ratchet.mjs:148 The counted changes concern TypeScript directives, without machine-pretranslation review records.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "error-typology-over-a-single-score",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ratchet.mjs:102 Findings classify suppression-budget changes; translation-error categories have no input here."
+          "evidence": "scripts/lint/ratchet.mjs:102 Findings classify suppression-budget changes; translation-error categories have no input here.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "human-review-sampling-under-a-budget",
           "verdict": "not-applicable",
-          "evidence": "scripts/perf/ci-budget.mjs:107 Measurements use CI timestamps, without a human translation-review sample."
+          "evidence": "scripts/perf/ci-budget.mjs:107 Measurements use CI timestamps, without a human translation-review sample.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "language-scoped-check-exemptions",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ts-ratchet.mjs:112 The rule recognizes programming-language directive syntax; natural-language orthography exemptions do not apply."
+          "evidence": "scripts/lint/ts-ratchet.mjs:112 The rule recognizes programming-language directive syntax; natural-language orthography exemptions do not apply.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "per-pair-engine-selection",
           "verdict": "not-applicable",
-          "evidence": "scripts/lint/ruff-ratchet.mjs:130 The measurement population is Ruff diagnostics, without translation engines or language pairs."
+          "evidence": "scripts/lint/ruff-ratchet.mjs:130 The measurement population is Ruff diagnostics, without translation engines or language pairs.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "reference-free-quality-estimation",
           "verdict": "not-applicable",
-          "evidence": "scripts/perf/check-budget.mjs:205 The reported quantities measure import-graph size."
+          "evidence": "scripts/perf/check-budget.mjs:205 The reported quantities measure import-graph size.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "regression-detection-under-a-moving-engine",
           "verdict": "not-applicable",
-          "evidence": "scripts/perf/devbench.mjs:55 Regression detection compares server timings; translation configuration drift is outside this instrument."
+          "evidence": "scripts/perf/devbench.mjs:55 Regression detection compares server timings; translation configuration drift is outside this instrument.",
+          "carriedFrom": "2026-10-15"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
+          "evaluatedAt": "2026-10-15T03:01:23.199Z",
+          "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+          "reason": "replaced by e291da95-8fb4-4ef8-becf-bcb5dc677b18"
+        }
+      ],
+      "withdrawn": {
+        "worker": "e291da95-8fb4-4ef8-becf-bcb5dc677b18",
+        "state": "not-applicable",
+        "at": "2026-10-24T05:33:49.663487+00:00",
+        "reason": "reviewer (sonnet): The anchor, ts-ratchet.mjs:2, is a comment about the TS suppression ratchet. It does not show that no translated store is measured here, and the claim rests only on a keyword search whose terms may be the wrong ones for this subject."
+      }
     },
     "10943bc8-3713-4897-a618-ac1437d7c455/translation-quality-measurement": {
       "context": "tests-scoring-fairness",
       "subject": "translation-quality-measurement",
       "bundle": "localization",
       "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T03:01:23.199Z",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:32:53.119Z",
       "techniques": [
         {
           "technique": "context-sufficiency-signals",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_i18n.py:47 The test checks an output-language instruction, without assessing ambiguous translation source strings."
+          "evidence": "pipeline/jobfit/tests/test_i18n.py:47 The test checks an output-language instruction, without assessing ambiguous translation source strings.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "cost-and-licence-of-measurement",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_seed_analyses.py:58 The asserted engine provenance belongs to seeded candidate analyses, without a translation estimator selection."
+          "evidence": "pipeline/jobfit/tests/test_seed_analyses.py:58 The asserted engine provenance belongs to seeded candidate analyses, without a translation estimator selection.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "deterministic-checks-before-estimates",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_score_sanity.py:43 The invariant concerns candidate-score arithmetic."
+          "evidence": "pipeline/jobfit/tests/test_score_sanity.py:43 The invariant concerns candidate-score arithmetic.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "engine-quality-from-reviewer-corrections",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_name_neutrality.py:156 Compared outputs measure name neutrality, without reviewer corrections to machine translations."
+          "evidence": "pipeline/jobfit/tests/test_name_neutrality.py:156 Compared outputs measure name neutrality, without reviewer corrections to machine translations.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "error-typology-over-a-single-score",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_score_sanity.py:51 The detected defect is a scoring-contract inconsistency."
+          "evidence": "pipeline/jobfit/tests/test_score_sanity.py:51 The detected defect is a scoring-contract inconsistency.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "language-scoped-check-exemptions",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py:64 Per-language fixtures cover skill-overlap stopwords; they do not exempt translated copy from correctness checks."
+          "evidence": "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py:64 Per-language fixtures cover skill-overlap stopwords; they do not exempt translated copy from correctness checks.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "per-pair-engine-selection",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:94 The tested pair consists of skill concepts, without a translation-engine comparison."
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:94 The tested pair consists of skill concepts, without a translation-engine comparison.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "reference-free-quality-estimation",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:57 This score is taxonomy matching credit for a candidate against job requirements."
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:57 This score is taxonomy matching credit for a candidate against job requirements.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "regression-detection-under-a-moving-engine",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:90 The regression assertion preserves taxonomy alias resolution, without regenerating translated content."
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:90 The regression assertion preserves taxonomy alias resolution, without regenerating translated content.",
+          "carriedFrom": "2026-10-15"
         }
       ],
       "withdrawn": {
-        "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+        "worker": "e291da95-8fb4-4ef8-becf-bcb5dc677b18",
         "state": "not-applicable",
-        "at": "2026-10-15T03:02:16.880924+00:00",
-        "reason": "reviewer (sonnet): Anchor test_tech_bilingual_parity.py:56 is an incidental requirements-list line, and the context includes test_i18n.py, which exercises language_directive/normalize_lang and the cs/de/fr translation behavior, so the not-applicable claim is not supported."
+        "at": "2026-10-24T05:33:49.768093+00:00",
+        "reason": "reviewer (sonnet): The anchor, test_i18n.py:53, asserts that the directive says never translate code values. That is an incidental line and does not show that no translation-quality store is measured, so the claim rests only on a keyword search."
       }
     },
     "c0265e6e-9274-43db-9929-822cb417b96d/companion-identity": {

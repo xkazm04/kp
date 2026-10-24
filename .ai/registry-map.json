@@ -21542,11 +21542,7 @@
           "confidence": "probable",
           "state": "not-applicable",
           "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evaluatedAt": "2026-10-15"
         },
         {
           "subject": "invariant-placement",
@@ -23698,12 +23694,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The routing panel assigns one posting_translate pin by use case, and its traced consumer resolves that pin without a language pair, preventing per-pair engine selection.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/settings/models/modelsRoutingSections.ts:31 Translation is routed as one use-case pin (saveRoutingPin takes useCase/provider/model with no language). The traced consumer, pipeline/jobfit/posting_translate_cli.py:104, calls resolve_provider(\"posting_translate\") without the target language, so the engine cannot be chosen per language pair as a registry field.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "model-routing",
