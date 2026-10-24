@@ -2676,72 +2676,79 @@
       "context": "models-keys-and-routing",
       "subject": "settings",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:09:31.401Z",
+      "worker": "783762fd-923c-41e1-9875-7e8a53e3fe07",
       "techniques": [
         {
-          "technique": "applied-defaults-ledger",
-          "verdict": "not-applicable",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 A missing pin is one scalar default, which this technique excludes from the ledger."
-        },
-        {
-          "technique": "author-declared-include-graph",
-          "verdict": "not-applicable",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:15 Routing is API rows. No config file names a parent file."
-        },
-        {
-          "technique": "config-backup-and-restore",
-          "verdict": "not-applicable",
-          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 Keys are a server API resource, which this technique excludes in favor of a backend copy."
-        },
-        {
-          "technique": "cross-source-precedence-chain",
-          "verdict": "not-applicable",
-          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:53 The form sends the scope the operator picked. Resolution of that chain is outside this folder."
-        },
-        {
-          "technique": "in-place-document-patch",
+          "technique": "settings-audit-and-history",
           "verdict": "deviation",
-          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:27 Known fields are seeded back into the form, and the write is still a wholesale meta_json replace."
-        },
-        {
-          "technique": "inherited-default-override",
-          "verdict": "conformant",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:17 No row follows the * pin, then the built-in default. Reset deletes the row."
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:203 The only recent-change marker is a timestamp. There is no category-tagged old/new record and no history view."
         },
         {
           "technique": "key-registry",
           "verdict": "conformant",
-          "evidence": "app/features/settings/models/modelsRoutingSections.test.ts:30 Section membership and the use-case catalog are one set, enforced by test."
+          "evidence": "app/features/settings/models/modelsRoutingSections.test.ts:30 A test asserts that the UI's use-case list and the LLM_USE_CASES registry are identical sets."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:18 Params the UI cannot edit are carried through on save, so a save does not drop members set headlessly."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 An unpinned use case inherits the \"*\" pin and then the built-in default. Reset sends a DELETE (resetRoutingPin), which re-attaches the use case to that chain, so no pin is a one-way door."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:116 Dirty is measured against the stored pin and failures surface loudly (line 142), but the explicit-save drafts have no unsaved-changes navigation guard. The only beforeunload in app/ is in BrandingTab."
+        },
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 A missing pin is one scalar default, which this technique excludes from the ledger.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:15 Routing is API rows. No config file names a parent file.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 Keys are a server API resource, which this technique excludes in favor of a backend copy.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:53 The form sends the scope the operator picked. Resolution of that chain is outside this folder.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "read-batching",
           "verdict": "conformant",
-          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:42 One response holds every pin; row lookup reads that payload."
-        },
-        {
-          "technique": "save-experience",
-          "verdict": "conformant",
-          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:116 Explicit save. Dirty is difference from the stored row. A failed save sets ok:false; a stale 409 reloads the server rows."
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:42 One response holds every pin; row lookup reads that payload.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "setting-kinds",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/models/ModelsTab.tsx:14 Every pin shares one operational save/reset contract. No ceiling or flag is declared here."
+          "evidence": "app/features/settings/models/ModelsTab.tsx:14 Every pin shares one operational save/reset contract. No ceiling or flag is declared here.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "typed-accessors",
           "verdict": "conformant",
-          "evidence": "app/features/settings/models/modelsRoutingActions.ts:71 Reset removes the pin row so the use case is absent again, and the save trims the model through one wrapper."
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:71 Reset removes the pin row so the use case is absent again, and the save trims the model through one wrapper.",
+          "carriedFrom": "2026-10-13"
         }
-      ],
-      "withdrawn": {
-        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
-        "state": "deviation",
-        "at": "2026-10-13T08:46:39.925469+00:00",
-        "reason": "reviewer (sonnet): modelsKeysPanelLogic.ts:27 is a comment describing a hazard the code already fixes: keyFormMetaFor seeds the metadata boxes from the stored row, and ModelsKeysPanel.tsx:69 calls it on provider/scope change, so a blank box now means a deliberate clear."
-      }
+      ]
     },
     "6b5c4717-aa35-46d9-a266-50a296a27e09/settings": {
       "context": "billing-plan-and-spend",
@@ -17634,6 +17641,89 @@
           "technique": "review-queues",
           "verdict": "conformant",
           "evidence": "app/features/hiring/decisions/decisionsQueueTypes.ts:55 One predicate drives the header count, the role-filter counts and the empty state, so the badge cannot disagree with the rendered cards."
+        }
+      ]
+    },
+    "52bcad98-82d2-464d-ad5f-dd04255667d0/settings": {
+      "context": "brand-theme-tokens",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:09:31.401Z",
+      "worker": "783762fd-923c-41e1-9875-7e8a53e3fe07",
+      "techniques": [
+        {
+          "technique": "inherited-default-override",
+          "verdict": "deviation",
+          "evidence": "app/_lib/theme.ts:74 Absent means follow the system (onSystemThemeChange returns early when explicitTheme() is set), but the write is unconditional and no removeItem path exists anywhere in app/. This is the one-way detach the technique names."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/brand-store.ts:61 The brand is validated again on every read, not only on write, so a stored value that predates a rule falls back to the default. theme.ts:20 does the same membership check for the theme."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/_lib/brand-store.ts:82 An org-wide brand write overwrites the row and keeps only updated_at. There is no old/new record, and grep found no audit call in app/api/brand, so a re-skin of every surface cannot be traced or reverted."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/brand-store.ts:109 The logo upsert names only its own columns and leaves sibling fields alone, instead of rewriting the whole config."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/brand-config.ts:346 The key space is a closed typed shape. Any input object is coerced to exactly the declared fields, so unknown keys cannot be stored."
+        }
+      ]
+    },
+    "0eb9f581-0b90-4bf8-b119-b29637d53883/settings": {
+      "context": "integrations-settings",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:09:31.401Z",
+      "worker": "783762fd-923c-41e1-9875-7e8a53e3fe07",
+      "techniques": [
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:131 Several things are right: a form that never loaded cannot save (loaded gate, line 83), failures stay on screen (line 172), and the test ping is gated on the stored URL (integrationsWebhookGate.ts:21). No unsaved-changes guard was found in this directory."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:136 Save sends only the fields that changed, so a second operator's event subscriptions are no longer clobbered by a full-snapshot write."
+        }
+      ]
+    },
+    "7bd8fe8d-c885-4bea-a2d7-619df91e42f1/settings": {
+      "context": "hiring-pipeline-config",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:09:31.401Z",
+      "worker": "783762fd-923c-41e1-9875-7e8a53e3fe07",
+      "techniques": [
+        {
+          "technique": "inherited-default-override",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/hiring/useHiringComposer.ts:318 The write detaches the team from the org baseline and nothing re-attaches it: a one-way door on an inherited default."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/hiring/composerState.ts:62 Dirty is correctly measured against the stored axis and failures toast (useHiringComposer.ts:208), but this explicit-save pipeline form has no unsaved-changes navigation guard."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/hiring/composerState.ts:64 A consequential policy write gets ceremony: a removal that would strand candidates is blocked until it is mapped or the occupancy is known."
         }
       ]
     }

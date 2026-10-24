@@ -1,0 +1,197 @@
+{
+ "schema": "conform-run/1",
+ "worker": "783762fd-923c-41e1-9875-7e8a53e3fe07",
+ "subject": "settings",
+ "evaluatedAt": "2026-10-24T04:09:31.401330+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "brand-theme-tokens",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/theme.ts:74 The theme preference falls back to the OS prefers-color-scheme when nothing is stored, but setTheme writes the user's pick even when it matches the OS value, and the two-option rail menu has no way to delete the row, so the first pick permanently pins a key that was following the system.",
+   "techniques": [
+    {
+     "technique": "inherited-default-override",
+     "verdict": "deviation",
+     "evidence": "app/_lib/theme.ts:74 Absent means follow the system (onSystemThemeChange returns early when explicitTheme() is set), but the write is unconditional and no removeItem path exists anywhere in app/. This is the one-way detach the technique names."
+    },
+    {
+     "technique": "typed-accessors",
+     "verdict": "conformant",
+     "evidence": "app/_lib/brand-store.ts:61 The brand is validated again on every read, not only on write, so a stored value that predates a rule falls back to the default. theme.ts:20 does the same membership check for the theme."
+    },
+    {
+     "technique": "settings-audit-and-history",
+     "verdict": "deviation",
+     "evidence": "app/_lib/brand-store.ts:82 An org-wide brand write overwrites the row and keeps only updated_at. There is no old/new record, and grep found no audit call in app/api/brand, so a re-skin of every surface cannot be traced or reverted."
+    },
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/brand-store.ts:109 The logo upsert names only its own columns and leaves sibling fields alone, instead of rewriting the whole config."
+    },
+    {
+     "technique": "key-registry",
+     "verdict": "conformant",
+     "evidence": "app/_lib/brand-config.ts:346 The key space is a closed typed shape. Any input object is coerced to exactly the declared fields, so unknown keys cannot be stored."
+    }
+   ]
+  },
+  {
+   "context": "models-keys-and-routing",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:203 A routing pin decides which provider handles each pipeline capability, yet the surface can show only when the current pin was last updated: it has no old/new history and no record of who moved it, and the llm_config store keeps none (grep of app/_lib/db/llm.ts found no history or audit for config writes).",
+   "techniques": [
+    {
+     "technique": "settings-audit-and-history",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:203 The only recent-change marker is a timestamp. There is no category-tagged old/new record and no history view."
+    },
+    {
+     "technique": "key-registry",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/models/modelsRoutingSections.test.ts:30 A test asserts that the UI's use-case list and the LLM_USE_CASES registry are identical sets."
+    },
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/models/modelsRoutingActions.ts:18 Params the UI cannot edit are carried through on save, so a save does not drop members set headlessly."
+    },
+    {
+     "technique": "inherited-default-override",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 An unpinned use case inherits the \"*\" pin and then the built-in default. Reset sends a DELETE (resetRoutingPin), which re-attaches the use case to that chain, so no pin is a one-way door."
+    },
+    {
+     "technique": "save-experience",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:116 Dirty is measured against the stored pin and failures surface loudly (line 142), but the explicit-save drafts have no unsaved-changes navigation guard. The only beforeunload in app/ is in BrandingTab."
+    }
+   ]
+  },
+  {
+   "context": "integrations-settings",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:131 The webhook and ATS forms are explicit-save surfaces with loud failures and version-checked partial writes, but nothing guards navigating away with typed, unsaved edits (including a typed secret), so they are silently lost.",
+   "techniques": [
+    {
+     "technique": "save-experience",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:131 Several things are right: a form that never loaded cannot save (loaded gate, line 83), failures stay on screen (line 172), and the test ping is gated on the stored URL (integrationsWebhookGate.ts:21). No unsaved-changes guard was found in this directory."
+    },
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:136 Save sends only the fields that changed, so a second operator's event subscriptions are no longer clobbered by a full-snapshot write."
+    }
+   ]
+  },
+  {
+   "context": "hiring-pipeline-config",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/hiring/useHiringComposer.ts:318 Every composer save writes a team-tier override of the org baseline, and neither this context nor /api/decisions/config (which has no DELETE) offers a way to drop it, so a team that saves once stops following later org baseline changes for good.",
+   "techniques": [
+    {
+     "technique": "inherited-default-override",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/hiring/useHiringComposer.ts:318 The write detaches the team from the org baseline and nothing re-attaches it: a one-way door on an inherited default."
+    },
+    {
+     "technique": "save-experience",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/hiring/composerState.ts:62 Dirty is correctly measured against the stored axis and failures toast (useHiringComposer.ts:208), but this explicit-save pipeline form has no unsaved-changes navigation guard."
+    },
+    {
+     "technique": "setting-kinds",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/hiring/composerState.ts:64 A consequential policy write gets ceremony: a removal that would strand candidates is blocked until it is mapped or the occupancy is known."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "settings",
+   "context": "billing-plan-and-spend",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:09:31.401330+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "inherited-default-override",
+    "key-registry",
+    "settings-audit-and-history",
+    "typed-accessors"
+   ],
+   "deviations": 1,
+   "context": "brand-theme-tokens",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:09:31.401330+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "inherited-default-override",
+    "key-registry",
+    "save-experience",
+    "settings-audit-and-history"
+   ],
+   "deviations": 1,
+   "context": "models-keys-and-routing",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:09:31.401330+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "save-experience"
+   ],
+   "deviations": 1,
+   "context": "integrations-settings",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:09:31.401330+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "inherited-default-override",
+    "save-experience",
+    "setting-kinds"
+   ],
+   "deviations": 1,
+   "context": "hiring-pipeline-config",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

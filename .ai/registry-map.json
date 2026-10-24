@@ -6314,7 +6314,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/theme.ts:74 The theme preference falls back to the OS prefers-color-scheme when nothing is stored, but setTheme writes the user's pick even when it matches the OS value, and the two-option rail menu has no way to delete the row, so the first pick permanently pins a key that was following the system.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "design-tokens",
@@ -16219,7 +16223,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/hiring/useHiringComposer.ts:318 Every composer save writes a team-tier override of the org baseline, and neither this context nor /api/decisions/config (which has no DELETE) offers a way to drop it, so a team that saves once stops following later org baseline changes for good.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "hiring-policy-defaults-and-tiering",
@@ -16475,7 +16483,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/integrations/IntegrationsWebhookPanel.tsx:131 The webhook and ATS forms are explicit-save surfaces with loud failures and version-checked partial writes, but nothing guards navigating away with typed, unsaved edits (including a typed secret), so they are silently lost.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "agent-runtime-assembly",
@@ -23528,7 +23540,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:203 A routing pin decides which provider handles each pipeline capability, yet the surface can show only when the current pin was last updated: it has no old/new history and no record of who moved it, and the llm_config store keeps none (grep of app/_lib/db/llm.ts found no history or audit for config writes).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "mcp-tools",
