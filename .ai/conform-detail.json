@@ -12565,45 +12565,46 @@
       "subject": "pipeline-aging-and-attention-triage",
       "bundle": "recruiting",
       "state": "unknown",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T02:07:01.943Z",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:47:12.121Z",
       "techniques": [
         {
-          "technique": "aging-versus-stalled-two-tier-alerts",
+          "technique": "per-stage-aging-thresholds-not-one-global-cut",
           "verdict": "deviation",
-          "evidence": "app/_lib/aging-policy.ts:161 Two dwell tiers exist, but the resolver cannot distinguish unsent offers, live response windows, or lapsed deadlines."
+          "evidence": "app/_lib/attention.ts:101 Thresholds are resolved per role on the workspace axis, which is good, but the offer role has a single dwell clock and ignores the offer's expiresAt (offers do carry one, see candidate-next-action.ts). An unresolvable role still ages: slaForStage falls back to STAGE_SLA_DEFAULTS by name, then to STALE_DAYS = 10."
+        },
+        {
+          "technique": "terminal-stages-never-age",
+          "verdict": "conformant",
+          "evidence": "app/_lib/attention.ts:66 Terminal exclusion is enforced twice: listPipeline filters terminal statuses, and attentionStale requires status active, with agingTier returning none for a terminal-ROLE stage. Caveat: the 'unresolved role does not age' rule is violated by the flat fallback, which is recorded under per-stage."
         },
         {
           "technique": "attention-queue-ordering-and-rationale",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/attention.ts:81 This module returns bucket counts rather than an ordered strip of individual entries."
+          "verdict": "deviation",
+          "evidence": "app/_lib/attention.ts:77 The five named queues match the standard's set, each with a written rationale. But the schedule queue is 'confirmed AND slot_at > now' with no grace window, so an interview drops out the moment it starts (the named incomplete-partition failure). Also, decisions (line 74) and pipeline (line 76) count the same active entry in both queues instead of once in the higher-ranked one."
         },
         {
           "technique": "badges-degrade-rather-than-error",
           "verdict": "deviation",
-          "evidence": "app/_lib/attention.ts:101 An unresolved stage reaches the helper's legacy threshold fallback and can contribute a positive badge count instead of an unavailable result."
+          "evidence": "app/_lib/aging-policy.ts:126 The shared clock that attention.ts calls maps a missing or unparseable stageChangedAt to tier 'none', the same value as a genuinely fresh entry. It is silently left out of the count and the omission is not logged: the 'coercion that looks like degradation' / confident-null shape."
         },
         {
           "technique": "overridable-defaults-with-a-server-side-approximation",
-          "verdict": "not-applicable",
-          "evidence": "app/_lib/pipeline-axis.ts:30 Configured cadences travel on the stored axis read by the shared computation; the standard explicitly exempts this arrangement from approximation."
+          "verdict": "conformant",
+          "evidence": "app/_lib/attention.ts:31 The per-column override is workspace axis data that the badge reads, so the shared count is computed under the same effective policy as the board rather than under an unlabelled default. Not verified: an actor and date on each override. The magnitude is bounded by STAGE_SLA_MIN/MAX_DAYS in decision-config-schema.ts."
         },
         {
-          "technique": "per-stage-aging-thresholds-not-one-global-cut",
+          "technique": "aging-versus-stalled-two-tier-alerts",
           "verdict": "deviation",
-          "evidence": "app/_lib/aging-policy.ts:88 An off-axis stage falls back to a canonical-name threshold or the global legacy cut, although an unresolved role should receive no threshold."
-        },
-        {
-          "technique": "terminal-stages-never-age",
-          "verdict": "deviation",
-          "evidence": "app/_lib/attention.ts:73 Only live definitions reach aging resolution; a retired terminal stage with a noncanonical ID loses its terminal role and can age under the fallback threshold."
+          "evidence": "app/_lib/aging-policy.ts:161 Two dwell tiers exist, but the resolver cannot distinguish unsent offers, live response windows, or lapsed deadlines.",
+          "carriedFrom": "2026-10-18"
         }
       ],
       "withdrawn": {
-        "worker": "d3c2dd39-24d5-4d30-a49e-9eb7c291e0c5",
+        "worker": "dc788553-a27c-4407-a8b0-0ca29b9a1b9c",
         "state": "deviation",
-        "at": "2026-10-18T02:07:19.259499+00:00",
-        "reason": "reviewer (sonnet): The deviation is about aging-policy.ts and attention.ts, which are not among the command/axis files listed for this context. The cited aging-policy.ts:161 line is only the thin agingTierAt wrapper, and it does not show the claimed 'cannot distinguish unsent offers, live response windows, or lapsed d"
+        "at": "2026-10-25T02:49:10.499070+00:00",
+        "reason": "reviewer (sonnet): The verdict is about attention.ts and aging-policy.ts, which are not among this context's files, and none of the context's non-test files (pipeline-axis, pipeline-axis-server, pipeline-command, pipeline-entry-action, pipeline-events-public) import or call either one."
       }
     },
     "a84a06f8-4280-473d-acc3-0cdcf6f98cad/pipeline-aging-and-attention-triage": {
