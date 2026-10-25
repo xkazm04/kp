@@ -13761,47 +13761,48 @@
       "context": "devcase-detail",
       "subject": "hypothesis-not-verdict-soft-signals",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:57:43.134Z",
+      "worker": "d441e765-b092-4bfa-a9a4-da275d61ac01",
       "techniques": [
         {
           "technique": "a-confirmation-probe-per-signal",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:38 These are assignment cover probes, not questions generated from career-document signals."
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:38 These are assignment cover probes, not questions generated from career-document signals.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "antipattern-and-hidden-strength-pairing",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailShortlist.tsx:46 The shortlist renders assessed submissions rather than adverse and favourable document-shape detectors."
+          "evidence": "app/features/tools/devcases/DevCaseDetailShortlist.tsx:46 The shortlist renders assessed submissions rather than adverse and favourable document-shape detectors.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "benign-alternative-stated-alongside-the-risk",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:39 The flag concerns assignment calibration measured across submissions."
+          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:39 The flag concerns assignment calibration measured across submissions.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "claim-versus-evidence-overclaim-detection",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:59 This panel displays role requirements rather than comparing a career document's claims with outcomes."
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:59 This panel displays role requirements rather than comparing a career document's claims with outcomes.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "signal-source-trust-ordering",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevProvenanceStrip.tsx:58 Provenance describes assessment-generation steps, not mixed sources of career hypotheses."
+          "evidence": "app/features/tools/devcases/DevProvenanceStrip.tsx:58 Provenance describes assessment-generation steps, not mixed sources of career hypotheses.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "what-to-confirm-checklist-not-a-dossier",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailChannels.tsx:54 The channel surface collects assignment submissions rather than presenting a soft-signal checklist."
+          "evidence": "app/features/tools/devcases/DevCaseDetailChannels.tsx:54 The channel surface collects assignment submissions rather than presenting a soft-signal checklist.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
-        "state": "not-applicable",
-        "at": "2026-10-19T00:03:19.988666+00:00",
-        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
-      }
+      ]
     },
     "3e2ec5d8-185d-40bc-99f9-c132975277b4/hypothesis-not-verdict-soft-signals": {
       "context": "results-detail-tabs",
@@ -13848,47 +13849,48 @@
       "context": "devcase-lifecycle",
       "subject": "hypothesis-not-verdict-soft-signals",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:57:43.134Z",
+      "worker": "d441e765-b092-4bfa-a9a4-da275d61ac01",
       "techniques": [
         {
           "technique": "a-confirmation-probe-per-signal",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:34 Follow-ups originate in submission evaluation and authorship verification, which the standard distinguishes from career-shape hypotheses."
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:34 Follow-ups originate in submission evaluation and authorship verification, which the standard distinguishes from career-shape hypotheses.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "antipattern-and-hidden-strength-pairing",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:64 The design card presents probes embedded in an assignment rather than behavioural detectors over a career document."
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:64 The design card presents probes embedded in an assignment rather than behavioural detectors over a career document.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "benign-alternative-stated-alongside-the-risk",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisReflectionCard.tsx:45 These risks belong to the role and codebase needs analysis, not a reading of a candidate's career."
+          "evidence": "app/features/tools/devcases/DevAnalysisReflectionCard.tsx:45 These risks belong to the role and codebase needs analysis, not a reading of a candidate's career.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "claim-versus-evidence-overclaim-detection",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:71 The analysis reads repository snapshots rather than capability claims and career outcomes."
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:71 The analysis reads repository snapshots rather than capability claims and career outcomes.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "signal-source-trust-ordering",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:30 The displayed sources describe generation of the assessment design, not career-signal trust tiers."
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:30 The displayed sources describe generation of the assessment design, not career-signal trust tiers.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "what-to-confirm-checklist-not-a-dossier",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:199 This records human findings against submission-authorship follow-ups, outside the subject's career-document checklist."
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:199 This records human findings against submission-authorship follow-ups, outside the subject's career-document checklist.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
-        "state": "not-applicable",
-        "at": "2026-10-19T00:03:19.988666+00:00",
-        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
-      }
+      ]
     },
     "181b8632-82ec-4203-a308-42e58eca6c49/inclusive-job-advertising": {
       "context": "jobs-posting-campaign",

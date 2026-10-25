@@ -12581,7 +12581,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:4 The internal panel of the dev-case detail shows the design of the work-sample case (covert probes planted in the exercise, the rubric, the role's must-haves), not readings of a candidate's career document. A case-insensitive search of app/features/tools/devcases/ for softSignal, soft_signal, antipattern, hiddenStrength, hidden strength, needsConfirmation, needs_confirmation and overclaim returned 0 files, so this context has no behavioural flag for the subject to govern.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8652a467dc7229b0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",
@@ -13351,7 +13355,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:10 The lifecycle, analysis-design and cohort surfaces judge how well the case's own covert probes discriminate across submissions. They do not hold hypotheses about one candidate's career document. The same search over app/features/tools/devcases/ (softSignal, soft_signal, antipattern, hiddenStrength, needs_confirmation, overclaim) found nothing, and nothing under app/ passes CV focus probes into case design.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8652a467dc7229b0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
