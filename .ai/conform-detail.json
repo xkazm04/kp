@@ -19583,6 +19583,110 @@
           "evidence": "app/_lib/offer-finalize.ts:227 Remaining time comes from the server clock that enforces expiry, rounded up and clamped at zero (offer-policy.ts). The time zone is projected from the server, and the value is null when there is no deadline."
         }
       ]
+    },
+    "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/usage-aggregation-semantics": {
+      "context": "billing-subscriptions",
+      "subject": "usage-aggregation-semantics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:03:25.180Z",
+      "worker": "65f1a829-2366-4185-acd9-6342bd15ea09",
+      "techniques": [
+        {
+          "technique": "level-valued-time-integral",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:31 No meter is something the customer holds. All five describe acts (posted, hired, analysed, designed, interviewed), so the value between events is zero."
+        },
+        {
+          "technique": "replayed-state-machine-count",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:287 Each debit source is a chargeable act, not an add/remove change of state, which is the technique's own 'when not to use'. Org seats exist (org-service.ts) but are not billed."
+        },
+        {
+          "technique": "high-water-mark-advance-billing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:317 Prepaid credits are consumed at event time, but the debit refuses non-positive quantities and refundMeterUsage was removed. The aggregate is monotonic by construction, so the decision rule 'skip the mark' applies."
+        },
+        {
+          "technique": "seeded-recurring-aggregate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:222 Window-closed: the allowance read is the counter for this period key alone. The only carry is the one-time calendar-to-anchored re-key (ADR 0023), not a recurring level seed."
+        }
+      ]
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/usage-aggregation-semantics": {
+      "context": "db-analytics-billing-llm",
+      "subject": "usage-aggregation-semantics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:03:25.180Z",
+      "worker": "65f1a829-2366-4185-acd9-6342bd15ea09",
+      "techniques": [
+        {
+          "technique": "level-valued-time-integral",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:385 A flow counter summed per period key. There is no level whose between-event value is nonzero."
+        },
+        {
+          "technique": "replayed-state-machine-count",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:554 Counts are event counts (calls), not distinct-identifier holdings, so there is no add/remove vocabulary to replay."
+        },
+        {
+          "technique": "high-water-mark-advance-billing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:376 The balance is a ledger of the effects actually issued (grants, consumes, refunds), not a peak ratchet. There is no decreasing level to ratchet over."
+        },
+        {
+          "technique": "seeded-recurring-aggregate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:408 calendarUsageCarried is a half-open, window-bounded carry for a period re-key migration, read from the journal. No metric spans periods, so there is no recurring seed."
+        }
+      ]
+    },
+    "9fd9a101-9395-4e7f-8e96-7b4e5b99586f/usage-aggregation-semantics": {
+      "context": "billing-api",
+      "subject": "usage-aggregation-semantics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:03:25.180Z",
+      "worker": "65f1a829-2366-4185-acd9-6342bd15ea09",
+      "techniques": [
+        {
+          "technique": "level-valued-time-integral",
+          "verdict": "not-applicable",
+          "evidence": "app/api/billing/route.ts:12 The route reports a period's flow usage. Nothing held is integrated here."
+        },
+        {
+          "technique": "high-water-mark-advance-billing",
+          "verdict": "not-applicable",
+          "evidence": "app/api/billing/webhook/route.ts:75 The webhook delegates credit grants and refunds to the lib layer. No per-event aggregate or mark is computed in the route."
+        }
+      ]
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/usage-aggregation-semantics": {
+      "context": "billing-plan-and-spend",
+      "subject": "usage-aggregation-semantics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:03:25.180Z",
+      "worker": "65f1a829-2366-4185-acd9-6342bd15ea09",
+      "techniques": [
+        {
+          "technique": "level-valued-time-integral",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:40 Calls, tokens and cost are flows, so summing them is the correct fold."
+        },
+        {
+          "technique": "high-water-mark-advance-billing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingUsageMeterRow.tsx:74 Display of the server's monotonic used counter. No charge is computed client-side."
+        }
+      ]
     }
   }
 }

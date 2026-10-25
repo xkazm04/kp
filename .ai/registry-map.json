@@ -5881,7 +5881,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/billing/route.ts:31 The routes perform no fold. The overview route serializes billingOverview from app/_lib/billing, and the webhook hands off to ingestBillingWebhook, so none of the four aggregation techniques has a site in this context. A search of app/api and app/api/billing for highWater, high_water, timeWeighted and integral found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8c2dd21982ce8fe9",
+          "evaluatedRevision": 1
         },
         {
           "subject": "mcp-tools",
@@ -6100,7 +6104,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:25 The only fold in this UI context is a plain sum of flows (calls, tokens, cost) for display, plus a used-versus-limit ratio. It bills nothing and holds no level, seat, mark or seed. A search of app/features/settings/billing for highWater, high_water, timeWeighted and integral found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8c2dd21982ce8fe9",
+          "evaluatedRevision": 1
         },
         {
           "subject": "model-call-outcome-integrity",
@@ -6261,7 +6269,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:31 Every meter in the closed vocabulary is a flow: one act per debit, added into a window-closed per-period counter. That is one of the two kinds the subject says a plain sum gets right. A search of app/_lib and app/_lib/billing for highWater, high_water, timeWeighted and integral found nothing, and there is no seat or held-level meter.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8c2dd21982ce8fe9",
+          "evaluatedRevision": 1
         },
         {
           "subject": "cost-metering",
@@ -10323,7 +10335,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:385 The stored aggregate is an additive per-(org, meter, period) counter of flow debits, plus a credit ledger and an LLM-usage rollup that are plain sums too. The level, state-machine, ratchet and seed machinery has no precondition here; a search of app/_lib/db for highWater, high_water, timeWeighted and integral found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8c2dd21982ce8fe9",
+          "evaluatedRevision": 1
         },
         {
           "subject": "data-access",
