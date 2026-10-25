@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1d47f0c2-d349-42b9-ac9d-48100a540f45",
+ "subject": "ai-assistance-detection-and-fairness",
+ "evaluatedAt": "2026-10-25T03:38:57.570545+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "ai-assistance-detection-and-fairness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevEvalPanelScores.tsx:102 The process-authenticity band (built only from commit cadence, bulk commit, decisions-log presence and observed bulk paste) is drawn on a coral/amber/moss ramp, and a 'suspect' band alone forces the promote verdict to 'hold' (devcase-promote-verdict.ts:85-112), so a combination of fakeable process signals moves a candidate across a decision boundary and triggers an extra hurdle only for the flagged.",
+   "techniques": [
+    {
+     "technique": "observed-process-is-supporting-not-load-bearing",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevEvalPanelScores.tsx:102 process-only authenticity band rendered as a warning-coloured verdict and, per the comment at lines 92-93 and devcase-promote-verdict.ts, a suspect band alone holds the submission"
+    },
+    {
+     "technique": "planted-canary-with-real-ground-truth",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:48 four-way vocabulary, unknown status becomes unverifiable; empty set renders canaryNotRun (line 118), with a graded denominator"
+    },
+    {
+     "technique": "frozen-naive-baseline-comparison",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:143 plain number, no meter or colour ramp, interpretation in words; unavailable baseline renders baselineNotRun"
+    },
+    {
+     "technique": "brief-paste-ratio-and-bulk-paste-tells",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:167 brief paste ratio shown only as an interview aim in neutral text; unobserved prompt channel says 'no signal either way'. The separate observedBulkPaste input feeding authenticity is covered under observed-process"
+    },
+    {
+     "technique": "never-penalise-tool-use-invariant",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:169 model use rendered as a fact about how the work was done, not as a score component; the cohort parity computation itself lives in pipeline/jobfit/devcase (devcase-core), not here"
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T03:38:57.570545+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "ai-assistance-detection-and-fairness"
+   ],
+   "techniques": [
+    "brief-paste-ratio-and-bulk-paste-tells",
+    "frozen-naive-baseline-comparison",
+    "never-penalise-tool-use-invariant",
+    "observed-process-is-supporting-not-load-bearing",
+    "planted-canary-with-real-ground-truth"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
