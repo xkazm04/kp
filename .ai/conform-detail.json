@@ -20153,6 +20153,73 @@
         "at": "2026-10-25T03:30:05.300615+00:00",
         "reason": "reviewer (sonnet): jdsEditClient.ts:1 is a header comment about the shared edit client; it does not show the absence of an extension surface, so the anchor is incidental."
       }
+    },
+    "1bf08cae-f1e4-42c6-b461-ba844cd10d0b/native-shell-integration": {
+      "context": "workspace-shell-core",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:34:56.242Z",
+      "techniques": [
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/navCapabilities.ts:24 The nav lock mirrors server RBAC, not a per-host capability matrix."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/useCapabilities.ts:3 Live refresh and attention polling run inside the browser document with no native process to relocate them to."
+        }
+      ],
+      "withdrawn": {
+        "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+        "state": "not-applicable",
+        "at": "2026-10-25T03:35:28.504853+00:00",
+        "reason": "reviewer (sonnet): The technique anchor useCapabilities.ts:3 is the comment about the shell's capability read. It says nothing about live refresh or attention polling running in the browser. live-refresh.ts does use BroadcastChannel, which is browser-only, but the cited line does not carry that claim."
+      }
+    },
+    "90c107cb-5bdc-4cc3-929e-a56119d48acc/native-shell-integration": {
+      "context": "app-shell-brand",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:34:56.242Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+        "state": "not-applicable",
+        "at": "2026-10-25T03:35:28.580551+00:00",
+        "reason": "reviewer (sonnet): The anchor LanguageSwitcher.tsx:10 only shows the locale-cookie toggle. The evidence's claims about brand, error boundaries and sign-out are not at that line, so the anchor is incidental to the absence of a native side."
+      }
+    },
+    "8f83c835-1a44-4024-8647-a85025482995/native-shell-integration": {
+      "context": "form-controls",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:34:56.242Z",
+      "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+      "techniques": [
+        {
+          "technique": "host-forwarded-key-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/select-keys.ts:7 Key consumption is between two in-page components; no host keeps keys and no wrapper forwards them."
+        }
+      ]
+    },
+    "7f5ea59a-012e-4609-ac06-17249cb301d3/native-shell-integration": {
+      "context": "control-room-action-guard",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:34:56.242Z",
+      "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+      "techniques": []
     }
   }
 }

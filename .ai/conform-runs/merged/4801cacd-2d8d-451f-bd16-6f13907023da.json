@@ -1,0 +1,116 @@
+{
+  "schema": "conform-run/1",
+  "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+  "subject": "native-shell-integration",
+  "evaluatedAt": "2026-10-25T03:34:56.242086+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "form-controls",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_components/select-keys.ts:7 Key handling here is ordinary in-document DOM key consumption between a Select and its dialog, not keys forwarded by a native wrapper. A search of app/_components found no native-shell vocabulary.",
+      "techniques": [
+        {
+          "technique": "host-forwarded-key-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/select-keys.ts:7 Key consumption is between two in-page components; no host keeps keys and no wrapper forwards them."
+        }
+      ],
+      "absenceTerms": [
+        "tauri",
+        "electron",
+        "ipcRenderer",
+        "alwaysOnTop"
+      ]
+    },
+    {
+      "context": "control-room-action-guard",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/control/controlRoomConfirm.ts:2 This is a pure arm/confirm click reducer for in-page controls with no native process, overlay or host grant involved. A search of app/control found no native-shell vocabulary.",
+      "techniques": [],
+      "absenceTerms": [
+        "tauri",
+        "electron",
+        "ipcRenderer",
+        "alwaysOnTop"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "native-shell-integration",
+      "context": "setup-studio",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "native-shell-integration",
+      "context": "workspace-shell-core",
+      "reason": "withdrawn after review: reviewer (sonnet): The technique anchor useCapabilities.ts:3 is the comment about the shell's capability read. It says nothing about live refresh or attention polling running in the browser. live-refresh.ts does use BroadcastChannel, which is browser-only, but the cited line does not carry that claim."
+    },
+    {
+      "subject": "native-shell-integration",
+      "context": "app-shell-brand",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor LanguageSwitcher.tsx:10 only shows the locale-cookie toggle. The evidence's claims about brand, error boundaries and sign-out are not at that line, so the anchor is incidental to the absence of a native side."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-25T03:34:56.242086+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "native-shell-integration"
+      ],
+      "techniques": [
+        "capability-presence-contract",
+        "native-owned-stream"
+      ],
+      "deviations": 0,
+      "context": "workspace-shell-core",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T03:34:56.242086+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "native-shell-integration"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "app-shell-brand",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T03:34:56.242086+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "native-shell-integration"
+      ],
+      "techniques": [
+        "host-forwarded-key-contract"
+      ],
+      "deviations": 0,
+      "context": "form-controls",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T03:34:56.242086+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "native-shell-integration"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "control-room-action-guard",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
