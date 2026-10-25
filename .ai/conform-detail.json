@@ -11615,42 +11615,42 @@
       "subject": "candidate-consent-and-retention",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T00:44:26.968Z",
-      "worker": "e118f853-7d06-47ed-94b0-0b9209d947a5",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:59:46.438Z",
+      "worker": "10db8c86-380b-4cf5-97f2-5e8751b4c235",
       "techniques": [
-        {
-          "technique": "retention-ttl-and-derived-disclosure",
-          "verdict": "conformant",
-          "evidence": "app/_lib/consent.ts:28 Candidate-facing retention months are derived from enforced TTL days and rounded up via Math.ceil so disclosure never understates the window."
-        },
         {
           "technique": "read-time-gate-not-just-the-sweep",
           "verdict": "deviation",
-          "evidence": "app/_lib/consent.ts:68 Treats missing expiry as active rather than withholding, and ConsentStatus lacks a withdrawn state."
+          "evidence": "app/_lib/consent.ts:38 The gate itself is right: consentWithholdsPii is the control and the sweep is only an optimisation, and an unparseable expiry fails closed. But there is no withdrawn state, so the predicate cannot withhold on withdrawal. A granted consent with a missing expiry serves PII (line 68), whereas the technique says a missing state must withhold. Callers also apply the gate one by one (about 20 call sites) instead of at a single projection layer."
+        },
+        {
+          "technique": "retention-ttl-and-derived-disclosure",
+          "verdict": "conformant",
+          "evidence": "app/_lib/consent.ts:29 The disclosed months are computed from the same TTL that enforcement reads and rounded up, so the disclosure cannot under-state the window. A bad env value falls back to the 365-day default, never to zero or 'no retention'. Two minor points: the deployment is not told when the fallback fires, and the sweep interval is not added into the ceiling."
         },
         {
           "technique": "one-transaction-scrub-across-linked-records",
           "verdict": "conformant",
-          "evidence": "app/_lib/erasure-full-scrub.test.ts:257 Regression test asserts that every workspace-scoped table is reached by the single-transaction erasure or listed in ERASURE_EXEMPT."
+          "evidence": "app/_lib/erasure-full-scrub.test.ts:257 Every table in the tenancy manifest must either be written by the erasure code or be exempted with a stated reason, and a test enforces this. anonymizeEntry runs as one .immediate() transaction scoped to the workspace, re-asserts anonymized_at IS NULL so a second erasure is a no-op, deletes audio files only after commit, and masks the name copied onto audit events. Analyses are matched on a trimmed, lower-cased label within the workspace."
         },
         {
           "technique": "deep-redact-verbatim-quote-containers",
-          "verdict": "conformant",
-          "evidence": "app/_lib/consent.ts:220 Recursively traverses container subtrees to blank strings and empty arrays while preserving structural shape and scores."
+          "verdict": "deviation",
+          "evidence": "app/_lib/consent.ts:250 scrubPiiFromPayload works from a deny-list: a key that is not in PII_KEYS, PII_ARRAY_KEYS or PII_CONTAINER_KEYS is kept and recursed into, not redacted. Free-text keys it does not name (summary, rationale, notes inside an analysis payload) survive. That is the 'protect what someone remembered' default the technique rejects. Named containers are deep-redacted, and a corrupt payload is replaced with {} (correct)."
         },
         {
           "technique": "anonymise-but-retain-the-aggregate-signal",
-          "verdict": "conformant",
-          "evidence": "app/_lib/consent.ts:148 Masks candidate labels to initials with stopword stripping so pipeline history remains legible without identifying candidates."
+          "verdict": "deviation",
+          "evidence": "app/_lib/consent.ts:160 The mask keeps the full first name plus the surname initial ('Zdenka P.'), not initials. In a small cohort that handle can identify the person. The stoplist, the safe fallback and the single-token handling all match the technique; the retained shell keeps scores and stage."
         },
         {
           "technique": "legal-claims-carve-out-from-erasure",
           "verdict": "deviation",
-          "evidence": "app/_lib/erasure-full-scrub.test.ts:277 Retained carve-out tables require a written reason but carry no limitation period or end date, leaving retention indefinite."
+          "evidence": "app/_lib/db/pipeline.ts:2443 The carve-out is listed by record type with a stated ground, but it has no end date. No code deletes decision_records except the simulation store, so the exemption keeps them indefinitely, which is the 'unbounded carve-out' failure."
         }
       ],
-      "registryProposal": "Clarify in the standard whether consent withdrawal belongs under read-time-gate-not-just-the-sweep or warrants its own named technique, as the golden path mandates append-only withdrawal transitions distinct from expiry.",
+      "registryProposal": "The read-time-gate technique handles absent-by-design (never asked) and absent-by-corruption, but not a third case found here: a legacy grant from before expiry dates existed, with no expiry recorded. It should say explicitly whether such rows need a backfilled expiry (for example grant date + default TTL) instead of staying active forever.",
       "superseded": [
         {
           "state": "deviation",
@@ -11658,6 +11658,13 @@
           "evaluatedAt": "2026-09-20",
           "worker": null,
           "reason": "replaced by e118f853-7d06-47ed-94b0-0b9209d947a5"
+        },
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/consent.ts:38 Consent lifecycle states omit withdrawal and fail open when expiry is missing, while the legal-claims carve-out holds decision records indefinitely without an end date.",
+          "evaluatedAt": "2026-10-18T00:44:26.968Z",
+          "worker": "e118f853-7d06-47ed-94b0-0b9209d947a5",
+          "reason": "replaced by 10db8c86-380b-4cf5-97f2-5e8751b4c235"
         }
       ]
     },

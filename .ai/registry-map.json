@@ -9052,12 +9052,11 @@
           "changedAt": "2026-10-21",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/_lib/consent.ts:38 Consent lifecycle states omit withdrawal and fail open when expiry is missing, while the legal-claims carve-out holds decision records indefinitely without an end date.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:3c9042dc4cd9f910",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/consent.ts:68 A consent that was granted but has no expiry is treated as active forever, so PII keeps flowing and the sweep (which filters on consent_expires_at IS NOT NULL) never reaches it; with no 'withdrawn' status either, the lifecycle has an indefinite-hoard path and no route for withdrawal.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:91e3d4803a9e6e60",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "hitl-approval",
