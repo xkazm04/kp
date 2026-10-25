@@ -19557,6 +19557,32 @@
         }
       ],
       "registryProposal": "For a work-sample follow-up kit, every question has the same purpose: checking that the candidate authored a decision. That arguably makes it a single-bucket 'technical' kit. The technique could say whether a single-purpose kit still owes the bucket taxonomy, the catch-all and a defence question."
+    },
+    "6e08a191-7d84-4e75-9938-e5e87eba6449/offer-lifecycle-and-deadlines": {
+      "context": "candidate-status-api",
+      "subject": "offer-lifecycle-and-deadlines",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:56:11.518Z",
+      "worker": "25502649-1e13-4d98-8651-e4cf02188996",
+      "techniques": [
+        {
+          "technique": "expired-is-a-different-answer-from-invalid",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:35 The 404-versus-410 split is correct (route.ts:29 and :61), lapse is checked on read (offerView runs expireOfferIfDue), and tokens carry 192 bits of randomness. But the late attempt is never recorded (a grep for late-attempt terms found nothing). The GET projection of an expired offer also still includes candidateLabel (offer-finalize.ts:220) and salary."
+        },
+        {
+          "technique": "idempotent-terminal-response-under-a-race",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offers-store.ts:387 A single conditional write decides the winner, and side effects run only on the claimed branch. Lapse is checked before accept (offer-finalize.ts:29). The loser gets the recorded state as success, or expired, and never falls through to 'declined'. The hire meter is keyed on crossing into the terminal stage. Metering is debited, never used as a gate."
+        },
+        {
+          "technique": "server-authoritative-countdown",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offer-finalize.ts:227 Remaining time comes from the server clock that enforces expiry, rounded up and clamped at zero (offer-policy.ts). The time zone is projected from the server, and the value is null when there is no deadline."
+        }
+      ]
     }
   }
 }

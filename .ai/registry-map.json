@@ -7879,7 +7879,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:35 An accept or decline sent after the deadline gets a 410 (via route.ts:61), but nothing records that the candidate tried, so no recruiter task is raised. The technique says a submit against a lapsed offer must be recorded and routed to a person, not only refused.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:2dd5f1019a2a6048",
+          "evaluatedRevision": 3
         },
         {
           "subject": "multi-provider-gateway-plane",
