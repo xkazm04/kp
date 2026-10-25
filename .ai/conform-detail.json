@@ -19717,6 +19717,32 @@
       "evaluatedTs": "2026-10-25T02:08:09.027Z",
       "worker": "139cb409-d9bd-467e-b964-b0adde9442cb",
       "techniques": []
+    },
+    "6e4380dc-8992-4f22-8017-d42ce053a5ca/automated-screening-fairness-gates": {
+      "context": "jobs-candidates-compare",
+      "subject": "automated-screening-fairness-gates",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:15:59.604Z",
+      "worker": "55d2ba39-c248-443b-9311-bab09c276e64",
+      "techniques": [
+        {
+          "technique": "hold-as-the-canonical-fallback-verdict",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:158 The score threshold here picks out promising candidates for display (surfacing). Nothing acts on it adversely, and the technique excludes ranking surfaces."
+        },
+        {
+          "technique": "route-vocabulary-narrower-than-verdict-vocabulary",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:143 The only executable actions are adding a candidate to the pipeline and reaching out. Both are reversible and non-adverse, and there is no route field to narrow."
+        },
+        {
+          "technique": "fail-closed-on-an-unclassifiable-candidate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsFairnessMatrix.ts:22 The fairness matrix is an aggregate display artifact with no per-candidate branch that could withhold an adverse action. When its arrays do not line up it degrades to not assessed, which fits the technique's rule for aggregates."
+        }
+      ]
     }
   }
 }

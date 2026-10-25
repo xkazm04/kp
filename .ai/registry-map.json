@@ -19773,7 +19773,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:167 This surface only ranks, filters and exports a fairness matrix, and its only candidate actions are add-to-pipeline and reach-out. It explicitly leaves the never-auto-reject guarantee to the engine. A search of app/features/library/jobs found no autoReject, isFairnessProtected, actOnPipelineEntry or screenWave, so the subject's precondition (an automated adverse action) does not hold here.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1f4e2b1f7486ecbc",
+          "evaluatedRevision": 5
         },
         {
           "subject": "bulk-adverse-action-governance",
