@@ -18223,7 +18223,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:16 Here 'brief' means the structured hiring-need RoleBrief that the intake panel shapes, de-duplicates and reveals, not instructions that drive a candidate interviewer. A grep of app/features/library/jds/intake/ for coachability, praise, PERSONA_ and narrow found no hits; 'interviewer' appears only as a transcript role label (jdsIntakeLogic.ts:14).",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:326772ee23e9392b",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -33903,7 +33907,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/voice/candidate-brief.ts:169 For ElevenLabs sessions the engine gets only this client-sent candidate brief. The sanitizer correctly removes the coachability phase's scripted hint, but composeCandidateBrief (lines 251-270) adds no hint rule in its place: NON_NEGOTIABLES from student-interview.ts:208 is never composed in, and director.ts has no hint stage direction. So an early-career EL interview is never told to give its guaranteed hint, and the Coachability axis that the scorer reads (hintText, interview-run.ts:809) goes unobserved.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:326772ee23e9392b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",

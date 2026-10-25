@@ -14663,48 +14663,43 @@
       "context": "voice-interview-session",
       "subject": "ai-interviewer-brief-authoring",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T01:42:29.285Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:08:03.073Z",
+      "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
       "techniques": [
-        {
-          "technique": "closing-read-back",
-          "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:174 Downstream scorecard synthesis explicitly prioritizes the candidate's closing read-back confirmation turn over earlier transcript mentions of corrupted tech terms."
-        },
         {
           "technique": "mandatory-coachability-hint",
           "verdict": "deviation",
-          "evidence": "app/_lib/voice/candidate-brief.ts:169 The candidate-safe brief sanitization strips the coachability probe and omits the mandatory hint instruction, leaving the voice AI interviewer with no hint instruction or probe to offer."
+          "evidence": "app/_lib/voice/candidate-brief.ts:169 Keeping the hint text in an internal field is done right (allow-list). But the guarantee is lost: the candidate-safe brief keeps only the 'Coachability injection' topic label and has no 'offer ONE hint, never skip' rule."
         },
         {
-          "technique": "narrowing-follow-up-not-repetition",
-          "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:176 Instructs the interviewer to narrow to smaller concrete sub-questions rather than repeating verbatim on thin answers, and to verify quantitative claims neutrally."
+          "technique": "rule-ordering-adjacency-and-form",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/candidate-brief.ts:255 The lock is adjacent to the gender-grammar rule, but it is not last in the brief. Lines 258-269 put the intro, leadership frame, case intro, agenda listing, director protocol (with up to 1500 chars of posting plus FAQ) and the close after it, so the lock sits mid-document. A search of director.ts for 'language' found no per-turn or stage-note restatement. The 'outranks every other instruction' rank sentence is in the lock (student-interview.ts:158), and the technique says that is not a lever."
         },
         {
           "technique": "one-question-per-turn-and-wait",
           "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:162 Enforces exactly one question per turn and explicitly directs the interviewer to wait for the answer without bundling second questions."
+          "evidence": "app/_lib/voice/candidate-brief.ts:253 Imports the shared constant 'Ask exactly ONE question per turn and wait for the answer…' (student-interview.ts:162). Interrupting a rambling candidate is authorised in the craft paragraph."
+        },
+        {
+          "technique": "narrowing-follow-up-not-repetition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/student-interview.ts:176 This is the constant composed in at candidate-brief.ts:254. It covers narrowing, no verbatim repeat, no preamble, coverage over count and not announcing what remains. Caveats: rungs are improvised live rather than planned per item, and claim verification is triggered by 'strong or quantitative' claims rather than asked uniformly."
+        },
+        {
+          "technique": "closing-read-back",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/candidate-brief.ts:254 Composes the craft paragraph, which says 'Just before closing… read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that'. It does not state numbers-with-basis or per-item confirmation."
         },
         {
           "technique": "praise-and-verdict-suppression",
           "verdict": "conformant",
-          "evidence": "app/_lib/voice/candidate-brief.ts:269 Suppresses both evaluative verdicts and praise by explicitly banning praise of thinking/instinct, enumerating forbidden and permitted tokens, and deferring evaluation to human review."
-        },
-        {
-          "technique": "rule-ordering-adjacency-and-form",
-          "verdict": "conformant",
-          "evidence": "app/_lib/voice/candidate-brief.ts:255 Maintains critical consistency constraints adjacent in the brief to prevent language drift, with craft rules condensed into a single paragraph starting with content."
+          "evidence": "app/_lib/voice/candidate-brief.ts:269 Enumerated forbidden list, including praise of thinking or instinct, and a permitted list, plus a process explanation at the close. It does not say the permitted tokens must not be rationed."
         }
       ],
-      "registryProposal": "Where interviewer prompts are client-sent to voice providers without server-side prompt storage, the brief authoring model must provide a mechanism to deliver stage-direction instructions to the agent without exposing ungrounded probes to candidate-accessible devtools.",
-      "withdrawn": {
-        "worker": "7485ea3e-3e22-46d8-977d-3920370d1deb",
-        "state": "deviation",
-        "at": "2026-10-19T01:42:52.613695+00:00",
-        "reason": "reviewer (sonnet): candidate-brief.ts:169 only drops the coachability probe from the browser-bound candidate-safe brief, and it does so on purpose (comments at lines 148-151 and 160-163); I did not confirm that the voice interviewer is left with no hint instruction, because the private brief in interview-run.ts and st"
-      }
+      "registryProposal": "mandatory-coachability-hint's 'hint scripting lives in a structurally internal field' rule can, applied correctly, delete the guarantee itself when the engine's ONLY brief is the candidate-facing derivation (a client-sent prompt). The technique should say the guarantee must still reach the engine in that case: as a content-free rule ('offer one concrete hint mid-problem, never skip') that is allow-listed separately from the hint text, or as a server-delivered stage direction."
     },
     "181b8632-82ec-4203-a308-42e58eca6c49/background-jobs": {
       "context": "jobs-posting-campaign",
@@ -20219,6 +20214,16 @@
       "evaluatedAt": "2026-10-25",
       "evaluatedTs": "2026-10-25T03:34:56.242Z",
       "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
+      "techniques": []
+    },
+    "a626dbb6-a28d-4c99-be26-a5d9592ba2eb/ai-interviewer-brief-authoring": {
+      "context": "jd-intake-brief-logic",
+      "subject": "ai-interviewer-brief-authoring",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:08:03.073Z",
+      "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
       "techniques": []
     }
   }
