@@ -20085,6 +20085,16 @@
         "at": "2026-10-25T03:14:30.516036+00:00",
         "reason": "reviewer (sonnet): The anchor (scoreDial.logic.ts:16) is only the VERDICT_BANDS table, so it does not itself show that calibration is out of scope, and the not-applicable rests on a grep for absence; the context also renders verdict words like 'excellent' for a raw score, and whether those overstate an uncalibrated sc"
       }
+    },
+    "388f1010-aa7c-4197-b516-3eef907a4d5d/structured-output": {
+      "context": "candidate-channels-ui",
+      "subject": "structured-output",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:26:30.259Z",
+      "worker": "8fe5fa6d-097c-4877-9c2a-5c29d8a12d01",
+      "techniques": []
     }
   }
 }
