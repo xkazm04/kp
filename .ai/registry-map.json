@@ -11606,7 +11606,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:191 The Decisions tab loads pipeline entries and match results, never the RoleBrief. Searching the whole decisions directory for RoleBrief, intake, sourceTurn and spineProvenance found nothing, and the 'provenance' it does show is candidate-skill evidence, a different axis, so the brief's record, merge and gate techniques have nothing here to realize.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:97f14df41d8eb363",
+          "evaluatedRevision": 3
         },
         {
           "subject": "supply-chain",

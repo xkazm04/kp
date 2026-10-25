@@ -19826,6 +19826,16 @@
           "evidence": "app/_lib/ops-telemetry.ts:32 This context only reads JSONL logs and tolerates torn lines. It publishes no file another process reads."
         }
       ]
+    },
+    "03de9bcc-53c7-4571-9782-d203eb627b06/hiring-need-as-structured-brief": {
+      "context": "decisions-review-ui",
+      "subject": "hiring-need-as-structured-brief",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:32:01.126Z",
+      "worker": "78792cfc-be56-4ab9-8cc5-459234706b03",
+      "techniques": []
     }
   }
 }
