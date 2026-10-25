@@ -12084,7 +12084,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/dev-guard.mjs:121 The dev-guard worker-storm breaker is the only process sampler running alongside the dev build. When the PowerShell or pgrep probe fails or times out, it reports 0 node processes instead of reporting the failure, so a broken sampler looks exactly like 'no storm' and the breaker silently never trips.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:2dc0e92ddb23f674",
+          "evaluatedRevision": 7
         },
         {
           "subject": "quality-gates",
@@ -17747,7 +17751,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/jd-build-run.ts:17 Here 'build' means a runtime AI job-description generation run, not a compile or dev-loop build. A git grep of app/_lib for distDir, DEV_INSPECT and cacheDir found nothing, and none of the context's files carries bundler, variant or build-cache configuration.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:2dc0e92ddb23f674",
+          "evaluatedRevision": 7
         },
         {
           "subject": "quality-gates",
