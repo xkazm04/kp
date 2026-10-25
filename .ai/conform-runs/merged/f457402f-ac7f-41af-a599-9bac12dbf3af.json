@@ -1,0 +1,82 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f457402f-ac7f-41af-a599-9bac12dbf3af",
+ "subject": "job-coordination",
+ "evaluatedAt": "2026-10-25T02:36:37.041034+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:177 A resume after a `raise_failed` receipt (sourcing already finished, only the alert raise failed) calls runGoLive in `resume` mode. That mode changes only the response flags, so the run starts again from the sourcing step, re-spawns the sourcing child, and ignores the step position the receipt already recorded.",
+   "techniques": [
+    {
+     "technique": "step-position-and-resumability",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:177 The receipt separates sourcing_failed from raise_failed, but app/_lib/golive-run.ts reads `mode` only for `alreadyPublished`/`resumed` in its result. Recovery restarts from step 1 instead of the first incomplete step. Sourcing is dedup-safe (createPipelineEntry returns `created`), so the cost is a repeated sourcing spawn, not duplicate entries."
+    },
+    {
+     "technique": "in-flight-is-a-position",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:161 The durable `sourcing` receipt is written inside the go-live transaction, before runGoLive dispatches anything. The record therefore tells 'dispatched, outcome unknown' apart from both done and the failure verdicts."
+    },
+    {
+     "technique": "no-unrestorable-state-at-a-suspension-point",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:128 The billing gate, status flip, terms write, meter debit and receipt open run as one synchronous transaction with no await inside. A debit can never be separated from its flip (repair 1/2: collapse the span into one atomic effect)."
+    },
+    {
+     "technique": "terms-travel-permission-does-not",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:159 The role's review terms (target hires, posting languages) are written into the record in the same act as the flip. Cancellation stays live: request.signal is passed to runGoLive."
+    },
+    {
+     "technique": "no-wall-clock-in-the-advance-contract",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:21 maxDuration is documented as binding nothing on self-host. runGoLive takes a cancellation signal and an attempt but no deadline, and the real bound is the per-child timeout of the process the code owns."
+    },
+    {
+     "technique": "lease-renewal",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:171 The go-live hold is minutes, bounded by per-child timeouts, not hours. Reclaim is the claim-timestamp heuristic (GOLIVE_RESUME_GRACE_MS = 10 min, in the out-of-context golive-receipt-store.ts), which the technique allows for short work. Stale writers are fenced by finishReceipt's CAS on `attempt`."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "job-coordination",
+   "context": "jobs-table-core",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "job-coordination",
+   "context": "jobs-rediscovery",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T02:36:37.041034+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [
+    "in-flight-is-a-position",
+    "lease-renewal",
+    "no-unrestorable-state-at-a-suspension-point",
+    "no-wall-clock-in-the-advance-contract",
+    "step-position-and-resumability",
+    "terms-travel-permission-does-not"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
