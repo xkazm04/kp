@@ -1,0 +1,137 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3401a94a-9df0-4653-a420-e0d5e6cf43e7",
+  "subject": "session-continuation",
+  "evaluatedAt": "2026-10-25T00:24:59.142656+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-eval",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/devEvalTaskState.ts:2 This context is operator UI that renders the state of a background evaluation task (queued/running/failed/interrupted) and holds no continuation loop, stop gate or compaction boundary; I searched app/features/tools for PreCompact, stop_hook, keepWorking, SessionStart and 'stop hook' and found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "PreCompact",
+        "stop_hook",
+        "keepWorking",
+        "SessionStart",
+        "stop hook"
+      ]
+    },
+    {
+      "context": "auth-session-rbac",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/auth/session.ts:80 Here 'session' means an HMAC-signed operator cookie with a TTL and an epoch, not an agent conversation with a turn boundary, so the subject's precondition (a keep-working loop inside one agent session) does not hold; I searched app/_lib/auth for PreCompact, stop_hook, keepWorking, SessionStart and 'loop authority' and found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "PreCompact",
+        "stop_hook",
+        "keepWorking",
+        "SessionStart"
+      ]
+    },
+    {
+      "context": "devcase-session-api",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 The candidate devcase chat makes exactly one model exchange per HTTP request, bounded by rate limits and a stored-message ceiling, and the human types every turn, so there is no harness loop that refuses a stop, survives compaction or advances stages; I searched app/api/devcase for PreCompact, stop_hook, keepWorking, SessionStart and 'yield state' and found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "PreCompact",
+        "stop_hook",
+        "keepWorking",
+        "SessionStart"
+      ]
+    },
+    {
+      "context": "companion-ai",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/companion-run.ts:30 The companion runs one spawned CLI exchange per operator message (plus a digest leg run as a task), and its proposed actions are questions that wait on the operator rather than a loop the harness keeps alive, so no continuation record, stop gate or compaction checkpoint applies; I searched app/_lib for PreCompact, stop_hook, keepWorking, SessionStart and 'stop hook' and found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "PreCompact",
+        "stop_hook",
+        "keepWorking",
+        "SessionStart",
+        "stop hook"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "session-continuation",
+      "context": "task-automation-engine",
+      "reason": "withdrawn after review: reviewer (sonnet): The claim that the subject delegates supervised loops to background-jobs could not be confirmed, because I could not find the subject text. The anchor, task-maintenance.ts:10, only shows the watchdog and reaper. A neighbouring line in this context, task-dedupe.ts:125, shows a stateful lifecycle task"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-25T00:24:59.142656+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "session-continuation"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "task-automation-engine",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T00:24:59.142656+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "session-continuation"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T00:24:59.142656+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "session-continuation"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "auth-session-rbac",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T00:24:59.142656+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "session-continuation"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-session-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T00:24:59.142656+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "session-continuation"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "companion-ai",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

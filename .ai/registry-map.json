@@ -5660,7 +5660,11 @@
           "revision": 8,
           "changedAt": "2026-10-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:80 Here 'session' means an HMAC-signed operator cookie with a TTL and an epoch, not an agent conversation with a turn boundary, so the subject's precondition (a keep-working loop inside one agent session) does not hold; I searched app/_lib/auth for PreCompact, stop_hook, keepWorking, SessionStart and 'loop authority' and found no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b0eabf78abd856a4",
+          "evaluatedRevision": 8
         },
         {
           "subject": "terminal-multiplexing",
@@ -8842,7 +8846,11 @@
           "revision": 8,
           "changedAt": "2026-10-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/companion-run.ts:30 The companion runs one spawned CLI exchange per operator message (plus a digest leg run as a task), and its proposed actions are questions that wait on the operator rather than a loop the harness keeps alive, so no continuation record, stop gate or compaction checkpoint applies; I searched app/_lib for PreCompact, stop_hook, keepWorking, SessionStart and 'stop hook' and found no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b0eabf78abd856a4",
+          "evaluatedRevision": 8
         },
         {
           "subject": "chat-transcript",

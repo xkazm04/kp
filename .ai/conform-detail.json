@@ -19251,6 +19251,41 @@
       "evaluatedTs": "2026-10-25T00:13:56.540Z",
       "worker": "a2000d53-34b8-4d43-b001-6912a5a7fd71",
       "techniques": []
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/session-continuation": {
+      "context": "task-automation-engine",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:24:59.142Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "3401a94a-9df0-4653-a420-e0d5e6cf43e7",
+        "state": "not-applicable",
+        "at": "2026-10-25T00:37:46.569356+00:00",
+        "reason": "reviewer (sonnet): The claim that the subject delegates supervised loops to background-jobs could not be confirmed, because I could not find the subject text. The anchor, task-maintenance.ts:10, only shows the watchdog and reaper. A neighbouring line in this context, task-dedupe.ts:125, shows a stateful lifecycle task"
+      }
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/session-continuation": {
+      "context": "auth-session-rbac",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:24:59.142Z",
+      "worker": "3401a94a-9df0-4653-a420-e0d5e6cf43e7",
+      "techniques": []
+    },
+    "c0265e6e-9274-43db-9929-822cb417b96d/session-continuation": {
+      "context": "companion-ai",
+      "subject": "session-continuation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:24:59.142Z",
+      "worker": "3401a94a-9df0-4653-a420-e0d5e6cf43e7",
+      "techniques": []
     }
   }
 }
