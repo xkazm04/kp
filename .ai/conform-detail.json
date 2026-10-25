@@ -19687,6 +19687,36 @@
           "evidence": "app/features/settings/billing/BillingUsageMeterRow.tsx:74 Display of the server's monotonic used counter. No charge is computed client-side."
         }
       ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/windowed-inference-over-oversized-inputs": {
+      "context": "schedule-calendar-invites",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:08:09.027Z",
+      "worker": "139cb409-d9bd-467e-b964-b0adde9442cb",
+      "techniques": []
+    },
+    "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/windowed-inference-over-oversized-inputs": {
+      "context": "matrix-focus",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:08:09.027Z",
+      "worker": "139cb409-d9bd-467e-b964-b0adde9442cb",
+      "techniques": []
+    },
+    "73a8aded-da13-4df7-82bf-d42fea2cf5cf/windowed-inference-over-oversized-inputs": {
+      "context": "interview-scheduling-api",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:08:09.027Z",
+      "worker": "139cb409-d9bd-467e-b964-b0adde9442cb",
+      "techniques": []
     }
   }
 }

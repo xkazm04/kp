@@ -17280,7 +17280,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/schedule/route.ts:124 These are CRUD/OAuth route handlers for invites, bookings and calendar writeback. The only 'overlap' is a booking-time collision check, and no windowed model inference exists. Searching app/api/schedule and app/api/calendar for stitch/blend/accelerator/tensor/gaussian found zero hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -23261,7 +23265,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/matchView.ts:20 This context renders a candidate-match ranking and skill weight vectors returned by /api/match. It never runs a model over oversized inputs in windows or blends canvases, and 'weights' here are skill-ranking weights, not blend weights. Searching the directory for stitch/blend/accelerator/tensor/gaussian found zero hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "long-form-reading-surface",
@@ -28198,7 +28206,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleGridSeeds.ts:16 The 'grid' in this context is a week-view calendar of interview time slots, seeded with booked/legacy/guess provenance, and no model inference happens over windows. Searching app/features/hiring/schedule for stitch/blend/accelerator/tensor/gaussian found zero hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
