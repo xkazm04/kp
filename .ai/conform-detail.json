@@ -20402,6 +20402,27 @@
       "evaluatedTs": "2026-10-25T23:23:49.946Z",
       "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
       "techniques": []
+    },
+    "83d5f3f8-b225-4d2b-ba73-bfbfa36efbec/cv-presentation-and-parseability": {
+      "context": "spark-trust-market",
+      "subject": "cv-presentation-and-parseability",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:44:27.490Z",
+      "worker": "c11bc53b-4908-4897-9bc1-5ab6206c5000",
+      "techniques": [
+        {
+          "technique": "export-format-and-round-trip-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:4 It reads a committed market snapshot. No CV file is generated."
+        },
+        {
+          "technique": "scan-path-hierarchy",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV."
+        }
+      ]
     }
   }
 }

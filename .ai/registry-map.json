@@ -31716,7 +31716,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:2 This context is a landing-page visualisation of Czech labour-market data. It produces no CV layout, export or parse path; a search of app/landing/spark/market/ for curriculum, résumé, resume, docx, photo and \\bcv\\b returned no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:ada9340a75aa0816",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
