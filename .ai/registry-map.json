@@ -6059,7 +6059,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:212 The per-use-case calls line shows fallback and unpriced counts, but not failedCalls, even though spendUsageFold carries it through. The spend surface therefore hides failed-call activity, and it has no most-expensive-calls list or row drill-down.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "subscription-billing-periods",
@@ -10179,7 +10183,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/llm.ts:279 The sidecar fold drops corrupt or incomplete ledger lines without counting them (`skipped` counts only duplicates). It also stamps `ts` at fold time (llm.ts:352), not at call time. The ledger therefore claims a completeness it lacks and dates rows by when they were written.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "small-sample-honesty-in-hiring-analytics",

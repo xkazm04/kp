@@ -8613,22 +8613,27 @@
       "context": "billing-plan-and-spend",
       "subject": "cost-metering",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T23:44:02.732Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:31:02.903Z",
+      "worker": "d38153fc-7091-4417-8265-a6047d97a2a7",
       "techniques": [
         {
           "technique": "spend-observability",
           "verdict": "deviation",
-          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:208 The label contains calls, deterministic fallbacks and unpriced calls; failedCalls survives spendUsageFold.ts but is never rendered here, and the aggregate bars provide no call-level drill-down."
+          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:212 Unpriced share is shown. The failed-call count, folded at spendUsageFold.ts:47, is never rendered, and there is no outlier view or row-level drill-down. Plan meters do get a run-rate projection (BillingUsageMeterRow.tsx:41)."
+        },
+        {
+          "technique": "spend-attribution",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:169 The breakdown is per use case only and deployment-wide. The surface labels this scope honestly, but the multi-tenant product has no tenant axis on AI spend, and the panel sets it beside an org-scoped allowance."
+        },
+        {
+          "technique": "usage-ledgers",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/spend/BillingSpendPanel.tsx:115 The allowance period comes from the server (billingOverview.allowanceWindow) and is rendered in UTC; it is not re-derived in the client. Caveat: the chart beside it uses a rolling `days` window (line 119 falls back to 30), so one screen shows two period definitions."
         }
-      ],
-      "withdrawn": {
-        "worker": "280a6fd7-74d0-46d4-bd67-5a0c21d954bd",
-        "state": "deviation",
-        "at": "2026-10-16T23:45:12.218646+00:00",
-        "reason": "reviewer (sonnet): The code claim holds (BillingSpendPanel.tsx:208 never renders failedCalls), but neither BillingSpendPanel.tsx nor spendUsageFold.ts is among the 12 paths registry-map.json lists for billing-plan-and-spend, so the verdict is about a different context."
-      }
+      ]
     },
     "e6d77461-4869-4190-bfcb-a5cf7fec1162/cost-metering": {
       "context": "security-agent-gates",
@@ -8661,77 +8666,75 @@
       "subject": "cost-metering",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T23:44:02.732Z",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:31:02.903Z",
       "techniques": [
+        {
+          "technique": "usage-ledgers",
+          "verdict": "deviation",
+          "evidence": "app/_lib/tts-prices.ts:88 Success-only rows. The failure branch writes no row, and outcome is hardcoded \"ok\" in ttsUsageRow, sttUsageRow and voiceUsageRow."
+        },
         {
           "technique": "price-tables",
           "verdict": "deviation",
-          "evidence": "app/_lib/tts-prices.ts:36 Unknown synthesis providers receive null pricing rather than the standard's declared conservative default; preserving an unpriced row does not satisfy that default requirement."
+          "evidence": "app/_lib/voice/minute-prices.ts:17 OpenAI Realtime is billed per token by direction, but this table stores one blended per-minute midpoint. The minute and TTS tables carry no verified date (only STT is dated, stt-prices.ts:30). Rows store cost_usd with no rate or version provenance. An unknown provider prices as null rather than a conservative default."
         },
         {
           "technique": "spend-attribution",
           "verdict": "deviation",
-          "evidence": "app/_lib/voice/minute-prices.ts:97 The completed-session row resolves model identity from current configuration instead of carrying the model returned at connection time, allowing configuration changes to misattribute the served model."
+          "evidence": "app/_lib/voice/minute-prices.ts:97 The completed-session row resolves model identity from current configuration instead of carrying the model returned at connection time, allowing configuration changes to misattribute the served model.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "unit-classes-are-open",
           "verdict": "deviation",
-          "evidence": "app/_lib/stt-prices.ts:76 The source acknowledges unmodeled diarization and redaction charges, but returns a base-transcription number without residual units or a propagated floor marker even though the STT route supports those add-ons."
-        },
-        {
-          "technique": "usage-ledgers",
-          "verdict": "deviation",
-          "evidence": "app/_lib/tts-prices.ts:88 Confirmed in /api/tts: the insert follows successful synthesis, while engine-error branches return without a failed-call ledger write."
+          "evidence": "app/_lib/stt-prices.ts:76 The source acknowledges unmodeled diarization and redaction charges, but returns a base-transcription number without residual units or a propagated floor marker even though the STT route supports those add-ons.",
+          "carriedFrom": "2026-10-16"
         }
       ],
       "withdrawn": {
-        "worker": "280a6fd7-74d0-46d4-bd67-5a0c21d954bd",
+        "worker": "d38153fc-7091-4417-8265-a6047d97a2a7",
         "state": "deviation",
-        "at": "2026-10-16T23:45:12.270621+00:00",
-        "reason": "reviewer (sonnet): The main anchor app/_lib/tts-prices.ts, and app/_lib/stt-prices.ts, are not among the 12 paths registry-map.json lists for voice-provider-io. The tts-prices.ts:88 comment does confirm that a failed synthesis has no ledger row, but that code belongs to another context."
+        "at": "2026-10-25T01:32:49.435237+00:00",
+        "reason": "reviewer (sonnet): The headline claim rests on app/_lib/tts-prices.ts and stt-prices.ts, which sit outside this context's app/_lib/voice files. Nothing in minute-prices.ts shows that a failed voice session leaves no row, so the success-only claim could not be confirmed for this context."
       }
     },
     "822b34e7-a55d-4dbf-a113-7097faf18f66/cost-metering": {
       "context": "db-analytics-billing-llm",
       "subject": "cost-metering",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T23:44:02.732Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:31:02.903Z",
+      "worker": "d38153fc-7091-4417-8265-a6047d97a2a7",
       "techniques": [
+        {
+          "technique": "usage-ledgers",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/llm.ts:279 Failed calls are rows (outcome and reason at llm.ts:258), but dropped writes are uncounted, and the row timestamp is the ingest time (`new Date().toISOString()` at llm.ts:352), not the call time."
+        },
         {
           "technique": "price-tables",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/llm.ts:245 The persisted cost has no rate snapshot, price-table version or meter-versus-table pricing provenance, leaving historical derivations unauditable after repricing."
+          "evidence": "app/_lib/db/llm.ts:245 The row stores units and cost_usd, but no rate, no table version, and nothing saying whether the cost came from the provider's meter or the local table. After a repricing the stored cost cannot be re-derived. An unknown model lands as NULL; it is counted as unpriced, but no conservative default price is applied."
         },
         {
           "technique": "spend-attribution",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/llm.ts:346 LLM spend ingestion captures neither workspace nor organization, despite the repository supporting multiple organizations, so tenant attribution cannot be recovered reliably later."
+          "evidence": "app/_lib/db/analytics.ts:119 The product is multi-tenant, but the ledger has no tenant axis, so cost-per-hire divides account-wide spend by one workspace's hires. The code documents this and suppresses the figure when more than one workspace exists. Use case, model and role_run_id are captured."
         },
         {
           "technique": "spend-observability",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/analytics.ts:1090 computeCostWindow excludes failed attempts entirely and returns neither their count nor an incompleteness marker, hiding unmeasured failed-call spend from this derived cost surface."
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/llm.ts:555 The daily rollup counts failed attempts and unpriced calls (line 556) as separate series instead of hiding them inside the totals."
         },
         {
           "technique": "unit-classes-are-open",
           "verdict": "deviation",
-          "evidence": "app/_lib/llm-usage-ledger.ts:141 The parser used by ingestion maps a fixed set of token fields and discards additional reported unit classes without a named residual or counter."
-        },
-        {
-          "technique": "usage-ledgers",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/llm.ts:352 The sidecar insert stamps ingestion time; its parsed input carries no original call timestamp, violating assignment by call time."
+          "evidence": "app/_lib/llm-usage-ledger.ts:141 The parser used by ingestion maps a fixed set of token fields and discards additional reported unit classes without a named residual or counter.",
+          "carriedFrom": "2026-10-16"
         }
-      ],
-      "withdrawn": {
-        "worker": "280a6fd7-74d0-46d4-bd67-5a0c21d954bd",
-        "state": "deviation",
-        "at": "2026-10-16T23:45:12.315467+00:00",
-        "reason": "reviewer (sonnet): The cited llm.ts:352 (new Date() at ingest) and llm-usage-ledger.ts are not among the 12 paths registry-map.json lists for db-analytics-billing-llm. Only analytics.ts is in the context, and the evidence rests on llm.ts, so the verdict is about code outside it."
-      }
+      ]
     },
     "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/cost-metering": {
       "context": "billing-subscriptions",
