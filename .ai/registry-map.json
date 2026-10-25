@@ -11192,7 +11192,11 @@
           "revision": 8,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3590 When actOnPipelineEntry drops a computed automation decision (stale stage, approval moved, terminal entry, hired-reject refusal), the only record is a prose console.warn and the caller gets a bare null for all four reasons, so nothing typed lands in pipeline_events and 'why didn't the automation act on this candidate?' cannot be answered with a query.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1023ff3ecf23d679",
+          "evaluatedRevision": 8
         },
         {
           "subject": "agent-runtime-assembly",
@@ -24144,7 +24148,11 @@
           "revision": 8,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:83 settle and release are keyed only by the delivery key, with no holder token, and the store's UPDATE/DELETE never condition on state or holder. A slow first run whose 15-minute lease lapsed can therefore settle or delete the claim a retry took over, which reopens a key whose effects already committed (a second decline email) or drops the retry's in-flight guard.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1023ff3ecf23d679",
+          "evaluatedRevision": 8
         },
         {
           "subject": "concurrency-guards",

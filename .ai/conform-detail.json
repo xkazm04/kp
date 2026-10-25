@@ -20423,6 +20423,83 @@
           "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV."
         }
       ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/delivery-guarantees": {
+      "context": "db-pipeline-store",
+      "subject": "delivery-guarantees",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:52:40.384Z",
+      "worker": "56a942fc-2e92-47e2-a8e8-53652c2ef6b0",
+      "techniques": [
+        {
+          "technique": "non-delivery-ledgers",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3590 The CAS skip is decided at the right place, but it is written as prose to stdout, not as a typed reason token in a ledger; the four skip branches (3589-3629) all return the same null. A closed reason vocabulary exists (PIPELINE_REASON_CODES), but only for changes that were applied."
+        },
+        {
+          "technique": "marker-certifies-what-was-done",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3030 The claim inserts `expiring_notified` before the letter is dispatched (consent-expiry-reminders.ts:32-41 then only logs a failed dispatch). One marker does both the intent job and the completion job: listConsentExpiryNoticeDue reads it as 'notified', so a failed send is recorded as done and never re-offered. At-most-once is a legitimate posture, but the record should say 'claimed', not 'notified'."
+        },
+        {
+          "technique": "atomic-claiming",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2818 The erasure claim is a conditional UPDATE whose `changes === 0` (line 2820) decides the winner; the loser returns without re-running the scrubs, and anonymized_at stamps when the claim happened."
+        },
+        {
+          "technique": "co-transactional-consume",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2822 The claim and every local scrub effect commit together in one IMMEDIATE transaction, so no lease or reaper is needed. The comment states why the shape is safe."
+        },
+        {
+          "technique": "guarantee-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3467 hasEvent is a durable dedup barrier keyed on the event log, with an unbounded horizon, placed in front of an amplifying effect (an outreach send). The posture is written into the contract."
+        }
+      ]
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/delivery-guarantees": {
+      "context": "ops-observability",
+      "subject": "delivery-guarantees",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:52:40.384Z",
+      "worker": "56a942fc-2e92-47e2-a8e8-53652c2ef6b0",
+      "techniques": [
+        {
+          "technique": "atomic-claiming",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/webhook-claims.ts:64 The claim itself is a correct single conditional upsert (`changes === 1` elects the winner) and records claimed_at plus a lease deadline. But it has no holder column, and the completion write (settleWebhookKey, line 78: `WHERE key = ?`) is not conditioned on still holding the claim."
+        },
+        {
+          "technique": "stuck-reaping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/webhook-claims.ts:84 Detecting a dead claim is evidence-based (lease expiry allows takeover via ON CONFLICT ... WHERE expires_at <= ?). But slow-but-alive does not lose politely: the old holder's release deletes whatever row now has that key. Also the lazy sweep's count is discarded at line 61, so reaps go unreported."
+        },
+        {
+          "technique": "guarantee-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/webhook-idempotency.ts:10 The posture is named: at-least-once doors with deduplicated effects. Dedup state is persisted so it survives the restart that triggers replay, and the 7-day horizon covers the redelivery horizon."
+        },
+        {
+          "technique": "marker-certifies-what-was-done",
+          "verdict": "conformant",
+          "evidence": "app/_lib/webhook-idempotency.ts:20 Intent (inflight claim) and completion (done) are two states. done is written only after the effects commit, and a failure releases the key instead of marking it."
+        },
+        {
+          "technique": "co-transactional-consume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/webhook-claims.ts:9 The handler's effects include candidate emails (external), so the separated claim-and-lease shape is the right choice; co-transactional consume does not apply."
+        },
+        {
+          "technique": "retry-escalation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/webhook-idempotency.ts:80 Retries are driven by the sender or drain. This guard keeps no attempt count; the count belongs to the upstream door."
+        }
+      ]
     }
   }
 }
