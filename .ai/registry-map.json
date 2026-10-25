@@ -13051,7 +13051,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/devcase-cohort.ts:32 The cohort probe heatmap, which produces the 'this case is miscalibrated' verdict on a generated case from LLM probe judgments, drops rows that carry the deterministic-template mark (line 74) but keeps rows with no provenance mark at all. The technique says a row with no fallback flag is unscored, so a legacy keyless bundle can still push every probe toward 100% miss.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "eval-harness",
@@ -15775,7 +15779,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:59 This context renders the generated group comparison to a recruiter, labelled AI-backed or rule-based, but it never judges or scores that text and never compares models. A search of app/features/hiring/decisions/ found no judge rubric, no grounding rule and no eval-harness term, so the subject's precondition (a judge scoring generated hiring artifacts) does not hold here.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "model-routing",
@@ -28646,7 +28654,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/ScoreProvenanceLabel.tsx:9 These components display candidate fit scores and where each came from. They do not evaluate machine-written hiring text with a judge. A search of app/_components found no judge-rubric, grounding or eval-harness vocabulary, so this subject does not govern them; presenting-a-score-to-a-recruiter does.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "test-harness",

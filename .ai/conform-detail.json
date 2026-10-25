@@ -19932,6 +19932,85 @@
         "at": "2026-10-25T02:58:50.051325+00:00",
         "reason": "reviewer (sonnet): The anchor (usePipelineBoardData.ts:112, an internal /api/pipeline fetch) is incidental. The board renders stages and has an off-axis strip for unknown stages, which is the subject's display rule, so the precondition is not shown absent. The absence search used the wrong terms: externalId, schemaVer"
       }
+    },
+    "003cd283-f6d8-41bb-a936-5e2c3d23a76e/recruiter-anchored-model-evaluation": {
+      "context": "devcase-evaluation",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:04:20.895Z",
+      "worker": "29d149b6-628f-45b6-99b1-e4451f2ee5d2",
+      "techniques": [
+        {
+          "technique": "never-judge-a-fallback-as-the-models-work",
+          "verdict": "deviation",
+          "evidence": "app/_lib/devcase-cohort.ts:32 Exclusion is keyed on provenance, as the technique requires: line 74 skips perStepSources.tooling === 'deterministic' from both numerator and denominator, and devcase-compare.ts:128 never crowns a template column. But unmarked legacy rows are kept, which breaks the rule 'when a row's fallback flag is missing, treat the row as unscored'."
+        }
+      ],
+      "registryProposal": "never-judge-a-fallback-as-the-models-work is written for model-comparison harnesses, but its decision rules apply just as hard to product-side cohort statistics built from LLM judgments (here a probe-miss heatmap that declares a generated case miscalibrated). A use_when trigger such as 'an aggregate over LLM-judged rows drives a verdict about a generated artifact' would bring these sites in scope explicitly."
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/recruiter-anchored-model-evaluation": {
+      "context": "group-eval-comparison",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:04:20.895Z",
+      "worker": "29d149b6-628f-45b6-99b1-e4451f2ee5d2",
+      "techniques": [
+        {
+          "technique": "decision-anchored-score-bands",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:59 Nothing here scores the artifact on a judged scale."
+        },
+        {
+          "technique": "never-judge-a-fallback-as-the-models-work",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/groupEvalDisclosure.ts:13 Fallbacks are disclosed to the reader, which is degradation and disclosure practice. No model quality statistic is computed here."
+        },
+        {
+          "technique": "separate-quality-from-reliability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/groupEvalDisclosure.ts:13 No model comparison report exists in this context."
+        },
+        {
+          "technique": "evidence-grounded-correctness",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:59 Nothing judges grounding here."
+        },
+        {
+          "technique": "unverifiable-is-not-fabricated",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:59 There is no judge prompt here."
+        }
+      ]
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/recruiter-anchored-model-evaluation": {
+      "context": "score-metric-display",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:04:20.895Z",
+      "worker": "29d149b6-628f-45b6-99b1-e4451f2ee5d2",
+      "techniques": [
+        {
+          "technique": "decision-anchored-score-bands",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/scoreDial.logic.ts:16 These bands are display labels for a candidate's fit score, not a judge's scale for generated text. Their adjective wording belongs to the presenting-a-score subject."
+        },
+        {
+          "technique": "never-judge-a-fallback-as-the-models-work",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ScoreProvenanceLabel.tsx:26 Rule-based scores are labelled, but no model quality statistic is aggregated here."
+        },
+        {
+          "technique": "separate-quality-from-reliability",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ScoreProvenanceLabel.tsx:9 No model comparison report exists here."
+        }
+      ]
     }
   }
 }
