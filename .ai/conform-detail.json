@@ -8756,42 +8756,58 @@
       "context": "llm-config-provider",
       "subject": "credential-vault",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:32:24.603Z",
+      "worker": "0bec30aa-9958-41c3-83b0-567b6058cca9",
       "techniques": [
-        {
-          "technique": "acquisition",
-          "verdict": "deviation",
-          "evidence": "app/_lib/llm-config.ts:230 The save path validates endpoint configuration but admits the credential without a live identity-and-scope validation."
-        },
         {
           "technique": "brokered-egress",
           "verdict": "deviation",
-          "evidence": "app/_lib/provider-key-precedence.ts:59 The resolver returns plaintext credentials to callers instead of accepting authenticated operation intents."
+          "evidence": "app/_lib/llm-config.ts:381 buildLlmConfigEnv decrypts every row and ships the plaintext to Python via KP_LLM_CONFIG; resolveProviderKey (l.275) also returns plaintext to TS SDK call sites. Destination binding exists only partially (Azure endpoint allowlist at save time)."
         },
         {
           "technique": "encryption-at-rest",
           "verdict": "deviation",
-          "evidence": "app/_lib/llm-secret.ts:77 Fresh-IV authenticated encryption exists, but sealing lacks wrapped per-secret keys, record AAD, and master-generation identification."
+          "evidence": "app/_lib/llm-secret.ts:77 AES-256-GCM with a fresh random 12-byte IV and one seal/unseal module are conformant, but there's no setAAD binding the ciphertext to its (provider, scope) record, it's flat (no per-secret data key under a master), the master key is a plain sha256 of KP_SECRET (l.48, no memory-hard KDF, and the same secret is reused for the session HMAC), and the 'v1' header doesn't name the key generation."
         },
         {
-          "technique": "health-probing",
+          "technique": "versioned-key-window",
           "verdict": "deviation",
-          "evidence": "app/api/llm/test/verdict.ts:59 The stored-key probe uses this classifier to reconstruct failure kinds from error prose rather than preserving typed provider verdicts."
+          "evidence": "app/_lib/llm-secret.ts:103 The current/previous window (only current seals) is the right idea, but the ciphertext carries no key version, so opening and rewrapping work by trial decryption in order — the failure shape this technique names, where a wrong key can't be told apart from corruption."
+        },
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-config.ts:233 saveProviderKey admits a pasted key with only shape checks (endpoint/baseUrl) and no live validation; the probe is a separate optional Test button. Never re-displaying the value (masked listing, l.255) is conformant."
         },
         {
           "technique": "rotation-and-remediation",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/llm.ts:171 Replacement overwrites the incumbent ciphertext without requiring live successor validation or successful successor traffic."
+          "evidence": "app/_lib/llm-config.ts:230 Replacing a key overwrites the incumbent in place with no overlap window, no live validation of the successor before cutover, no rotation ledger and no remediation ladder. The master-key (KP_SECRET) rotation path is a separate, better-shaped mechanism."
+        },
+        {
+          "technique": "token-refresh-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/provider-key-precedence.ts:17 Stored provider credentials are static API keys with no grant/proof split, expiry or refresh field; grep for refresh/lease/renew over the context's files found nothing."
+        },
+        {
+          "technique": "renew-at-two-thirds-with-grace",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:310 No leased secret with an issuer-extended TTL exists; the key entry carries no lease or duration."
+        },
+        {
+          "technique": "revocation-interception-cache",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 Keys are resolved and decrypted from the store on every call; no intermediary caches leased secrets."
+        },
+        {
+          "technique": "health-probing",
+          "verdict": "deviation",
+          "evidence": "app/api/llm/test/verdict.ts:59 The stored-key probe uses this classifier to reconstruct failure kinds from error prose rather than preserving typed provider verdicts.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
-        "state": "deviation",
-        "at": "2026-10-17T00:12:41.294970+00:00",
-        "reason": "reviewer (sonnet): The technique anchor app/api/llm/test/verdict.ts:59 is not in the llm-config-provider file list in context-map.json, and I found no caller showing a stored-key probe uses classifyProviderError, so that claim rests on code from outside this context."
-      }
+      ]
     },
     "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/credential-vault": {
       "context": "ats-sync-egress",

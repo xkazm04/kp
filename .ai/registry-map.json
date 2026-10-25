@@ -22176,7 +22176,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-config.ts:389 Every stored provider key is decrypted and serialized as plaintext into an env var handed to the spawned Python process, so values cross the vault boundary instead of actions — the cardinal brokered-egress rule is broken and each child process becomes an involuntary vault.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         },
         {
           "subject": "optional-dependency-degradation",
