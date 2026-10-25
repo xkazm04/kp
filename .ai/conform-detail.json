@@ -19179,6 +19179,68 @@
         }
       ],
       "registryProposal": "In kp, 'retired' means the routed archetype was archived. That state has a remedy (re-route), so it is advisory, not terminal. The technique could warn that a borrowed terminal word on a remediable state turns 'actions follow the displayed state' into a contradiction, as it does here, where a Rebuild button sits under a 'Retired' badge."
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/comparative-shortlist-evaluation": {
+      "context": "candidate-matching",
+      "subject": "comparative-shortlist-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:03:09.309Z",
+      "worker": "95f86024-a07c-413f-b0d2-8eb92c35b15f",
+      "techniques": [
+        {
+          "technique": "minimum-cohort-before-a-comparative-claim",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/group_compare.py:284 With n==1 the module makes no lead claim. Per-dimension superlatives also need two measured candidates (leader() returns None when len(dim) < 2)."
+        },
+        {
+          "technique": "confidence-band-lead-separation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/group_compare.py:291 The fallback headline says 'leads' and the recommendation says 'Advance first' without checking any separation status. Equal totals keep input order from a stable sort, so a tie is resolved by accident."
+        },
+        {
+          "technique": "counterbalanced-candidate-order",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/group_compare.py:124 The model is asked who leads, which fails step 1. The caller sorts candidates by score before the prompt is built, and there is no reorder rerun or post-check against forbidden lead claims (the grounding check only tests names and numbers)."
+        },
+        {
+          "technique": "cross-scheme-weight-robustness",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1499 fairness_matrix ranks by the mean across schemes (the centroid weighting) and calls that the robust order. It never checks that the schemes differ, counts per-scheme leader agreement, or reports how far the weights moved. Keeping the diagonal ('own') is correct."
+        },
+        {
+          "technique": "refuse-a-cross-currency-comparison",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/group_compare.py:126 The prompt asks for budget-fit comparisons, but the payload has no 'withheld' state. A cross-currency figure is nulled upstream, and the prompt explains null only for scores, so 'withheld' looks the same as 'stated no expectation'."
+        }
+      ]
+    },
+    "003cd283-f6d8-41bb-a936-5e2c3d23a76e/comparative-shortlist-evaluation": {
+      "context": "devcase-evaluation",
+      "subject": "comparative-shortlist-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:03:09.309Z",
+      "worker": "95f86024-a07c-413f-b0d2-8eb92c35b15f",
+      "techniques": [
+        {
+          "technique": "confidence-band-lead-separation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/devcase-compare.ts:130 No band and no separation state. A tie at the top goes to the earlier column (transferScore order) instead of being reported as a tie."
+        },
+        {
+          "technique": "minimum-cohort-before-a-comparative-claim",
+          "verdict": "deviation",
+          "evidence": "app/_lib/devcase-compare.test.ts:53 The test pins a one-submission comparison that crowns an axis leader. The module has no per-axis floor of two scored columns, unlike group_compare's leader()."
+        },
+        {
+          "technique": "refuse-a-cross-currency-comparison",
+          "verdict": "conformant",
+          "evidence": "app/_lib/devcase-compare.ts:128 In a mixed cohort, template-scored columns are labelled with their currency, listed after the graded ones, and never lead an axis."
+        }
+      ]
     }
   }
 }

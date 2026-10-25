@@ -7208,7 +7208,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/group_compare.py:124 The comparison prompt asks the model to decide who leads. The context it gets has no separation or robustness status, and the candidates arrive in score order. So the model picks and words the crown itself instead of narrating claims that code already computed.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "quality-gates",
@@ -13057,7 +13061,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/devcase-compare.ts:130 Per-axis leadership is a bare strict-greater scan. It crowns whichever column comes first on an equal score, crowns a column that is the only one scored on an axis, and has no band, so the compare matrix highlights a 'leader' the evidence does not support.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "translation-quality-measurement",
