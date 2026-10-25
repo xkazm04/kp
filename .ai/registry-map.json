@@ -25109,7 +25109,11 @@
           "revision": 15,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 saveStageSla paints a per-stage optimistic value (line 72), then drops it unconditionally on failure (line 76) and after reload (line 81), with no per-stage mutex and no compare-and-swap; PipelineKitSla commits on every Enter/blur, so two overlapping saves on one stage are reachable, and the first save to settle erases the second save's paint while that save is still in flight (and on failure shows the first save's error).",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b667f5c1f4abdd9d",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"

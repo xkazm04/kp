@@ -13241,47 +13241,58 @@
       "context": "pipeline-actions-events",
       "subject": "client-state",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T22:23:20.456Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:17:01.399Z",
+      "worker": "c693b6bf-92bb-42d8-a097-c4a15c6f1639",
       "techniques": [
         {
           "technique": "optimistic-write-path",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional rollback deletes the stage override without compare-and-swap verification against concurrent edits, and lacks per-entity mutation serialization."
-        },
-        {
-          "technique": "singleton-lifecycle",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module-scoped cache lacks a test-reset hatch and replacement-safe generation tokens, risking state leaks between test runs."
-        },
-        {
-          "technique": "invalidation-strategy",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 Relies on a coarse 10-minute polling TTL instead of surgical event-driven invalidation when candidate rankings change."
-        },
-        {
-          "technique": "status-fsms",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:21 Uses a boolean flag failed alongside data rather than an explicit enumerated lifecycle state machine carrying error evidence."
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional revert with no per-entity serialization, so an overlapping attempt's paint gets discarded. This is the 'two rapid actions on one entity' failure the technique names."
         },
         {
           "technique": "async-race-guards",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:42 In-flight deduplication tracks active fetches per jobId in a Set and cleans up in finally on settlement."
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 In-flight dedup keyed by jobId (the only argument); the key is removed in finally on success and on failure alike (line 57)."
+        },
+        {
+          "technique": "status-fsms",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:54 A per-job slot gives loading (undefined), loaded, and failed states; a failure keeps earlier held data instead of blanking, and is a separate flag from empty."
+        },
+        {
+          "technique": "effect-identity-and-latched-callbacks",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:75 The effect's dependency list holds only the address (jobId), with no caller callbacks."
+        },
+        {
+          "technique": "invalidation-strategy",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:24 The module ranking cache becomes fresh again only through a 10-minute TTL on read. It exports no invalidation or write-through entry point, so a mutation that changes the ranking stays stale until the TTL expires."
+        },
+        {
+          "technique": "singleton-lifecycle",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module scope is right for a cache that can be refetched (a duplicate copy only refetches). But this stateful module (slots, inflight, listeners) has no reset hatch: the file exports only useCellMatchData."
+        },
+        {
+          "technique": "persistence-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:14 Per-browser localStorage cadences are moved into the durable team store, and the local copy is cleared only after every offer lands."
+        },
+        {
+          "technique": "rehydration-narrowing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:16 Rehydrated values are clamped per field (line 53) and only offered, never applied silently."
         },
         {
           "technique": "store-slicing",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:165 Computes a content signature over immutable entry slices to preserve render identity across unchanged poll ticks."
+          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:165 Computes a content signature over immutable entry slices to preserve render identity across unchanged poll ticks.",
+          "carriedFrom": "2026-10-18"
         }
-      ],
-      "withdrawn": {
-        "worker": "394aca63-4ce9-4eef-8c03-beb06240c14c",
-        "state": "deviation",
-        "at": "2026-10-18T22:23:45.239414+00:00",
-        "reason": "reviewer (sonnet): The unconditional rollback at usePipelineSla.ts:76 is real, but three of the four technique anchors (the module cache, 10-minute TTL and `failed` flag) are in app/features/hiring/pipeline/map/useCellMatchData.ts, which is not among this context's listed files, and the 'risking clobbering concurrent "
-      }
+      ]
     },
     "10943bc8-3713-4897-a618-ac1437d7c455/early-career-potential-assessment": {
       "context": "tests-scoring-fairness",
