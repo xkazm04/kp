@@ -15684,7 +15684,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:112 Every branch of the 'fairness' panel renders the scope note. The catalog text reads 'Checks ranking stability under different scoring emphases. It does not assess demographic or protected-class bias (the app holds no such data)', under the heading 'Weighting robustness'. The non-protected metric therefore cannot be read as a fairness result, and the degenerate states render as distinct non-green verdicts.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a6b772b8ebe7f352",
+          "evaluatedRevision": 4
         },
         {
           "subject": "prompt-assembly",

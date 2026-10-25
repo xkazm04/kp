@@ -19286,6 +19286,32 @@
       "evaluatedTs": "2026-10-25T00:24:59.142Z",
       "worker": "3401a94a-9df0-4653-a420-e0d5e6cf43e7",
       "techniques": []
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/adverse-impact-and-proxy-neutrality": {
+      "context": "group-eval-comparison",
+      "subject": "adverse-impact-and-proxy-neutrality",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:48:33.126Z",
+      "worker": "e9b0b254-48d9-456d-9310-96ee13daf9b0",
+      "techniques": [
+        {
+          "technique": "cohort-shield-is-not-a-protected-class-test",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:112 The panel states loudly that the robustness metric is not a protected-class analysis and that no demographic data is held. The same note is repeated in the insufficient, unavailable and uniform branches (l.46/69/89)."
+        },
+        {
+          "technique": "too-small-to-assess-as-a-distinct-verdict",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:38 insufficient_sample is its own branch with amber copy. The copy states what, why and what would change it ('Add more candidates'). not_varied renders 'Not tested' and unavailable renders 'could not assess', never a pass. This is a robustness verdict, not a selection rate."
+        },
+        {
+          "technique": "selection-rate-ratio-testing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:17 The 'fairness' here is a cross-weighting re-score matrix over a 2-6 candidate shortlist. No group selection rates are computed."
+        }
+      ]
     }
   }
 }
