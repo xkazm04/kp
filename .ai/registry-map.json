@@ -13172,7 +13172,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/devcase-interview-kit.ts:27 The kit's question contract does tie each question to one observed decision, with listen-for and red-flag notes. It has no narrowing follow-up probe, no 'good answer contains' field, no gap bucket and no defence or weakest-point question, so the scaffold the technique requires is only partly carried.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:fc23fd753ce7ea18",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -17525,7 +17529,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/interview-prep/importMerge.ts:85 The import merge only removes questions that match exactly after a trim, and only checks them against earlier imported entries. Near-duplicates, or questions already in the generated chronology, can pile up across re-imports, and the 40 cap is a payload-size limit, not the round's maximum question count.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:fc23fd753ce7ea18",
+          "evaluatedRevision": 3
         },
         {
           "subject": "structured-interview-scorecards",

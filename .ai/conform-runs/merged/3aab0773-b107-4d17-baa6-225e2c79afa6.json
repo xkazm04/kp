@@ -1,0 +1,81 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3aab0773-b107-4d17-baa6-225e2c79afa6",
+ "subject": "interview-run-of-show",
+ "evaluatedAt": "2026-10-25T01:44:45.850288+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-tools-api",
+   "subject": "interview-run-of-show",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/interview-prep/importMerge.ts:85 The import merge only removes questions that match exactly after a trim, and only checks them against earlier imported entries. Near-duplicates, or questions already in the generated chronology, can pile up across re-imports, and the 40 cap is a payload-size limit, not the round's maximum question count.",
+   "techniques": [
+    {
+     "technique": "regenerate-without-destroying-human-notes",
+     "verdict": "deviation",
+     "evidence": "app/api/interview-prep/importMerge.ts:85 The preserving half is realized: woven blockRefs survive a re-import, a no-op PATCH writes nothing (route.ts:283), and a staged pendingPlan gets accept/discard (route.ts:225). The technique's dedup rule is not met: matching is exact-string rather than normalised text, the comparison set is only importedQuestions and not the whole plan, and the cap (MAX_IMPORT_QUESTIONS=40, :8) guards payload size rather than the round's question count."
+    }
+   ]
+  },
+  {
+   "context": "devcase-evaluation",
+   "subject": "interview-run-of-show",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/devcase-interview-kit.ts:27 The kit's question contract does tie each question to one observed decision, with listen-for and red-flag notes. It has no narrowing follow-up probe, no 'good answer contains' field, no gap bucket and no defence or weakest-point question, so the scaffold the technique requires is only partly carried.",
+   "techniques": [
+    {
+     "technique": "question-kit-grounded-in-named-evidence-gaps",
+     "verdict": "deviation",
+     "evidence": "app/_lib/devcase-interview-kit.ts:27 Grounding is realized: each question is anchored to one observed decision (header lines 2-4) and so is candidate-specific, not a topic list. Missing are the follow-up field, a bucket/defence question (the inverted weakest-point question for a clean record), and any cut to a round maximum: interviewKitMarkdown renders every usable question."
+    }
+   ],
+   "registryProposal": "For a work-sample follow-up kit, every question has the same purpose: checking that the candidate authored a decision. That arguably makes it a single-bucket 'technical' kit. The technique could say whether a single-purpose kit still owes the bucket taxonomy, the catch-all and a defence question."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "interview-run-of-show",
+   "context": "interview-portal",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "interview-run-of-show",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T01:44:45.850288+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-run-of-show"
+   ],
+   "techniques": [
+    "regenerate-without-destroying-human-notes"
+   ],
+   "deviations": 1,
+   "context": "interview-tools-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T01:44:45.850288+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-run-of-show"
+   ],
+   "techniques": [
+    "question-kit-grounded-in-named-evidence-gaps"
+   ],
+   "deviations": 1,
+   "context": "devcase-evaluation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
