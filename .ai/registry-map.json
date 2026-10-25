@@ -21444,7 +21444,11 @@
           "revision": 7,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/jobseeker/SourceCard.tsx:19 Here 'tier' means a job source's rights class (A/B/C), not a paid plan. A grep of app/features/jobseeker found no meterGate, entitledPlan, PLANS, upgrade or entitle, and no jobseeker API route calls the meter gates, so this context has no plan entitlements.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
+          "evaluatedRevision": 7
         },
         {
           "subject": "mcp-tools",

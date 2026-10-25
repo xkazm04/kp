@@ -19241,6 +19241,16 @@
           "evidence": "app/_lib/devcase-compare.ts:128 In a mixed cohort, template-scored columns are labelled with their currency, listed after the graded ones, and never lead an axis."
         }
       ]
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/plan-entitlements": {
+      "context": "jobseeker-sources-scans",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T00:13:56.540Z",
+      "worker": "a2000d53-34b8-4d43-b001-6912a5a7fd71",
+      "techniques": []
     }
   }
 }
