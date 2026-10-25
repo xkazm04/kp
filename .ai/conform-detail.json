@@ -19473,6 +19473,75 @@
           "evidence": "app/_lib/db/salary-benchmark.ts:64 A deterministic band read from a table: no model is involved, which is the technique's own 'when not to use' case."
         }
       ]
+    },
+    "a7075610-e714-4a96-82ec-6999c4f8945e/engine-host-contract": {
+      "context": "jobs-table-core",
+      "subject": "engine-host-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:37:46.398Z",
+      "worker": "5885f6f5-c3d4-4dd8-8e0e-b3f1e825b8f7",
+      "techniques": [
+        {
+          "technique": "spec-mirrored-hook-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:13 UI fetch hook; no engine override surface exists"
+        }
+      ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/engine-host-contract": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "engine-host-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:37:46.398Z",
+      "worker": "5885f6f5-c3d4-4dd8-8e0e-b3f1e825b8f7",
+      "techniques": [
+        {
+          "technique": "spec-mirrored-hook-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 a deep-link grammar, not an engine override surface"
+        }
+      ]
+    },
+    "181b8632-82ec-4203-a308-42e58eca6c49/engine-host-contract": {
+      "context": "jobs-posting-campaign",
+      "subject": "engine-host-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:37:46.398Z",
+      "worker": "5885f6f5-c3d4-4dd8-8e0e-b3f1e825b8f7",
+      "techniques": [
+        {
+          "technique": "spec-mirrored-hook-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:1 UI lifecycle state machine, no engine hooks"
+        }
+      ]
+    },
+    "d02d8b99-5d84-4f2e-897c-8dbed84aab91/engine-host-contract": {
+      "context": "jobseeker-core",
+      "subject": "engine-host-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:37:46.398Z",
+      "worker": "5885f6f5-c3d4-4dd8-8e0e-b3f1e825b8f7",
+      "techniques": [
+        {
+          "technique": "spec-mirrored-hook-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/python-cli.ts:1 subprocess seam, not a spec-cut host hook"
+        },
+        {
+          "technique": "null-and-blocking-executors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/python-cli.ts:29 injectable runner is a test seam for a CLI call, not a job executor draining engine queues"
+        }
+      ]
     }
   }
 }

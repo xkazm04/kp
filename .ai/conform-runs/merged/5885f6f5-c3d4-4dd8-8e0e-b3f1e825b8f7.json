@@ -1,0 +1,159 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5885f6f5-c3d4-4dd8-8e0e-b3f1e825b8f7",
+ "subject": "engine-host-contract",
+ "evaluatedAt": "2026-10-25T01:37:46.398976+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-table-core",
+   "subject": "engine-host-contract",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/useJobsList.ts:13 This context is a React client surface that fetches and renders job-posting rows; a search of its files and of app/packages/edge/pipeline for engine-embedding vocabulary (quickjs, isolated-vm, node:vm, vm.createContext, SourceTextModule, importModuleDynamically) found nothing, so no language engine is embedded here and the host-hook contract has no seam to apply to.",
+   "techniques": [
+    {
+     "technique": "spec-mirrored-hook-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:13 UI fetch hook; no engine override surface exists"
+    }
+   ],
+   "absenceTerms": [
+    "quickjs",
+    "isolated-vm",
+    "node:vm",
+    "SourceTextModule",
+    "importModuleDynamically"
+   ]
+  },
+  {
+   "context": "jobs-ai-coach-fit",
+   "subject": "engine-host-contract",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 The coach/agent-fit code is pure URL-grammar and display logic over hiring data; the same repo-wide and in-context search for engine-embedding terms found no embedded language engine, so none of the host-hook techniques has a precondition here.",
+   "techniques": [
+    {
+     "technique": "spec-mirrored-hook-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 a deep-link grammar, not an engine override surface"
+    }
+   ],
+   "absenceTerms": [
+    "quickjs",
+    "isolated-vm",
+    "node:vm",
+    "SourceTextModule",
+    "importModuleDynamically"
+   ]
+  },
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "engine-host-contract",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:1 This context is a posting-modal state machine and publish/ingest UI logic; the search for engine-embedding vocabulary returned no hits in its files or the repo, so there is no embedded engine whose host contract could be judged.",
+   "techniques": [
+    {
+     "technique": "spec-mirrored-hook-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:1 UI lifecycle state machine, no engine hooks"
+    }
+   ],
+   "absenceTerms": [
+    "quickjs",
+    "isolated-vm",
+    "node:vm",
+    "SourceTextModule",
+    "importModuleDynamically"
+   ]
+  },
+  {
+   "context": "jobseeker-core",
+   "subject": "engine-host-contract",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/jobseeker/python-cli.ts:1 The 'Python engine' here is a spawned per-call subprocess (spawnPython with -m pipeline.jobfit.<module>), not a language engine embedded in-process with host hooks, and the search for embedding vocabulary found nothing, so the engine-host contract does not apply (subprocess-lifecycle is the governing subject).",
+   "techniques": [
+    {
+     "technique": "spec-mirrored-hook-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/python-cli.ts:1 subprocess seam, not a spec-cut host hook"
+    },
+    {
+     "technique": "null-and-blocking-executors",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/python-cli.ts:29 injectable runner is a test seam for a CLI call, not a job executor draining engine queues"
+    }
+   ],
+   "absenceTerms": [
+    "quickjs",
+    "isolated-vm",
+    "node:vm",
+    "SourceTextModule",
+    "importModuleDynamically"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T01:37:46.398976+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "engine-host-contract"
+   ],
+   "techniques": [
+    "spec-mirrored-hook-surface"
+   ],
+   "deviations": 0,
+   "context": "jobs-table-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T01:37:46.398976+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "engine-host-contract"
+   ],
+   "techniques": [
+    "spec-mirrored-hook-surface"
+   ],
+   "deviations": 0,
+   "context": "jobs-ai-coach-fit",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T01:37:46.398976+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "engine-host-contract"
+   ],
+   "techniques": [
+    "spec-mirrored-hook-surface"
+   ],
+   "deviations": 0,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T01:37:46.398976+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "engine-host-contract"
+   ],
+   "techniques": [
+    "null-and-blocking-executors",
+    "spec-mirrored-hook-surface"
+   ],
+   "deviations": 0,
+   "context": "jobseeker-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
