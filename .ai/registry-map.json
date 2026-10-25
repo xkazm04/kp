@@ -11730,7 +11730,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:126 The bulk-reject wave's reducer turns a changed, aged or spent approval into a forced re-preview, and blocks the commit outright when no approver can be named. A person approves the exact set that gets rejected, never a stale preview.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:bcc62660e7a59154",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-instruction-files",
@@ -25085,7 +25089,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/command/route.ts:169 A confirmed 'reject below N%' binds to the previewed id set only when the client sends confirmIds. Without them the server rejects and emails whatever matches at execute time (the comment at line 165 says so), so a bulk decline can run over a population no person reviewed.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:bcc62660e7a59154",
+          "evaluatedRevision": 2
         },
         {
           "subject": "automated-screening-fairness-gates",

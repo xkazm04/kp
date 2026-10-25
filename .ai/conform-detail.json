@@ -19340,6 +19340,64 @@
           "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:35 The timeline keeps separate facts: declined (\"Interview declined by the candidate\"), no_show and expired. A recruiter cancel is not shown as its own fact, because it returns the invite to pending."
         }
       ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/combining-signals-into-a-hire-decision": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "combining-signals-into-a-hire-decision",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:19:11.534Z",
+      "worker": "7a250627-2c93-4376-8501-e0e46083ddfd",
+      "techniques": [
+        {
+          "technique": "terminal-decisions-stay-with-a-person",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:126 A mismatch, expired or required refusal re-previews the current set for a fresh approval. An 'unattributed' refusal blocks Commit for the life of the modal (line 34). This matches the bulk-decline rule that the exact reviewed set is approved and an actor is named."
+        },
+        {
+          "technique": "a-hold-that-blocks-auto-advance",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:99 A degraded (template) verdict is disclosed truthfully, and an unknown provenance discloses nothing rather than guessing 'llm'. It is shown on a card in a human approval queue, not acted on automatically. The fairness keeps (earlyCareer and unknownArchetype, decisionsFloorDisclosure.ts:81) are predicate blockers that keep a row out of the auto-reject set regardless of score."
+        },
+        {
+          "technique": "promote-floor-calibrated-against-real-outcomes",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsFloorDisclosure.ts:66 The calibration clean arm is a first-class keep kind, and holdouts whose seal failed are still disclosed. rowEffectiveFloor reports the floor each row was actually judged against. The deterministic draw itself is in app/_lib/screen-wave.ts (selectHoldout), outside this context."
+        },
+        {
+          "technique": "weight-signals-by-validity-not-by-precision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:30 This context builds no weighted composite; it consumes one upstream score of record. The coalesce is nullish, not falsy, so a measured 0 is not read as missing, and unscored peers are counted rather than ranked as zero."
+        }
+      ],
+      "registryProposal": "a-hold-that-blocks-auto-advance only covers automated ADVANCE. This product's automated action is a bulk auto-reject under human approval, so the protective hold is the mirror case: a predicate blocker (thin evidence, early-career, unknown archetype) that keeps a row out of the reject set regardless of score. The technique could name that direction explicitly."
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/combining-signals-into-a-hire-decision": {
+      "context": "pipeline-api",
+      "subject": "combining-signals-into-a-hire-decision",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:19:11.534Z",
+      "worker": "7a250627-2c93-4376-8501-e0e46083ddfd",
+      "techniques": [
+        {
+          "technique": "terminal-decisions-stay-with-a-person",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/command/route.ts:169 The technique requires a bulk decline to execute the exact reviewed set, refused at the policy layer if the set drifted. Here the legacy path with no confirmIds acts on the current set. Elsewhere the context conforms: a drafted offer is never extended from the command bar (execute.ts:108), and a reinstate seals to the session actor ([id]/route.ts:182)."
+        },
+        {
+          "technique": "promote-floor-calibrated-against-real-outcomes",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/outcomes/route.ts:94 Only resolved hire outcomes are collected. An unrated hire is null, never 0, and is reported against the honest hires denominator, and the calibration minimum travels with the counter."
+        },
+        {
+          "technique": "outcome-feedback-loop-per-team",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/outcomes/route.ts:89 The outcome roster is scoped to the workspace and keyed off the terminal stage ROLE, not the column's display name."
+        }
+      ]
     }
   }
 }
