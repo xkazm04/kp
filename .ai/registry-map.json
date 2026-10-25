@@ -26141,7 +26141,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline renders the stored slot column (an English, interviewer-zone label with no zone marker) inside a localized row, instead of deriving the label from slot_at in the reader's language.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
+          "evaluatedRevision": 2
         },
         {
           "subject": "media-playback",

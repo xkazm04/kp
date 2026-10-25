@@ -19319,6 +19319,27 @@
           "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:17 The 'fairness' here is a cross-weighting re-score matrix over a 2-6 candidate shortlist. No group selection rates are computed."
         }
       ]
+    },
+    "77829982-8043-4752-ae30-4475929d182e/candidate-self-scheduling": {
+      "context": "pipeline-scheduler-sla",
+      "subject": "candidate-self-scheduling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:10:21.388Z",
+      "worker": "25d5e031-15e1-4289-bea6-1eb93b4f0ed4",
+      "techniques": [
+        {
+          "technique": "server-authored-slot-labels",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 candidate-timeline.ts:299 passes invite.slot (the cached column) through. The decision rule is \"give it the derivation, not the column\", and the localization section says to compose the label at render. The label is server-authored, so this is not an injection."
+        },
+        {
+          "technique": "withdraw-is-not-cancel",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:35 The timeline keeps separate facts: declined (\"Interview declined by the candidate\"), no_show and expired. A recruiter cancel is not shown as its own fact, because it returns the invite to pending."
+        }
+      ]
     }
   }
 }
