@@ -20225,6 +20225,22 @@
       "evaluatedTs": "2026-10-25T22:08:03.073Z",
       "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
       "techniques": []
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/authorization": {
+      "context": "login-flow",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:24:40.399Z",
+      "worker": "acd7d087-84f1-4e47-b17a-d4da75e1bf51",
+      "techniques": [
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/login/page.tsx:20 A public page. Gating belongs to the proxy and to /api/auth/login, both in other contexts."
+        }
+      ]
     }
   }
 }

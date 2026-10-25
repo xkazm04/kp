@@ -22623,7 +22623,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 This context only submits credentials and classifies the login HTTP outcome (authentication UX plus an open-redirect guard); it makes no permission decision. A grep of app/login/ for capability, requireOperator, requireCapability, withSession, permission, privilege, scope and tier found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
