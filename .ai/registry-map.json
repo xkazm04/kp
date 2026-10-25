@@ -3847,7 +3847,11 @@
           "revision": 5,
           "changedAt": "2026-09-28",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsOfferLegPanel.tsx:73 The 'Awaiting response' count is offerConversion's `pending = max(0, extended - resolved)` (app/_lib/analytics-offer.ts:56), computed from per-kind windowed event counts (a transition-dated basis), yet it renders as a link to the board's offer column, so the link opens the current stock of offer holders, a different number of people from the net flow it shows.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:07690a121a807ac3",
+          "evaluatedRevision": 5
         },
         {
           "subject": "measurement-honesty",

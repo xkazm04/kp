@@ -20011,6 +20011,32 @@
           "evidence": "app/_components/ScoreProvenanceLabel.tsx:9 No model comparison report exists here."
         }
       ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/recruiting-funnel-metrics": {
+      "context": "analytics-metrics",
+      "subject": "recruiting-funnel-metrics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:08:15.073Z",
+      "worker": "34f03f12-89c6-4944-aef3-0a056ffe57ba",
+      "techniques": [
+        {
+          "technique": "offer-acceptance-rate-denominator",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsOfferLegPanel.tsx:69 max(extended, resolved) does bound the rate, but on a transition-dated window 'extended minus resolved' is a net flow, not outstanding offers; the technique names linking it to the offer holders as a failure. The 'basis' line also prints the max-substituted figure as '{extended} offers extended'."
+        },
+        {
+          "technique": "time-to-hire-basis-and-median-not-mean",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsStatCluster.tsx:58 The headline speed figure is a lone mean (it does name its sample count), it feeds a delta (line 71), and it is judged against a goal chip. The technique says median for the typical case and never a mean as the input to a difference; the label also states neither anchor."
+        },
+        {
+          "technique": "stage-pass-through-and-dwell-time",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/stageDwellGate.ts:120 An occupants-only pair (median plus oldest), labelled as waiting right now (copy: 'everyone sitting in each stage right now'). No median below the sample floor; colour only against a team-set cadence; terminal role exempt (line 99)."
+        }
+      ]
     }
   }
 }
