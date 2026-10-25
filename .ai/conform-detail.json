@@ -14828,47 +14828,43 @@
       "context": "cv-extraction",
       "subject": "cv-authenticity-screening",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T02:06:43.256Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:40:54.738Z",
+      "worker": "0a055859-3de0-47f1-99e4-f925c548aec0",
       "techniques": [
         {
           "technique": "a-screen-is-not-a-verdict",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:41 The flag appropriately requests human verification, but its fixed text supplies neither the triggering fragment nor measured counts."
+          "evidence": "pipeline/jobfit/authenticity.py:41 Wording is a reviewer probe and the CV is never dropped (docstring line 217). But every authenticity Finding is a fixed constant with value=None: no counts, no threshold and no quoted fragment. The rule 'a flag names its trigger and quotes its evidence' is not met."
         },
         {
           "technique": "claim-density-and-stuffing-heuristics",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:84 The character-based threshold can flag a short document containing four buzzwords; it does not decline measurement below the required document-length floor."
+          "evidence": "pipeline/jobfit/authenticity.py:84 Flooring the denominator at 1000 chars means a short CV fires on 4 hits, where the standard requires 'not measured' below a word floor. The flag records neither count. Stuffing as a sub-state of matched IS realized: models.py:156 KeywordStatus has 'over_used' documented as a sub-state of matched."
         },
         {
           "technique": "document-as-data-never-as-instructions",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/pipeline.py:514 The deterministic injection screen covers local and model CV text, but omits employer-supplied job-description and company text and runs after the model."
-        },
-        {
-          "technique": "ground-the-model-against-a-deterministic-prepass",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/pipeline.py:1682 A pre-pass exists, but extraction failures produce empty evidence that this condition treats as corroborating nothing rather than skipping the cross-check as unavailable."
+          "evidence": "pipeline/jobfit/profile_draft_cli.py:238 The draft-from-notes model call has the classification and non-compliance clause plus the shared fenced_untrusted fence. But DRAFT_SCHEMA has no field to record a manipulation attempt, and no prompt_injection_checks runs on this path, so a resisted or successful injection leaves no record (point 5, 'record it')."
         },
         {
           "technique": "hidden-text-and-smuggling-detection",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:181 Unicode smuggling checks exist, but the document extraction path does not compare rendered visibility with extracted text to detect tiny or background-coloured keyword lists."
+          "evidence": "pipeline/jobfit/extractors.py:144 The character screen is well discriminated: zero-width runs, the strip-and-reread differential at authenticity.py:184, tag decode and bidi overrides only. But clean_text only NFC-normalizes, so nothing neutralises format characters in the downstream copy (no zero-width stripping anywhere in pipeline/jobfit). The PDF extractor also has no render/size/colour comparison, so the commonest attack (hidden keywords in tiny or background-coloured type) passes unseen."
         },
         {
           "technique": "implausible-span-and-arithmetic-checks",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:98 A fixed ceiling on claimed experience substitutes for checking claims against dated spans, extraction damage and missing-date uncertainty."
+          "evidence": "pipeline/jobfit/authenticity.py:98 No claimed-vs-span check, no sum-of-tenures check, no per-role implausibility check, and no raw date quoting. The figure checked is usually the LLM payload's years_experience (pipeline.py:732), which is an inferred timeline."
+        },
+        {
+          "technique": "ground-the-model-against-a-deterministic-prepass",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/pipeline.py:1682 A pre-pass exists, but extraction failures produce empty evidence that this condition treats as corroborating nothing rather than skipping the cross-check as unavailable.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "eba2da54-b0f2-408a-a0cb-211096b7d799",
-        "state": "deviation",
-        "at": "2026-10-19T02:07:24.234009+00:00",
-        "reason": "reviewer (sonnet): Three of the four technique anchors (pipeline.py:514 and :1682, plus the JD-coverage claim) are in pipeline.py, which is not among the cv-extraction context files, so the verdict mixes in code from another context. The authenticity.py anchors (:41, :84, :98) check out but are too weak to carry it al"
-      }
+      ]
     },
     "bc01cbf1-ff85-4c0f-878c-1ca34fb9239c/cv-authenticity-screening": {
       "context": "cv-analysis-api",

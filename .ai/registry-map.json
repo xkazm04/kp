@@ -10139,7 +10139,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:98 The only arithmetic check is a >45-year ceiling on a single, usually model-supplied years figure. Nothing compares claimed years with the dated career span or sums tenures against elapsed time, undated roles are never treated as unknown, and no raw date string is quoted, so the strongest family in the subject is almost entirely missing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:9a9edd591be4189e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "regulated-credential-gating",
