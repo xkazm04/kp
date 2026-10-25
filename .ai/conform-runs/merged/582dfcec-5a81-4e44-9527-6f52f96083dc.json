@@ -1,0 +1,178 @@
+{
+ "schema": "conform-run/1",
+ "worker": "582dfcec-5a81-4e44-9527-6f52f96083dc",
+ "subject": "motion",
+ "evaluatedAt": "2026-10-25T01:50:01.988296+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "glyph-system",
+   "subject": "motion",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/glyph/motionPresets.ts:94 The float and pulse ambient presets loop forever on empty-state heroes with no visible stop control and no in-view or foreground veto, so self-starting motion runs past the five-second threshold with nothing that stops it except the OS reduce-motion query; on top of that, the presets inline raw easing and seconds, and the worst-case entrance overruns the library's own cap.",
+   "techniques": [
+    {
+     "technique": "unprompted-motion-lifecycle",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/motionPresets.ts:94 The float (and pulse, line 108) loop starts by itself, runs indefinitely and has no visible, operable stop. The prop API offers no stop control at all."
+    },
+    {
+     "technique": "loop-pause-governance",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:140 The only IntersectionObserver controls entrance replay, and the comment at line 26 says ambient loops keep their own clock. The loop's only veto is the CSS media query: there is no merged in-view, foreground or user-stop signal."
+    },
+    {
+     "technique": "preset-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/motionPresets.ts:69 Presets have one home, an intent docstring each, a per-preset fallback and a reachability test, but they inline raw seconds and a raw curve. The same curve is retyped in globals.css, CandidateModal, StudioZone, atlas.css and the about stage. No duration-class or easing-role token exists."
+    },
+    {
+     "technique": "taste-budgets",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:106 stagger is 0.08 + delay*1.1, plus 0.5s. With devCasesGlyph's max delay of 0.744 the entrance takes about 1.40s, past the '<= ~1.2s' guardrail at motionPresets.ts:15. The delay test allows up to 1.68s, so the cap is prose only."
+    },
+    {
+     "technique": "reduced-motion-mechanics",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/motionPresets.ts:111 Latent: no preset reaches this today. In glyphMotionCss.ts, around lines 46-52, the renderer keeps a loop running under reduced motion when the loop declares 'opacity-only', on the reasoning that opacity carries no vestibular motion. The technique says infinite loops reduce to stillness whatever property they animate. Current loops declare 'none' and are stilled. Per-preset fallbacks and the opacity:0 resting-state fix are done correctly."
+    },
+    {
+     "technique": "content-bearing-degradation",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/motionPresets.ts:96 The glyph is decorative (aria-hidden by default). When a preset is stilled, glyphMotionCss.ts restores opacity:1, so the resting opacity:0 cannot delete the drawing under reduced motion."
+    },
+    {
+     "technique": "engine-selection",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/motionPresets.ts:9 Scoped CSS keyframes were chosen on purpose for a non-interruptible declarative timeline over many paths. No library-level global switch can turn it off."
+    },
+    {
+     "technique": "performance-discipline",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/motionPresets.ts:67 Every preset animates only transform and opacity, and no frame value passes through React state."
+    },
+    {
+     "technique": "gesture-decomposition",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/motionPresets.ts:131 Entrance and ambient are separate tracks with their own timing, assembled in sequence (the loop starts after the entrance settles). A test pins this."
+    }
+   ],
+   "registryProposal": "reduced-motion-mechanics could add an explicit example: a renderer branch that keeps an opacity-only loop running under reduced motion is the named failure, even when no current preset uses it."
+  },
+  {
+   "context": "match-presentation-components",
+   "subject": "motion",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 Each motion.div decides its own reduced-motion variant and inlines its own durations and easing, so reduction is a parallel implementation at each call site instead of a preset-level fallback, and nothing ties these gestures to a shared vocabulary.",
+   "techniques": [
+    {
+     "technique": "reduced-motion-mechanics",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 There are five separate `reduced ?` branches at call sites, which the technique names as the failure ('call sites never branch'). The reveal-quiet placeholder does keep its anti-flash delay under reduced motion, which is correct."
+    },
+    {
+     "technique": "preset-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 Durations and easing are inline literals, and no named preset is referenced."
+    },
+    {
+     "technique": "performance-discipline",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:51 Only opacity and y (transform) are animated. The height delta goes through framer's transform-based layout tween."
+    },
+    {
+     "technique": "taste-budgets",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:65 Every gesture is 250ms or less and enters decelerate, with 6px travel."
+    },
+    {
+     "technique": "continuity-across-change",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:61 The wrapper stays mounted and tweens its height, and the placeholder reserves the result's height. The inner pending-to-result swap is a short sequential fade (mode=wait), not two elements overlapping. A shared layoutId would be the stronger rung."
+    },
+    {
+     "technique": "one-shot-guarding",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:67 initial={false} means a card that mounts with a cached answer shows it settled. Only a real state change animates."
+    },
+    {
+     "technique": "content-bearing-degradation",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:50 Under reduced motion the verdict still renders, with a brief fade and no travel. Content is never withheld."
+    },
+    {
+     "technique": "engine-selection",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:9 Framer is used for mount and unmount presence. A repo search found no MotionConfig or LazyMotion, so no global framer switch can silently disable these gestures."
+    },
+    {
+     "technique": "unprompted-motion-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:112 The pulsing loop was removed. The panel now has only triggered one-shot transitions, nothing that runs longer than five seconds."
+    },
+    {
+     "technique": "loop-pause-governance",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:115 The placeholder is a static box with a one-shot hold. There is no loop to pause."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "motion",
+   "context": "shared-client-hooks",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T01:50:01.988296+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "motion"
+   ],
+   "techniques": [
+    "content-bearing-degradation",
+    "engine-selection",
+    "gesture-decomposition",
+    "loop-pause-governance",
+    "performance-discipline",
+    "preset-vocabulary",
+    "reduced-motion-mechanics",
+    "taste-budgets",
+    "unprompted-motion-lifecycle"
+   ],
+   "deviations": 1,
+   "context": "glyph-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T01:50:01.988296+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "motion"
+   ],
+   "techniques": [
+    "content-bearing-degradation",
+    "continuity-across-change",
+    "engine-selection",
+    "loop-pause-governance",
+    "one-shot-guarding",
+    "performance-discipline",
+    "preset-vocabulary",
+    "reduced-motion-mechanics",
+    "taste-budgets",
+    "unprompted-motion-lifecycle"
+   ],
+   "deviations": 1,
+   "context": "match-presentation-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

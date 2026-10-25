@@ -15487,7 +15487,11 @@
           "revision": 10,
           "changedAt": "2026-09-24",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/glyph/motionPresets.ts:94 The float and pulse ambient presets loop forever on empty-state heroes with no visible stop control and no in-view or foreground veto, so self-starting motion runs past the five-second threshold with nothing that stops it except the OS reduce-motion query; on top of that, the presets inline raw easing and seconds, and the worst-case entrance overruns the library's own cap.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8d9b3eabe2f3b534",
+          "evaluatedRevision": 10
         },
         {
           "subject": "design-tokens",
@@ -22724,7 +22728,11 @@
           "revision": 10,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 Each motion.div decides its own reduced-motion variant and inlines its own durations and easing, so reduction is a parallel implementation at each call site instead of a preset-level fallback, and nothing ties these gestures to a shared vocabulary.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8d9b3eabe2f3b534",
+          "evaluatedRevision": 10
         },
         {
           "subject": "quality-gates",

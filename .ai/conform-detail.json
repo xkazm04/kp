@@ -12266,133 +12266,131 @@
       "context": "glyph-system",
       "subject": "motion",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T01:53:03.061Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:50:01.988Z",
+      "worker": "582dfcec-5a81-4e44-9527-6f52f96083dc",
       "techniques": [
         {
-          "technique": "content-bearing-degradation",
-          "verdict": "conformant",
-          "evidence": "app/_components/glyph/glyphMotionCss.ts:51 The still entrance fallback explicitly restores visibility instead of leaving paths at their hidden starting opacity."
-        },
-        {
-          "technique": "engine-selection",
-          "verdict": "conformant",
-          "evidence": "app/_components/glyph/glyphMotionCss.ts:55 The fire-and-forget entrance uses platform-owned CSS keyframes rather than a scripted animation runtime."
-        },
-        {
-          "technique": "gesture-decomposition",
-          "verdict": "conformant",
-          "evidence": "app/_components/glyph/motionPresets.ts:133 Entrance and ambient movement are separate phases, sequenced using the entrance's last stagger, duration and settling gap."
+          "technique": "unprompted-motion-lifecycle",
+          "verdict": "deviation",
+          "evidence": "app/_components/glyph/motionPresets.ts:94 The float (and pulse, line 108) loop starts by itself, runs indefinitely and has no visible, operable stop. The prop API offers no stop control at all."
         },
         {
           "technique": "loop-pause-governance",
           "verdict": "deviation",
-          "evidence": "app/_components/glyph/glyphMotionCss.ts:43 Ambient playback has no merged pause signal for viewport visibility, foreground state and user stop; the renderer only supplies reduced-motion handling."
-        },
-        {
-          "technique": "one-shot-guarding",
-          "verdict": "deviation",
-          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:118 Entrance memory belongs to the glyph mount and is not keyed by stable identity, so remounting loses it despite playOnce suppressing observer replays."
-        },
-        {
-          "technique": "performance-discipline",
-          "verdict": "conformant",
-          "evidence": "app/_components/glyph/motionPresets.ts:67 The inspected presets animate transform and opacity, and CSS owns their frames without per-frame React updates."
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:140 The only IntersectionObserver controls entrance replay, and the comment at line 26 says ambient loops keep their own clock. The loop's only veto is the CSS media query: there is no merged in-view, foreground or user-stop signal."
         },
         {
           "technique": "preset-vocabulary",
           "verdict": "deviation",
-          "evidence": "app/_components/glyph/motionPresets.ts:68 Named presets exist, but their durations and easing curves are raw values rather than references to the shared token vocabulary."
-        },
-        {
-          "technique": "reduced-motion-mechanics",
-          "verdict": "deviation",
-          "evidence": "app/_components/glyph/glyphMotionCss.ts:52 The supported and explicitly tested opacity-only loop fallback continues infinite playback, although current shipped loop presets select none; the standard requires every infinite loop to reduce to stillness."
+          "evidence": "app/_components/glyph/motionPresets.ts:69 Presets have one home, an intent docstring each, a per-preset fallback and a reachability test, but they inline raw seconds and a raw curve. The same curve is retyped in globals.css, CandidateModal, StudioZone, atlas.css and the about stage. No duration-class or easing-role token exists."
         },
         {
           "technique": "taste-budgets",
           "verdict": "deviation",
-          "evidence": "app/_components/glyph/motionPresets.ts:70 Stagger accepts an unrestricted spread with no enforced total entrance cap; the default spread permits a normalized-delay upper bound of 1.68 seconds."
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:106 stagger is 0.08 + delay*1.1, plus 0.5s. With devCasesGlyph's max delay of 0.744 the entrance takes about 1.40s, past the '<= ~1.2s' guardrail at motionPresets.ts:15. The delay test allows up to 1.68s, so the cap is prose only."
         },
         {
-          "technique": "unprompted-motion-lifecycle",
+          "technique": "reduced-motion-mechanics",
           "verdict": "deviation",
-          "evidence": "app/_components/glyph/motionPresets.ts:94 The autoplay float runs beyond five seconds, while neither the renderer nor its inspected Matrix consumer provides a visible, operable stop."
+          "evidence": "app/_components/glyph/motionPresets.ts:111 Latent: no preset reaches this today. In glyphMotionCss.ts, around lines 46-52, the renderer keeps a loop running under reduced motion when the loop declares 'opacity-only', on the reasoning that opacity carries no vestibular motion. The technique says infinite loops reduce to stillness whatever property they animate. Current loops declare 'none' and are stilled. Per-preset fallbacks and the opacity:0 resting-state fix are done correctly."
+        },
+        {
+          "technique": "content-bearing-degradation",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/motionPresets.ts:96 The glyph is decorative (aria-hidden by default). When a preset is stilled, glyphMotionCss.ts restores opacity:1, so the resting opacity:0 cannot delete the drawing under reduced motion."
+        },
+        {
+          "technique": "engine-selection",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/motionPresets.ts:9 Scoped CSS keyframes were chosen on purpose for a non-interruptible declarative timeline over many paths. No library-level global switch can turn it off."
+        },
+        {
+          "technique": "performance-discipline",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/motionPresets.ts:67 Every preset animates only transform and opacity, and no frame value passes through React state."
+        },
+        {
+          "technique": "gesture-decomposition",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/motionPresets.ts:131 Entrance and ambient are separate tracks with their own timing, assembled in sequence (the loop starts after the entrance settles). A test pins this."
+        },
+        {
+          "technique": "one-shot-guarding",
+          "verdict": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:118 Entrance memory belongs to the glyph mount and is not keyed by stable identity, so remounting loses it despite playOnce suppressing observer replays.",
+          "carriedFrom": "2026-10-18"
         }
       ],
-      "withdrawn": {
-        "worker": "b8cd6f33-9e1b-4b26-8500-fb8adffd5b7b",
-        "state": "deviation",
-        "at": "2026-10-18T01:53:36.236153+00:00",
-        "reason": "reviewer (sonnet): Line 68 is `durationS: 0.5`, but I found no duration tokens for the glyph system to reference: a repo-wide search for `--duration` or `--motion` custom properties and for exported duration constants found none for this system, so the presets look like the token layer themselves. The pause-signal tec"
-      }
+      "registryProposal": "reduced-motion-mechanics could add an explicit example: a renderer branch that keeps an opacity-only loop running under reduced motion is the named failure, even when no current preset uses it."
     },
     "c849e8b8-1cd8-4644-ad0f-178331441cca/motion": {
       "context": "match-presentation-components",
       "subject": "motion",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T01:53:03.061Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:50:01.988Z",
+      "worker": "582dfcec-5a81-4e44-9527-6f52f96083dc",
       "techniques": [
         {
-          "technique": "content-bearing-degradation",
-          "verdict": "conformant",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:55 The resolved answer is rendered independently of the reduced-motion flag, preserving its payload when travel is removed."
-        },
-        {
-          "technique": "continuity-across-change",
+          "technique": "reduced-motion-mechanics",
           "verdict": "deviation",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:67 Separately keyed loading and resolved elements exit and enter sequentially without a shared animation identity; the outer layout tween only adjusts the container."
-        },
-        {
-          "technique": "gesture-decomposition",
-          "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:51 The resolved entrance is a simple reveal; no multi-intent gesture requiring independently tuned property tracks was identified."
-        },
-        {
-          "technique": "loop-pause-governance",
-          "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 The inspected transitions and delayed placeholder reveal are finite, with no repeating motion loop to coordinate."
-        },
-        {
-          "technique": "one-shot-guarding",
-          "verdict": "deviation",
-          "evidence": "app/_components/Meter.tsx:28 Bar delegates to Meter, which starts its entrance on every mount without consulting surface-scoped identity memory."
-        },
-        {
-          "technique": "performance-discipline",
-          "verdict": "deviation",
-          "evidence": "app/_components/Meter.tsx:50 The score-bar dependency animates width, which performs layout work instead of using a compositor-friendly transform."
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 There are five separate `reduced ?` branches at call sites, which the technique names as the failure ('call sites never branch'). The reveal-quiet placeholder does keep its anti-flash delay under reduced motion, which is correct."
         },
         {
           "technique": "preset-vocabulary",
           "verdict": "deviation",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 A reusable match surface embeds raw duration and easing values instead of referencing a named preset and token roles."
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 Durations and easing are inline literals, and no named preset is referenced."
         },
         {
-          "technique": "reduced-motion-mechanics",
-          "verdict": "deviation",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:34 Reduction is implemented through branch-specific call-site conditions rather than resolved alongside the gesture in a preset definition."
+          "technique": "performance-discipline",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:51 Only opacity and y (transform) are animated. The height delta goes through framer's transform-based layout tween."
         },
         {
           "technique": "taste-budgets",
-          "verdict": "deviation",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:65 The layout transition uses a local literal rather than a centrally named transition budget, even though its current duration is short."
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:65 Every gesture is 250ms or less and enters decelerate, with 6px travel."
+        },
+        {
+          "technique": "continuity-across-change",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:61 The wrapper stays mounted and tweens its height, and the placeholder reserves the result's height. The inner pending-to-result swap is a short sequential fade (mode=wait), not two elements overlapping. A shared layoutId would be the stronger rung."
+        },
+        {
+          "technique": "one-shot-guarding",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:67 initial={false} means a card that mounts with a cached answer shows it settled. Only a real state change animates."
+        },
+        {
+          "technique": "content-bearing-degradation",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:50 Under reduced motion the verdict still renders, with a brief fade and no travel. Content is never withheld."
+        },
+        {
+          "technique": "engine-selection",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:9 Framer is used for mount and unmount presence. A repo search found no MotionConfig or LazyMotion, so no global framer switch can silently disable these gestures."
         },
         {
           "technique": "unprompted-motion-lifecycle",
-          "verdict": "deviation",
-          "evidence": "app/_components/Meter.tsx:26 Each remount resets the automatically started score reveal to its opening state, implicitly rearming an entrance that should remain settled for an already-seen identity."
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:112 The pulsing loop was removed. The panel now has only triggered one-shot transitions, nothing that runs longer than five seconds."
+        },
+        {
+          "technique": "loop-pause-governance",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:115 The placeholder is a static box with a one-shot hold. There is no loop to pause."
+        },
+        {
+          "technique": "gesture-decomposition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:51 The resolved entrance is a simple reveal; no multi-intent gesture requiring independently tuned property tracks was identified.",
+          "carriedFrom": "2026-10-18"
         }
-      ],
-      "withdrawn": {
-        "worker": "b8cd6f33-9e1b-4b26-8500-fb8adffd5b7b",
-        "state": "deviation",
-        "at": "2026-10-18T01:53:36.293390+00:00",
-        "reason": "reviewer (sonnet): The deviation says the panel should select a complete shared preset, but I found no shared framer-motion preset or variants module in app/_lib or app/_components that it could use (only the unrelated STUDIO_SPRING), so that precondition could not be confirmed."
-      }
+      ]
     },
     "23edc789-314a-44a3-b30f-ee7353edfab4/narrative-scroll-surface": {
       "context": "about-product",
