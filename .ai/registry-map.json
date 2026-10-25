@@ -24088,7 +24088,11 @@
           "revision": 16,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:83 Release and settle are addressed by the key alone, with no attempt or holder identity. If an attempt outlives its 15-minute lease, a second delivery takes over the expired claim, and the late first attempt then fails or finishes, it deletes or settles its successor's live claim, so a third delivery can run the side effects again.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "job-coordination",

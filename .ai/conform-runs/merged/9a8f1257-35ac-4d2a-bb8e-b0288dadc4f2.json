@@ -1,0 +1,100 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9a8f1257-35ac-4d2a-bb8e-b0288dadc4f2",
+ "subject": "concurrency-guards",
+ "evaluatedAt": "2026-10-25T02:26:17.521180+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ops-observability",
+   "subject": "concurrency-guards",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/webhook-idempotency.ts:83 Release and settle are addressed by the key alone, with no attempt or holder identity. If an attempt outlives its 15-minute lease, a second delivery takes over the expired claim, and the late first attempt then fails or finishes, it deletes or settles its successor's live claim, so a third delivery can run the side effects again.",
+   "techniques": [
+    {
+     "technique": "attempt-attribution",
+     "verdict": "deviation",
+     "evidence": "app/_lib/webhook-idempotency.ts:83 The key can restart (lease-expiry takeover) and the result arrives asynchronously after awaits in the callers, but release and settle carry only the key. Nothing checks whether this attempt still holds the claim before writing (the store's DELETE/UPDATE ... WHERE key = ? has no holder predicate)."
+    },
+    {
+     "technique": "guard-key-design",
+     "verdict": "deviation",
+     "evidence": "app/_lib/webhook-idempotency.ts:40 The equivalence class is written down: the header key, else a body hash. But the family prefix is assembled free-form at each call site: `inbound:${token}:` in both the inbound route and inbound-lead.ts, and `agent-report:${token}:` in the agent-report route. The rule calls this a vocabulary with no authority."
+    },
+    {
+     "technique": "idempotency-by-design",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:31 The claim persists as DONE for a window sized to a real replay horizon (an install down over a weekend, replayed by the edge drain). The key is natural: the provider's Idempotency-Key header, else a body hash. Replay channels are enumerated at lines 3-14."
+    },
+    {
+     "technique": "single-flight-primitives",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:51 One shared claim/settle/release primitive is adopted by all three doors. Test-and-insert is one atomic statement and the policy is refuse. A minor gap: claim returns a bare false that does not tell in-flight apart from done."
+    },
+    {
+     "technique": "release-guarantees",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:22 Callers release on the catch path and settle on success, and a lease covers process death. Gap: taking over an expired claim is not logged as a defect signal."
+    },
+    {
+     "technique": "cross-process-exclusion",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:10 The claim lives on shared substrate (a SQLite row), taken over only once it has expired. The staleness bound is reasoned from real work durations (line 33), and the fail-closed direction is written down (lines 17-19). The missing holder identity is recorded under attempt-attribution."
+    },
+    {
+     "technique": "cache-value-not-handle",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/webhook-idempotency.ts:59 The claim is a synchronous boolean store write. No completion handle or promise is shared with a second caller."
+    },
+    {
+     "technique": "renewal-deadline-two-thirds-ttl",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/webhook-idempotency.ts:36 A fixed lease that is never renewed, with no cluster lock or heartbeat. The technique is staged multi-service."
+    },
+    {
+     "technique": "atomic-file-publish",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/ops-telemetry.ts:32 This context only reads JSONL logs and tolerates torn lines. It publishes no file another process reads."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "concurrency-guards",
+   "context": "feedback-status-primitives",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "concurrency-guards",
+   "context": "devcase-lifecycle",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T02:26:17.521180+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrency-guards"
+   ],
+   "techniques": [
+    "atomic-file-publish",
+    "attempt-attribution",
+    "cache-value-not-handle",
+    "cross-process-exclusion",
+    "guard-key-design",
+    "idempotency-by-design",
+    "release-guarantees",
+    "renewal-deadline-two-thirds-ttl",
+    "single-flight-primitives"
+   ],
+   "deviations": 1,
+   "context": "ops-observability",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
