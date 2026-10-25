@@ -20095,6 +20095,64 @@
       "evaluatedTs": "2026-10-25T03:26:30.259Z",
       "worker": "8fe5fa6d-097c-4877-9c2a-5c29d8a12d01",
       "techniques": []
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/untrusted-extension-host": {
+      "context": "db-core-migrations",
+      "subject": "untrusted-extension-host",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:29:44.062Z",
+      "techniques": [
+        {
+          "technique": "two-tier-extension-format",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:4 First-party DB module; it has no extension tiers and no install ceremony."
+        }
+      ],
+      "withdrawn": {
+        "worker": "40bb6b8c-2bb5-4c6d-92dc-f6d041a0f074",
+        "state": "not-applicable",
+        "at": "2026-10-25T03:30:05.208691+00:00",
+        "reason": "reviewer (sonnet): core.ts:4 is only the better-sqlite3 import, which does not show that no third-party code is installed, isolated or brokered; no dynamic-load or extension path was confirmed absent from the code I opened."
+      }
+    },
+    "7e9c708a-57d1-4496-8e24-0172455620bb/untrusted-extension-host": {
+      "context": "tests-llm-eval",
+      "subject": "untrusted-extension-host",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:29:44.062Z",
+      "worker": "40bb6b8c-2bb5-4c6d-92dc-f6d041a0f074",
+      "techniques": [
+        {
+          "technique": "two-tier-extension-format",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_llm_registry.py:267 Config cannot name code. Provider names resolve only to built-in adapters."
+        }
+      ]
+    },
+    "46245a9c-ff38-4cd4-88c3-b64b7cc7d185/untrusted-extension-host": {
+      "context": "jd-library-core",
+      "subject": "untrusted-extension-host",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:29:44.062Z",
+      "techniques": [
+        {
+          "technique": "two-tier-extension-format",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/jdsEditClient.ts:1 First-party UI. It has no extension surface."
+        }
+      ],
+      "withdrawn": {
+        "worker": "40bb6b8c-2bb5-4c6d-92dc-f6d041a0f074",
+        "state": "not-applicable",
+        "at": "2026-10-25T03:30:05.300615+00:00",
+        "reason": "reviewer (sonnet): jdsEditClient.ts:1 is a header comment about the shared edit client; it does not show the absence of an extension surface, so the anchor is incidental."
+      }
     }
   }
 }

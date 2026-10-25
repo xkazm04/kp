@@ -32676,7 +32676,11 @@
           "revision": 6,
           "changedAt": "2026-10-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_llm_registry.py:267 These tests pin a closed vocabulary of first-party LLM provider adapters, and a config naming an unknown provider raises LLMError instead of loading code. Searching pipeline/jobfit/tests/ found 0 hits for plugin, isolated-vm, safe_mode, wasm and quickjs, so no third-party extension host exists to judge.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a23407994bc4b9db",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
