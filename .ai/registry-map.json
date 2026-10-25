@@ -9621,7 +9621,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/archetypes.ts:21 The TS side reads the same archetypes.json the Python pipeline imports, builds the shield set from its flag, validates weight vectors on read and on write with Python's exact 1e-6 tolerance (lockstep test), archives entries instead of deleting them, and fails the shield closed for unknown ids while keeping isEarlyCareer false for them.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "skill-adjacency-and-normalization",
@@ -27577,7 +27581,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:114 \"Save as profile\" sends the pipeline's INFERRED archetype back as the candidate's self-declaration. pipeline/jobfit/registry.py:300-306 then gives it the 0.9 declaration tier and the reason \"self-declared: X\", so a 0.4 needs-review routing (including the no-signal default to bau) is saved as a confident declaration the candidate never made, and its review flag is gone. This is the laundered-declaration failure the standard names.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "fleet-orchestration",

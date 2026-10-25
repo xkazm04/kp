@@ -20241,6 +20241,63 @@
           "evidence": "app/login/page.tsx:20 A public page. Gating belongs to the proxy and to /api/auth/login, both in other contexts."
         }
       ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/candidate-archetype-routing": {
+      "context": "results-core",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:38:19.226Z",
+      "worker": "39caa337-500d-40ca-9eec-19eaa98ee7a8",
+      "techniques": [
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:114 The code comment at :106-107 says it pins the inferred archetype as the self-declaration so the re-route is deterministic. The technique says to pin a derived class as derived and never re-submit an inference as self-declared."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:133 The below-threshold review flag shows as its own chip. Confidence is relabelled \"signals agree\" (a vote share, per the :81-88 comment), and an absent value is left out rather than shown as 0%. It is still printed as an NN% figure."
+        },
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:173 The banner shows the signals that fired next to the class, so the recruiter sees the explanation and not just a verdict."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:77 An archetype the registry does not know renders as \"Unrouted\" and is never turned into a concrete class. This only covers the sentinel the banner receives. The no-signal case arrives from upstream already labelled bau (see notes)."
+        }
+      ]
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/candidate-archetype-routing": {
+      "context": "cv-analysis-archetypes",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:38:19.226Z",
+      "worker": "39caa337-500d-40ca-9eec-19eaa98ee7a8",
+      "techniques": [
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetypes.ts:21 One declarative file is read by both runtimes. Supporting evidence: protected set derived from the flag (:75), keys canonicalised (:84-86), archive rather than delete (archetype-registry.ts:368-383), and archetype-registry-lockstep.test.ts pins the mirrored constants. Caveat: the static import is cast at :38 without validation, but live decisions go through archetype-live.ts, which validates."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetype-registry.ts:261 Weights must sum to 1 within 1e-6, each weight must lie in [0,1], and every slot needs a dimension label. This is checked at the write boundary and again when the registry is read (validateRegistry :125-146). In the registry, early-career entries are renamed Foundation/Potential/Fit. I found no scored golden set in this context."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetypes.ts:121 Unknown means protected for the shield, while isEarlyCareer (:128-130) treats unknown as not early for wording, and both directions are written down. archetypeDisplayKey renders it as \"unrouted\", and RESERVED_IDS (archetype-registry.ts:50) stops anyone registering the sentinel as a class."
+        }
+      ]
     }
   }
 }
