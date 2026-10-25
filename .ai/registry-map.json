@@ -24878,7 +24878,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/pipeline-entry-action.ts:587 A command-bar `reject below N%` is sealed as a human `rejected` record (policyVersion \"command-bar\"), and the clean arm (heldOutEntryIds in decision-record-store.ts:681-682) subtracts only `auto_rejected` records, so a holdout-spared candidate later rejected by a typed score threshold stays in the clean arm as a negative that the score produced.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:3532a6c1ef935e0a",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"

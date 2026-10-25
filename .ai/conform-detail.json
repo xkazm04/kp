@@ -20037,6 +20037,54 @@
           "evidence": "app/features/insights/analytics/stageDwellGate.ts:120 An occupants-only pair (median plus oldest), labelled as waiting right now (copy: 'everyone sitting in each stage right now'). No median below the sample floor; colour only against a team-set cadence; terminal role exempt (line 99)."
         }
       ]
+    },
+    "ea210994-45ae-4cb6-8143-23633254094a/selection-score-calibration": {
+      "context": "pipeline-actions-commands",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:13:47.403Z",
+      "worker": "0ed47f7f-4c7e-421a-8e19-a9b8e4cb7cfc",
+      "techniques": [
+        {
+          "technique": "deterministic-holdout-clean-arm",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-entry-action.ts:587 Step 9 says the arm is sparings minus later score-caused rejections. This core writes a threshold-driven bulk reject with the human kind, which the arm's subtraction (kind = auto_rejected only) cannot see, so the reject is not removed from the arm."
+        },
+        {
+          "technique": "label-leakage-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-command.ts:114 The command bar picks the rejected set purely by score below a typed cutoff, so it is a score-caused path. Downstream it is not given its own leakage level: it gets the same record kind as a hand reject, and the holdout surface's 'score did NOT mechanically produce their outcome' claim is wrong for these rows."
+        },
+        {
+          "technique": "outcome-axis-selection-advance-versus-hire",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-stages.ts:171 The advance-axis positive set (calibrationAdvancedStages) comes from the stage ROLE gate, never from a display name. pipeline-status.ts:41 keeps declined, rematched and role_closed as statuses separate from rejected, so non-merit terminals can be excluded."
+        }
+      ],
+      "registryProposal": "The holdout technique's step 9 says 'minus the set of automated rejections'. It should instead say 'minus every rejection whose target set was selected by the score, including human-confirmed threshold bulk actions'. A recruiter-confirmed 'reject below N%' is exactly the case a kind-based subtraction misses."
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/selection-score-calibration": {
+      "context": "score-metric-display",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T03:13:47.403Z",
+      "techniques": [
+        {
+          "technique": "reliability-bins-and-proper-scoring",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/scoreDial.logic.ts:16 These are fixed display cutoffs for verdict words, not a reliability curve over outcomes. Whether 'excellent' overstates an uncalibrated score is a presentation question this subject defers."
+        }
+      ],
+      "withdrawn": {
+        "worker": "0ed47f7f-4c7e-421a-8e19-a9b8e4cb7cfc",
+        "state": "not-applicable",
+        "at": "2026-10-25T03:14:30.516036+00:00",
+        "reason": "reviewer (sonnet): The anchor (scoreDial.logic.ts:16) is only the VERDICT_BANDS table, so it does not itself show that calibration is out of scope, and the not-applicable rests on a grep for absence; the context also renders verdict words like 'excellent' for a raw score, and whether those overstate an uncalibrated sc"
+      }
     }
   }
 }
