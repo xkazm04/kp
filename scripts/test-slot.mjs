@@ -52,8 +52,9 @@ export function acquireSuiteSlot({ label = "test:unit", repoRoot = process.cwd()
   let announced = false;
   for (;;) {
     try {
-      fs.mkdirSync(dir);
-      fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid, cwd: repoRoot, at: Date.now() }));
+      fs.mkdirSync(dir, { mode: 0o700 });
+      // The mkdir above is the atomic claim, so the file is new: "wx" refuses to follow or reuse anything planted there.
+      fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid, cwd: repoRoot, at: Date.now() }), { flag: "wx", mode: 0o600 });
       break;
     } catch (e) {
       if (e.code !== "EEXIST") {
