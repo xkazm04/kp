@@ -20298,6 +20298,52 @@
           "evidence": "app/_lib/archetypes.ts:121 Unknown means protected for the shield, while isEarlyCareer (:128-130) treats unknown as not early for wording, and both directions are written down. archetypeDisplayKey renders it as \"unrouted\", and RESERVED_IDS (archetype-registry.ts:50) stops anyone registering the sentinel as a class."
         }
       ]
+    },
+    "6e08a191-7d84-4e75-9938-e5e87eba6449/candidate-status-transparency": {
+      "context": "candidate-status-api",
+      "subject": "candidate-status-transparency",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:49:26.981Z",
+      "worker": "c989e59c-252c-4070-b740-7c537576757e",
+      "techniques": [
+        {
+          "technique": "terminal-state-copy-without-implying-merit",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 Cause and state are not separated. role_closed loses its identity at the boundary, so the requisition-ended variant cannot exist."
+        },
+        {
+          "technique": "stage-role-mapping-not-stage-names",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:87 The role map is total over StageRole and the route passes roleOf (route.ts:53). But roleOf returns null for an off-axis or retired column, and the code then falls back to the name map and finally to the entry bucket 'received'. That is the exact understating fallback the technique forbids: the unmappable case should get its own in-progress state."
+        },
+        {
+          "technique": "terminal-moment-experience-measurement",
+          "verdict": "deviation",
+          "evidence": "app/api/status/[token]/nps/route.ts:76 These parts are realized: refusal outside the terminal window (409, line 69), one row per entry with replace (PK entry_id), the no-coercion parser and a sample floor of 10. But the response row stores no terminal outcome (the core.ts:2117 schema has no outcome column), so the figure cannot be split by hired, declined, withdrew or requisition-ended."
+        },
+        {
+          "technique": "candidate-safe-status-projection",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:77 The object is built field by field with jsonOk({...}): status enum, title, company, updatedAt and booleans. It carries no entry id, score or name. The pending action crosses as kind and dates, never as its capability token."
+        },
+        {
+          "technique": "honest-failure-classification",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:81 An unknown token gets a coded 404, STATUS_LINK_INVALID, which makes no distinction between a wrong key and no entry. A store fault gets a coded 5xx with the cause kept off the wire. The tenant is resolved from the entry, not from a default (line 48)."
+        },
+        {
+          "technique": "committed-dates-not-forecasts",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:74 The only dates on the wire are recorded ones (updatedAt, sentAt) and the action deadline the organisation already enforces (expiresAt). No decision forecast is sent."
+        },
+        {
+          "technique": "candidate-legible-timeline",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:56 Gives the timeline a last-updated moment derived on read. relayConfigured (line 60) supplies the channel-truth check the email-promise step consumes."
+        }
+      ]
     }
   }
 }

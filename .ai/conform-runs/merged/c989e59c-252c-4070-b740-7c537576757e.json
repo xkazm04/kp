@@ -1,0 +1,135 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c989e59c-252c-4070-b740-7c537576757e",
+ "subject": "candidate-status-transparency",
+ "evaluatedAt": "2026-10-25T22:49:26.981882+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "application-status-page",
+   "subject": "candidate-status-transparency",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/status/[token]/StatusClient.tsx:276 Every not_selected cause, including a closed or filled role (role_closed), shows the same body, 'The team has decided to move forward with other candidates' (messages/en.json:2132), so a requisition-level ending reads to the candidate as a considered comparative decline.",
+   "techniques": [
+    {
+     "technique": "terminal-state-copy-without-implying-merit",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:2132 This one variant serves rejected, rematched and role_closed alike. Its comparative wording ('other candidates') asserts an evaluation that never happened when the role simply closed. It also says nothing about data retention or a person to contact."
+    },
+    {
+     "technique": "candidate-legible-timeline",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:2124 The fixed 5-step spine, the terminal card in place of a half-lit trail, the 45s poll plus focus revalidation that stops at terminal, the last-updated stamp and relay-gated email copy are all realized. But under_review names a person ('A recruiter'), and this phase also covers the scoring, homework and custom columns and untouched queues. Step 2 says to write 'we'."
+    },
+    {
+     "technique": "honest-failure-classification",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:2085 Failures are classified invalid vs retryable, only the initial load takes over the page (StatusClient.tsx:227) and decisions fail by omission. But the transient copy blames the candidate's connection for server faults and 429s. linkInvalid (en.json:2086) points to a 'most recent status link', yet the store has one permanent link per application with no reissue. The skeleton also has no timeout that turns it into the unavailable state."
+    },
+    {
+     "technique": "committed-dates-not-forecasts",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusNextActionCard.tsx:77 The deadline for an action the candidate owes appears as an 'open until' commitment. No decision date is forecast anywhere on the page. There is no reply-by or posting-close date, and none was found that the organisation owns."
+    },
+    {
+     "technique": "terminal-moment-experience-measurement",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusClient.tsx:489 The question is asked on the candidate's own surface rather than by outbound email. The route decides whether to ask (terminal only), and a candidate who has answered sees a thanks state. Storage defects are judged on the API context."
+    },
+    {
+     "technique": "candidate-safe-status-projection",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusClient.tsx:34 The page renders only the closed projection type the API returns: status enum, title, company, updatedAt and capability booleans. It holds no internal id, and the next action is shown as kind and dates, never as a token."
+    }
+   ]
+  },
+  {
+   "context": "candidate-status-api",
+   "subject": "candidate-status-transparency",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/application-status.ts:84 The projection merges a requisition closure into the same not_selected value as a considered rejection, so no consumer can render cause-specific terminal copy. On the same path, an unmappable stage falls back to 'received' rather than a neutral in-progress state.",
+   "techniques": [
+    {
+     "technique": "terminal-state-copy-without-implying-merit",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-status.ts:84 Cause and state are not separated. role_closed loses its identity at the boundary, so the requisition-ended variant cannot exist."
+    },
+    {
+     "technique": "stage-role-mapping-not-stage-names",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-status.ts:87 The role map is total over StageRole and the route passes roleOf (route.ts:53). But roleOf returns null for an off-axis or retired column, and the code then falls back to the name map and finally to the entry bucket 'received'. That is the exact understating fallback the technique forbids: the unmappable case should get its own in-progress state."
+    },
+    {
+     "technique": "terminal-moment-experience-measurement",
+     "verdict": "deviation",
+     "evidence": "app/api/status/[token]/nps/route.ts:76 These parts are realized: refusal outside the terminal window (409, line 69), one row per entry with replace (PK entry_id), the no-coercion parser and a sample floor of 10. But the response row stores no terminal outcome (the core.ts:2117 schema has no outcome column), so the figure cannot be split by hired, declined, withdrew or requisition-ended."
+    },
+    {
+     "technique": "candidate-safe-status-projection",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:77 The object is built field by field with jsonOk({...}): status enum, title, company, updatedAt and booleans. It carries no entry id, score or name. The pending action crosses as kind and dates, never as its capability token."
+    },
+    {
+     "technique": "honest-failure-classification",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:81 An unknown token gets a coded 404, STATUS_LINK_INVALID, which makes no distinction between a wrong key and no entry. A store fault gets a coded 5xx with the cause kept off the wire. The tenant is resolved from the entry, not from a default (line 48)."
+    },
+    {
+     "technique": "committed-dates-not-forecasts",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:74 The only dates on the wire are recorded ones (updatedAt, sentAt) and the action deadline the organisation already enforces (expiresAt). No decision forecast is sent."
+    },
+    {
+     "technique": "candidate-legible-timeline",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:56 Gives the timeline a last-updated moment derived on read. relayConfigured (line 60) supplies the channel-truth check the email-promise step consumes."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T22:49:26.981882+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-status-transparency"
+   ],
+   "techniques": [
+    "candidate-legible-timeline",
+    "candidate-safe-status-projection",
+    "committed-dates-not-forecasts",
+    "honest-failure-classification",
+    "terminal-moment-experience-measurement",
+    "terminal-state-copy-without-implying-merit"
+   ],
+   "deviations": 1,
+   "context": "application-status-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T22:49:26.981882+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-status-transparency"
+   ],
+   "techniques": [
+    "candidate-legible-timeline",
+    "candidate-safe-status-projection",
+    "committed-dates-not-forecasts",
+    "honest-failure-classification",
+    "stage-role-mapping-not-stage-names",
+    "terminal-moment-experience-measurement",
+    "terminal-state-copy-without-implying-merit"
+   ],
+   "deviations": 1,
+   "context": "candidate-status-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -7854,7 +7854,11 @@
           "revision": 3,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 The projection merges a requisition closure into the same not_selected value as a considered rejection, so no consumer can render cause-specific terminal copy. On the same path, an unmappable stage falls back to 'received' rather than a neutral in-progress state.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:436aa789c377bd9c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "prompt-assembly",
