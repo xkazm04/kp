@@ -19398,6 +19398,78 @@
           "evidence": "app/api/pipeline/outcomes/route.ts:89 The outcome roster is scoped to the workspace and keyed off the terminal stage ROLE, not the column's display name."
         }
       ]
+    },
+    "3e2ec5d8-185d-40bc-99f9-c132975277b4/compensation-banding-and-market-honesty": {
+      "context": "results-detail-tabs",
+      "subject": "compensation-banding-and-market-honesty",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:24:40.185Z",
+      "worker": "ee98ff77-3851-4202-ae59-dab6d1979641",
+      "techniques": [
+        {
+          "technique": "currency-lock-and-no-silent-conversion",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/salary/SalaryTab.tsx:166 marketEvidence has no declared currency (schemas.generated.ts:108-115), so its figures are rendered under analysis.salary.currency from line 40 with no comparability check"
+        },
+        {
+          "technique": "benchmark-provenance-source-and-sample",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/salary/SalaryTab.tsx:103 The basis line names the source and a generation date ('updated'), but no sample size and no derivation (the LLM adjustment away from the anchor). It also uses a global ACTIVE_BENCHMARK constant, not the provenance of the band that was actually used."
+        },
+        {
+          "technique": "refuse-to-quote-an-uncalibrated-market",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/salary/SalaryTab.tsx:72 When there is no anchor (unknown family or no seniority), the comment admits the estimate rests on the model alone. The gauge and range still render; only the attribution line is dropped, and no refusal or 'uncalibrated' sentence replaces it."
+        },
+        {
+          "technique": "grounded-band-is-read-only",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/salary/SalaryTab.tsx:154 The 'grounded' figure is display-only here: this tab has no edit field, writer or one-click apply. The writer-side invariant would live in the pipeline."
+        }
+      ]
+    },
+    "9de20269-8dd9-4ca8-a864-0037ee9ca817/compensation-banding-and-market-honesty": {
+      "context": "db-tasks-agents-misc",
+      "subject": "compensation-banding-and-market-honesty",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T01:24:40.185Z",
+      "worker": "ee98ff77-3851-4202-ae59-dab6d1979641",
+      "techniques": [
+        {
+          "technique": "advertised-pay-is-not-earnings",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:71 Posted min/max midpoints are aggregated into p25/median/p75 and served by /api/benchmarks/salary as the market band. There is no 'advertised' label, no disclosure rate and no sanity check against an earnings source."
+        },
+        {
+          "technique": "benchmark-provenance-source-and-sample",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:77 The vintage is the jobs rows' insert timestamp (created_at), which the technique names as 'the build date is not the vintage'. No derivation is recorded. Source and count are carried, which is good."
+        },
+        {
+          "technique": "role-family-by-seniority-anchor-bands",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:13 The grid key is correctly role_family × seniority (line 57). But the floor is 3 ROWS (rows.length at line 70), with no distinct-contributor count and no dominance cap; the technique requires floors to count contributors, not rows."
+        },
+        {
+          "technique": "currency-lock-and-no-silent-conversion",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:89 The currency is a hard-coded literal in the repository module, not read from a market record or the rows; the jobs table carries no currency column. No period is carried on the band. This is the stranded-literal shape the technique names."
+        },
+        {
+          "technique": "refuse-to-quote-an-uncalibrated-market",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:70 It does refuse below the floor rather than inventing a number. But a bare null merges 'no such family' with 'cell below floor', and the route returns {benchmark:null} with no reason, so the refusal never says which condition fired."
+        },
+        {
+          "technique": "price-the-role-not-the-person",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/salary-benchmark.ts:64 A deterministic band read from a table: no model is involved, which is the technique's own 'when not to use' case."
+        }
+      ]
     }
   }
 }

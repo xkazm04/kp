@@ -11442,7 +11442,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/salary-benchmark.ts:71 The 'market salary band' is a percentile over the midpoints of posted salary ranges on reference job rows, a posting-derived statistic. Its payload labels it with a corpus id, never as 'advertised', and the technique explicitly says taking a posted range's midpoint does not turn it into earnings.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -27608,7 +27612,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/salary/SalaryTab.tsx:166 The model-supplied grounded market range carries no currency field of its own (the marketEvidence schema has none), so the tab labels it with the salary read's currency instead of checking that the two are comparable. That is the 'magnitudes stamped with another label' failure the currency lock exists to prevent.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "fleet-orchestration",
