@@ -8329,7 +8329,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:163 The shared transcript's in-flight face is a fixed 'thinking' label plus one static hint after 8s, and the component has no lane for live narration beats, so a companion turn running for minutes shows nothing about what it is doing. The companion that mounts this transcript has no beat grammar anywhere either: no 'beat'/'narrat' hits in app/_lib/companion*, app/features/shell/companion or pipeline/jobfit/companion*.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-cli-transport",
@@ -22980,7 +22984,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:15 These files are per-card score bars and a three-state async 'Explain fit' panel with no conversation, companion, transcript or ambient presence. A case-insensitive grep of app/features/shared for companion, ChatTranscript, chat, conversation, narration, walkthrough, avatar and quickRepl returned no hits, so the subject's resident-companion precondition does not hold.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"

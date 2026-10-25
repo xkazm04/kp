@@ -20359,6 +20359,37 @@
           "evidence": "app/api/status/[token]/route.ts:56 Gives the timeline a last-updated moment derived on read. relayConfigured (line 60) supplies the channel-truth check the email-promise step consumes."
         }
       ]
+    },
+    "48803d2b-7f17-4d34-90ca-c420b7074ef2/conversation-orchestration": {
+      "context": "chat-markdown-icons",
+      "subject": "conversation-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:23:49.946Z",
+      "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
+      "techniques": [
+        {
+          "technique": "structured-visual-replies",
+          "verdict": "conformant",
+          "evidence": "app/_components/chat/ChatMiniChart.tsx:108 The chart scales over an intact viewBox and stops shrinking at a floor where its 14px labels stay readable; past that floor its own scroller takes over. Related evidence in the same context: ChatBlocks.tsx:29 renders blocks full-bleed under the bubble, ChatTable.tsx:47 draws a placeholder for a missing cell (never blank, never zero), chatChartAlt.ts:23 builds an sr-only text alternative from the block's own values, and series colours are token presentation attributes (ChatMiniChart.tsx:44). The caps are one authority in chatBlockTypes.ts, imported by the validator."
+        },
+        {
+          "technique": "progress-beat-grammar",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:163 The busy state renders only a static label. Nothing lifts or renders model-authored progress lines, and no beat vocabulary exists in the companion producer, so long turns go silent."
+        }
+      ]
+    },
+    "c849e8b8-1cd8-4644-ad0f-178331441cca/conversation-orchestration": {
+      "context": "match-presentation-components",
+      "subject": "conversation-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:23:49.946Z",
+      "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
+      "techniques": []
     }
   }
 }
