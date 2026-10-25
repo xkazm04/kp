@@ -5288,7 +5288,11 @@
           "revision": 2,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 The per-candidate PII export audit descriptor carries no actor, and the route passes it straight to recordEvent, so the egress row on the candidate's timeline cannot answer who took the export; the door is gated by requireOperator alone with no dedicated export capability or confirmation, and inbound imports land unmapped vendor stages on the entry column instead of an explicit unmapped state.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
+          "evaluatedRevision": 2
         },
         {
           "subject": "voice-io",
