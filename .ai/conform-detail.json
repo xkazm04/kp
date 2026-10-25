@@ -9838,62 +9838,66 @@
       "context": "candidate-channels-ui",
       "subject": "chat-transcript",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:59:55.559Z",
+      "worker": "dd87304d-d875-4551-b037-73c5032f2eab",
       "techniques": [
         {
           "technique": "composer-turn-queue",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:30 The input corrects a delivery address; it does not submit conversational prompts."
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:30 The input corrects a delivery address; it does not submit conversational prompts.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "immutable-model-cached-layout",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsData.ts:84 These are integration-configuration snapshots, without transcript-message layouts."
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:84 These are integration-configuration snapshots, without transcript-message layouts.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "inline-structured-rows",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Rows classify delivery outcomes, without conversational tools or approval events."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Rows classify delivery outcomes, without conversational tools or approval events.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "markdown-and-code-rendering",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:109 The helper selects ledger subject labels, without rendering a machine-authored transcript."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:109 The helper selects ledger subject labels, without rendering a machine-authored transcript.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "progress-narration",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:62 This reports a resend operation, without narrating a machine turn."
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:62 This reports a resend operation, without narrating a machine turn.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "transcript-scroll",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsPaging.ts:71 Pagination combines delivery-ledger pages, without a growing conversational document."
+          "evidence": "app/features/hiring/channels/channelsCommsPaging.ts:71 Pagination combines delivery-ledger pages, without a growing conversational document.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "turn-metadata",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:143 The timestamp records a ledger entry, without machine-turn accounting."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:143 The timestamp records a ledger entry, without machine-turn accounting.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "turn-model",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsData.ts:110 The entities are hiring jobs and intake records, without conversational turn lifecycles."
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:110 The entities are hiring jobs and intake records, without conversational turn lifecycles.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "virtual-filtered-channel",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:53 The filter selects configured webhook receivers from a snapshot, without deriving a conversational stream."
+          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:53 The filter selects configured webhook receivers from a snapshot, without deriving a conversational stream.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
-        "state": "not-applicable",
-        "at": "2026-10-17T03:20:43.713897+00:00",
-        "reason": "reviewer (sonnet): The anchor useChannelsData.ts:78 is a webhook loader that doesn't show that no transcript, composer or streaming exists; the not-applicable rests only on a keyword search, and the context does render message ledger rows and a resend input."
-      }
+      ]
     },
     "b53482a5-a3bf-4daa-8011-a09391c974e2/design-tokens": {
       "context": "glyph-system",

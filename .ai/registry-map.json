@@ -7111,7 +7111,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/channels/useCommsFeed.ts:14 The comms surface here is a cursor-paged outbox ledger of Message rows (recipient, subject, channel, delivery status — channelsCommsHelpers.ts:15), not a conversation between two authors where a machine streams turns, and searching app/features/hiring/channels/ (including night/) for assistant, scrollToBottom, streaming, isStreaming, regenerate and turnId found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:5b4e7d399a4d924e",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
