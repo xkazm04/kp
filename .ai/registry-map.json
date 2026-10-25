@@ -15787,7 +15787,11 @@
           "revision": 21,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:105 The context only renders a provenance flag that the server already computed (llm vs rule-based) and never picks a tier, effort, provider or model. A search of app/features/hiring/decisions for claude, gemini, openai, llm-config and modelId found nothing, so no routing decision is made here to judge.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:5484901d8df95b15",
+          "evaluatedRevision": 21
         },
         {
           "subject": "automated-screening-fairness-gates",
@@ -27017,7 +27021,11 @@
           "revision": 21,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:1 The roster, matrix and archetype-manager files are pure view models and CRUD UI with no LLM call path. A search of app/features/tools/profile for claude, gemini, openai, llm-config and modelId found nothing; its 'model' hits are view-model and archetype scoringModel, not language models.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:5484901d8df95b15",
+          "evaluatedRevision": 21
         },
         {
           "subject": "client-fetch-cache",

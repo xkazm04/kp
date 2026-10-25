@@ -10560,82 +10560,90 @@
       "context": "profile-roster-matrix",
       "subject": "model-routing",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T04:31:42.401Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:40:17.971Z",
+      "worker": "e27acfa8-2641-4cbd-b1f0-e948a9057739",
       "techniques": [
         {
           "technique": "turn-classification",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No call class is asserted; the module lists saved profiles."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No call class is asserted; the module lists saved profiles.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "effort-calibration",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 The matrix is archetype lanes of people; there is no effort dial."
+          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 The matrix is archetype lanes of people; there is no effort dial.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "routing-policy",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No provider allow or block is evaluated."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No provider allow or block is evaluated.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "consumer-overrides",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model override is passed."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model override is passed.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "capability-floors",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 No model tier floor."
+          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 No model tier floor.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "admission-is-not-a-tier",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No substitute endpoint."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No substitute endpoint.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "policy-governance",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No routing policy diff."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No routing policy diff.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "model-identity",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 No model group or endpoint."
+          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 No model group or endpoint.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "failover-horizon",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model stream."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model stream.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "failover-path-liveness",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No failover path."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No failover path.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "candidate-ranking",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 The board orders people by archetype, not model endpoints."
+          "evidence": "app/features/tools/profile/CandidateMatrix.tsx:21 The board orders people by archetype, not model endpoints.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "quality-axis-separation",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model outcome is scored."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No model outcome is scored.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "cache-continuity",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No conversation prefix."
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:25 No conversation prefix.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "f2cfef90-1796-4da5-a39c-e87a7b804da5",
-        "state": "not-applicable",
-        "at": "2026-10-17T04:32:00.164931+00:00",
-        "reason": "reviewer (sonnet): The not-applicable rests on ProfileRoster.tsx:25, which is only an import or comment line and shows no absence of an LLM call. The absence search was also narrow: the roster renders ProfileRosterRefreshBar and an onRebuild flow, and I could not confirm that neither of them starts a model call."
-      }
+      ]
     },
     "777cb8a1-955a-471f-8ce9-35c55ce69066/people-analytics-ethics": {
       "context": "analytics-calibration",
@@ -19835,6 +19843,16 @@
       "evaluatedAt": "2026-10-25",
       "evaluatedTs": "2026-10-25T02:32:01.126Z",
       "worker": "78792cfc-be56-4ab9-8cc5-459234706b03",
+      "techniques": []
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/model-routing": {
+      "context": "group-eval-comparison",
+      "subject": "model-routing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T02:40:17.971Z",
+      "worker": "e27acfa8-2641-4cbd-b1f0-e948a9057739",
       "techniques": []
     }
   }
