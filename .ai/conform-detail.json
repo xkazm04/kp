@@ -20969,6 +20969,37 @@
           "evidence": "app/_components/useDialogA11y.ts:24 The only nav-adjacent code is a dialog-stack query that global shortcuts read to avoid switching tabs under an open dialog. It holds no location value and no navigate door."
         }
       ]
+    },
+    "23ea22ae-fc24-4af0-a51f-58347b533287/audit-logging": {
+      "context": "jd-ledger",
+      "subject": "audit-logging",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:28:16.878Z",
+      "techniques": [
+        {
+          "technique": "audit-querying",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerLogic.ts:4 The filters cover JD attributes (field/seniority/status), not the actor/action/subject/time axes of a trail."
+        },
+        {
+          "technique": "write-chokepoint",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/JdsLedgerDetailModal.tsx:151 The context's only write is a client fetch to an API route. Any audit door for that action would be on the server side, outside this context."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/JdsLedgerCoachTrace.tsx:7 Dismissing this notice only changes temporary UI state. It does not save a person's decision about a derived finding."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d3b1b95a-c667-4d14-b1da-87f533a4d95a",
+        "state": "not-applicable",
+        "at": "2026-10-26T22:28:49.313157+00:00",
+        "reason": "reviewer (sonnet): The claim that the context's only write is one fetch is false: the JdsLedger* files also issue a DELETE (JdsLedgerRowDelete.tsx:41), an ingest-job POST and edit saves, and the context surfaces JD revision history, so audit-logging may apply and the anchors don't show it is absent."
+      }
     }
   }
 }
