@@ -20781,6 +20781,131 @@
           "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:324 Per-stage conversion and the hire-rate cells are printed as point percentages with no interval."
         }
       ]
+    },
+    "d971fbfa-7db0-4a18-b766-e667707e30fb/delivery-analytics": {
+      "context": "channels-comms-api",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 The outbox read computes no delivery rate over code changes. Its 'delivery' means email delivery."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 No review records are read."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 Resend is a message retry. It is not a revert of a change."
+        }
+      ]
+    },
+    "388f1010-aa7c-4197-b516-3eef907a4d5d/delivery-analytics": {
+      "context": "candidate-channels-ui",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 Counts here are receivers and waiting candidates. None of them is a delivery rate."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 No change size is measured."
+        }
+      ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/delivery-analytics": {
+      "context": "analytics-sections",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 The rates here are hiring rates, which the measurement-honesty and recruiting-funnel-metrics subjects govern. This subject does not."
+        },
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 Nothing attributes who produced a code change."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/sectionChunks.tsx:50 The only 'revert' in the directory is a design note, not a repair stream."
+        }
+      ]
+    },
+    "7d113095-ed5e-4399-8e75-50a1ecb523d5/delivery-analytics": {
+      "context": "devcase-lifecycle",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:84 Commit summaries are read for grounding only. No producer is attributed."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:84 A count of the inputs it read. It is not a rate."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:67 LOC is the corpus size of one snapshot. It is not compared across producers."
+        }
+      ],
+      "withdrawn": {
+        "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+        "state": "not-applicable",
+        "at": "2026-10-26T00:50:17.032310+00:00",
+        "reason": "reviewer (sonnet): The claim that commit history comes in only as design context, never as a metric, is contradicted in the same directory: DevEvalPanelProcessTrace.tsx and DevEvalPanelScores.tsx show per-submission commit counts and cadence (commitsOverSpan, commitCount), and I could not confirm those files are outsi"
+      }
+    },
+    "a4026dc2-d6bb-4214-914a-29103ca51fd8/delivery-analytics": {
+      "context": "devcase-detail",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 This is the provenance of a pipeline step (llm or deterministic). It does not say what produced a change."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 Publish confirmation is a human gate on a case. It is not a code-review record."
+        }
+      ]
     }
   }
 }

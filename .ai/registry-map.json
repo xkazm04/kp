@@ -4093,8 +4093,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 The three sections report hiring-funnel, cost and scoring-quality metrics, not software delivery from change history; grepping the sections directory for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing (the one 'revert' hit in sectionChunks.tsx:50 is a comment about a UI consolidation).",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -7069,8 +7073,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 The Channels tab sets up candidate intake and comms receivers and computes no metric over a team's change history; a grep of app/features/hiring/channels for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize returned no hits.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "structured-output",
@@ -8176,8 +8184,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/comms/route.ts:11 These routes serve the candidate message outbox, relay probes and inbound receivers, and never read commits, change proposals, reviews or reverts; a case-insensitive grep of app/api/comms and app/api/channels for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing, so the subject's precondition (measuring delivery from change history) does not hold.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "prompt-assembly",
@@ -12682,8 +12694,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 In the case detail, 'provenance' means whether a generated blob came from an LLM or a template, not who authored a code change, and no delivery metric is computed; grepping app/features/tools/devcases for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "structured-output",
@@ -13408,8 +13424,8 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "client-fetch-cache",
