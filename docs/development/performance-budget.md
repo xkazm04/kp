@@ -147,6 +147,15 @@ follow-ups. The ceilings were raised to the measured values in one commit whose
 `why` names those changes; no slack was added. The same day the analytics a11y harvest (TableStatus on two
 tables, 1 KB) raised `app/page.tsx` from 11707 to 11708 KB the same way.
 
+**Accumulation counts too.** On 2026-10-24 main was red again with 42 targets over,
+after about 236 commits since the last raise. A bisect over that range found no single
+cause: `app/page.tsx` grew 1941 to 1977 modules in steps, and the task hub reached 14
+more modules on 40 routes. One step was structural: a38de5afd put `startTask` behind
+`app/api/apply/[id]` and `app/api/channels/inbound/[token]` (134 to 277 modules), which
+now carry named overrides rather than a wider group ceiling. The `@sentry/nextjs` bump
+touched only the lockfile and is not in this graph. Ceilings were raised to the measured
+values, each with a `why`, and no slack was added.
+
 ## When it fails
 
 The message names the file, the measurement and the ceiling. In order of what

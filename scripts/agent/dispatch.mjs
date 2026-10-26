@@ -188,6 +188,8 @@ export const PROTECTED_PREFIXES = [
   // edit it could label its own failures as quarantined and land green.
   { prefix: 'scripts/test/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/run-unit-tests.mjs', why: 'the runner every unit gate goes through' },
+  { prefix: 'scripts/test-slot.mjs', why: 'the machine-wide slot typecheck and build run under' },
+  { prefix: 'scripts/test-slot.test.mjs', why: 'the slot test test:docs runs' },
   { prefix: 'package.json', why: 'every gate command is a line in it' },
   { prefix: 'ci-budget.json', why: 'the pipeline wall-clock ceilings a gate compares against' },
   { prefix: 'perf-budget.json', why: 'the import-graph ceilings a gate compares against' },
