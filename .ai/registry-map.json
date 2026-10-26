@@ -13265,7 +13265,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/devcase-judge-independence.ts:57 The context's own job here is to consume what the validation harness stamps on each evaluation. It renders the generator-vs-judge seat comparison as a per-bundle state and computes cohort probe rates over the evaluated subset only, with null instead of 0 when there is no data. The harness techniques (synthetic cast, margin gate, red-teaming) are not implemented in these TS files, so they do not apply to this context.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d2f46d3df08e4b06",
+          "evaluatedRevision": 6
         },
         {
           "subject": "interview-run-of-show",

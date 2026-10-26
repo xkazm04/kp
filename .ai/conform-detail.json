@@ -16256,47 +16256,44 @@
       "context": "devcase-evaluation",
       "subject": "assessment-instrument-validation",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T12:42:48.251Z",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:23:03.818Z",
+      "worker": "507382b3-27be-4765-b68f-dae412ec0fb8",
       "techniques": [
         {
-          "technique": "adversarial-persona-red-teaming",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/devcase/submission_eval.py:393 The gate requires separation from strong submissions but never asserts that gaming cannot outrank the honest floor; its gamer is an AI non-verifier rather than a fabricated-process persona."
-        },
-        {
-          "technique": "binary-metrics-over-a-noisy-scale",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/devcase/submission_eval.py:492 The quality summary aggregates holistic 1–5 LLM ratings into a mean, which the report presents as mean quality instead of demoting raw scores to supporting detail."
-        },
-        {
-          "technique": "discrimination-margin-gate",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/devcase/submission_eval.py:81 Both comparator margins exist, but their rationale uses deterministic cohort gaps and assumed LLM headroom rather than a measured repeated-input noise floor."
-        },
-        {
           "technique": "judge-independent-of-generator",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 This test explicitly accepts the identical claude-haiku-4-5 model through anthropic and openrouter as independent; changing provider does not establish model independence."
+          "verdict": "conformant",
+          "evidence": "app/_lib/devcase-judge-independence.ts:57 Reads the per-run generator/judge identities that Python stamps on the bundle (not config intent) and shows self_grading when they match. A malformed or missing blob reads as absent, never as a pass. The rule is pinned by a contract test (devcase-judge-independence.test.ts:22: assert.equal(judgeSeatState(SELF_GRADING), \"self_grading\")). Caveat: absent and independent both render as silence."
         },
         {
           "technique": "minimum-cohort-and-inconclusive-verdicts",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/devcase/submission_eval.py:94 Comparisons enforce a per-group floor of three; the rollup distinguishes pass, fail, inconclusive and not_evaluable, reports counts, and strict mode rejects fail and inconclusive."
+          "evidence": "app/_lib/devcase-cohort.ts:106 Rates use the evaluated subset, never the roster, and the evaluated count sits beside each rate. No data gives null, not 0%. Deterministic-fallback tooling rows are dropped from both numerator and denominator (line 74), so an empty cell never becomes an adverse finding. There is no explicit floor or inconclusive state in this module: the >1 blind-spot floor lives in the off-context DevCohortProbePanel.tsx."
         },
         {
           "technique": "synthetic-candidate-behaviour-landscape",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-probe-audit.ts:12 This context's probe audit is structural only, and the comment states that the synthetic run is not here. The repo's synthetic behaviour landscape lives off-context in pipeline/jobfit/devcase/submission_eval.py and submission_scenarios.py."
+        },
+        {
+          "technique": "discrimination-margin-gate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-compare.ts:130 leaderByAxis is a recruiter-facing display over real submissions, not the pass condition of a validation run. The margin gate (MIN_DISCRIMINATION_MARGIN, MIN_GROUP_N) lives off-context in submission_eval.py. The leader is still crowned on any positive gap."
+        },
+        {
+          "technique": "adversarial-persona-red-teaming",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/devcase/submission_eval.py:439 A fixed behavioral cast exercises the shared production chain, but its fingerprint hashes only row IDs, so changing submission content or domain without changing IDs preserves the reported cast identity."
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:393 The gate requires separation from strong submissions but never asserts that gaming cannot outrank the honest floor; its gamer is an AI non-verifier rather than a fabricated-process persona.",
+          "carriedFrom": "2026-10-19"
+        },
+        {
+          "technique": "binary-metrics-over-a-noisy-scale",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:492 The quality summary aggregates holistic 1–5 LLM ratings into a mean, which the report presents as mean quality instead of demoting raw scores to supporting detail.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "737d29fb-fa58-450a-8cb1-5468bbe10f70",
-        "state": "deviation",
-        "at": "2026-10-19T12:43:37.983312+00:00",
-        "reason": "reviewer (sonnet): The cited code is real and says what the evidence claims (llm_judge.py:87 compares provider/model labels, test line 110 accepts the same model on two providers, submission_eval.py:492 reports a mean of 1–5 scores). But all four files are Python pipeline code under pipeline/jobfit/. The context-map e"
-      }
+      ]
     },
     "a52e7c0d-e73d-49ee-b465-526da5899c6f/candidate-outreach-and-halt-rules": {
       "context": "comms-locale-optout",
