@@ -1,0 +1,89 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c693b6bf-92bb-42d8-a097-c4a15c6f1639",
+ "subject": "client-state",
+ "evaluatedAt": "2026-10-25T23:17:01.399929+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "pipeline-actions-events",
+   "subject": "client-state",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 saveStageSla paints a per-stage optimistic value (line 72), then drops it unconditionally on failure (line 76) and after reload (line 81), with no per-stage mutex and no compare-and-swap; PipelineKitSla commits on every Enter/blur, so two overlapping saves on one stage are reachable, and the first save to settle erases the second save's paint while that save is still in flight (and on failure shows the first save's error).",
+   "techniques": [
+    {
+     "technique": "optimistic-write-path",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional revert with no per-entity serialization, so an overlapping attempt's paint gets discarded. This is the 'two rapid actions on one entity' failure the technique names."
+    },
+    {
+     "technique": "async-race-guards",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 In-flight dedup keyed by jobId (the only argument); the key is removed in finally on success and on failure alike (line 57)."
+    },
+    {
+     "technique": "status-fsms",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:54 A per-job slot gives loading (undefined), loaded, and failed states; a failure keeps earlier held data instead of blanking, and is a separate flag from empty."
+    },
+    {
+     "technique": "effect-identity-and-latched-callbacks",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:75 The effect's dependency list holds only the address (jobId), with no caller callbacks."
+    },
+    {
+     "technique": "invalidation-strategy",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:24 The module ranking cache becomes fresh again only through a 10-minute TTL on read. It exports no invalidation or write-through entry point, so a mutation that changes the ranking stays stale until the TTL expires."
+    },
+    {
+     "technique": "singleton-lifecycle",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module scope is right for a cache that can be refetched (a duplicate copy only refetches). But this stateful module (slots, inflight, listeners) has no reset hatch: the file exports only useCellMatchData."
+    },
+    {
+     "technique": "persistence-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:14 Per-browser localStorage cadences are moved into the durable team store, and the local copy is cleared only after every offer lands."
+    },
+    {
+     "technique": "rehydration-narrowing",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:16 Rehydrated values are clamped per field (line 53) and only offered, never applied silently."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "client-state",
+   "context": "billing-api",
+   "reason": "absence contradicted: app/api/apply/[id]/session/route.ts:12 contains 'localStorage' (3 hit(s) in the context's directories)"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:17:01.399929+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-state"
+   ],
+   "techniques": [
+    "async-race-guards",
+    "effect-identity-and-latched-callbacks",
+    "invalidation-strategy",
+    "optimistic-write-path",
+    "persistence-and-migration",
+    "rehydration-narrowing",
+    "singleton-lifecycle",
+    "status-fsms"
+   ],
+   "deviations": 1,
+   "context": "pipeline-actions-events",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

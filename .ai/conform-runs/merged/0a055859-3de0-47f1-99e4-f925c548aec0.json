@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0a055859-3de0-47f1-99e4-f925c548aec0",
+ "subject": "cv-authenticity-screening",
+ "evaluatedAt": "2026-10-25T23:40:54.738975+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "cv-extraction",
+   "subject": "cv-authenticity-screening",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/authenticity.py:98 The only arithmetic check is a >45-year ceiling on a single, usually model-supplied years figure. Nothing compares claimed years with the dated career span or sums tenures against elapsed time, undated roles are never treated as unknown, and no raw date string is quoted, so the strongest family in the subject is almost entirely missing.",
+   "techniques": [
+    {
+     "technique": "a-screen-is-not-a-verdict",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/authenticity.py:41 Wording is a reviewer probe and the CV is never dropped (docstring line 217). But every authenticity Finding is a fixed constant with value=None: no counts, no threshold and no quoted fragment. The rule 'a flag names its trigger and quotes its evidence' is not met."
+    },
+    {
+     "technique": "claim-density-and-stuffing-heuristics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/authenticity.py:84 Flooring the denominator at 1000 chars means a short CV fires on 4 hits, where the standard requires 'not measured' below a word floor. The flag records neither count. Stuffing as a sub-state of matched IS realized: models.py:156 KeywordStatus has 'over_used' documented as a sub-state of matched."
+    },
+    {
+     "technique": "document-as-data-never-as-instructions",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/profile_draft_cli.py:238 The draft-from-notes model call has the classification and non-compliance clause plus the shared fenced_untrusted fence. But DRAFT_SCHEMA has no field to record a manipulation attempt, and no prompt_injection_checks runs on this path, so a resisted or successful injection leaves no record (point 5, 'record it')."
+    },
+    {
+     "technique": "hidden-text-and-smuggling-detection",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/extractors.py:144 The character screen is well discriminated: zero-width runs, the strip-and-reread differential at authenticity.py:184, tag decode and bidi overrides only. But clean_text only NFC-normalizes, so nothing neutralises format characters in the downstream copy (no zero-width stripping anywhere in pipeline/jobfit). The PDF extractor also has no render/size/colour comparison, so the commonest attack (hidden keywords in tiny or background-coloured type) passes unseen."
+    },
+    {
+     "technique": "implausible-span-and-arithmetic-checks",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/authenticity.py:98 No claimed-vs-span check, no sum-of-tenures check, no per-role implausibility check, and no raw date quoting. The figure checked is usually the LLM payload's years_experience (pipeline.py:732), which is an inferred timeline."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "cv-authenticity-screening",
+   "context": "cv-analysis-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:40:54.738975+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "cv-authenticity-screening"
+   ],
+   "techniques": [
+    "a-screen-is-not-a-verdict",
+    "claim-density-and-stuffing-heuristics",
+    "document-as-data-never-as-instructions",
+    "hidden-text-and-smuggling-detection",
+    "implausible-span-and-arithmetic-checks"
+   ],
+   "deviations": 1,
+   "context": "cv-extraction",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

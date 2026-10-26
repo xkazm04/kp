@@ -8756,42 +8756,58 @@
       "context": "llm-config-provider",
       "subject": "credential-vault",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:32:24.603Z",
+      "worker": "0bec30aa-9958-41c3-83b0-567b6058cca9",
       "techniques": [
-        {
-          "technique": "acquisition",
-          "verdict": "deviation",
-          "evidence": "app/_lib/llm-config.ts:230 The save path validates endpoint configuration but admits the credential without a live identity-and-scope validation."
-        },
         {
           "technique": "brokered-egress",
           "verdict": "deviation",
-          "evidence": "app/_lib/provider-key-precedence.ts:59 The resolver returns plaintext credentials to callers instead of accepting authenticated operation intents."
+          "evidence": "app/_lib/llm-config.ts:381 buildLlmConfigEnv decrypts every row and ships the plaintext to Python via KP_LLM_CONFIG; resolveProviderKey (l.275) also returns plaintext to TS SDK call sites. Destination binding exists only partially (Azure endpoint allowlist at save time)."
         },
         {
           "technique": "encryption-at-rest",
           "verdict": "deviation",
-          "evidence": "app/_lib/llm-secret.ts:77 Fresh-IV authenticated encryption exists, but sealing lacks wrapped per-secret keys, record AAD, and master-generation identification."
+          "evidence": "app/_lib/llm-secret.ts:77 AES-256-GCM with a fresh random 12-byte IV and one seal/unseal module are conformant, but there's no setAAD binding the ciphertext to its (provider, scope) record, it's flat (no per-secret data key under a master), the master key is a plain sha256 of KP_SECRET (l.48, no memory-hard KDF, and the same secret is reused for the session HMAC), and the 'v1' header doesn't name the key generation."
         },
         {
-          "technique": "health-probing",
+          "technique": "versioned-key-window",
           "verdict": "deviation",
-          "evidence": "app/api/llm/test/verdict.ts:59 The stored-key probe uses this classifier to reconstruct failure kinds from error prose rather than preserving typed provider verdicts."
+          "evidence": "app/_lib/llm-secret.ts:103 The current/previous window (only current seals) is the right idea, but the ciphertext carries no key version, so opening and rewrapping work by trial decryption in order — the failure shape this technique names, where a wrong key can't be told apart from corruption."
+        },
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-config.ts:233 saveProviderKey admits a pasted key with only shape checks (endpoint/baseUrl) and no live validation; the probe is a separate optional Test button. Never re-displaying the value (masked listing, l.255) is conformant."
         },
         {
           "technique": "rotation-and-remediation",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/llm.ts:171 Replacement overwrites the incumbent ciphertext without requiring live successor validation or successful successor traffic."
+          "evidence": "app/_lib/llm-config.ts:230 Replacing a key overwrites the incumbent in place with no overlap window, no live validation of the successor before cutover, no rotation ledger and no remediation ladder. The master-key (KP_SECRET) rotation path is a separate, better-shaped mechanism."
+        },
+        {
+          "technique": "token-refresh-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/provider-key-precedence.ts:17 Stored provider credentials are static API keys with no grant/proof split, expiry or refresh field; grep for refresh/lease/renew over the context's files found nothing."
+        },
+        {
+          "technique": "renew-at-two-thirds-with-grace",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:310 No leased secret with an issuer-extended TTL exists; the key entry carries no lease or duration."
+        },
+        {
+          "technique": "revocation-interception-cache",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 Keys are resolved and decrypted from the store on every call; no intermediary caches leased secrets."
+        },
+        {
+          "technique": "health-probing",
+          "verdict": "deviation",
+          "evidence": "app/api/llm/test/verdict.ts:59 The stored-key probe uses this classifier to reconstruct failure kinds from error prose rather than preserving typed provider verdicts.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
-        "state": "deviation",
-        "at": "2026-10-17T00:12:41.294970+00:00",
-        "reason": "reviewer (sonnet): The technique anchor app/api/llm/test/verdict.ts:59 is not in the llm-config-provider file list in context-map.json, and I found no caller showing a stored-key probe uses classifyProviderError, so that claim rests on code from outside this context."
-      }
+      ]
     },
     "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/credential-vault": {
       "context": "ats-sync-egress",
@@ -9838,62 +9854,66 @@
       "context": "candidate-channels-ui",
       "subject": "chat-transcript",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:59:55.559Z",
+      "worker": "dd87304d-d875-4551-b037-73c5032f2eab",
       "techniques": [
         {
           "technique": "composer-turn-queue",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:30 The input corrects a delivery address; it does not submit conversational prompts."
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:30 The input corrects a delivery address; it does not submit conversational prompts.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "immutable-model-cached-layout",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsData.ts:84 These are integration-configuration snapshots, without transcript-message layouts."
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:84 These are integration-configuration snapshots, without transcript-message layouts.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "inline-structured-rows",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Rows classify delivery outcomes, without conversational tools or approval events."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Rows classify delivery outcomes, without conversational tools or approval events.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "markdown-and-code-rendering",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:109 The helper selects ledger subject labels, without rendering a machine-authored transcript."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:109 The helper selects ledger subject labels, without rendering a machine-authored transcript.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "progress-narration",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:62 This reports a resend operation, without narrating a machine turn."
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:62 This reports a resend operation, without narrating a machine turn.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "transcript-scroll",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsPaging.ts:71 Pagination combines delivery-ledger pages, without a growing conversational document."
+          "evidence": "app/features/hiring/channels/channelsCommsPaging.ts:71 Pagination combines delivery-ledger pages, without a growing conversational document.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "turn-metadata",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:143 The timestamp records a ledger entry, without machine-turn accounting."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:143 The timestamp records a ledger entry, without machine-turn accounting.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "turn-model",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsData.ts:110 The entities are hiring jobs and intake records, without conversational turn lifecycles."
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:110 The entities are hiring jobs and intake records, without conversational turn lifecycles.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "virtual-filtered-channel",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:53 The filter selects configured webhook receivers from a snapshot, without deriving a conversational stream."
+          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:53 The filter selects configured webhook receivers from a snapshot, without deriving a conversational stream.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
-        "state": "not-applicable",
-        "at": "2026-10-17T03:20:43.713897+00:00",
-        "reason": "reviewer (sonnet): The anchor useChannelsData.ts:78 is a webhook loader that doesn't show that no transcript, composer or streaming exists; the not-applicable rests only on a keyword search, and the context does render message ledger rows and a resend input."
-      }
+      ]
     },
     "b53482a5-a3bf-4daa-8011-a09391c974e2/design-tokens": {
       "context": "glyph-system",
@@ -13237,47 +13257,58 @@
       "context": "pipeline-actions-events",
       "subject": "client-state",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T22:23:20.456Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:17:01.399Z",
+      "worker": "c693b6bf-92bb-42d8-a097-c4a15c6f1639",
       "techniques": [
         {
           "technique": "optimistic-write-path",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional rollback deletes the stage override without compare-and-swap verification against concurrent edits, and lacks per-entity mutation serialization."
-        },
-        {
-          "technique": "singleton-lifecycle",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module-scoped cache lacks a test-reset hatch and replacement-safe generation tokens, risking state leaks between test runs."
-        },
-        {
-          "technique": "invalidation-strategy",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 Relies on a coarse 10-minute polling TTL instead of surgical event-driven invalidation when candidate rankings change."
-        },
-        {
-          "technique": "status-fsms",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:21 Uses a boolean flag failed alongside data rather than an explicit enumerated lifecycle state machine carrying error evidence."
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional revert with no per-entity serialization, so an overlapping attempt's paint gets discarded. This is the 'two rapid actions on one entity' failure the technique names."
         },
         {
           "technique": "async-race-guards",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:42 In-flight deduplication tracks active fetches per jobId in a Set and cleans up in finally on settlement."
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 In-flight dedup keyed by jobId (the only argument); the key is removed in finally on success and on failure alike (line 57)."
+        },
+        {
+          "technique": "status-fsms",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:54 A per-job slot gives loading (undefined), loaded, and failed states; a failure keeps earlier held data instead of blanking, and is a separate flag from empty."
+        },
+        {
+          "technique": "effect-identity-and-latched-callbacks",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:75 The effect's dependency list holds only the address (jobId), with no caller callbacks."
+        },
+        {
+          "technique": "invalidation-strategy",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:24 The module ranking cache becomes fresh again only through a 10-minute TTL on read. It exports no invalidation or write-through entry point, so a mutation that changes the ranking stays stale until the TTL expires."
+        },
+        {
+          "technique": "singleton-lifecycle",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module scope is right for a cache that can be refetched (a duplicate copy only refetches). But this stateful module (slots, inflight, listeners) has no reset hatch: the file exports only useCellMatchData."
+        },
+        {
+          "technique": "persistence-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:14 Per-browser localStorage cadences are moved into the durable team store, and the local copy is cleared only after every offer lands."
+        },
+        {
+          "technique": "rehydration-narrowing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:16 Rehydrated values are clamped per field (line 53) and only offered, never applied silently."
         },
         {
           "technique": "store-slicing",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:165 Computes a content signature over immutable entry slices to preserve render identity across unchanged poll ticks."
+          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:165 Computes a content signature over immutable entry slices to preserve render identity across unchanged poll ticks.",
+          "carriedFrom": "2026-10-18"
         }
-      ],
-      "withdrawn": {
-        "worker": "394aca63-4ce9-4eef-8c03-beb06240c14c",
-        "state": "deviation",
-        "at": "2026-10-18T22:23:45.239414+00:00",
-        "reason": "reviewer (sonnet): The unconditional rollback at usePipelineSla.ts:76 is real, but three of the four technique anchors (the module cache, 10-minute TTL and `failed` flag) are in app/features/hiring/pipeline/map/useCellMatchData.ts, which is not among this context's listed files, and the 'risking clobbering concurrent "
-      }
+      ]
     },
     "10943bc8-3713-4897-a618-ac1437d7c455/early-career-potential-assessment": {
       "context": "tests-scoring-fairness",
@@ -13730,47 +13761,48 @@
       "context": "devcase-detail",
       "subject": "hypothesis-not-verdict-soft-signals",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:57:43.134Z",
+      "worker": "d441e765-b092-4bfa-a9a4-da275d61ac01",
       "techniques": [
         {
           "technique": "a-confirmation-probe-per-signal",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:38 These are assignment cover probes, not questions generated from career-document signals."
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:38 These are assignment cover probes, not questions generated from career-document signals.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "antipattern-and-hidden-strength-pairing",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailShortlist.tsx:46 The shortlist renders assessed submissions rather than adverse and favourable document-shape detectors."
+          "evidence": "app/features/tools/devcases/DevCaseDetailShortlist.tsx:46 The shortlist renders assessed submissions rather than adverse and favourable document-shape detectors.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "benign-alternative-stated-alongside-the-risk",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:39 The flag concerns assignment calibration measured across submissions."
+          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:39 The flag concerns assignment calibration measured across submissions.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "claim-versus-evidence-overclaim-detection",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:59 This panel displays role requirements rather than comparing a career document's claims with outcomes."
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:59 This panel displays role requirements rather than comparing a career document's claims with outcomes.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "signal-source-trust-ordering",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevProvenanceStrip.tsx:58 Provenance describes assessment-generation steps, not mixed sources of career hypotheses."
+          "evidence": "app/features/tools/devcases/DevProvenanceStrip.tsx:58 Provenance describes assessment-generation steps, not mixed sources of career hypotheses.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "what-to-confirm-checklist-not-a-dossier",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevCaseDetailChannels.tsx:54 The channel surface collects assignment submissions rather than presenting a soft-signal checklist."
+          "evidence": "app/features/tools/devcases/DevCaseDetailChannels.tsx:54 The channel surface collects assignment submissions rather than presenting a soft-signal checklist.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
-        "state": "not-applicable",
-        "at": "2026-10-19T00:03:19.988666+00:00",
-        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
-      }
+      ]
     },
     "3e2ec5d8-185d-40bc-99f9-c132975277b4/hypothesis-not-verdict-soft-signals": {
       "context": "results-detail-tabs",
@@ -13817,47 +13849,48 @@
       "context": "devcase-lifecycle",
       "subject": "hypothesis-not-verdict-soft-signals",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:57:43.134Z",
+      "worker": "d441e765-b092-4bfa-a9a4-da275d61ac01",
       "techniques": [
         {
           "technique": "a-confirmation-probe-per-signal",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:34 Follow-ups originate in submission evaluation and authorship verification, which the standard distinguishes from career-shape hypotheses."
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:34 Follow-ups originate in submission evaluation and authorship verification, which the standard distinguishes from career-shape hypotheses.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "antipattern-and-hidden-strength-pairing",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:64 The design card presents probes embedded in an assignment rather than behavioural detectors over a career document."
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:64 The design card presents probes embedded in an assignment rather than behavioural detectors over a career document.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "benign-alternative-stated-alongside-the-risk",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisReflectionCard.tsx:45 These risks belong to the role and codebase needs analysis, not a reading of a candidate's career."
+          "evidence": "app/features/tools/devcases/DevAnalysisReflectionCard.tsx:45 These risks belong to the role and codebase needs analysis, not a reading of a candidate's career.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "claim-versus-evidence-overclaim-detection",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:71 The analysis reads repository snapshots rather than capability claims and career outcomes."
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:71 The analysis reads repository snapshots rather than capability claims and career outcomes.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "signal-source-trust-ordering",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:30 The displayed sources describe generation of the assessment design, not career-signal trust tiers."
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:30 The displayed sources describe generation of the assessment design, not career-signal trust tiers.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "what-to-confirm-checklist-not-a-dossier",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:199 This records human findings against submission-authorship follow-ups, outside the subject's career-document checklist."
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:199 This records human findings against submission-authorship follow-ups, outside the subject's career-document checklist.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
-        "state": "not-applicable",
-        "at": "2026-10-19T00:03:19.988666+00:00",
-        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
-      }
+      ]
     },
     "181b8632-82ec-4203-a308-42e58eca6c49/inclusive-job-advertising": {
       "context": "jobs-posting-campaign",
@@ -14663,48 +14696,43 @@
       "context": "voice-interview-session",
       "subject": "ai-interviewer-brief-authoring",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T01:42:29.285Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:08:03.073Z",
+      "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
       "techniques": [
-        {
-          "technique": "closing-read-back",
-          "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:174 Downstream scorecard synthesis explicitly prioritizes the candidate's closing read-back confirmation turn over earlier transcript mentions of corrupted tech terms."
-        },
         {
           "technique": "mandatory-coachability-hint",
           "verdict": "deviation",
-          "evidence": "app/_lib/voice/candidate-brief.ts:169 The candidate-safe brief sanitization strips the coachability probe and omits the mandatory hint instruction, leaving the voice AI interviewer with no hint instruction or probe to offer."
+          "evidence": "app/_lib/voice/candidate-brief.ts:169 Keeping the hint text in an internal field is done right (allow-list). But the guarantee is lost: the candidate-safe brief keeps only the 'Coachability injection' topic label and has no 'offer ONE hint, never skip' rule."
         },
         {
-          "technique": "narrowing-follow-up-not-repetition",
-          "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:176 Instructs the interviewer to narrow to smaller concrete sub-questions rather than repeating verbatim on thin answers, and to verify quantitative claims neutrally."
+          "technique": "rule-ordering-adjacency-and-form",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/candidate-brief.ts:255 The lock is adjacent to the gender-grammar rule, but it is not last in the brief. Lines 258-269 put the intro, leadership frame, case intro, agenda listing, director protocol (with up to 1500 chars of posting plus FAQ) and the close after it, so the lock sits mid-document. A search of director.ts for 'language' found no per-turn or stage-note restatement. The 'outranks every other instruction' rank sentence is in the lock (student-interview.ts:158), and the technique says that is not a lever."
         },
         {
           "technique": "one-question-per-turn-and-wait",
           "verdict": "conformant",
-          "evidence": "app/_lib/student-interview.ts:162 Enforces exactly one question per turn and explicitly directs the interviewer to wait for the answer without bundling second questions."
+          "evidence": "app/_lib/voice/candidate-brief.ts:253 Imports the shared constant 'Ask exactly ONE question per turn and wait for the answer…' (student-interview.ts:162). Interrupting a rambling candidate is authorised in the craft paragraph."
+        },
+        {
+          "technique": "narrowing-follow-up-not-repetition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/student-interview.ts:176 This is the constant composed in at candidate-brief.ts:254. It covers narrowing, no verbatim repeat, no preamble, coverage over count and not announcing what remains. Caveats: rungs are improvised live rather than planned per item, and claim verification is triggered by 'strong or quantitative' claims rather than asked uniformly."
+        },
+        {
+          "technique": "closing-read-back",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/candidate-brief.ts:254 Composes the craft paragraph, which says 'Just before closing… read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that'. It does not state numbers-with-basis or per-item confirmation."
         },
         {
           "technique": "praise-and-verdict-suppression",
           "verdict": "conformant",
-          "evidence": "app/_lib/voice/candidate-brief.ts:269 Suppresses both evaluative verdicts and praise by explicitly banning praise of thinking/instinct, enumerating forbidden and permitted tokens, and deferring evaluation to human review."
-        },
-        {
-          "technique": "rule-ordering-adjacency-and-form",
-          "verdict": "conformant",
-          "evidence": "app/_lib/voice/candidate-brief.ts:255 Maintains critical consistency constraints adjacent in the brief to prevent language drift, with craft rules condensed into a single paragraph starting with content."
+          "evidence": "app/_lib/voice/candidate-brief.ts:269 Enumerated forbidden list, including praise of thinking or instinct, and a permitted list, plus a process explanation at the close. It does not say the permitted tokens must not be rationed."
         }
       ],
-      "registryProposal": "Where interviewer prompts are client-sent to voice providers without server-side prompt storage, the brief authoring model must provide a mechanism to deliver stage-direction instructions to the agent without exposing ungrounded probes to candidate-accessible devtools.",
-      "withdrawn": {
-        "worker": "7485ea3e-3e22-46d8-977d-3920370d1deb",
-        "state": "deviation",
-        "at": "2026-10-19T01:42:52.613695+00:00",
-        "reason": "reviewer (sonnet): candidate-brief.ts:169 only drops the coachability probe from the browser-bound candidate-safe brief, and it does so on purpose (comments at lines 148-151 and 160-163); I did not confirm that the voice interviewer is left with no hint instruction, because the private brief in interview-run.ts and st"
-      }
+      "registryProposal": "mandatory-coachability-hint's 'hint scripting lives in a structurally internal field' rule can, applied correctly, delete the guarantee itself when the engine's ONLY brief is the candidate-facing derivation (a client-sent prompt). The technique should say the guarantee must still reach the engine in that case: as a content-free rule ('offer one concrete hint mid-problem, never skip') that is allow-listed separately from the hint text, or as a server-delivered stage direction."
     },
     "181b8632-82ec-4203-a308-42e58eca6c49/background-jobs": {
       "context": "jobs-posting-campaign",
@@ -14802,47 +14830,43 @@
       "context": "cv-extraction",
       "subject": "cv-authenticity-screening",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T02:06:43.256Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:40:54.738Z",
+      "worker": "0a055859-3de0-47f1-99e4-f925c548aec0",
       "techniques": [
         {
           "technique": "a-screen-is-not-a-verdict",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:41 The flag appropriately requests human verification, but its fixed text supplies neither the triggering fragment nor measured counts."
+          "evidence": "pipeline/jobfit/authenticity.py:41 Wording is a reviewer probe and the CV is never dropped (docstring line 217). But every authenticity Finding is a fixed constant with value=None: no counts, no threshold and no quoted fragment. The rule 'a flag names its trigger and quotes its evidence' is not met."
         },
         {
           "technique": "claim-density-and-stuffing-heuristics",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:84 The character-based threshold can flag a short document containing four buzzwords; it does not decline measurement below the required document-length floor."
+          "evidence": "pipeline/jobfit/authenticity.py:84 Flooring the denominator at 1000 chars means a short CV fires on 4 hits, where the standard requires 'not measured' below a word floor. The flag records neither count. Stuffing as a sub-state of matched IS realized: models.py:156 KeywordStatus has 'over_used' documented as a sub-state of matched."
         },
         {
           "technique": "document-as-data-never-as-instructions",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/pipeline.py:514 The deterministic injection screen covers local and model CV text, but omits employer-supplied job-description and company text and runs after the model."
-        },
-        {
-          "technique": "ground-the-model-against-a-deterministic-prepass",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/pipeline.py:1682 A pre-pass exists, but extraction failures produce empty evidence that this condition treats as corroborating nothing rather than skipping the cross-check as unavailable."
+          "evidence": "pipeline/jobfit/profile_draft_cli.py:238 The draft-from-notes model call has the classification and non-compliance clause plus the shared fenced_untrusted fence. But DRAFT_SCHEMA has no field to record a manipulation attempt, and no prompt_injection_checks runs on this path, so a resisted or successful injection leaves no record (point 5, 'record it')."
         },
         {
           "technique": "hidden-text-and-smuggling-detection",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:181 Unicode smuggling checks exist, but the document extraction path does not compare rendered visibility with extracted text to detect tiny or background-coloured keyword lists."
+          "evidence": "pipeline/jobfit/extractors.py:144 The character screen is well discriminated: zero-width runs, the strip-and-reread differential at authenticity.py:184, tag decode and bidi overrides only. But clean_text only NFC-normalizes, so nothing neutralises format characters in the downstream copy (no zero-width stripping anywhere in pipeline/jobfit). The PDF extractor also has no render/size/colour comparison, so the commonest attack (hidden keywords in tiny or background-coloured type) passes unseen."
         },
         {
           "technique": "implausible-span-and-arithmetic-checks",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/authenticity.py:98 A fixed ceiling on claimed experience substitutes for checking claims against dated spans, extraction damage and missing-date uncertainty."
+          "evidence": "pipeline/jobfit/authenticity.py:98 No claimed-vs-span check, no sum-of-tenures check, no per-role implausibility check, and no raw date quoting. The figure checked is usually the LLM payload's years_experience (pipeline.py:732), which is an inferred timeline."
+        },
+        {
+          "technique": "ground-the-model-against-a-deterministic-prepass",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/pipeline.py:1682 A pre-pass exists, but extraction failures produce empty evidence that this condition treats as corroborating nothing rather than skipping the cross-check as unavailable.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "eba2da54-b0f2-408a-a0cb-211096b7d799",
-        "state": "deviation",
-        "at": "2026-10-19T02:07:24.234009+00:00",
-        "reason": "reviewer (sonnet): Three of the four technique anchors (pipeline.py:514 and :1682, plus the JD-coverage claim) are in pipeline.py, which is not among the cv-extraction context files, so the verdict mixes in code from another context. The authenticity.py anchors (:41, :84, :98) check out but are too weak to carry it al"
-      }
+      ]
     },
     "bc01cbf1-ff85-4c0f-878c-1ca34fb9239c/cv-authenticity-screening": {
       "context": "cv-analysis-api",
@@ -16101,47 +16125,45 @@
       "context": "match-presentation-components",
       "subject": "adaptive-fidelity-tiers",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T12:18:19.649Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:57:39.093Z",
+      "worker": "a1404bc5-89af-4242-9f6c-083a3e1bde36",
       "techniques": [
-        {
-          "technique": "asymmetric-tier-transitions",
-          "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:26 The panel switches on async reasoning state; it does not move between device fidelity tiers."
-        },
-        {
-          "technique": "measured-not-declared-capability",
-          "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchPresentation.tsx:26 The visual classification represents a match score, with no device capability decision or scalable decorative workload."
-        },
-        {
-          "technique": "measurement-settle-budget",
-          "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 This is a bounded reveal transition, with no capability sampler needing a settle deadline."
-        },
         {
           "technique": "per-tier-budget-tables",
           "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchPresentation.tsx:64 Segment dimensions and colors encode score data; reducing them by device tier would change the information displayed rather than budget optional richness."
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 A one-shot 240ms opacity/y entrance is a small composited transition, which the technique's grading puts in the exempt class (it costs less than consulting a tier would). No effect here runs its own clock or forces expensive compositing."
         },
         {
           "technique": "preference-short-circuits-measurement",
           "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:61 Reduced motion directly disables layout animation; there is no capability measurement to short-circuit."
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:24 The reduced-motion preference is read and honoured per gesture, but there is no probe here for it to short-circuit."
+        },
+        {
+          "technique": "measured-not-declared-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:61 The richness choice branches only on the user preference, never on a declared device signal (no user-agent, core count or memory hint) and never on a measurement. No capability decision is made at all."
+        },
+        {
+          "technique": "asymmetric-tier-transitions",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:26 The panel switches on async reasoning state; it does not move between device fidelity tiers.",
+          "carriedFrom": "2026-10-19"
+        },
+        {
+          "technique": "measurement-settle-budget",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 This is a bounded reveal transition, with no capability sampler needing a settle deadline.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "probe-deferral-to-idle",
           "verdict": "not-applicable",
-          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 The loading treatment uses a short opacity transition without starting a capability probe."
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 The loading treatment uses a short opacity transition without starting a capability probe.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "67e4d134-6b2c-4c4e-9201-7e02bf450726",
-        "state": "not-applicable",
-        "at": "2026-10-19T12:18:35.586875+00:00",
-        "reason": "reviewer (sonnet): The primary anchor (MatchReasoningPanel.tsx:115) is only the ReasoningSkeleton div, so it does not show that fidelity tiers or a capability sampler are absent. The claim of 'no visual complexity knob' is also weakened by the reduced-motion branching in the same file (lines 24-65), which scales durat"
-      }
+      ]
     },
     "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/agent-browser-control": {
       "context": "login-flow",
@@ -20220,6 +20242,705 @@
       "evaluatedTs": "2026-10-25T03:34:56.242Z",
       "worker": "4801cacd-2d8d-451f-bd16-6f13907023da",
       "techniques": []
+    },
+    "a626dbb6-a28d-4c99-be26-a5d9592ba2eb/ai-interviewer-brief-authoring": {
+      "context": "jd-intake-brief-logic",
+      "subject": "ai-interviewer-brief-authoring",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:08:03.073Z",
+      "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
+      "techniques": []
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/authorization": {
+      "context": "login-flow",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:24:40.399Z",
+      "worker": "acd7d087-84f1-4e47-b17a-d4da75e1bf51",
+      "techniques": [
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/login/page.tsx:20 A public page. Gating belongs to the proxy and to /api/auth/login, both in other contexts."
+        }
+      ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/candidate-archetype-routing": {
+      "context": "results-core",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:38:19.226Z",
+      "worker": "39caa337-500d-40ca-9eec-19eaa98ee7a8",
+      "techniques": [
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:114 The code comment at :106-107 says it pins the inferred archetype as the self-declaration so the re-route is deterministic. The technique says to pin a derived class as derived and never re-submit an inference as self-declared."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:133 The below-threshold review flag shows as its own chip. Confidence is relabelled \"signals agree\" (a vote share, per the :81-88 comment), and an absent value is left out rather than shown as 0%. It is still printed as an NN% figure."
+        },
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:173 The banner shows the signals that fired next to the class, so the recruiter sees the explanation and not just a verdict."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:77 An archetype the registry does not know renders as \"Unrouted\" and is never turned into a concrete class. This only covers the sentinel the banner receives. The no-signal case arrives from upstream already labelled bau (see notes)."
+        }
+      ]
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/candidate-archetype-routing": {
+      "context": "cv-analysis-archetypes",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:38:19.226Z",
+      "worker": "39caa337-500d-40ca-9eec-19eaa98ee7a8",
+      "techniques": [
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetypes.ts:21 One declarative file is read by both runtimes. Supporting evidence: protected set derived from the flag (:75), keys canonicalised (:84-86), archive rather than delete (archetype-registry.ts:368-383), and archetype-registry-lockstep.test.ts pins the mirrored constants. Caveat: the static import is cast at :38 without validation, but live decisions go through archetype-live.ts, which validates."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetype-registry.ts:261 Weights must sum to 1 within 1e-6, each weight must lie in [0,1], and every slot needs a dimension label. This is checked at the write boundary and again when the registry is read (validateRegistry :125-146). In the registry, early-career entries are renamed Foundation/Potential/Fit. I found no scored golden set in this context."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/archetypes.ts:121 Unknown means protected for the shield, while isEarlyCareer (:128-130) treats unknown as not early for wording, and both directions are written down. archetypeDisplayKey renders it as \"unrouted\", and RESERVED_IDS (archetype-registry.ts:50) stops anyone registering the sentinel as a class."
+        }
+      ]
+    },
+    "6e08a191-7d84-4e75-9938-e5e87eba6449/candidate-status-transparency": {
+      "context": "candidate-status-api",
+      "subject": "candidate-status-transparency",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:49:26.981Z",
+      "worker": "c989e59c-252c-4070-b740-7c537576757e",
+      "techniques": [
+        {
+          "technique": "terminal-state-copy-without-implying-merit",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 Cause and state are not separated. role_closed loses its identity at the boundary, so the requisition-ended variant cannot exist."
+        },
+        {
+          "technique": "stage-role-mapping-not-stage-names",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:87 The role map is total over StageRole and the route passes roleOf (route.ts:53). But roleOf returns null for an off-axis or retired column, and the code then falls back to the name map and finally to the entry bucket 'received'. That is the exact understating fallback the technique forbids: the unmappable case should get its own in-progress state."
+        },
+        {
+          "technique": "terminal-moment-experience-measurement",
+          "verdict": "deviation",
+          "evidence": "app/api/status/[token]/nps/route.ts:76 These parts are realized: refusal outside the terminal window (409, line 69), one row per entry with replace (PK entry_id), the no-coercion parser and a sample floor of 10. But the response row stores no terminal outcome (the core.ts:2117 schema has no outcome column), so the figure cannot be split by hired, declined, withdrew or requisition-ended."
+        },
+        {
+          "technique": "candidate-safe-status-projection",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:77 The object is built field by field with jsonOk({...}): status enum, title, company, updatedAt and booleans. It carries no entry id, score or name. The pending action crosses as kind and dates, never as its capability token."
+        },
+        {
+          "technique": "honest-failure-classification",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:81 An unknown token gets a coded 404, STATUS_LINK_INVALID, which makes no distinction between a wrong key and no entry. A store fault gets a coded 5xx with the cause kept off the wire. The tenant is resolved from the entry, not from a default (line 48)."
+        },
+        {
+          "technique": "committed-dates-not-forecasts",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:74 The only dates on the wire are recorded ones (updatedAt, sentAt) and the action deadline the organisation already enforces (expiresAt). No decision forecast is sent."
+        },
+        {
+          "technique": "candidate-legible-timeline",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:56 Gives the timeline a last-updated moment derived on read. relayConfigured (line 60) supplies the channel-truth check the email-promise step consumes."
+        }
+      ]
+    },
+    "48803d2b-7f17-4d34-90ca-c420b7074ef2/conversation-orchestration": {
+      "context": "chat-markdown-icons",
+      "subject": "conversation-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:23:49.946Z",
+      "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
+      "techniques": [
+        {
+          "technique": "structured-visual-replies",
+          "verdict": "conformant",
+          "evidence": "app/_components/chat/ChatMiniChart.tsx:108 The chart scales over an intact viewBox and stops shrinking at a floor where its 14px labels stay readable; past that floor its own scroller takes over. Related evidence in the same context: ChatBlocks.tsx:29 renders blocks full-bleed under the bubble, ChatTable.tsx:47 draws a placeholder for a missing cell (never blank, never zero), chatChartAlt.ts:23 builds an sr-only text alternative from the block's own values, and series colours are token presentation attributes (ChatMiniChart.tsx:44). The caps are one authority in chatBlockTypes.ts, imported by the validator."
+        },
+        {
+          "technique": "progress-beat-grammar",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:163 The busy state renders only a static label. Nothing lifts or renders model-authored progress lines, and no beat vocabulary exists in the companion producer, so long turns go silent."
+        }
+      ]
+    },
+    "c849e8b8-1cd8-4644-ad0f-178331441cca/conversation-orchestration": {
+      "context": "match-presentation-components",
+      "subject": "conversation-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:23:49.946Z",
+      "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
+      "techniques": []
+    },
+    "83d5f3f8-b225-4d2b-ba73-bfbfa36efbec/cv-presentation-and-parseability": {
+      "context": "spark-trust-market",
+      "subject": "cv-presentation-and-parseability",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:44:27.490Z",
+      "worker": "c11bc53b-4908-4897-9bc1-5ab6206c5000",
+      "techniques": [
+        {
+          "technique": "export-format-and-round-trip-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:4 It reads a committed market snapshot. No CV file is generated."
+        },
+        {
+          "technique": "scan-path-hierarchy",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV."
+        }
+      ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/delivery-guarantees": {
+      "context": "db-pipeline-store",
+      "subject": "delivery-guarantees",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:52:40.384Z",
+      "worker": "56a942fc-2e92-47e2-a8e8-53652c2ef6b0",
+      "techniques": [
+        {
+          "technique": "non-delivery-ledgers",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3590 The CAS skip is decided at the right place, but it is written as prose to stdout, not as a typed reason token in a ledger; the four skip branches (3589-3629) all return the same null. A closed reason vocabulary exists (PIPELINE_REASON_CODES), but only for changes that were applied."
+        },
+        {
+          "technique": "marker-certifies-what-was-done",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3030 The claim inserts `expiring_notified` before the letter is dispatched (consent-expiry-reminders.ts:32-41 then only logs a failed dispatch). One marker does both the intent job and the completion job: listConsentExpiryNoticeDue reads it as 'notified', so a failed send is recorded as done and never re-offered. At-most-once is a legitimate posture, but the record should say 'claimed', not 'notified'."
+        },
+        {
+          "technique": "atomic-claiming",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2818 The erasure claim is a conditional UPDATE whose `changes === 0` (line 2820) decides the winner; the loser returns without re-running the scrubs, and anonymized_at stamps when the claim happened."
+        },
+        {
+          "technique": "co-transactional-consume",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2822 The claim and every local scrub effect commit together in one IMMEDIATE transaction, so no lease or reaper is needed. The comment states why the shape is safe."
+        },
+        {
+          "technique": "guarantee-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3467 hasEvent is a durable dedup barrier keyed on the event log, with an unbounded horizon, placed in front of an amplifying effect (an outreach send). The posture is written into the contract."
+        }
+      ]
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/delivery-guarantees": {
+      "context": "ops-observability",
+      "subject": "delivery-guarantees",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:52:40.384Z",
+      "worker": "56a942fc-2e92-47e2-a8e8-53652c2ef6b0",
+      "techniques": [
+        {
+          "technique": "atomic-claiming",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/webhook-claims.ts:64 The claim itself is a correct single conditional upsert (`changes === 1` elects the winner) and records claimed_at plus a lease deadline. But it has no holder column, and the completion write (settleWebhookKey, line 78: `WHERE key = ?`) is not conditioned on still holding the claim."
+        },
+        {
+          "technique": "stuck-reaping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/webhook-claims.ts:84 Detecting a dead claim is evidence-based (lease expiry allows takeover via ON CONFLICT ... WHERE expires_at <= ?). But slow-but-alive does not lose politely: the old holder's release deletes whatever row now has that key. Also the lazy sweep's count is discarded at line 61, so reaps go unreported."
+        },
+        {
+          "technique": "guarantee-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/webhook-idempotency.ts:10 The posture is named: at-least-once doors with deduplicated effects. Dedup state is persisted so it survives the restart that triggers replay, and the 7-day horizon covers the redelivery horizon."
+        },
+        {
+          "technique": "marker-certifies-what-was-done",
+          "verdict": "conformant",
+          "evidence": "app/_lib/webhook-idempotency.ts:20 Intent (inflight claim) and completion (done) are two states. done is written only after the effects commit, and a failure releases the key instead of marking it."
+        },
+        {
+          "technique": "co-transactional-consume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/webhook-claims.ts:9 The handler's effects include candidate emails (external), so the separated claim-and-lease shape is the right choice; co-transactional consume does not apply."
+        },
+        {
+          "technique": "retry-escalation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/webhook-idempotency.ts:80 Retries are driven by the sender or drain. This guard keeps no attempt count; the count belongs to the upstream door."
+        }
+      ]
+    },
+    "9de20269-8dd9-4ca8-a864-0037ee9ca817/machine-paced-delivery": {
+      "context": "db-tasks-agents-misc",
+      "subject": "machine-paced-delivery",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:11:33.777Z",
+      "techniques": [
+        {
+          "technique": "verification-throughput-as-constraint",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/tasks.ts:31 This queue holds in-app background jobs (analyses, builds of JDs), not verification runs of authored changes."
+        },
+        {
+          "technique": "scoped-delivery-access-for-agents",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/agents.ts:261 The only credential minted here is the hired agent's inbound report token into kp. It is revoked by retirement and grants no access to any delivery system."
+        },
+        {
+          "technique": "proposal-not-push",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/agents.ts:38 The mandate (rung and reserved classes) is persisted verbatim as dispatched. The store neither authors nor merges changes."
+        }
+      ],
+      "withdrawn": {
+        "worker": "ff6c3a0e-d7dc-419a-bbc3-e3cd1a15c382",
+        "state": "not-applicable",
+        "at": "2026-10-26T00:12:29.324244+00:00",
+        "reason": "reviewer (sonnet): The anchors don't show the precondition is absent: agents.ts:7 and :38 are comments describing hired-agent dispatch, and agents.ts persists the dispatched app-master mandate and agent activity and metrics. The 'rung and reserved classes' claim isn't visible in any file I opened. The delivery-gate te"
+      }
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/people-analytics-ethics": {
+      "context": "analytics-dashboard",
+      "subject": "people-analytics-ethics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:16:51.493Z",
+      "worker": "90ae8e22-0913-4dce-ab4b-cf23f134140a",
+      "techniques": [
+        {
+          "technique": "aggregate-vs-individual-split",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:72 The organisation side is aggregate-only, keyed by artifact dimensions such as archetype, role and source. There is no personal workforce view, so there is nothing to split."
+        },
+        {
+          "technique": "risk-framing-anonymization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsDecisionLog.tsx:9 Actor names show up only in the decision log and the sealed decision records. That is provenance of actions taken, which the technique's 'when not to use' section names as out of scope."
+        },
+        {
+          "technique": "producer-enforced-suppression",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:12 The only floor here protects TEAMS (workspaces) in the peer benchmark, and the producer enforces it (org-benchmarks.ts BENCHMARK_MIN_TEAMS, with a typed available:false). It is not a person-level floor, so peer-benchmarking governs it rather than this subject."
+        },
+        {
+          "technique": "contribution-eligibility-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:265 Named actors appear only in the sealed, hash-chained decision record. That is a completeness-critical record, which the technique excludes, and no per-person distribution or ranking is built from it."
+        }
+      ],
+      "registryProposal": "Provenance is carved out in risk-framing-anonymization, producer-enforced-suppression and contribution-eligibility-floors, but nothing addresses an audit trail that gains a sortable, filterable actor column. DecisionRecordsTable filters and sorts by actor (e.g. 'human:Petra Nováková'), and that turns an evidentiary record into a de facto per-person activity view of one recruiter. The standard should state when an audit surface's affordances (filter by actor, count by actor, export by actor) move it from provenance into people analytics."
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/self-describing-model-packages": {
+      "context": "voice-stt-package",
+      "subject": "self-describing-model-packages",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:26:24.611Z",
+      "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+      "techniques": [
+        {
+          "technique": "normative-layout-contract",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 Consumes whisper.cpp's own ggml-*.bin naming. kp writes no layout specification for a model package."
+        },
+        {
+          "technique": "self-locating-validation-schema",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:122 No metadata file is read. Language comes from the filename, and an unknown language is null rather than a default, which matches the golden path's 'absent is not a default' failure mode."
+        },
+        {
+          "technique": "advisory-version-floors",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:43 No framework or engine version is recorded or checked. The only floor is a byte-size integrity heuristic for truncated downloads, which is not a version floor."
+        },
+        {
+          "technique": "symbolic-shape-constraints",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:40 Input is a 16 kHz WAV handed to a CLI, not a tensor family that a package describes."
+        },
+        {
+          "technique": "declared-vs-derived-outputs",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/types.ts:108 Output is a library transcript type, not a model-metadata output declaration."
+        },
+        {
+          "technique": "config-frozen-artifact",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/package.json:5 A source-only npm library with no build step. No compiled model form is exported."
+        }
+      ]
+    },
+    "85aca759-e385-4fdf-8ad6-b2fbe9540b37/self-describing-model-packages": {
+      "context": "voice-tts-package",
+      "subject": "self-describing-model-packages",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:26:24.611Z",
+      "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+      "techniques": [
+        {
+          "technique": "normative-layout-contract",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:52 Follows the sherpa-onnx kokoro layout with fixed file names, and probes a missing voices.bin or tokens.txt as broken (line 82). It consumes an upstream layout rather than specifying one."
+        },
+        {
+          "technique": "self-locating-validation-schema",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:57 The sidecar metadata is required to be present but is not validated against any schema. That is the upstream Piper format's concern, not one kp authors."
+        },
+        {
+          "technique": "advisory-version-floors",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:74 No version is recorded or compared. Readiness is a size and integrity probe, not a version floor."
+        },
+        {
+          "technique": "symbolic-shape-constraints",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:98 Text goes to a CLI on stdin. No tensor input family is described."
+        },
+        {
+          "technique": "declared-vs-derived-outputs",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/types.ts:63 Output is a library audio type, not a model-metadata output section."
+        },
+        {
+          "technique": "config-frozen-artifact",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/package.json:5 A source-only library. Nothing is compiled or exported from a model config."
+        }
+      ],
+      "registryProposal": "The golden path lists 'validating a third-party model package before running it' under use_when, but all six techniques are written from the author's side. A consumer like this one, which runs upstream model files through an external binary and only checks presence, size and sibling metadata, has no technique telling it whether such checks are enough or whether it should validate the upstream metadata. A consumer-side technique, or narrowing that use_when, would make the boundary clear."
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/skill-adjacency-and-normalization": {
+      "context": "cv-analysis-archetypes",
+      "subject": "skill-adjacency-and-normalization",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:32:43.654Z",
+      "worker": "dc3e907f-61b5-4d46-bd11-4c907f254c47",
+      "techniques": [
+        {
+          "technique": "canonical-term-with-surface-aliases",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 It reads an aggregate skills slot. No skill surfaces get resolved to terms here."
+        },
+        {
+          "technique": "hierarchy-credit-specialization-and-generalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 There is no hierarchy walk. The weights apply to dimensions, not to term relations."
+        },
+        {
+          "technique": "sibling-adjacency-below-the-match-threshold",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No sibling credit or skill-level reporting threshold lives in these files."
+        },
+        {
+          "technique": "whole-token-matching-over-substring",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No prose-to-term matching happens here. The compact word-grid code is in pipeline/jobfit/taxonomy.py."
+        },
+        {
+          "technique": "bilingual-surface-parity-and-coverage-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No skill surfaces, so there is nothing to keep in parity across languages."
+        },
+        {
+          "technique": "unmodelled-term-graceful-fallback",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No unknown-term path here. Unknown ARCHETYPES fail closed in archetypes.ts, but those are not skill terms."
+        }
+      ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/small-sample-honesty-in-hiring-analytics": {
+      "context": "analytics-computation",
+      "subject": "small-sample-honesty-in-hiring-analytics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:37:22.633Z",
+      "worker": "987210d8-9c26-48aa-a12c-dee1ad2aef7a",
+      "techniques": [
+        {
+          "technique": "a-named-minimum-per-claim",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:37 Each claim has its own named floor with written reasoning: MIN_SAMPLE 8 hires, MIN_SAMPLE*5 counted in actions, a MIN_OPEN_ROLES regime floor, MIN_OFFERS 5, BOTTLENECK_MIN_SAMPLE 3, MIN_FORECAST_HIRES / MIN_FORECAST_INFLOW_WEEKS and MIN_RATE_DELTA_N 5. The time-to-hire floor is counted after exclusions (timeToHireSamples), and the forecast publishes its floor to the reader through signal.{minHires,minInflowWeeks}."
+        },
+        {
+          "technique": "not-measurable-versus-zero",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-forecast.ts:166 Below its floor the forecast returns projected hires = 0 with a boolean hasSignal next to it, which is the sentinel-plus-flag shape the technique forbids. The UI does gate on the flag, but the type still lets any caller read 0. The rest of the layer is typed correctly: metric-pack returns null with not_measurable, and analytics-deltas returns a null hireRate on an empty cohort."
+        },
+        {
+          "technique": "thin-but-real-as-a-labelled-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:227 There is a typed three-state status, and a thin value is never promoted to measured. Withheld deltas keep both figures and record a reason (thinCurrent, thinPrior, thinBoth) instead of claiming a movement."
+        },
+        {
+          "technique": "insufficient-sample-is-not-a-pass",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:361 One publishability bit is true only when every row is measured, and a caveat list gives the reasons. Thin or not-measurable rows can never count toward a certifiable pack."
+        },
+        {
+          "technique": "gate-each-cohort-not-only-the-headline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/analytics-deltas.ts:123 Every source and channel row, every funnel stage (gated on its own upstream reach) and the headline hire rate are gated per cell in both windows. pickBottleneck also gates each stage on its own count."
+        },
+        {
+          "technique": "state-the-accrual-horizon",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:69 n = extended includes still-pending offers, so the accept rate on a cohort still in flight is a lower bound. It is not labelled preliminary and it feeds forecastHires directly, against the rule that only a matured rate may drive a projection. The other half of the technique is realized: metric-pack.ts:324 computes each blocking row's horizon with honest no-pace, window-too-narrow and not-accruing reasons."
+        },
+        {
+          "technique": "state-what-the-sample-could-have-seen",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:59 Measured rates come with no interval, and a grep found no Wilson or Jeffreys code in app/. A rate at its floor of 5 is printed as a point percentage."
+        }
+      ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/small-sample-honesty-in-hiring-analytics": {
+      "context": "analytics-sections",
+      "subject": "small-sample-honesty-in-hiring-analytics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:37:22.633Z",
+      "worker": "987210d8-9c26-48aa-a12c-dee1ad2aef7a",
+      "techniques": [
+        {
+          "technique": "a-named-minimum-per-claim",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/economicsRows.ts:43 The only rule on the board's per-surface hire rate is the empty-population guard. No minimum is named for the claim."
+        },
+        {
+          "technique": "not-measurable-versus-zero",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/economicsRows.ts:45 An empty population returns null, not 0%. That null renders as \"—\" on screen and in the CSV (the ABSENT marker), and spend on sources and variants is null rather than a zero that would read as free."
+        },
+        {
+          "technique": "thin-but-real-as-a-labelled-state",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 A thin cell gets a derived percentage plus a verdict colour, styled the same way as a well-populated row."
+        },
+        {
+          "technique": "gate-each-cohort-not-only-the-headline",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:93 Sorting by rate puts thin extremes at the top with nothing ordering them after measured cells. The page's other breakdowns gate per cell, but this one does not."
+        },
+        {
+          "technique": "insufficient-sample-is-not-a-pass",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:94 The calibration verdict has a distinct \"cannot tell yet\" state, with its own icon and neutral tone, separate from trustworthy, weak and untrustworthy. A degenerate cohort that is calibrated but has nothing to discriminate also maps to unknown, not to weak."
+        },
+        {
+          "technique": "state-the-accrual-horizon",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:173 Pending arms state the count they have against the minimum they need, and the hire-rating line gives how many remain, so no refusal is left permanent. These are counts only, with no ETA date."
+        },
+        {
+          "technique": "state-what-the-sample-could-have-seen",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:324 Per-stage conversion and the hire-rate cells are printed as point percentages with no interval."
+        }
+      ]
+    },
+    "d971fbfa-7db0-4a18-b766-e667707e30fb/delivery-analytics": {
+      "context": "channels-comms-api",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 The outbox read computes no delivery rate over code changes. Its 'delivery' means email delivery."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 No review records are read."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/api/comms/route.ts:11 Resend is a message retry. It is not a revert of a change."
+        }
+      ]
+    },
+    "388f1010-aa7c-4197-b516-3eef907a4d5d/delivery-analytics": {
+      "context": "candidate-channels-ui",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 Counts here are receivers and waiting candidates. None of them is a delivery rate."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 No change size is measured."
+        }
+      ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/delivery-analytics": {
+      "context": "analytics-sections",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 The rates here are hiring rates, which the measurement-honesty and recruiting-funnel-metrics subjects govern. This subject does not."
+        },
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 Nothing attributes who produced a code change."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/sectionChunks.tsx:50 The only 'revert' in the directory is a design note, not a repair stream."
+        }
+      ]
+    },
+    "7d113095-ed5e-4399-8e75-50a1ecb523d5/delivery-analytics": {
+      "context": "devcase-lifecycle",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:84 Commit summaries are read for grounding only. No producer is attributed."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:84 A count of the inputs it read. It is not a rate."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:67 LOC is the corpus size of one snapshot. It is not compared across producers."
+        }
+      ],
+      "withdrawn": {
+        "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+        "state": "not-applicable",
+        "at": "2026-10-26T00:50:17.032310+00:00",
+        "reason": "reviewer (sonnet): The claim that commit history comes in only as design context, never as a metric, is contradicted in the same directory: DevEvalPanelProcessTrace.tsx and DevEvalPanelScores.tsx show per-submission commit counts and cadence (commitsOverSpan, commitCount), and I could not confirm those files are outsi"
+      }
+    },
+    "a4026dc2-d6bb-4214-914a-29103ca51fd8/delivery-analytics": {
+      "context": "devcase-detail",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:49:42.090Z",
+      "worker": "7cb838b5-1642-4198-afb6-11111edb5627",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 This is the provenance of a pipeline step (llm or deterministic). It does not say what produced a change."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 Publish confirmation is a human gate on a case. It is not a code-review record."
+        }
+      ]
+    },
+    "b53482a5-a3bf-4daa-8011-a09391c974e2/accessibility": {
+      "context": "glyph-system",
+      "subject": "accessibility",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:55:05.743Z",
+      "worker": "d5dadafc-7046-43c3-b62d-452e9fa1b864",
+      "techniques": [
+        {
+          "technique": "a11y-verification",
+          "verdict": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.a11y.test.ts:12 The a11y guard is a regex over MotionizedGlyph.tsx, not a query by role and name on rendered output, so a refactor that keeps the spread text but changes what reaches the accessibility tree still passes. The reduced-motion tests (glyphMotionCss.test.ts) do assert real derived CSS output."
+        },
+        {
+          "technique": "name-and-description-wiring",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:186 Decorative by default (aria-hidden, so it is not voiced twice beside its heading). With a label it becomes a named img. One expression decides both states, and the label comes from the consumer's translated string."
+        },
+        {
+          "technique": "primitive-level-a11y",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:73 The naming and hiding contract lives once, inside the shared renderer every glyph consumer passes through, rather than at each call site."
+        },
+        {
+          "technique": "preference-respect",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/glyphMotionCss.ts:51 Under prefers-reduced-motion each preset's declared `reduced` field is derived into the stylesheet. Entrances cross-fade or settle instantly with opacity restored (replaced, not removed). Ambient loops are dropped, and the replay observer is never armed (MotionizedGlyph.tsx:140). Both reads use the OS query through the shared useReducedMotion hook and the CSS media block; there is no in-app override."
+        },
+        {
+          "technique": "keyboard-navigation-models",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:175 The glyph is a non-interactive svg with no tabIndex or handlers, so it has no keyboard model to own."
+        }
+      ],
+      "registryProposal": "a11y-verification assumes a component test layer that can render and query by role. In a repo whose unit runner (node:test) has no DOM, teams fall back to source-regex guards and justify them. The technique could say explicitly whether a source guard counts as a partial layer-2 substitute or as a gate-sees-target violation, and name the cheapest compliant alternative (for example, server-rendering the primitive to markup and asserting attributes per branch)."
     }
   }
 }

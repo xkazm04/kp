@@ -1,0 +1,110 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0bec30aa-9958-41c3-83b0-567b6058cca9",
+ "subject": "credential-vault",
+ "evaluatedAt": "2026-10-25T23:32:24.603660+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-config-provider",
+   "subject": "credential-vault",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/llm-config.ts:389 Every stored provider key is decrypted and serialized as plaintext into an env var handed to the spawned Python process, so values cross the vault boundary instead of actions \u2014 the cardinal brokered-egress rule is broken and each child process becomes an involuntary vault.",
+   "techniques": [
+    {
+     "technique": "brokered-egress",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-config.ts:381 buildLlmConfigEnv decrypts every row and ships the plaintext to Python via KP_LLM_CONFIG; resolveProviderKey (l.275) also returns plaintext to TS SDK call sites. Destination binding exists only partially (Azure endpoint allowlist at save time)."
+    },
+    {
+     "technique": "encryption-at-rest",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-secret.ts:77 AES-256-GCM with a fresh random 12-byte IV and one seal/unseal module are conformant, but there's no setAAD binding the ciphertext to its (provider, scope) record, it's flat (no per-secret data key under a master), the master key is a plain sha256 of KP_SECRET (l.48, no memory-hard KDF, and the same secret is reused for the session HMAC), and the 'v1' header doesn't name the key generation."
+    },
+    {
+     "technique": "versioned-key-window",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-secret.ts:103 The current/previous window (only current seals) is the right idea, but the ciphertext carries no key version, so opening and rewrapping work by trial decryption in order \u2014 the failure shape this technique names, where a wrong key can't be told apart from corruption."
+    },
+    {
+     "technique": "acquisition",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-config.ts:233 saveProviderKey admits a pasted key with only shape checks (endpoint/baseUrl) and no live validation; the probe is a separate optional Test button. Never re-displaying the value (masked listing, l.255) is conformant."
+    },
+    {
+     "technique": "rotation-and-remediation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-config.ts:230 Replacing a key overwrites the incumbent in place with no overlap window, no live validation of the successor before cutover, no rotation ledger and no remediation ladder. The master-key (KP_SECRET) rotation path is a separate, better-shaped mechanism."
+    },
+    {
+     "technique": "token-refresh-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/provider-key-precedence.ts:17 Stored provider credentials are static API keys with no grant/proof split, expiry or refresh field; grep for refresh/lease/renew over the context's files found nothing."
+    },
+    {
+     "technique": "renew-at-two-thirds-with-grace",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/llm-config.ts:310 No leased secret with an issuer-extended TTL exists; the key entry carries no lease or duration."
+    },
+    {
+     "technique": "revocation-interception-cache",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/provider-key-precedence.ts:59 Keys are resolved and decrypted from the store on every call; no intermediary caches leased secrets."
+    }
+   ]
+  },
+  {
+   "context": "skill-profile-public-page",
+   "subject": "credential-vault",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/skill/[token]/page.tsx:43 The page only verifies a self-issued, HMAC-signed skill-profile token the app mints itself (the golden path excludes the application's own signing keys) and holds no retained foreign secret; a search of app/skill/ for decrypt, encrypt, apiKey/api_key, vault and refreshToken found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "decrypt",
+    "encrypt",
+    "apiKey",
+    "vault",
+    "refreshToken"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:32:24.603660+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "credential-vault"
+   ],
+   "techniques": [
+    "acquisition",
+    "brokered-egress",
+    "encryption-at-rest",
+    "renew-at-two-thirds-with-grace",
+    "revocation-interception-cache",
+    "rotation-and-remediation",
+    "token-refresh-lifecycle",
+    "versioned-key-window"
+   ],
+   "deviations": 1,
+   "context": "llm-config-provider",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T23:32:24.603660+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "credential-vault"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

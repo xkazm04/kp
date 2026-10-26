@@ -1,0 +1,74 @@
+{
+ "schema": "conform-run/1",
+ "worker": "072be6b6-d47a-48ec-8ddb-c7db938b8488",
+ "subject": "conversation-orchestration",
+ "evaluatedAt": "2026-10-25T23:23:49.946870+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "chat-markdown-icons",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/chat/ChatTranscript.tsx:163 The shared transcript's in-flight face is a fixed 'thinking' label plus one static hint after 8s, and the component has no lane for live narration beats, so a companion turn running for minutes shows nothing about what it is doing. The companion that mounts this transcript has no beat grammar anywhere either: no 'beat'/'narrat' hits in app/_lib/companion*, app/features/shell/companion or pipeline/jobfit/companion*.",
+   "techniques": [
+    {
+     "technique": "structured-visual-replies",
+     "verdict": "conformant",
+     "evidence": "app/_components/chat/ChatMiniChart.tsx:108 The chart scales over an intact viewBox and stops shrinking at a floor where its 14px labels stay readable; past that floor its own scroller takes over. Related evidence in the same context: ChatBlocks.tsx:29 renders blocks full-bleed under the bubble, ChatTable.tsx:47 draws a placeholder for a missing cell (never blank, never zero), chatChartAlt.ts:23 builds an sr-only text alternative from the block's own values, and series colours are token presentation attributes (ChatMiniChart.tsx:44). The caps are one authority in chatBlockTypes.ts, imported by the validator."
+    },
+    {
+     "technique": "progress-beat-grammar",
+     "verdict": "deviation",
+     "evidence": "app/_components/chat/ChatTranscript.tsx:163 The busy state renders only a static label. Nothing lifts or renders model-authored progress lines, and no beat vocabulary exists in the companion producer, so long turns go silent."
+    }
+   ]
+  },
+  {
+   "context": "match-presentation-components",
+   "subject": "conversation-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/MatchReasoningPanel.tsx:15 These files are per-card score bars and a three-state async 'Explain fit' panel with no conversation, companion, transcript or ambient presence. A case-insensitive grep of app/features/shared for companion, ChatTranscript, chat, conversation, narration, walkthrough, avatar and quickRepl returned no hits, so the subject's resident-companion precondition does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "companion",
+    "ChatTranscript",
+    "conversation",
+    "narration",
+    "walkthrough"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:23:49.946870+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [
+    "progress-beat-grammar",
+    "structured-visual-replies"
+   ],
+   "deviations": 1,
+   "context": "chat-markdown-icons",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T23:23:49.946870+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conversation-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "match-presentation-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "conform-run/1",
+  "worker": "ff6c3a0e-d7dc-419a-bbc3-e3cd1a15c382",
+  "subject": "machine-paced-delivery",
+  "evaluatedAt": "2026-10-26T00:11:33.777561+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "machine-paced-delivery",
+      "context": "agents-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "machine-paced-delivery",
+      "context": "db-tasks-agents-misc",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchors don't show the precondition is absent: agents.ts:7 and :38 are comments describing hired-agent dispatch, and agents.ts persists the dispatched app-master mandate and agent activity and metrics. The 'rung and reserved classes' claim isn't visible in any file I opened. The delivery-gate te"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-26T00:11:33.777561+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "machine-paced-delivery"
+      ],
+      "techniques": [
+        "proposal-not-push",
+        "scoped-delivery-access-for-agents",
+        "verification-throughput-as-constraint"
+      ],
+      "deviations": 0,
+      "context": "db-tasks-agents-misc",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
