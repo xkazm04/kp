@@ -28424,7 +28424,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 The context's 'attention' surface is a pure, render-time partition of schedule invites (proposals, reconcile flags), and its only time-driven logic is a client poll backoff (schedulePollBackoff.ts); a search of app/features/hiring/schedule found no authored threshold rule, evaluator, fire record, cooldown, severity routing or digest, so alerting's precondition (operator-authored predicates over measured signals) does not hold here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:90e16e9a2b80434b",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"

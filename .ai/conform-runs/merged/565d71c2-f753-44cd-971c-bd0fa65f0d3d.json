@@ -1,0 +1,90 @@
+{
+ "schema": "conform-run/1",
+ "worker": "565d71c2-f753-44cd-971c-bd0fa65f0d3d",
+ "subject": "alerting",
+ "evaluatedAt": "2026-10-26T22:07:54.078317+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "alerting",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 The context's 'attention' surface is a pure, render-time partition of schedule invites (proposals, reconcile flags), and its only time-driven logic is a client poll backoff (schedulePollBackoff.ts); a search of app/features/hiring/schedule found no authored threshold rule, evaluator, fire record, cooldown, severity routing or digest, so alerting's precondition (operator-authored predicates over measured signals) does not hold here.",
+   "techniques": [
+    {
+     "technique": "rule-authoring-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 Buckets are hard-coded status partitions, not user-authored threshold rules with a metric domain."
+    },
+    {
+     "technique": "evaluation-loop",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:30 The only loop is a client data-refresh poll cadence, not a rule evaluator."
+    },
+    {
+     "technique": "absence-as-a-condition",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:40 Staleness after 2 failed polls is shown as a UI state (honest-data concern), but there is no rule whose no-data semantics could be declared."
+    },
+    {
+     "technique": "dedup-and-cooldown",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 No fire record exists to dedupe or cool down."
+    },
+    {
+     "technique": "flap-control",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:30 A display grace window for bucketing, not a sustain/hysteresis on a firing condition."
+    },
+    {
+     "technique": "alert-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:73 Attention rows are domain work items resolved by accept/decline actions, not alerts with ack/resolve states."
+    },
+    {
+     "technique": "escalation-routing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:73 'Escalation' here is a candidate's proposed-times request, not severity-based reach routing."
+    },
+    {
+     "technique": "periodic-digest",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:22 No scheduled summary push originates in this context."
+    }
+   ],
+   "absenceTerms": [
+    "cooldown",
+    "alertRule",
+    "digest",
+    "severity",
+    "firedAt"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:07:54.078317+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "alerting"
+   ],
+   "techniques": [
+    "absence-as-a-condition",
+    "alert-lifecycle",
+    "dedup-and-cooldown",
+    "escalation-routing",
+    "evaluation-loop",
+    "flap-control",
+    "periodic-digest",
+    "rule-authoring-validation"
+   ],
+   "deviations": 0,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -16205,57 +16205,52 @@
       "context": "schedule-calendar-invites",
       "subject": "alerting",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T12:38:20.773Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:07:54.078Z",
+      "worker": "565d71c2-f753-44cd-971c-bd0fa65f0d3d",
       "techniques": [
         {
-          "technique": "absence-as-a-condition",
+          "technique": "rule-authoring-validation",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx:47 This displays an agenda-fetch failure; no alert-rule metric or no-data sustain policy is involved."
-        },
-        {
-          "technique": "alert-lifecycle",
-          "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:49 The lifecycle records invitation outcomes, not firing, acknowledgment, and resolution of alert episodes."
-        },
-        {
-          "technique": "dedup-and-cooldown",
-          "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/scheduleAgenda.ts:142 Identity matching updates invitation rows; it does not suppress repeated alert deliveries using fire history."
-        },
-        {
-          "technique": "escalation-routing",
-          "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:54 The candidate-proposal escalation is a scheduling handoff to a recruiter, not severity-based alert routing."
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 Buckets are hard-coded status partitions, not user-authored threshold rules with a metric domain."
         },
         {
           "technique": "evaluation-loop",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:471 The loop refreshes interview status for the displayed entries; it does not evaluate enabled alert predicates."
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:30 The only loop is a client data-refresh poll cadence, not a rule evaluator."
+        },
+        {
+          "technique": "absence-as-a-condition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:40 Staleness after 2 failed polls is shown as a UI state (honest-data concern), but there is no rule whose no-data semantics could be declared."
+        },
+        {
+          "technique": "dedup-and-cooldown",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:79 No fire record exists to dedupe or cool down."
         },
         {
           "technique": "flap-control",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:41 This gates a stale-view status badge after polling failures, not firing and recovery of an alert episode."
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:30 A display grace window for bucketing, not a sustain/hysteresis on a firing condition."
+        },
+        {
+          "technique": "alert-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:73 Attention rows are domain work items resolved by accept/decline actions, not alerts with ack/resolve states."
+        },
+        {
+          "technique": "escalation-routing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:73 'Escalation' here is a candidate's proposed-times request, not severity-based reach routing."
         },
         {
           "technique": "periodic-digest",
           "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteAgendaRow.tsx:70 The row reports an individual interview reminder; no scheduled aggregate summary is authored or delivered here."
-        },
-        {
-          "technique": "rule-authoring-validation",
-          "verdict": "not-applicable",
-          "evidence": "app/features/hiring/schedule/ScheduleMeetingLinkCell.tsx:48 The editor writes a meeting URL for an invitation, not a metric, comparator, threshold, window, or alert severity."
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:22 No scheduled summary push originates in this context."
         }
-      ],
-      "withdrawn": {
-        "worker": "d8e3a837-d3c2-4868-a202-5f523fba2ce8",
-        "state": "not-applicable",
-        "at": "2026-10-19T12:38:38.351897+00:00",
-        "reason": "reviewer (sonnet): The main anchor, scheduleInviteLifecycleBuckets.ts:89, is only `const live = invites.filter(...)`, which does not show that alert rules, firing or routing are absent. The evidence also admits the context has scheduled reminders and status feedback, and the technique anchors (:49 closedReason, :142 a"
-      }
+      ]
     },
     "003cd283-f6d8-41bb-a936-5e2c3d23a76e/assessment-instrument-validation": {
       "context": "devcase-evaluation",
