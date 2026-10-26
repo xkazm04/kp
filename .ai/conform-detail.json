@@ -20648,6 +20648,47 @@
         }
       ],
       "registryProposal": "The golden path lists 'validating a third-party model package before running it' under use_when, but all six techniques are written from the author's side. A consumer like this one, which runs upstream model files through an external binary and only checks presence, size and sibling metadata, has no technique telling it whether such checks are enough or whether it should validate the upstream metadata. A consumer-side technique, or narrowing that use_when, would make the boundary clear."
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/skill-adjacency-and-normalization": {
+      "context": "cv-analysis-archetypes",
+      "subject": "skill-adjacency-and-normalization",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:32:43.654Z",
+      "worker": "dc3e907f-61b5-4d46-bd11-4c907f254c47",
+      "techniques": [
+        {
+          "technique": "canonical-term-with-surface-aliases",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 It reads an aggregate skills slot. No skill surfaces get resolved to terms here."
+        },
+        {
+          "technique": "hierarchy-credit-specialization-and-generalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 There is no hierarchy walk. The weights apply to dimensions, not to term relations."
+        },
+        {
+          "technique": "sibling-adjacency-below-the-match-threshold",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No sibling credit or skill-level reporting threshold lives in these files."
+        },
+        {
+          "technique": "whole-token-matching-over-substring",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No prose-to-term matching happens here. The compact word-grid code is in pipeline/jobfit/taxonomy.py."
+        },
+        {
+          "technique": "bilingual-surface-parity-and-coverage-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No skill surfaces, so there is nothing to keep in parity across languages."
+        },
+        {
+          "technique": "unmodelled-term-graceful-fallback",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 No unknown-term path here. Unknown ARCHETYPES fail closed in archetypes.ts, but those are not skill terms."
+        }
+      ]
     }
   }
 }

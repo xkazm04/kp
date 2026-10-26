@@ -9657,7 +9657,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 This context takes skills as one dimension score the Python pipeline has already computed. It weights that score per archetype and routes, caches or reads it; a search of its 22 files and of all of app/_lib for unmodelled / sibling credit / SIBLING_CREDIT / surface alias / compact fallback found nothing, so no skill term is normalized, aliased or adjacency-credited here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "candidate-identity-and-staleness",
