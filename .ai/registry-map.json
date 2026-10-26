@@ -3542,7 +3542,11 @@
           "revision": 3,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:69 The Analytics payload breaks hiring outcomes down by requisition, archetype, source, channel and variant. It has no per-recruiter or per-employee dimension, and a case-insensitive search of app/features/insights/analytics, app/api/analytics, app/_lib/db/analytics.ts and app/_lib/decision-attribution.ts found no leaderboard, byRecruiter, perPerson or byActor construct. The only named humans are candidates, who are hiring subjects governed by the recruiting bundle, and decision actors in an audit trail, which is retained provenance that every technique in this subject explicitly excludes.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:cb03bdda55f3119d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "usage-analytics",
