@@ -34212,7 +34212,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not package, describe or export a trained model: it finds third-party whisper.cpp GGML files by upstream filename convention and passes them to an external binary. A search of packages/voice-stt for the subject's vocabulary found no hits for $schema, schema, schema_version, logits, symbolic or format_version, so there is no package metadata or contract for these techniques to govern.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
+          "evaluatedRevision": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -34414,7 +34418,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package consumes third-party Piper voices (.onnx plus the upstream .onnx.json) and a fixed-name Kokoro/sherpa-onnx model directory, reading only language.code from the upstream metadata. It authors no package, schema or export. A search of packages/voice-tts for $schema, schema, schema_version, logits, symbolic and format_version found no hits.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
+          "evaluatedRevision": 1
         },
         {
           "subject": "voice-interview-fidelity",
