@@ -20936,6 +20936,42 @@
         }
       ],
       "registryProposal": "a11y-verification assumes a component test layer that can render and query by role. In a repo whose unit runner (node:test) has no DOM, teams fall back to source-regex guards and justify them. The technique could say explicitly whether a source guard counts as a partial layer-2 substitute or as a gate-sees-target violation, and name the cheapest compliant alternative (for example, server-rendering the primitive to markup and asserting attributes per branch)."
+    },
+    "f30881e0-b39e-4c58-b717-7a325dd7f906/app-shell": {
+      "context": "feedback-status-primitives",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:15:09.897Z",
+      "worker": "dd50dba0-1b40-427b-8a11-f78854e71178",
+      "techniques": [
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:107 The reveal shows on focus (onFocus at line 81) and Escape dismisses it without moving focus (line 92). But the tip is pointer-events-none and closes when the pointer leaves the trigger (onMouseLeave at line 77), so it cannot be hovered. That fails the technique's 'holds still while the pointer travels onto it' condition (WCAG 1.4.13 hoverable)."
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "conformant",
+          "evidence": "app/_components/Toast.tsx:12 The Toaster is one global surface. app/layout.tsx:228 mounts it once as a sibling of {children} (above the swap point) and portals it to body under a z-token layer. A module-level store feeds it, so it renders nothing until called. Sign-out hard-navigates (SignOutButton -> leaveWorkspace), which resets the module queue at session end."
+        },
+        {
+          "technique": "badge-and-attention",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/Badge.tsx:22 Badge here is an inline qualitative-signal pill for lists, not a nav attention count with a predicate or clearing rule. Its 'icon + label, not color alone' property matches the technique's color rule in spirit, but nav badges live in app/features/shell/nav, outside this context."
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/Skeleton.tsx:6 Skeleton and LoadStatus are data-arrival primitives, not section-code placeholders. Skeleton is frozen by a ratchet and points callers to LoadingGap (outside this context), so the warm-path delay contract is not judged here."
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/useDialogA11y.ts:24 The only nav-adjacent code is a dialog-stack query that global shortcuts read to avoid switching tabs under an open dialog. It holds no location value and no navigate door."
+        }
+      ]
     }
   }
 }

@@ -15086,7 +15086,11 @@
           "revision": 6,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:107 The shared name-reveal primitive for icon-only controls renders its tip pointer-events-none and closes on the trigger's mouseleave, so the label cannot hold still while the pointer moves onto it, which is one of the four conditions nav-hierarchy sets for a reveal that counts; it does appear on focus, persist with no timer, and dismiss on Escape without moving focus.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:924d251b08eaf74b",
+          "evaluatedRevision": 7
         },
         {
           "subject": "status-vocabulary",
