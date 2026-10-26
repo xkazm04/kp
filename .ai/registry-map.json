@@ -8689,7 +8689,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/outreach-state-store.ts:157 When the reply/manual halt row cannot be read, outreachHaltFor fails OPEN and lets the send go. The halt technique names this as a failure: a storage fault is exactly when a batch of people who already replied get written to again. The code's own comment (lines 144-150) makes the 'consent already fails closed' argument the standard says to resist.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:ec5e8e9a06856430",
+          "evaluatedRevision": 5
         },
         {
           "subject": "candidate-communication-integrity",
