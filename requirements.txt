@@ -12,7 +12,7 @@ numpy==2.5.4
 #
 # google-genai bounds this: 2.31.x and 2.32.x declare `websockets<17.0`; 2.33.0 widened
 # the range to `<18.0`, which is what lets 17.x in. Keep the two bumped together.
-websockets==17.1
+websockets==17.3
 
 pydantic==2.14.1
 google-genai==2.33.0
