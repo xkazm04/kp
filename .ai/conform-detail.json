@@ -20689,6 +20689,98 @@
           "evidence": "app/_lib/archetype-registry.ts:247 No unknown-term path here. Unknown ARCHETYPES fail closed in archetypes.ts, but those are not skill terms."
         }
       ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/small-sample-honesty-in-hiring-analytics": {
+      "context": "analytics-computation",
+      "subject": "small-sample-honesty-in-hiring-analytics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:37:22.633Z",
+      "worker": "987210d8-9c26-48aa-a12c-dee1ad2aef7a",
+      "techniques": [
+        {
+          "technique": "a-named-minimum-per-claim",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:37 Each claim has its own named floor with written reasoning: MIN_SAMPLE 8 hires, MIN_SAMPLE*5 counted in actions, a MIN_OPEN_ROLES regime floor, MIN_OFFERS 5, BOTTLENECK_MIN_SAMPLE 3, MIN_FORECAST_HIRES / MIN_FORECAST_INFLOW_WEEKS and MIN_RATE_DELTA_N 5. The time-to-hire floor is counted after exclusions (timeToHireSamples), and the forecast publishes its floor to the reader through signal.{minHires,minInflowWeeks}."
+        },
+        {
+          "technique": "not-measurable-versus-zero",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-forecast.ts:166 Below its floor the forecast returns projected hires = 0 with a boolean hasSignal next to it, which is the sentinel-plus-flag shape the technique forbids. The UI does gate on the flag, but the type still lets any caller read 0. The rest of the layer is typed correctly: metric-pack returns null with not_measurable, and analytics-deltas returns a null hireRate on an empty cohort."
+        },
+        {
+          "technique": "thin-but-real-as-a-labelled-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:227 There is a typed three-state status, and a thin value is never promoted to measured. Withheld deltas keep both figures and record a reason (thinCurrent, thinPrior, thinBoth) instead of claiming a movement."
+        },
+        {
+          "technique": "insufficient-sample-is-not-a-pass",
+          "verdict": "conformant",
+          "evidence": "app/_lib/metric-pack.ts:361 One publishability bit is true only when every row is measured, and a caveat list gives the reasons. Thin or not-measurable rows can never count toward a certifiable pack."
+        },
+        {
+          "technique": "gate-each-cohort-not-only-the-headline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/analytics-deltas.ts:123 Every source and channel row, every funnel stage (gated on its own upstream reach) and the headline hire rate are gated per cell in both windows. pickBottleneck also gates each stage on its own count."
+        },
+        {
+          "technique": "state-the-accrual-horizon",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:69 n = extended includes still-pending offers, so the accept rate on a cohort still in flight is a lower bound. It is not labelled preliminary and it feeds forecastHires directly, against the rule that only a matured rate may drive a projection. The other half of the technique is realized: metric-pack.ts:324 computes each blocking row's horizon with honest no-pace, window-too-narrow and not-accruing reasons."
+        },
+        {
+          "technique": "state-what-the-sample-could-have-seen",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:59 Measured rates come with no interval, and a grep found no Wilson or Jeffreys code in app/. A rate at its floor of 5 is printed as a point percentage."
+        }
+      ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/small-sample-honesty-in-hiring-analytics": {
+      "context": "analytics-sections",
+      "subject": "small-sample-honesty-in-hiring-analytics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:37:22.633Z",
+      "worker": "987210d8-9c26-48aa-a12c-dee1ad2aef7a",
+      "techniques": [
+        {
+          "technique": "a-named-minimum-per-claim",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/economicsRows.ts:43 The only rule on the board's per-surface hire rate is the empty-population guard. No minimum is named for the claim."
+        },
+        {
+          "technique": "not-measurable-versus-zero",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/economicsRows.ts:45 An empty population returns null, not 0%. That null renders as \"—\" on screen and in the CSV (the ABSENT marker), and spend on sources and variants is null rather than a zero that would read as free."
+        },
+        {
+          "technique": "thin-but-real-as-a-labelled-state",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 A thin cell gets a derived percentage plus a verdict colour, styled the same way as a well-populated row."
+        },
+        {
+          "technique": "gate-each-cohort-not-only-the-headline",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:93 Sorting by rate puts thin extremes at the top with nothing ordering them after measured cells. The page's other breakdowns gate per cell, but this one does not."
+        },
+        {
+          "technique": "insufficient-sample-is-not-a-pass",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:94 The calibration verdict has a distinct \"cannot tell yet\" state, with its own icon and neutral tone, separate from trustworthy, weak and untrustworthy. A degenerate cohort that is calibrated but has nothing to discriminate also maps to unknown, not to weak."
+        },
+        {
+          "technique": "state-the-accrual-horizon",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:173 Pending arms state the count they have against the minimum they need, and the hire-rating line gives how many remain, so no refusal is left permanent. These are counts only, with no ETA date."
+        },
+        {
+          "technique": "state-what-the-sample-could-have-seen",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:324 Per-stage conversion and the hire-rate cells are printed as point percentages with no interval."
+        }
+      ]
     }
   }
 }

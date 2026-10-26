@@ -3385,7 +3385,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:59 Once five offers clear MIN_OFFERS, the offer leg publishes whole-percent accept, decline and expire rates with no interval. 3 of 5 shows as a flat 60%, although a Wilson 95% interval at that count runs from about 23% to 88%. The layer has no Wilson or Jeffreys code (a grep of app/ found none), so no measured rate here says what its sample could have shown.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "analytics-time-windows",
@@ -4037,7 +4041,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 The Economics board shows every channel, source or variant row's hire rate as a percentage at any n > 0, coloured moss when there is any hire, and the rate column can be sorted. A creative with 1 lead and 1 hire therefore renders as a green 100% and can sort to the top, with no floor, no thin label and no interval on the cell. The Performance funnel does the same per stage: it colours met/missed at any reach (PerformanceBriefing.tsx:321 via stageVerdict).",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "table",
