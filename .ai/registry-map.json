@@ -23024,7 +23024,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:50 The only motion in this context is a short framer-motion opacity/translate crossfade and a layout height tween on the Explain-fit panel. These are small composited transitions, which per-tier-budget-tables lists as exempt from consulting a tier. A grep of app/features/shared for requestIdleCallback, hardwareConcurrency, deviceMemory, requestAnimationFrame and fidelity found no capability probe, no tier and no cost-knob effect, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:02a551a058d8874c",
+          "evaluatedRevision": 5
         },
         {
           "subject": "conversation-orchestration",
