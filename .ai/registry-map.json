@@ -19917,7 +19917,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:143 The only actions this context exposes are per-candidate favourable ones (add to pipeline, reach out) plus read-only ranking, fairness-matrix audit and interview comparison; a case-insensitive search of app/features/library/jobs for bulkReject, autoReject, approvalToken and bottomSlice found nothing, and the repo's bulk-reject/reconsider paths live in app/api/pipeline/batch and app/api/decisions/reconsider, outside this context.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f33d2cefcafef4c0",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"

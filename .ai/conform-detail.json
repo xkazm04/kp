@@ -7725,52 +7725,50 @@
       "context": "jobs-candidates-compare",
       "subject": "bulk-adverse-action-governance",
       "bundle": "recruiting",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:40:46.057Z",
+      "worker": "c4357d1b-7b98-445d-a0e5-9b8ec17a06f0",
       "techniques": [
-        {
-          "technique": "cohort-drift-forces-a-fresh-review",
-          "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:195 This sorts displayed comparison rows; it does not retain a delayed bulk adverse approval."
-        },
-        {
-          "technique": "contest-door-at-the-point-of-decision",
-          "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:16 The surface reads recruiter comparison data rather than delivering a candidate decision notice."
-        },
         {
           "technique": "preview-then-approve-the-signed-set",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:143 The local action adds an individual candidate; no bulk adverse commit was found."
-        },
-        {
-          "technique": "reversal-queue-that-reads-the-sealed-reason",
-          "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:89 These cards present interview evidence rather than a rejection reversal queue."
-        },
-        {
-          "technique": "small-cohort-floor-with-no-silent-exemption",
-          "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:187 This gates availability of a comparison audit, not the size of a proportional adverse-action window."
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:144 Only single-candidate favourable actions; the technique excludes single-candidate and favourable actions."
         },
         {
           "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:197 The comparator orders informational rows without selecting an irreversible bottom slice."
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:195 Sorting only orders a display ladder; no cutoff selects anyone for an irreversible action."
         },
         {
           "technique": "unscored-excluded-never-coerced",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:112 This handles missing ratings in an informational CSV export, which the technique explicitly excludes from its adverse-selection scope."
+          "evidence": "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx:45 A ?? 0 default exists, but only in an informational audit table; the technique carves out informational surfaces. No adverse cutoff consumes it."
+        },
+        {
+          "technique": "small-cohort-floor-with-no-silent-exemption",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:158 The only threshold here is a favourable pool-fit filter, not a proportional adverse window."
+        },
+        {
+          "technique": "cohort-drift-forces-a-fresh-review",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:195 This sorts displayed comparison rows; it does not retain a delayed bulk adverse approval.",
+          "carriedFrom": "2026-10-16"
+        },
+        {
+          "technique": "contest-door-at-the-point-of-decision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:16 The surface reads recruiter comparison data rather than delivering a candidate decision notice.",
+          "carriedFrom": "2026-10-16"
+        },
+        {
+          "technique": "reversal-queue-that-reads-the-sealed-reason",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:89 These cards present interview evidence rather than a rejection reversal queue.",
+          "carriedFrom": "2026-10-16"
         }
-      ],
-      "withdrawn": {
-        "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
-        "state": "not-applicable",
-        "at": "2026-10-16T01:55:17.536196+00:00",
-        "reason": "reviewer (sonnet): The not-applicable anchor JobsRecruiterCandidates.tsx:123 only renders a CandidatesLadder, so it does not show that no bulk adverse action exists in app/features/library/jobs, and the absence terms (runScreenWave, rejectBottomPercent, autoRejectEnabled) are implementation identifiers. My own grep of"
-      }
+      ]
     },
     "ea210994-45ae-4cb6-8143-23633254094a/bulk-adverse-action-governance": {
       "context": "pipeline-actions-commands",
