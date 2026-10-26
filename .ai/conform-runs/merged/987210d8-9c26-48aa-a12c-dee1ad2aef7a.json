@@ -1,0 +1,141 @@
+{
+ "schema": "conform-run/1",
+ "worker": "987210d8-9c26-48aa-a12c-dee1ad2aef7a",
+ "subject": "small-sample-honesty-in-hiring-analytics",
+ "evaluatedAt": "2026-10-26T00:37:22.633264+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "analytics-computation",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/analytics-offer.ts:59 Once five offers clear MIN_OFFERS, the offer leg publishes whole-percent accept, decline and expire rates with no interval. 3 of 5 shows as a flat 60%, although a Wilson 95% interval at that count runs from about 23% to 88%. The layer has no Wilson or Jeffreys code (a grep of app/ found none), so no measured rate here says what its sample could have shown.",
+   "techniques": [
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "conformant",
+     "evidence": "app/_lib/metric-pack.ts:37 Each claim has its own named floor with written reasoning: MIN_SAMPLE 8 hires, MIN_SAMPLE*5 counted in actions, a MIN_OPEN_ROLES regime floor, MIN_OFFERS 5, BOTTLENECK_MIN_SAMPLE 3, MIN_FORECAST_HIRES / MIN_FORECAST_INFLOW_WEEKS and MIN_RATE_DELTA_N 5. The time-to-hire floor is counted after exclusions (timeToHireSamples), and the forecast publishes its floor to the reader through signal.{minHires,minInflowWeeks}."
+    },
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-forecast.ts:166 Below its floor the forecast returns projected hires = 0 with a boolean hasSignal next to it, which is the sentinel-plus-flag shape the technique forbids. The UI does gate on the flag, but the type still lets any caller read 0. The rest of the layer is typed correctly: metric-pack returns null with not_measurable, and analytics-deltas returns a null hireRate on an empty cohort."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "conformant",
+     "evidence": "app/_lib/metric-pack.ts:227 There is a typed three-state status, and a thin value is never promoted to measured. Withheld deltas keep both figures and record a reason (thinCurrent, thinPrior, thinBoth) instead of claiming a movement."
+    },
+    {
+     "technique": "insufficient-sample-is-not-a-pass",
+     "verdict": "conformant",
+     "evidence": "app/_lib/metric-pack.ts:361 One publishability bit is true only when every row is measured, and a caveat list gives the reasons. Thin or not-measurable rows can never count toward a certifiable pack."
+    },
+    {
+     "technique": "gate-each-cohort-not-only-the-headline",
+     "verdict": "conformant",
+     "evidence": "app/_lib/analytics-deltas.ts:123 Every source and channel row, every funnel stage (gated on its own upstream reach) and the headline hire rate are gated per cell in both windows. pickBottleneck also gates each stage on its own count."
+    },
+    {
+     "technique": "state-the-accrual-horizon",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-offer.ts:69 n = extended includes still-pending offers, so the accept rate on a cohort still in flight is a lower bound. It is not labelled preliminary and it feeds forecastHires directly, against the rule that only a matured rate may drive a projection. The other half of the technique is realized: metric-pack.ts:324 computes each blocking row's horizon with honest no-pace, window-too-narrow and not-accruing reasons."
+    },
+    {
+     "technique": "state-what-the-sample-could-have-seen",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-offer.ts:59 Measured rates come with no interval, and a grep found no Wilson or Jeffreys code in app/. A rate at its floor of 5 is printed as a point percentage."
+    }
+   ]
+  },
+  {
+   "context": "analytics-sections",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 The Economics board shows every channel, source or variant row's hire rate as a percentage at any n > 0, coloured moss when there is any hire, and the rate column can be sorted. A creative with 1 lead and 1 hire therefore renders as a green 100% and can sort to the top, with no floor, no thin label and no interval on the cell. The Performance funnel does the same per stage: it colours met/missed at any reach (PerformanceBriefing.tsx:321 via stageVerdict).",
+   "techniques": [
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/economicsRows.ts:43 The only rule on the board's per-surface hire rate is the empty-population guard. No minimum is named for the claim."
+    },
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/economicsRows.ts:45 An empty population returns null, not 0%. That null renders as \"\u2014\" on screen and in the CSV (the ABSENT marker), and spend on sources and variants is null rather than a zero that would read as free."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 A thin cell gets a derived percentage plus a verdict colour, styled the same way as a well-populated row."
+    },
+    {
+     "technique": "gate-each-cohort-not-only-the-headline",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:93 Sorting by rate puts thin extremes at the top with nothing ordering them after measured cells. The page's other breakdowns gate per cell, but this one does not."
+    },
+    {
+     "technique": "insufficient-sample-is-not-a-pass",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:94 The calibration verdict has a distinct \"cannot tell yet\" state, with its own icon and neutral tone, separate from trustworthy, weak and untrustworthy. A degenerate cohort that is calibrated but has nothing to discriminate also maps to unknown, not to weak."
+    },
+    {
+     "technique": "state-the-accrual-horizon",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:173 Pending arms state the count they have against the minimum they need, and the hire-rating line gives how many remain, so no refusal is left permanent. These are counts only, with no ETA date."
+    },
+    {
+     "technique": "state-what-the-sample-could-have-seen",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:324 Per-stage conversion and the hire-rate cells are printed as point percentages with no interval."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T00:37:22.633264+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "gate-each-cohort-not-only-the-headline",
+    "insufficient-sample-is-not-a-pass",
+    "not-measurable-versus-zero",
+    "state-the-accrual-horizon",
+    "state-what-the-sample-could-have-seen",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-computation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-26T00:37:22.633264+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "gate-each-cohort-not-only-the-headline",
+    "insufficient-sample-is-not-a-pass",
+    "not-measurable-versus-zero",
+    "state-the-accrual-horizon",
+    "state-what-the-sample-could-have-seen",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-sections",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

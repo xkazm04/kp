@@ -1,0 +1,77 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6e8eb1ae-acb2-4ac3-8e17-920f9606d554",
+ "subject": "wizard-flows",
+ "evaluatedAt": "2026-10-26T00:46:27.827394+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "conversational-apply-flow",
+   "subject": "wizard-flows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/ConversationalApply.tsx:315 When a rejected submit re-asks the branching `archetype` step (the server refuses with field \"archetype\", route.ts APPLY_SELECTION_INVALID), the fix path patches that one answer into the raw map and re-submits directly \u2014 the newly relevant lane is never walked and the switched-off lane's answers ride into the commit, because relevance is applied only by the forward hop (nextVisibleStepIndex) and never by the commit assembler.",
+   "techniques": [
+    {
+     "technique": "branching-and-skipping",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:315 Relevance is a declared `when` predicate (good), but the commit is the raw answer map (use-apply-submit.ts posts `answers: finalAnswers`) with no relevance filter. The flow is forward-only: the only ways to edit are a single-step fix or a full restart, so changing the branching answer does not invalidate its dependents."
+    },
+    {
+     "technique": "commit-boundary",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:344 Answering the last step commits right away. There is no review of the assembled payload and no confirm, so a mis-tapped knockout answer files a decline (the only recovery is a start-over that wipes the answers). Double-fire guard, recoverable failures, draft cleanup on done and the status-link handoff are all present."
+    },
+    {
+     "technique": "snapshot-and-resume",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/use-apply-draft.ts:89 A version-mismatched draft is removed and the candidate gets a quiet fresh start that cannot be told apart from having no snapshot (the forbidden rendering). There is also no named expiry, and the draft is restored before the candidate chooses, with a banner and a start-fresh escape. Done does reap the draft, and the script fingerprint is a version stamp."
+    },
+    {
+     "technique": "progress-communication",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:434 N of M is derived from the model by counting the currently relevant steps (the total moves when the archetype is declared). It is exposed as an aria progressbar, the transcript keeps earlier answers visible, and new prompts are announced through role=log aria-live."
+    },
+    {
+     "technique": "step-state-model",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:326 One owning component holds answers, position and in-flight state, and the step controls are views over it. The transition itself carries the guard, keyed by step id, besides the disabled UI. Weak points: several useStates rather than a reducer, position stored as an index, and no on-demand validity predicate."
+    },
+    {
+     "technique": "frontier-batched-elicitation",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:402 One question per turn fits a knockout screening door (the technique's measurement inversion). Values parsed from the CV act as recommended answers that are never applied without the candidate's input."
+    },
+    {
+     "technique": "ai-driven-elicitation",
+     "verdict": "not-applicable",
+     "evidence": "app/apply/[id]/page.tsx:65 The script is static and built server-side with fixed steps. No generator proposes questions or claims coverage inside this flow."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T00:46:27.827394+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "wizard-flows"
+   ],
+   "techniques": [
+    "ai-driven-elicitation",
+    "branching-and-skipping",
+    "commit-boundary",
+    "frontier-batched-elicitation",
+    "progress-communication",
+    "snapshot-and-resume",
+    "step-state-model"
+   ],
+   "deviations": 1,
+   "context": "conversational-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

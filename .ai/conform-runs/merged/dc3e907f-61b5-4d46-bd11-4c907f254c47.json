@@ -1,0 +1,141 @@
+{
+ "schema": "conform-run/1",
+ "worker": "dc3e907f-61b5-4d46-bd11-4c907f254c47",
+ "subject": "skill-adjacency-and-normalization",
+ "evaluatedAt": "2026-10-26T00:32:43.654704+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "cv-analysis-archetypes",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/_lib/archetype-registry.ts:247 This context takes skills as one dimension score the Python pipeline has already computed. It weights that score per archetype and routes, caches or reads it; a search of its 22 files and of all of app/_lib for unmodelled / sibling credit / SIBLING_CREDIT / surface alias / compact fallback found nothing, so no skill term is normalized, aliased or adjacency-credited here.",
+   "techniques": [
+    {
+     "technique": "canonical-term-with-surface-aliases",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 It reads an aggregate skills slot. No skill surfaces get resolved to terms here."
+    },
+    {
+     "technique": "hierarchy-credit-specialization-and-generalization",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 There is no hierarchy walk. The weights apply to dimensions, not to term relations."
+    },
+    {
+     "technique": "sibling-adjacency-below-the-match-threshold",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 No sibling credit or skill-level reporting threshold lives in these files."
+    },
+    {
+     "technique": "whole-token-matching-over-substring",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 No prose-to-term matching happens here. The compact word-grid code is in pipeline/jobfit/taxonomy.py."
+    },
+    {
+     "technique": "bilingual-surface-parity-and-coverage-floors",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 No skill surfaces, so there is nothing to keep in parity across languages."
+    },
+    {
+     "technique": "unmodelled-term-graceful-fallback",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/archetype-registry.ts:247 No unknown-term path here. Unknown ARCHETYPES fail closed in archetypes.ts, but those are not skill terms."
+    }
+   ],
+   "absenceTerms": [
+    "unmodelled",
+    "surface alias",
+    "compact fallback"
+   ]
+  },
+  {
+   "context": "skill-profile-public-page",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/skill/[token]/page.tsx:89 The page shows signed dev-case dimension scores. Each axis is labelled through the devcase.dimension i18n catalog, not resolved through a skill taxonomy, and a search of app/skill for taxonomy / synonym / adjacen / unmodelled / normaliz found nothing, so no skill normalization or adjacency credit happens here.",
+   "techniques": [
+    {
+     "technique": "canonical-term-with-surface-aliases",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 The axis names are fixed dimension keys from the grader. No surface resolution."
+    },
+    {
+     "technique": "hierarchy-credit-specialization-and-generalization",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 Scores are shown as signed. No relation credit."
+    },
+    {
+     "technique": "sibling-adjacency-below-the-match-threshold",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 No requirement matching, so there is no threshold."
+    },
+    {
+     "technique": "whole-token-matching-over-substring",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 No free-text matching."
+    },
+    {
+     "technique": "bilingual-surface-parity-and-coverage-floors",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 Labels are localized through the i18n catalogs. Matching never uses them."
+    },
+    {
+     "technique": "unmodelled-term-graceful-fallback",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 An unknown axis falls back to its raw name for display only. It earns no credit."
+    }
+   ],
+   "absenceTerms": [
+    "taxonomy",
+    "synonym",
+    "adjacen",
+    "unmodelled",
+    "normaliz"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T00:32:43.654704+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [
+    "bilingual-surface-parity-and-coverage-floors",
+    "canonical-term-with-surface-aliases",
+    "hierarchy-credit-specialization-and-generalization",
+    "sibling-adjacency-below-the-match-threshold",
+    "unmodelled-term-graceful-fallback",
+    "whole-token-matching-over-substring"
+   ],
+   "deviations": 0,
+   "context": "cv-analysis-archetypes",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-26T00:32:43.654704+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [
+    "bilingual-surface-parity-and-coverage-floors",
+    "canonical-term-with-surface-aliases",
+    "hierarchy-credit-specialization-and-generalization",
+    "sibling-adjacency-below-the-match-threshold",
+    "unmodelled-term-graceful-fallback",
+    "whole-token-matching-over-substring"
+   ],
+   "deviations": 0,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

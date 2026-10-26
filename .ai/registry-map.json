@@ -3385,7 +3385,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:59 Once five offers clear MIN_OFFERS, the offer leg publishes whole-percent accept, decline and expire rates with no interval. 3 of 5 shows as a flat 60%, although a Wilson 95% interval at that count runs from about 23% to 88%. The layer has no Wilson or Jeffreys code (a grep of app/ found none), so no measured rate here says what its sample could have shown.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "analytics-time-windows",
@@ -3542,7 +3546,11 @@
           "revision": 3,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:69 The Analytics payload breaks hiring outcomes down by requisition, archetype, source, channel and variant. It has no per-recruiter or per-employee dimension, and a case-insensitive search of app/features/insights/analytics, app/api/analytics, app/_lib/db/analytics.ts and app/_lib/decision-attribution.ts found no leaderboard, byRecruiter, perPerson or byActor construct. The only named humans are candidates, who are hiring subjects governed by the recruiting bundle, and decision actors in an audit trail, which is retained provenance that every technique in this subject explicitly excludes.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:cb03bdda55f3119d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "usage-analytics",
@@ -4033,7 +4041,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:238 The Economics board shows every channel, source or variant row's hire rate as a percentage at any n > 0, coloured moss when there is any hire, and the rate column can be sorted. A creative with 1 lead and 1 hire therefore renders as a green 100% and can sort to the top, with no floor, no thin label and no interval on the cell. The Performance funnel does the same per stage: it colours met/missed at any reach (PerformanceBriefing.tsx:321 via stageVerdict).",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "table",
@@ -4081,8 +4093,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:4 The three sections report hiring-funnel, cost and scoring-quality metrics, not software delivery from change history; grepping the sections directory for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing (the one 'revert' hit in sectionChunks.tsx:50 is a comment about a UI consolidation).",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -7057,8 +7073,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/hiring/channels/ChannelsTab.tsx:6 The Channels tab sets up candidate intake and comms receivers and computes no metric over a team's change history; a grep of app/features/hiring/channels for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize returned no hits.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "structured-output",
@@ -7111,7 +7131,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/channels/useCommsFeed.ts:14 The comms surface here is a cursor-paged outbox ledger of Message rows (recipient, subject, channel, delivery status — channelsCommsHelpers.ts:15), not a conversation between two authors where a machine streams turns, and searching app/features/hiring/channels/ (including night/) for assistant, scrollToBottom, streaming, isStreaming, regenerate and turnId found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:5b4e7d399a4d924e",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -7854,7 +7878,11 @@
           "revision": 3,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 The projection merges a requisition closure into the same not_selected value as a considered rejection, so no consumer can render cause-specific terminal copy. On the same path, an unmappable stage falls back to 'received' rather than a neutral in-progress state.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:436aa789c377bd9c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "prompt-assembly",
@@ -8156,8 +8184,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/comms/route.ts:11 These routes serve the candidate message outbox, relay probes and inbound receivers, and never read commits, change proposals, reviews or reverts; a case-insensitive grep of app/api/comms and app/api/channels for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing, so the subject's precondition (measuring delivery from change history) does not hold.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "prompt-assembly",
@@ -8321,7 +8353,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:163 The shared transcript's in-flight face is a fixed 'thinking' label plus one static hint after 8s, and the component has no lane for live narration beats, so a companion turn running for minutes shows nothing about what it is doing. The companion that mounts this transcript has no beat grammar anywhere either: no 'beat'/'narrat' hits in app/_lib/companion*, app/features/shell/companion or pipeline/jobfit/companion*.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-cli-transport",
@@ -9621,7 +9657,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/archetypes.ts:21 The TS side reads the same archetypes.json the Python pipeline imports, builds the shield set from its flag, validates weight vectors on read and on write with Python's exact 1e-6 tolerance (lockstep test), archives entries instead of deleting them, and fails the shield closed for unknown ids while keeping isEarlyCareer false for them.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "skill-adjacency-and-normalization",
@@ -9637,7 +9677,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/archetype-registry.ts:247 This context takes skills as one dimension score the Python pipeline has already computed. It weights that score per archetype and routes, caches or reads it; a search of its 22 files and of all of app/_lib for unmodelled / sibling credit / SIBLING_CREDIT / surface alias / compact fallback found nothing, so no skill term is normalized, aliased or adjacency-credited here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "candidate-identity-and-staleness",
@@ -10123,7 +10167,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:98 The only arithmetic check is a >45-year ceiling on a single, usually model-supplied years figure. Nothing compares claimed years with the dated career span or sums tenures against elapsed time, undated roles are never treated as unknown, and no raw date string is quoted, so the strongest family in the subject is almost entirely missing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:9a9edd591be4189e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "regulated-credential-gating",
@@ -11172,7 +11220,11 @@
           "revision": 8,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3590 When actOnPipelineEntry drops a computed automation decision (stale stage, approval moved, terminal entry, hired-reject refusal), the only record is a prose console.warn and the caller gets a bare null for all four reasons, so nothing typed lands in pipeline_events and 'why didn't the automation act on this candidate?' cannot be answered with a query.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1023ff3ecf23d679",
+          "evaluatedRevision": 8
         },
         {
           "subject": "agent-runtime-assembly",
@@ -12557,7 +12609,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:4 The internal panel of the dev-case detail shows the design of the work-sample case (covert probes planted in the exercise, the rubric, the role's must-haves), not readings of a candidate's career document. A case-insensitive search of app/features/tools/devcases/ for softSignal, soft_signal, antipattern, hiddenStrength, hidden strength, needsConfirmation, needs_confirmation and overclaim returned 0 files, so this context has no behavioural flag for the subject to govern.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8652a467dc7229b0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",
@@ -12638,8 +12694,12 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 In the case detail, 'provenance' means whether a generated blob came from an LLM or a template, not who authored a code change, and no delivery metric is computed; grepping app/features/tools/devcases for reviewCoverage, revertRate, pullRequest, Co-authored-by and batchSize found nothing.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "structured-output",
@@ -13327,7 +13387,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:10 The lifecycle, analysis-design and cohort surfaces judge how well the case's own covert probes discriminate across submissions. They do not hold hypotheses about one candidate's career document. The same search over app/features/tools/devcases/ (softSignal, soft_signal, antipattern, hiddenStrength, needs_confirmation, overclaim) found nothing, and nothing under app/ passes CV focus probes into case design.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:8652a467dc7229b0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -13360,8 +13424,8 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "client-fetch-cache",
@@ -15638,7 +15702,11 @@
           "revision": 7,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.a11y.test.ts:12 The glyph's only accessibility gate pattern-matches the renderer's source text rather than asserting the computed role/name or the absence from the tree on rendered output. That is the attribute-correlate check gate-sees-target rules out, even though the primitive itself names and hides correctly.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"
@@ -18223,7 +18291,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:16 Here 'brief' means the structured hiring-need RoleBrief that the intake panel shapes, de-duplicates and reveals, not instructions that drive a candidate interviewer. A grep of app/features/library/jds/intake/ for coachability, praise, PERSONA_ and narrow found no hits; 'interviewer' appears only as a transcript role label (jdsIntakeLogic.ts:14).",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:326772ee23e9392b",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -22156,7 +22228,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-config.ts:389 Every stored provider key is decrypted and serialized as plaintext into an env var handed to the spawned Python process, so values cross the vault boundary instead of actions — the cardinal brokered-egress rule is broken and each child process becomes an involuntary vault.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         },
         {
           "subject": "optional-dependency-degradation",
@@ -22619,7 +22695,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 This context only submits credentials and classifies the login HTTP outcome (authentication UX plus an open-redirect guard); it makes no permission decision. A grep of app/login/ for capability, requireOperator, requireCapability, withSession, permission, privilege, scope and tier found nothing.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -22944,7 +23024,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:50 The only motion in this context is a short framer-motion opacity/translate crossfade and a layout height tween on the Explain-fit panel. These are small composited transitions, which per-tier-budget-tables lists as exempt from consulting a tier. A grep of app/features/shared for requestIdleCallback, hardwareConcurrency, deviceMemory, requestAnimationFrame and fidelity found no capability probe, no tier and no cost-knob effect, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:02a551a058d8874c",
+          "evaluatedRevision": 5
         },
         {
           "subject": "conversation-orchestration",
@@ -22960,7 +23044,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:15 These files are per-card score bars and a three-state async 'Explain fit' panel with no conversation, companion, transcript or ambient presence. A case-insensitive grep of app/features/shared for companion, ChatTranscript, chat, conversation, narration, walkthrough, avatar and quickRepl returned no hits, so the subject's resident-companion precondition does not hold.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -24108,7 +24196,11 @@
           "revision": 8,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:83 settle and release are keyed only by the delivery key, with no holder token, and the store's UPDATE/DELETE never condition on state or holder. A slow first run whose 15-minute lease lapsed can therefore settle or delete the claim a retry took over, which reopens a key whose effects already committed (a second decline email) or drops the retry's in-flight guard.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1023ff3ecf23d679",
+          "evaluatedRevision": 8
         },
         {
           "subject": "concurrency-guards",
@@ -25089,7 +25181,11 @@
           "revision": 15,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 saveStageSla paints a per-stage optimistic value (line 72), then drops it unconditionally on failure (line 76) and after reload (line 81), with no per-stage mutex and no compare-and-swap; PipelineKitSla commits on every Enter/blur, so two overlapping saves on one stage are reachable, and the first save to settle erases the second save's paint while that save is still in flight (and on failure shows the first save's error).",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b667f5c1f4abdd9d",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"
@@ -27569,7 +27665,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:114 \"Save as profile\" sends the pipeline's INFERRED archetype back as the candidate's self-declaration. pipeline/jobfit/registry.py:300-306 then gives it the 0.9 declaration tier and the reason \"self-declared: X\", so a 0.4 needs-review routing (including the no-signal default to bau) is saved as a confident declaration the candidate never made, and its review flag is gone. This is the laundered-declaration failure the standard names.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "fleet-orchestration",
@@ -31672,7 +31772,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:2 This context is a landing-page visualisation of Czech labour-market data. It produces no CV layout, export or parse path; a search of app/landing/spark/market/ for curriculum, résumé, resume, docx, photo and \\bcv\\b returned no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:ada9340a75aa0816",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
@@ -33903,7 +34007,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/voice/candidate-brief.ts:169 For ElevenLabs sessions the engine gets only this client-sent candidate brief. The sanitizer correctly removes the coachability phase's scripted hint, but composeCandidateBrief (lines 251-270) adds no hint rule in its place: NON_NEGOTIABLES from student-interview.ts:208 is never composed in, and director.ts has no hint stage direction. So an early-career EL interview is never told to give its guaranteed hint, and the Coachability axis that the scorer reads (hintText, interview-run.ts:809) goes unobserved.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:326772ee23e9392b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",
@@ -34140,7 +34248,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not package, describe or export a trained model: it finds third-party whisper.cpp GGML files by upstream filename convention and passes them to an external binary. A search of packages/voice-stt for the subject's vocabulary found no hits for $schema, schema, schema_version, logits, symbolic or format_version, so there is no package metadata or contract for these techniques to govern.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
+          "evaluatedRevision": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -34342,7 +34454,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package consumes third-party Piper voices (.onnx plus the upstream .onnx.json) and a fixed-name Kokoro/sherpa-onnx model directory, reading only language.code from the upstream metadata. It authors no package, schema or export. A search of packages/voice-tts for $schema, schema, schema_version, logits, symbolic and format_version found no hits.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
+          "evaluatedRevision": 1
         },
         {
           "subject": "voice-interview-fidelity",

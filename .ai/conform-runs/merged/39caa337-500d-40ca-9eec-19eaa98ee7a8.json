@@ -1,0 +1,99 @@
+{
+ "schema": "conform-run/1",
+ "worker": "39caa337-500d-40ca-9eec-19eaa98ee7a8",
+ "subject": "candidate-archetype-routing",
+ "evaluatedAt": "2026-10-25T22:38:19.226691+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "results-core",
+   "subject": "candidate-archetype-routing",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_components/results/ArchetypeBanner.tsx:114 \"Save as profile\" sends the pipeline's INFERRED archetype back as the candidate's self-declaration. pipeline/jobfit/registry.py:300-306 then gives it the 0.9 declaration tier and the reason \"self-declared: X\", so a 0.4 needs-review routing (including the no-signal default to bau) is saved as a confident declaration the candidate never made, and its review flag is gone. This is the laundered-declaration failure the standard names.",
+   "techniques": [
+    {
+     "technique": "self-declaration-trusted-contradictions-flagged",
+     "verdict": "deviation",
+     "evidence": "app/_components/results/ArchetypeBanner.tsx:114 The code comment at :106-107 says it pins the inferred archetype as the self-declaration so the re-route is deterministic. The technique says to pin a derived class as derived and never re-submit an inference as self-declared."
+    },
+    {
+     "technique": "confidence-always-returned-with-a-review-threshold",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/ArchetypeBanner.tsx:133 The below-threshold review flag shows as its own chip. Confidence is relabelled \"signals agree\" (a vote share, per the :81-88 comment), and an absent value is left out rather than shown as 0%. It is still printed as an NN% figure."
+    },
+    {
+     "technique": "signal-scored-routing-not-rule-matching",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/ArchetypeBanner.tsx:173 The banner shows the signals that fired next to the class, so the recruiter sees the explanation and not just a verdict."
+    },
+    {
+     "technique": "conservative-default-and-the-unrouted-state",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/ArchetypeBanner.tsx:77 An archetype the registry does not know renders as \"Unrouted\" and is never turned into a concrete class. This only covers the sentinel the banner receives. The no-signal case arrives from upstream already labelled bau (see notes)."
+    }
+   ]
+  },
+  {
+   "context": "cv-analysis-archetypes",
+   "subject": "candidate-archetype-routing",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/_lib/archetypes.ts:21 The TS side reads the same archetypes.json the Python pipeline imports, builds the shield set from its flag, validates weight vectors on read and on write with Python's exact 1e-6 tolerance (lockstep test), archives entries instead of deleting them, and fails the shield closed for unknown ids while keeping isEarlyCareer false for them.",
+   "techniques": [
+    {
+     "technique": "one-registry-shared-across-runtimes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/archetypes.ts:21 One declarative file is read by both runtimes. Supporting evidence: protected set derived from the flag (:75), keys canonicalised (:84-86), archive rather than delete (archetype-registry.ts:368-383), and archetype-registry-lockstep.test.ts pins the mirrored constants. Caveat: the static import is cast at :38 without validation, but live decisions go through archetype-live.ts, which validates."
+    },
+    {
+     "technique": "population-specific-weights-and-dimension-renaming",
+     "verdict": "conformant",
+     "evidence": "app/_lib/archetype-registry.ts:261 Weights must sum to 1 within 1e-6, each weight must lie in [0,1], and every slot needs a dimension label. This is checked at the write boundary and again when the registry is read (validateRegistry :125-146). In the registry, early-career entries are renamed Foundation/Potential/Fit. I found no scored golden set in this context."
+    },
+    {
+     "technique": "conservative-default-and-the-unrouted-state",
+     "verdict": "conformant",
+     "evidence": "app/_lib/archetypes.ts:121 Unknown means protected for the shield, while isEarlyCareer (:128-130) treats unknown as not early for wording, and both directions are written down. archetypeDisplayKey renders it as \"unrouted\", and RESERVED_IDS (archetype-registry.ts:50) stops anyone registering the sentinel as a class."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T22:38:19.226691+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-archetype-routing"
+   ],
+   "techniques": [
+    "confidence-always-returned-with-a-review-threshold",
+    "conservative-default-and-the-unrouted-state",
+    "self-declaration-trusted-contradictions-flagged",
+    "signal-scored-routing-not-rule-matching"
+   ],
+   "deviations": 1,
+   "context": "results-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T22:38:19.226691+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-archetype-routing"
+   ],
+   "techniques": [
+    "conservative-default-and-the-unrouted-state",
+    "one-registry-shared-across-runtimes",
+    "population-specific-weights-and-dimension-renaming"
+   ],
+   "deviations": 0,
+   "context": "cv-analysis-archetypes",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
