@@ -20502,6 +20502,37 @@
           "evidence": "app/_lib/webhook-idempotency.ts:80 Retries are driven by the sender or drain. This guard keeps no attempt count; the count belongs to the upstream door."
         }
       ]
+    },
+    "9de20269-8dd9-4ca8-a864-0037ee9ca817/machine-paced-delivery": {
+      "context": "db-tasks-agents-misc",
+      "subject": "machine-paced-delivery",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:11:33.777Z",
+      "techniques": [
+        {
+          "technique": "verification-throughput-as-constraint",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/tasks.ts:31 This queue holds in-app background jobs (analyses, builds of JDs), not verification runs of authored changes."
+        },
+        {
+          "technique": "scoped-delivery-access-for-agents",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/agents.ts:261 The only credential minted here is the hired agent's inbound report token into kp. It is revoked by retirement and grants no access to any delivery system."
+        },
+        {
+          "technique": "proposal-not-push",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/agents.ts:38 The mandate (rung and reserved classes) is persisted verbatim as dispatched. The store neither authors nor merges changes."
+        }
+      ],
+      "withdrawn": {
+        "worker": "ff6c3a0e-d7dc-419a-bbc3-e3cd1a15c382",
+        "state": "not-applicable",
+        "at": "2026-10-26T00:12:29.324244+00:00",
+        "reason": "reviewer (sonnet): The anchors don't show the precondition is absent: agents.ts:7 and :38 are comments describing hired-agent dispatch, and agents.ts persists the dispatched app-master mandate and agent activity and metrics. The 'rung and reserved classes' claim isn't visible in any file I opened. The delivery-gate te"
+      }
     }
   }
 }
