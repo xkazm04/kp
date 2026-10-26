@@ -15702,7 +15702,11 @@
           "revision": 7,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.a11y.test.ts:12 The glyph's only accessibility gate pattern-matches the renderer's source text rather than asserting the computed role/name or the absence from the tree on rendered output. That is the attribute-correlate check gate-sees-target rules out, even though the primitive itself names and hides correctly.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"

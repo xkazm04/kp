@@ -20906,6 +20906,43 @@
           "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:96 Publish confirmation is a human gate on a case. It is not a code-review record."
         }
       ]
+    },
+    "b53482a5-a3bf-4daa-8011-a09391c974e2/accessibility": {
+      "context": "glyph-system",
+      "subject": "accessibility",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:55:05.743Z",
+      "worker": "d5dadafc-7046-43c3-b62d-452e9fa1b864",
+      "techniques": [
+        {
+          "technique": "a11y-verification",
+          "verdict": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.a11y.test.ts:12 The a11y guard is a regex over MotionizedGlyph.tsx, not a query by role and name on rendered output, so a refactor that keeps the spread text but changes what reaches the accessibility tree still passes. The reduced-motion tests (glyphMotionCss.test.ts) do assert real derived CSS output."
+        },
+        {
+          "technique": "name-and-description-wiring",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:186 Decorative by default (aria-hidden, so it is not voiced twice beside its heading). With a label it becomes a named img. One expression decides both states, and the label comes from the consumer's translated string."
+        },
+        {
+          "technique": "primitive-level-a11y",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:73 The naming and hiding contract lives once, inside the shared renderer every glyph consumer passes through, rather than at each call site."
+        },
+        {
+          "technique": "preference-respect",
+          "verdict": "conformant",
+          "evidence": "app/_components/glyph/glyphMotionCss.ts:51 Under prefers-reduced-motion each preset's declared `reduced` field is derived into the stylesheet. Entrances cross-fade or settle instantly with opacity restored (replaced, not removed). Ambient loops are dropped, and the replay observer is never armed (MotionizedGlyph.tsx:140). Both reads use the OS query through the shared useReducedMotion hook and the CSS media block; there is no in-app override."
+        },
+        {
+          "technique": "keyboard-navigation-models",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:175 The glyph is a non-interactive svg with no tabIndex or handlers, so it has no keyboard model to own."
+        }
+      ],
+      "registryProposal": "a11y-verification assumes a component test layer that can render and query by role. In a repo whose unit runner (node:test) has no DOM, teams fall back to source-regex guards and justify them. The technique could say explicitly whether a source guard counts as a partial layer-2 substitute or as a gate-sees-target violation, and name the cheapest compliant alternative (for example, server-rendering the primitive to markup and asserting attributes per branch)."
     }
   }
 }
