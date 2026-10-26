@@ -20995,6 +20995,37 @@
         "at": "2026-10-26T22:28:49.313157+00:00",
         "reason": "reviewer (sonnet): The claim that the context's only write is one fetch is false: the JdsLedger* files also issue a DELETE (JdsLedgerRowDelete.tsx:41), an ingest-job POST and edit saves, and the context surfaces JD revision history, so audit-logging may apply and the anchors don't show it is absent."
       }
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/codegen": {
+      "context": "shell-tasks",
+      "subject": "codegen",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:55:15.425Z",
+      "techniques": [
+        {
+          "technique": "commit-vs-derive-policy",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksProviderTypes.ts:3 The context's kind vocabulary comes from the hand-authored literal array in app/_lib/task-kinds.ts, not from a committed generated artifact, so there is no commit-or-derive decision to make here."
+        },
+        {
+          "technique": "drift-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:69 Registered kinds arrive at runtime from the API and are validated in place. No stored derivation exists that could drift and need a gate."
+        },
+        {
+          "technique": "generated-file-hygiene",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/taskKinds.ts:2 A hand-written runtime union of kinds, with no generated header or output root in the context."
+        }
+      ],
+      "withdrawn": {
+        "worker": "aeef3cd0-94f1-41c6-9b81-675334e1f5e1",
+        "state": "not-applicable",
+        "at": "2026-10-26T22:55:53.671089+00:00",
+        "reason": "reviewer (sonnet): The anchor package.json:30 only shows that schemas:gen exists elsewhere in the repo, so it does not show derived source is absent from this context. The technique anchor taskKinds.ts:2 is a filterableTaskKinds function, not the 'hand-written runtime union of kinds' the evidence claims. The no-hit se"
+      }
     }
   }
 }
