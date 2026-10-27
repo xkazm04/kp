@@ -27545,7 +27545,11 @@
           "revision": 4,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:34 The Helm chart policy this context owns runs only in ci.yml. The tag-triggered release path (.github/workflows/release.yml: gate → publish → release, which runs `helm package deploy/helm/kp` at line 285) never runs deploy:check, even though its header calls its gate job \"the full verification gate, again, on the tagged commit\". So the chart that gets published is not certified by the chart verdict on the path that publishes it.",
+          "evaluatedAt": "2026-10-27",
+          "evaluatedAgainst": "sha256-b2:dc1097a08c9022d9",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"

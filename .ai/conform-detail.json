@@ -21083,6 +21083,43 @@
         }
       ],
       "registryProposal": "The technique bans praise from the full-pass gate because a per-turn pattern cannot see rationing. This repo deliberately gates a narrow, declarative detector for praise that grades the person or the answer, and records its known misses. The standard could say explicitly whether such a narrow grading-praise form counts as a soft verdict, belonging to the no-verdict invariant, or as taste, belonging to the ungated band. As written, the two readings overlap."
+    },
+    "7b5da07d-0f32-47ad-be88-61179442c8b4/deployment-contract": {
+      "context": "release-pipeline",
+      "subject": "deployment-contract",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-27",
+      "evaluatedTs": "2026-10-27T22:15:34.475Z",
+      "worker": "4a201ef8-8cde-425e-a14f-051a5797fd25",
+      "techniques": [
+        {
+          "technique": "deploy-gate-coupling",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:34 Publishing is mechanically coupled to a gate (publish needs: gate), and release:check is part of that gate. But deploy:check/test:deploy are absent from release.yml, so a tag (which can sit on a commit main's CI never judged) packages and releases the chart without this verdict. The re-run gate is a subset of what it claims to be."
+        },
+        {
+          "technique": "deployment-config-as-code",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/check-chart.mjs:529 The deployment shape is a committed chart, and the env contract is checked in both directions: every key the chart sets must be documented in .env.example (names only), and the required keys must stay set. Secret values are kept out of values.yaml by the secret-literal-in-values policy."
+        },
+        {
+          "technique": "platform-build-parity",
+          "verdict": "conformant",
+          "evidence": "scripts/release/prepare.mjs:150 The host (Kubernetes via Helm) builds nothing; it pulls the CI-built image, which is the prebuilt escape. release:check keeps the chart's image tag in lockstep with package.json and the CHANGELOG."
+        },
+        {
+          "technique": "build-context-filter-parity",
+          "verdict": "not-applicable",
+          "evidence": "scripts/release/prepare.mjs:15 The chart only pulls an image tag. One build (docker/build-push-action in release.yml) sends one context, so there is no second remote upload filter to keep in parity. This is the technique's own 'when not to use it' case."
+        },
+        {
+          "technique": "public-build-inert-by-mode",
+          "verdict": "not-applicable",
+          "evidence": "scripts/deploy/check-chart.mjs:227 The chart deploys the live, authenticated product rather than a public demo. The policy forces a `required` password and forbids shipping KP_ALLOW_OPEN on, which is the technique's 'needs authentication, not a mode' exclusion."
+        }
+      ],
+      "registryProposal": "deploy-gate-coupling could state that resolution one (deploy waits for the gate) also covers a gate RE-RUN on the release trigger: a tag-path gate that re-runs only a subset of the push-path gate, and drops the checks over the very artifact it publishes (here, the Helm chart), reopens the race on exactly those checks. That is the mirror of the local-vs-remote parity invariant the technique already names for resolution two."
     }
   }
 }
