@@ -7647,7 +7647,11 @@
           "revision": 3,
           "changedAt": "2026-08-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 The profile editor's Back exit checks nothing: no dirty, pending or failed state is consulted, and it deletes the sessionStorage survival copy before calling onCancel(). One click silently throws away an unsaved intake with no Save, Discard or Stay offer, even though the editor keeps a baseline it could compare against.",
+          "evaluatedAt": "2026-10-27",
+          "evaluatedAgainst": "sha256-b2:79771a6adb7936e5",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

@@ -15026,47 +15026,43 @@
       "context": "candidate-profile",
       "subject": "draft-editing",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T08:33:00.895Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-27",
+      "evaluatedTs": "2026-10-27T22:26:08.654Z",
+      "worker": "90b112df-d5cc-4ca0-b1e9-8442a0b4d808",
       "techniques": [
         {
-          "technique": "completeness-derivation",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/profile/profileCompletenessFields.ts:80 Maps each completeness check identifier to its corresponding input field target for checklist guidance."
-        },
-        {
-          "technique": "debounced-save-groups",
+          "technique": "navigation-guards",
           "verdict": "deviation",
-          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:115 Persisting changes relies exclusively on a manual button click submitting the full draft without debounced save groups."
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 The survival layer is strong: a sessionStorage envelope keyed by row id and version, restored three ways by planRestore, with a moved row surfaced as a conflict. But the Back exit has no guard and wipes that layer, so unsaved work is discarded without anyone naming the discard."
         },
         {
           "technique": "dirty-tracking",
           "verdict": "deviation",
-          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:116 Gating verifies weight sum correctness but does not derive or display clean/dirty status relative to baseline."
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:189 The only saved-vs-current test is reference identity on a memoized object. Typing a character and deleting it still reads as changed. Grepping the directory for dirty, isDirty, unsaved and beforeunload finds no derived dirty state, so the exit and the Save affordance have nothing to read."
         },
         {
           "technique": "draft-model",
           "verdict": "deviation",
-          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:30 Controls mutate draft state directly per input handler rather than routing changes through a single patch door."
+          "evidence": "app/features/tools/profile/profileEditorPayload.ts:26 The parts that conform: one state object, one setField patch door, a baseline retained once, and an expectedUpdatedAt 409 staleness guard. But the apply step builds and PUTs the whole record, not the diff against the baseline. The version guard limits the stale-revert risk; it does not make this a diff."
         },
         {
           "technique": "field-defaults-and-bounds",
           "verdict": "deviation",
-          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:95 Clamping is applied in an individual control's onChange handler rather than centrally at a draft mutation door."
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:95 Defaults do carry rationale and their incident history (ProfileForm hydrate: roleFamily, educationLevel). But the weight clamp runs at the control's onChange, not inside the setPct patch helper (line 31), and the 0..100 range is restated as min/max on the input. A later writer would bypass the clamp."
         },
         {
-          "technique": "navigation-guards",
-          "verdict": "deviation",
-          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:121 The cancel button directly exits editing mode without checking for unsaved changes or presenting a discard confirmation."
+          "technique": "completeness-derivation",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileCompletenessFields.ts:38 Readiness is derived live from the archetypes.json checklist (profileReadiness.ts). Each named check points to the field that satisfies it, the percentage travels with its Add-next list, and the editor states that completeness gates nothing, so Save stays enabled (ProfileEditor.tsx:337)."
+        },
+        {
+          "technique": "debounced-save-groups",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:84 There is no continuous server save. Persistence is only the explicit Save gesture (POST or PUT), so a debounce timer cannot strand edits. The local per-change sessionStorage backup is a survival layer, not a save group."
         }
       ],
-      "withdrawn": {
-        "worker": "99bcf29c-df80-48a2-9fdd-6f6b901fd102",
-        "state": "deviation",
-        "at": "2026-10-19T08:33:42.490363+00:00",
-        "reason": "reviewer (sonnet): The claims hold in the code, but I could not confirm the verdict belongs to this context. ArchetypeManagerEditPanel.tsx, the evidence anchor, and ArchetypeManager.tsx, which defines `cancel`, are not among the context's listed files. The technique anchor profileCompletenessFields.ts is also missing "
-      }
+      "registryProposal": "The draft-model rule \"It sends the diff, never the record\" does not say how to judge a full-record PUT that is protected by an optimistic version precondition (expectedUpdatedAt re-asserted in the UPDATE's WHERE, 409 on mismatch). That guard removes the stale-read revert failure but not the blank-fills-and-clears one. The technique could state whether a versioned full replace is an accepted weaker form or still a deviation."
     },
     "01cf5f88-41a1-47e6-9310-186589ebf384/drag-drop": {
       "context": "cv-analyze-intake",
