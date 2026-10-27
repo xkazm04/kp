@@ -1,0 +1,39 @@
+{
+  "schema": "conform-run/1",
+  "worker": "fd691ce3-57e2-488e-9db0-04d1d5f14f73",
+  "subject": "english",
+  "evaluatedAt": "2026-10-27T22:41:17.550114+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "english",
+      "context": "spark-landing-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): The en.json:1035 'Trust & compliance' label and its use in LegalRow are real, but the claim that the ampersand carries into cs/de/fr is false for cs (cs.json:1035 reads 'Důvěra a compliance'). The seat's own registryProposal also admits EN-AMPERSAND does not clearly cover nav or link labels, so the "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-27T22:41:17.550114+00:00",
+      "bundle": "localization",
+      "subjects": [
+        "english"
+      ],
+      "techniques": [
+        "de-translationese-constructions",
+        "false-friends-and-collocations",
+        "generated-prose-patterns",
+        "interference-constructions",
+        "register-and-voice",
+        "typography-and-capitalization",
+        "ui-and-landing-microcopy",
+        "variant-and-locale-conventions"
+      ],
+      "deviations": 1,
+      "context": "spark-landing-shell",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

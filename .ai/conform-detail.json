@@ -21117,6 +21117,63 @@
         }
       ],
       "registryProposal": "deploy-gate-coupling could state that resolution one (deploy waits for the gate) also covers a gate RE-RUN on the release trigger: a tag-path gate that re-runs only a subset of the push-path gate, and drops the checks over the very artifact it publishes (here, the Helm chart), reopens the race on exactly those checks. That is the mirror of the local-vs-remote parity invariant the technique already names for resolution two."
+    },
+    "ddc2d696-7a1f-482b-af74-4b5f89e5b6a0/english": {
+      "context": "spark-landing-shell",
+      "subject": "english",
+      "bundle": "localization",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-27",
+      "evaluatedTs": "2026-10-27T22:41:17.550Z",
+      "techniques": [
+        {
+          "technique": "typography-and-capitalization",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:1035 EN-AMPERSAND: '&' in a nav/link label with no declared exception. Second probable EN-END-PUNCT hit: the demo banner's title (messages/en.json:1073, 'The live demo is unavailable right now.') is a title-slot string, rendered as the bold first line in DemoUnavailableNotice.tsx:45, and it ends in a full stop."
+        },
+        {
+          "technique": "register-and-voice",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:1074 Status copy states the state without a corporate 'we' (EN-WE), uses a natural contraction (EN-CONTRACTION), and offers 'You can' as an optional capability, not a required step, so EN-EXPLETIVE-OPEN's exception applies. Minor gap: the banner never renders a sign-in link to match 'sign in'."
+        },
+        {
+          "technique": "interference-constructions",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:1073 Articles, word order and prepositions are native in every string the shell renders (skip links, banner, legal row, language group label). No EN-ARTICLE, EN-PREP or EN-COMMA-THAT hits."
+        },
+        {
+          "technique": "false-friends-and-collocations",
+          "verdict": "conformant",
+          "evidence": "app/landing/spark/DemoUnavailableNotice.tsx:51 EN-ONE-TERM: the banner reuses the topbar's own key ('About the app') instead of coining a second label. Section names Privacy / Terms / About are what English-language sites use (EN-SECTION-NAMES)."
+        },
+        {
+          "technique": "ui-and-landing-microcopy",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:794 EN-BUTTON: the CTA is a specific verb plus outcome in 2-4 words, and the banner's dismiss button is the verb 'Dismiss'. Reviewer flag, outside the rule's literal trigger: the About skip link 'Skip to the line' (messages/en.json:16262) names an internal section codename that has no visible heading, so out of context its destination is opaque (EN-LINK spirit)."
+        },
+        {
+          "technique": "generated-prose-patterns",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:1686 The refusal strings the banner can render are plain state sentences. No puffery, significance narration, participial tails or chat artifacts."
+        },
+        {
+          "technique": "variant-and-locale-conventions",
+          "verdict": "not-applicable",
+          "evidence": "messages/en.json:16261 The context's strings contain no variant-sensitive spellings, dates, times, currency or formatted numbers. The one quantity is spelled out ('nine'), and kp has declared no numeral policy to judge it against. The US-variant declaration lives repo-wide in docs/i18n/style-en.md:12."
+        },
+        {
+          "technique": "de-translationese-constructions",
+          "verdict": "not-applicable",
+          "evidence": "docs/i18n/style-en.md:3 English is the source locale, not a translation, so the translationese precondition does not hold for these strings. No explicitating connectors, modal passives or comma chains appear anyway."
+        }
+      ],
+      "registryProposal": "EN-AMPERSAND's trigger names 'a sentence, heading or button' but not navigation or footer link labels, and that is where '&' most often survives (Trust & compliance, Plans & pricing). Either add nav and link labels to the trigger or state that they fall under the 'tight tabular labels where declared' exception. As written, a reviewer can argue either way.",
+      "withdrawn": {
+        "worker": "fd691ce3-57e2-488e-9db0-04d1d5f14f73",
+        "state": "deviation",
+        "at": "2026-10-27T22:42:06.976723+00:00",
+        "reason": "reviewer (sonnet): The en.json:1035 'Trust & compliance' label and its use in LegalRow are real, but the claim that the ampersand carries into cs/de/fr is false for cs (cs.json:1035 reads 'Důvěra a compliance'). The seat's own registryProposal also admits EN-AMPERSAND does not clearly cover nav or link labels, so the "
+      }
     }
   }
 }
