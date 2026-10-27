@@ -17570,7 +17570,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/situations.ts:84 Evaluative praise such as \"great answer\" (lexicon en.praise_leading) sits on the reliability axis, is always on (detectors.ts ALWAYS_ON_INVARIANTS) and is gated at full pass, which the technique explicitly rules out: a single praise turn is a style lapse to be counted, and gating it makes the reliability gate red for taste.",
+          "evaluatedAt": "2026-10-27",
+          "evaluatedAgainst": "sha256-b2:4067c862a07d4a6b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-instruction-files",
