@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "bb3c2efe-7e3c-447a-90e7-f0014a84c289",
+  "subject": "drag-drop",
+  "evaluatedAt": "2026-10-27T22:33:53.306285+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "drag-drop",
+      "context": "analyze-engine",
+      "reason": "withdrawn after review: reviewer (sonnet): The code the claim rests on is not in analyze-engine: useAnalyzeDropZoneHighlight.ts, useAnalyzeFileAccept.ts and analyzeDragCounter.ts sit in other contexts in context-map.json (cv-analysis-archetypes, analytics-sections), and only analyzeDropRouting.ts is in analyze-engine. In that file, planDrop "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-27T22:33:53.306285+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "drag-drop"
+      ],
+      "techniques": [
+        "cross-surface-handoff",
+        "drag-lifecycle",
+        "drop-affordances",
+        "keyboard-alternatives",
+        "ownership-boundaries",
+        "payload-and-identity"
+      ],
+      "deviations": 1,
+      "context": "analyze-engine",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

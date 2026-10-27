@@ -15110,45 +15110,46 @@
       "subject": "drag-drop",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T09:23:27.596Z",
+      "evaluatedAt": "2026-10-27",
+      "evaluatedTs": "2026-10-27T22:33:53.306Z",
       "techniques": [
         {
-          "technique": "drag-lifecycle",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:63 Resets the zone drag depth on dragend to ensure drop zones do not remain highlighted if a drag is cancelled via ESC."
+          "technique": "cross-surface-handoff",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:43 The zone target says yes unconditionally on dragover (and on dragenter at :36). It inspects the payload kind only at drop time, inside planDrop. The technique names this failure: accept first, inspect later, and you receive stray text selections."
         },
         {
           "technique": "drop-affordances",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:31 Updates the zone's active highlight state dynamically based on counted drag depth across child elements."
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:57 A non-file drop on a zone that showed \"Drop here\" ends here with no refusal message, which is the silent no-op the technique calls the worst option. Post-drop refusals are named per file for type, size, cap and single-slot (useAnalyzeFileAccept.ts:34), and the counted highlight is sound for real file drags."
         },
         {
-          "technique": "keyboard-alternatives",
+          "technique": "drag-lifecycle",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:86 Provides a non-drag replacement path for CV variants evaluated through the same single-slot plan."
-        },
-        {
-          "technique": "cross-surface-handoff",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/analyzeDropRouting.ts:22 Defines the closed vocabulary of drop zone identifiers recognized across intake surfaces."
+          "evidence": "app/features/tools/analyze/analyzeDragCounter.ts:27 One pure, idempotent reaper: drop and dragend both hard-reset the depth and leave clamps at zero. The zone hook routes onDrop and onDragEnd (useAnalyzeDropZoneHighlight.ts:63) into the same step(), so neither the success exit nor the cancel exit leaves a stuck highlight."
         },
         {
           "technique": "payload-and-identity",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:60 Establishes entity identity through content byte hashing rather than volatile UI indices or filenames."
+          "evidence": "app/features/tools/analyze/analyzeDropRouting.ts:112 The router keys on payload kind (file drag vs not). The destination is a zone id from a closed vocabulary (DROP_ZONES, :22), not a position. CV identity is content-hash dedupe (analyzeCvIntake), never name/size or index. No positional reorder exists."
+        },
+        {
+          "technique": "keyboard-alternatives",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:78 An OS file drop is a user-agent-owned drag, which the standard exempts. A click picker still exists per zone and runs through the same planDrop/apply path as the window drop: one operation, two inputs."
         },
         {
           "technique": "ownership-boundaries",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/useAnalyzeCvFiles.ts:48 Re-verifies capacity limits against the live state ref post-hash to enforce authority boundaries against concurrent intake."
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:58 Commit posture is correct for an arrangement the interface owns: the attachments are local form state and are applied at once. The CV hook stays the authority for dedupe and the race-safe cap re-check."
         }
       ],
+      "registryProposal": "The precondition of keyboard-alternatives and drag-lifecycle (the page owns the drag source) does not hold for OS file intake, and the techniques say little about it. One point is worth stating outright for file drop zones: dragend never fires in the target document for an external drag. So a zone-level onDragEnd 'backstop' is dead code for OS file drops, and cleanup for that case must hang on drop and dragleave (or window-level listeners).",
       "withdrawn": {
-        "worker": "d0cf3548-7537-4cfd-8478-04bdd8dcc648",
-        "state": "conformant",
-        "at": "2026-10-19T09:24:24.136305+00:00",
-        "reason": "reviewer (sonnet): The primary anchor (planDrop at analyzeDropRouting.ts:111) is correct, but the dragend reset, depth highlight and replaceCv technique anchors are in useAnalyzeDropZoneHighlight.ts and useAnalyzeFileAccept.ts, which are not among this context's files, so the drag-drop conformance claim is mostly abou"
+        "worker": "bb3c2efe-7e3c-447a-90e7-f0014a84c289",
+        "state": "deviation",
+        "at": "2026-10-27T22:34:57.152048+00:00",
+        "reason": "reviewer (sonnet): The code the claim rests on is not in analyze-engine: useAnalyzeDropZoneHighlight.ts, useAnalyzeFileAccept.ts and analyzeDragCounter.ts sit in other contexts in context-map.json (cv-analysis-archetypes, analytics-sections), and only analyzeDropRouting.ts is in analyze-engine. In that file, planDrop "
       }
     },
     "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/embedded-db": {
