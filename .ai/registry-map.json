@@ -26610,7 +26610,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/sanity-checks.ts:1 The supposed 'startup sanity-check' module is actually the per-analysis trust ledger. The other files are a post-response task deferrer and a per-call origin resolver. None of the context's five files holds a boot step, reload handler, first-start bootstrap, config-born object or seal: grepping them for boot/seal/reload/restart/marker/seed/startup/listen found only comment mentions of 'boot' and the unrelated WARN_MARKERS regex, and grepping app/_lib for SIGHUP, verify-only, restart-only and bootstrap_marker found nothing.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:1c83f54ea0028875",
+          "evaluatedRevision": 3
         },
         {
           "subject": "optional-dependency-degradation",

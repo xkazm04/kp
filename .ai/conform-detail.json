@@ -21198,6 +21198,32 @@
           "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:108 The reader tolerates rows that lack the added column. That is the expand side seen from a consumer, but this context owns no schema change. The rename or drop sequencing belongs to the db layer."
         }
       ]
+    },
+    "735cafa0-53ed-4e9d-8a42-087ede0529b2/node-boot-and-declarative-bootstrap": {
+      "context": "platform-admin-ops",
+      "subject": "node-boot-and-declarative-bootstrap",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T22:59:03.700Z",
+      "worker": "f851f320-b45a-40f1-a7c1-534a1b5472f9",
+      "techniques": [
+        {
+          "technique": "ordered-boot-dag",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/public-base-url.ts:136 The origin-conflict 'boot warning' fires lazily on the first publicBaseUrl() call, not as a step in a startup graph. This module has no startup rung of its own, and the readiness aggregation lives in app/_lib/readiness.ts, which is outside this context."
+        },
+        {
+          "technique": "reload-partition",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/public-base-url.ts:143 The configuration is process env, read on each call. There is no reload signal or reload path here that would need a reloadable/restart-only partition."
+        },
+        {
+          "technique": "request-chain-not-dsl",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/after-response.ts:32 The only scheduled work is an in-code callback deferred past the response. There is no declarative bootstrap file or request chain."
+        }
+      ]
     }
   }
 }
