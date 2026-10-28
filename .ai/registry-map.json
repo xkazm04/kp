@@ -23597,7 +23597,11 @@
           "revision": 7,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "package.json:26 The matrix-grid context is browser UI served by a Next.js server process (`next start`), and nothing installs it on a desktop. I searched the context's directory, including focus/, for installer, codesign, signtool, electron, notariz and tauri and got zero hits. The repo tracks no electron-builder, tauri.conf, .wxs, .nsi or forge.config file, so the subject's precondition (a desktop application installed on machines you never touch) does not hold here.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:e3584aae3c68e668",
+          "evaluatedRevision": 7
         },
         {
           "subject": "compensation-banding-and-market-honesty",

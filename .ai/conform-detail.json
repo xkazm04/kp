@@ -21224,6 +21224,37 @@
           "evidence": "app/_lib/after-response.ts:32 The only scheduled work is an in-code callback deferred past the response. There is no declarative bootstrap file or request chain."
         }
       ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/packaging": {
+      "context": "matrix-grid",
+      "subject": "packaging",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T23:02:47.882Z",
+      "worker": "02ef65bf-bb82-4a59-b7f7-1f88340412a9",
+      "techniques": [
+        {
+          "technique": "installer-authoring",
+          "verdict": "not-applicable",
+          "evidence": "package.json:26 The app is delivered as a running server process. No install, upgrade or uninstall state machine exists for this context."
+        },
+        {
+          "technique": "installed-tree-acceptance",
+          "verdict": "not-applicable",
+          "evidence": "package.json:25 The build output is a Next server bundle. It is never installed into a user-machine tree, so there is no installed tree to accept."
+        },
+        {
+          "technique": "native-payload-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/MatrixTab.tsx:1 This is a client React component that runs in the browser. It loads no native libraries and spawns no sidecars."
+        },
+        {
+          "technique": "adoption-time-packaging-audit",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/MatrixTab.tsx:5 The context's dependencies are web libraries bundled by Next. No packaged-binary mode exists where they could die."
+        }
+      ]
     }
   }
 }
