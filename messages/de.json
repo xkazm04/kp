@@ -6199,7 +6199,8 @@
       "noTranslationBody": "Dieses Inserat ist auf {source} verfasst. Eine Fassung in dieser Sprache schreibt die KI; das Original bleibt unverändert.",
       "generateTranslation": "Übersetzung erzeugen",
       "generatingTranslation": "Wird übersetzt…",
-      "translateFailed": "Das Inserat konnte nicht übersetzt werden. Versuchen Sie es erneut."
+      "translateFailed": "Das Inserat konnte nicht übersetzt werden. Versuchen Sie es erneut.",
+      "tabRun": "Lauf"
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -18418,5 +18419,58 @@
       "hasData": "Dieser Arbeitsbereich enthält bereits Daten, deshalb wurden keine Demodaten hinzugefügt.",
       "failed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut."
     }
+  },
+  "roleRun": {
+    "heading": "Rollenlauf",
+    "intro": "Der Lauf führt diese Rolle von der Ausschreibung bis zum Angebotsentwurf. Er hält an drei menschlichen Toren an; niemand wird abgelehnt, eingeladen oder bekommt ein Angebot, bevor Sie entscheiden.",
+    "noRun": "Für diese Rolle wurde noch kein Lauf gestartet.",
+    "start": "Lauf starten",
+    "starting": "Wird gestartet…",
+    "reload": "Neu laden",
+    "cycle": "Zyklus {cycle}",
+    "status": {
+      "running": "Läuft",
+      "complete": "Abgeschlossen",
+      "cancelled": "Abgebrochen"
+    },
+    "noStages": "Der Lauf hat noch nichts erzeugt.",
+    "noGates": "Im Moment wartet nichts auf Sie.",
+    "advance": "Lauf fortsetzen",
+    "advancing": "Wird fortgesetzt…",
+    "stagesHeading": "Bisherige Stufen",
+    "stage": {
+      "role_spec": "Rollenprofil",
+      "slate": "Shortlist",
+      "screen": "Screening",
+      "case_assignment": "Fallaufgabe",
+      "interview": "Interview",
+      "scorecard": "Bewertungsbogen",
+      "offer_draft": "Angebotsentwurf"
+    },
+    "gate": {
+      "rejection": {
+        "title": "Absagetor",
+        "hint": "Das Screening schlägt vor, wer nicht weiterkommt. Mit der Freigabe werden diese Vorschläge festgehalten; bei Ablehnung bleiben die Kandidaten im Lauf."
+      },
+      "interview_invite": {
+        "title": "Einladungstor",
+        "hint": "Der Lauf hat Interview-Einladungen vorbereitet. Mit der Freigabe wird die Entscheidung festgehalten; von hier wird keine Einladung versendet."
+      },
+      "offer": {
+        "title": "Angebotstor",
+        "hint": "Der Lauf hat Angebotskonditionen vorbereitet. Mit der Freigabe wird die Entscheidung festgehalten; von hier wird kein Angebot erstellt."
+      }
+    },
+    "candidates": "{count, plural, one {# Kandidat} other {# Kandidaten}}",
+    "policy": "Richtlinie {policy}",
+    "subjects": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+    "previewHeading": "Kandidaten in diesem Stapel",
+    "review": "Stapel prüfen",
+    "previewing": "Wird geladen…",
+    "approve": "Stapel freigeben",
+    "committing": "Wird festgehalten…",
+    "decline": "Stapel ablehnen",
+    "humanStep": "Ihre Entscheidung wird unter Ihrem Namen festgehalten. Nach Ihrer Entscheidung läuft der Lauf von selbst weiter.",
+    "failed": "Bei diesem Lauf ist etwas schiefgegangen. Bitte versuchen Sie es erneut."
   }
 }

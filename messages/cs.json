@@ -6199,7 +6199,8 @@
       "noTranslationBody": "Inzerát je napsaný v jazyce {source}. Verzi v tomto jazyce napíše AI; původní text zůstane beze změny.",
       "generateTranslation": "Vytvořit překlad",
       "generatingTranslation": "Překládám…",
-      "translateFailed": "Inzerát se nepodařilo přeložit. Zkuste to znovu."
+      "translateFailed": "Inzerát se nepodařilo přeložit. Zkuste to znovu.",
+      "tabRun": "Běh"
     },
     "coach": {
       "loadFailed": "Tuto pozici se nepodařilo ohodnotit.",
@@ -18418,5 +18419,58 @@
       "hasData": "Tento pracovní prostor už obsahuje data, ukázková data proto nebyla přidána.",
       "failed": "Nepodařilo se to. Zkuste to prosím znovu."
     }
+  },
+  "roleRun": {
+    "heading": "Běh role",
+    "intro": "Běh provede tuto roli od inzerátu až po návrh nabídky. Zastaví se u tří lidských bran; dokud se nerozhodnete, nikdo není zamítnut, pozván ani osloven nabídkou.",
+    "noRun": "Pro tuto roli ještě nebyl spuštěn žádný běh.",
+    "start": "Spustit běh",
+    "starting": "Spouštím…",
+    "reload": "Načíst znovu",
+    "cycle": "Cyklus {cycle}",
+    "status": {
+      "running": "Běží",
+      "complete": "Dokončen",
+      "cancelled": "Zrušen"
+    },
+    "noStages": "Běh zatím nic nevytvořil.",
+    "noGates": "Na vás teď nic nečeká.",
+    "advance": "Pokračovat v běhu",
+    "advancing": "Pokračuji…",
+    "stagesHeading": "Dosavadní fáze",
+    "stage": {
+      "role_spec": "Zadání role",
+      "slate": "Užší seznam",
+      "screen": "Screening",
+      "case_assignment": "Případová úloha",
+      "interview": "Pohovor",
+      "scorecard": "Hodnotící karta",
+      "offer_draft": "Návrh nabídky"
+    },
+    "gate": {
+      "rejection": {
+        "title": "Brána zamítnutí",
+        "hint": "Screening navrhuje, kdo dál nepostoupí. Schválení tyto návrhy zaznamená; zamítnutí nechá kandidáty v běhu."
+      },
+      "interview_invite": {
+        "title": "Brána pozvání na pohovor",
+        "hint": "Běh připravil pozvánky na pohovor. Schválení zaznamená rozhodnutí; odsud se žádná pozvánka neodesílá."
+      },
+      "offer": {
+        "title": "Brána nabídky",
+        "hint": "Běh připravil podmínky nabídky. Schválení zaznamená rozhodnutí; odsud se žádná nabídka nevytváří."
+      }
+    },
+    "candidates": "{count, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+    "policy": "Pravidla {policy}",
+    "subjects": "{count, plural, one {# rozhodnutí} few {# rozhodnutí} many {# rozhodnutí} other {# rozhodnutí}}",
+    "previewHeading": "Kandidáti v této dávce",
+    "review": "Zkontrolovat dávku",
+    "previewing": "Načítám…",
+    "approve": "Schválit dávku",
+    "committing": "Zaznamenávám…",
+    "decline": "Zamítnout dávku",
+    "humanStep": "Vaše rozhodnutí se zaznamená pod vaším jménem. Po rozhodnutí běh pokračuje sám.",
+    "failed": "U tohoto běhu se něco pokazilo. Zkuste to prosím znovu."
   }
 }

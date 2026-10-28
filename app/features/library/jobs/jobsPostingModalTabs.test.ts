@@ -9,11 +9,12 @@ import { POSTING_TAB_IDS, isPostingTabId } from "./jobsPostingModalTabs.ts";
 // by useTablist.test.ts; what stays here is the vocabulary itself.
 
 test("the tab vocabulary is a closed literal set with a runtime guard", () => {
-  // Seven since the interview Kit tab joined (spark interview-kit-template).
-  assert.equal(POSTING_TAB_IDS.length, 7);
+  // Seven since the interview Kit tab joined (spark interview-kit-template); eight with the Run tab.
+  assert.equal(POSTING_TAB_IDS.length, 8);
   assert.equal(isPostingTabId("campaign"), false);
   assert.equal(isPostingTabId("agentfit"), true);
   assert.equal(isPostingTabId("kit"), true);
+  assert.equal(isPostingTabId("run"), true);
   assert.equal(isPostingTabId("Posting"), false);
   assert.equal(isPostingTabId("billing"), false);
 });

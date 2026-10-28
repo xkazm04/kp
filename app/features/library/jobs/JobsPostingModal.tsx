@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { BarChart3, Bot, FileText, Gauge, History, ListChecks, Scale } from "lucide-react";
+import { BarChart3, Bot, FileText, Gauge, History, ListChecks, Route, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { JobLifecycleStrip } from "./JobsLifecycleStrip";
@@ -28,6 +28,9 @@ const AgentFitTab = dynamic(() => import("./JobsAgentFitTab").then((m) => ({ def
 });
 // A NAMED gap (LoadingGap: role=status + a sr-only label), not a silent aria-hidden box —
 // the loading-gap ratchet (app/_components/ui/loading-gap-debt.json) binds new chunks.
+const RoleRunPanel = dynamic(() => import("./roleRun/JobsRoleRunPanel").then((m) => ({ default: m.JobsRoleRunPanel })), {
+  loading: () => <LoadingGap className="min-h-[16rem]" />,
+});
 const KitTab = dynamic(() => import("./JobsKitTab").then((m) => ({ default: m.JobsKitTab })), {
   loading: () => <LoadingGap className="min-h-[16rem]" />,
 });
@@ -37,7 +40,7 @@ const KitTab = dynamic(() => import("./JobsKitTab").then((m) => ({ default: m.Jo
 // id there is a type error here until the strip learns to render it.
 const TAB_META: Record<
   PostingTabId,
-  { labelKey: "tabPosting" | "tabCoach" | "tabCandidates" | "tabRediscover" | "tabKit" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }
+  { labelKey: "tabPosting" | "tabCoach" | "tabCandidates" | "tabRediscover" | "tabKit" | "tabCompare" | "tabAgentFit" | "tabRun"; Icon: typeof FileText }
 > = {
   posting: { labelKey: "tabPosting", Icon: FileText },
   coach: { labelKey: "tabCoach", Icon: Gauge },
@@ -46,6 +49,7 @@ const TAB_META: Record<
   kit: { labelKey: "tabKit", Icon: ListChecks },
   compare: { labelKey: "tabCompare", Icon: Scale },
   agentfit: { labelKey: "tabAgentFit", Icon: Bot },
+  run: { labelKey: "tabRun", Icon: Route },
 };
 
 // Clicking a job opens this: a publish-ready posting (Markdown) with a copy
@@ -147,6 +151,8 @@ export function JobPostingModal({
           <RediscoverPanel jobId={job.id} jobTitle={job.title} />
         ) : tab === "agentfit" ? (
           <AgentFitTab jobId={job.id} />
+        ) : tab === "run" ? (
+          <RoleRunPanel jobId={job.id} />
         ) : tab === "kit" ? (
           <KitTab jobId={job.id} />
         ) : (

@@ -6199,7 +6199,8 @@
       "noTranslationBody": "Cette annonce est rédigée en {source}. Une version dans cette langue est rédigée par l'IA ; l'original reste inchangé.",
       "generateTranslation": "Générer la traduction",
       "generatingTranslation": "Traduction en cours…",
-      "translateFailed": "Impossible de traduire cette annonce. Réessayez."
+      "translateFailed": "Impossible de traduire cette annonce. Réessayez.",
+      "tabRun": "Exécution"
     },
     "coach": {
       "loadFailed": "Impossible d'évaluer ce poste.",
@@ -18418,5 +18419,58 @@
       "hasData": "Cet espace de travail contient déjà des données ; la démo n’a donc pas été ajoutée.",
       "failed": "Cela n’a pas fonctionné. Veuillez réessayer."
     }
+  },
+  "roleRun": {
+    "heading": "Exécution du poste",
+    "intro": "L'exécution conduit ce poste de l'annonce au projet d'offre. Elle s'arrête à trois portes humaines ; personne n'est refusé, invité ni ne reçoit d'offre avant que vous ne décidiez.",
+    "noRun": "Aucune exécution n'a encore été lancée pour ce poste.",
+    "start": "Lancer l'exécution",
+    "starting": "Lancement…",
+    "reload": "Recharger",
+    "cycle": "Cycle {cycle}",
+    "status": {
+      "running": "En cours",
+      "complete": "Terminée",
+      "cancelled": "Annulée"
+    },
+    "noStages": "L'exécution n'a encore rien produit.",
+    "noGates": "Rien n'attend votre décision pour l'instant.",
+    "advance": "Poursuivre l'exécution",
+    "advancing": "Poursuite…",
+    "stagesHeading": "Étapes réalisées",
+    "stage": {
+      "role_spec": "Fiche de poste",
+      "slate": "Présélection",
+      "screen": "Évaluation",
+      "case_assignment": "Cas pratique",
+      "interview": "Entretien",
+      "scorecard": "Grille d'évaluation",
+      "offer_draft": "Projet d'offre"
+    },
+    "gate": {
+      "rejection": {
+        "title": "Porte de refus",
+        "hint": "L'évaluation propose qui n'avance pas. Approuver enregistre ces propositions ; refuser garde les candidats dans l'exécution."
+      },
+      "interview_invite": {
+        "title": "Porte d'invitation",
+        "hint": "L'exécution a préparé des invitations à l'entretien. Approuver enregistre la décision ; aucune invitation n'est envoyée d'ici."
+      },
+      "offer": {
+        "title": "Porte d'offre",
+        "hint": "L'exécution a préparé les conditions d'une offre. Approuver enregistre la décision ; aucune offre n'est créée d'ici."
+      }
+    },
+    "candidates": "{count, plural, one {# candidat} other {# candidats}}",
+    "policy": "Politique {policy}",
+    "subjects": "{count, plural, one {# décision} other {# décisions}}",
+    "previewHeading": "Candidats de ce lot",
+    "review": "Examiner le lot",
+    "previewing": "Chargement…",
+    "approve": "Approuver le lot",
+    "committing": "Enregistrement…",
+    "decline": "Refuser le lot",
+    "humanStep": "Votre décision est enregistrée sous votre nom. Une fois que vous avez décidé, l'exécution se poursuit seule.",
+    "failed": "Un problème est survenu avec cette exécution. Veuillez réessayer."
   }
 }

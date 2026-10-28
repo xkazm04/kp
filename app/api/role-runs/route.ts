@@ -5,7 +5,7 @@ import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { getOrCreateRoleRun } from "@/app/_lib/db/role-runs";
+import { getOrCreateRoleRun, listRoleRuns } from "@/app/_lib/db/role-runs";
 import { advanceRoleRunLive } from "@/app/_lib/role-run-live";
 
 // POST /api/role-runs - ADR-0011. Start (or resume) the role run for one job and take the
@@ -41,5 +41,21 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     return NextResponse.json({ created, ...live.result }, { status: created ? 201 : 200 });
   } catch (error) {
     return safeJsonError(error, "api:role-runs", "ROLE_RUN_ADVANCE_FAILED");
+  }
+});
+
+// GET /api/role-runs?jobId= - the runs of one role, newest first, as ids and states only. How the
+// job page finds the run it would otherwise have to START (a POST takes a live pass) just to
+// learn its id. Read-only, no limiter, operator-gated; codes and refs only.
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  try {
+    const jobId = request.nextUrl.searchParams.get("jobId")?.trim() ?? "";
+    if (!jobId) return jsonRefusal("ROLE_RUN_START_INVALID", 400);
+    const runs = listRoleRuns({ jobId }, ws).map((r) => ({ id: r.id, jobId: r.jobId, cycle: r.cycle, status: r.status, createdAt: r.createdAt }));
+    return NextResponse.json({ runs });
+  } catch (error) {
+    return safeJsonError(error, "api:role-runs/list", "ROLE_RUN_GATE_FAILED");
   }
 });

@@ -6199,7 +6199,8 @@
       "noTranslationBody": "This posting is written in {source}. A version in this language is written by the AI; the original is left unchanged.",
       "generateTranslation": "Generate translation",
       "generatingTranslation": "Translating…",
-      "translateFailed": "Couldn't translate this posting. Try again."
+      "translateFailed": "Couldn't translate this posting. Try again.",
+      "tabRun": "Run"
     },
     "coach": {
       "loadFailed": "Couldn't grade this role.",
@@ -18418,5 +18419,58 @@
       "hasData": "This workspace already holds data, so the demo was not added on top of it.",
       "failed": "That did not work. Please try again."
     }
+  },
+  "roleRun": {
+    "heading": "Role run",
+    "intro": "The run takes this role from posting to offer draft. It stops at three human gates; nothing is rejected, invited or offered until you decide.",
+    "noRun": "No run has been started for this role.",
+    "start": "Start run",
+    "starting": "Starting…",
+    "reload": "Reload",
+    "cycle": "Cycle {cycle}",
+    "status": {
+      "running": "Running",
+      "complete": "Complete",
+      "cancelled": "Cancelled"
+    },
+    "noStages": "The run has produced nothing yet.",
+    "noGates": "Nothing is waiting on you right now.",
+    "advance": "Continue run",
+    "advancing": "Continuing…",
+    "stagesHeading": "Stages so far",
+    "stage": {
+      "role_spec": "Role spec",
+      "slate": "Slate",
+      "screen": "Screening",
+      "case_assignment": "Case",
+      "interview": "Interview",
+      "scorecard": "Scorecard",
+      "offer_draft": "Offer draft"
+    },
+    "gate": {
+      "rejection": {
+        "title": "Rejection gate",
+        "hint": "Screening proposes who does not go on. Approving records those proposals; declining keeps the candidates in the run."
+      },
+      "interview_invite": {
+        "title": "Interview invite gate",
+        "hint": "The run drafted interview invites. Approving records the decision; no invite is sent from here."
+      },
+      "offer": {
+        "title": "Offer gate",
+        "hint": "The run drafted offer terms. Approving records the decision; no offer is created from here."
+      }
+    },
+    "candidates": "{count, plural, one {# candidate} other {# candidates}}",
+    "policy": "Policy {policy}",
+    "subjects": "{count, plural, one {# decision} other {# decisions}}",
+    "previewHeading": "Candidates in this batch",
+    "review": "Review batch",
+    "previewing": "Loading…",
+    "approve": "Approve batch",
+    "committing": "Recording…",
+    "decline": "Decline batch",
+    "humanStep": "Your decision is recorded under your name. The run continues on its own once you decide.",
+    "failed": "Something went wrong with this run. Please try again."
   }
 }

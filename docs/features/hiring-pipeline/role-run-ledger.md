@@ -232,3 +232,24 @@ pass, so an approved or declined gate no longer waits for someone to re-trigger.
 `continued` (`advanced`, `busy`, `not_found` or `failed`) and `awaiting`. A refused commit still
 refuses with the same code and takes no pass; a pass that fails after a commit leaves the commit
 standing. The commit still mints nothing on the board: no invite, no offer.
+
+## A recruiter can reach the run
+
+**Reads.** `GET /api/role-runs/[id]` (operator-gated, read-only, no limiter, no pass taken) returns
+`{ run, stages, gates }`: the run's id, job, cycle and status; every stage artifact as kind, branch ref,
+`seq`, status and time; and `gates`, one **batch per gate** that has branches parked on a human
+(`gate`, `stage`, `policyVersion`, `branchRefs`). Codes and refs only: no payload, no candidate name,
+no prose (the projection is `app/api/role-runs/[id]/view.ts`). A missing run and another team's run are
+the same `404 ROLE_RUN_NOT_FOUND`. `GET /api/role-runs?jobId=` lists one role's runs (id, cycle, status)
+so the job page can find a run without starting one.
+
+**The panel.** The job modal's **Run** tab (`app/features/library/jobs/roleRun/JobsRoleRunPanel.tsx`,
+wire half in `roleRunPanelClient.ts`) starts the run (the existing `POST /api/role-runs`), shows its status
+and stage counts, and for each parked gate lets the recruiter **Review** the batch (one read-only
+`gate/preview` per branch) and then **Approve** or **Decline** it (preview then `gate/commit` per branch).
+The commit already continues the run, so the panel only re-reads afterwards: no second click. **Continue
+run** is offered only when nothing is parked (resume after the LLM budget was raised). A refusal is shown
+as its registered code through `errors.<CODE>`; without a named approver that is
+`SCREEN_WAVE_APPROVAL_UNATTRIBUTED`, the batch stops and the gate stays parked. The approval stays a human
+step: the approver is server-bound, nothing in the panel names one. Test:
+`roleRunPanelClient.test.ts` walks a run on `job-001` through all three gates against the real routes.
