@@ -113,6 +113,13 @@
       ]
     },
     {
+      "doc": "docs/features/connect/README.md",
+      "sourceGlobs": [
+        "app/_lib/connect/**",
+        "app/api/connect/**"
+      ]
+    },
+    {
       "doc": "docs/features/comms/outbound-export.md",
       "sourceGlobs": [
         "app/_lib/comms-envelope.ts",

@@ -10,6 +10,7 @@ The hub UI that mounts it is a later change (comms channels scope C5); nothing u
 | id | what | egress class | saved by |
 | --- | --- | --- | --- |
 | `comms_relay` | outbound delivery relay | `candidate_message` | `/api/comms/relay` (or `COMMS_WEBHOOK_URL`) |
+| `smtp` | the stored SMTP mailbox (host, port, address; password write-only) | `candidate_message` | `/api/comms/smtp` |
 | `ats_webhook` | outbound ATS mirror webhook | `candidate_record` | `/api/ats/config` |
 | `calendar` | Google Calendar free/busy (per workspace) | `schedule_read` | the OAuth landing |
 | `ats_inbound:<provider>` | inbound ATS connection (`recruitee`, `recruitis`, `teamio`) | `credentialed_read` | `/api/ats/connections` |
@@ -47,6 +48,9 @@ and never throws. Every probe checks the seal first, so a sealed process makes *
 
 - `probeRelay()` / `probeAtsWebhook()` — the signed test pings that `POST /api/comms/relay/test`
   and `POST /api/ats/test` used to hold inline; those routes now call them and keep their responses.
+- `probeSmtp()` — the stored sender's own test letter (`sendSmtpTestLetter`, `app/_lib/comms-smtp-probe.ts`):
+  one real message from the mailbox to itself through the delivery boundary. Seal-first, so a sealed
+  process opens no socket; an undecryptable password reads `failing` without a probe.
 - `probeAtsInbound(provider)` — an authenticated, read-only `GET` of the connection's base URL.
   SSRF-vetted (https, public host, resolved), redirects are not followed, the body is dropped.
 - `probeCalendar(ws)` — a 1-hour free/busy read through the existing calendar edge. `null`

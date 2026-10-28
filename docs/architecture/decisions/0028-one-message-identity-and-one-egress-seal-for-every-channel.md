@@ -18,14 +18,15 @@ sources:
   - app/_lib/db/outreach-letters.ts
   - app/_lib/outreach-release.ts
   - app/_lib/automation-run.ts
+  - app/_lib/connect/catalog.ts
   - app/api/outreach-letters/[id]/route.ts
 ---
 
 **Status: accepted, partially implemented.** Landed on main: the egress seal (C3,
 `d588df42a`), the message identity (C1, `c578b7704` and its follow-ups) and the
 server half of the human release (C2a, `d0c1d1345`..`9987b30f3`) and the per-candidate
-release card (C2b, first half, `02840920d`) and the bulk dry-run sheet (C2b, second half, `74b8e2beb`). **Decided, not built:**
-C4, C5, C6, S2, S3, L1 and L2 in the
+release card (C2b, first half, `a5d958fce`), the bulk dry-run sheet (C2b, second half, `74b8e2beb`) and the connector catalog with one health contract (C4, `89edcf23a`, hardening `f6118467a`). **Decided, not built:**
+C5, C6, S2, S3, L1 and L2 in the
 build order below.
 
 ## Context
@@ -140,7 +141,5 @@ S1 (a Slack and Teams desk for the hiring team) was excluded by the operator on 
 - Receipt matching is exact for rows that carry a `message_id`; older rows stay heuristic.
 - A new door that contacts a candidate for the first time must write a held letter and
   not call `sendComm`; one that does reopens what C2a closed.
-- Until the bulk dry-run sheet lands, batch outreach has no bulk release: each letter is
-  released one by one from its drawer; update this state as each step ships.
 - Reopen if: a local install gains a public callback URL and a way to name a kp user
   keylessly, which removes the reason chat approval lost.
