@@ -37,9 +37,9 @@ export const GET = withWorkspace(async (ws: string, request: Request, { params }
   try {
     const { id } = await params;
     const letter = outreachLetterById(id, ws);
-    if (!letter) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+    if (!letter) return jsonRefusal("OUTREACH_LETTER_NOT_FOUND", 404);
     const entry = getPipelineEntry(letter.entryId, ws);
-    if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+    if (!entry) return jsonRefusal("OUTREACH_LETTER_NOT_FOUND", 404);
     return NextResponse.json(await outreachLetterView(letter, entry, ws, new URL(request.url).origin));
   } catch (error) {
     return safeJsonError(error, "api:outreach-letters", "OUTREACH_FAILED");
@@ -52,8 +52,8 @@ export const GET = withWorkspace(async (ws: string, request: Request, { params }
 //   body { revision: number, subject: string, body: string }   the revision the editor read
 //   200 { letter, preview }    the SAME shape as GET: the stored text at its NEW revision
 //                              and the letter a release would send
-//   404 PIPELINE_ENTRY_NOT_FOUND       not in this team
-//   409 PIPELINE_MOVE_CONFLICT + { state, revision }   stale revision, or no longer drafted
+//   404 OUTREACH_LETTER_NOT_FOUND       not in this team
+//   409 OUTREACH_LETTER_CONFLICT + { state, revision }   stale revision, or no longer drafted
 //                                      (approved / released / erased), or no revision named
 //   413 PAYLOAD_TOO_LARGE · 422 FEEDBACK_LETTER_TEXT_EMPTY
 //   422 OUTREACH_BODY_TOO_LONG         the body, or the subject (over OUTREACH_SUBJECT_MAX_LENGTH)
@@ -76,12 +76,12 @@ export const PATCH = withWorkspace(async (ws: string, request: NextRequest, { pa
     const input = await readJsonWithLimit<{ revision?: unknown; subject?: unknown; body?: unknown }>(request, MAX_EDIT_BODY_BYTES, {});
     if (input === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_EDIT_BODY_BYTES });
     const letter = outreachLetterById(id, ws);
-    if (!letter) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+    if (!letter) return jsonRefusal("OUTREACH_LETTER_NOT_FOUND", 404);
     const entry = getPipelineEntry(letter.entryId, ws);
-    if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+    if (!entry) return jsonRefusal("OUTREACH_LETTER_NOT_FOUND", 404);
     const { revision } = input;
     if (typeof revision !== "number" || !Number.isInteger(revision) || revision < 1) {
-      return jsonRefusal("PIPELINE_MOVE_CONFLICT", 409, { state: letter.state, revision: letter.revision });
+      return jsonRefusal("OUTREACH_LETTER_CONFLICT", 409, { state: letter.state, revision: letter.revision });
     }
     if (typeof input.subject !== "string" || typeof input.body !== "string") {
       return jsonRefusal("FEEDBACK_LETTER_TEXT_EMPTY", 422);
@@ -94,7 +94,7 @@ export const PATCH = withWorkspace(async (ws: string, request: NextRequest, { pa
     const edited = outreachLetterEdit(id, { revision, subject, body }, ws);
     if (!edited) {
       const now = outreachLetterById(id, ws);
-      return jsonRefusal("PIPELINE_MOVE_CONFLICT", 409, { state: now?.state ?? null, revision: now?.revision ?? null });
+      return jsonRefusal("OUTREACH_LETTER_CONFLICT", 409, { state: now?.state ?? null, revision: now?.revision ?? null });
     }
     return jsonOk(await outreachLetterView(edited.letter, entry, ws, new URL(request.url).origin));
   } catch (error) {

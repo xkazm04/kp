@@ -14,8 +14,8 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //       delivery: "sent" (a relay took it) · "queued" (keyless: the local outbox is the
 //       destination) · "failed" (the relay dead-lettered it; state delivery_failed, and a
 //       retry re-sends the same message id)
-//   404 PIPELINE_ENTRY_NOT_FOUND       not in this team, or the application is gone
-//   409 PIPELINE_MOVE_CONFLICT + { state }   not approved, already released, or erased
+//   404 OUTREACH_LETTER_NOT_FOUND       not in this team, or the application is gone
+//   409 OUTREACH_LETTER_CONFLICT + { state }   not approved, already released, or erased
 //   409 COMMS_SUPPRESSED + { suppressed }    consent, erasure or a halted sequence
 //   422 OUTREACH_BODY_TOO_LONG · 429 TOO_MANY_REQUESTS · 500 OUTREACH_FAILED
 //   401 / 403 FORBIDDEN_CAPABILITY
@@ -38,7 +38,14 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
   try {
     const { id } = await context.params;
     const out = await releaseOutreachLetter(id, ws, await humanActor());
-    if (!out.ok) return jsonRefusal(out.code, out.status, out.extra);
+    if (!out.ok) {
+      // releaseOutreachLetter speaks the pipeline vocabulary; this door answers in the letter's own.
+      const code =
+        out.code === "PIPELINE_ENTRY_NOT_FOUND" ? "OUTREACH_LETTER_NOT_FOUND"
+        : out.code === "PIPELINE_MOVE_CONFLICT" ? "OUTREACH_LETTER_CONFLICT"
+        : out.code;
+      return jsonRefusal(code, out.status, out.extra);
+    }
     return jsonOk({
       ok: true,
       letter: {

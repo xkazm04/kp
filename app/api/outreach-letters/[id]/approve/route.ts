@@ -13,8 +13,8 @@ import { outreachLetterApprove, outreachLetterById } from "@/app/_lib/db/outreac
 //
 //   body { revision: number }   the revision the reviewer read (GET ../ returns it)
 //   200 { ok: true, letter: { id, state: "approved", revision, approvedBy, approvedAt } }
-//   404 PIPELINE_ENTRY_NOT_FOUND       not in this team
-//   409 PIPELINE_MOVE_CONFLICT + { state, revision }   the letter was redrafted since it
+//   404 OUTREACH_LETTER_NOT_FOUND       not in this team
+//   409 OUTREACH_LETTER_CONFLICT + { state, revision }   the letter was redrafted since it
 //                                      was read (a stale revision), already approved, or
 //                                      erased — or the body named no revision at all, which
 //                                      is the same answer: reload, read, approve what you read
@@ -38,10 +38,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
     const body = await readJsonWithLimit<{ revision?: unknown }>(request, MAX_APPROVE_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_APPROVE_BODY_BYTES });
     const letter = outreachLetterById(id, ws);
-    if (!letter) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+    if (!letter) return jsonRefusal("OUTREACH_LETTER_NOT_FOUND", 404);
     const revision = body.revision;
     if (typeof revision !== "number" || !Number.isInteger(revision) || revision < 1) {
-      return jsonRefusal("PIPELINE_MOVE_CONFLICT", 409, { state: letter.state, revision: letter.revision });
+      return jsonRefusal("OUTREACH_LETTER_CONFLICT", 409, { state: letter.state, revision: letter.revision });
     }
 
     // Resolved BEFORE the write: the CAS is one synchronous statement, and nothing is
@@ -50,7 +50,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
     const approved = outreachLetterApprove(id, { revision, approvedBy }, ws);
     if (!approved) {
       const now = outreachLetterById(id, ws);
-      return jsonRefusal("PIPELINE_MOVE_CONFLICT", 409, { state: now?.state ?? null, revision: now?.revision ?? null });
+      return jsonRefusal("OUTREACH_LETTER_CONFLICT", 409, { state: now?.state ?? null, revision: now?.revision ?? null });
     }
     return jsonOk({
       ok: true,

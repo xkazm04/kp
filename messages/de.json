@@ -1711,6 +1711,8 @@
     "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
     "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
+    "OUTREACH_LETTER_NOT_FOUND": "Dieser Brief ist nicht mehr verfügbar.",
+    "OUTREACH_LETTER_CONFLICT": "Dieser Brief wurde gerade geändert oder bereits bearbeitet. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
     "OUTREACH_BODY_TOO_LONG": "Dieser Brief ist zu lang zum Versenden. Kürzen Sie ihn und versuchen Sie es erneut.",
     "TTS_UNAVAILABLE": "Sprachausgabe ist auf diesem Server nicht eingerichtet, daher kann nichts sprechen.",
     "STT_UNAVAILABLE": "Transkription ist auf diesem Server nicht eingerichtet.",

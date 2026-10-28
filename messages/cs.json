@@ -1711,6 +1711,8 @@
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
     "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
     "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
+    "OUTREACH_LETTER_NOT_FOUND": "Tento dopis už není k dispozici.",
+    "OUTREACH_LETTER_CONFLICT": "Tento dopis byl právě změněn nebo už byl vyřízen. Obnovte stránku a zkuste to znovu.",
     "OUTREACH_BODY_TOO_LONG": "Tento dopis je příliš dlouhý k odeslání. Zkraťte ho a zkuste to znovu.",
     "TTS_UNAVAILABLE": "Hlas není na tomto serveru nastaven, takže nic nemůže mluvit.",
     "STT_UNAVAILABLE": "Přepis není na tomto serveru nastaven.",

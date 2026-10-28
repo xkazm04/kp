@@ -79,7 +79,9 @@ test("GET returns the draft, its revision, and the letter with its footers — w
 
 test("a letter from another workspace is invisible to every door", async () => {
   const { letter } = draftedLetter("team-olr-beta");
-  assert.equal((await GET(req(`/api/outreach-letters/${letter.id}`), ctx(letter.id))).status, 404);
+  const seen = await GET(req(`/api/outreach-letters/${letter.id}`), ctx(letter.id));
+  assert.equal(seen.status, 404);
+  assert.equal(((await seen.json()) as { code: string }).code, "OUTREACH_LETTER_NOT_FOUND");
   assert.equal((await APPROVE(req(`/api/outreach-letters/${letter.id}/approve`, { revision: 1 }), ctx(letter.id))).status, 404);
   assert.equal((await RELEASE(req(`/api/outreach-letters/${letter.id}/release`, {}), ctx(letter.id))).status, 404);
 });
@@ -90,8 +92,8 @@ test("approving a stale revision answers 409 and approves nothing; the current o
   const stale = await APPROVE(req(`/api/outreach-letters/${letter.id}/approve`, { revision: 1 }), ctx(letter.id));
   assert.equal(stale.status, 409);
   assert.deepEqual(await stale.json(), {
-    error: (await import("../../_lib/api-response.ts")).REFUSAL_ERRORS.PIPELINE_MOVE_CONFLICT,
-    code: "PIPELINE_MOVE_CONFLICT",
+    error: (await import("../../_lib/api-response.ts")).REFUSAL_ERRORS.OUTREACH_LETTER_CONFLICT,
+    code: "OUTREACH_LETTER_CONFLICT",
     state: "drafted",
     revision: 2,
   });

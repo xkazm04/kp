@@ -1711,6 +1711,8 @@
     "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
     "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
     "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
+    "OUTREACH_LETTER_NOT_FOUND": "That letter is no longer available.",
+    "OUTREACH_LETTER_CONFLICT": "This letter was just changed or has already been handled. Refresh and try again.",
     "OUTREACH_BODY_TOO_LONG": "This letter is too long to send. Shorten it and try again.",
     "TTS_UNAVAILABLE": "Voice is not configured on this server, so nothing can speak.",
     "STT_UNAVAILABLE": "Transcription is not configured on this server.",
