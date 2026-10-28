@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Button, Note, Segmented, Tag, inputClass } from "@/app/_components/kit";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { SetupField, SetupResult } from "./SetupBits";
+import { SetupField, SetupLinkBase, SetupResult } from "./SetupBits";
 import { SetupSecretField } from "./SetupSecretField";
 import { useSmtpSetup } from "./useSmtpSetup";
 import {
@@ -46,6 +46,8 @@ export function SetupSmtp() {
       ) : status ? (
         <p className="cns-help">{t(`status.${status}`)}</p>
       ) : null}
+      {/* the relay's own note covers the relay-active case, so this one speaks only when the mailbox is what sends */}
+      <SetupLinkBase senderOn={s.state?.active === "smtp"} problem={s.state?.linkBase ?? null} />
       <form
         className="cns-form cns-panel"
         onSubmit={(e) => {

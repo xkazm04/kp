@@ -17331,6 +17331,10 @@
         "suppressed": "{count, plural, one {# adresa, kterou} few {# adresy, které} many {# adresy, které} other {# adres, které}} server trvale odmítl",
         "suppressedHelp": "Na tyto adresy se dopisy neodesílají. Jakmile adresu opravíte, odeberte ji.",
         "unsuppress": "Odebrat"
+      },
+      "linkBase": {
+        "title": "Odkazy pro kandidáty vedou na tento počítač",
+        "body": "Dopisy odejít mohou, ale odkazy v nich vedou na adresu, kterou kandidát neotevře (tento počítač nebo zástupnou adresu). Spusťte „npm run up -- --public“ pro dočasnou veřejnou adresu, nebo nastavte APP_BASE_URL na svou veřejnou adresu."
       }
     }
   },

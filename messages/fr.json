@@ -17331,6 +17331,10 @@
         "suppressed": "{count, plural, one {# adresse refusée} other {# adresses refusées}} définitivement par le serveur",
         "suppressedHelp": "Aucune lettre n’est envoyée à ces adresses. Retirez-en une dès que l’adresse est corrigée.",
         "unsuppress": "Retirer"
+      },
+      "linkBase": {
+        "title": "Les liens candidats pointent vers cet ordinateur",
+        "body": "Les lettres peuvent partir, mais les liens qu’elles contiennent mènent à une adresse qu’un candidat ne peut pas ouvrir (cet ordinateur ou une adresse fictive). Lancez « npm run up -- --public » pour une adresse publique temporaire, ou définissez APP_BASE_URL sur votre adresse publique."
       }
     }
   },

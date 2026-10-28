@@ -17331,6 +17331,10 @@
         "suppressed": "{count, plural, one {# address} other {# addresses}} the server refused for good",
         "suppressedHelp": "Letters to these addresses are not sent. Remove one once the address is fixed.",
         "unsuppress": "Remove"
+      },
+      "linkBase": {
+        "title": "Candidate links point to this computer",
+        "body": "Letters can leave, but the links in them point to an address a candidate cannot open (this computer or a placeholder). Run \"npm run up -- --public\" for a temporary public address, or set APP_BASE_URL to your public address."
       }
     }
   },

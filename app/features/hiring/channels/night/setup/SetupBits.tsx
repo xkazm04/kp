@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { Mark } from "@/app/_components/kit";
+import { useTranslations } from "next-intl";
+import { Mark, Note } from "@/app/_components/kit";
+import { showLinkBaseWarning, type LinkBaseProblem } from "../channelsNightReads";
 import { ConditionMark, type Condition } from "@/app/_components/kit/scene";
 
 /**
@@ -26,6 +28,19 @@ export function SetupStatus({ condition, title, fact, loud = false, extra }: {
       {fact ? <p className="cns-status__fact">{fact}</p> : null}
       {extra ? <div className="cns-status__extra">{extra}</div> : null}
     </div>
+  );
+}
+
+/** The "candidate links cannot work" warning on a sender: shown only when a letter can leave AND
+ *  the link origin is this computer or a placeholder. A judgment of the configured origin, nothing
+ *  is probed or sent. Names both fixes. */
+export function SetupLinkBase({ senderOn, problem }: { senderOn: boolean; problem: LinkBaseProblem | null }) {
+  const t = useTranslations("channelsNight.setup.linkBase");
+  if (!showLinkBaseWarning(senderOn, problem)) return null;
+  return (
+    <Note tone="caution">
+      <b>{t("title")}</b> {t("body")}
+    </Note>
   );
 }
 

@@ -7,7 +7,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import type { VerdictCounts } from "../channelsNightPlumbing";
 import { relayDirty, relayTestGate, canSaveRelay, type RelayTest } from "./setupDelivery";
-import { SetupField, SetupResult } from "./SetupBits";
+import { SetupField, SetupLinkBase, SetupResult } from "./SetupBits";
 import { SetupRelayEvidence } from "./SetupRelayEvidence";
 import { SetupSecretField } from "./SetupSecretField";
 import { useRelaySetup } from "./useRelaySetup";
@@ -52,6 +52,7 @@ export function SetupRelay({ counts, onTested, onOpenLedger }: {
         <Button label={t("elsewhereCta")} variant="link" icon="right" onClick={() => router.push(buildTabSwitchUrl("integrations", search.toString()))} />
       </div>
       {unreadable ? <Note tone="critical">{t("unreadableNote")}</Note> : null}
+      <SetupLinkBase senderOn={configured === true && !unreadable} problem={r.state?.linkBase ?? null} />
       {r.state?.envConfigured ? (
         <Note tone="caution">{t("envNote")}</Note>
       ) : (

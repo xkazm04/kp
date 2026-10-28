@@ -17331,6 +17331,10 @@
         "suppressed": "{count, plural, one {# Adresse} other {# Adressen}}, die der Server dauerhaft abgelehnt hat",
         "suppressedHelp": "An diese Adressen werden keine Briefe versendet. Entfernen Sie eine, sobald die Adresse korrigiert ist.",
         "unsuppress": "Entfernen"
+      },
+      "linkBase": {
+        "title": "Bewerber-Links zeigen auf diesen Computer",
+        "body": "Briefe können versendet werden, doch die Links darin führen zu einer Adresse, die ein Bewerber nicht öffnen kann (dieser Computer oder ein Platzhalter). Starten Sie „npm run up -- --public“ für eine vorübergehende öffentliche Adresse oder setzen Sie APP_BASE_URL auf Ihre öffentliche Adresse."
       }
     }
   },
