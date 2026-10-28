@@ -46,6 +46,15 @@ export function linkBaseWarning(base: string | null | undefined): string | null 
   );
 }
 
+/** What the studio shows the owner: the origin candidate links are built on and why it
+ *  cannot work, through the SAME resolution the sender uses. Pure: nothing is probed. */
+export type LinkBaseStatus = { problem: "loopback" | "placeholder" | null; base: string };
+
+export function linkBaseStatus(runtimeOrigin?: string | null): LinkBaseStatus {
+  const base = publicBaseUrl(runtimeOrigin);
+  return { problem: linkBaseProblem(base), base };
+}
+
 let warned = false;
 
 /** Test seam: the once-per-process latch. */

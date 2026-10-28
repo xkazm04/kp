@@ -7,6 +7,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { relayHealth } from "@/app/_lib/comms-relay";
+import { linkBaseStatus } from "@/app/_lib/link-base-warning";
 import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The outbound comms relay config (RelayConfigCard on the Channels tab) — the
@@ -26,7 +27,7 @@ import { withSession } from "@/app/_lib/auth/workspace-context";
 // one candidate host at a time. 30/10min is far above an operator editing a form.
 const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export const GET = withSession(async () => {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // `relay` is the resolver's own word for what actually delivers (comms-relay.ts).
@@ -37,6 +38,8 @@ export const GET = withSession(async () => {
     config: getRelayConfig(),
     envConfigured: Boolean(process.env.COMMS_WEBHOOK_URL),
     relay: relayHealth(),
+    // Only the verdict, never the origin: the page needs the word, not the address.
+    linkBase: { problem: linkBaseStatus(new URL(request.url).origin).problem },
   });
 });
 

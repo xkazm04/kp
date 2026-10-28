@@ -15,7 +15,21 @@ import type { EdgeErrorKind } from "@/app/_lib/edge-config.ts";
 /** The server's health word (comms-relay.ts RelayHealth). `unreadable` = an endpoint IS
  *  stored but its signing secret does not decrypt, so nothing is delivered. */
 export type RelayHealthWord = "env" | "configured" | "unconfigured" | "unreadable";
-export type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean; version: number; relay: RelayHealthWord };
+export type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean; version: number; relay: RelayHealthWord; linkBase: LinkBaseProblem | null };
+
+/** The server's verdict on the origin candidate links are built on (link-base-warning.ts). Null =
+ *  reachable-looking, or an older server that did not say: never a fabricated warning. */
+export type LinkBaseProblem = "loopback" | "placeholder";
+export function parseLinkBase(body: unknown): LinkBaseProblem | null {
+  const p = (body as { linkBase?: { problem?: unknown } } | null)?.linkBase?.problem;
+  return p === "loopback" || p === "placeholder" ? p : null;
+}
+
+/** Show the link warning only when a letter can actually leave (a relay or SMTP sender is
+ *  configured) AND the link origin cannot serve a candidate. */
+export function showLinkBaseWarning(senderConfigured: boolean, problem: LinkBaseProblem | null): boolean {
+  return senderConfigured && problem !== null;
+}
 
 const HEALTH_WORDS: readonly string[] = ["env", "configured", "unconfigured", "unreadable"];
 function isHealthWord(v: unknown): v is RelayHealthWord {
@@ -32,6 +46,7 @@ export function parseRelayBody(body: unknown): RelayState | null {
     hasSecret: Boolean(d.config.hasSecret),
     envConfigured: Boolean(d.envConfigured),
     version: d.config.version ?? 0,
+    linkBase: parseLinkBase(body),
     // An older server (or a shape we do not recognise) is not evidence of a fault: fall back
     // to the two states the url alone can justify.
     relay: isHealthWord(d.relay) ? d.relay : url ? "configured" : "unconfigured",

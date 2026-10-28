@@ -1,3 +1,4 @@
+import { parseLinkBase, type LinkBaseProblem } from "../channelsNightReads.ts";
 /*
  * The SMTP sender's setup, as decisions (pure; pinned by smtpSetup.test.ts). The card (SetupSmtp)
  * and its hook only paint what these return:
@@ -37,6 +38,7 @@ export type SmtpState = {
   version: number;
   health: SmtpHealthWord;
   active: SmtpActive;
+  linkBase: LinkBaseProblem | null;
   attempts: SmtpAttemptRow[];
   suppressed: SmtpSuppressedRow[];
 };
@@ -71,6 +73,7 @@ export function parseSmtpBody(body: unknown): SmtpState | null {
     version: c.version ?? 0,
     health: d.smtp === "configured" || d.smtp === "unreadable" ? d.smtp : "unconfigured",
     active: d.active === "relay" || d.active === "smtp" ? d.active : "none",
+    linkBase: parseLinkBase(body),
     attempts,
     suppressed,
   };

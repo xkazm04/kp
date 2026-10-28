@@ -22,11 +22,12 @@ afterEach(() => {
   delete process.env.COMMS_WEBHOOK_URL;
 });
 
+const get = (url = "http://localhost:3000/api/comms/smtp") => new NextRequest(url);
 const post = (body: unknown, url = "http://localhost/api/comms/smtp") =>
   new NextRequest(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body) });
 
 test("GET on a fresh install: nothing configured, nothing active", async () => {
-  const res = await GET();
+  const res = await GET(get());
   assert.equal(res.status, 200);
   const body = (await res.json()) as { smtp: string; active: string; config: { hasPassword: boolean } };
   assert.equal(body.smtp, "unconfigured");
@@ -39,7 +40,7 @@ test("POST saves; GET shows hasPassword and never the password", async () => {
   assert.equal(saved.status, 200);
   const savedText = await saved.text();
   assert.equal(savedText.includes(PASSWORD), false);
-  const res = await GET();
+  const res = await GET(get());
   const text = await res.text();
   assert.equal(text.includes(PASSWORD), false);
   const body = JSON.parse(text) as { smtp: string; active: string; config: { host: string; port: number; security: string; hasPassword: boolean; version: number } };
@@ -50,7 +51,7 @@ test("POST saves; GET shows hasPassword and never the password", async () => {
 
 test("GET says the relay is the active sender when both are set", async () => {
   process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
-  const body = (await (await GET()).json()) as { active: string };
+  const body = (await (await GET(get())).json()) as { active: string };
   assert.equal(body.active, "relay");
 });
 
@@ -86,7 +87,7 @@ test("Send test: the real SMTP outcome with its reply code, to the operator's ow
   setSmtpSendForTests(async () => ({ ok: true, code: 250, text: "2.0.0 OK" }));
   const ok = (await (await TEST(post({}, "http://localhost/api/comms/smtp/test"))).json()) as { ok: boolean; code: number };
   assert.deepEqual([ok.ok, ok.code], [true, 250]);
-  const view = (await (await GET()).json()) as { config: { attempts: Array<{ kind: string; code: number }> } };
+  const view = (await (await GET(get())).json()) as { config: { attempts: Array<{ kind: string; code: number }> } };
   assert.deepEqual(view.config.attempts.slice(0, 2).map((a) => [a.kind, a.code]), [["test", 250], ["test", 535]]);
 });
 
@@ -121,4 +122,21 @@ test("unsuppress from an org that does not own the sender: nothing removed, and 
   const miss = (await (await POST(post({ unsuppress: "nobody@example.cz" }))).json()) as { removed: boolean };
   assert.ok(smtpSuppressionFor("jana@example.cz"), "the owner's list is untouched");
   assert.deepEqual([hit.removed, miss.removed], [false, false], "a listed and an unlisted address answer alike: no membership oracle");
+});
+
+test("GET carries the link-base verdict (and only the verdict): loopback warns, a public APP_BASE_URL clears it", async () => {
+  const saved = { a: process.env.APP_BASE_URL, n: process.env.NEXT_PUBLIC_APP_BASE_URL };
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+  try {
+    const loop = (await (await GET(get())).json()) as { linkBase: { problem: string | null } };
+    assert.deepEqual(loop.linkBase, { problem: "loopback" });
+    process.env.APP_BASE_URL = "https://jobs.acme.com";
+    const text = await (await GET(get())).text();
+    assert.deepEqual((JSON.parse(text) as { linkBase: unknown }).linkBase, { problem: null });
+    assert.equal(text.includes("acme.com"), false);
+  } finally {
+    if (saved.a === undefined) delete process.env.APP_BASE_URL; else process.env.APP_BASE_URL = saved.a;
+    if (saved.n === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL; else process.env.NEXT_PUBLIC_APP_BASE_URL = saved.n;
+  }
 });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { linkBaseProblem, linkBaseWarning, resetLinkBaseWarnForTests, warnLinkBaseOnce } from "./link-base-warning.ts";
+import { linkBaseProblem, linkBaseStatus, linkBaseWarning, resetLinkBaseWarnForTests, warnLinkBaseOnce } from "./link-base-warning.ts";
 
 test("loopback and placeholder bases are flagged, public ones are not", () => {
   assert.equal(linkBaseProblem("http://localhost:3000"), "loopback");
@@ -38,6 +38,23 @@ test("warnLinkBaseOnce logs once per process", () => {
     assert.equal(calls.length, 0);
   } finally {
     console.warn = orig;
+    if (saved.a === undefined) delete process.env.APP_BASE_URL; else process.env.APP_BASE_URL = saved.a;
+    if (saved.n === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL; else process.env.NEXT_PUBLIC_APP_BASE_URL = saved.n;
+  }
+});
+
+test("linkBaseStatus judges the origin the sender would use", () => {
+  const saved = { a: process.env.APP_BASE_URL, n: process.env.NEXT_PUBLIC_APP_BASE_URL };
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+  try {
+    const loop = linkBaseStatus("http://localhost:3000");
+    assert.equal(loop.problem, "loopback");
+    process.env.APP_BASE_URL = "https://jobs.acme.com";
+    const pub = linkBaseStatus("http://localhost:3000");
+    assert.equal(pub.problem, null);
+    assert.equal(pub.base, "https://jobs.acme.com");
+  } finally {
     if (saved.a === undefined) delete process.env.APP_BASE_URL; else process.env.APP_BASE_URL = saved.a;
     if (saved.n === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL; else process.env.NEXT_PUBLIC_APP_BASE_URL = saved.n;
   }

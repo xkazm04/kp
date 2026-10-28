@@ -14,6 +14,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { relayHealth, smtpHealth } from "@/app/_lib/comms-relay";
+import { linkBaseStatus } from "@/app/_lib/link-base-warning";
 import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // T6 — the built-in SMTP sender (the SMTP card on the Channels tab, beside the relay).
@@ -38,7 +39,7 @@ function projectFor(config: CommsSmtpPublic, callerOrg: string): CommsSmtpPublic
   return { ...config, suppressed: [], attempts: [] };
 }
 
-export const GET = withSession(async () => {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const callerOrg = currentOrgId(await currentSession()) ?? DEFAULT_ORG_ID;
@@ -50,6 +51,8 @@ export const GET = withSession(async () => {
     smtp,
     relay,
     active: relayActive ? "relay" : smtp === "configured" ? "smtp" : "none",
+    // Only the verdict, never the origin: the page needs the word, not the address.
+    linkBase: { problem: linkBaseStatus(new URL(request.url).origin).problem },
   });
 });
 
