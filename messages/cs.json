@@ -17036,7 +17036,7 @@
       "queuedStays": "Zaznamenaly se v době, kdy nebylo nastavené žádné relé. Samy se neodešlou: projděte seznam a odeslání potvrďte.",
       "backlog": {
         "title": "{count, plural, one {<em># dopis</em> čekal} few {<em># dopisy</em> čekaly} other {<em># dopisů</em> čekalo}} na odesílatele",
-        "detail": "Zaznamenaly se dřív, než existovalo relé, takže nic neodešlo. Nic se neodešle, dokud nestisknete Odeslat.",
+        "detail": "Zaznamenaly se dřív, než byl nastaven odesílatel, takže nic neodešlo. Nic se neodešle, dokud nestisknete Odeslat.",
         "review": "Projít a odeslat",
         "close": "Zavřít seznam",
         "listLabel": "Dopisy, které čekaly na odesílatele",
@@ -17049,12 +17049,12 @@
         "result": {
           "sent": "{count, plural, one {Odeslán # dopis.} few {Odeslány # dopisy.} other {Odesláno # dopisů.}}",
           "failed": "{count, plural, one {# dopis se nepodařilo doručit; v Poštovní knize je vedený jako neúspěšný.} few {# dopisy se nepodařilo doručit; v Poštovní knize jsou vedené jako neúspěšné.} other {# dopisů se nepodařilo doručit; v Poštovní knize jsou vedené jako neúspěšné.}}",
-          "queued": "{count, plural, one {# dopis se jen znovu zaznamenal, protože už není připravené žádné relé.} few {# dopisy se jen znovu zaznamenaly, protože už není připravené žádné relé.} other {# dopisů se jen znovu zaznamenalo, protože už není připravené žádné relé.}}",
+          "queued": "{count, plural, one {# dopis se jen znovu zaznamenal, protože už není připravený žádný odesílatel.} few {# dopisy se jen znovu zaznamenaly, protože už není připravený žádný odesílatel.} other {# dopisů se jen znovu zaznamenalo, protože už není připravený žádný odesílatel.}}",
           "skipped": "{count, plural, one {# dopis se neodeslal:} few {# dopisy se neodeslaly:} other {# dopisů se neodeslalo:}}",
           "refused": "Nepovedlo se. Co případně odešlo, ukáže Poštovní kniha."
         },
         "skip": {
-          "relay_not_ready": "Není připravené žádné relé, které by doručovalo.",
+          "relay_not_ready": "Není připravený žádný odesílatel, který by doručoval.",
           "too_many": "Přesahuje limit dávky; zbytek odešlete potom.",
           "not_found": "V tomto pracovním prostoru nenalezeno.",
           "not_offered": "Už to není čekající dopis.",

@@ -17036,7 +17036,7 @@
       "queuedStays": "Ils ont été enregistrés alors qu’aucun relais n’était configuré. Rien ne les envoie de lui-même : parcourez la liste et confirmez l’envoi.",
       "backlog": {
         "title": "{count, plural, one {<em># lettre</em> a attendu} other {<em># lettres</em> ont attendu}} un expéditeur",
-        "detail": "Elles ont été enregistrées avant qu’un relais existe, donc rien n’est parti. Rien n’est envoyé tant que vous n’appuyez pas sur Envoyer.",
+        "detail": "Elles ont été enregistrées avant qu’un expéditeur soit configuré, donc rien n’est parti. Rien n’est envoyé tant que vous n’appuyez pas sur Envoyer.",
         "review": "Parcourir et envoyer",
         "close": "Fermer la liste",
         "listLabel": "Lettres qui ont attendu un expéditeur",
@@ -17049,12 +17049,12 @@
         "result": {
           "sent": "{count, plural, one {# lettre a été envoyée.} other {# lettres ont été envoyées.}}",
           "failed": "{count, plural, one {# lettre n’a pas pu être remise ; le registre la compte comme échouée.} other {# lettres n’ont pas pu être remises ; le registre les compte comme échouées.}}",
-          "queued": "{count, plural, one {# lettre a seulement été enregistrée de nouveau, car aucun relais n’est plus prêt.} other {# lettres ont seulement été enregistrées de nouveau, car aucun relais n’est plus prêt.}}",
+          "queued": "{count, plural, one {# lettre a seulement été enregistrée de nouveau, car aucun expéditeur n’est plus prêt.} other {# lettres ont seulement été enregistrées de nouveau, car aucun expéditeur n’est plus prêt.}}",
           "skipped": "{count, plural, one {# lettre n’a pas été envoyée :} other {# lettres n’ont pas été envoyées :}}",
           "refused": "Cela n’a pas abouti. Le registre montre ce qui est éventuellement parti."
         },
         "skip": {
-          "relay_not_ready": "Aucun relais n’est prêt à remettre le courrier.",
+          "relay_not_ready": "Aucun expéditeur n’est prêt à remettre le courrier.",
           "too_many": "Au-delà de la limite par lot ; envoyez le reste ensuite.",
           "not_found": "Introuvable dans cet espace de travail.",
           "not_offered": "Ce n’est plus une lettre en attente.",

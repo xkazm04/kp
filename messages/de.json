@@ -17036,7 +17036,7 @@
       "queuedStays": "Diese Nachrichten wurden erfasst, als kein Relay konfiguriert war. Von selbst sendet sie nichts: Prüfen Sie die Liste und bestätigen Sie das Senden.",
       "backlog": {
         "title": "{count, plural, one {<em># Brief</em> wartete} other {<em># Briefe</em> warteten}} auf einen Absender",
-        "detail": "Sie wurden erfasst, bevor es ein Relay gab, deshalb ist nichts hinausgegangen. Gesendet wird erst, wenn Sie auf Senden drücken.",
+        "detail": "Sie wurden erfasst, bevor ein Absender eingerichtet war, deshalb ist nichts hinausgegangen. Gesendet wird erst, wenn Sie auf Senden drücken.",
         "review": "Prüfen und senden",
         "close": "Liste schließen",
         "listLabel": "Briefe, die auf einen Absender warteten",
@@ -17049,12 +17049,12 @@
         "result": {
           "sent": "{count, plural, one {# Brief wurde gesendet.} other {# Briefe wurden gesendet.}}",
           "failed": "{count, plural, one {# Brief konnte nicht zugestellt werden; das Postbuch führt ihn als fehlgeschlagen.} other {# Briefe konnten nicht zugestellt werden; das Postbuch führt sie als fehlgeschlagen.}}",
-          "queued": "{count, plural, one {# Brief wurde nur erneut erfasst, weil kein Relay mehr bereit ist.} other {# Briefe wurden nur erneut erfasst, weil kein Relay mehr bereit ist.}}",
+          "queued": "{count, plural, one {# Brief wurde nur erneut erfasst, weil kein Absender mehr bereit ist.} other {# Briefe wurden nur erneut erfasst, weil kein Absender mehr bereit ist.}}",
           "skipped": "{count, plural, one {# Brief wurde nicht gesendet:} other {# Briefe wurden nicht gesendet:}}",
           "refused": "Das hat nicht geklappt. Das Postbuch zeigt, was gegebenenfalls hinausgegangen ist."
         },
         "skip": {
-          "relay_not_ready": "Es ist kein Relay zum Zustellen bereit.",
+          "relay_not_ready": "Es ist kein Absender zum Zustellen bereit.",
           "too_many": "Über dem Limit pro Durchgang; senden Sie den Rest danach.",
           "not_found": "In diesem Arbeitsbereich nicht gefunden.",
           "not_offered": "Kein wartender Brief mehr.",

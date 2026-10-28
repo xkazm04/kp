@@ -17036,7 +17036,7 @@
       "queuedStays": "They were recorded while no relay was configured. Nothing sends them on its own: review the list and confirm to send them.",
       "backlog": {
         "title": "{count, plural, one {<em># letter</em> waited} other {<em># letters</em> waited}} for a sender",
-        "detail": "They were recorded before a relay existed, so nothing has gone out. Nothing is sent until you press Send.",
+        "detail": "They were recorded before a sender was set up, so nothing has gone out. Nothing is sent until you press Send.",
         "review": "Review and send",
         "close": "Close the list",
         "listLabel": "Letters that waited for a sender",
@@ -17049,12 +17049,12 @@
         "result": {
           "sent": "{count, plural, one {# letter was sent.} other {# letters were sent.}}",
           "failed": "{count, plural, one {# letter could not be delivered; the post book has it as failed.} other {# letters could not be delivered; the post book has them as failed.}}",
-          "queued": "{count, plural, one {# letter was only recorded again, because no relay is ready any more.} other {# letters were only recorded again, because no relay is ready any more.}}",
+          "queued": "{count, plural, one {# letter was only recorded again, because no sender is ready any more.} other {# letters were only recorded again, because no sender is ready any more.}}",
           "skipped": "{count, plural, one {# letter was not sent:} other {# letters were not sent:}}",
           "refused": "That did not go through. The post book shows what, if anything, went out."
         },
         "skip": {
-          "relay_not_ready": "No relay is ready to deliver.",
+          "relay_not_ready": "No sender is ready to deliver.",
           "too_many": "Over the batch limit; send the rest afterwards.",
           "not_found": "Not found in this workspace.",
           "not_offered": "No longer a waiting letter.",
