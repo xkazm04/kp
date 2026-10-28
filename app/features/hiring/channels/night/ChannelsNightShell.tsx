@@ -20,6 +20,7 @@ import { useChannelsNightKeys } from "./useChannelsNightKeys";
 import { useChannelsNightNav } from "./useChannelsNightNav";
 import { ChannelsNightConnectorsLevel } from "./connectors/ChannelsNightConnectorsLevel";
 import { deckSummary } from "./connectors/connectorsDeckModel";
+import { deliveryCounts } from "./connectors/atsDeliveriesModel";
 import { useConnectorsDeck } from "./connectors/useConnectorsDeck";
 import "./channelsNight.css";
 import "./channelsNightScene.css";
@@ -59,8 +60,9 @@ export function ChannelsNightShell() {
     () => ({
       jobs, receivers: webhooks, receiversTruncated: webhooksTruncated, waiting: accepted, messages, olderExist: hasMore || truncated,
       relay: delivery.relay, edge: delivery.edge, settled: dataSettled && (messages !== null || feed.error) && delivery.settled, linkReach,
+      ats: deliveryCounts(deck.ats),
     }),
-    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error, linkReach],
+    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error, linkReach, deck.ats],
   );
   const model = useMemo(() => plumbingModel(input), [input]);
 

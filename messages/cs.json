@@ -16979,6 +16979,11 @@
           "title": "Odkazy pro kandidáty vedou na zástupnou adresu",
           "detail": "Není nastavena žádná veřejná adresa, takže odkazy nikam nevedou. Nastavte NEXT_PUBLIC_APP_BASE_URL na adresu, na které KandiDate běží a na kterou se kandidáti dostanou.",
           "cta": "Otevřít kariérní stránku"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># výsledek</em> se nedostal do vašeho ATS} few {<em># výsledky</em> se nedostaly do vašeho ATS} other {<em># výsledků</em> se nedostalo do vašeho ATS}}",
+          "detail": "Webhook ATS to po všech pokusech vzdal. Výsledek je zaznamenaný tady, ale ve vašem ATS chybí, dokud ho znovu neodešlete.",
+          "cta": "Zkontrolovat a odeslat znovu"
         }
       },
       "chip": {
@@ -17408,6 +17413,29 @@
         "notRun": "Nic se nezkontrolovalo: konektor není nastavený, nebo jsou volání ven zablokovaná.",
         "throttled": "Příliš mnoho kontrol. Počkejte pár minut a zkuste to znovu.",
         "noAnswer": "Kontrolu se nepodařilo spustit. Zkuste to znovu."
+      },
+      "ats": {
+        "notRead": "Záznam doručení do ATS se nenačetl.",
+        "dead": "{count, plural, one {# výsledek se nedostal do vašeho ATS} few {# výsledky se nedostaly do vašeho ATS} other {# výsledků se nedostalo do vašeho ATS}}",
+        "noneDead": "Každý odeslaný výsledek se dostal do vašeho ATS",
+        "empty": "Do vašeho ATS se zatím nic neodeslalo",
+        "counts": "{due, plural, =0 {Žádné opakování nečeká} one {# opakování čeká} few {# opakování čekají} other {# opakování čeká}}. {stranded, plural, =0 {Nic nebylo přerušeno.} one {# přerušené, převezme ho další průchod.} few {# přerušené, převezme je další průchod.} other {# přerušených, převezme je další průchod.}}",
+        "deadList": "Výsledky, které se nedostaly do vašeho ATS",
+        "deadChip": "Nedoručeno",
+        "gaveUp": "Vzdáno po {attempts, plural, one {# pokusu} few {# pokusech} other {# pokusech}}, {time}.",
+        "lastAnswer": "Poslední odpověď: {answer}",
+        "replay": "Odeslat znovu",
+        "replaying": "Odesíláme znovu",
+        "replayed": "Znovu zařazeno a vyzkoušeno. Pokud váš ATS odpověděl, řádek z tohoto seznamu zmizel.",
+        "replayFailed": "Opětovné odeslání se nespustilo. Zkuste to znovu.",
+        "event": {
+          "candidateHired": "Přijetí",
+          "candidateRejected": "Zamítnutí",
+          "offerAccepted": "Nabídka přijata",
+          "offerDeclined": "Nabídka odmítnuta",
+          "ping": "Testovací ping",
+          "other": "Výsledek"
+        }
       }
     }
   },

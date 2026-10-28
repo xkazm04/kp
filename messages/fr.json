@@ -16979,6 +16979,11 @@
           "title": "Les liens destinés aux candidats pointent vers une adresse fictive",
           "detail": "Aucune adresse publique n’est définie, les liens ne mènent donc nulle part. Indiquez dans NEXT_PUBLIC_APP_BASE_URL une adresse où tourne KandiDate et que les candidats peuvent atteindre.",
           "cta": "Ouvrir la page carrières"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># résultat</em> n’a pas atteint votre ATS} other {<em># résultats</em> n’ont pas atteint votre ATS}}",
+          "detail": "Le webhook ATS a abandonné après ses tentatives. Le résultat est enregistré ici, mais manque dans votre ATS tant que vous ne le renvoyez pas.",
+          "cta": "Vérifier et renvoyer"
         }
       },
       "chip": {
@@ -17408,6 +17413,29 @@
         "notRun": "Rien n’a été vérifié : non configuré, ou appels sortants bloqués.",
         "throttled": "Trop de vérifications. Attendez quelques minutes et réessayez.",
         "noAnswer": "La vérification n’a pas pu être lancée. Réessayez."
+      },
+      "ats": {
+        "notRead": "Le journal d’envoi vers l’ATS n’a pas été lu.",
+        "dead": "{count, plural, one {# résultat n’a pas atteint votre ATS} other {# résultats n’ont pas atteint votre ATS}}",
+        "noneDead": "Chaque résultat envoyé a atteint votre ATS",
+        "empty": "Rien n’a encore été envoyé à votre ATS",
+        "counts": "{due, plural, =0 {Aucune relance en attente} one {# relance en attente} other {# relances en attente}}. {stranded, plural, =0 {Rien d’interrompu.} one {# interrompu, repris au prochain passage.} other {# interrompus, repris au prochain passage.}}",
+        "deadList": "Résultats qui n’ont pas atteint votre ATS",
+        "deadChip": "Non arrivé",
+        "gaveUp": "Abandonné après {attempts, plural, one {# tentative} other {# tentatives}}, {time}.",
+        "lastAnswer": "Dernière réponse : {answer}",
+        "replay": "Renvoyer",
+        "replaying": "Renvoi en cours",
+        "replayed": "Remis en file et retenté. Si votre ATS a répondu, la ligne a quitté cette liste.",
+        "replayFailed": "Le renvoi n’a pas pu être lancé. Réessayez.",
+        "event": {
+          "candidateHired": "Embauche",
+          "candidateRejected": "Refus",
+          "offerAccepted": "Offre acceptée",
+          "offerDeclined": "Offre refusée",
+          "ping": "Ping de test",
+          "other": "Résultat"
+        }
       }
     }
   },

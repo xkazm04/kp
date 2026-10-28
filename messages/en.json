@@ -16979,6 +16979,11 @@
           "title": "Candidate links point to a placeholder address",
           "detail": "No public address is set, so the links lead nowhere. Set NEXT_PUBLIC_APP_BASE_URL to an address KandiDate runs on that candidates can reach.",
           "cta": "Open the careers page"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># outcome</em> did not reach your ATS} other {<em># outcomes</em> did not reach your ATS}}",
+          "detail": "The ATS webhook gave up after its retries. The outcome is recorded here but missing in your ATS until you replay it.",
+          "cta": "Review and replay"
         }
       },
       "chip": {
@@ -17408,6 +17413,29 @@
         "notRun": "Nothing was checked: it is not set up, or outside calls are sealed.",
         "throttled": "Too many checks. Wait a few minutes and try again.",
         "noAnswer": "The check could not run. Try again."
+      },
+      "ats": {
+        "notRead": "The ATS delivery ledger was not read.",
+        "dead": "{count, plural, one {# outcome did not reach your ATS} other {# outcomes did not reach your ATS}}",
+        "noneDead": "Every outcome sent reached your ATS",
+        "empty": "Nothing has been sent to your ATS yet",
+        "counts": "{due, plural, =0 {No retries waiting} one {# retry waiting} other {# retries waiting}}. {stranded, plural, =0 {None interrupted.} one {# interrupted, picked up on the next sweep.} other {# interrupted, picked up on the next sweep.}}",
+        "deadList": "Outcomes that did not reach your ATS",
+        "deadChip": "Did not arrive",
+        "gaveUp": "Gave up after {attempts, plural, one {# attempt} other {# attempts}}, {time}.",
+        "lastAnswer": "Last answer: {answer}",
+        "replay": "Replay",
+        "replaying": "Replaying",
+        "replayed": "Queued again and retried. If your ATS answered, the row has left this list.",
+        "replayFailed": "Replay did not run. Try again.",
+        "event": {
+          "candidateHired": "Hire",
+          "candidateRejected": "Rejection",
+          "offerAccepted": "Offer accepted",
+          "offerDeclined": "Offer declined",
+          "ping": "Test ping",
+          "other": "Outcome"
+        }
       }
     }
   },

@@ -16979,6 +16979,11 @@
           "title": "Links für Kandidaten zeigen auf eine Platzhalteradresse",
           "detail": "Es ist keine öffentliche Adresse gesetzt, daher führen die Links ins Leere. Setzen Sie NEXT_PUBLIC_APP_BASE_URL auf eine Adresse, unter der KandiDate läuft und die Kandidaten erreichen.",
           "cta": "Karriereseite öffnen"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># Ergebnis</em> hat Ihr ATS nicht erreicht} other {<em># Ergebnisse</em> haben Ihr ATS nicht erreicht}}",
+          "detail": "Der ATS-Webhook hat nach allen Versuchen aufgegeben. Das Ergebnis ist hier festgehalten, fehlt aber in Ihrem ATS, bis Sie es erneut senden.",
+          "cta": "Prüfen und erneut senden"
         }
       },
       "chip": {
@@ -17408,6 +17413,29 @@
         "notRun": "Nichts wurde geprüft: nicht eingerichtet, oder Aufrufe nach außen sind gesperrt.",
         "throttled": "Zu viele Prüfungen. Warten Sie ein paar Minuten und versuchen Sie es erneut.",
         "noAnswer": "Die Prüfung konnte nicht laufen. Versuchen Sie es erneut."
+      },
+      "ats": {
+        "notRead": "Das ATS-Zustellprotokoll wurde nicht gelesen.",
+        "dead": "{count, plural, one {# Ergebnis hat Ihr ATS nicht erreicht} other {# Ergebnisse haben Ihr ATS nicht erreicht}}",
+        "noneDead": "Jedes gesendete Ergebnis hat Ihr ATS erreicht",
+        "empty": "Noch nichts an Ihr ATS gesendet",
+        "counts": "{due, plural, =0 {Keine Wiederholung wartet} one {# Wiederholung wartet} other {# Wiederholungen warten}}. {stranded, plural, =0 {Nichts unterbrochen.} one {# unterbrochen, beim nächsten Durchlauf übernommen.} other {# unterbrochen, beim nächsten Durchlauf übernommen.}}",
+        "deadList": "Ergebnisse, die Ihr ATS nicht erreicht haben",
+        "deadChip": "Nicht angekommen",
+        "gaveUp": "Nach {attempts, plural, one {# Versuch} other {# Versuchen}} aufgegeben, {time}.",
+        "lastAnswer": "Letzte Antwort: {answer}",
+        "replay": "Erneut senden",
+        "replaying": "Wird erneut gesendet",
+        "replayed": "Erneut eingereiht und versucht. Hat Ihr ATS geantwortet, ist die Zeile aus dieser Liste verschwunden.",
+        "replayFailed": "Das erneute Senden ist nicht gelaufen. Versuchen Sie es erneut.",
+        "event": {
+          "candidateHired": "Einstellung",
+          "candidateRejected": "Absage",
+          "offerAccepted": "Angebot angenommen",
+          "offerDeclined": "Angebot abgelehnt",
+          "ping": "Test-Ping",
+          "other": "Ergebnis"
+        }
       }
     }
   },

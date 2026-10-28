@@ -10,6 +10,7 @@ import { IntegrationsCalendarPanel } from "@/app/features/settings/integrations/
 import { ChannelsNightFrame, KEYS_LEVEL } from "../ChannelsNightFrame";
 import type { DeckEntry, DeckFocus } from "../channelsNightNav";
 import { SetupStatus } from "../setup/SetupBits";
+import { AtsDeliveriesBlock } from "./AtsDeliveriesBlock";
 import { ConnectorCard, type CardNote } from "./ConnectorCard";
 import { DECK_GROUPS, deckCards, deckSummary, type DeckCard, type DeckGroup } from "./connectorsDeckModel";
 import type { ConnectorsDeckState } from "./useConnectorsDeck";
@@ -79,10 +80,13 @@ export function ChannelsNightConnectorsLevel({ entry, deck, crumbs, onBack, onOp
   const panels: Record<DeckGroup, ReactNode> = {
     delivery: null,
     ats: (
-      <Defer strategy="idle">
-        <IntegrationsAtsPanel />
-        <IntegrationsWebhookPanel />
-      </Defer>
+      <>
+        <AtsDeliveriesBlock ats={deck.ats} replaying={deck.replaying} onReplay={deck.replay} />
+        <Defer strategy="idle">
+          <IntegrationsAtsPanel />
+          <IntegrationsWebhookPanel />
+        </Defer>
+      </>
     ),
     calendar: <IntegrationsCalendarPanel />,
   };

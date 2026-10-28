@@ -24,7 +24,8 @@ import type { LinkReach } from "@/app/_lib/link-reach.ts";
 import { isActionable, type Message } from "../channelsCommsHelpers.ts";
 import { receiverHealth } from "../receiverHealth.ts";
 import type { EdgeState, RelayHealthWord } from "./channelsNightReads.ts";
-import type { LedgerVerdict, NightChannel, NightEntry } from "./channelsNightNav.ts";
+import { deckEntry, type LedgerVerdict, type NightChannel, type NightEntry } from "./channelsNightNav.ts";
+import type { AtsDeliveryCounts } from "./connectors/atsDeliveriesModel.ts";
 
 export type NightCondition = "live" | "wait" | "reach" | "fail" | "off" | "unknown";
 /** A building on the district: the six channels, the post book and the studio. */
@@ -53,6 +54,9 @@ export type PlumbingInput = {
   /** Who can open the candidate links this page builds (linkReach of publicBaseUrl, the SAME
    *  base the careers links use); null/absent = not known yet, never read as "public". */
   linkReach?: LinkReach | null;
+  /** The outbound ATS delivery ledger's counts (GET /api/ats/deliveries); null/absent = not read
+   *  (in flight, or a seat the operator-only route refuses), never read as "nothing dead". */
+  ats?: AtsDeliveryCounts | null;
 };
 
 /** The candidate-link base, when it is known NOT to reach candidates; null otherwise. */
@@ -281,7 +285,7 @@ export function plumbingFigures(input: PlumbingInput): NightFigure[] {
 export type NeedKey =
   | "relayOffQueued" | "relayUnreadable" | "dead" | "pullFailing" | "edgeFailing" | "edgeSecretMissing" | "relayOff"
   | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting"
-  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere";
+  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere" | "atsDead";
 
 export type NeedItem = {
   id: string;
@@ -317,6 +321,13 @@ export function rankNeeds(input: PlumbingInput): NeedItem[] {
   else if (on === false && c && c.queued > 0) add({ id: "relay-off", key: "relayOffQueued", sev: 100, tone: "bad", node: "relay", target: relayTarget, n: { count: c.queued } });
   else if (on === false) add({ id: "relay-off", key: "relayOff", sev: 60, tone: "warn", node: "relay", target: relayTarget });
 
+  // Outcomes (a hire, a rejection) the ATS webhook gave up on after its retries: recorded here,
+  // missing in the customer's ATS, and nothing else on the page would say so. Ranked just above
+  // the dead letters (a dead letter at least sits in the ledger the recruiter reads).
+  const atsDead = input.ats?.dead ?? 0;
+  if (atsDead > 0) {
+    add({ id: "ats-dead", key: "atsDead", sev: 92, tone: "bad", node: "studio", target: deckEntry("ats"), n: { count: atsDead } });
+  }
   if (c && c.needs > 0) {
     add({ id: "dead", key: "dead", sev: 90 + Math.min(c.needs, 9) / 10, tone: "bad", node: "book", target: ledger("dead"), n: { count: c.needs, failed: c.needsFailed, bounced: c.needsBounced } });
   }
