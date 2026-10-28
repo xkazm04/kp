@@ -1,7 +1,8 @@
 # Connect — the connector catalog
 
 One server-side catalog of everything kp can talk to, with **one health vocabulary**.
-Code: `app/_lib/connect/` (`catalog.ts`, `probes.ts`); API: `GET /api/connect`.
+Code: `app/_lib/connect/` (`catalog.ts`, `probes.ts`); API: `GET /api/connect`,
+`POST /api/connect/[id]/probe`.
 The hub UI that mounts it is a later change (comms channels scope C5); nothing under
 `app/features/` reads it yet.
 
@@ -58,6 +59,21 @@ and never throws. Every probe checks the seal first, so a sealed process makes *
 
 `probeConnector(id, ws)` runs one and records the verdict. `GET /api/connect` never probes.
 
+### The probe door: `POST /api/connect/[id]/probe`
+
+One connector's probe, run because an owner pressed Probe; it answers `{ health, connector }`
+(the row as `GET /api/connect` serves it, so never a secret value). Operator + `org:manage`, then
+`rateLimit()` (`connect-probe:<ip>`, 20 per 10 minutes, pinned in
+`app/api/rate-limit-contract.test.ts`), then the probe. Under the seal it answers
+`{ health: "sealed" }` and makes 0 fetches. An id outside the catalog is a bare 404.
+
+**`smtp` is never probed through this door** (operator rule, 2026-10-28). Its probe is a real test
+letter, so it runs only as the owner-pressed Send test on the sender level
+(`POST /api/comms/smtp/test`). The door answers `409 { health, connector, door: "send_test" }`
+with the row's config-only health (`not_configured` / `unverified` / `failing` / `sealed`) and
+opens no socket. Nothing that reads the hub, on load or on refresh, can send a letter.
+Pinned by `app/api/connect/[id]/probe/probe-route.test.ts`.
+
 ## Probe memory
 
 No schema. Verdicts live in a bounded in-process map (512 entries) keyed by workspace and
@@ -71,6 +87,5 @@ settings routes it summarizes.
 
 ## Known gaps
 
-- No route triggers `probeConnector` yet (the hub, C5, will); durable `lastOkAt` across
-  restarts needs a column and waits for the operator.
+- Durable `lastOkAt` across restarts needs a column and waits for the operator.
 - Slack, Teams, Greenhouse and Lever rows are not here (S1 excluded; S3 follows S2).
