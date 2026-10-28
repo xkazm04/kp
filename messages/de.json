@@ -17023,6 +17023,11 @@
         "bookTraffic": "{total, plural, one {# Nachricht} other {# Nachrichten}} · {sent} gesendet{orphaned, plural, =0 {} other { · # nicht zuordenbar}}",
         "bookEmptyFact": "Nachrichten erscheinen, sobald Kandidat/innen den Funnel durchlaufen",
         "olderExist": "es gibt ältere"
+      },
+      "deckDoor": {
+        "unread": "Konnektoren",
+        "sealed": "Konnektoren: Aufrufe nach außen sind gesperrt",
+        "count": "Konnektoren: {connected} von {total} verbunden"
       }
     },
     "ledger": {
@@ -17335,6 +17340,74 @@
       "linkBase": {
         "title": "Bewerber-Links zeigen auf diesen Computer",
         "body": "Briefe können versendet werden, doch die Links darin führen zu einer Adresse, die ein Bewerber nicht öffnen kann (dieser Computer oder ein Platzhalter). Starten Sie „npm run up -- --public“ für eine vorübergehende öffentliche Adresse oder setzen Sie APP_BASE_URL auf Ihre öffentliche Adresse."
+      }
+    },
+    "connectors": {
+      "kicker": "Verbindungen",
+      "title": "Konnektoren",
+      "lead": "Alles, womit das Studio außerhalb von kp spricht: wo Post an Kandidaten hinausgeht, Ihr ATS, Ihr Kalender. Jeder Konnektor sagt in einem Wort, wie es um ihn steht.",
+      "summary": {
+        "reading": "Konnektoren werden gelesen",
+        "notRead": "Die Konnektoren konnten nicht gelesen werden",
+        "sealed": "Aufrufe nach außen sind gesperrt",
+        "count": "{connected} von {total} verbunden",
+        "fact": "Der Zustand stammt aus den gespeicherten Einstellungen. Ein Konnektor wird nur geprüft, wenn Sie auf Jetzt prüfen klicken; im Hintergrund wird nichts geprüft.",
+        "failing": "{count, plural, one {# Konnektor schlägt fehl.} other {# Konnektoren schlagen fehl.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Zustellung",
+          "blurb": "Von hier gehen Briefe an Kandidaten hinaus. Eingerichtet wird das in der Zustell-Einrichtung."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Bewerbungen, die aus Ihrem ATS kommen, und Ergebnisse, die dorthin zurückgehen."
+        },
+        "calendar": {
+          "title": "Kalender",
+          "blurb": "Frei/Gebucht-Zeiten für die Planung von Interviews."
+        }
+      },
+      "name": {
+        "comms_relay": "Zustell-Relay",
+        "smtp": "SMTP-Postfach",
+        "ats_webhook": "ATS-Webhook (Ergebnisse hinaus)",
+        "calendar": "Google Kalender",
+        "ats_inbound": "ATS-Import: {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Verbunden",
+        "unverified": "Gespeichert, nicht geprüft",
+        "failing": "Fehlerhaft",
+        "notConfigured": "Nicht eingerichtet",
+        "sealed": "Gesperrt"
+      },
+      "fact": {
+        "lastOk": "Letzte Prüfung erfolgreich {time}.",
+        "failure": "Letzter Fehler: {reason}",
+        "notConfiguredSender": "Nichts gespeichert. Richten Sie es in der Zustell-Einrichtung ein.",
+        "notConfiguredBelow": "Nichts gespeichert. Richten Sie es unten ein.",
+        "connected": "Die letzte Prüfung war erfolgreich.",
+        "failing": "Die letzte Prüfung ist fehlgeschlagen.",
+        "unverified": "Gespeichert, aber seit dem Speichern oder dem Serverstart nicht geprüft.",
+        "sealed": "Dieser Server darf keine externen Dienste aufrufen (KP_NO_COMMS_EGRESS), daher wird nichts geprüft.",
+        "smtpRule": "Wird hier nie geprüft: Eine Prüfung sendet einen echten Brief. Nutzen Sie Testbrief senden in der Zustell-Einrichtung."
+      },
+      "busy": {
+        "read": "Frei/Gebucht: bei der letzten Prüfung gelesen.",
+        "unknown": "Frei/Gebucht: unbekannt. Ohne gelesene Daten wird ein Termin nie als frei angezeigt."
+      },
+      "door": {
+        "probe": "Jetzt prüfen",
+        "probing": "Wird geprüft",
+        "sender": "Zustell-Einrichtung öffnen"
+      },
+      "probe": {
+        "ok": "Prüfung erfolgreich.",
+        "failed": "Prüfung fehlgeschlagen. Die Karte nennt den Grund.",
+        "notRun": "Nichts wurde geprüft: nicht eingerichtet, oder Aufrufe nach außen sind gesperrt.",
+        "throttled": "Zu viele Prüfungen. Warten Sie ein paar Minuten und versuchen Sie es erneut.",
+        "noAnswer": "Die Prüfung konnte nicht laufen. Versuchen Sie es erneut."
       }
     }
   },

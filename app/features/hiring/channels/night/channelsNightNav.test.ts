@@ -3,8 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  LEDGER_ALL, NIGHT_CHANNELS, NIGHT_ROOT, channelOf, layerKey, nightArrivalParam, nightReduce, parseNightArrival,
-  stepChannel, stepMessage, type NightEntry, type NightStack,
+  LEDGER_ALL, NIGHT_CHANNELS, NIGHT_ROOT, channelOf, deckEntry, isDeckEntry, layerKey, nightArrivalParam, nightReduce, parseNightArrival,
+  sameEntry, stepChannel, stepMessage, type NightEntry, type NightStack,
 } from "./channelsNightNav.ts";
 
 const relay: NightEntry = { level: 1, channel: "relay", focus: null };
@@ -90,4 +90,24 @@ test("layer keys differ per place, and the owner channel is known per level", ()
   assert.equal(channelOf(relay), "relay");
   assert.equal(channelOf(LEDGER_ALL), "book");
   assert.equal(channelOf(NIGHT_ROOT[0]), null);
+});
+
+test("the connectors deck: ?sec=connectors[:part] lands on it, it is the studio's, and it is no channel", () => {
+  assert.deepEqual(parseNightArrival("connectors"), [NIGHT_ROOT[0], deckEntry()]);
+  assert.deepEqual(parseNightArrival("connectors:calendar"), [NIGHT_ROOT[0], deckEntry("calendar")]);
+  assert.deepEqual(parseNightArrival("connectors:ats"), [NIGHT_ROOT[0], deckEntry("ats")]);
+  // A part we do not know still opens the deck (the link named the place), on no part.
+  assert.deepEqual(parseNightArrival("connectors:payroll"), [NIGHT_ROOT[0], deckEntry()]);
+  for (const p of [deckEntry(), deckEntry("calendar")]) assert.deepEqual(parseNightArrival(nightArrivalParam(p))?.at(-1), p);
+  assert.equal(channelOf(deckEntry()), "studio");
+  assert.ok(isDeckEntry(deckEntry()) && !isDeckEntry(relay));
+  assert.ok(!sameEntry(deckEntry(), relay) && !sameEntry(relay, deckEntry()));
+  assert.ok(sameEntry(deckEntry("ats"), deckEntry("calendar")), "one deck, whatever part it opened on");
+  assert.notEqual(layerKey(deckEntry(), 1), layerKey(relay, 1));
+  // The stepper's six buildings are untouched.
+  assert.deepEqual([...NIGHT_CHANNELS], ["careers", "email", "ads", "feeds", "relay", "edge"]);
+  // A push of the deck from a channel opens over it; a second push returns to it.
+  const s1 = nightReduce(nightReduce(NIGHT_ROOT, { type: "push", entry: relay }), { type: "push", entry: deckEntry() });
+  assert.equal(s1.length, 3);
+  assert.equal(nightReduce(s1, { type: "push", entry: deckEntry("calendar") }).length, 3);
 });

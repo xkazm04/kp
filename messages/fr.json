@@ -17023,6 +17023,11 @@
         "bookTraffic": "{total, plural, one {# message} other {# messages}} · {sent, plural, one {# envoyé} other {# envoyés}}{orphaned, plural, =0 {} one { · # non rattaché} other { · # non rattachés}}",
         "bookEmptyFact": "Ils apparaissent à mesure que les candidats avancent dans le pipeline",
         "olderExist": "il en existe de plus anciens"
+      },
+      "deckDoor": {
+        "unread": "Connecteurs",
+        "sealed": "Connecteurs : appels sortants bloqués",
+        "count": "Connecteurs : {connected} sur {total} connectés"
       }
     },
     "ledger": {
@@ -17335,6 +17340,74 @@
       "linkBase": {
         "title": "Les liens candidats pointent vers cet ordinateur",
         "body": "Les lettres peuvent partir, mais les liens qu’elles contiennent mènent à une adresse qu’un candidat ne peut pas ouvrir (cet ordinateur ou une adresse fictive). Lancez « npm run up -- --public » pour une adresse publique temporaire, ou définissez APP_BASE_URL sur votre adresse publique."
+      }
+    },
+    "connectors": {
+      "kicker": "Connexions",
+      "title": "Connecteurs",
+      "lead": "Tout ce avec quoi le studio échange en dehors de kp : d’où part le courrier aux candidats, votre ATS, votre agenda. Chaque connecteur dit en un mot où il en est.",
+      "summary": {
+        "reading": "Lecture des connecteurs",
+        "notRead": "Impossible de lire les connecteurs",
+        "sealed": "Appels sortants bloqués",
+        "count": "{connected} sur {total} connectés",
+        "fact": "L’état vient des réglages enregistrés. Un connecteur n’est vérifié que lorsque vous appuyez sur Vérifier maintenant ; rien n’est vérifié en arrière-plan.",
+        "failing": "{count, plural, one {# connecteur est en échec.} other {# connecteurs sont en échec.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Envoi",
+          "blurb": "D’où partent les lettres aux candidats. Se règle dans les réglages d’envoi."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Les candidatures qui arrivent de votre ATS, et les résultats qui y retournent."
+        },
+        "calendar": {
+          "title": "Agenda",
+          "blurb": "Disponibilités pour planifier les entretiens."
+        }
+      },
+      "name": {
+        "comms_relay": "Relais de distribution",
+        "smtp": "Boîte mail SMTP",
+        "ats_webhook": "Webhook ATS (résultats sortants)",
+        "calendar": "Google Agenda",
+        "ats_inbound": "Import ATS : {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Connecté",
+        "unverified": "Enregistré, non vérifié",
+        "failing": "En échec",
+        "notConfigured": "Non configuré",
+        "sealed": "Bloqué"
+      },
+      "fact": {
+        "lastOk": "Dernière vérification réussie {time}.",
+        "failure": "Dernier échec : {reason}",
+        "notConfiguredSender": "Rien n’est enregistré. Configurez-le dans les réglages d’envoi.",
+        "notConfiguredBelow": "Rien n’est enregistré. Configurez-le ci-dessous.",
+        "connected": "La dernière vérification a réussi.",
+        "failing": "La dernière vérification a échoué.",
+        "unverified": "Enregistré, mais pas vérifié depuis l’enregistrement ou le démarrage du serveur.",
+        "sealed": "Ce serveur n’a pas le droit d’appeler des services externes (KP_NO_COMMS_EGRESS), rien n’est donc vérifié.",
+        "smtpRule": "Jamais vérifié d’ici : une vérification envoie une vraie lettre. Utilisez Envoyer un test dans les réglages d’envoi."
+      },
+      "busy": {
+        "read": "Disponibilités : lues lors de la dernière vérification.",
+        "unknown": "Disponibilités : inconnues. Sans lecture, un créneau n’est jamais affiché comme libre."
+      },
+      "door": {
+        "probe": "Vérifier maintenant",
+        "probing": "Vérification en cours",
+        "sender": "Ouvrir les réglages d’envoi"
+      },
+      "probe": {
+        "ok": "Vérification réussie.",
+        "failed": "Vérification échouée. La carte indique pourquoi.",
+        "notRun": "Rien n’a été vérifié : non configuré, ou appels sortants bloqués.",
+        "throttled": "Trop de vérifications. Attendez quelques minutes et réessayez.",
+        "noAnswer": "La vérification n’a pas pu être lancée. Réessayez."
       }
     }
   },

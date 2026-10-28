@@ -13,11 +13,14 @@ import { ChannelsNightMessageLevel } from "./ChannelsNightMessageLevel";
 import { ChannelsNightPlumbingView } from "./ChannelsNightPlumbingView";
 import { ChannelsNightSetupLevel } from "./ChannelsNightSetupLevel";
 import { NODE_NAME } from "./channelsNightCopy";
-import { LEDGER_ALL, layerKey, stepChannel, topOf, type NightEntry, type NightStack } from "./channelsNightNav";
+import { LEDGER_ALL, deckEntry, isDeckEntry, layerKey, stepChannel, topOf, type NightEntry, type NightStack } from "./channelsNightNav";
 import { countVerdicts, plumbingModel, type PlumbingInput } from "./channelsNightPlumbing";
 import { useChannelsNightDelivery } from "./useChannelsNightDelivery";
 import { useChannelsNightKeys } from "./useChannelsNightKeys";
 import { useChannelsNightNav } from "./useChannelsNightNav";
+import { ChannelsNightConnectorsLevel } from "./connectors/ChannelsNightConnectorsLevel";
+import { deckSummary } from "./connectors/connectorsDeckModel";
+import { useConnectorsDeck } from "./connectors/useConnectorsDeck";
 import "./channelsNight.css";
 import "./channelsNightScene.css";
 
@@ -45,6 +48,7 @@ export function ChannelsNightShell() {
     if (depth === 0) setReread((n) => n + 1);
   }
   const delivery = useChannelsNightDelivery(reread);
+  const deck = useConnectorsDeck(reread);
   const linkReach = useCandidateLinkReach();
   const receipt = useMemo(() => commsReceiptLabels(tc), [tc]);
 
@@ -63,11 +67,12 @@ export function ChannelsNightShell() {
   useChannelsNightKeys(rootRef, {
     level: top.level,
     onBack: nav.pop,
-    onStepChannel: top.level === 1 ? (d) => nav.replaceTop({ level: 1, channel: stepChannel(top.channel, d), focus: null }) : undefined,
+    onStepChannel: top.level === 1 && !isDeckEntry(top) ? (d) => nav.replaceTop({ level: 1, channel: stepChannel(top.channel, d), focus: null }) : undefined,
   });
 
   const labelOf = (e: NightEntry): string => {
     if (e.level === 0) return t("channelsNight.shell.root");
+    if (isDeckEntry(e)) return t("channelsNight.connectors.title");
     if (e.level === 1) return t(NODE_NAME[e.channel]);
     if (e.level === 2) return t("channels.ledger");
     const m = messages?.find((x) => x.id === e.id);
@@ -91,6 +96,19 @@ export function ChannelsNightShell() {
           }}
           onOpen={(node, el) => nav.push(node === "book" ? LEDGER_ALL : { level: 1, channel: node, focus: null }, el)}
           onNeed={(item, el) => nav.push(item.target, el)}
+          deck={deckSummary(deck.connectors)}
+          onOpenDeck={(el) => nav.push(deckEntry(), el)}
+        />
+      );
+    }
+    if (isDeckEntry(entry)) {
+      return (
+        <ChannelsNightConnectorsLevel
+          entry={entry}
+          deck={deck}
+          crumbs={crumbs}
+          onBack={nav.pop}
+          onOpenSender={(el) => nav.push({ level: 1, channel: "relay", focus: null }, el)}
         />
       );
     }

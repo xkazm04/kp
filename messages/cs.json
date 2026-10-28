@@ -17023,6 +17023,11 @@
         "bookTraffic": "{total, plural, one {# zpráva} few {# zprávy} other {# zpráv}} · odesláno {sent}{orphaned, plural, =0 {} other { · nespárováno #}}",
         "bookEmptyFact": "Objeví se, jak budou kandidáti procházet náborem",
         "olderExist": "existují i starší"
+      },
+      "deckDoor": {
+        "unread": "Konektory",
+        "sealed": "Konektory: volání ven jsou zablokovaná",
+        "count": "Konektory: připojeno {connected} z {total}"
       }
     },
     "ledger": {
@@ -17335,6 +17340,74 @@
       "linkBase": {
         "title": "Odkazy pro kandidáty vedou na tento počítač",
         "body": "Dopisy odejít mohou, ale odkazy v nich vedou na adresu, kterou kandidát neotevře (tento počítač nebo zástupnou adresu). Spusťte „npm run up -- --public“ pro dočasnou veřejnou adresu, nebo nastavte APP_BASE_URL na svou veřejnou adresu."
+      }
+    },
+    "connectors": {
+      "kicker": "Propojení",
+      "title": "Konektory",
+      "lead": "Vše, s čím studio mluví mimo kp: odkud odchází pošta kandidátům, váš ATS, váš kalendář. Každý konektor jedním slovem řekne, jak na tom je.",
+      "summary": {
+        "reading": "Načítáme konektory",
+        "notRead": "Konektory se nepodařilo načíst",
+        "sealed": "Volání ven jsou zablokovaná",
+        "count": "Připojeno {connected} z {total}",
+        "fact": "Stav vychází z uloženého nastavení. Konektor se zkontroluje, jen když stisknete Zkontrolovat; na pozadí se nic nekontroluje.",
+        "failing": "{count, plural, one {# konektor selhává.} few {# konektory selhávají.} other {# konektorů selhává.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Doručování",
+          "blurb": "Odkud odcházejí dopisy kandidátům. Nastavuje se v nastavení doručování."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Přihlášky, které přicházejí z vašeho ATS, a výsledky, které se do něj vracejí."
+        },
+        "calendar": {
+          "title": "Kalendář",
+          "blurb": "Volno a obsazenost pro plánování pohovorů."
+        }
+      },
+      "name": {
+        "comms_relay": "Doručovací relé",
+        "smtp": "Poštovní schránka SMTP",
+        "ats_webhook": "Webhook ATS (výsledky ven)",
+        "calendar": "Kalendář Google",
+        "ats_inbound": "Import z ATS: {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Připojeno",
+        "unverified": "Uloženo, nezkontrolováno",
+        "failing": "Selhává",
+        "notConfigured": "Nenastaveno",
+        "sealed": "Zablokováno"
+      },
+      "fact": {
+        "lastOk": "Poslední kontrola prošla {time}.",
+        "failure": "Poslední selhání: {reason}",
+        "notConfiguredSender": "Nic není uloženo. Nastavte to v nastavení doručování.",
+        "notConfiguredBelow": "Nic není uloženo. Nastavte to níže.",
+        "connected": "Poslední kontrola prošla.",
+        "failing": "Poslední kontrola selhala.",
+        "unverified": "Uloženo, ale od uložení ani od spuštění serveru nezkontrolováno.",
+        "sealed": "Tento server nesmí volat vnější služby (KP_NO_COMMS_EGRESS), proto se nic nekontroluje.",
+        "smtpRule": "Odsud se nikdy nekontroluje: kontrola odešle skutečný dopis. Použijte Poslat zkušební dopis v nastavení doručování."
+      },
+      "busy": {
+        "read": "Volno a obsazenost: načteno při poslední kontrole.",
+        "unknown": "Volno a obsazenost: neznámé. Bez načtení se termín nikdy neukáže jako volný."
+      },
+      "door": {
+        "probe": "Zkontrolovat",
+        "probing": "Kontrolujeme",
+        "sender": "Otevřít nastavení doručování"
+      },
+      "probe": {
+        "ok": "Kontrola prošla.",
+        "failed": "Kontrola selhala. Důvod je na kartě.",
+        "notRun": "Nic se nezkontrolovalo: konektor není nastavený, nebo jsou volání ven zablokovaná.",
+        "throttled": "Příliš mnoho kontrol. Počkejte pár minut a zkuste to znovu.",
+        "noAnswer": "Kontrolu se nepodařilo spustit. Zkuste to znovu."
       }
     }
   },

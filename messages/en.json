@@ -17023,6 +17023,11 @@
         "bookTraffic": "{total, plural, one {# message} other {# messages}} · {sent} sent{orphaned, plural, =0 {} other { · # unmatched}}",
         "bookEmptyFact": "They appear as candidates move through the funnel",
         "olderExist": "older ones exist"
+      },
+      "deckDoor": {
+        "unread": "Connectors",
+        "sealed": "Connectors: outside calls are sealed",
+        "count": "Connectors: {connected} of {total} connected"
       }
     },
     "ledger": {
@@ -17335,6 +17340,74 @@
       "linkBase": {
         "title": "Candidate links point to this computer",
         "body": "Letters can leave, but the links in them point to an address a candidate cannot open (this computer or a placeholder). Run \"npm run up -- --public\" for a temporary public address, or set APP_BASE_URL to your public address."
+      }
+    },
+    "connectors": {
+      "kicker": "Connections",
+      "title": "Connectors",
+      "lead": "Everything the studio talks to outside kp: where candidate mail leaves from, your ATS, your calendar. Each one says how it is doing in one word.",
+      "summary": {
+        "reading": "Reading the connectors",
+        "notRead": "The connectors could not be read",
+        "sealed": "Outside calls are sealed",
+        "count": "{connected} of {total} connected",
+        "fact": "Health comes from what is saved. A connector is checked only when you press Check now; nothing is checked in the background.",
+        "failing": "{count, plural, one {# connector is failing.} other {# connectors are failing.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Delivery",
+          "blurb": "Where letters to candidates leave from. Set up in delivery setup."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Applications coming in from your ATS, and outcomes going back to it."
+        },
+        "calendar": {
+          "title": "Calendar",
+          "blurb": "Free/busy for scheduling interviews."
+        }
+      },
+      "name": {
+        "comms_relay": "Delivery relay",
+        "smtp": "SMTP mailbox",
+        "ats_webhook": "ATS webhook (outcomes out)",
+        "calendar": "Google Calendar",
+        "ats_inbound": "ATS import: {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Connected",
+        "unverified": "Saved, not checked",
+        "failing": "Failing",
+        "notConfigured": "Not set up",
+        "sealed": "Sealed"
+      },
+      "fact": {
+        "lastOk": "Last check passed {time}.",
+        "failure": "Last failure: {reason}",
+        "notConfiguredSender": "Nothing saved. Set it up in delivery setup.",
+        "notConfiguredBelow": "Nothing saved. Set it up below.",
+        "connected": "The last check passed.",
+        "failing": "The last check failed.",
+        "unverified": "Saved, but not checked since it was saved or since the server started.",
+        "sealed": "This server may not call outside services (KP_NO_COMMS_EGRESS), so nothing is checked.",
+        "smtpRule": "Never checked from here: a check sends a real letter. Use Send test in delivery setup."
+      },
+      "busy": {
+        "read": "Free/busy: read by the last check.",
+        "unknown": "Free/busy: unknown. A slot is never shown as free without a read."
+      },
+      "door": {
+        "probe": "Check now",
+        "probing": "Checking",
+        "sender": "Open delivery setup"
+      },
+      "probe": {
+        "ok": "Check passed.",
+        "failed": "Check failed. The card says why.",
+        "notRun": "Nothing was checked: it is not set up, or outside calls are sealed.",
+        "throttled": "Too many checks. Wait a few minutes and try again.",
+        "noAnswer": "The check could not run. Try again."
       }
     }
   },
