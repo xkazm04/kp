@@ -1,11 +1,13 @@
 import { egressSealed } from "@/app/_lib/egress-seal";
 import { relayHealth } from "@/app/_lib/comms-relay";
 import { getRelayConfig } from "@/app/_lib/comms-relay-store";
+import { getSmtpConfig, smtpConfigured } from "@/app/_lib/comms-smtp-store";
+import { smtpHealth } from "@/app/_lib/comms-relay";
 import { getAtsConfig } from "@/app/_lib/ats-config-store";
 import { ATS_PROVIDERS, getAtsConnection, type AtsProvider } from "@/app/_lib/ats/connections-store";
 import { getCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { isCalendarConnected } from "@/app/_lib/calendar/google-calendar";
-import { probeAtsInbound, probeAtsWebhook, probeCalendar, probeRelay, type ProbeResult } from "./probes";
+import { probeAtsInbound, probeAtsWebhook, probeCalendar, probeRelay, probeSmtp, type ProbeResult } from "./probes";
 
 // THE CONNECTOR CATALOG — what kp can talk to, as DATA. One row per connector, one
 // vocabulary for how it is doing (docs/features/connect/README.md). The catalog owns no
@@ -23,10 +25,11 @@ export type ConnectorHealth = (typeof HEALTH_WORDS)[number];
 export const EGRESS_CLASSES = ["candidate_message", "candidate_record", "schedule_read", "credentialed_read"] as const;
 export type EgressClass = (typeof EGRESS_CLASSES)[number];
 
-export type ConnectorId = "comms_relay" | "ats_webhook" | "calendar" | `ats_inbound:${AtsProvider}`;
+export type ConnectorId = "comms_relay" | "smtp" | "ats_webhook" | "calendar" | `ats_inbound:${AtsProvider}`;
 
 export const CONNECTOR_IDS: readonly ConnectorId[] = [
   "comms_relay",
+  "smtp",
   "ats_webhook",
   "calendar",
   ...ATS_PROVIDERS.map((p): ConnectorId => `ats_inbound:${p}`),
@@ -95,6 +98,29 @@ const DEFINITIONS: readonly ConnectorDef[] = [
       };
     },
     probe: () => probeRelay(),
+  },
+  {
+    id: "smtp",
+    label: "SMTP mailbox",
+    egress: "candidate_message",
+    snapshot() {
+      const cfg = getSmtpConfig();
+      return {
+        configured: smtpConfigured(cfg),
+        version: String(cfg.version),
+        fields: [
+          textField("host", cfg.host),
+          textField("port", cfg.port === null ? null : String(cfg.port)),
+          textField("address", cfg.address),
+          secretField("password", cfg.hasPassword),
+        ],
+        known:
+          smtpConfigured(cfg) && smtpHealth() === "unreadable"
+            ? { at: null, reason: "The stored SMTP password cannot be decrypted." }
+            : undefined,
+      };
+    },
+    probe: () => probeSmtp(),
   },
   {
     id: "ats_webhook",

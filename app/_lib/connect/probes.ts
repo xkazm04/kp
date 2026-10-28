@@ -7,6 +7,8 @@ import { deliver } from "@/app/_lib/ats-egress";
 import { getAtsConfig } from "@/app/_lib/ats-config-store";
 import { getAtsConnection, getAtsToken, type AtsProvider } from "@/app/_lib/ats/connections-store";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "@/app/_lib/ats-egress-guard";
+import { sendSmtpTestLetter } from "@/app/_lib/comms-smtp-probe";
+import { describeSmtpOutcome } from "@/app/_lib/comms-smtp";
 import { calendarNeedsReconnect, fetchBusy, isCalendarConnected } from "@/app/_lib/calendar/google-calendar";
 
 // THE PROBE CONTRACT (docs/features/connect/README.md). A probe answers one question —
@@ -135,4 +137,17 @@ export async function probeCalendar(workspaceId: string, now: Date = new Date())
   const busy = await fetchBusy({ timeMin: now.toISOString(), timeMax: new Date(now.getTime() + HOUR_MS).toISOString() }, workspaceId);
   if (busy === null) return { kind: "failed", reason: "Free/busy unavailable." };
   return { kind: "http", ok: true, status: 200 };
+}
+
+/** The stored SMTP sender's own test letter (comms-smtp-probe.ts): one real message to the
+ *  mailbox itself, through the delivery boundary a candidate letter takes. The seal is
+ *  checked first inside it, so a sealed process opens no socket. */
+export async function probeSmtp(): Promise<ProbeResult> {
+  if (egressSealed()) return SEALED_RESULT;
+  const r = await sendSmtpTestLetter();
+  if (r.kind === "sealed") return SEALED_RESULT;
+  if (r.kind === "unconfigured") return { kind: "not_configured", reason: "No SMTP sender saved." };
+  if (r.kind === "unreadable") return { kind: "failed", reason: "The stored SMTP password cannot be decrypted." };
+  // The outcome text is already redacted of the password (comms-smtp.ts).
+  return r.outcome.ok ? { kind: "http", ok: true, status: r.outcome.code } : { kind: "failed", reason: describeSmtpOutcome(r.outcome) };
 }

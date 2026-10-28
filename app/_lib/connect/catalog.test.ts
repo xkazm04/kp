@@ -9,6 +9,9 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { GET } from "../../api/connect/route.ts";
 import { setAtsConnection, deleteAtsConnection, ATS_PROVIDERS } from "../ats/connections-store.ts";
+import net from "node:net";
+import tls from "node:tls";
+import { setSmtpConfig } from "../comms-smtp-store.ts";
 import { setAtsConfig } from "../ats-config-store.ts";
 import { setRelayHostLookupForTests } from "../comms.ts";
 import { setAtsHostLookupForTests } from "./probes.ts";
@@ -16,6 +19,7 @@ import { CONNECTOR_IDS, HEALTH_WORDS, listConnectors, probeConnector, resetConne
 
 const WS = "default";
 const TOKEN = "ats-live-token-do-not-leak-9f3a";
+const SMTP_PASSWORD = "smtp-app-password-do-not-leak-3b8e";
 const SIGNING = "relay-signing-secret-do-not-leak-77c1";
 
 const realFetch = globalThis.fetch;
@@ -157,4 +161,40 @@ test("under the seal every row reads sealed and probes make 0 fetches", async ()
   for (const r of listConnectors(WS)) assert.equal(r.health, "sealed", r.id);
   for (const id of CONNECTOR_IDS) assert.equal((await probeConnector(id, WS)).health, "sealed", id);
   assert.equal(calls.length, 0, `no fetch under the seal, saw: ${calls.join(", ")}`);
+});
+
+// ---- smtp row ------------------------------------------------------------------------
+// Kept last: the SMTP sender is a singleton row with no delete, so the tests above read
+// it unsaved.
+test("the catalog lists an smtp row, not_configured while no sender is stored", () => {
+  assert.ok((CONNECTOR_IDS as readonly string[]).includes("smtp"));
+  assert.equal(row("smtp").health, "not_configured");
+  assert.equal(row("smtp").egress, "candidate_message");
+});
+
+test("an smtp sender saved without a probe reads unverified; the password never rides the row", () => {
+  setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz", password: SMTP_PASSWORD });
+  const r = row("smtp");
+  assert.equal(r.health, "unverified");
+  assert.equal(r.fields.find((f) => f.key === "password")?.hasSecret, true);
+  assert.equal(JSON.stringify(listConnectors(WS)).includes(SMTP_PASSWORD), false);
+});
+
+test("sealed: the smtp row reads sealed and probing it opens no fetch and no socket", async () => {
+  process.env.KP_NO_COMMS_EGRESS = "1";
+  const realConnect = net.connect;
+  const realTlsConnect = tls.connect;
+  let sockets = 0;
+  net.connect = ((...a: unknown[]) => (sockets++, (realConnect as (...x: unknown[]) => net.Socket)(...a))) as typeof net.connect;
+  tls.connect = ((...a: unknown[]) => (sockets++, (realTlsConnect as (...x: unknown[]) => tls.TLSSocket)(...a))) as typeof tls.connect;
+  try {
+    assert.equal(row("smtp").health, "sealed");
+    const r = await probeConnector("smtp", WS);
+    assert.equal(r.health, "sealed");
+    assert.equal(calls.length, 0);
+    assert.equal(sockets, 0);
+  } finally {
+    net.connect = realConnect;
+    tls.connect = realTlsConnect;
+  }
 });
