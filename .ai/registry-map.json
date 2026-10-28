@@ -18646,7 +18646,11 @@
           "revision": 10,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:127 This context is a client-side table and detail view that only reads JD rows from the API. A search of app/features/library/jds/ for ALTER TABLE, CREATE TABLE, user_version, schema_version and PRAGMA found nothing, so the context has no migration step, ledger or runner. Its only link to the subject is reader tolerance: readBuildIntent returns null for rows written before build_input_json existed, and the column itself is added in app/_lib/db/core.ts:2321, outside this context.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:b7d5afcb859dfff9",
+          "evaluatedRevision": 10
         },
         {
           "subject": "markdown-vault",

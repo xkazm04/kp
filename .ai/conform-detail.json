@@ -21184,6 +21184,22 @@
       "evaluatedTs": "2026-10-28T22:22:59.159Z",
       "worker": "e0054290-9899-4f33-b33e-dfe3798b1fa5",
       "techniques": []
+    },
+    "23ea22ae-fc24-4af0-a51f-58347b533287/migrations": {
+      "context": "jd-ledger",
+      "subject": "migrations",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T22:31:18.621Z",
+      "worker": "d632388e-6f5f-4a16-a16f-1b9bc5e929c3",
+      "techniques": [
+        {
+          "technique": "expand-deploy-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:108 The reader tolerates rows that lack the added column. That is the expand side seen from a consumer, but this context owns no schema change. The rename or drop sequencing belongs to the db layer."
+        }
+      ]
     }
   }
 }
