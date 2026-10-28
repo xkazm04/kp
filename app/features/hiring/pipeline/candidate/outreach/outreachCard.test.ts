@@ -41,7 +41,7 @@ test("Approve posts the revision the card rendered", async () => {
 });
 
 test("a 409 on Approve is the stale state and is never retried", async () => {
-  const { fetcher, calls } = stub(409, { code: "PIPELINE_MOVE_CONFLICT", state: "drafted", revision: 4 });
+  const { fetcher, calls } = stub(409, { code: "OUTREACH_LETTER_CONFLICT", state: "drafted", revision: 4 });
   assert.deepEqual(await approveLetter("ol_1", 3, fetcher), { kind: "stale" });
   assert.equal(calls.length, 1, "no silent retry");
 });

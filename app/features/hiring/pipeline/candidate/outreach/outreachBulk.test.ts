@@ -135,3 +135,29 @@ test("a letter forecast as refused is reported refused without a door call; coun
   assert.equal(tally.queued, forecast.queue);
   assert.equal(tally.refused, forecast.refuse);
 });
+
+test("a release answering 409 OUTREACH_LETTER_CONFLICT is counted as conflict, not refused", async () => {
+  const c = held();
+  const rows = await loadCohort([c.entry.id], doFetch);
+  const stub = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).endsWith("/release")) {
+      return new Response(JSON.stringify({ code: "OUTREACH_LETTER_CONFLICT" }), { status: 409, headers: { "content-type": "application/json" } });
+    }
+    return doFetch(input, init);
+  }) as typeof fetch;
+  const results = await approveAndReleaseCohort(rows, stub);
+  assert.deepEqual(tallyResults(results), { released: 0, queued: 0, refused: 0, conflict: 1 });
+});
+
+test("an approve answering 409 OUTREACH_LETTER_CONFLICT is counted as conflict, not refused", async () => {
+  const c = held();
+  const rows = await loadCohort([c.entry.id], doFetch);
+  const stub = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).endsWith("/approve")) {
+      return new Response(JSON.stringify({ code: "OUTREACH_LETTER_CONFLICT" }), { status: 409, headers: { "content-type": "application/json" } });
+    }
+    return doFetch(input, init);
+  }) as typeof fetch;
+  const results = await approveAndReleaseCohort(rows, stub);
+  assert.deepEqual(tallyResults(results), { released: 0, queued: 0, refused: 0, conflict: 1 });
+});

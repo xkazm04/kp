@@ -18,6 +18,10 @@ import {
   type Fetcher,
   type OutreachLetterView,
 } from "./outreachCard";
+import type { RefusalErrorCode } from "../../../../../_lib/api-errors/refusal-errors";
+
+/** The wire code of the outreach-letter doors' 409 (typed against the refusal registry). */
+const LETTER_CONFLICT = "OUTREACH_LETTER_CONFLICT" satisfies RefusalErrorCode;
 
 /** One row of the sheet. `view` is null when no letter was drafted for the application. */
 export type CohortLetter = { entryId: string; view: OutreachLetterView | null; loadFailed?: boolean };
@@ -142,7 +146,7 @@ async function approveAndRelease(
       return { ...base, kind: "refused", reason: "delivery_failed" };
     case "error":
       // The release door's own 409: not approved, already released, or being released.
-      return released.error.code === "PIPELINE_MOVE_CONFLICT"
+      return released.error.code === LETTER_CONFLICT
         ? { ...base, kind: "conflict" }
         : { ...base, kind: "refused", reason: released.error.code ?? "error" };
     default:
