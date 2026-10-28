@@ -15,6 +15,7 @@ import { setSmtpConfig } from "../comms-smtp-store.ts";
 import { setAtsConfig } from "../ats-config-store.ts";
 import { setRelayHostLookupForTests } from "../comms.ts";
 import { setAtsHostLookupForTests } from "./probes.ts";
+import { setEgressTransportForTests } from "../pinned-request.ts";
 import { CONNECTOR_IDS, HEALTH_WORDS, listConnectors, probeConnector, resetConnectMemoryForTests } from "./catalog.ts";
 
 const WS = "default";
@@ -146,6 +147,52 @@ test("the relay probe never follows a redirect: the hop is a failure, not a seco
   assert.deepEqual(calls, ["https://relay.example.test/hook"]);
   assert.equal(r.health, "failing");
   assert.match(r.lastFailure?.reason ?? "", /redirect/);
+});
+
+// The vet resolves the name, and a plain fetch resolved it AGAIN: a rebinding name answers
+// public to the first and 169.254.169.254 to the second. Both dialling probes must go
+// through the pinned transport the delivery paths use, never through fetch.
+test("the relay and ATS-inbound probes dial through the pinned transport, not fetch", async () => {
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setAtsConnection({
+    provider: "recruitee",
+    baseUrl: "https://api.recruitee.com",
+    apiToken: TOKEN,
+    fieldMap: { paths: { externalId: "id", displayName: "name" }, stages: {} },
+  });
+  const dialled: Array<{ url: string; method: string; pinnedResolver: boolean }> = [];
+  setEgressTransportForTests(async (url, init, options) => {
+    dialled.push({ url, method: init.method, pinnedResolver: typeof options?.resolve === "function" });
+    return { ok: true, status: 200 };
+  });
+  try {
+    assert.equal((await probeConnector("comms_relay", WS)).health, "connected");
+    assert.equal((await probeConnector("ats_inbound:recruitee", WS)).health, "connected");
+  } finally {
+    setEgressTransportForTests(undefined);
+  }
+  assert.deepEqual(calls, [], "no probe reaches fetch");
+  assert.deepEqual(dialled, [
+    { url: "https://relay.example.test/hook", method: "POST", pinnedResolver: false },
+    { url: "https://api.recruitee.com/", method: "GET", pinnedResolver: true },
+  ]);
+});
+
+test("a rebinding ATS host is refused at connect time: the token never reaches the private address", async () => {
+  setAtsConnection({
+    provider: "recruitee",
+    baseUrl: "https://rebind.example.test",
+    apiToken: TOKEN,
+    fieldMap: { paths: { externalId: "id", displayName: "name" }, stages: {} },
+  });
+  globalThis.fetch = realFetch; // the real pinned transport, not the fetch-mock bridge
+  let lookups = 0;
+  setAtsHostLookupForTests(async () => (lookups++ === 0 ? [{ address: "93.184.216.34" }] : [{ address: "169.254.169.254" }]));
+  const r = await probeConnector("ats_inbound:recruitee", WS);
+  assert.equal(lookups, 2, "vetted once, resolved once more inside the pinned request");
+  assert.equal(r.health, "failing");
+  assert.match(r.lastFailure?.reason ?? "", /non-public address \(169\.254\.169\.254\)/);
+  assert.equal(JSON.stringify(r).includes(TOKEN), false);
 });
 
 test("under the seal every row reads sealed and probes make 0 fetches", async () => {
