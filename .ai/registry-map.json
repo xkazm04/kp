@@ -26421,7 +26421,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/useSchedulerControlState.ts:3 The context is an automation-scheduler control panel (polling a server schedule, manual tick, interval field, run history, liveness chip). A case-insensitive search of app/features/hiring/pipeline/ for playback, playhead, audio, HTMLMediaElement and <video found 0 hits, so none of the subject's preconditions applies: there is no app-owned media transport, no media engine, no composed media timeline and no media continuity. Its 'clock' is the automation tick loop, not a media playhead.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:122990080db4f70e",
+          "evaluatedRevision": 6
         },
         {
           "subject": "eval-harness",

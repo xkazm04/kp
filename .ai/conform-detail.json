@@ -21176,6 +21176,16 @@
         "at": "2026-10-27T22:42:06.976723+00:00",
         "reason": "reviewer (sonnet): The en.json:1035 'Trust & compliance' label and its use in LegalRow are real, but the claim that the ampersand carries into cs/de/fr is false for cs (cs.json:1035 reads 'Důvěra a compliance'). The seat's own registryProposal also admits EN-AMPERSAND does not clearly cover nav or link labels, so the "
       }
+    },
+    "77829982-8043-4752-ae30-4475929d182e/media-playback": {
+      "context": "pipeline-scheduler-sla",
+      "subject": "media-playback",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T22:22:59.159Z",
+      "worker": "e0054290-9899-4f33-b33e-dfe3798b1fa5",
+      "techniques": []
     }
   }
 }
