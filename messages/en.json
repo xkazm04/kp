@@ -18431,7 +18431,7 @@
     "status": {
       "running": "Running",
       "complete": "Complete",
-      "cancelled": "Cancelled"
+      "cancelled": "Canceled"
     },
     "noStages": "The run has produced nothing yet.",
     "noGates": "Nothing is waiting on you right now.",
