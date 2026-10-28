@@ -50,8 +50,9 @@ map `kp.comm.v1` onto an ATS), and an install that already had one keeps deliver
 The card says so (`status.precedence`) rather than implying the mailbox is in use.
 
 `isRelayConfigured()` now means "a letter can leave" (relay or SMTP), so every `sent` / `queued`
-claim stays true. The confirm-to-send backlog offer (`comms-backlog.ts`) still keys off the
-relay's own health; sending queued letters through SMTP is a separate item (T7).
+claim stays true. The confirm-to-send backlog offer (`comms-backlog.ts`) keys off the same
+resolver, so an SMTP-only install is offered its queued letters and the owner's one press sends
+them through the mailbox (T7, closed).
 
 ## Delivery (`SmtpChannel` in `app/_lib/comms.ts`)
 
@@ -125,4 +126,4 @@ its `password` column by name.
 - Mailbox sign-in with OAuth (Google, Microsoft) is not built. Gmail needs an app password.
 - STARTTLS over a real TLS handshake is not unit-tested (Node cannot mint a test certificate
   without a dependency). The refusal path is tested.
-- Queued letters from before SMTP was set up are not sent automatically (T7).
+- Queued letters from before SMTP was set up are not sent automatically: the owner is offered them and confirms (`comms-backlog.ts`, T7).

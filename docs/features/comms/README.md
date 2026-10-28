@@ -58,8 +58,8 @@ saying whether the clipboard took it). Neither writes anything: the row keeps it
 view says sending it yourself is not recorded (`night/message/ChannelsNightHandSend.tsx`,
 `letterHandSend.ts`).
 
-**The letters that waited for a sender.** Once a relay delivers (`relayHealth()` is `env` or
-`configured`) and the workspace holds `queued` rows recorded while none did, the post book
+**The letters that waited for a sender.** Once a sender delivers (`isRelayConfigured()`: a relay, or a stored SMTP
+mailbox when no relay is set) and the workspace holds `queued` rows recorded while none did, the post book
 (`night/ledger/ChannelsNightBacklogOffer.tsx`) shows one notice, "N letters waited for a sender",
 that opens a preview (recipient, subject, when recorded; never the body) with one **Send** for the
 batch. Letters can be cleared first: a letter sent by hand leaves no mark in the record (above), so
