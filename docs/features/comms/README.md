@@ -1288,6 +1288,13 @@ chunk). The full architecture, the level machine and the owners' contract are in
   head keeps "Receive a test application" (`data-sim-click="simulate-inbound"`; the block
   is `data-sim="channel-inbound"`, the guided walk's "match" target) and the "N waiting in
   the pipeline" link. Below 760px of sheet the district reads as a street of cards.
+  **Link base on the sender level** (cx T10, the "in ops" half of the boot log line in `link-base-warning.ts`):
+  `GET /api/comms/relay` and `GET /api/comms/smtp` carry `linkBase:{problem}` (`loopback` / `placeholder` / `null`),
+  `linkBaseStatus()` over the same `publicBaseUrl` the sender resolves. Only the verdict goes on the wire,
+  never the origin, and nothing is probed or sent. `SetupLinkBase` draws a caution note on the relay level
+  when a relay is configured (or on the SMTP card when the mailbox is what sends) AND the verdict is non-null;
+  it names both fixes, `npm run up -- --public` and `APP_BASE_URL`. A public `APP_BASE_URL`, or no sender
+  configured (keyless), shows nothing. Pinned by `channelsNightReads.test.ts` and `smtp-route.test.ts`.
 - **Level 1, one channel** (`night/setup/`): careers (every open role's apply link, copy per
   row, a test application), email intake and ad forms (receiver cards worst health first: received,
   leads filed of received with the received-vs-filed tip, first received, first lead, last
