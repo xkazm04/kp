@@ -117,9 +117,9 @@ no AUTH over plain, 4xx and 5xx, timeouts, dot-stuffing, header injection),
 (normalized to lower case). `attempts` holds the last 10 attempts with outcome, stage, reply code
 and text. The suppression list and attempt log are returned only to the owner org's operators,
 and a save that moves the sender to another org empties both.
-Tenancy: exempt and org-owned like `comms_relay_config` (`app/_lib/tenancy.ts`). It is not yet in
-`ORG_CONFIG_NOT_PORTABLE`, because that set must match `scripts/db-dump.mjs`. A `--redact` dump blanks
-its `password` column by name.
+Tenancy: exempt and org-owned like `comms_relay_config` (`app/_lib/tenancy.ts`). It is in
+`ORG_CONFIG_NOT_PORTABLE` and in `scripts/db-dump.mjs` `ORG_CONFIG_TABLES` (a test pins the two equal),
+so an org restore leaves it for the operator to re-enter and a `--redact` dump blanks every non-key column.
 
 ## Known gaps
 
