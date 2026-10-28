@@ -1523,16 +1523,16 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
-- **The outreach task still collapses a halted sequence into
-  `suppressed_consent_expired`.** A relay dead letter no longer reaches that mapping:
-  the task only drafts (§8a), and the release reads `delivery_failed`. But the draft
-  door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
-  because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
-  `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
-- **The outreach-letter doors answer with borrowed codes**
-  (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
-  their own; the vocabulary lives in `app/_lib/api-errors/`, which needs four catalog entries per
-  code. The Reach-out button now reads `applied: "drafted"` as `held` (`reachOutVerdict`).
+- **Closed: the outreach task names the halt, and the letter doors have their own codes.**
+  A halted sequence now reads `suppressed_replied` / `suppressed_manual` /
+  `suppressed_candidate` in the task outcome (`automation-run.ts`, `task-fanout.ts`,
+  `task-outcome-summary.ts`), one per `HaltReason`; only a lapsed consent still reads
+  `suppressed_consent_expired`. The `suppressed_` prefix is kept on purpose: the client
+  (`reachOutVerdict`) collapses that prefix into its one "cannot be contacted" sentence.
+  The outreach-letter doors answer `404 OUTREACH_LETTER_NOT_FOUND` and
+  `409 OUTREACH_LETTER_CONFLICT` (the release door maps `releaseOutreachLetter`'s pipeline
+  codes onto them), registered in `app/_lib/api-errors/refusal-errors.ts` with four
+  catalog entries each.
 - **Pull-config refusals distinguish input from storage.** `PATCH` validates the
   operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
   for malformed or unsafe URLs. A later encryption or SQLite write failure reaches

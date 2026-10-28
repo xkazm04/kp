@@ -406,7 +406,7 @@ test("outreach is delivered at most once per entry — the durable marker short-
 const { outreachLetterByEntry } = await import("./db/outreach-letters.ts");
 const { listOutboxFiltered } = await import("./db/devcase.ts");
 const { setRelayHostLookupForTests } = await import("./comms.ts");
-const { haltOutreach } = await import("./outreach-state-store.ts");
+const { haltOutreach, recordOutreachSend, recordOutreachReply } = await import("./outreach-state-store.ts");
 
 /** A fixture relay that records every POST; restores the channel when called back. */
 function spyRelay(): { posts: string[]; restore: () => void } {
@@ -463,10 +463,25 @@ test("a halted entry is not drafted for: the refusal is audited, nothing is held
     seedVerdict(f, "outreach", { subject: "Hello", body: "…" }, "llm");
     haltOutreach(f.entry.id, f.ws);
     const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
-    assert.match(out.applied, /^suppressed_/);
+    assert.equal(out.applied, "suppressed_manual", "a manual halt is not reported as an expired consent");
     assert.equal(outreachLetterByEntry(f.entry.id, f.ws), null);
     assert.equal(relay.posts.length, 0);
     assert.ok(listPipelineEventsForEntry(f.entry.id, 50, f.ws).some((e) => e.kind === "outreach_suppressed"));
+  } finally {
+    relay.restore();
+  }
+});
+
+test("a halted-replied entry's outreach outcome reads replied, not an expired consent", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "…" }, "llm");
+    recordOutreachSend(f.entry.id, f.ws);
+    assert.ok(recordOutreachReply(f.entry.id, f.ws));
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(out.applied, "suppressed_replied");
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws), null);
   } finally {
     relay.restore();
   }

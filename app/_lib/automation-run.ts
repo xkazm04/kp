@@ -838,9 +838,14 @@ export async function runAutomationTask(
         }) ?? outreachHaltFor(entry.id, workspaceId);
       if (suppress) {
         recordAutomationEvent(entry.id, "outreach_suppressed", suppress, workspaceId);
-        // A halted sequence keeps the token it always had: the client collapses every
-        // non-anonymized refusal into one "cannot be contacted" sentence.
-        applied = suppress === "anonymized" ? "suppressed_anonymized" : "suppressed_consent_expired";
+        // One token per refusal. Every one keeps the `suppressed_` prefix, which is what
+        // the client (reachOutVerdict) collapses into its "cannot be contacted" sentence.
+        applied =
+          suppress === "anonymized" ? "suppressed_anonymized"
+          : suppress === "replied" ? "suppressed_replied"
+          : suppress === "manual" ? "suppressed_manual"
+          : suppress === "candidate" ? "suppressed_candidate"
+          : "suppressed_consent_expired";
       } else {
         await draftOutreachLetter(entry, result, workspaceId);
         applied = "drafted";

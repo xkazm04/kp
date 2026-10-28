@@ -115,6 +115,10 @@ export const APPLIED_VALUES = [
   "already_sent",
   "suppressed_anonymized",
   "suppressed_consent_expired",
+  // A halted outreach sequence, one value per HaltReason (outreach-halt.ts).
+  "suppressed_replied",
+  "suppressed_manual",
+  "suppressed_candidate",
   "rematched",
   "already_rematched",
   "no_alternative",
