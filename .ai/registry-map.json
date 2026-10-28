@@ -28886,7 +28886,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/ScoreBadge.tsx:39 These components only draw an already-computed candidate score in the recruiter's browser and export nothing to a time-series store or other outside consumer, so the subject's precondition (a published metric surface) does not hold here; a search of the 12 source files and of app/_components for prometheus, prom-client, histogram and opentelemetry found nothing, and no metrics exporter exists in package.json or app/.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:7fac3c16c37ab0cc",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
