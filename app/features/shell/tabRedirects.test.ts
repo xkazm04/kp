@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CALENDAR_CALLBACK_STATUSES } from "../../_lib/calendar/callback-status.ts";
 import { parseNightArrival } from "../hiring/channels/night/channelsNightNav.ts";
-import { buildUrl, WORKSPACE_TAB_IDS } from "./tabs.ts";
+import { buildUrl, NAV_GROUPS, WORKSPACE_TAB_IDS } from "./tabs.ts";
 import { deriveChords } from "./workspaceChords.ts";
 import { TAB_REDIRECTS, redirectedTab, redirectParams, tabRedirectUrl } from "./tabRedirects.ts";
 
@@ -71,4 +71,16 @@ test("redirect targets are live tabs, and a redirected id is still a live id (it
     assert.ok(r && (WORKSPACE_TAB_IDS as readonly string[]).includes(r.tab), `${from} -> ${r?.tab}`);
     assert.ok(r && !TAB_REDIRECTS[r.tab], "no redirect chains");
   }
+});
+
+test("the nav item is relabelled as a link into Channels, and its g o chord and click both open the Connectors deck", () => {
+  const item = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.id === "integrations");
+  assert.equal(item?.label, "Integrations (in Channels)");
+  const chord = deriveChords().find((c) => c.id === "integrations");
+  assert.deepEqual(chord?.keys, ["o"]);
+  // chord and click both resolve through the same redirect: tab=channels, sec=connectors
+  const dest = redirectedTab("integrations");
+  const sec = redirectParams("integrations", "")?.sec;
+  assert.equal(dest, "channels");
+  assert.deepEqual(parseNightArrival(sec ?? null)?.at(-1), { level: 1, deck: "connectors", focus: null });
 });
