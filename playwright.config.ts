@@ -36,6 +36,18 @@ const E2E_DB_PATH = path.resolve(import.meta.dirname, "data", "kp-e2e.sqlite");
 // reads the same variable so the entry cookie lands on the right origin.
 const overrideBaseUrl = process.env.KP_E2E_BASE_URL;
 
+// ─── The first-run run ───────────────────────────────────────────────────────
+// e2e/first-run-choice.spec.ts needs an UNSEEDED database that is deleted before
+// each server start, which the seeded webServer below (KP_SEED_DEMO=1) cannot be.
+// Two `next dev` servers cannot share a checkout (lock at .next/dev/lock) and
+// KP_EMPTY=1, the only other distDir, answers the choice by env — so that spec
+// starts and stops its own servers (e2e/fixtures/fresh-server.ts) and runs ALONE:
+// selecting it (by path, or KP_E2E_FIRST_RUN=1) drops the managed webServer, and
+// every other run ignores it. Not in KEYLESS_SPECS.
+const FIRST_RUN_SPEC = "first-run-choice";
+const firstRunOnly =
+  process.env.KP_E2E_FIRST_RUN === "1" || process.argv.slice(2).some((arg) => arg.includes(FIRST_RUN_SPEC));
+
 // ─── The keyless release subset ──────────────────────────────────────────────
 // The specs ci.yml's `e2e-keyless` job runs against a production build with NO
 // provider env set — the run that certifies "degrades gracefully keyless" as a
@@ -92,6 +104,7 @@ export const KEYLESS_SPECS = [
 
 export default defineConfig({
   testDir: "./e2e",
+  ...(firstRunOnly ? { testMatch: `**/${FIRST_RUN_SPEC}.spec.ts` } : { testIgnore: `**/${FIRST_RUN_SPEC}.spec.ts` }),
   // A committed `test.only` runs that ONE test, marks every sibling skipped, and
   // exits 0 — so the keyless CI job would print green while the role-to-schedule
   // journey, the modal dismissal contract and the profile-builder round-trip never
@@ -120,7 +133,7 @@ export default defineConfig({
     baseURL: overrideBaseUrl ?? "http://localhost:3101",
     trace: "retain-on-failure"
   },
-  ...(overrideBaseUrl
+  ...(overrideBaseUrl || firstRunOnly
     ? {}
     : {
         webServer: {
