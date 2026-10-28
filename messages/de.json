@@ -16984,6 +16984,11 @@
           "title": "{count, plural, one {<em># Ergebnis</em> hat Ihr ATS nicht erreicht} other {<em># Ergebnisse</em> haben Ihr ATS nicht erreicht}}",
           "detail": "Der ATS-Webhook hat nach allen Versuchen aufgegeben. Das Ergebnis ist hier festgehalten, fehlt aber in Ihrem ATS, bis Sie es erneut senden.",
           "cta": "Prüfen und erneut senden"
+        },
+        "calendarReconnect": {
+          "title": "Ihr Kalender muss neu verbunden werden",
+          "detail": "Google akzeptiert den Zugriff von kp auf den Kalender nicht mehr, daher werden Interviewtermine nicht mehr damit abgeglichen. Verbinden Sie ihn neu, um Frei/Gebucht wieder zu lesen.",
+          "cta": "Neu verbinden"
         }
       },
       "chip": {
@@ -17404,8 +17409,9 @@
       },
       "door": {
         "probe": "Jetzt prüfen",
-        "probing": "Wird geprüft",
-        "sender": "Zustell-Einrichtung öffnen"
+        "probing": "Wird geprüft…",
+        "sender": "Zustell-Einrichtung öffnen",
+        "reconnect": "Neu verbinden"
       },
       "probe": {
         "ok": "Prüfung erfolgreich.",
@@ -17425,7 +17431,7 @@
         "gaveUp": "Nach {attempts, plural, one {# Versuch} other {# Versuchen}} aufgegeben, {time}.",
         "lastAnswer": "Letzte Antwort: {answer}",
         "replay": "Erneut senden",
-        "replaying": "Wird erneut gesendet",
+        "replaying": "Wird erneut gesendet…",
         "replayed": "Erneut eingereiht und versucht. Hat Ihr ATS geantwortet, ist die Zeile aus dieser Liste verschwunden.",
         "replayFailed": "Das erneute Senden ist nicht gelaufen. Versuchen Sie es erneut.",
         "event": {

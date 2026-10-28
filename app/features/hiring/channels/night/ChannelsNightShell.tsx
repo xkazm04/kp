@@ -19,7 +19,7 @@ import { useChannelsNightDelivery } from "./useChannelsNightDelivery";
 import { useChannelsNightKeys } from "./useChannelsNightKeys";
 import { useChannelsNightNav } from "./useChannelsNightNav";
 import { ChannelsNightConnectorsLevel } from "./connectors/ChannelsNightConnectorsLevel";
-import { deckSummary } from "./connectors/connectorsDeckModel";
+import { calendarNeedsReconnect, deckSummary } from "./connectors/connectorsDeckModel";
 import { deliveryCounts } from "./connectors/atsDeliveriesModel";
 import { useConnectorsDeck } from "./connectors/useConnectorsDeck";
 import "./channelsNight.css";
@@ -61,8 +61,9 @@ export function ChannelsNightShell() {
       jobs, receivers: webhooks, receiversTruncated: webhooksTruncated, waiting: accepted, messages, olderExist: hasMore || truncated,
       relay: delivery.relay, edge: delivery.edge, settled: dataSettled && (messages !== null || feed.error) && delivery.settled, linkReach,
       ats: deliveryCounts(deck.ats),
+      calendarReconnect: calendarNeedsReconnect(deck.connectors),
     }),
-    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error, linkReach, deck.ats],
+    [jobs, webhooks, webhooksTruncated, accepted, messages, hasMore, truncated, delivery.relay, delivery.edge, delivery.settled, dataSettled, feed.error, linkReach, deck.ats, deck.connectors],
   );
   const model = useMemo(() => plumbingModel(input), [input]);
 

@@ -46,6 +46,10 @@ export type ConnectorField = {
 
 export type ConnectorFailure = { at: string | null; reason: string };
 
+/** What only a person can fix, when the store knows it: a calendar grant Google revoked (or a
+ *  stored token that no longer decrypts) is fixed by Reconnect, never by another probe. */
+export type ConnectorRepair = "reconnect";
+
 export type ConnectorRow = {
   id: ConnectorId;
   label: string;
@@ -54,6 +58,7 @@ export type ConnectorRow = {
   health: ConnectorHealth;
   lastOkAt: string | null;
   lastFailure: ConnectorFailure | null;
+  repair: ConnectorRepair | null;
 };
 
 /** What a definition reads from its store, with no network. */
@@ -66,6 +71,8 @@ type Snapshot = {
   /** A failure the store itself already knows (a revoked calendar grant), so the row can
    *  read `failing` without a probe having run. */
   known?: ConnectorFailure;
+  /** The fix a `known` failure needs, when it is one a person must make. */
+  repair?: ConnectorRepair;
 };
 
 type ConnectorDef = {
@@ -156,6 +163,7 @@ const DEFINITIONS: readonly ConnectorDef[] = [
           configured && conn && conn.health !== "ok"
             ? { at: conn.healthAt, reason: conn.health === "revoked" ? "Calendar grant revoked." : "Stored calendar token is unreadable." }
             : undefined,
+        repair: configured && conn && conn.health !== "ok" ? "reconnect" : undefined,
       };
     },
     probe: (workspaceId) => probeCalendar(workspaceId),
@@ -226,6 +234,7 @@ function rowOf(def: ConnectorDef, workspaceId: string): ConnectorRow {
     health: healthOf(snap, mem),
     lastOkAt: mem?.lastOkAt ?? null,
     lastFailure: snap.known ?? mem?.lastFailure ?? null,
+    repair: snap.known && snap.repair ? snap.repair : null,
   };
 }
 

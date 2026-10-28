@@ -57,6 +57,8 @@ export type PlumbingInput = {
   /** The outbound ATS delivery ledger's counts (GET /api/ats/deliveries); null/absent = not read
    *  (in flight, or a seat the operator-only route refuses), never read as "nothing dead". */
   ats?: AtsDeliveryCounts | null;
+  /** The calendar grant needs a Reconnect (the connector catalog's `repair`); null/absent = not read. */
+  calendarReconnect?: boolean | null;
 };
 
 /** The candidate-link base, when it is known NOT to reach candidates; null otherwise. */
@@ -285,7 +287,7 @@ export function plumbingFigures(input: PlumbingInput): NightFigure[] {
 export type NeedKey =
   | "relayOffQueued" | "relayUnreadable" | "dead" | "pullFailing" | "edgeFailing" | "edgeSecretMissing" | "relayOff"
   | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting"
-  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere" | "atsDead";
+  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere" | "atsDead" | "calendarReconnect";
 
 export type NeedItem = {
   id: string;
@@ -330,6 +332,11 @@ export function rankNeeds(input: PlumbingInput): NeedItem[] {
   }
   if (c && c.needs > 0) {
     add({ id: "dead", key: "dead", sev: 90 + Math.min(c.needs, 9) / 10, tone: "bad", node: "book", target: ledger("dead"), n: { count: c.needs, failed: c.needsFailed, bounced: c.needsBounced } });
+  }
+  // A revoked calendar grant: interview slots stop being checked against the recruiter's real
+  // calendar, and no probe or retry can fix it; only the owner's Reconnect (the OAuth again) can.
+  if (input.calendarReconnect) {
+    add({ id: "calendar-reconnect", key: "calendarReconnect", sev: 75, tone: "bad", node: "studio", target: deckEntry("calendar") });
   }
   for (const r of input.receivers ?? []) {
     if (r.pullUrl && r.lastPullError) {

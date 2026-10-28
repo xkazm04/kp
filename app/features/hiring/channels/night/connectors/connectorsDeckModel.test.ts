@@ -14,7 +14,7 @@ import {
 
 after(() => cleanupUnitDb());
 
-const wire = (id: ConnectorId, health: ConnectorHealth): ConnectorWire => ({ id, health, lastOkAt: null, lastFailure: null });
+const wire = (id: ConnectorId, health: ConnectorHealth): ConnectorWire => ({ id, health, lastOkAt: null, lastFailure: null, repair: null });
 
 test("sealed and not_configured render different label keys (and different marks)", () => {
   assert.notEqual(deckCard(wire("comms_relay", "sealed")).label, deckCard(wire("comms_relay", "not_configured")).label);
@@ -76,7 +76,7 @@ test("the parse drops what it does not know and never carries a field value", ()
       { id: "calendar", health: "asleep" },
     ],
   });
-  assert.deepEqual(rows, [{ id: "smtp", health: "unverified", lastOkAt: null, lastFailure: null }]);
+  assert.deepEqual(rows, [{ id: "smtp", health: "unverified", lastOkAt: null, lastFailure: null, repair: null }]);
   assert.equal(parseConnectBody({ error: "Unauthorized" }), null, "a refusal is unknown, not an empty catalog");
   assert.equal(deckSummary(null), null);
 });

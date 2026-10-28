@@ -6,6 +6,9 @@ import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { SetupCard, SetupResult } from "../setup/SetupBits";
 import type { DeckCard } from "./connectorsDeckModel";
 
+/** The calendar's OAuth start (the calendar panel's Connect / Reconnect door). */
+const CALENDAR_START_URL = "/api/calendar/google/start";
+
 /** What the last press on this card answered, to say under it. */
 export type CardNote = { ok: boolean; text: string };
 
@@ -45,6 +48,12 @@ export function ConnectorCard({ card, busy, note, onProbe, onSender }: {
         <div className="cns-row">
           {card.door === "probe" ? (
             <Button label={t("door.probe")} loadingLabel={t("door.probing")} loading={busy} onClick={() => onProbe(card)} />
+          ) : card.door === "reconnect" ? (
+            // The OAuth start is a top-level navigation (state cookie + 302 to Google), so it is a
+            // link wearing the kit button, exactly as the calendar panel's own Connect is.
+            <a className="k-btn k-btn--primary" href={CALENDAR_START_URL}>
+              {t("door.reconnect")}
+            </a>
           ) : (
             <Button label={t("door.sender")} icon="right" onClick={(e) => onSender(e.currentTarget)} />
           )}

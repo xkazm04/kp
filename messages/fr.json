@@ -16984,6 +16984,11 @@
           "title": "{count, plural, one {<em># résultat</em> n’a pas atteint votre ATS} other {<em># résultats</em> n’ont pas atteint votre ATS}}",
           "detail": "Le webhook ATS a abandonné après ses tentatives. Le résultat est enregistré ici, mais manque dans votre ATS tant que vous ne le renvoyez pas.",
           "cta": "Vérifier et renvoyer"
+        },
+        "calendarReconnect": {
+          "title": "Votre agenda doit être reconnecté",
+          "detail": "Google n’accepte plus l’accès de kp à l’agenda, les créneaux d’entretien ne sont donc plus vérifiés par rapport à lui. Reconnectez-le pour relire les disponibilités.",
+          "cta": "Reconnecter"
         }
       },
       "chip": {
@@ -17404,8 +17409,9 @@
       },
       "door": {
         "probe": "Vérifier maintenant",
-        "probing": "Vérification en cours",
-        "sender": "Ouvrir les réglages d’envoi"
+        "probing": "Vérification en cours…",
+        "sender": "Ouvrir les réglages d’envoi",
+        "reconnect": "Reconnecter"
       },
       "probe": {
         "ok": "Vérification réussie.",
@@ -17425,7 +17431,7 @@
         "gaveUp": "Abandonné après {attempts, plural, one {# tentative} other {# tentatives}}, {time}.",
         "lastAnswer": "Dernière réponse : {answer}",
         "replay": "Renvoyer",
-        "replaying": "Renvoi en cours",
+        "replaying": "Renvoi en cours…",
         "replayed": "Remis en file et retenté. Si votre ATS a répondu, la ligne a quitté cette liste.",
         "replayFailed": "Le renvoi n’a pas pu être lancé. Réessayez.",
         "event": {

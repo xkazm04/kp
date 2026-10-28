@@ -21,6 +21,8 @@ export type ConnectorWire = {
   health: ConnectorHealth;
   lastOkAt: string | null;
   lastFailure: { at: string | null; reason: string } | null;
+  /** A fix only a person can make (a revoked calendar grant: Reconnect); null otherwise. */
+  repair: "reconnect" | null;
 };
 
 const HEALTH: readonly string[] = ["connected", "not_configured", "failing", "unverified", "sealed"];
@@ -41,6 +43,7 @@ export function parseConnectBody(body: unknown): ConnectorWire[] | null {
       health: r.health as ConnectorHealth,
       lastOkAt: typeof r.lastOkAt === "string" ? r.lastOkAt : null,
       lastFailure: f && typeof f.reason === "string" ? { at: typeof f.at === "string" ? f.at : null, reason: f.reason } : null,
+      repair: r.repair === "reconnect" ? "reconnect" : null,
     });
   }
   return out;
@@ -74,8 +77,9 @@ export const DECK_GROUPS: readonly DeckGroup[] = ["delivery", "ats", "calendar"]
 /** What a card's one button does:
  *  probe   POST /api/connect/<id>/probe, on a press
  *  sender  open the sender level (the relay and SMTP setup, where Send test lives)
+ *  reconnect  run the OAuth connect again (a revoked calendar grant: another probe cannot fix it)
  *  null    nothing to press here (sealed, or set up in the panel under the cards) */
-export type DeckDoor = "probe" | "sender" | null;
+export type DeckDoor = "probe" | "sender" | "reconnect" | null;
 
 /** Does the calendar's free/busy count as read? Only a probe that proved it: anything else is
  *  `unknown`, never "free". */
@@ -103,8 +107,9 @@ export function groupOf(id: ConnectorId): DeckGroup {
 }
 
 /** The door a card offers. smtp NEVER gets `probe`: its probe is a letter (the rule above). */
-export function doorOf(row: Pick<ConnectorWire, "id" | "health">): DeckDoor {
+export function doorOf(row: Pick<ConnectorWire, "id" | "health"> & { repair?: ConnectorWire["repair"] }): DeckDoor {
   if (row.id === "smtp") return "sender";
+  if (row.repair === "reconnect") return "reconnect";
   if (row.health === "sealed") return null;
   if (row.health === "not_configured") return row.id === "comms_relay" ? "sender" : null;
   return "probe";
@@ -137,6 +142,13 @@ export function deckCards(rows: readonly ConnectorWire[]): Record<DeckGroup, Dec
   const out: Record<DeckGroup, DeckCard[]> = { delivery: [], ats: [], calendar: [] };
   for (const row of rows) out[groupOf(row.id)].push(deckCard(row));
   return out;
+}
+
+/** A calendar grant only Reconnect can fix (revoked at Google, or a token that no longer
+ *  decrypts): the plumbing lists it as a need. null = the catalog was not read. */
+export function calendarNeedsReconnect(rows: readonly ConnectorWire[] | null): boolean | null {
+  if (rows === null) return null;
+  return rows.some((r) => r.id === "calendar" && r.repair === "reconnect");
 }
 
 /* ------------------------------------------------------------------ the door on level 0 */

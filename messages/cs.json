@@ -16984,6 +16984,11 @@
           "title": "{count, plural, one {<em># výsledek</em> se nedostal do vašeho ATS} few {<em># výsledky</em> se nedostaly do vašeho ATS} other {<em># výsledků</em> se nedostalo do vašeho ATS}}",
           "detail": "Webhook ATS to po všech pokusech vzdal. Výsledek je zaznamenaný tady, ale ve vašem ATS chybí, dokud ho znovu neodešlete.",
           "cta": "Zkontrolovat a odeslat znovu"
+        },
+        "calendarReconnect": {
+          "title": "Kalendář je potřeba znovu připojit",
+          "detail": "Google už nepřijímá přístup kp ke kalendáři, takže se termíny pohovorů proti němu nekontrolují. Po opětovném připojení se volno a obsazenost znovu načtou.",
+          "cta": "Znovu připojit"
         }
       },
       "chip": {
@@ -17404,8 +17409,9 @@
       },
       "door": {
         "probe": "Zkontrolovat",
-        "probing": "Kontrolujeme",
-        "sender": "Otevřít nastavení doručování"
+        "probing": "Kontrolujeme…",
+        "sender": "Otevřít nastavení doručování",
+        "reconnect": "Znovu připojit"
       },
       "probe": {
         "ok": "Kontrola prošla.",
@@ -17425,7 +17431,7 @@
         "gaveUp": "Vzdáno po {attempts, plural, one {# pokusu} few {# pokusech} other {# pokusech}}, {time}.",
         "lastAnswer": "Poslední odpověď: {answer}",
         "replay": "Odeslat znovu",
-        "replaying": "Odesíláme znovu",
+        "replaying": "Odesíláme znovu…",
         "replayed": "Znovu zařazeno a vyzkoušeno. Pokud váš ATS odpověděl, řádek z tohoto seznamu zmizel.",
         "replayFailed": "Opětovné odeslání se nespustilo. Zkuste to znovu.",
         "event": {

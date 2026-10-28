@@ -16984,6 +16984,11 @@
           "title": "{count, plural, one {<em># outcome</em> did not reach your ATS} other {<em># outcomes</em> did not reach your ATS}}",
           "detail": "The ATS webhook gave up after its retries. The outcome is recorded here but missing in your ATS until you replay it.",
           "cta": "Review and replay"
+        },
+        "calendarReconnect": {
+          "title": "Your calendar needs a reconnect",
+          "detail": "Google no longer accepts kp's access to the calendar, so interview slots are not checked against it. Reconnect to read free/busy again.",
+          "cta": "Reconnect"
         }
       },
       "chip": {
@@ -17404,8 +17409,9 @@
       },
       "door": {
         "probe": "Check now",
-        "probing": "Checking",
-        "sender": "Open delivery setup"
+        "probing": "Checking…",
+        "sender": "Open delivery setup",
+        "reconnect": "Reconnect"
       },
       "probe": {
         "ok": "Check passed.",
@@ -17425,7 +17431,7 @@
         "gaveUp": "Gave up after {attempts, plural, one {# attempt} other {# attempts}}, {time}.",
         "lastAnswer": "Last answer: {answer}",
         "replay": "Replay",
-        "replaying": "Replaying",
+        "replaying": "Replaying…",
         "replayed": "Queued again and retried. If your ATS answered, the row has left this list.",
         "replayFailed": "Replay did not run. Try again.",
         "event": {

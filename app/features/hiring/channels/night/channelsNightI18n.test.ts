@@ -22,6 +22,7 @@ const NEEDS: [string, Record<string, unknown>][] = [
   ["pullFailing", { role: "Data Engineer" }], ["edgeFailing", {}], ["edgeSecretMissing", {}], ["orphaned", { count: 3 }],
   ["reachedNoLeads", { role: "Data Engineer", count: 12 }], ["queuedWithRelay", { count: 4 }], ["edgeOff", {}], ["edgePending", { count: 3 }],
   ["nothingPublished", {}], ["receiverWaiting", { role: "Data Engineer" }], ["atsDead", { count: 3 }],
+  ["calendarReconnect", {}],
 ];
 const FACTS: [string, Record<string, unknown>][] = [
   ["careersRoles", { count: 8 }], ["careersNone", {}], ["emailNone", {}], ["adsNone", {}], ["receiversNothing", { count: 2 }],
