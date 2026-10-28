@@ -3,8 +3,11 @@
 One server-side catalog of everything kp can talk to, with **one health vocabulary**.
 Code: `app/_lib/connect/` (`catalog.ts`, `probes.ts`); API: `GET /api/connect`,
 `POST /api/connect/[id]/probe`.
-The hub UI that mounts it is a later change (comms channels scope C5); nothing under
-`app/features/` reads it yet.
+The hub UI is the Night Post's **Connectors deck** (`app/features/hiring/channels/night/connectors/`,
+comms channels C5): it reads `GET /api/connect` and runs `POST /api/connect/[id]/probe` only from an
+owner's press. `?tab=integrations` (the retired Settings tab, and the Google OAuth landing)
+redirects there. The deck is described in `docs/features/comms/README.md`, "Channels tab: the
+Night Post".
 
 ## Rows
 
@@ -24,7 +27,7 @@ exactly as in its store: the row carries `hasSecret`, never a value.
 { "id": "ats_inbound:recruitee", "label": "...", "egress": "credentialed_read",
   "fields": [ { "key": "baseUrl", "secret": false, "value": "https://…" },
               { "key": "apiToken", "secret": true, "hasSecret": true } ],
-  "health": "unverified", "lastOkAt": null, "lastFailure": null }
+  "health": "unverified", "lastOkAt": null, "lastFailure": null, "repair": null }
 ```
 
 ## Health words
@@ -38,6 +41,10 @@ Exactly one per row, decided in this order:
 4. `unverified` — saved, but no probe has run against this configuration. A re-save, or a
    process restart, returns a row here.
 5. `connected` — the last probe against the current configuration succeeded.
+
+`repair` is `"reconnect"` when the store knows a failure only a person can fix (today: a calendar
+grant revoked at Google, or a stored token that no longer decrypts); otherwise `null`. The deck turns
+it into a Reconnect door and the Night Post's `calendarReconnect` need.
 
 `lastOkAt` / `lastFailure` come from the probe memory (below) or, for the calendar grant, from
 the health the calendar edge already records (`healthAt`).
@@ -84,6 +91,17 @@ configured row reads `unverified` until probed again.
 
 `GET /api/connect` is operator-only (`requireOperator`) inside `withWorkspace`, like the
 settings routes it summarizes.
+
+## The hub (Connectors deck)
+
+- **Health on load is config-only.** The deck reads the catalog on mount, on live refresh and on a
+  return to the plumbing; it never probes, never polls and refreshes nothing in the background.
+- **Probe is a press.** "Check now" calls the probe door for one row. `smtp` has no Check now: its
+  card opens delivery setup, where the Send test is (the probe door refuses it anyway).
+- **Keyless:** every card reads "Not set up"; under the seal every card reads "Sealed", a different
+  word and mark from "Not set up".
+- Pinned by `connectors/connectorsDeckModel.test.ts`, `connectors/connectorsDeckReads.test.ts` and
+  `connectors/calendarReconnect.test.ts` (paths under `app/features/hiring/channels/night/`).
 
 ## Known gaps
 
