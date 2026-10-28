@@ -17114,42 +17114,39 @@
       "context": "analytics-sections",
       "subject": "lazy-section-addressability",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T02:59:42.846Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T22:19:19.508Z",
+      "worker": "38814d63-bd5d-40c8-af0a-843f52a3518c",
       "techniques": [
         {
           "technique": "always-present-anchor-wrappers",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:174 The named sections are mutually exclusive views selected through query state; searches found no addressed scroll locations within their deferred panels."
-        },
-        {
-          "technique": "anchor-coverage-guard",
-          "verdict": "not-applicable",
-          "evidence": "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx:28 Navigation switches the active view rather than resolving a declared vocabulary of DOM anchors, so wrapper coverage is not the applicable guard."
+          "evidence": "app/features/insights/analytics/sections/sectionChunks.tsx:14 The code-split panels reserve height (min-h-[..rem]) but none of them is addressed by name, so no address wrapper is owed. The technique's 'locations that are not addressed' exemption applies."
         },
         {
           "technique": "external-anchor-vs-internal-id",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:25 The published names select views through ?sec=; this context has no corresponding internal element handles or scroll tracker requiring a second namespace."
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:14 The only published names are ?sec= values that select a whole view; there are no scroll-tracker or coaching handles to keep separate from them. The vocabulary is declared once, as the technique asks."
         },
         {
           "technique": "scroll-to-hydrate-then-retry",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/analytics/sections/PerformanceBriefing.tsx:350 The internal editor action changes disclosure state directly; searches found no jump consumer waiting for a target inside an unmounted panel."
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:26 A deep link resolves to the selected section, which then renders. No jump has to wait for a section to mount on approach, so there is no scroll or retry protocol to judge."
+        },
+        {
+          "technique": "anchor-coverage-guard",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.test.ts:23 There are no in-page anchors to cover. The nearest equivalent is a unit test over the ?sec= vocabulary: the guard, the default being a declared id, and the fallback for unknown values."
         },
         {
           "technique": "ssr-gating-decision-tree",
           "verdict": "deviation",
-          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:355 ComputeCostPanel is deferred without a sized placeholder; Defer.tsx:35 defaults placeholder to null and lines 101–105 emit an unsized sentinel, while defer-policy.ts:54 prevents immediate rendering for this strategy."
+          "evidence": "app/features/insights/analytics/sections/EconomicsBoard.tsx:355 ComputeCostPanel is deferred without a sized placeholder; Defer.tsx:35 defaults placeholder to null and lines 101–105 emit an unsized sentinel, while defer-policy.ts:54 prevents immediate rendering for this strategy.",
+          "carriedFrom": "2026-10-22"
         }
       ],
-      "withdrawn": {
-        "worker": "fc883132-3c25-49c0-9113-8d916ad079a4",
-        "state": "deviation",
-        "at": "2026-10-22T03:10:00.535406+00:00",
-        "reason": "reviewer (sonnet): QualityInstrument.tsx:283 does show a `<Defer strategy=\"visible\">` with no placeholder, and Defer.tsx renders a zero-height sentinel in that case. But I could not open the standard's text to confirm it has a reserved-space requirement, and the verdict's own technique anchors say this context has no "
-      }
+      "registryProposal": "The subject could say outright that a query-param view switcher that renders one section at a time (rather than a long scroll) is outside its scope. A tab-addressed view is closer to app-shell routing than to scroll addressability."
     },
     "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/long-form-reading-surface": {
       "context": "matrix-focus",

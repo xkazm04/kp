@@ -3988,7 +3988,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:8 The former long scroll was replaced by a ?sec= tab switcher that renders only the active section, so there are no named in-page locations to scroll to. A search of the sections directory (and of all of app/features/insights/analytics) found no scrollIntoView, IntersectionObserver, location.hash, getElementById or scroll-mt, which means this page has no scroll address space for the subject to govern.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:bc574aa9e5f8c74c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",
