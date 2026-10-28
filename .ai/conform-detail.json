@@ -17365,47 +17365,45 @@
       "context": "profile-editor",
       "subject": "native-document-format",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T21:08:39.540Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-28",
+      "evaluatedTs": "2026-10-28T22:56:04.408Z",
+      "worker": "c37b469c-58a3-4781-88b2-ffe5c77b6437",
       "techniques": [
         {
           "technique": "format-generations-are-declared",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:44 The versioned recovery envelope belongs to a browser tab, rather than a portable document with future readers."
+          "evidence": "app/features/tools/profile/profileEditorBackup.ts:70 Nothing here is a saved document. The nearest analogue is the tab-scoped sessionStorage backup, which does carry a generation stamp (v: 2), and planRestore offers a pre-envelope backup instead of applying it. Read that way, it is a declared generation."
         },
         {
           "technique": "format-is-the-engines-input",
           "verdict": "not-applicable",
-          "evidence": "app/api/profile/route.ts:114 The Python input file is temporary request transport and is cleaned up; it is not the application's saved document."
-        },
-        {
-          "technique": "ignorable-extensions-must-be-declared",
-          "verdict": "not-applicable",
-          "evidence": "app/api/profile/route.ts:83 This path writes application-owned JSON input, without extending a separately defined document vocabulary."
-        },
-        {
-          "technique": "one-writer-per-fact",
-          "verdict": "not-applicable",
-          "evidence": "app/api/profile/route.ts:118 The duplicated projections identified here are database columns, outside this subject's document-format boundary."
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 There is no save format to design. The downstream consumer (profile_cli) receives a temporary intake.json that the route writes for each request and then deletes. That is an IPC payload, not a persisted document."
         },
         {
           "technique": "reference-or-embed",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/profileEditorPayload.ts:45 Evidence links are profile payload fields; this editor does not package a native document with referenced or embedded assets."
+          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:43 The only client-side persistence is deliberately limited to the tab. No document stores or relinks external assets. Evidence links are plain URL strings inside a database row."
+        },
+        {
+          "technique": "ignorable-extensions-must-be-declared",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/route.ts:83 This path writes application-owned JSON input, without extending a separately defined document vocabulary.",
+          "carriedFrom": "2026-10-22"
+        },
+        {
+          "technique": "one-writer-per-fact",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/route.ts:118 The duplicated projections identified here are database columns, outside this subject's document-format boundary.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "serialization-is-locale-free",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:199 This serializes browser recovery state, rather than a native document exchanged between application versions."
+          "evidence": "app/features/tools/profile/useProfileEditorFields.ts:199 This serializes browser recovery state, rather than a native document exchanged between application versions.",
+          "carriedFrom": "2026-10-22"
         }
-      ],
-      "withdrawn": {
-        "worker": "48b34706-2bec-474f-a23e-cbbc9c0ef252",
-        "state": "not-applicable",
-        "at": "2026-10-22T21:09:02.140219+00:00",
-        "reason": "reviewer (sonnet): The not-applicable anchor app/_lib/db/profiles.ts:68 is an INSERT column list, which is incidental: it doesn't show that no native document format exists, and the same statement writes a persisted payload_json blob (profiles.ts:65) that the verdict never examined for a version or a reader contract."
-      }
+      ]
     },
     "072ae351-6062-4edf-ae14-acf4260e4c19/observability-telemetry": {
       "context": "ops-observability",

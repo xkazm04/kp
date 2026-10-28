@@ -26987,7 +26987,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 The editor saves a candidate profile only by POSTing or PUTting JSON to /api/profile, which writes a SQLite row through app/_lib/db/profiles.ts (saveProfileForCv/updateProfile). The application owns that schema and migrates it, so no profile document ever leaves the application as a file with an unbounded set of readers. A search of app/features/tools/profile/ for schemaVersion, formatVersion, Blob, download, showSaveFilePicker and FileReader found no file export or import path.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:1104f28404244275",
+          "evaluatedRevision": 3
         },
         {
           "subject": "sql-console",
