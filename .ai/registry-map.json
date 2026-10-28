@@ -28595,7 +28595,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:102 The weave picker offers every chronology block as a target for a candidate-specific question imported from the analysis report, with no shared/personal grounding flag to refuse it, so personalised probes can land on any phase whose ratings are then compared on the shared rubric.",
+          "evaluatedAt": "2026-10-28",
+          "evaluatedAgainst": "sha256-b2:6c115a739c45b00b",
+          "evaluatedRevision": 4
         },
         {
           "subject": "scheduling",
