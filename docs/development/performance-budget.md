@@ -156,6 +156,17 @@ now carry named overrides rather than a wider group ceiling. The `@sentry/nextjs
 touched only the lockfile and is not in this graph. Ceilings were raised to the measured
 values, each with a `why`, and no slack was added.
 
+**Zero slack is a tripwire for the next merge.** On 2026-10-28 main was red a fourth time:
+33 route overrides sat 1 KB over, and `app/page.tsx` had grown 1977 to 1981 modules and
+11925 to 11970 KB. Nothing structural: 37 commits since 36fbfa7fa moved a few KB each
+(`automation-run.ts`, `comms-backlog.ts`, `connect/catalog.ts`, `connect/probes.ts`,
+`link-base-warning.ts`, `task-fanout.ts`, `tenancy.ts`), all of them on every route's
+path through the task hub. c76400944 (four lines in `api-errors/refusal-errors.ts`, which
+every route imports) was the commit that crossed the line, not the cause; the pre-push
+gate does not run `test:perf`, so nothing stopped it. Only the entries that crossed were
+raised, each by the overage plus 8 KB (30 KB and 3 modules for the page) so the next small
+merge does not turn main red again; no other ceiling moved.
+
 ## When it fails
 
 The message names the file, the measurement and the ceiling. In order of what
