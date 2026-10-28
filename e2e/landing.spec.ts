@@ -18,6 +18,7 @@
 // workspace: that one writes.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import os from "node:os";
 
 // Every band of the page, by the id the header nav, the phone menu, the spine
 // and the footer navigate to. Kept in page order so the scroll walk is monotonic.
@@ -310,4 +311,72 @@ test("the demo CTA's refusal lands on the landing and is named, not silent", asy
   await expect(notice).toContainText("The live demo is not set up on this deployment yet.");
   await notice.getByRole("button", { name: "Dismiss" }).click();
   await expect(notice).toHaveCount(0);
+});
+
+// ─── The landing leads into the local app (operator triage T2) ───────────────
+// On an open-mode install opened on loopback the sign-in calls to action read
+// "Open your workspace" and a browser that has entered before skips the landing
+// (app/_lib/auth/open-entry.ts, app/landing/site/chrome/{OpenEntry,Ctas}.tsx).
+// The e2e server is open mode on localhost, so the offered state is the default
+// here. Password mode cannot be had beside it (one dev server per checkout); the
+// same labels fall back whenever the entry is NOT offered, which a non-loopback
+// Host reproduces on the very same server.
+const OPEN_ENTRY_MARKER = "kp_entered_once";
+const ENTERED_COOKIE = "kp_entered";
+
+test.describe("open-mode entry on loopback", () => {
+  test("the hero and header actions read 'Open your workspace'", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#top").getByRole("link", { name: "Open your workspace" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open your workspace" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Start hiring free" })).toHaveCount(0);
+  });
+
+  test("clicking the hero action enters, remembers the browser, and the workspace replaces the landing", async ({ page, context }) => {
+    await page.goto("/");
+    await page.locator("#top").getByRole("link", { name: "Open your workspace" }).first().click();
+    await expect.poll(async () => (await context.cookies()).some((c) => c.name === ENTERED_COOKIE)).toBe(true);
+    await expect(page.locator("#top")).toHaveCount(0);
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), OPEN_ENTRY_MARKER)).toBe("1");
+  });
+
+  test("with the marker set and the entry cookie cleared, '/' enters once per tab", async ({ page, context }) => {
+    await page.addInitScript((key) => window.localStorage.setItem(key, "1"), OPEN_ENTRY_MARKER);
+    await page.goto("/");
+    // The landing renders, then the provider posts the credential-less login and reloads.
+    await expect.poll(async () => (await context.cookies()).some((c) => c.name === ENTERED_COOKIE)).toBe(true);
+    await expect(page.locator("#top")).toHaveCount(0);
+
+    // Same tab, cookie gone: the sessionStorage claim is spent, so the landing stays.
+    await context.clearCookies();
+    await page.goto("/");
+    await expect(page.locator("#top").getByRole("link", { name: "Open your workspace" }).first()).toBeVisible();
+    await page.waitForTimeout(1_500);
+    expect((await context.cookies()).some((c) => c.name === ENTERED_COOKIE)).toBe(false);
+  });
+});
+
+test("the labels are unchanged when the entry is not offered (a non-loopback Host)", async ({ browser, baseURL }) => {
+  // Open mode but reached through the machine's LAN address: openEntryOffered is
+  // false, which is exactly the state password mode, hosted and public links are in.
+  const lan = Object.values(os.networkInterfaces())
+    .flat()
+    .find((i) => i && i.family === "IPv4" && !i.internal)?.address;
+  test.skip(!lan, "no non-loopback IPv4 address on this machine");
+  const url = new URL(baseURL ?? "http://localhost:3101");
+  const context = await browser.newContext();
+  await context.addInitScript((key) => window.localStorage.setItem(key, "1"), OPEN_ENTRY_MARKER);
+  const page = await context.newPage();
+  try {
+    const res = await page.goto(`${url.protocol}//${lan}:${url.port}/`);
+    test.skip(!res?.ok(), "the server is not reachable on the LAN address");
+    await expect(page.locator("#top").getByRole("link", { name: "Start hiring free" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in" }).first()).toBeVisible();
+    await expect(page.getByText("Open your workspace")).toHaveCount(0);
+    // And the marker does not bounce this visitor in.
+    await page.waitForTimeout(1_500);
+    expect((await context.cookies()).some((c) => c.name === ENTERED_COOKIE)).toBe(false);
+  } finally {
+    await context.close();
+  }
 });
