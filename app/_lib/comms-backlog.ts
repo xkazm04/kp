@@ -3,7 +3,7 @@ import { getPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { CommsBodyRejectedError, CommsSuppressedError, commsSendSuppression, sendComm } from "./comms";
 import { entryContactability } from "./comms-contactability";
 import { isDeliverableAddress } from "./comms-recipient";
-import { relayHealth } from "./comms-relay";
+import { isRelayConfigured } from "./comms-relay";
 
 // THE BACKLOG OFFER — letters that waited for a sender.
 //
@@ -58,7 +58,7 @@ export type BacklogLetter = {
 };
 
 export type BacklogOffer = {
-  /** A relay that actually delivers is wired (env or stored, secret readable). */
+  /** A sender that actually delivers is wired: a relay or a stored SMTP mailbox (secret readable). The name predates SMTP. */
   relayReady: boolean;
   letters: BacklogLetter[];
 };
@@ -99,11 +99,10 @@ export function selectBacklogOffer(window: readonly OutboxEntry[]): OutboxEntry[
   return window.filter((row) => isBacklogRow(row) && !isSuperseded(row, window));
 }
 
-/** The offer for one workspace. Empty unless a relay that delivers is configured: while
- *  none is, these letters are simply the queue and the ledger already says so. */
+/** The offer for one workspace. Empty unless a sender that delivers is configured (a relay
+ *  OR a stored SMTP mailbox: the transport resolver's "a letter can leave"): while none is, these letters are simply the queue and the ledger already says so. */
 export function backlogOffer(ws: string): BacklogOffer {
-  const health = relayHealth();
-  const relayReady = health === "env" || health === "configured";
+  const relayReady = isRelayConfigured();
   if (!relayReady) return { relayReady, letters: [] };
   const letters = selectBacklogOffer(listOutboxFiltered({ limit: WINDOW }, ws))
     .slice(0, BACKLOG_MAX)
@@ -124,8 +123,7 @@ const skipped = (id: string, reason: BacklogSkipReason, detail?: string | null):
  *  before the next begins. */
 export async function confirmBacklogSend(ws: string, rawIds: readonly string[], actor: string): Promise<BacklogResult[]> {
   const ids = [...new Set(rawIds.filter((v) => typeof v === "string" && v.trim()).map((v) => v.trim()))];
-  const health = relayHealth();
-  const relayReady = health === "env" || health === "configured";
+  const relayReady = isRelayConfigured();
   const results: BacklogResult[] = [];
   for (const [index, id] of ids.entries()) {
     if (!relayReady) {

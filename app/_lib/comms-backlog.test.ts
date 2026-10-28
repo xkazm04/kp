@@ -13,9 +13,17 @@ import { setRelayHostLookupForTests } from "./comms.ts";
 import { setEgressTransportForTests } from "./pinned-request.ts";
 import { backlogOffer, confirmBacklogSend, isSuperseded, selectBacklogOffer, type BacklogResult } from "./comms-backlog.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { setSmtpConfig } from "./comms-smtp-store.ts";
+import { setSmtpHostLookupForTests, setSmtpSendForTests } from "./comms-smtp-delivery.ts";
+import type { SmtpMessage } from "./comms-smtp.ts";
+
+process.env.KP_ATS_SECRET_KEY = "unit-test-smtp-key";
 
 after(() => cleanupUnitDb());
 afterEach(() => {
+  setSmtpSendForTests(undefined);
+  setSmtpHostLookupForTests(undefined);
+  setSmtpConfig({ address: "", preset: "", password: "" });
   setEgressTransportForTests(undefined);
   setRelayHostLookupForTests(undefined);
   delete process.env.COMMS_WEBHOOK_URL;
@@ -205,5 +213,53 @@ test("another workspace's letter is not found, and nothing is sent", async () =>
 
 test("with no relay a confirmation sends nothing and says why", async () => {
   const r = row();
+  assert.deepEqual((await confirmBacklogSend(WS, [r.id], ACTOR)).map(word), ["relay_not_ready"]);
+});
+
+// ---- an SMTP-only install ("a letter can leave" is relay OR SMTP) ---------------------
+
+/** A stored SMTP sender and NO relay; the SMTP client answers 250 and records each message. */
+function smtpOnly(): SmtpMessage[] {
+  setSmtpConfig({ preset: "seznam", address: "owner@seznam.cz", password: "zz-backlog-app-password-zz" });
+  setSmtpHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  const sent: SmtpMessage[] = [];
+  setSmtpSendForTests(async (_opts, msg) => {
+    sent.push(msg);
+    return { ok: true, code: 250, text: "2.0.0 Ok: queued as B1" };
+  });
+  return sent;
+}
+
+test("no relay, a stored SMTP sender: the queued letter is offered, and the confirm sends it once with its message id", async () => {
+  const r = row({ messageId: "msg-original-backlog-1" });
+  assert.equal(r.messageId, "msg-original-backlog-1");
+  const smtp = smtpOnly();
+  const offer = backlogOffer(WS);
+  assert.equal(offer.relayReady, true);
+  assert.deepEqual(offer.letters.filter((l) => l.id === r.id).map((l) => l.id), [r.id]);
+  assert.deepEqual((await confirmBacklogSend(WS, [r.id], ACTOR)).map(word), ["sent"]);
+  assert.equal(smtp.length, 1);
+  assert.equal(smtp[0].to, r.recipient);
+  const rows = listOutboxFiltered({ ref: r.id, kind: "rejection" }, WS).filter((m) => m.status === "sent");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].channel, "smtp");
+  assert.equal(rows[0].messageId, "msg-original-backlog-1");
+  assert.equal(smtp[0].messageId, "msg-original-backlog-1");
+  assert.deepEqual((await confirmBacklogSend(WS, [r.id], ACTOR)).map(word), ["already_sent"]);
+});
+
+test("an SMTP-only install still never offers or sends a devcase feedback draft", async () => {
+  const draft = row({ kind: "feedback", channel: "email" });
+  const smtp = smtpOnly();
+  assert.deepEqual(backlogOffer(WS).letters.filter((l) => l.id === draft.id), []);
+  assert.deepEqual((await confirmBacklogSend(WS, [draft.id], ACTOR)).map(word), ["not_offered"]);
+  assert.equal(smtp.length, 0);
+});
+
+test("no relay and no SMTP: no offer, and a confirmation names relay_not_ready", async () => {
+  const r = row();
+  const offer = backlogOffer(WS);
+  assert.equal(offer.relayReady, false);
+  assert.deepEqual(offer.letters, []);
   assert.deepEqual((await confirmBacklogSend(WS, [r.id], ACTOR)).map(word), ["relay_not_ready"]);
 });
