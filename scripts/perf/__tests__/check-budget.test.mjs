@@ -96,17 +96,11 @@ function makeTempDir(prefix) {
 
 function makeGraph() {
   const dir = makeTempDir('kp-perf-graph-');
-  const w = (f, src) => fs.writeFileSync(path.join(dir, f), src);
-  w('entry.ts', "import { s } from './static.ts';
-const L = () => import('./lazy.ts');
-");
-  w('static.ts', 'export const s = 1;
-');
-  w('lazy.ts', "import { d } from './deep.ts';
-export const l = d;
-");
-  w('deep.ts', 'export const d = 1;
-');
+  const w = (f, lines) => fs.writeFileSync(path.join(dir, f), lines.join(String.fromCharCode(10)) + String.fromCharCode(10));
+  w('entry.ts', ["import { s } from './static.ts';", "const L = () => import('./lazy.ts');"]);
+  w('static.ts', ['export const s = 1;']);
+  w('lazy.ts', ["import { d } from './deep.ts';", 'export const l = d;']);
+  w('deep.ts', ['export const d = 1;']);
   return dir;
 }
 
@@ -121,9 +115,7 @@ check('a dynamic import is a deferred edge: it and what only it reaches are not 
 
 check('a static edge still counts, including a module that is also imported dynamically elsewhere', () => {
   const dir = makeGraph();
-  fs.writeFileSync(path.join(dir, 'static.ts'), "import './lazy.ts';
-export const s = 1;
-");
+  fs.writeFileSync(path.join(dir, 'static.ts'), "import './lazy.ts';" + String.fromCharCode(10) + 'export const s = 1;');
   const { modules } = walkGraph(path.join(dir, 'entry.ts'), dir);
   assert.equal(modules, 4, 'lazy.ts is reached statically through static.ts, so it is eager');
 });
