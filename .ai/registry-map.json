@@ -11365,7 +11365,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:340 The store writes profile rows as plaintext JSON with an HMAC signature beside them. I searched app/_lib/db case-insensitively for unseal, keyring, createCipheriv, aes-256-gcm and root key and found nothing, so there is no encryption at rest, seal, root key or keyring for this subject to govern.",
+          "evaluatedAt": "2026-10-30",
+          "evaluatedAgainst": "sha256-b2:044e6e9d3f3395f0",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",
