@@ -21386,6 +21386,27 @@
           "evidence": "app/_lib/sentry-client.ts:68 The single outbound call in this context (Sentry) is one fire-and-forget attempt with no retry, so there is no repeated calling for a breaker to stop. A grep for circuit and breaker finds no breaker."
         }
       ]
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/schema-driven-ui": {
+      "context": "e2e-suite",
+      "subject": "schema-driven-ui",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-30",
+      "evaluatedTs": "2026-10-30T22:32:23.397Z",
+      "techniques": [
+        {
+          "technique": "node-vocabulary-design",
+          "verdict": "not-applicable",
+          "evidence": "e2e/shell-tab-state.spec.ts:23 Tests locate real components by role; no node-kind vocabulary is declared in the suite."
+        }
+      ],
+      "withdrawn": {
+        "worker": "bb92a334-012f-4e2d-a802-8b17a07d1093",
+        "state": "not-applicable",
+        "at": "2026-10-30T22:32:39.850657+00:00",
+        "reason": "reviewer (sonnet): The anchor, shell-tab-state.spec.ts:23, is a `getByRole(\"tab\")` helper. It shows tests locating elements by role, but it cannot show that a spec-to-renderer layer is absent. The absence rests on a narrow term search (SpecRenderer, nodeRegistry, and similar), which would miss other names for such a l"
+      }
     }
   }
 }
