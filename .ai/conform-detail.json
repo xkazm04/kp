@@ -21277,6 +21277,48 @@
         }
       ],
       "registryProposal": "The standard would be easier to apply if it said directly that a second consumer, such as a candidate-to-job matcher or ranker that computes its own fit tier separately from the analysis pass, must read the same precondition gate. Right now that rule is only implied by the 'new caller reaches the result without going through the analysis pass' decision rule, and in this repo the matcher computes its own fit tier and never sees the gate."
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/rejection-with-dignity": {
+      "context": "candidate-apply-flow",
+      "subject": "rejection-with-dignity",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-30",
+      "evaluatedTs": "2026-10-30T22:21:50.094Z",
+      "techniques": [
+        {
+          "technique": "protected-attribute-line-suppression",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rejection-feedback.ts:106 The filter works on whole lines, covers 4 languages with Unicode-aware stems (lines 51-55), records the `filtered` flag, and never backfills (line 108). Its tests cover inflected Czech, German and French forms. But when only some lines are dropped, the rest keep the full 'recorded' label rather than collapsing or being marked partial. The English deny-list (line 33) holds attribute names only and would miss proxies such as 'recent graduate' or 'overqualified', and the gap labels are free text with no upstream allow-list."
+        },
+        {
+          "technique": "never-assert-a-gap-the-evidence-disproves",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rejection-feedback.ts:110 Matcher-derived unmet requirements become feedback bullets with no refutation set (candidate skills, credentials, highlights) assembled or checked. This is the 'partial context' generator the technique names. Recorded profile gaps are not checked either. The live caller (comms-dispatch.ts:579) passes only profileGaps, so this exact path is dormant in production today."
+        },
+        {
+          "technique": "feedback-line-ceiling",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rejection-feedback.ts:94 Hard cap of 3 (MAX_FEEDBACK_LINES, line 24), applied after the protected filter, with case-insensitive de-duplication and a 140-character limit per line. Empty output renders as \"\" (line 128). Minor gap: a long line is cut with an ellipsis (line 89), where the standard prefers trimming the source. No ranking toward the decisive reason."
+        },
+        {
+          "technique": "name-the-decisive-reason-from-the-record",
+          "verdict": "conformant",
+          "evidence": "app/_lib/apply.ts:296 Knockout declines name a closed vocabulary of must-haves, and unknown ids are dropped rather than printed (apply.ts:300-306). Feedback uses only recorded data, ranks the recruiter checklist above matcher output by provenance (rejection-feedback.ts:98-100), and with nothing recorded gives no reason. Caveat: RejectionFeedbackInput carries no deciding-stage field, so binding the reason to the stage that decided is not visible in this context."
+        },
+        {
+          "technique": "deterministic-dispatch-so-nobody-is-ghosted",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rejection-feedback.ts:20 Only the content-determinism property is in this context: the same record gives the same feedback, with no per-candidate LLM call (lines 11-13). The sweep, idempotency, approval and the oldest-obligation metric live in comms-dispatch.ts, outside this context, and were not judged here."
+        }
+      ],
+      "registryProposal": "The decisive-reason technique says to name 'the decisive one only', yet its resolution step 2 allows naming two or three missing must-haves. The feedback-line ceiling allows three bullets. The standard should say whether a multi-line list of recorded gaps is the decisive reason or a dossier, and whether a ranking is required before more than one line may ship. Suppression step 6 already observes that unranked lists cannot say which line was decisive.",
+      "withdrawn": {
+        "worker": "2b72d489-5d70-4201-8db6-1b4e86caf6c1",
+        "state": "deviation",
+        "at": "2026-10-30T22:22:05.380056+00:00",
+        "reason": "reviewer (sonnet): The deviation is anchored in app/_lib/rejection-feedback.ts, which is not one of the candidate-apply-flow context files. Its only live caller is comms-dispatch.ts:579, which is also outside that context. The verdict is therefore about the rejection-comms code rather than the apply flow. I also did n"
+      }
     }
   }
 }
