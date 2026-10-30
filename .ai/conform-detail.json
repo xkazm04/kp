@@ -21255,6 +21255,28 @@
           "evidence": "app/features/insights/matrix/MatrixTab.tsx:5 The context's dependencies are web libraries bundled by Next. No packaged-binary mode exists where they could die."
         }
       ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/regulated-credential-gating": {
+      "context": "tests-matching-taxonomy",
+      "subject": "regulated-credential-gating",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-30",
+      "evaluatedTs": "2026-10-30T22:18:55.449Z",
+      "worker": "8421fd35-fc75-4302-a5fc-473e63fbc9c1",
+      "techniques": [
+        {
+          "technique": "licence-is-a-precondition-not-a-preference",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_match_reasoning.py:109 A healthcare_clinical role (ICU Nurse) is modelled with skill requirements only. There is no precondition class carried as a field, and a missing licence never caps the verdict, so it stays an offsettable weight inside the score."
+        },
+        {
+          "technique": "required-but-missing-as-a-blocking-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_soft_signals.py:175 The only credential-gap assertion in this context checks that the model's free-text sentence survives as an llm_risk_flag antipattern row. Nothing here pins a structured gap object, a capped match verdict, or a ko_filter reason for a missing licence."
+        }
+      ],
+      "registryProposal": "The standard would be easier to apply if it said directly that a second consumer, such as a candidate-to-job matcher or ranker that computes its own fit tier separately from the analysis pass, must read the same precondition gate. Right now that rule is only implied by the 'new caller reaches the result without going through the analysis pass' decision rule, and in this repo the matcher computes its own fit tier and never sees the gate."
     }
   }
 }

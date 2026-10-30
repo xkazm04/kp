@@ -33017,7 +33017,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_matching.py:52 The suite that pins the matching engine's hard gates covers seniority, education, language and work mode and nothing else, and matching.py has no credential or licence logic at all. A required licence can therefore only reach the matcher as a weighted must-have skill, and the fit tier comes from score thresholds alone, so a strong skills match can still produce a 'strong' verdict on a role whose licence is missing. That is the offsettable-licence failure, and no test here would catch it.",
+          "evaluatedAt": "2026-10-30",
+          "evaluatedAgainst": "sha256-b2:c50d247cc160e408",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
