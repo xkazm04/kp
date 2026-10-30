@@ -21319,6 +21319,37 @@
         "at": "2026-10-30T22:22:05.380056+00:00",
         "reason": "reviewer (sonnet): The deviation is anchored in app/_lib/rejection-feedback.ts, which is not one of the candidate-apply-flow context files. Its only live caller is comms-dispatch.ts:579, which is also outside that context. The verdict is therefore about the rejection-comms code rather than the apply flow. I also did n"
       }
+    },
+    "181b8632-82ec-4203-a308-42e58eca6c49/retrieval": {
+      "context": "jobs-posting-campaign",
+      "subject": "retrieval",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-30",
+      "evaluatedTs": "2026-10-30T22:25:56.796Z",
+      "techniques": [
+        {
+          "technique": "relevance-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPublishResult.ts:129 No floor is computed here. As a consumer the context does keep 'ranker broke' (silverMedalistsFailed, sourcingWarning) separate from 'ranked fine, nobody qualified' (count 0), which is the three-way empty the technique asks downstream readers to keep. The floor itself lives in the server-side ranker, outside this context."
+        },
+        {
+          "technique": "retrieval-triggering",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:76 The only model-backed call here parses ad text into a job (a Claude CLI child). It never assembles corpus context, so there is no retrieve-or-skip decision to model."
+        },
+        {
+          "technique": "ranking-budgets",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:161 Candidate sourcing and rediscovery ranking run inside the publish route's child processes. This context sends only targetHires/langs and gets counts back, so it allocates no seats."
+        }
+      ],
+      "withdrawn": {
+        "worker": "494c0219-e70c-4e3b-b0f3-05e22b3be863",
+        "state": "not-applicable",
+        "at": "2026-10-30T22:26:24.144562+00:00",
+        "reason": "reviewer (sonnet): The evidence says this context POSTs to /api/jobs/ingest and relies on jobsIngestAdPanelLogic.ts:76 (a Claude CLI child). That file is not in the context's file list, and none of the context's files reference /api/jobs/ingest or that module, so this claim is about a different context. The not-applic"
+      }
     }
   }
 }
