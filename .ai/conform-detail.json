@@ -15695,47 +15695,44 @@
       "context": "score-metric-display",
       "subject": "scoring-rubrics",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T11:21:06.430Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-30",
+      "evaluatedTs": "2026-10-30T22:36:12.634Z",
+      "worker": "ca10466e-666e-491e-ba0e-cbe460aaf129",
       "techniques": [
         {
           "technique": "score-explanation",
           "verdict": "deviation",
-          "evidence": "app/_components/FactorChartBody.tsx:109 FactorChartBody displays normalized ratios rather than weighted score contributions, omitting dimension weights and failing additive breakdown accounting."
+          "evidence": "app/_components/FactorChartBody.tsx:39 Bands a dimension with the composite's thresholds, which the technique names as a failure. ScoreDial makes it worse: its verdict word comes from VERDICT_BANDS (40/55/70/85), its readout colour from scoreTone (50/75, ScoreDial.tsx:74), and its arc colour from bandColor (index 1 = 40-55 -> mid, ScoreDial.tsx:29). So a score of 45 reads 'Developing' in coral beside an amber arc segment. The chart also shows no top gap phrased as an action."
         },
         {
           "technique": "unmeasured-honesty",
           "verdict": "deviation",
-          "evidence": "app/_components/ScoreDial.tsx:64 Non-finite or missing scores are coerced to 0 to read as a floor score instead of surfacing absence honestly."
-        },
-        {
-          "technique": "gap-ranking",
-          "verdict": "deviation",
-          "evidence": "app/_components/FactorChartBody.tsx:55 The factor breakdown surfaces static metric bars without ranking gaps by impact per unit effort or recommending a top gap as an actionable next step."
-        },
-        {
-          "technique": "rubric-stability",
-          "verdict": "deviation",
-          "evidence": "app/_components/ScoreDial.tsx:54 Visual score components take and render scores without stamping or displaying the rubric version that produced them."
+          "evidence": "app/_components/ScoreDial.tsx:64 A non-finite or garbled score is coerced to 0 and shown as the 'Early' floor verdict, which is absence as the floor. ScoreBadge does it right (ScoreBadge.tsx:31 renders a null score as an em-dash, never a verdict), so the context is split. factorPoints (app/_lib/factor-points.ts:42, `raw[id] ?? 0`) also zero-fills a missing factor before FactorChartBody draws it."
         },
         {
           "technique": "normalization",
           "verdict": "conformant",
-          "evidence": "app/_components/ScoreBadge.tsx:38 Scores are normalized and clamped to the declared [0, 100] percentage bounds before display to prevent out-of-range distortion."
+          "evidence": "app/_components/FactorChartBody.tsx:90 Fixed anchors: the Y-axis is pinned to [0,1] of each factor's own declared max, not auto-scaled. Ratios are clamped, and the tooltip keeps the raw value/max, so a clamped bar can still be read in native units."
+        },
+        {
+          "technique": "rubric-stability",
+          "verdict": "deviation",
+          "evidence": "app/_components/FactorChart.tsx:9 The chart's per-factor ceilings (FACTOR_MAXES 25/30/23/12/10) are a TS twin of the Python maxima (pipeline/jobfit/pipeline.py:967 clamp, gemini.py:166 prompt). The only test, factor-points.test.ts:58, pins the TS copy against its own values, and grep found no parity fixture run against both sides. The band side is sound: scoreDial.logic.ts:16 is one table, and scoreBandIndex is derived from it and pinned by tests."
+        },
+        {
+          "technique": "gap-ranking",
+          "verdict": "deviation",
+          "evidence": "app/_components/FactorChartBody.tsx:55 The factor breakdown surfaces static metric bars without ranking gaps by impact per unit effort or recommending a top gap as an actionable next step.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "weight-lenses",
           "verdict": "deviation",
-          "evidence": "app/_components/ScoreBadge.tsx:23 Score badges render scalar numbers without carrying the population lens or archetype label under which the candidate was evaluated."
+          "evidence": "app/_components/ScoreBadge.tsx:23 Score badges render scalar numbers without carrying the population lens or archetype label under which the candidate was evaluated.",
+          "carriedFrom": "2026-10-19"
         }
-      ],
-      "withdrawn": {
-        "worker": "17ccf9b4-8a80-4b4f-8c32-8b64f6384d14",
-        "state": "deviation",
-        "at": "2026-10-19T11:21:34.439570+00:00",
-        "reason": "reviewer (sonnet): FactorChartBody.tsx:109 does plot value/max ratios, but factor-points.ts defines the maxes (25/30/23/12/10) as the weighted point ceilings, and the tooltip and sr-only table show the raw value/max points; those points are the additive contributions, so the claims that importance is concealed and tha"
-      }
+      ]
     },
     "f7ce7c17-f1a7-4257-9247-9a05f098efd7/scoring-rubrics": {
       "context": "match-score-shared-types",
