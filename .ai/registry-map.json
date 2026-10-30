@@ -24200,7 +24200,11 @@
           "revision": 13,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/webhook-idempotency.ts:18 The only retry-shaped code in this context sits on the receiving side of other systems' retries. A dedupe store failure returns the retryable class (5xx) instead of letting the request through unchecked. The claim key makes a sender's retried write safe, and that claim survives a restart and has a named reaper, so no technique here is a deviation; ladder, breaker, redirect, revocation and suspension machinery do not exist in these files.",
+          "evaluatedAt": "2026-10-30",
+          "evaluatedAgainst": "sha256-b2:0ff53fb3a87ad13c",
+          "evaluatedRevision": 14
         },
         {
           "subject": "structured-output",
