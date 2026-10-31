@@ -6,7 +6,7 @@ import { Badge } from "@/app/_components/Badge";
 import { BTN_PRIMARY, BTN_SECONDARY, DIVIDER, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { PlanPrice } from "./BillingPlanPrice";
 import { dunningBanner, STATUS_TONE, type BillingPayload } from "./billingTypes";
-import { planDatesView } from "./meterForecast";
+import { boundaryDateOptions, planDatesView } from "./meterForecast";
 
 // Billing tab — the current-plan card: name, price, lifecycle status, period
 // end, manage-in-portal. Split out of BillingTab.tsx.
@@ -41,18 +41,19 @@ export function BillingCurrentPlanPanel({
         ? t("dunning.pastDue", {
             hasDate: data.periodEnd ? "yes" : "no",
             date: data.periodEnd
-              ? format.dateTime(new Date(data.periodEnd), { dateStyle: "long" })
+              ? format.dateTime(new Date(data.periodEnd), boundaryDateOptions("long"))
               : "",
           })
         : null;
   // Two different dates, and the card used to show one as if it were both: the PAID
-  // period ends on the subscription's anniversary, the included allowances reset on
-  // the 1st (UTC). They coincide only for a subscription anchored on the 1st, so the
-  // card names both exactly when they differ (planDatesView, meterForecast.ts).
+  // period ends on the provider's anniversary, the included allowances reset on the
+  // allowance window's boundary. The card names both exactly when they differ
+  // (planDatesView, meterForecast.ts). Every boundary is labelled in BOUNDARY_ZONE, the
+  // frame it was computed in - never the viewer's zone, which drew the same instant as
+  // a different day from the meter row below it.
   const resetsAt = data.metered ? (data.allowanceWindow?.resetsAt ?? null) : null;
   const dates = planDatesView({ paidPeriodEnd: data.periodEnd, resetsAt });
-  const longDate = (iso: string, utc = false) =>
-    format.dateTime(new Date(iso), utc ? { dateStyle: "long", timeZone: "UTC" } : { dateStyle: "long" });
+  const longDate = (iso: string) => format.dateTime(new Date(iso), boundaryDateOptions("long"));
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -66,7 +67,7 @@ export function BillingCurrentPlanPanel({
           {data.periodEnd && dates.diverge && resetsAt ? (
             <>
               <p className="mt-1 text-sm text-steel">{t("paidPeriodEnd", { date: longDate(data.periodEnd) })}</p>
-              <p className="text-sm text-steel">{t("allowancesReset", { date: longDate(resetsAt, true) })}</p>
+              <p className="text-sm text-steel">{t("allowancesReset", { date: longDate(resetsAt) })}</p>
             </>
           ) : data.periodEnd ? (
             <p className="mt-1 text-sm text-steel">{t("periodEnd", { date: longDate(data.periodEnd) })}</p>

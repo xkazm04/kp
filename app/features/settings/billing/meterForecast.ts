@@ -76,11 +76,27 @@ export function meterForecast(meter: ForecastMeter, window: ForecastWindow): Met
 }
 
 /** Does the plan card owe two dates? The PAID period end (the provider's anniversary)
- *  and the ALLOWANCE reset (the 1st, UTC) are different facts that coincide only for a
- *  subscription anchored on the 1st. When they coincide one line says both; when
- *  either is missing there is nothing to contrast. Compared by UTC calendar day. */
+ *  and the ALLOWANCE reset (the anchored anniversary, or the 1st UTC for an org with no
+ *  usable anchor - plans.ts allowanceWindow) are different facts that can differ. When
+ *  they coincide one line says both; when either is missing there is nothing to
+ *  contrast. Compared by calendar day in BOUNDARY_ZONE, the zone the labels use. */
 export function planDatesView(input: { paidPeriodEnd: string | null; resetsAt: string | null }): { diverge: boolean } {
   if (!input.paidPeriodEnd || !input.resetsAt) return { diverge: false };
-  const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+  const day = (iso: string) => new Date(iso).toISOString().slice(0, 10); // UTC = BOUNDARY_ZONE
   return { diverge: day(input.paidPeriodEnd) !== day(input.resetsAt) };
+}
+
+/** The ONE zone every billing-boundary label is drawn in. The allowance key, the window
+ *  bounds (plans.ts allowanceWindow) and planDatesView above all compute in UTC, and the
+ *  meter row and spend panel already labelled the reset in UTC; the plan card drew the
+ *  paid-period end in the VIEWER's zone, so one boundary read as two different days on
+ *  one page for any viewer far enough from UTC (a reset at 03:00Z is "the 14th" in
+ *  Los Angeles and "the 15th" two rows below). A label is derived from the boundary in
+ *  the frame the boundary was computed in, never in an ambient zone. */
+export const BOUNDARY_ZONE = "UTC" as const;
+
+export function boundaryDateOptions(style: "long" | "short") {
+  return style === "long"
+    ? ({ dateStyle: "long", timeZone: BOUNDARY_ZONE } as const)
+    : ({ day: "numeric", month: "short", timeZone: BOUNDARY_ZONE } as const);
 }

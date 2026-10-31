@@ -37,6 +37,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import { MeterRow } from "../BillingUsageMeterRow";
+import { boundaryDateOptions } from "../meterForecast";
 import { isUnmeteredInstall, type BillingPayload } from "../billingTypes";
 import { foldByUseCase, sumTotals, type UseCaseTotals } from "./spendUsageFold";
 import { SpendEngineFacts } from "./SpendEngineFacts";
@@ -138,7 +139,7 @@ export function BillingSpendPanel({
             {resetWindow ? (
               <p className="mt-0.5 text-sm text-steel">
                 {t("allowanceResets", {
-                  date: format.dateTime(new Date(resetWindow.resetsAt), { day: "numeric", month: "short", timeZone: "UTC" }),
+                  date: format.dateTime(new Date(resetWindow.resetsAt), boundaryDateOptions("short")),
                 })}
               </p>
             ) : null}
