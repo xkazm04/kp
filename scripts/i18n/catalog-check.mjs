@@ -210,13 +210,30 @@ export function carriedLiterals(value) {
   const numbers = rest.replace(EMAIL_LITERAL, " ").match(NUMBER_LITERAL) ?? [];
   return [...urls.map((v) => ["URL", v]), ...emails.map((v) => ["email", v]), ...numbers.map((v) => ["number", v])];
 }
-export function literalErrors(baseValue, value) {
-  const have = value.replace(/\{[^{}]*\}/g, " ");
-  const out = [];
+// Literals are compared as TOKENS with multiplicity, not as substrings. Until
+// 2026-10-31 this was `target.includes(literal)`, so "48" was carried by "480" (a
+// number inside a longer number) and a literal the source states twice was carried
+// by a target that states it once. Tokenising the target with the SAME extractor
+// gives each side identical boundaries (a greedy digit run, a whole URL, a whole
+// address), and the multiset comparison demands each literal as many times as the
+// source carries it. Still source to target only: extra target literals are legal.
+export function missingLiterals(baseValue, value) {
+  const key = (kind, literal) => `${kind}\u0000${literal}`;
+  const have = new Map();
+  for (const [kind, literal] of carriedLiterals(value)) have.set(key(kind, literal), (have.get(key(kind, literal)) ?? 0) + 1);
+  const need = new Map();
   for (const [kind, literal] of carriedLiterals(baseValue)) {
-    if (!have.includes(literal)) out.push(`${kind} "${literal}" from the default locale is missing or altered`);
+    const k = key(kind, literal);
+    if (!need.has(k)) need.set(k, { kind, literal, need: 0, have: have.get(k) ?? 0 });
+    need.get(k).need++;
   }
-  return out;
+  return [...need.values()].filter((m) => m.have < m.need);
+}
+export function literalErrors(baseValue, value) {
+  return missingLiterals(baseValue, value).map(
+    ({ kind, literal, need, have }) =>
+      `${kind} "${literal}" from the default locale is missing or altered` + (need > 1 ? ` (carried ${have} of ${need} times)` : "")
+  );
 }
 
 // A message whose syntax does not parse is ONE defect. Brace balance is the cheap

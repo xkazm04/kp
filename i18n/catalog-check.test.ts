@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { checkCatalogs, countStrings, stringUnits } from "../scripts/i18n/catalog-check.mjs";
+import { checkCatalogs, countStrings, missingLiterals, stringUnits } from "../scripts/i18n/catalog-check.mjs";
 
 // Negative controls for the catalog half of `npm run i18n:check`
 // (scripts/i18n/catalog-check.mjs). They live here rather than beside the script
@@ -129,6 +129,21 @@ test("a carried number, URL or email must reach the translation by identity, not
   // edited host: same count, different value
   assert.ok(withLiterals("Write to help@kp.example.org", "Napište na help@kp.example.com").some((p) => p.includes("email")));
   assert.ok(withLiterals("See https://kp.io/terms", "Viz https://kp.io/term").some((p) => p.includes("URL")));
+});
+
+test("carried literals are tokens: a number inside a longer number does not carry it", () => {
+  // the substring comparison passed this: "480" includes "48"
+  assert.ok(withLiterals("Closes in 48 hours", "Zavře se za 480 hodin").some((p) => p.includes('number "48"')));
+  assert.ok(withLiterals("Closes in 48 hours", "Zavře se za 148 hodin").some((p) => p.includes('number "48"')));
+  assert.deepEqual(missingLiterals("Closes in 48 hours", "Zavře se za 480 hodin"), [{ kind: "number", literal: "48", need: 1, have: 0 }]);
+  assert.deepEqual(withLiterals("Closes in 48 hours", "48 hodin do uzávěrky"), []);
+});
+
+test("carried literals have multiplicity: a literal the source repeats must be repeated", () => {
+  const found = withLiterals("Pick 10 of 10 slots", "Vyberte 10 slotů");
+  assert.ok(found.some((p) => p.includes('number "10"') && p.includes("carried 1 of 2 times")), found.join("\n"));
+  assert.deepEqual(withLiterals("Pick 10 of 10 slots", "Vyberte 10 z 10 slotů"), []);
+  assert.deepEqual(withLiterals("Pick 10 of 10 slots", "Vyberte 10 z 10 slotů, 10 max"), []);
 });
 
 test("carried literals: a spelled-out number, a placeholder sample and a reserved example domain are legitimate", () => {
