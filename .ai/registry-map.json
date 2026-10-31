@@ -3773,7 +3773,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:8 the context's only LLM touch is DISPLAYING the read-only usage ledger; grep over all 25 files for prompt|system:|messages|anthropic|claude|chat.completions|llm finds no prompt text built or sent, so no assembler exists here to govern.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "settings",
@@ -3851,7 +3855,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 the guard for the sole channel_spend write chain matches `<SpendInput\\b` in raw EconomicsBoard.tsx source, so a commented-out `{/* <SpendInput .../> */}` keeps it green while the editor is gone, which is the exact regression the file was written to catch (also :53 for setChannelSpend).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "recruiting-funnel-metrics",
@@ -11888,7 +11896,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:1 the context is pure client-side derivation over stored approval JSON (it reads model OUTPUT provenance, line 17 VerdictProvenanceFields); grep for prompt|system:|messages|anthropic|claude|chat.completions over all 29 files finds no prompt assembly.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -14258,7 +14270,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:77 the route clips the candidate's open file to 64,000 chars and hands it on, then the assembler cuts it again to 4,000 chars mid-file (pipeline/jobfit/devcase/chat.py:99) and drops all but the last 30 transcript turns (chat.py:62) with no notice in the prompt; the model reasons over a partial file and history that present as complete.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -22146,7 +22162,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:49 the routes are callers that pass typed data (entryId, task, notes, lang) to a spawned Python runner; grep for prompt|system:|messages|instruction over the 29 files hits only rate-limit keys and the promptCache stats read, so the prompt text is assembled outside this context and no assembler lives here.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -26885,7 +26905,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:241 the capability ratchet counts a mutating route as gated when the raw source matches `requireCapability(`, comments included, so a route whose only mention of the gate is a comment reads as authorized. Not live today (re-running the predicate on comment-stripped sources reclassifies 0 routes), but sibling contract tests in the same context strip comments first (route-tenancy-coverage.test.ts:51, rate-limit-contract.test.ts:3328).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-cli-transport",
@@ -29280,7 +29304,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:181 a bare `catch { continue; }` drops ANY unreadable tracked file uncounted, and main exits 0 whenever findings is empty (:242) whatever `scanned` is; the suite pins this (scripts/security/__tests__/secret-scan.test.mjs:147: scanned 0 = clean), so the gate that says 'no credential is committed' can say it having read nothing.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "mcp-tools",
@@ -29617,7 +29645,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/cache-key.ts:36 the analyze cache's prompt axis is a hand-bumped constant, and the comment at :9 (\"Bump this when the Gemini prompt ... changes\") is the only link to the prompt text in pipeline/jobfit/gemini.py:744; an edit to that prompt without a bump keeps every cached analysis served for the TTL under a prompt that no longer exists.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",
@@ -31321,7 +31353,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 the panel's I/O is polling /api/tasks for task status; grep for prompt|system:|messages|anthropic|claude over all 18 files hits only one comment (TasksIndicator.tsx:29), so no prompt is assembled here.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -34982,7 +35018,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/profile/draft/route.ts:47 the one model-spending route hands typed {text, lang} to runProfileDraft (a Python child); grep for prompt|system:|messages|instruction over the 25 files hits only rate-limit keys and comments, so no prompt text is built in this context.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-instruction-files",

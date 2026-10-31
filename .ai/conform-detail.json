@@ -23451,6 +23451,182 @@
           "reason": "replaced by cloud-20261031-kp-3"
         }
       ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/prompt-assembly": {
+      "context": "analytics-metrics",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": []
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/prompt-assembly": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": []
+    },
+    "3e73bfbb-2232-43f7-9bd5-09155de4db6a/prompt-assembly": {
+      "context": "devcase-session-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/chat.py:62 `return msgs[-MAX_TRANSCRIPT_MSGS:]` silently drops older turns of the full transcript the route passes (route.ts:104), and chat.py:99 truncates the file the route already capped at 64k (route.ts:77) to 4,000 chars; the technique's bottom rung is 'a notice, not silence', and the notice belongs in the prompt."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "realized",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 the call site hands typed inputs (case, role, transcript, message, currentFile, lang) to runSessionChat; no prompt text is rendered at the route."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/devcase/chat.py:104 the candidate-controlled transcript enters through fenced_untrusted('CHAT_TRANSCRIPT', ...), at a declared insertion point in the context layer (route.ts:15 states the contract)."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/prompt-assembly": {
+      "context": "llm-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:49 caller side only: `notes` travels as a typed argument, not as pre-rendered prompt text, so the sprawl failure has no site here."
+        }
+      ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/prompt-assembly": {
+      "context": "shared-api-utilities",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache-key.ts:98 `field(PROMPT_VERSION)` is the only prompt input to the key, and nothing derives or checks it against the live template (no test pairs it with gemini.py, unlike the reasoning cache's test_prompt_version_sync.py); gate-sees-target requires the current stamp to be computed from the live source."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "realized",
+          "evidence": "app/_lib/cache-key.ts:86 identities are digested, not summaries: each field is length-framed before hashing (the procedure change was versioned once, explicitly, at :19), and the model route enters at :120."
+        }
+      ]
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/prompt-assembly": {
+      "context": "shell-tasks",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": []
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/prompt-assembly": {
+      "context": "workspace-config-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": []
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/quality-gates": {
+      "context": "analytics-metrics",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 the haystack is not normalised to what executes and there is no seeded describes-only control; the repo already ships the stripper the technique asks for (scripts/review/source-mask.mjs withoutComments, used at app/api/llm/test/test-code-lockstep.test.ts:66)."
+        }
+      ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/quality-gates": {
+      "context": "platform-auth-api",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:241 `GATE.test(src)` on unstripped source; the non-vacuity test (:265) has no describes-only fragment that must NOT match, which is the seeded pair the technique requires."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "realized",
+          "evidence": "app/api/route-capability-coverage.test.ts:233 asserts at least 100 route files were walked, and :265 drives the predicates over synthetic sources with known answers so a blind scan goes red."
+        }
+      ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/quality-gates": {
+      "context": "security-agent-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-4",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:242 there is no instrument assertion on `scanned` (zero files read is a green report), and scripts/security/check-actions.mjs:585 returns [] when .github/workflows is absent, printing 'every action is pinned' with exit 0 (the allowlist is empty, so stale-allowlist cannot fire)."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "deviation",
+          "evidence": ".githooks/pre-push:29 the only local rung that reads for credentials (the constitution lens) exits 0 unless the push targets main, and pre-commit runs no secret check, so a key pushed on any other branch reaches the remote unchecked; for this irreversible-at-push class the local rung is the only one that can prevent rather than report."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:13 SECRET_PATTERNS is the single table both readers use; the diff lens imports it (scripts/review/constitution-check.mjs:51) instead of keeping a copy."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:39 entropy heuristics and bare prefixes are excluded on purpose, and each structural pattern was checked against the tree before it was added."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:212 the refusal names rotation as the fix, and points to .env.example and docs/, both of which exist and are exempt."
+        }
+      ]
     }
   }
 }
