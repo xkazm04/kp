@@ -12190,10 +12190,10 @@
           "changedAt": "2026-10-06",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "scripts/run-unit-tests.mjs:320 A flake is classified from one immediate re-run and appended to the CI step summary, which is not a retained, stably keyed history the next run can query.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evidence": "scripts/run-unit-tests.mjs:323 A flake is still detected from one immediate re-run of the failing files (rerun gated on KP_FLAKE_RERUN and MAX_RERUN_FILES), with no retained, stably keyed run history and no outcome-transition count, so the FLAKE label cannot be applied or removed by history and the register has no detector feeding it.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -22196,7 +22196,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 The lockstep's needle `code: \"<literal>\"` is matched over the whole route source, comments included, and nothing strips them. A minted code removed from the handler but still spelled in a comment keeps the test green while the client carries a dead branch, and a comment that spells a new code adds a phantom member.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "mcp-tools",
@@ -26848,7 +26852,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/error-response-contract.test.ts:448 The structural pin skips any file in EXEMPT outright (`continue`). The exemption is file-wide and is never checked in the other direction, so a new raw-message leak in health/route.ts outside its `trusted` branch is excused in advance. If that file stops leaking, the EXEMPT entry at line 248 also survives as policy that excuses nothing.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "agent-instruction-files",

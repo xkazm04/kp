@@ -702,54 +702,77 @@
       "subject": "test-harness",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T19:51:46.311Z",
-      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-2",
       "techniques": [
+        {
+          "technique": "flake-lifecycle",
+          "verdict": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:335 classifyRun labels BROKEN/FLAKE from the first run plus one re-run only, and the only record is the CI step summary (line 341). There is no retained history keyed by test identity. Separately, scripts/test/flake-policy.mjs:52 requires why/since/expires on a register entry but never an owner, so a quarantine can be unowned, which creation-names-reaper forbids. The ceiling (test-quarantine.json:40) and the 30-day expiry (scripts/test/flake-policy.mjs:81) are realized."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:127 the launcher every run goes through deletes NODE_TEST_CONTEXT and the ambient backend variables before spawning node --test. The incident (an inherited child-runner marker makes the process always exit 0) is kept attached in the header at lines 6-11."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:310 a run whose machine reporter counted 0 tests, or recorded no count, is red whatever node's exit code was. A pattern matching no file is refused before the run (line 182)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "realized",
+          "evidence": "app/_lib/testing/gate-exit-code.test.ts:54 drives the launcher from a deliberately polluted environment and asserts a failing suite still exits non-zero, so the gate's exit code is shown to be able to go red."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:356 takes a machine-wide suite slot before running, and line 259 runs every file under --test-isolation=process. Isolation is set per lane in the launcher, not found out later through flakes."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:139 the unit lane's membership is decided by location globs (app/packages/edge/i18n **/*.test.ts), not by annotation. Playwright e2e is a separate machine with its own config."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:97 records that the python-runner tests assert wall-clock bounds (a 4 s timeout, an 80 ms background bound) and fail under concurrent load. The response was to serialise whole suites machine-wide, not to rewrite those assertions to check the recorded schedule, so the stopwatch assertions are still in place."
+        },
         {
           "technique": "configuration-axes-cross-the-ladder",
           "verdict": "conformant",
-          "evidence": "scripts/run-unit-tests.mjs:26 The launcher deletes inherited backend and offline variables and says a test that needs another cell sets it itself, so the default run is not silently every backend."
+          "evidence": "scripts/run-unit-tests.mjs:26 The launcher deletes inherited backend and offline variables and says a test that needs another cell sets it itself, so the default run is not silently every backend.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "context-starved-executor",
           "verdict": "not-applicable",
-          "evidence": "scripts/run-unit-tests.mjs:1 This context is the unit launcher and the dev-server reaper, not a human journey."
-        },
-        {
-          "technique": "derived-selection-must-be-measured",
-          "verdict": "conformant",
-          "evidence": "scripts/run-unit-tests.mjs:161 A glob that selects nothing, and a run whose reporter counted zero tests, exits 1 instead of the runner's green empty success."
+          "evidence": "scripts/run-unit-tests.mjs:1 This context is the unit launcher and the dev-server reaper, not a human journey.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "fixture-economics",
           "verdict": "not-applicable",
-          "evidence": "scripts/run-unit-tests.mjs:24 The launcher says per-file database isolation lives in unit-db.ts. It does not build or copy a template."
-        },
-        {
-          "technique": "flake-lifecycle",
-          "verdict": "deviation",
-          "evidence": "scripts/run-unit-tests.mjs:320 A flake still fails the build, and the register requires why, since, and expires. Detection is one re-run written to a per-job summary, and the register checker has no owner field."
-        },
-        {
-          "technique": "isolation-lanes",
-          "verdict": "conformant",
-          "evidence": "scripts/run-unit-tests.mjs:106 The only entrance deletes inherited runner and database variables before the test process boots, with the incident dated in the header."
+          "evidence": "scripts/run-unit-tests.mjs:24 The launcher says per-file database isolation lives in unit-db.ts. It does not build or copy a template.",
+          "carriedFrom": "2026-10-12"
         },
         {
           "technique": "live-app-harness",
           "verdict": "not-applicable",
-          "evidence": "scripts/dev-guard.mjs:18 dev-guard reaps a dev process tree. It is not a lane that drives the shipped product."
-        },
+          "evidence": "scripts/dev-guard.mjs:18 dev-guard reaps a dev process tree. It is not a lane that drives the shipped product.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "superseded": [
         {
-          "technique": "platform-quirk-absorption",
-          "verdict": "conformant",
-          "evidence": "scripts/run-unit-tests.mjs:11 NODE_TEST_CONTEXT inherited from an ancestor runner forces exit 0. The wrapper deletes it before bootstrap, and the comment records the node version and the date it was measured. dev-guard.mjs records the same shape for the Windows process-tree leak."
-        },
-        {
-          "technique": "suite-partitioning",
-          "verdict": "conformant",
-          "evidence": "scripts/run-unit-tests.mjs:118 Membership is four location globs. The header says i18n sat outside app/ and would otherwise have been a test nothing ran."
+          "state": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:320 A flake is classified from one immediate re-run and appended to the CI step summary, which is not a retained, stably keyed history the next run can query.",
+          "evaluatedAt": "2026-10-12T19:51:46.311Z",
+          "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+          "reason": "replaced by cloud-20261031-kp-2"
         }
       ]
     },
@@ -23210,6 +23233,48 @@
       "evaluatedTs": "2026-10-31T00:00:00.000Z",
       "worker": "cloud-20261031-kp-1",
       "techniques": []
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/test-harness": {
+      "context": "platform-auth-api",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-2",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/api/error-response-contract.test.ts:248 EXEMPT is checked only for a reason string over 20 characters (line 587), never for whether the exempt file still produces the offender. The exemption does not read the `trusted` construct its reason names. The same instrument is realized elsewhere: comment and string blanking (line 120), a walk floor (line 442), CRLF normalisation (app/api/rate-limit-contract.test.ts:58)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "realized",
+          "evidence": "app/api/error-response-contract.test.ts:597 drives the scanner over synthetic fixtures with a known answer to prove it flags what it must and spares prose, so the empty-offender result is shown not to be blindness."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "realized",
+          "evidence": "app/api/route-tenancy-coverage.test.ts:253 the walk asserts a floor of at least 50 route handlers, so a broken walk that selects nothing fails rather than passing."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/test-harness": {
+      "context": "llm-api",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-2",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 mintedCodes reads the haystack with prose included, using a needle prose can spell. The parse floor is realized (line 72), but the needle and the haystack break the rule that a pin carries a token prose cannot spell. app/api/error-response-contract.test.ts:120 shows the repo's own blanking helper, which this file does not use."
+        }
+      ]
     }
   }
 }
