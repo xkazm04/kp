@@ -25,7 +25,9 @@
 // and pinned separately in scripts/review/__tests__/workflow-yaml.test.mjs.
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +42,8 @@ import {
   isTrustedInRun,
   jobPermissions,
   loadAllowlist,
+  loadWorkflows,
+  noWorkflows,
   persistedCredentials,
   rewriteUses,
   runChecks as runActionChecks,
@@ -512,6 +516,35 @@ check('a rewrite keeps the line endings the file already had', () => {
 });
 
 // --- and finally: the real tree, right now ------------------------------------
+check('no workflow file to read is not clean — the predicate', () => {
+  assert.equal(noWorkflows([{ file: '.github/workflows/ci.yml', text: '' }]), null);
+  assert.match(noWorkflows([]), /cannot report "clean"/);
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-check-actions-'));
+  try {
+    assert.deepEqual(loadWorkflows(empty), [], 'a missing workflows dir loads as []');
+    assert.ok(noWorkflows(loadWorkflows(empty)));
+  } finally {
+    fs.rmSync(empty, { recursive: true, force: true });
+  }
+});
+
+check('the CLI exits 1 when there is no workflows directory, rather than printing "clean"', () => {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'check-actions.mjs');
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-check-actions-'));
+  try {
+    const run = spawnSync(process.execPath, [script], {
+      cwd: empty,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: empty },
+      encoding: 'utf8',
+    });
+    assert.equal(run.status, 1, `expected exit 1, got ${run.status}\n${run.stdout}${run.stderr}`);
+    assert.match(run.stderr, /no workflow file/);
+    assert.doesNotMatch(run.stdout, /every action is pinned/);
+  } finally {
+    fs.rmSync(empty, { recursive: true, force: true });
+  }
+});
+
 //
 // The cases above prove the rules fire. This one proves they are pointed at
 // something: it runs the checker over THIS repository's workflows and requires
