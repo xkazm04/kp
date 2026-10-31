@@ -16672,45 +16672,45 @@
       "subject": "sourcing-campaign-honesty",
       "bundle": "recruiting",
       "state": "unknown",
-      "evaluatedAt": "2026-10-21",
-      "evaluatedTs": "2026-10-21T21:31:54.555Z",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T22:01:41.194Z",
       "techniques": [
         {
           "technique": "defaulted-value-is-absent-not-advertised",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:106 Tests that defaulted phantom fields do not generate location hooks or appear in copy."
-        },
-        {
-          "technique": "hook-taxonomy-bounded-by-what-is-provable",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:229 Pins fallback of off-taxonomy hooks to problem, which relies on an ungrounded floor prompt describing candidate pain."
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:102 defaulted_fields (company/location/work_mode/seniority, and the anchored salary_band at :116) are asserted never to reach a hook; the absence is reported as a warning, and defaultedFields is listed on the pack (:127)."
         },
         {
           "technique": "missing-fact-as-a-warning-code",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:114 Tests that omitted facts produce structured warning codes on the pack payload."
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:111 Stable code constants (WARN_NO_SALARY/LOCATION/SKILLS) are computed from the facts. The beat is omitted rather than padded, and thin packs still ship (:136). Not checked: catalog resolution, and how a surface handles a code it does not recognise."
+        },
+        {
+          "technique": "hook-taxonomy-bounded-by-what-is-provable",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:226 An off-menu 'testimonial' label is mapped onto the designated fallback, and HOOK_TYPES is pinned as a closed set (:288). The floor hook's LLM instruction in the code under test is a named failure; see notes."
         },
         {
           "technique": "no-fabricated-testimonial",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:328 Tests that quoted employee speech is rejected by boundary validation even under an allowed hook label."
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:327 Checks the words, not just the label: quoted speech under an allowed label is dropped, and first-person voice is dropped in en/cs/de/fr (:331) without false-firing on Czech 'je' (:339)."
+        },
+        {
+          "technique": "stated-facts-only-gate",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:309 Output-boundary literal check: unsourced figures are dropped, stated figures pass whatever the separator (:315), the banned list is checked per language (:343), and the prompt's banned list is the same list the boundary enforces (:355). A failing variant is dropped, not repaired (:350)."
         },
         {
           "technique": "regeneration-produces-new-copy-not-a-reshuffle",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:69 The test suite only tests single generation calls and lacks any tests for variation budgeting, regeneration cycles, or exhaustion messaging."
-        },
-        {
-          "technique": "stated-facts-only-gate",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_campaign.py:316 The test fixture explicitly accepts single endpoints of salary ranges as valid stated figures, bypassing the range shape requirement."
+          "evidence": "pipeline/jobfit/tests/test_campaign.py:71 No test traverses an enumerated variation space or expects an exhaustion message. On the keyless path every press returns the same pack with no reason given. A grep for regenerat/exhaust/variation in campaign.py, campaign_cli.py and this test found nothing."
         }
       ],
       "withdrawn": {
-        "worker": "26e82d49-47d9-41c6-80cc-c9f1e76f03a9",
+        "worker": "f5454730-20be-4427-9ad2-753cd3aba878",
         "state": "deviation",
-        "at": "2026-10-21T21:32:22.827833+00:00",
-        "reason": "reviewer (sonnet): The anchor pipeline/jobfit/tests/test_campaign.py is not among this context's listed files (test_interview*, test_intake*, test_recruiter*, test_rolebrief, test_jobs, test_salary_band), so the verdict is about a different context. The line itself does assert that a lone '95 000 CZK/month.' survives "
+        "at": "2026-10-31T22:02:12.963072+00:00",
+        "reason": "reviewer (sonnet): The test_campaign.py lines say what the evidence quotes, but campaign.py has no regeneration, variation-budget or exhaustion mechanism for a test to pin, so the deviation points at a missing feature rather than a missing test. The anchor file test_campaign.py is not among this context's listed files"
       }
     },
     "f9913210-f0ec-4a7a-9e3f-e8f565d16650/data-viz": {
