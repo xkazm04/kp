@@ -6687,10 +6687,10 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/validate.ts:23 speechReady). Any emphasis marker, URL or list the model emits reaches a transport told to say it 'exactly, verbatim'.",
+          "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/text/normalize.ts speechReady). So any markdown, emoji or bare address the fast model emits despite its plain-text prompt is spoken verbatim by a transport told to say it 'exactly, verbatim'.",
           "evaluatedAt": "2026-10-31",
-          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
-          "evaluatedRevision": 23
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "prompt-assembly",
@@ -12038,10 +12038,10 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording of their AI interview. The context has no capture, transcription, synthesis or playback, which is the precondition the subject needs. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt: the hits were that compliance flag, copy comments and a transcript-modal i18n key.",
+          "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording. Grep of the context's non-test modules for voice|audio|speech|transcri|microphone|tts|stt finds only that recording-offer config fold (decisionsComplianceFold.ts:55). There is no capture, synthesis, transcript or engine, so no voice-io precondition holds.",
           "evaluatedAt": "2026-10-31",
-          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
-          "evaluatedRevision": 23
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "module-design",
@@ -14997,11 +14997,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, a zero deletion budget on decisive terms. bakeoff.py:95 ranks recognizer candidates on recall, with aggregate WER only as a threshold and tie-break. That is the current standard's metric contract.",
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:219 The synthetic candidate's LLM reply reaches Piper through clip_spoken only (whitespace collapse plus a 220-char cap). No markup door runs. A stray markdown or emoji token the persona model emits despite SPOKEN_BREVITY is synthesized literally, and that skews the WER and entity numbers the harness gates on.",
           "evaluatedAt": "2026-10-31",
-          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
-          "evaluatedRevision": 23,
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25,
           "source": "conform",
           "adoptedFrom": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
           "revisionsBehind": 3
@@ -17797,7 +17797,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/stt/route.ts:161 The transcript leaves as a bare `text` string with no typed heard-nothing or no-speech outcome. The whisper.cpp adapter (packages/voice-stt/src/providers/whisper-cpp.ts:220) only trims segment text, so an in-band blank-audio marker passes as a one-word transcript, and an empty final over speech comes back 200 with \"\". The client (useStt.ts:325) then silently drops an empty transcript, so 'heard audio, produced no words' looks identical to silence.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "voice-interview-fidelity",
@@ -18634,10 +18638,10 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. startOpenAiCall (line 289) is not handed the transport's `levels` box, so the requestor gets no input meter or capture indicator and cannot tell a dead microphone from a quiet one.",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. There is no live input level meter (the kit's useMicLevel is re-exported by useIntakeDictation.ts:6 but unused here), so a requestor talking into a dead or muted mic gets no diagnosis until the turn fails.",
           "evaluatedAt": "2026-10-31",
-          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
-          "evaluatedRevision": 23
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "talking-avatar",
@@ -24519,7 +24523,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/onboard-ui/core.js:1078 The onboarding spoken-output card shows only the engine name, a state chip, languages and 'currently the default'. Nothing on a cloud engine's card says that text leaves the machine, and there is no recommended local heard voice. The first-run choice of a default TTS provider is made with no residency label.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "mcp-tools",
@@ -25486,10 +25494,10 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/pipeline/command/route.ts:80 The one natural-language door in this context takes typed `text`. Its only client, app/features/hiring/pipeline/CommandBar.tsx:73, has no dictation, so no transcript ever crosses into these routes. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt over app/api/pipeline/ and dictat|voice|mic|speech in CommandBar.tsx: no hits.",
+          "evidence": "app/api/pipeline/command/route.ts:81 The one natural-language door parses typed `text` with parseCommand. Grep of the context's non-test files and of its only client app/features/hiring/pipeline/CommandBar.tsx for voice|audio|speech|transcri|microphone|dictat|stt|tts finds nothing, so no spoken input reaches this context and spoken-intent-parsing's precondition does not hold.",
           "evaluatedAt": "2026-10-31",
-          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
-          "evaluatedRevision": 23
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "agent-runtime-assembly",

@@ -1,0 +1,109 @@
+{
+  "worker": "cloud-20261031-kp-6",
+  "evaluatedAt": "2026-10-31",
+  "pairs": [
+    {
+      "context": "14d4d7df-d27a-4533-a471-e4ed40575d8d",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/text/normalize.ts speechReady). So any markdown, emoji or bare address the fast model emits despite its plain-text prompt is spoken verbatim by a transport told to say it 'exactly, verbatim'.",
+      "techniques": [
+        {"technique": "speech-ready-text", "verdict": "deviation", "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The reply is only stripEndSentinel'd before it goes on the wire to speakText. The model is asked for plain text (the cheaper lever), but no door runs before the engine."},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-connect/route.ts:23 The intake call is declared a TRANSPORT-ONLY session, with the brain kept server-side. The credential mint sits after the lifecycle refusals and behind a per-intake limiter at :75."},
+        {"technique": "engine-abstraction", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-connect/route.ts:83 The relay provider is derived from the provider-trait table (relayProvider(voiceAvailability())), never named, and the not-configured refusal carries the missing env as data."},
+        {"technique": "transcript-normalization", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-turn/route.ts:30 The transcribed utterance reaches the reasoning engine trimmed and length-capped only, with no lossy rewrite. That is the technique's rule for a reasoner destination."}
+      ]
+    },
+    {
+      "context": "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording. Grep of the context's non-test modules for voice|audio|speech|transcri|microphone|tts|stt finds only that recording-offer config fold (decisionsComplianceFold.ts:55). There is no capture, synthesis, transcript or engine, so no voice-io precondition holds.",
+      "techniques": []
+    },
+    {
+      "context": "40e7d65d-bb8a-4321-aa57-b845a86def9a",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "pipeline/jobfit/eval/voice/session_runner.py:219 The synthetic candidate's LLM reply reaches Piper through clip_spoken only (whitespace collapse plus a 220-char cap). No markup door runs. A stray markdown or emoji token the persona model emits despite SPOKEN_BREVITY is synthesized literally, and that skews the WER and entity numbers the harness gates on.",
+      "techniques": [
+        {"technique": "speech-ready-text", "verdict": "deviation", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:219 Persona text goes straight to synthesis after clip_spoken, with the 'no markdown' instruction as the only guard."},
+        {"technique": "decode-time-vocabulary-biasing", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/el_ws.py:82 The per-conversation asr.keywords override from /connect is sent to the recognizer, and session_runner.py:198 fails a run when a spoken domain term is lost. That is bias placed where a confusion is measured."},
+        {"technique": "stt-pipeline", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:48 The engine's '...' no-words marker is reduced to a DROPPED turn rather than counted as a transcript, so the engine's in-band no-speech token never passes as text."},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:209 A run fails when the agent fell back to its dashboard prompt. This is the 'unlock is separate from the use' silent-override failure, made gateable."}
+      ],
+      "registryProposal": "speech-ready-text does not say whether a test harness's synthetic speaker (LLM persona to local TTS, used to measure ASR) owes the markup door. Its 'When not to apply' covers authored scripts and short confirmations, not measurement rigs, where a voiced markup token corrupts the metric rather than a user's experience. A one-line scope note would settle it."
+    },
+    {
+      "context": "f3c7a16c-32b1-4b6a-8df4-6181ab2734dc",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/interview-lab/page.tsx:32 The context is one 75-line server page that gates on INTERVIEW_LAB_ENABLED and composes VoiceInterviewClient (:52) and TtsComparePanel (:56). Both are owned by other contexts. This file holds 2 of 21 techniques, well under the evidence floor, and no deviation.",
+      "techniques": [
+        {"technique": "voice-ux-integration", "verdict": "realized", "evidence": "app/interview-lab/page.tsx:32 When the lab is disabled, the page states why in one sentence instead of rendering a client whose Start would 403."},
+        {"technique": "portable-provider-package", "verdict": "realized", "evidence": "app/interview-lab/page.tsx:56 A compare-by-ear TTS panel is mounted beside the provider A/B client."}
+      ]
+    },
+    {
+      "context": "29da5120-0f66-4432-8a78-4e81724005bf",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/stt/route.ts:161 The transcript leaves as a bare `text` string with no typed heard-nothing or no-speech outcome. The whisper.cpp adapter (packages/voice-stt/src/providers/whisper-cpp.ts:220) only trims segment text, so an in-band blank-audio marker passes as a one-word transcript, and an empty final over speech comes back 200 with \"\". The client (useStt.ts:325) then silently drops an empty transcript, so 'heard audio, produced no words' looks identical to silence.",
+      "techniques": [
+        {"technique": "stt-pipeline", "verdict": "deviation", "evidence": "app/api/stt/route.ts:161 Only `text: out.text` crosses the boundary. Empty-is-a-claim and the engine-marker reduction are not typed outcomes anywhere on this path."},
+        {"technique": "on-device-vs-cloud", "verdict": "realized", "evidence": "app/api/stt/route.ts:133 `onDevice` is a per-request floor that can refuse the cloud and cannot widen the KP_STT_PROVIDERS residency set."},
+        {"technique": "portable-provider-package", "verdict": "realized", "evidence": "app/api/stt/route.ts:101 The host route answers the package's live probe plus the host-owned preferred/allowed preference. Gate, throttle and upload contract stay in the route."},
+        {"technique": "speech-ready-text", "verdict": "realized", "evidence": "app/api/tts/route.ts:86 `format: chat` rides the wire into the package's one validation door, which runs speechReady before any engine (packages/voice-tts/src/validate.ts:23)."},
+        {"technique": "engine-abstraction", "verdict": "realized", "evidence": "app/api/tts/route.ts:138 The served provider and any fallback travel as headers, so a fallback is visible and never silent."}
+      ]
+    },
+    {
+      "context": "475eb882-f8e1-47ea-9d34-2534405506c6",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. There is no live input level meter (the kit's useMicLevel is re-exported by useIntakeDictation.ts:6 but unused here), so a requestor talking into a dead or muted mic gets no diagnosis until the turn fails.",
+      "techniques": [
+        {"technique": "stt-pipeline", "verdict": "deviation", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 The listening state renders a stop label with no level meter or capture indicator."},
+        {"technique": "speech-ready-text", "verdict": "deviation", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:192 The server reply is handed to speakText as-is, and no speech-ready door runs on either side of the split."},
+        {"technique": "voice-ux-integration", "verdict": "realized", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:406 Refused autoplay shows a visible enable-audio affordance instead of passing as silent success."},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:370 Mic denial, missing device and busy device are classified apart (errMicDenied / errMicNotFound / errMicBusy) on the transport-shape call, so each failure keeps its own next step."}
+      ]
+    },
+    {
+      "context": "d464d124-249b-43ef-8fd5-c259c5036424",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/onboard-ui/core.js:1078 The onboarding spoken-output card shows only the engine name, a state chip, languages and 'currently the default'. Nothing on a cloud engine's card says that text leaves the machine, and there is no recommended local heard voice. The first-run choice of a default TTS provider is made with no residency label.",
+      "techniques": [
+        {"technique": "voice-setup-experience", "verdict": "deviation", "evidence": "scripts/onboard-ui/core.js:1078 The voice card header renders name plus state only. Rule 1's labelled cloud opt-in and local recommended default are absent, and the flow checks speaking only, not hearing (rule 4)."},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "scripts/setup-eleven-agent.mjs:152 intendedConfig() is the one structure that both --deploy and --check consume. --check exits 0/1 at :323 and 2 (cannot verify) on every unreachable path, override unlocks derive from OVERRIDE_INTENT at :130, and the agent-id rotation on deploy is stated at :41."},
+        {"technique": "portable-provider-package", "verdict": "realized", "evidence": "scripts/onboard-ui/core.js:1096 Each ready engine gets a Play-sample button, so the default is picked by ear. A fallback during the sample is named at :1127."}
+      ]
+    },
+    {
+      "context": "903990c9-54d2-4ed6-af82-defd5db63d49",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/pipeline/command/route.ts:81 The one natural-language door parses typed `text` with parseCommand. Grep of the context's non-test files and of its only client app/features/hiring/pipeline/CommandBar.tsx for voice|audio|speech|transcri|microphone|dictat|stt|tts finds nothing, so no spoken input reaches this context and spoken-intent-parsing's precondition does not hold.",
+      "techniques": []
+    }
+  ],
+  "declined": [],
+  "consults": [
+    {
+      "ts": "2026-10-31T00:00:00Z",
+      "bundle": "software-engineering",
+      "subjects": ["voice-io"],
+      "techniques": ["speech-ready-text", "duplex-agent-sessions", "engine-abstraction", "transcript-normalization", "decode-time-vocabulary-biasing", "stt-pipeline", "voice-ux-integration", "portable-provider-package", "on-device-vs-cloud", "voice-setup-experience"],
+      "deviations": 7
+    }
+  ]
+}
