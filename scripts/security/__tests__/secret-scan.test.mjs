@@ -15,6 +15,11 @@
 // and it is what catches a new pattern that is right in principle but matches a
 // committed fixture. The Polar key rule is exercised here without a real key.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   BINARY_RE,
   MAX_BYTES,
@@ -25,6 +30,7 @@ import {
   scanFiles,
   scanText,
   trackedFiles,
+  vacuousScan,
 } from '../secret-scan.mjs';
 
 let passed = 0;
@@ -145,6 +151,34 @@ check('a tracked path that is not on disk is skipped rather than crashing the ga
     throw new Error('ENOENT');
   };
   assert.deepEqual(scanFiles(['app/gone.ts'], { read }), { findings: [], scanned: 0, skipped: [] });
+});
+
+check('a scan that read zero files is not clean — the predicate', () => {
+  assert.equal(vacuousScan({ findings: [], scanned: 3, skipped: [] }), null);
+  assert.match(vacuousScan({ findings: [], scanned: 0, skipped: [] }), /read 0 tracked text files/);
+  // Everything exempt or binary is the same nothing as an empty listing.
+  const r = scanFiles(['docs/a.md', 'public/logo.png'], { read: () => ({ text: SAMPLES.github }) });
+  assert.equal(r.scanned, 0);
+  assert.ok(vacuousScan(r), 'an all-exempt listing must not read as clean');
+});
+
+check('the CLI exits 1 when git lists nothing to read, rather than printing "clean"', () => {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'secret-scan.mjs');
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-secret-scan-'));
+  try {
+    const init = spawnSync('git', ['init', '-q'], { cwd: empty });
+    assert.equal(init.status, 0, 'git init failed in the fixture dir');
+    const run = spawnSync(process.execPath, [script], {
+      cwd: empty,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: empty },
+      encoding: 'utf8',
+    });
+    assert.equal(run.status, 1, `expected exit 1, got ${run.status}\n${run.stdout}${run.stderr}`);
+    assert.match(run.stderr, /cannot report "clean"/);
+    assert.doesNotMatch(run.stdout, /no committed credential/);
+  } finally {
+    fs.rmSync(empty, { recursive: true, force: true });
+  }
 });
 
 check('the report names rotation, because deleting the line does not undo the leak', () => {

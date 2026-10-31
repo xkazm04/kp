@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { withoutComments } from "../../../../scripts/review/source-mask.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(HERE, "..", "..", "..", "..");
@@ -58,10 +59,17 @@ function constArrayMembers(file: string, constName: string): string[] {
   return [...source.slice(start + decl.length, end).matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
 }
 
+/** Every `code: "<literal>"` in route source, comments blanked first (strings kept,
+ *  since the literal IS a string). A code deleted from the handler but still named in
+ *  a comment — "we used to answer code: \"x\" here" — must not keep the lockstep green. */
+function mintedCodesIn(source: string): string[] {
+  const code = withoutComments(source, { line: false });
+  return [...new Set([...code.matchAll(/\bcode:\s*"([a-z_]+)"/g)].map((m) => m[1]))];
+}
+
 /** Every `code: "<literal>"` the keys-test route writes into a response. */
 function mintedCodes(file: string): string[] {
-  const source = readFileSync(file, "utf-8");
-  return [...new Set([...source.matchAll(/\bcode:\s*"([a-z_]+)"/g)].map((m) => m[1]))];
+  return mintedCodesIn(readFileSync(file, "utf-8"));
 }
 
 test("the declarations still have the shape this test reads", () => {
@@ -84,4 +92,15 @@ test("ModelsTestCode is exactly TestErrorCode plus the keys-route codes", () => 
       "a code the client lists and no route emits is a dead branch. Add or remove it on BOTH sides " +
       "(and in messages/*.json if the Models tab resolves it there)."
   );
+});
+
+test("a code named only in a comment is not counted as minted", () => {
+  const source = [
+    '// we used to answer { code: "line_ghost" } before the refactor',
+    "/* and once { code: \"block_ghost\" }, see",
+    '   code: "block_ghost_2" on the next line */',
+    'return NextResponse.json({ error: "a // inside a string is not a comment", code: "real_one" });',
+    "const url = \"http://x/*not-a-comment*/\"; const r = { code: \"after_url\" };",
+  ].join("\n");
+  assert.deepEqual(mintedCodesIn(source).sort(), ["after_url", "real_one"]);
 });

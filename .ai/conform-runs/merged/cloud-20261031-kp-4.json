@@ -1,0 +1,241 @@
+{
+  "worker": "cloud-20261031-kp-4",
+  "evaluatedAt": "2026-10-31",
+  "pairs": [
+    {
+      "context": "12e121d6-6032-464b-a349-68911bfbdbba",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:8 the context's only LLM touch is DISPLAYING the read-only usage ledger; grep over all 25 files for prompt|system:|messages|anthropic|claude|chat.completions|llm finds no prompt text built or sent, so no assembler exists here to govern.",
+      "techniques": []
+    },
+    {
+      "context": "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:1 the context is pure client-side derivation over stored approval JSON (it reads model OUTPUT provenance, line 17 VerdictProvenanceFields); grep for prompt|system:|messages|anthropic|claude|chat.completions over all 29 files finds no prompt assembly.",
+      "techniques": []
+    },
+    {
+      "context": "3e73bfbb-2232-43f7-9bd5-09155de4db6a",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/devcase/session/[id]/chat/route.ts:77 the route clips the candidate's open file to 64,000 chars and hands it on, then the assembler cuts it again to 4,000 chars mid-file (pipeline/jobfit/devcase/chat.py:99) and drops all but the last 30 transcript turns (chat.py:62) with no notice in the prompt; the model reasons over a partial file and history that present as complete.",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/chat.py:62 `return msgs[-MAX_TRANSCRIPT_MSGS:]` silently drops older turns of the full transcript the route passes (route.ts:104), and chat.py:99 truncates the file the route already capped at 64k (route.ts:77) to 4,000 chars; the technique's bottom rung is 'a notice, not silence', and the notice belongs in the prompt."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "realized",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 the call site hands typed inputs (case, role, transcript, message, currentFile, lang) to runSessionChat; no prompt text is rendered at the route."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/devcase/chat.py:104 the candidate-controlled transcript enters through fenced_untrusted('CHAT_TRANSCRIPT', ...), at a declared insertion point in the context layer (route.ts:15 states the contract)."
+        }
+      ]
+    },
+    {
+      "context": "110a08ce-19c1-41ae-9566-bc45b3f90d47",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/automation/[task]/route.ts:49 the routes are callers that pass typed data (entryId, task, notes, lang) to a spawned Python runner; grep for prompt|system:|messages|instruction over the 29 files hits only rate-limit keys and the promptCache stats read, so the prompt text is assembled outside this context and no assembler lives here.",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:49 caller side only: `notes` travels as a typed argument, not as pre-rendered prompt text, so the sprawl failure has no site here."
+        }
+      ]
+    },
+    {
+      "context": "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/_lib/llm-config.ts:3 the module owns provider/use-case catalogs and the KP_LLM_CONFIG env, not prompt text, but llm-config.ts:333 llmRouteFingerprint supplies the model axis of the analyze cache key; one technique is touched and anchored, far below the half-of-32 floor, and response-reservation-sizing lives in the Python registry outside this context.",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "realized",
+          "evidence": "app/_lib/llm-config.ts:333 llmRouteFingerprint digests provider, model, params and endpoint (doc at :327: 'a key that pins the prompt but not the model' served stale), realizing the technique's 'the model the prompt was shaped for is an input' rule."
+        }
+      ]
+    },
+    {
+      "context": "ebfe3268-6c14-4997-a49c-091483d763b5",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/cache-key.ts:36 the analyze cache's prompt axis is a hand-bumped constant, and the comment at :9 (\"Bump this when the Gemini prompt ... changes\") is the only link to the prompt text in pipeline/jobfit/gemini.py:744; an edit to that prompt without a bump keeps every cached analysis served for the TTL under a prompt that no longer exists.",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache-key.ts:98 `field(PROMPT_VERSION)` is the only prompt input to the key, and nothing derives or checks it against the live template (no test pairs it with gemini.py, unlike the reasoning cache's test_prompt_version_sync.py); gate-sees-target requires the current stamp to be computed from the live source."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "realized",
+          "evidence": "app/_lib/cache-key.ts:86 identities are digested, not summaries: each field is length-framed before hashing (the procedure change was versioned once, explicitly, at :19), and the model route enters at :120."
+        }
+      ]
+    },
+    {
+      "context": "5cc5837d-156b-4d4a-9890-dff00d8107ee",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 the panel's I/O is polling /api/tasks for task status; grep for prompt|system:|messages|anthropic|claude over all 18 files hits only one comment (TasksIndicator.tsx:29), so no prompt is assembled here.",
+      "techniques": []
+    },
+    {
+      "context": "9179c3cd-8c4f-4065-b76a-70cd6ece2944",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/profile/draft/route.ts:47 the one model-spending route hands typed {text, lang} to runProfileDraft (a Python child); grep for prompt|system:|messages|instruction over the 25 files hits only rate-limit keys and comments, so no prompt text is built in this context.",
+      "techniques": []
+    },
+    {
+      "context": "12e121d6-6032-464b-a349-68911bfbdbba",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 the guard for the sole channel_spend write chain matches `<SpendInput\\b` in raw EconomicsBoard.tsx source, so a commented-out `{/* <SpendInput .../> */}` keeps it green while the editor is gone, which is the exact regression the file was written to catch (also :53 for setChannelSpend).",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 the haystack is not normalised to what executes and there is no seeded describes-only control; the repo already ships the stripper the technique asks for (scripts/review/source-mask.mjs withoutComments, used at app/api/llm/test/test-code-lockstep.test.ts:66)."
+        }
+      ]
+    },
+    {
+      "context": "110a08ce-19c1-41ae-9566-bc45b3f90d47",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/api/llm/test/test-code-lockstep.test.ts:66 the lockstep gate blanks comments before matching and :79 asserts an anti-vacuity floor; two techniques are realized and anchored, well under the half-of-27 floor, and no deviation was found in the files read.",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "realized",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:66 `withoutComments(source, { line: false })` before matching minted codes, so a code named only in a comment cannot keep the lockstep green."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "realized",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:79 asserts that at least 8 union members were parsed, so a parse that reads nothing fails instead of comparing two empty sets."
+        }
+      ]
+    },
+    {
+      "context": "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:72 the lockstep tests read Python source and assert the declaration exists before parsing (:73); only gate-liveness is anchored, far under the half-of-27 floor.",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "realized",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:72 locates the Python declaration and asserts it was found (next line) rather than comparing against an empty parse."
+        }
+      ]
+    },
+    {
+      "context": "145b5d07-e126-4749-8ada-b0fa84fcfa37",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/route-capability-coverage.test.ts:241 the capability ratchet counts a mutating route as gated when the raw source matches `requireCapability(`, comments included, so a route whose only mention of the gate is a comment reads as authorized. Not live today (re-running the predicate on comment-stripped sources reclassifies 0 routes), but sibling contract tests in the same context strip comments first (route-tenancy-coverage.test.ts:51, rate-limit-contract.test.ts:3328).",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:241 `GATE.test(src)` on unstripped source; the non-vacuity test (:265) has no describes-only fragment that must NOT match, which is the seeded pair the technique requires."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "realized",
+          "evidence": "app/api/route-capability-coverage.test.ts:233 asserts at least 100 route files were walked, and :265 drives the predicates over synthetic sources with known answers so a blind scan goes red."
+        }
+      ]
+    },
+    {
+      "context": "e6d77461-4869-4190-bfcb-a5cf7fec1162",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/security/secret-scan.mjs:181 a bare `catch { continue; }` drops ANY unreadable tracked file uncounted, and main exits 0 whenever findings is empty (:242) whatever `scanned` is; the suite pins this (scripts/security/__tests__/secret-scan.test.mjs:147: scanned 0 = clean), so the gate that says 'no credential is committed' can say it having read nothing.",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:242 there is no instrument assertion on `scanned` (zero files read is a green report), and scripts/security/check-actions.mjs:585 returns [] when .github/workflows is absent, printing 'every action is pinned' with exit 0 (the allowlist is empty, so stale-allowlist cannot fire)."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "deviation",
+          "evidence": ".githooks/pre-push:29 the only local rung that reads for credentials (the constitution lens) exits 0 unless the push targets main, and pre-commit runs no secret check, so a key pushed on any other branch reaches the remote unchecked; for this irreversible-at-push class the local rung is the only one that can prevent rather than report."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:13 SECRET_PATTERNS is the single table both readers use; the diff lens imports it (scripts/review/constitution-check.mjs:51) instead of keeping a copy."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:39 entropy heuristics and bare prefixes are excluded on purpose, and each structural pattern was checked against the tree before it was added."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "realized",
+          "evidence": "scripts/security/secret-scan.mjs:212 the refusal names rotation as the fix, and points to .env.example and docs/, both of which exist and are exempt."
+        }
+      ]
+    },
+    {
+      "context": "4c01cda6-93db-4db4-a5fa-d5153653d9c6",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:46 the coverage gate inventories every ROLE_FAMILIES member against a recorded floor (the inventory-gate shape the subject asks for). The rest of the context is ordinary behavioural tests, and the floors are ratchets owned by the sibling metric-gates subject; too few quality-gates techniques are anchorable to clear the floor.",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:46 fails when a role family has no recorded floor, so a new family cannot sit outside the gate's population silently."
+        }
+      ],
+      "registryProposal": "quality-gates has no technique for a test FILE whose subject is a domain floor (coverage floors over a data artifact). Such contexts land as 'unknown' by construction, because metric-gates owns the ratchet and quality-gates owns only the harness (run_gated.py, outside the context). The registry map's pairing of quality-gates with pure test contexts may be lexical noise."
+    }
+  ],
+  "declined": [],
+  "consults": [
+    {
+      "ts": "2026-10-31T00:00:00Z",
+      "bundle": "software-engineering",
+      "subjects": ["prompt-assembly"],
+      "techniques": ["context-budgeting", "layered-composition", "variable-interpolation", "fingerprinting-and-cache-keys", "response-reservation-sizing"],
+      "deviations": 2
+    },
+    {
+      "ts": "2026-10-31T00:00:00Z",
+      "bundle": "software-engineering",
+      "subjects": ["quality-gates"],
+      "techniques": ["match-the-resolved-artifact", "gate-liveness", "gate-laddering", "policy-projection", "false-positive-economics", "refusal-names-a-reachable-remedy"],
+      "deviations": 3
+    }
+  ]
+}

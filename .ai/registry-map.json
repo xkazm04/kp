@@ -2353,8 +2353,8 @@
           "state": "not-applicable",
           "evidence": "app/features/insights/about/stage/stages.ts:29 In this context 'stage' means an animation beat in an explainer scene, not a pipeline column. A search of app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis and PIPELINE_STAGES found no hits, so the context neither reads nor edits a board axis.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "voice-io",
@@ -2492,8 +2492,8 @@
           "state": "not-applicable",
           "evidence": "app/features/insights/about/ChapterRail.tsx:46 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the explainer observes and animates its own document sections.",
           "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         }
       ],
@@ -2744,7 +2744,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/companion/[id]/message/route.ts:158 The companion message route returns a complete JSON response rather than streaming typed turn events and lacks conversation identity concurrency locks.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7a0b336cac31d173",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-memory",
@@ -2760,8 +2764,12 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "app/api/companion/[id]/message/route.ts:140 The companion message route captures raw turn utterances directly as episodes and stores their paths in turn metadata, but lacks a consolidation pass to distill episodes into durable beliefs or decay stale records before recall.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52
         },
         {
           "subject": "companion-identity",
@@ -2777,7 +2785,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:140 When an accepted companion action fails, the route puts the proposal back to open and leaves only a server log line. A broken capability therefore leaves no durable evidence and cannot be told apart from one never tried, and no ledger anywhere tracks working, broken and unexercised per catalog action.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "machine-paced-delivery",
@@ -3761,7 +3773,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:8 the context's only LLM touch is DISPLAYING the read-only usage ledger; grep over all 25 files for prompt|system:|messages|anthropic|claude|chat.completions|llm finds no prompt text built or sent, so no assembler exists here to govern.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "settings",
@@ -3839,7 +3855,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 the guard for the sole channel_spend write chain matches `<SpendInput\\b` in raw EconomicsBoard.tsx source, so a commented-out `{/* <SpendInput .../> */}` keeps it green while the editor is gone, which is the exact regression the file was written to catch (also :53 for setChannelSpend).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "recruiting-funnel-metrics",
@@ -3896,7 +3916,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 The only measurement surface here plots the hiring score's predicted probability against measured advance rate on real candidates. No model or agent is run against declared scenarios. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?: hits are only 'judged against a goal' in the hiring-funnel sense (AnalyticsTargetInput.tsx:29, statGoalChip.ts:9).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "agent-memory",
@@ -3954,8 +3978,8 @@
           "state": "deviation",
           "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 Quality's unconditionally animated root remounts through the keyed analytics section switch, so returning repeats first-arrival choreography.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -4863,7 +4887,11 @@
           "revision": 3,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/status/[token]/StatusClient.tsx:276 Every not_selected cause, including a closed or filled role (role_closed), shows the same body, 'The team has decided to move forward with other candidates' (messages/en.json:2132), so a requisition-level ending reads to the candidate as a considered comparative decline.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:436aa789c377bd9c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "multi-provider-gateway-plane",
@@ -4913,7 +4941,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/status/[token]/StatusClient.tsx:397 The review right on the decision history is a sentence (en.json status.decisions.humanReviewNote: \"Just reply to any message from the hiring team\"), not a mechanism. Separately, the renderer falls back to a de-snaked kind name, hides decisions whose attribution is unknown, and shows the model's self-reported confidence.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:27f52910bd5ead7e",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -4959,7 +4991,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 The pin claims the status page renders LanguageSwitcher, but its bare-identifier needle is already satisfied by the import at app/status/[token]/StatusClient.tsx:8, so deleting the `<LanguageSwitcher />` render at line 224 would leave the test green.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "application-intake-and-conversion",
@@ -4975,7 +5011,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:201 The honeypot pin asserts autocomplete=off as the anti-autofill control and pins the company_url name (line 198), both of which the technique calls ineffective. It does not pin the positioning rule or that a trip is recorded, so the test locks in the fragile construction.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:829940bcb64cbbe0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "quality-gates",
@@ -5311,8 +5351,8 @@
           "state": "deviation",
           "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 The per-candidate PII export audit descriptor carries no actor, and the route passes it straight to recordEvent, so the egress row on the candidate's timeline cannot answer who took the export; the door is gated by requireOperator alone with no dedicated export capability or confirmation, and inbound imports land unmapped vendor stages on the entry column instead of an explicit unmapped state.",
           "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
-          "evaluatedRevision": 2
+          "evaluatedAgainst": "sha256-b2:e5e04d0b1e1176a2",
+          "evaluatedRevision": 3
         },
         {
           "subject": "voice-io",
@@ -5386,8 +5426,8 @@
           "state": "deviation",
           "evidence": "app/_lib/ats/inbound.ts:141 When an external candidate's stage cannot be mapped to the local axis, toAtsEntryInput defaults the stage to 'Accepted' at the head of the funnel rather than preserving an explicit unmapped or null state.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
-          "evaluatedRevision": 2,
+          "evaluatedAgainst": "sha256-b2:e5e04d0b1e1176a2",
+          "evaluatedRevision": 3,
           "revisionsBehind": 0
         },
         {
@@ -5649,8 +5689,8 @@
           "state": "not-applicable",
           "evidence": "app/_lib/auth/require-operator.ts:10 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/auth, confirming this context manages operator HTTP session authentication and RBAC rather than hosting or spawning an agent CLI transport.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "revisionsBehind": 0
         },
         {
@@ -6032,8 +6072,8 @@
           "state": "conformant",
           "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:21 The billing settings tab replaces the plan catalog and upgrade controls with an unmetered status panel when self-hosted, ensuring copy and interface actions respect deployment mode.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
-          "evaluatedRevision": 7,
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -6070,8 +6110,8 @@
           "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel renders the Claude CLI engine as a two-valued 'available'/'unavailable' word from a boolean that only records whether a `claude` file exists on PATH, so an installed but logged-out (or offline-sealed) CLI reads 'Claude CLI available' — installed and authorized are collapsed into one claim and unknown authorization renders as a confident yes.",
           "evaluatedAt": "2026-10-24",
           "source": "conform",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "cost-metering",
@@ -6110,8 +6150,8 @@
           "state": "deviation",
           "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period labels omit an explicit timezone and can display different calendar dates for the same enforced boundary in different environments.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
-          "evaluatedRevision": 1,
+          "evaluatedAgainst": "sha256-b2:3a0a03da985229a4",
+          "evaluatedRevision": 2,
           "revisionsBehind": 0
         },
         {
@@ -6254,8 +6294,8 @@
           "state": "deviation",
           "evidence": "app/_lib/billing/plans.ts:194 Allowance recurrence uses the provider's rolling current-period start as its anchor, so a clamped renewal can shift subsequent locally derived allowance boundaries.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
-          "evaluatedRevision": 1,
+          "evaluatedAgainst": "sha256-b2:3a0a03da985229a4",
+          "evaluatedRevision": 2,
           "revisionsBehind": 0
         },
         {
@@ -6275,8 +6315,8 @@
           "state": "not-applicable",
           "evidence": "app/_lib/billing/gateway.ts:1 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/billing, confirming this context manages merchant-of-record payment subscriptions and quota enforcement rather than spawning or managing an agent CLI transport.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "revisionsBehind": 0
         },
         {
@@ -6564,8 +6604,8 @@
           "state": "deviation",
           "evidence": "app/_lib/schedule-slots.ts:310 The scheduling engine automatically invalidates candidate-proposed times that fall outside 08:00–18:00 business hours, defeating the purpose of the proposal escalation mechanism.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2,
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3,
           "revisionsBehind": 0
         },
         {
@@ -6646,7 +6686,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/text/normalize.ts speechReady). So any markdown, emoji or bare address the fast model emits despite its plain-text prompt is spoken verbatim by a transport told to say it 'exactly, verbatim'.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "prompt-assembly",
@@ -6663,12 +6707,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/intake.py:307 The intake assembler renders only the recent transcript tail under a conversation-so-far heading without telling the model how much earlier history was omitted.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/api/intake/[id]/attachments/route.ts:61 A library JD attached to an intake is silently cut at 20,000 chars and later grounds the intake agent as if complete. The comment at lines 67-72 names exactly this harm for notes, then exempts JDs.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -6684,8 +6727,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/api/intake/[id]/message/route.ts:99 Each intake route admits one model exchange (a Python spawn through app/_lib/intake-run.ts) and persists its result with a compare-and-swap, so there is no hook chain, no contributed code and no multi-call loop. A search of app/api/apply and app/api/intake for checkpoint, subagent, mutator and plugin found zero matches.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "hiring-need-as-structured-brief",
@@ -6701,7 +6748,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/intake/[id]/promote/route.ts:34 The promotion route enforces readiness via briefReadyToPromote without verifying that dealbreaker or outcome evidence carries stated basis, permitting unreviewed inferred or default content to satisfy the floor, and provides no attributed override mechanism.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:97f14df41d8eb363",
+          "evaluatedRevision": 3
         },
         {
           "subject": "quality-gates",
@@ -6733,7 +6784,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/apply/[id]/quick/route.ts:94 A filled honeypot is answered with the eligibility-decline message ('this role isn't the right fit'), and nothing is filed or recorded. This is the failure the technique names first: a bot control borrowing the knockout decline tells an autofill-tripped human they do not qualify.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:829940bcb64cbbe0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
@@ -6799,7 +6854,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/api/intake/[id]/voice-connect/route.ts:90 Unconfigured voice relays reject requests with an explicit INTAKE_VOICE_NOT_CONFIGURED refusal and return missing environment variables as machine data instead of failing generically.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         }
       ],
       "governance": "governed"
@@ -6948,8 +7007,8 @@
           "state": "deviation",
           "evidence": "app/_lib/application-status.ts:84 The status projection collapses requisition closures and lateral rematches into not_selected alongside rejections, erasing the cause needed to distinguish merit decisions from process endings.",
           "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:8b56bba66e157ca3",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:436aa789c377bd9c",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -7055,8 +7114,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Within the actionable failure group, the queue prioritises newest records rather than candidate impact, so a recent routine message can precede an older undelivered offer.",
           "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
           "revisionsBehind": 0
         },
         {
@@ -7176,8 +7235,8 @@
           "state": "conformant",
           "evidence": "pipeline/jobfit/taxonomy.py:1311 skill_match_score orchestrates canonical term resolution, hierarchy traversal with directional credit, sub-threshold sibling adjacency, and bounded token-overlap fallback before discounting by provenance.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -7320,8 +7379,8 @@
           "state": "conformant",
           "evidence": "pipeline/jobfit/group_compare_cli.py:69 The matching LLM call sites take their provider from the shared .llm door, gate on its availability record before calling, pin the answer by expected keys, and label every deterministic serve with a named descent reason, so the transport discipline holds without any call site rebuilding spawn or env logic.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "b02c9ae5-749e-43ff-a0ac-2befb7871370",
           "revisionsBehind": 3
@@ -7343,8 +7402,8 @@
           "state": "deviation",
           "evidence": "pipeline/jobfit/matching.py:1417 The matcher derives its fit tier from the score without a regulated-credential cap, allowing an unevidenced licence requirement to coexist with a strong match.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:c50d247cc160e408",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         }
       ],
@@ -7385,7 +7444,9 @@
           "confidence": "strong",
           "state": "deviation",
           "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
-          "evaluatedAt": "2026-10-18"
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:97a511057c0bde11",
+          "evaluatedRevision": 2
         },
         {
           "subject": "eval-harness",
@@ -7796,7 +7857,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/schedule/[token]/page.tsx:40 The booking page introduces the round with \"Choose the slot that works best…\". It never says what format the round takes and never asks about adjustments, and the escape hatch, time-zone and withdraw surfaces each fall short of their techniques.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "interview-calendar-integrity",
@@ -7812,7 +7877,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/schedule/[token]/SlotPicker.tsx:112 The candidate surface renders exactly one derived bit (checked or not checked) with no hidden count and no failure cause, and on a 409 it re-offers the current times, so the candidate is neither shown the interviewer's schedule density nor left at a dead end.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -7972,7 +8041,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/status/[token]/route.ts:30 These public token routes (status, decisions, nps, stop, offer) only read from the DB, project the result and apply rate limits; they start no metered spend. Grepping app/api/status, app/api/stop and app/api/offer for insertLlmUsage, cost_usd, costUsd, llm_usage and spawnPython found no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "browser-credential-boundary",
@@ -8140,7 +8213,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/channels/inbound/[token]/route.ts:110 Multipart intake substitutes the application default for an unset receiver language and passes it into candidate filing instead of preserving a fall-through to workspace authority.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7
         },
         {
           "subject": "test-harness",
@@ -8226,14 +8303,13 @@
           "changedAt": "2026-10-02",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "not-applicable: the subject's precondition is an app spawning an interactive coding-agent CLI in headless print mode as an LLM transport; these are inbound/outbound channel webhooks and relay/callback routes. app/api/channels/inbound/[token]/route.ts:17 names the only child process here (a Python CV extractor), and kp's one agent-CLI transport is pipeline/jobfit/claude_cli.py:532, outside this context.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evidence": "app/api/channels/inbound/[token]/route.ts:19 These are comms outbox, relay-health, delivery-callback and inbound channel routes. The only child process they name is a Python CV extractor, and a search of app/api/comms and app/api/channels for claude, --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits. The 'relay probe' here checks an email relay, not an agent binary.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "6f966bc4-d587-45a4-9047-e193b635d284/communications",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -8440,8 +8516,8 @@
           "state": "deviation",
           "evidence": "scripts/i18n/catalog-check.mjs:245 The catalog gate checks structure and placeholders without rejecting unallowlisted source-identical prose, allowing untranslated object values and array items to pass.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
           "revisionsBehind": 0
         },
         {
@@ -8509,10 +8585,9 @@
           "state": "deviation",
           "evidence": "scripts/i18n/catalog-check.mjs:127 When the optional parsers are unavailable, the ASCII-only fallback misses unexpected non-Latin placeholders, allowing a decidable skeleton defect through the gate.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "copy-quality-gates",
@@ -8529,10 +8604,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:217 Carried literals are checked by substring presence, allowing changed numbers and missing repeated occurrences despite the standard requiring identity and count.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10,
+          "evidence": "scripts/i18n/catalog-check.mjs:217 The carried-literal check still tests `have.includes(literal)`, which is substring presence: a target that turns \"48\" into \"480\" or \"https://kp.io/term\" into \".../terms\" passes, and a literal the source repeats twice is satisfied by one occurrence. The header (line 191) promises identity, but this line only proves the literal is contained somewhere. The fixtures in i18n/catalog-check.test.ts:128 only plant a transposition (48 to 84).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11,
           "revisionsBehind": 0
         },
         {
@@ -8593,8 +8668,8 @@
           "state": "not-applicable",
           "evidence": "scripts/docs/check-adrs.mjs:245 These gates validate file-backed documentation and synchronization mappings; context and repository searches found no topicCatalog, bodyMap, watchedSources, checkedAgainst, or reviewDate identifiers establishing the standard's typed documentation catalog precondition.",
           "evaluatedAt": "2026-10-22",
-          "evaluatedAgainst": "sha256-b2:95cdaebc076df84d",
-          "evaluatedRevision": 2,
+          "evaluatedAgainst": "sha256-b2:74839e7c9eeb3728",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         }
       ],
@@ -8636,8 +8711,8 @@
           "state": "deviation",
           "evidence": "app/_lib/comms-dispatch.ts:72 Recipient resolution forwards names, opaque identifiers and malformed contacts instead of rejecting unaddressable recipients before transport.",
           "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
           "revisionsBehind": 0
         },
         {
@@ -8716,8 +8791,8 @@
           "state": "deviation",
           "evidence": "app/_lib/comms-resend-outcome.ts:66 A successful HTTP response with an absent or unrecognised message status becomes sent, permitting a delivery claim without readable delivery evidence.",
           "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
           "revisionsBehind": 0
         },
         {
@@ -9259,7 +9334,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:446 The chat uses the same autofill-claimable decoy name, and the server answers a trip with the eligibility-decline copy. A real person whose browser filled the field is told they do not qualify.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:829940bcb64cbbe0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "wizard-flows",
@@ -9275,7 +9354,11 @@
           "revision": 4,
           "changedAt": "2026-08-22",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/apply/[id]/ConversationalApply.tsx:315 When a rejected submit re-asks the branching `archetype` step (the server refuses with field \"archetype\", route.ts APPLY_SELECTION_INVALID), the fix path patches that one answer into the raw map and re-submits directly — the newly relevant lane is never walked and the switched-off lane's answers ride into the commit, because relevance is applied only by the forward hop (nextVisibleStepIndex) and never by the commit assembler.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e0fac678b7164451",
+          "evaluatedRevision": 4
         },
         {
           "subject": "mcp-tools",
@@ -9375,8 +9458,12 @@
           "revision": 3,
           "changedAt": "2026-10-21",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "app/apply/[id]/page.tsx:14 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; this flow captures application facts and eligibility answers rather than preparing candidates for future interview questions.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7266ebdd13504f5e",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -9412,7 +9499,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/analyses/[slug]/route.ts:151 Setting an advance/pass on one saved analysis writes a disposition_set event onto EVERY active board entry whose label matches the filename-derived candidate_label (pipeline.ts:1883), so a decision about one 'CV.pdf' lands in a different person's drawer history.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "prompt-assembly",
@@ -9596,7 +9687,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/calibration.ts:6 The context measures the production fit score observationally, as score/100 against a binary hiring outcome (advanced/passed), with a holdout clean arm. No declared scenario suite is run against a model or agent candidate. Grepped the context for scenario|benchmark|golden|judge|evals?|trials?: hits are only 'group-eval' feature names in match-score.ts and 'score-blind trial' caveats in calibration.ts:493.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "selection-score-calibration",
@@ -10198,8 +10293,8 @@
           "state": "deviation",
           "evidence": "pipeline/jobfit/models.py:23 The credential model permits an issue date in the expiry field, allowing a historical award date to be interpreted downstream as a licence lapse.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:c50d247cc160e408",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -10442,8 +10537,8 @@
           "evidence": "app/_lib/db/llm.ts:275 The context is a repository layer that ingests the usage ledger the Python side writes after a spawn (cost-metering) and stores Polar billing/analytics rows; a search of its files for --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits, so it neither spawns, probes, authenticates nor parses an agent CLI.",
           "confidence": "probable",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "revision": 9,
           "changedAt": "2026-10-02",
@@ -10622,8 +10717,8 @@
           "state": "deviation",
           "evidence": "app/_lib/db/core.ts:2821 The database boot sequence seeds fixture content directly into persistent SQLite tables gated by an environment variable rather than resolving an isolated fake data plane per call from session state.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
-          "evaluatedRevision": 4,
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         },
         {
@@ -11044,13 +11139,12 @@
           "revision": 9,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "state": "not-applicable",
-          "evidence": "not-applicable: this is the org/user/invite/workspace SQL layer, and app/_lib/db/companion.ts:596 is explicit that its search path exists to answer \"without spawning Python\". No agent-CLI surface in the 25 files; kp's transport is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evidence": "app/_lib/db/companion.ts:596 states this repository layer exists so the app can search 'without spawning Python'; a grep of all nine source files for spawn|child_process|execFile|claude|codex|gemini|python-runner|runPython|llm|provider finds no subprocess or agent-CLI call, only stored provenance labels (app/_lib/db/campaign.ts:9, app/_lib/db/companion.ts:36), so the precondition (this code spawns a coding-agent CLI as a transport) is absent.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "changedAt": "2026-10-02",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -11810,7 +11904,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:1 the context is pure client-side derivation over stored approval JSON (it reads model OUTPUT provenance, line 17 VerdictProvenanceFields); grep for prompt|system:|messages|anthropic|claude|chat.completions over all 29 files finds no prompt assembly.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -11939,7 +12037,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording. Grep of the context's non-test modules for voice|audio|speech|transcri|microphone|tts|stt finds only that recording-offer config fold (decisionsComplianceFold.ts:55). There is no capture, synthesis, transcript or engine, so no voice-io precondition holds.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "module-design",
@@ -12012,8 +12114,8 @@
           "state": "deviation",
           "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors in the chain are library-internal, pickDefaultIndex falls back to the innermost element at index 0 rather than the outermost boundary and fails to indicate that no product call site was found.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:eeacc7371e042d65",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:fcac6e51b4916eeb",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -12049,8 +12151,8 @@
           "state": "not-applicable",
           "evidence": "app/_dev-inspector/devLocate.ts:61 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, and inspection walks source-stamped elements within the product's own DOM.",
           "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         },
         {
@@ -12107,10 +12209,10 @@
           "changedAt": "2026-10-06",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "scripts/run-unit-tests.mjs:320 A flake is classified from one immediate re-run and appended to the CI step summary, which is not a retained, stably keyed history the next run can query.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evidence": "scripts/run-unit-tests.mjs:323 A flake is still detected from one immediate re-run of the failing files (rerun gated on KP_FLAKE_RERUN and MAX_RERUN_FILES), with no retained, stably keyed run history and no outcome-transition count, so the FLAKE label cannot be applied or removed by history and the register has no detector feeding it.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -13594,7 +13696,11 @@
           "revision": 7,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/api/devcase/lifecycle/[id]/redesign/route.ts:53 Both design doors check permission first (operator, then pipeline:write), then the shared entitlement gate, and debit in the same synchronous step, so the route holds no plan logic of its own and inherits the self-host short-circuit by construction.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "hitl-approval",
@@ -13642,7 +13748,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/devcase/lifecycle/[id]/approve/route.ts:132 A 'none'-verdict override is written to the audit trail with only the actor class 'human' and no principal, so the record cannot say who chose to ship a known-blind instrument, which the technique requires of every override.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:dadbb132f58c50f5",
+          "evaluatedRevision": 1
         }
       ],
       "governance": "governed"
@@ -13687,7 +13797,11 @@
           "revision": 15,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:22 The draft caps the parked event buffer at 2000 under a comment that says it mirrors the server route, but the server accepts at most 500 events per flush (route.ts:88 MAX_EVENTS = 500) and slices off the rest without saying so. A restored or backed-up buffer of more than 500 events goes out as one batch, the server keeps the first 500, the client treats the flush as landed and clears the batch, and the remaining events are lost without anyone being told.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:56e509787bc708cd",
+          "evaluatedRevision": 15
         },
         {
           "subject": "test-harness",
@@ -14020,10 +14134,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The catalog walker that enforces the forbidden 'case' variant deletes the innermost brace groups instead of expanding them, so the text of every plural/select branch is erased before the rule runs: '{n, plural, one {# case} other {# cases}}' reduces to '{n, plural, one other }' (verified), which leaves 39 plural/select messages in the guarded namespaces outside the ban, and the walker prints no strings-checked count that would show the gap.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The forbidden-word walker deletes every innermost `{...}` group before matching. In a plural or select message, those groups are the branch TEXT the reader sees, so the 'case' ban is blind to the rendered words of all 38 nested-brace messages in the five guarded namespaces (measured; none offends today). Line 210 also walks a missing namespace silently, without failing on zero units.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "prompt-assembly",
@@ -14164,7 +14278,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:77 the route clips the candidate's open file to 64,000 chars and hands it on, then the assembler cuts it again to 4,000 chars mid-file (pipeline/jobfit/devcase/chat.py:99) and drops all but the last 30 transcript turns (chat.py:62) with no notice in the prompt; the model reasons over a partial file and history that present as complete.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -14268,7 +14386,11 @@
           "revision": 8,
           "changedAt": "2026-10-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 The candidate devcase chat makes exactly one model exchange per HTTP request, bounded by rate limits and a stored-message ceiling, and the human types every turn, so there is no harness loop that refuses a stop, survives compaction or advances stages; I searched app/api/devcase for PreCompact, stop_hook, keepWorking, SessionStart and 'yield state' and found no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:b0eabf78abd856a4",
+          "evaluatedRevision": 8
         },
         {
           "subject": "voice-io",
@@ -14596,8 +14718,8 @@
           "state": "deviation",
           "evidence": "e2e/quality-tables.spec.ts:100 The Playwright lane shares one server and one SQLite file, so one spec's read of the sealed chain can be satisfied by another spec's write.",
           "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -14875,15 +14997,14 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, and aggregate word-error rate is a separate budget, so the aggregate does not decide the gate.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:219 The synthetic candidate's LLM reply reaches Piper through clip_spoken only (whitespace collapse plus a 220-char cap). No markup door runs. A stray markdown or emoji token the persona model emits despite SPOKEN_BREVITY is synthesized literally, and that skews the WER and entity numbers the harness gates on.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25,
           "source": "conform",
           "adoptedFrom": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "voice-interview-fidelity",
@@ -15027,8 +15148,8 @@
           "state": "deviation",
           "evidence": "app/_components/Tooltip.tsx:98 Tooltip places the description relationship on a wrapper span, so its text does not become the focused child control's accessible description.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -15101,8 +15222,8 @@
           "state": "deviation",
           "evidence": "app/_components/Tooltip.tsx:107 The shared name-reveal primitive for icon-only controls renders its tip pointer-events-none and closes on the trigger's mouseleave, so the label cannot hold still while the pointer moves onto it, which is one of the four conditions nav-hierarchy sets for a reveal that counts; it does appear on focus, persist with no timer, and dismiss on Escape without moving focus.",
           "evaluatedAt": "2026-10-26",
-          "evaluatedAgainst": "sha256-b2:924d251b08eaf74b",
-          "evaluatedRevision": 7
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8
         },
         {
           "subject": "status-vocabulary",
@@ -15121,8 +15242,8 @@
           "state": "deviation",
           "evidence": "app/_components/Badge.tsx:215 The badge primitive degrades unrecognized scorecard recommendation verdicts to a neutral tone and displays raw unvouched tokens instead of degrading toward the least approved member.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -15356,7 +15477,11 @@
           "revision": 3,
           "changedAt": "2026-10-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/data/[token]/DataClient.tsx:216 The erasure receipt this page shows names the retained sealed decision log but gives no deletion date, and the explainer calls the retained assessment shell 'no personal data', so the candidate is told less, and something less accurate, than the standard requires about what survived.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:91e3d4803a9e6e60",
+          "evaluatedRevision": 3
         },
         {
           "subject": "mcp-tools",
@@ -15389,7 +15514,11 @@
           "revision": 2,
           "changedAt": "2026-08-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/data/[token]/DataClient.tsx:252 The confirmation screen tells the candidate what goes and what stays through fixed catalog copy (eraseExplainer/confirmBody), plus a 'what we hold' list built by a separate presence projection (heldDataCategories). Neither comes from the scrub that anonymizeEntry actually performs, so a table added to or kept by the erasure can drift from what the page promises without anything failing.",
+          "evaluatedAt": "2026-10-27",
+          "evaluatedAgainst": "sha256-b2:c04dbf25f3ca1ea6",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -15825,8 +15954,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact comparison presents a recommended lead even for governed payloads because its lead card checks topPick without checking the governance sealing predicate.",
           "evaluatedAt": "2026-10-20",
-          "evaluatedAgainst": "sha256-b2:e1455cfce10b4def",
-          "evaluatedRevision": 2,
+          "evaluatedAgainst": "sha256-b2:a8611b249f54c3dd",
+          "evaluatedRevision": 3,
           "revisionsBehind": 0
         },
         {
@@ -15969,7 +16098,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:174 A 'group evaluation' here is a head-to-head ranking of job candidates (pipeline entries) for a recruiter. It is not a harness running models or agents against declared scenarios, so the eval-harness techniques' precondition (a model or agent under test) is absent. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?|model: no hits in groupEvalArm.ts.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "comparative-shortlist-evaluation",
@@ -16098,10 +16231,9 @@
           "state": "not-applicable",
           "evidence": "app/api/decisions/records/route.ts:21 Grep across hiring-decisions-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles sealed candidate decision records, peer-context lookups, and recruiter feedback without an interactive agent memory loop.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 4,
-          "stale": true
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 4
         },
         {
           "subject": "prompt-assembly",
@@ -16627,8 +16759,8 @@
           "state": "deviation",
           "evidence": "i18n/locales.ts:6 The frontend registry has independently maintained counterparts in Python and narrative-cache validation, so adding a language requires updating multiple language lists.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
           "revisionsBehind": 0
         },
         {
@@ -17306,7 +17438,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/schedule/[token]/route.ts:367 The confirm-time re-check is three-valued and lets an unknown result proceed, but the null branch is never recorded on the booking (confirmScheduleInvite takes no verification flag and schedule_invites has no such column), so the recruiter cannot tell which bookings were made without a verified calendar; the event write also relies on Google's unstated notification default, and a test pins that.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         },
         {
           "subject": "candidate-self-scheduling",
@@ -17322,7 +17458,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/schedule/[token]/route.ts:283 The token route refuses a candidate's proposal while any offered slot remains, and validateProposedSlots limits proposals to weekday business hours inside the horizon. That re-imposes the grid on the escape hatch, even though slot labels and structural validation are done right.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "scheduling",
@@ -17338,7 +17478,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/schedule/[token]/route.ts:539 Two confirmations that both read a pending invite before the awaited calendar check can both receive store success and dispatch confirmation side effects for the same booking.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cd982b42588a2de5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-runtime-assembly",
@@ -17653,7 +17797,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/stt/route.ts:161 The transcript leaves as a bare `text` string with no typed heard-nothing or no-speech outcome. The whisper.cpp adapter (packages/voice-stt/src/providers/whisper-cpp.ts:220) only trims segment text, so an in-band blank-audio marker passes as a one-word transcript, and an empty final over speech comes back 200 with \"\". The client (useStt.ts:325) then silently drops an empty transcript, so 'heard audio, produced no words' looks identical to silence.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "voice-interview-fidelity",
@@ -17805,7 +17953,11 @@
           "revision": 5,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/invite/[token]/AcceptForm.tsx:196 The client form unsafely casts a bare unvalidated wire string to the closed MemberRole union before looking up its localized label.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -17837,7 +17989,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/invite/[token]/AcceptForm.tsx:131 The form uses the named type recipes in some places (text-display, text-body, text-meta) but in five places reaches past them to the stock `text-sm` size step and adds its own weight (`font-semibold`, `font-medium`), which is the 'recipes, not ingredients' failure the repo itself counts as five raw-text-size debts.",
+          "evaluatedAt": "2026-10-27",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         }
       ],
       "governance": "governed"
@@ -18481,7 +18637,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. There is no live input level meter (the kit's useMicLevel is re-exported by useIntakeDictation.ts:6 but unused here), so a requestor talking into a dead or muted mic gets no diagnosis until the turn fails.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "talking-avatar",
@@ -19107,7 +19267,11 @@
           "revision": 3,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/jds/[slug]/JdActions.tsx:91 The public JD page is server-rendered from a server-side SQLite read, and its client islands call only same-origin /api/jds. A grep of app/jds for NEXT_PUBLIC, process.env, apiKey and Authorization found nothing, so no browser-held credential or brokered upstream exists here.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "table",
@@ -19139,7 +19303,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/jds/[slug]/page.tsx:327 Context and repository searches found roadmap references elsewhere but no roadmap, liveCount or noDataSource matches in this context, whose renderer publishes a stored job description rather than product-progress claims.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:60eb54ef03f44a69",
+          "evaluatedRevision": 3
         },
         {
           "subject": "repository-landing-document",
@@ -19155,7 +19323,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/jds/[slug]/page.tsx:327 This route renders a stored job description, and context searches found no repository-document publishing markers while the repository search located the separate root README.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:6f6a6c4541bc949b",
+          "evaluatedRevision": 4
         },
         {
           "subject": "mcp-tools",
@@ -19557,8 +19729,8 @@
           "state": "not-applicable",
           "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter to edit. A search of app/features/library/jobs for recall/episod/consolidat/belief found nothing; the 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
           "revisionsBehind": 4
         },
         {
@@ -19730,7 +19902,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/jobs/[id]/close/route.ts:40 The close flips the requisition's status in its own statement and then runs the withdrawal cascade as a separate best-effort step (lines 45-50). It records no actor and queues no candidate communication, so a close can leave people stranded, and no close can be traced to the person who made it.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:548fa21c15091d6e",
+          "evaluatedRevision": 2
         },
         {
           "subject": "job-coordination",
@@ -19746,7 +19922,11 @@
           "revision": 17,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/jobs/[id]/publish/route.ts:177 A resume after a `raise_failed` receipt (sourcing already finished, only the alert raise failed) calls runGoLive in `resume` mode. That mode changes only the response flags, so the run starts again from the sourcing step, re-spawns the sourcing child, and ignores the step position the receipt already recorded.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:68f09609d1498e88",
+          "evaluatedRevision": 17
         },
         {
           "subject": "release-pipeline",
@@ -19762,8 +19942,12 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/api/jobs/[id]/publish/route.ts:27 This route publishes a job requisition; a search of app/api/jobs for changelog, appVersion, semver and sbom found none.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "agent-runtime-assembly",
@@ -19796,7 +19980,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/jobs/[id]/publish/route.ts:79 GET /api/jobs/[id]/publish returns the go-live receipt row unchanged, so a receipt left in state 'sourcing' by a process that died mid-sourcing is served as live work forever. A graceful abort does record 'abandoned' (golive-run.ts), but nothing sweeps or projects the ungraceful case. The only repair is the lazy compare-and-swap in claimResume on a later POST, and the client's receiptNote renders 'sourcing' as 'wentLive' with resumable:false.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:e3e7a428140a2fbb",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -20238,8 +20426,8 @@
           "state": "deviation",
           "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 Unmounting the import viewer aborts its running import, violating the requirement that watched jobs survive their observers and support reattachment.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:22ed2a99172ae050",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:e3e7a428140a2fbb",
+          "evaluatedRevision": 6,
           "source": "retained",
           "revisionsBehind": 0
         }
@@ -20448,8 +20636,8 @@
           "state": "not-applicable",
           "evidence": "app/features/library/jobs/useJobsList.ts:161 The client calls only same-origin /api routes on its session cookie and holds no dependency credential. A grep of app/features/library/jobs for NEXT_PUBLIC, process.env, apiKey/api_key and Authorization found nothing, so there is no credential-boundary decision in this context.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
-          "evaluatedRevision": 3
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "test-harness",
@@ -21670,8 +21858,8 @@
           "state": "not-applicable",
           "evidence": "app/features/jobseeker/SourceCard.tsx:19 Here 'tier' means a job source's rights class (A/B/C), not a paid plan. A grep of app/features/jobseeker found no meterGate, entitledPlan, PLANS, upgrade or entitle, and no jobseeker API route calls the meter gates, so this context has no plan entitlements.",
           "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
-          "evaluatedRevision": 7
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "mcp-tools",
@@ -21833,7 +22021,9 @@
           "confidence": "probable",
           "state": "not-applicable",
           "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
-          "evaluatedAt": "2026-10-15"
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "invariant-placement",
@@ -21908,10 +22098,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet protocol counts code-suppression debt (eslint/ts/ruff), and the perf and design scripts budget wall-clock time and tokens. A search of scripts/lint, scripts/perf and scripts/design for termbase, messages/en.json, copy-contract, createTranslator and useTranslations found nothing, so no copy is extracted or gated in this context.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet holds code-suppression classes (eslint/ts/ruff) to ceilings, and the perf and design scripts budget time and tokens. None of them reads catalog or product copy. Grepped the context's files for i18n|copy|catalog|messages/|locale|prose|en.json: the only hits are comments about code ('a third copy', 'prose' as non-directive comments) and ci-budget.mjs:5 naming the locale gate as a CI job it times.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "mcp-tools",
@@ -21988,7 +22178,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:49 the routes are callers that pass typed data (entryId, task, notes, lang) to a spawned Python runner; grep for prompt|system:|messages|instruction over the 29 files hits only rate-limit keys and the promptCache stats read, so the prompt text is assembled outside this context and no assembler lives here.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -22037,7 +22231,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 The lockstep's needle `code: \"<literal>\"` is matched over the whole route source, comments included, and nothing strips them. A minted code removed from the handler but still spelled in a comment keeps the test green while the client carries a dead branch, and a comment that spells a new code adds a phantom member.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "mcp-tools",
@@ -22367,8 +22565,8 @@
           "state": "deviation",
           "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The devcase contract is pinned by a substring of the source file, so a comment that mentions --need-json satisfies it without the call.",
           "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -22625,19 +22823,18 @@
             "host"
           ],
           "grounding": "use_when",
-          "state": "conformant",
-          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/llm/config.py:69 accepts any positive timeoutS and pipeline/jobfit/llm/base.py:505 floors a per-attempt timeout only to _MIN_ATTEMPT_S (1 s), and registry.py:363 hands that value straight to the Claude CLI engine, so a routing row with timeoutS 1 kills every CLI spawn and quietly moves that use case onto the deterministic floor, which the golden path says must be floored to a sane minimum. The layer composes pipeline/jobfit/claude_cli.py (not in any context's file_paths), where most of the transport is realized.",
           "confidence": "probable",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "revision": 9,
           "changedAt": "2026-10-02",
           "source": "conform",
           "adoptedFrom": "44d2103b-c7fa-4a73-a705-bc86c10ad099",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -22795,8 +22992,8 @@
           "state": "not-applicable",
           "evidence": "app/login/LoginClient.tsx:46 This context submits a user's credentials to the application API; searches found no daemon, locator, or playwright references in app/login, while repository matches concern other contexts and testing.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:a5e059a866a49108",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         },
         {
@@ -23624,8 +23821,8 @@
           "state": "not-applicable",
           "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:5 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/features/insights/matrix, confirming this context invokes candidate matching via client HTTP fetch to /api/match/reasoning without hosting, probing, or spawning an agent CLI transport.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "revisionsBehind": 0
         },
@@ -23728,8 +23925,8 @@
           "state": "deviation",
           "evidence": "app/features/shared/memberUi.ts:72 Role presentation splits color from labels into an independent function that uses raw color utilities and a default branch instead of a unified table keyed by the union.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -24096,7 +24293,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/offer/[token]/kit/OfferKitView.tsx:98 On a lapsed offer the page still renders the 'prepared for' name and the compensation strip, and the expired card gives no expiry date. The technique says the lapsed answer must name the role and the date but never the candidate or their terms.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:2dd5f1019a2a6048",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -24322,7 +24523,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/onboard-ui/core.js:1078 The onboarding spoken-output card shows only the engine name, a state chip, languages and 'currently the default'. Nothing on a cloud engine's card says that text leaves the machine, and there is no recommended local heard voice. The first-run choice of a default TTS provider is made with no residency label.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "mcp-tools",
@@ -24504,8 +24709,8 @@
           "state": "deviation",
           "evidence": "app/api/repo-scan/route.ts:32 The repo-scan route serializes status-shaped fields as bare strings across the network seam, breaking the typed vocabulary chain contract.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -24885,8 +25090,8 @@
           "state": "deviation",
           "evidence": "app/_lib/pipeline-entry-action.ts:411 The set_stage action permits moving candidates out of a terminal stage because it does not check if the source stage has role terminal.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -25108,8 +25313,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The per-column meaning line on the empty board is keyed by the five shipped stage ids (Accepted, Screened, Interview, Offer, Hired). Any column a team adds or composes gets the generic fallback 'nothing here yet', and no line exists per role.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "quality-gates",
@@ -25288,7 +25493,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/pipeline/command/route.ts:81 The one natural-language door parses typed `text` with parseCommand. Grep of the context's non-test files and of its only client app/features/hiring/pipeline/CommandBar.tsx for voice|audio|speech|transcri|microphone|dictat|stt|tts finds nothing, so no spoken input reaches this context and spoken-intent-parsing's precondition does not hold.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:9a701bfa42809313",
+          "evaluatedRevision": 25
         },
         {
           "subject": "agent-runtime-assembly",
@@ -25321,7 +25530,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/[id]/route.ts:226 The pipeline entry action route delegates set_stage without checking if the current stage is terminal, allowing moves out of the terminal stage without refusal.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "combining-signals-into-a-hire-decision",
@@ -25415,7 +25628,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/[id]/route.ts:194 Reinstating an auto-rejected candidate commits the stage transition to the database before attempting to seal the decision record, allowing state changes to occur without an immutable decision trail if sealing fails.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         }
       ],
       "governance": "governed"
@@ -25470,8 +25687,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 Stale stage deep links do not render an off-axis notice because resolveStageFilter is uncalled by the board UI.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -25931,15 +26148,14 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "conformant",
-          "evidence": "automation_cli.py:125 resolve_provider(use_case)/:128 provider_availability(provider) reuses the one shared predicate (not re-derived); :183 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason()) names the descent reason even when the availability gate itself said yes and a mid-flight failure caused the fallback; the printed {\"result\", \"source\"} envelope carries the rung label to the caller. app/api/decisions/* routes are pure HTTP wrappers with no separate CLI-transport logic of their own.",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/seed_jobs.py:171 (and pipeline/jobfit/seed_candidates.py:429) reports 'Claude CLI not available on PATH' whenever available() is false, but that predicate is also false under KP_OFFLINE or the production consumer-terms veto (claude_cli.py:746), so a policy refusal reads as a missing binary. The fallback ladder forbids exactly this, because the operator is sent to repair the wrong cause.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "8d3f924f-69d7-4621-a70a-467598f6d627",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
@@ -26082,8 +26298,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The moveTargetStages function returns non-terminal stages when called with the terminal stage, allowing candidates in Hired to be moved out.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -26400,8 +26616,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline renders the stored slot column (an English, interviewer-zone label with no zone marker) inside a localized row, instead of deriving the label from slot_at in the reader's language.",
           "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3
         },
         {
           "subject": "media-playback",
@@ -26655,10 +26871,9 @@
           "state": "not-applicable",
           "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 4,
-          "stale": true
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 4
         },
         {
           "subject": "test-harness",
@@ -26674,7 +26889,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/error-response-contract.test.ts:448 The structural pin skips any file in EXEMPT outright (`continue`). The exemption is file-wide and is never checked in the other direction, so a new raw-message leak in health/route.ts outside its `trusted` branch is excused in advance. If that file stops leaking, the EXEMPT entry at line 248 also survives as policy that excuses nothing.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "agent-instruction-files",
@@ -26706,7 +26925,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:241 the capability ratchet counts a mutating route as gated when the raw source matches `requireCapability(`, comments included, so a route whose only mention of the gate is a comment reads as authorized. Not live today (re-running the predicate on comment-stripped sources reclassifies 0 routes), but sibling contract tests in the same context strip comments first (route-tenancy-coverage.test.ts:51, rate-limit-contract.test.ts:3328).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-cli-transport",
@@ -26789,7 +27012,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/workspaces/[id]/members/[userId]/route.ts:58 A privilege-escalation attempt (granting a role above the caller's ceiling) is refused with a bare 403 and nothing records it. Across this context the capability, membership and credential denials are all answered without a trail line or a denial counter, so a probe and a misconfiguration cannot be told apart.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "stream-proxy-hop",
@@ -27405,7 +27632,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:290 The decoy is named and labelled 'company_url' / 'Company URL'. The technique names exactly this kind of field as one autofill and password managers claim. Retry (setDone(null)) also never clears it, so a real person whose browser filled it keeps getting the same result.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:829940bcb64cbbe0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "voice-io",
@@ -28053,8 +28284,8 @@
           "state": "not-applicable",
           "evidence": "scripts/review/agent-review.mjs:80 Searches found no translation, catalog or termbase references in scripts/review, whose model contract reviews code-change intent rather than managing translations.",
           "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
           "revisionsBehind": 0
         },
         {
@@ -28108,10 +28339,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent drift over code diffs. A search of scripts/review for termbase, messages/en.json, copy-contract, createTranslator, useTranslations and copy:check found nothing; the only i18n hit is a path in a sensitive-file list (constitution-check.mjs:197). No catalog copy is gated here.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent and scope. Neither decides whether catalog copy may merge. Grepped for i18n|copy|catalog|messages/|locale|prose|en.json: hits are code-prose masking (source-mask.mjs), an exempt-path entry for scripts/i18n-check.mjs (constitution-check.mjs:197) and the agent prompt naming the locale checker as already run (agent-review.mjs:75).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "hitl-approval",
@@ -28177,7 +28408,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/history/[slug]/page.tsx:88 The board chip and the prepEntryId handed to the Interview tab come from an exact (lower-cased) match on the filename-derived candidate_label, so on the very page that warns about a label collision two different 'CV.pdf' people resolve to one board entry, and the question-kit import can write into the other person's prep pack.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "test-harness",
@@ -28360,8 +28595,8 @@
           "state": "deviation",
           "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 The recruiter controls omit any recruiter-side reschedule capability, eliminating the recruiter bypass path needed to correct scheduling errors without debiting candidate attempts.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2,
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3,
           "revisionsBehind": 0
         },
         {
@@ -29089,7 +29324,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:181 a bare `catch { continue; }` drops ANY unreadable tracked file uncounted, and main exits 0 whenever findings is empty (:242) whatever `scanned` is; the suite pins this (scripts/security/__tests__/secret-scan.test.mjs:147: scanned 0 = clean), so the gate that says 'no credential is committed' can say it having read nothing.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "mcp-tools",
@@ -29426,7 +29665,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/cache-key.ts:36 the analyze cache's prompt axis is a hand-bumped constant, and the comment at :9 (\"Bump this when the Gemini prompt ... changes\") is the only link to the prompt text in pipeline/jobfit/gemini.py:744; an edit to that prompt without a bump keeps every cached analysis served for the TTL under a prompt that no longer exists.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",
@@ -30178,8 +30421,8 @@
           "state": "deviation",
           "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 Icon-only preference triggers rely on native title text for visual name discovery, which does not provide the keyboard-accessible, dismissible reveal the technique requires.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -30199,8 +30442,8 @@
           "state": "deviation",
           "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The rail declares a vertical tablist while leaving every tab independently tabbable and providing no arrow-key navigation.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -30505,8 +30748,8 @@
           "state": "deviation",
           "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never a per-stage one, and add() at setupPipelineEdit.ts:96 creates a column with no sentence. So every custom column shows the generic custom-role sentence, which is the case the technique says to prompt against.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -31025,8 +31268,8 @@
           "state": "deviation",
           "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Provider unmount removes the pagehide handler without stopping or waking the running walk or releasing its lease, leaving component teardown without a complete reaper.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -31130,7 +31373,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 the panel's I/O is polling /api/tasks for task status; grep for prompt|system:|messages|anthropic|claude over all 18 files hits only one comment (TasksIndicator.tsx:29), so no prompt is assembled here.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -31312,7 +31559,11 @@
           "revision": 7,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/skill/[token]/page.tsx:82 The page passes scores to its client component regardless of trust state, leaving suppression to rendering instead of withholding numeric data during resolution.",
+          "evaluatedAt": "2026-10-23",
+          "evaluatedAgainst": "sha256-b2:5e16ab2b4c9830c0",
+          "evaluatedRevision": 8
         },
         {
           "subject": "skill-adjacency-and-normalization",
@@ -31328,7 +31579,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/skill/[token]/page.tsx:89 The page shows signed dev-case dimension scores. Each axis is labelled through the devcase.dimension i18n catalog, not resolved through a skill taxonomy, and a search of app/skill for taxonomy / synonym / adjacen / unmodelled / normaliz found nothing, so no skill normalization or adjacency credit happens here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-instruction-files",
@@ -31376,7 +31631,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/skill/[token]/page.tsx:43 The page only verifies a self-issued, HMAC-signed skill-profile token the app mints itself (the golden path excludes the application's own signing keys) and holds no retained foreign secret; a search of app/skill/ for decrypt, encrypt, apiKey/api_key, vault and refreshToken found no hits.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         },
         {
           "subject": "public-work-evidence-bounding",
@@ -31646,8 +31905,8 @@
           "state": "not-applicable",
           "evidence": "app/landing/spark/SparkHome.tsx:32 This shell composes an application marketing page, while searches found no repository-document publishing markers in its directories and located the repository badge in the separate root README.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:7f83bf34fe6f34be",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:6f6a6c4541bc949b",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -31667,8 +31926,8 @@
           "state": "deviation",
           "evidence": "app/landing/site/chrome/Header.tsx:65 The current landing header manually repeats destinations in separate desktop and phone lists, allowing the product map to drift between consumers.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {
@@ -31807,8 +32066,8 @@
           "state": "not-applicable",
           "evidence": "app/landing/spark/market/data.ts:2 This context is a landing-page visualisation of Czech labour-market data. It produces no CV layout, export or parse path; a search of app/landing/spark/market/ for curriculum, résumé, resume, docx, photo and \\bcv\\b returned no hits.",
           "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:ada9340a75aa0816",
-          "evaluatedRevision": 4
+          "evaluatedAgainst": "sha256-b2:483ef83258469ee2",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -31957,8 +32216,8 @@
           "state": "not-applicable",
           "evidence": "app/_components/table/TablePager.tsx:21 Searches found no NEXT_PUBLIC_, Authorization, createClient, or apiKey occurrences in the table directory, whose primitives manipulate supplied rows and UI state without implementing a credential boundary.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -31972,8 +32231,8 @@
           "revision": 7,
           "changedAt": "2026-09-20",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         }
       ],
@@ -32015,8 +32274,8 @@
           "state": "not-applicable",
           "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
           "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
           "revisionsBehind": 4
         },
         {
@@ -32721,8 +32980,8 @@
           "state": "deviation",
           "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The literal resolve_provider scan counts every pipeline Python file, tests included, so a fixture or a docstring that spells the call is evidence about production.",
           "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -32865,8 +33124,8 @@
           "state": "conformant",
           "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:21 This test suite pins the taxonomy hierarchy contract, validating that sibling adjacency earns the documented sub-threshold score and cannot cross into reported matches.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -33026,8 +33285,8 @@
           "state": "deviation",
           "evidence": "pipeline/jobfit/tests/run_gated.py:181 An environment variable forces the skip floor to exit 0, so a run that skipped tests the register does not name can still pass.",
           "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
           "revisionsBehind": 0
         },
         {
@@ -33150,8 +33409,8 @@
           "state": "deviation",
           "evidence": "pipeline/jobfit/tests/test_credentials.py:105 The test requires unavailable CV corroboration to produce the same empty findings list as a completed clean check, losing the required not-inspected outcome.",
           "evaluatedAt": "2026-10-23",
-          "evaluatedAgainst": "sha256-b2:51087132dbd1c9fb",
-          "evaluatedRevision": 7
+          "evaluatedAgainst": "sha256-b2:33b072141695f2eb",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"
@@ -33261,8 +33520,8 @@
           "state": "conformant",
           "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:41 Asserts the honesty boundary in candidate scoring by testing the matrix of exact, specialization, generalization, and sibling matches across provenance levels.",
           "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
           "revisionsBehind": 0
         },
         {
@@ -34665,8 +34924,8 @@
           "state": "not-applicable",
           "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:96 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the palette binds keyboard handling to its own browser document.",
           "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         },
         {
@@ -34761,7 +35020,9 @@
           "confidence": "strong",
           "state": "not-applicable",
           "evidence": "app/api/tasks/route.ts:23 A search across workspace configuration routes for agent runtime assembly constructs found zero occurrences; this API suite exposes background task job tracking and tenant settings rather than an LLM agent execution assembly.",
-          "evaluatedAt": "2026-10-13"
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "prompt-assembly",
@@ -34777,7 +35038,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/profile/draft/route.ts:47 the one model-spending route hands typed {text, lang} to runProfileDraft (a Python child); grep for prompt|system:|messages|instruction over the 25 files hits only rate-limit keys and comments, so no prompt text is built in this context.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-instruction-files",
@@ -34893,8 +35158,8 @@
           "state": "deviation",
           "evidence": "app/api/demo/route.ts:47 The demo route gates demo availability on the server's KP_SECRET environment variable instead of dispatching to an in-artifact fake data plane at runtime, refusing gated deployments.",
           "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
-          "evaluatedRevision": 4,
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5,
           "revisionsBehind": 0
         },
         {
@@ -35005,8 +35270,8 @@
           "state": "deviation",
           "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The workspace members table hand-picks raw color utility classes for the custom permissions state rather than resolving color through semantic roles and the shared badge system.",
           "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
           "revisionsBehind": 0
         },
         {
@@ -35097,8 +35362,8 @@
           "state": "deviation",
           "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 Every destination switch remounts the animated wrapper, so warm returns repeat entrance choreography and tear down healthy section subtrees.",
           "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
           "revisionsBehind": 0
         },
         {

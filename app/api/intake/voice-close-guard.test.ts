@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { stripEndSentinel } from "./reply-sentinel.ts";
+import { speechReady } from "../../../packages/voice-tts/src/text/normalize.ts";
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 const voiceTurn = read("./[id]/voice-turn/route.ts");
@@ -45,11 +46,33 @@ test("stripEndSentinel: the sentinel never survives, on either engine path", () 
 
 test("voice-turn: the spoken reply is stripped before it is stored, spoken or returned", () => {
   assert.match(voiceTurn, /import \{ stripEndSentinel \}/);
-  assert.ok(voiceTurn.includes("const reply = stripEndSentinel(turn.reply);"), "must strip the engine reply");
+  assert.ok(voiceTurn.includes("const reply = speechReady(stripEndSentinel(turn.reply));"), "must strip the engine reply");
   // The stripped copy is what reaches the transcript AND the transport.
   assert.ok(voiceTurn.includes('{ role: "interviewer" as const, text: reply, at: now }'));
   assert.ok(!/text:\s*turn\.reply/.test(voiceTurn), "the raw engine reply must not be persisted");
   assert.ok(!/reply:\s*turn\.reply/.test(voiceTurn), "the raw engine reply must not be returned to the transport");
+});
+
+test("a voice-turn reply is made speech-ready before it is spoken", () => {
+  // The route's own composition, in its own order: sentinel first, then the door.
+  assert.match(voiceTurn, /import \{ speechReady \} from "@\/packages\/voice-tts\/src\/text\/normalize"/);
+  const spoken = (raw: string) => speechReady(stripEndSentinel(raw));
+  const out = spoken(
+    "## Next step\n**Great** — see [the brief](https://example.com/brief/42) or https://kp.example/x.\n```ts\nconst x = 1;\n```\n- Confirm the *salary* band <<END>>"
+  );
+  for (const unspeakable of ["#", "*", "](", "http", "```", "const x", "<<END>>", "<", ">"]) {
+    assert.ok(!out.includes(unspeakable), `"${unspeakable}" must not reach the transport: ${out}`);
+  }
+  assert.ok(out.includes("Next step.") && out.includes("Great") && out.includes("the brief"), out);
+  assert.ok(out.endsWith("Confirm the salary band."), out);
+  // The sentinel's semantics are untouched: a plain scripted close comes out as before.
+  assert.equal(
+    spoken("Thanks for confirming. The brief is closed and ready to promote. <<END>>"),
+    "Thanks for confirming. The brief is closed and ready to promote."
+  );
+  // `done` still rides on turn.done, never on the (now cleaned) reply text.
+  assert.ok(voiceTurn.includes("done: turn.done"));
+  assert.ok(voiceTurn.includes('...(turn.done ? { status: "complete" as const } : {})'));
 });
 
 test("message: the text plane strips through the same shared helper", () => {

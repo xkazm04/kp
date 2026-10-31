@@ -112,7 +112,8 @@
 // no `permissions:` block, an expression interpolated into a `run:` or a
 // `script:`, an untrusted `env:` value read back unquoted by a shell, a
 // privileged trigger checking out an event-derived ref, or a PAT left persisted
-// in a checkout's `.git/config`.
+// in a checkout's `.git/config` — or no workflow file to read at all
+// (`noWorkflows`): a gate that read nothing does not get to report clean.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -590,6 +591,22 @@ export function loadWorkflows(root = REPO_ROOT) {
     .map((f) => ({ file: `${WORKFLOW_DIR}/${f}`, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
 }
 
+/**
+ * Why a check over these workflow files cannot be reported as clean, or null.
+ *
+ * `loadWorkflows` returns [] for a missing `.github/workflows` and for one with
+ * no YAML in it, and `runChecks([])` returns no findings — so a run from the
+ * wrong cwd, or a tree whose workflows were moved, printed the full "every
+ * action is pinned…" sentence and exited 0 having read nothing.
+ */
+export function noWorkflows(files) {
+  if (files.length > 0) return null;
+  return (
+    `check-actions: no workflow file under ${WORKFLOW_DIR}, so it cannot report "clean".\n` +
+    'Run it from the repository root (or set CLAUDE_PROJECT_DIR to it).'
+  );
+}
+
 // --- --resolve: the only honest way to empty the allowlist --------------------
 
 const API = 'https://api.github.com';
@@ -698,6 +715,12 @@ async function main() {
         : `check-actions: resolved ${burned.size} reference(s). Re-run without --resolve to confirm.`,
     );
     return;
+  }
+
+  const vacuous = noWorkflows(files);
+  if (vacuous) {
+    console.error(vacuous);
+    process.exit(1);
   }
 
   const findings = runChecks(files);

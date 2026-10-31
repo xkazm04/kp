@@ -1,0 +1,150 @@
+{
+  "worker": "cloud-20261031-kp-2",
+  "evaluatedAt": "2026-10-31",
+  "pairs": [
+    {
+      "context": "c914a994-2658-490a-9f11-41768247fa0d",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/run-unit-tests.mjs:323 A flake is still detected from one immediate re-run of the failing files (rerun gated on KP_FLAKE_RERUN and MAX_RERUN_FILES), with no retained, stably keyed run history and no outcome-transition count, so the FLAKE label cannot be applied or removed by history and the register has no detector feeding it.",
+      "techniques": [
+        {
+          "technique": "flake-lifecycle",
+          "verdict": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:335 classifyRun labels BROKEN/FLAKE from the first run plus one re-run only, and the only record is the CI step summary (line 341). There is no retained history keyed by test identity. Separately, scripts/test/flake-policy.mjs:52 requires why/since/expires on a register entry but never an owner, so a quarantine can be unowned, which creation-names-reaper forbids. The ceiling (test-quarantine.json:40) and the 30-day expiry (scripts/test/flake-policy.mjs:81) are realized."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:127 the launcher every run goes through deletes NODE_TEST_CONTEXT and the ambient backend variables before spawning node --test. The incident (an inherited child-runner marker makes the process always exit 0) is kept attached in the header at lines 6-11."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:310 a run whose machine reporter counted 0 tests, or recorded no count, is red whatever node's exit code was. A pattern matching no file is refused before the run (line 182)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "realized",
+          "evidence": "app/_lib/testing/gate-exit-code.test.ts:54 drives the launcher from a deliberately polluted environment and asserts a failing suite still exits non-zero, so the gate's exit code is shown to be able to go red."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:356 takes a machine-wide suite slot before running, and line 259 runs every file under --test-isolation=process. Isolation is set per lane in the launcher, not found out later through flakes."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "realized",
+          "evidence": "scripts/run-unit-tests.mjs:139 the unit lane's membership is decided by location globs (app/packages/edge/i18n **/*.test.ts), not by annotation. Playwright e2e is a separate machine with its own config."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:97 records that the python-runner tests assert wall-clock bounds (a 4 s timeout, an 80 ms background bound) and fail under concurrent load. The response was to serialise whole suites machine-wide, not to rewrite those assertions to check the recorded schedule, so the stopwatch assertions are still in place."
+        }
+      ]
+    },
+    {
+      "context": "145b5d07-e126-4749-8ada-b0fa84fcfa37",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/error-response-contract.test.ts:448 The structural pin skips any file in EXEMPT outright (`continue`). The exemption is file-wide and is never checked in the other direction, so a new raw-message leak in health/route.ts outside its `trusted` branch is excused in advance. If that file stops leaking, the EXEMPT entry at line 248 also survives as policy that excuses nothing.",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/api/error-response-contract.test.ts:248 EXEMPT is checked only for a reason string over 20 characters (line 587), never for whether the exempt file still produces the offender. The exemption does not read the `trusted` construct its reason names. The same instrument is realized elsewhere: comment and string blanking (line 120), a walk floor (line 442), CRLF normalisation (app/api/rate-limit-contract.test.ts:58)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "realized",
+          "evidence": "app/api/error-response-contract.test.ts:597 drives the scanner over synthetic fixtures with a known answer to prove it flags what it must and spares prose, so the empty-offender result is shown not to be blindness."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "realized",
+          "evidence": "app/api/route-tenancy-coverage.test.ts:253 the walk asserts a floor of at least 50 route handlers, so a broken walk that selects nothing fails rather than passing."
+        }
+      ]
+    },
+    {
+      "context": "110a08ce-19c1-41ae-9566-bc45b3f90d47",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 The lockstep's needle `code: \"<literal>\"` is matched over the whole route source, comments included, and nothing strips them. A minted code removed from the handler but still spelled in a comment keeps the test green while the client carries a dead branch, and a comment that spells a new code adds a phantom member.",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 mintedCodes reads the haystack with prose included, using a needle prose can spell. The parse floor is realized (line 72), but the needle and the haystack break the rule that a pin carries a token prose cannot spell. app/api/error-response-contract.test.ts:120 shows the repo's own blanking helper, which this file does not use."
+        }
+      ]
+    },
+    {
+      "context": "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:97 The context's Python-mirroring lockstep uses line-anchored needles that a `#` comment cannot match, plus parse floors (line 107). Only this one technique was read, far below the half-of-25 floor, and the other tests (probe-env, endpoint-guard, secret) were not judged.",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "realized",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:97 the needle is anchored at line start (`^\\s*\"key\":`), which Python comment prose cannot spell. The walk declares a floor at line 107."
+        }
+      ]
+    },
+    {
+      "context": "23edc789-314a-44a3-b30f-ee7353edfab4",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/features/insights/about/stage/clock.test.ts:16 The context holds pure-logic unit tests over the scene clock's predicate and no harness machinery. Three test files touch timers or Date and were not read against assert-the-schedule-not-the-stopwatch, so no verdict meets the floor.",
+      "techniques": [
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "unread",
+          "evidence": "app/features/insights/about/stage/clock.test.ts:16 asserts the tick predicate rather than elapsed time. The remaining timer-touching test files in the context were not read."
+        }
+      ]
+    },
+    {
+      "context": "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.test.ts:1 A feature context of pure-logic unit tests that owns no harness machinery. 24 of its test files touch readFileSync/spawn/timers/Date, so not-applicable cannot be argued, and they were not read technique by technique.",
+      "techniques": []
+    },
+    {
+      "context": "241e8e29-1125-44c8-9d32-4339d665345c",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/_components/results/verdict.test.ts:1 A feature context of view-logic unit tests that owns no harness machinery. Five test files touch readFileSync/timers (grep: readFileSync|spawn|quarantine|retry|setTimeout|Date.now) and were not judged, so neither not-applicable nor conformant is supported.",
+      "techniques": []
+    },
+    {
+      "context": "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:1 The context's only test file was not read against the techniques, and the context owns no harness machinery. Too little was read for any verdict.",
+      "techniques": []
+    }
+  ],
+  "declined": [],
+  "consults": [
+    {
+      "ts": "2026-10-31T00:00:00Z",
+      "bundle": "software-engineering",
+      "subjects": ["test-harness"],
+      "techniques": ["flake-lifecycle", "platform-quirk-absorption", "derived-selection-must-be-measured", "negative-control-tests", "isolation-lanes", "suite-partitioning", "assert-the-schedule-not-the-stopwatch", "pin-the-call-not-the-name"],
+      "deviations": 3
+    }
+  ]
+}

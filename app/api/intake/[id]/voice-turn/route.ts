@@ -3,6 +3,7 @@ import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { IntakeTimeoutError, runIntakeVoiceTurn } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
+import { speechReady } from "@/packages/voice-tts/src/text/normalize";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { rateLimit } from "@/app/_lib/rate-limit";
@@ -55,7 +56,13 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, { par
     // keyless close always carries it), was persisted into the transcript, and
     // would be spoken again as `spokenOpener` on the next connect. `done` is
     // already carried by turn.done — the token itself is pure wire contract.
-    const reply = stripEndSentinel(turn.reply);
+    // Then the speech-ready door (packages/voice-tts): the model can still emit
+    // markdown, links or a code fence, and a verbatim transport would voice
+    // "asterisk asterisk" or read a URL letter by letter. The sentinel goes
+    // FIRST — the door's tag stripping would otherwise eat `<END>` out of it
+    // and leave stray brackets to be spoken. The stored transcript line is the
+    // spoken one, so `spokenOpener` replays clean text on reconnect.
+    const reply = speechReady(stripEndSentinel(turn.reply));
     const now = new Date().toISOString();
     const transcript = [
       ...intake.transcript,

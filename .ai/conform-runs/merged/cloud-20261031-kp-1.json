@@ -1,0 +1,120 @@
+{
+  "worker": "cloud-20261031-kp-1",
+  "evaluatedAt": "2026-10-31",
+  "pairs": [
+    {
+      "context": "14d4d7df-d27a-4533-a471-e4ed40575d8d",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/validate.ts:23 speechReady). Any emphasis marker, URL or list the model emits reaches a transport told to say it 'exactly, verbatim'.",
+      "techniques": [
+        {"technique": "speech-ready-text", "verdict": "deviation", "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 `const reply = stripEndSentinel(turn.reply)` is the only transform before the reply is spoken; the package's speechReady door (packages/voice-tts/src/validate.ts:23) is bypassed, and a prompt asking for plain text is a request, not a door"},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-connect/route.ts:23 declares the session TRANSPORT-ONLY (vendor as transport, persona never leaves our infra) - the transport-or-brain decision written down once"},
+        {"technique": "engine-abstraction", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-connect/route.ts:83 the relay provider is derived from a declared `relay` trait (relayProvider(voiceAvailability())), not named in the route"},
+        {"technique": "on-device-vs-cloud", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-connect/route.ts:89 an unconfigured provider is a designed 503 refusal carrying the missing env as data (degradation ladder: the text plane stays usable), not a crash"},
+        {"technique": "transcript-normalization", "verdict": "realized", "evidence": "app/api/intake/[id]/voice-turn/route.ts:47 the raw transcribed utterance goes straight to the reasoning engine, with no cleanup pass in front of it (normalize toward a reader, never toward a reasoner)"}
+      ]
+    },
+    {
+      "context": "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording of their AI interview. The context has no capture, transcription, synthesis or playback, which is the precondition the subject needs. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt: the hits were that compliance flag, copy comments and a transcript-modal i18n key.",
+      "techniques": []
+    },
+    {
+      "context": "40e7d65d-bb8a-4321-aa57-b845a86def9a",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, a zero deletion budget on decisive terms. bakeoff.py:95 ranks recognizer candidates on recall, with aggregate WER only as a threshold and tie-break. That is the current standard's metric contract.",
+      "techniques": [
+        {"technique": "engine-choice-on-decisive-terms", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/wer.py:213 the decisive-term lexicon is matched longest-prefix-first for inflection, with short ambiguous terms excluded. bakeoff.py:95 ranks candidates by -recall then WER. audio.py:29 adds seeded channel degradation, and session_runner.py:274 records the condition with the run"},
+        {"technique": "engine-abstraction", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/recognizers.py:17 the selection instrument reaches a second engine through a register()/env-var seam, never an edit to the harness"},
+        {"technique": "decode-time-vocabulary-biasing", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:288 the harness applies the same per-job asr.keywords override /connect returns, so the gates measure the biased recognizer production uses (bias tied to the measured React->Rust confusion)"},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:209 a session that silently ran the account-side dashboard prompt instead of the per-session override is a gate failure (the unlock-vs-use silent-ignore shape)"},
+        {"technique": "stt-pipeline", "verdict": "realized", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:189 an utterance the ASR returned no words for is counted and gated as dropped, kept apart from a transcript (empty is a claim). session_runner.py:48 reduces EL's '...' marker to that outcome"},
+        {"technique": "transcript-handoff-receipts", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:316 transcripts land in the run record for scoring, not in a foreign application; grepped clipboard|paste|keystroke: no hits"},
+        {"technique": "authored-voice-identity", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/tts.py:35 voices are a fixed Piper catalog; grepped clone|voice_design: no hits"},
+        {"technique": "spoken-intent-parsing", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/wer.py:142 transcripts are graded against ground truth, never parsed into commands; grepped intent|grammar|parse_command: no hits"},
+        {"technique": "speech-timing-timeline", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:11 alignment is per turn (utterance to transcript window); nothing moves with the voice. Grepped viseme|phoneme|word_timing: no hits"},
+        {"technique": "transcript-normalization", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/wer.py:8 the only normalization is a match key for comparison (normalize-to-discard); no transcript is written for a reader"},
+        {"technique": "voice-setup-experience", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/tts.py:10 harness voices are provisioned by a developer CLI download, with no end-user first-run flow; grepped onboard|setup wizard: no hits"},
+        {"technique": "caller-scoped-voice-binding", "verdict": "not-applicable", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:224 the voice is chosen per utterance language by the harness itself; there are no unhosted callers (technique is stage: team)"}
+      ]
+    },
+    {
+      "context": "f3c7a16c-32b1-4b6a-8df4-6181ab2734dc",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/interview-lab/page.tsx:52 The context's only file is a 75-line server shell that mounts VoiceInterviewClient and TtsComparePanel (line 56). Every voice behavior lives in app/_components/voice/, outside this context's file list, so no technique can be judged from what the context owns.",
+      "techniques": [
+        {"technique": "portable-provider-package", "verdict": "unread", "evidence": "app/interview-lab/page.tsx:56 mounts a compare panel (compare-by-ear), but the realization is in app/_components/voice/TtsComparePanel.tsx, which this context does not own"}
+      ],
+      "registryProposal": "Not a standard finding; a map finding: the context owns only a route shell, so it pairs with voice-io lexically and is unjudgeable. Better to pair voice-io with the context that owns app/_components/voice/."
+    },
+    {
+      "context": "29da5120-0f66-4432-8a78-4e81724005bf",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/api/stt/route.ts:6 The STT and TTS host wrappers realize every technique judged here and no deviation was found. Only 7 of 21 techniques could be anchored in these files (5 realized, 2 not-applicable), which is under the half floor, so the state is unknown rather than conformant.",
+      "techniques": [
+        {"technique": "portable-provider-package", "verdict": "realized", "evidence": "app/api/stt/route.ts:6 the route owns gate, throttle, upload contract and typed-error mapping while the package owns engines; preference is the host's, resolution the package's"},
+        {"technique": "on-device-vs-cloud", "verdict": "realized", "evidence": "app/api/stt/route.ts:133 `onDevice` is a per-request floor that can refuse the cloud and never widen past the KP_STT_PROVIDERS residency lock"},
+        {"technique": "engine-abstraction", "verdict": "realized", "evidence": "app/api/stt/route.ts:174 the response carries requestedProvider beside fallbackFrom, so fallback is visible. tts/route.ts:138 does the same for synthesis in a header"},
+        {"technique": "speech-ready-text", "verdict": "realized", "evidence": "app/api/tts/route.ts:86 format rides the wire, so chat text reaches the package's speechReady door (packages/voice-tts/src/validate.ts:23) and the cache key separates the two forms"},
+        {"technique": "tts-pipeline", "verdict": "realized", "evidence": "app/api/tts/route.ts:117 synthesis is cached host-side (speakCached), so an autoplay-blocked replay does not pay twice"},
+        {"technique": "duplex-agent-sessions", "verdict": "not-applicable", "evidence": "app/api/tts/route.ts:117 one-shot text-to-bytes synthesis; no live session in this context"},
+        {"technique": "transcript-handoff-receipts", "verdict": "not-applicable", "evidence": "app/api/stt/route.ts:205 the transcript returns to the calling surface as JSON or a coded refusal; nothing is inserted into a foreign application"}
+      ]
+    },
+    {
+      "context": "475eb882-f8e1-47ea-9d34-2534405506c6",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. startOpenAiCall (line 289) is not handed the transport's `levels` box, so the requestor gets no input meter or capture indicator and cannot tell a dead microphone from a quiet one.",
+      "techniques": [
+        {"technique": "stt-pipeline", "verdict": "deviation", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 the live (listening) phase shows only the End-call button. There is no level meter and no unmistakable capture indicator, though permission is handled well: voicePhase.ts:30 keeps denied/notFound/busy distinct and JdsIntakeVoice.tsx:302 shows an arming state"},
+        {"technique": "engine-abstraction", "verdict": "deviation", "evidence": "app/features/library/jds/intake/voicePhase.ts:149 the surface reads `availability.openai` and JdsIntakeVoice.tsx:289 calls startOpenAiCall directly, so an engine name sits in surface code even though the server derives the relay provider from a trait. A second relay engine needs this component edited"},
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:35 states the provider session is a pure speech transport (relay mode); dialog state is server-side after every exchange"},
+        {"technique": "tts-pipeline", "verdict": "realized", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:220 barge-in: a requestor utterance while the agent speaks cancels the spoken reply"},
+        {"technique": "voice-ux-integration", "verdict": "realized", "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:421 refused autoplay surfaces an enable-audio affordance instead of silent success. Line 357 degrades to one honest sentence, and 'unconfigured' and 'could not check' are distinct"}
+      ]
+    },
+    {
+      "context": "d464d124-249b-43ef-8fd5-c259c5036424",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "scripts/setup-eleven-agent.mjs:320 The two techniques that apply are realized well: a read-only --check diffs the live vendor agent against one intended structure, with three exit states. The context is one setup script, though, and the other 19 techniques have no referent in it. That is under the half floor, so the state is unknown.",
+      "techniques": [
+        {"technique": "duplex-agent-sessions", "verdict": "realized", "evidence": "scripts/setup-eleven-agent.mjs:130 one OVERRIDE_INTENT declaration feeds both the deploy body and --check, so unlock and use cannot half-drift. Line 320 diffs live against intended, line 269 makes cannot-verify a third state, and line 41 treats a re-run as an identity-rotating deploy"},
+        {"technique": "decode-time-vocabulary-biasing", "verdict": "realized", "evidence": "scripts/setup-eleven-agent.mjs:109 the account-wide ASR keyword floor exists because the harness measured specific confusions (React->Rust, PostgreSQL->'později SQL'); per-job lists ride as a session override"}
+      ],
+      "registryProposal": "Evidence floor vs subject size: voice-io has 21 techniques, so 'conformant' needs 11 distinct anchors. A narrowly scoped context, like one vendor setup script that fully realizes the only techniques with a referent, can reach that only by manufacturing not-applicable anchors. Consider computing the floor over applicable techniques, with one anchored precondition statement for the rest."
+    },
+    {
+      "context": "903990c9-54d2-4ed6-af82-defd5db63d49",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/pipeline/command/route.ts:80 The one natural-language door in this context takes typed `text`. Its only client, app/features/hiring/pipeline/CommandBar.tsx:73, has no dictation, so no transcript ever crosses into these routes. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt over app/api/pipeline/ and dictat|voice|mic|speech in CommandBar.tsx: no hits.",
+      "techniques": []
+    }
+  ],
+  "declined": [],
+  "consults": [
+    {
+      "ts": "2026-10-31T00:00:00Z",
+      "bundle": "software-engineering",
+      "subjects": ["voice-io"],
+      "techniques": ["stt-pipeline", "tts-pipeline", "engine-abstraction", "on-device-vs-cloud", "duplex-agent-sessions", "portable-provider-package", "speech-ready-text", "transcript-normalization", "decode-time-vocabulary-biasing", "engine-choice-on-decisive-terms", "voice-ux-integration"],
+      "deviations": 3
+    }
+  ]
+}

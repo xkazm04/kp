@@ -26,18 +26,45 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { withoutComments } from "../../../../scripts/review/source-mask.mjs";
 
 const HERE = path.join(process.cwd(), "app", "features", "insights", "analytics");
-const read = (...p: string[]) => readFileSync(path.join(HERE, ...p), "utf8");
+// Comments are blanked before any assertion reads the source: a commented-out
+// `{/* <SpendInput … /> */}` or `// import { SpendInput }` is the chain being cut,
+// and a raw-text match would keep this guard green across exactly that edit.
+// Strings are kept — the route literal below lives inside one.
+const code = (src: string) => withoutComments(src, { line: false });
+const read = (...p: string[]) => code(readFileSync(path.join(HERE, ...p), "utf8"));
+
+const IMPORTS_SPEND_INPUT = /import\s*\{[^}]*\bSpendInput\b[^}]*\}\s*from\s*"\.\.\/AnalyticsChannelSpendInput"/;
+const RENDERS_SPEND_INPUT = /<SpendInput\b/;
 
 test("the Economics surface renders the spend editor — the only write path to channel_spend", () => {
   const board = read("sections", "EconomicsBoard.tsx");
   assert.match(
     board,
-    /import\s*\{[^}]*\bSpendInput\b[^}]*\}\s*from\s*"\.\.\/AnalyticsChannelSpendInput"/,
+    IMPORTS_SPEND_INPUT,
     "EconomicsBoard must import SpendInput: it is the surface that renders cost-per-hire, so it is the surface that has to let a user enter the spend that figure divides"
   );
-  assert.match(board, /<SpendInput\b/, "…and actually render it, not merely import it");
+  assert.match(board, RENDERS_SPEND_INPUT, "…and actually render it, not merely import it");
+});
+
+test("negative control: a commented-out editor does not satisfy the guard", () => {
+  const cut = [
+    '// import { SpendInput } from "../AnalyticsChannelSpendInput";',
+    "export function Board() {",
+    "  return (",
+    "    <div>",
+    "      {/* <SpendInput channel={r.channelId} /> */}",
+    "    </div>",
+    "  );",
+    "}",
+  ].join("\n");
+  // The raw text matches both — which is why the guard reads masked source.
+  assert.match(cut, IMPORTS_SPEND_INPUT);
+  assert.match(cut, RENDERS_SPEND_INPUT);
+  assert.doesNotMatch(code(cut), IMPORTS_SPEND_INPUT, "a line-commented import is not an import");
+  assert.doesNotMatch(code(cut), RENDERS_SPEND_INPUT, "a JSX-commented element is not rendered");
 });
 
 test("the editor still posts to the spend route", () => {
@@ -49,7 +76,7 @@ test("the editor still posts to the spend route", () => {
 });
 
 test("the spend route still calls the sole writer of the table", () => {
-  const route = readFileSync(path.join(process.cwd(), "app", "api", "analytics", "spend", "route.ts"), "utf8");
+  const route = code(readFileSync(path.join(process.cwd(), "app", "api", "analytics", "spend", "route.ts"), "utf8"));
   assert.match(route, /setChannelSpend\(/, "the route is the sole caller of setChannelSpend");
 });
 
