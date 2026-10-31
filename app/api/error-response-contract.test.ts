@@ -245,11 +245,21 @@ function forwardersIn(files: string[], readSource: (f: string) => string = (f) =
 }
 
 // ---- exemptions: correct as written, one reason each --------------------------
-const EXEMPT = new Map<string, string>([
+//
+// An exemption is a COUNTED grant, not a blanket: `leaks` is how many findings (both
+// detectors together) the file is excused for. The ceiling tests skip an exempt file,
+// so without the count a second leak in it would be pre-excused, and a fixed one would
+// leave an exemption guarding nothing — "every exemption still earns its keep" below
+// fails on both.
+const EXEMPT = new Map<string, { leaks: number; why: string }>([
   [
     "health/route.ts",
-    "the raw message is emitted only behind `trusted` — an operator-authenticated probe. " +
-      "A health endpoint that hides why the DB is unavailable is the one place the detail is the answer.",
+    {
+      leaks: 1,
+      why:
+        "the raw message is emitted only behind `trusted` — an operator-authenticated probe. " +
+        "A health endpoint that hides why the DB is unavailable is the one place the detail is the answer.",
+    },
   ],
 ]);
 
@@ -584,9 +594,36 @@ test("the forward detector is not blind: a caught value fires, a literal does no
 });
 
 test("every exemption carries a reason", () => {
-  for (const [file, why] of EXEMPT) {
+  for (const [file, { why }] of EXEMPT) {
     assert.ok(why.trim().length > 20, `EXEMPT["${file}"] needs a real reason, not a placeholder`);
   }
+});
+
+// The ceiling tests `continue` past an exempt file, so they can never notice that the
+// leak it was excused for is gone (a stale exemption, still waving the file through)
+// or that a second one arrived under the first one's reason. This is the exemption's
+// own ratchet, in the same shape as the ceilings: growth and staleness fail, slack is
+// a diagnostic.
+test("every exemption still earns its keep: stale or outgrown exemptions fail", (t) => {
+  const files = walk(apiDir);
+  const counts = new Map<string, number>();
+  for (const o of [...offendersIn(files), ...forwardersIn(files)]) {
+    if (EXEMPT.has(o.file)) counts.set(o.file, (counts.get(o.file) ?? 0) + 1);
+  }
+  const stale: string[] = [];
+  const grew: string[] = [];
+  for (const [file, { leaks }] of EXEMPT) {
+    const n = counts.get(file) ?? 0;
+    if (n === 0) stale.push(`${file}  (granted ${leaks}, matched nothing — delete the exemption)`);
+    else if (n > leaks) grew.push(`${file}  ${leaks} -> ${n}`);
+    else if (n < leaks) t.diagnostic(`exemption slack — tighten it: ${file}  ${leaks} -> ${n}`);
+  }
+  assert.deepEqual(stale, [], `These exemptions no longer match any finding:\n  ${stale.join("\n  ")}`);
+  assert.deepEqual(
+    grew,
+    [],
+    `These exempt files leak MORE than their exemption grants; the reason covers the original, not the new one:\n  ${grew.join("\n  ")}`,
+  );
 });
 
 // NON-VACUITY, proved rather than asserted — the same discipline
