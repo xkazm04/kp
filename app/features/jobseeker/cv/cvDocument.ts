@@ -20,7 +20,7 @@
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { applyAcceptedEdits, descriptorQuestions, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
+import { applyAcceptedEdits, descriptorQuestions, endYearOf, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
 /** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
@@ -611,7 +611,7 @@ export function buildCvDocument(input: {
   });
   const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);
   const seen = new Map<string, number>();
-  const experience: CvRole[] = parsed.map(({ e, parts, org }, index) => {
+  const read = parsed.map(({ e, parts, org }) => {
     const key = org ? foldText(org) : "";
     const nth = seen.get(key) ?? 0;
     seen.set(key, nth + 1);
@@ -627,9 +627,22 @@ export function buildCvDocument(input: {
       bulletsOf(source && source.lines.length ? source.lines.map((l) => withoutRoleHead(l, parts.role, log)).join("\n") : applyAcceptedEdits(e.text ?? "", input.acceptedEdits), log),
       bulletLine
     );
-    const budget = roleBudget(index, dates, today);
+    return { role: polishTerms(parts.role, log), org: parts.org, dates, ranked };
+  });
+  // Newest first (technique relevance-ordering-and-recency-compression: section order
+  // never reorders time). A Lebenslauf-style CV lists its oldest role first, and read in
+  // that order the oldest role took the current role's budget. Only a fully dated history
+  // is re-ordered: an undated role has no place to move to, so the CV's own order stands.
+  // Equal end years go by the later start, then by the CV's own order.
+  const ends = read.map((r) => endYearOf(r.dates, today));
+  const starts = read.map((r) => Number(r.dates?.match(/(?:19|20)\d\d/)?.[0] ?? 0));
+  const order = read.map((_, i) => i);
+  if (ends.every((y) => y !== null)) order.sort((a, b) => ends[b]! - ends[a]! || starts[b]! - starts[a]! || a - b);
+  const experience: CvRole[] = order.map((i, index) => {
+    const { ranked, ...r } = read[i]!;
+    const budget = roleBudget(index, r.dates, today);
     const bullets = ranked.slice(0, budget);
-    return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
+    return { ...r, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
   });
 
   const projects: CvRole[] = bridging.map((e) => {
