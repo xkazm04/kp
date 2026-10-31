@@ -23275,6 +23275,182 @@
           "evidence": "app/api/llm/test/test-code-lockstep.test.ts:64 mintedCodes reads the haystack with prose included, using a needle prose can spell. The parse floor is realized (line 72), but the needle and the haystack break the rule that a pin carries a token prose cannot spell. app/api/error-response-contract.test.ts:120 shows the repo's own blanking helper, which this file does not use."
         }
       ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/agent-cli-transport": {
+      "context": "db-org-users-channels",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-3",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/companion.ts:596 the layer explicitly answers without spawning any child; nothing here probes a binary."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/campaign.ts:9 the store only persists the `source` (llm vs deterministic) rung label that another context chose, so the label survives to the UI; selecting a rung happens elsewhere."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/companion.ts:36 turn meta carries `source?: \"llm\" | \"deterministic\"`, an already-normalized result; no CLI envelope is parsed in this layer."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/companion.ts:596 no child process is spawned here, so there is no child environment to strip."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/companion.ts:596 no agent session is launched, so there is no stance to enforce."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: this is the org/user/invite/workspace SQL layer, and app/_lib/db/companion.ts:596 is explicit that its search path exists to answer \"without spawning Python\". No agent-CLI surface in the 25 files; kp's transport is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by cloud-20261031-kp-3"
+        }
+      ]
+    },
+    "325329da-ef37-41f9-a4d1-ac5897f2ae7c/agent-cli-transport": {
+      "context": "llm-layer",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-3",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/llm/registry.py:189 provider_availability returns (usable, descent_reason) for every provider; the zero-token authorization proof is pipeline/jobfit/claude_cli.py:806 `claude auth status --json`, with offline_policy checked before the filesystem (claude_cli.py:746)."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/llm/registry.py:96 _cli_strip_api_key picks the billing direction once per lane at the registry door; pipeline/jobfit/claude_cli.py:1011 applies the key and session-marker strip after env construction at the single spawn door."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/claude_cli.py:1037 reads the envelope's subtype/is_error and raises a typed error instead of trusting the exit code; pipeline/jobfit/llm/base.py:592 is the one corrective re-prompt for the second parse (model text to caller JSON)."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/claude_cli.py:271 repo_scan is paired with permission mode `plan` (plus a write-tool denylist), and pipeline/jobfit/claude_cli.py:587 refuses an unscoped Bash grant on a scanned repo."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/claude_cli.py:240 VERIFIED_CLI_VERSION pins the dated flag and probe rows and logs a drift warning; pipeline/jobfit/llm/capabilities.py:37 PROVIDER_CAPABILITIES is the matrix use cases are checked against (unsupported_caps), so a use case is refused or rerouted rather than failing at runtime."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/base.py:505 floors the attempt timeout to 1 s, and config.py:69 accepts any positive timeoutS, so a tiny configured timeout is honoured instead of being floored as misconfiguration and silently selects the floor. The rest of the ladder is realized: one shared predicate (registry.py:189) and named descent reasons."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/claude_cli.py:838 decides READY from loggedIn alone; authMethod/subscriptionType are recorded but never checked against the expected billing shape, so a probe whose auth record moved off the seat still reports ready. The technique requires asserting the whole record. The env-through-the-door half is realized at claude_cli.py:806."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/claude_cli.py:3 the engine is headless `claude -p` batch with no person inside the turn; a grep for approval|can_use_tool|permission-prompt in both CLI modules finds nothing to route."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/claude_cli.py:1061 session_id is only copied into the result; a grep for resume|--continue finds no resumed thread, so calls are stateless."
+        },
+        {
+          "technique": "derived-bash-allowlist",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/claude_cli.py:191 MODES = generate, repo_scan, web_research: there is no edit seam whose shell grants would need deriving."
+        }
+      ],
+      "registryProposal": "fallback-ladder and the golden path's timeout clause say to floor a 'misconfigured tiny timeout' but name no sane minimum. Per transport, the floor should be a dated-capability-matrix row (e.g. measured cold-start plus first-token time for the CLI), so a judge can tell a deliberate short ceiling for a local model from a misconfiguration.",
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by cloud-20261031-kp-3"
+        }
+      ]
+    },
+    "d09edd3b-6dba-47f6-8b6b-64e838611396/agent-cli-transport": {
+      "context": "pipeline-core",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-3",
+      "techniques": [
+        {
+          "technique": "fallback-ladder",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/seed_jobs.py:171 the seed lane's honest-refusal rung names the wrong cause (PATH) for a policy descent. The serving path is realized: pipeline/jobfit/automation_cli.py:171 reuses the shared provider_availability predicate, and automation_cli.py:190 records the descent reason with the deterministic serve."
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/seed_jobs.py:170 gates a bulk generation run on available() (binary on PATH), and pipeline/jobfit/claude_cli.py:766 says a logged-out CLI still passes that check, so a logged-out operator spends a spawn on every spec instead of getting the zero-token probe() answer first."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/seed_jobs.py:169 the batch lane builds ClaudeCliProvider with its default strip_api_key=True (claude_cli.py:502), so mass fixture runs land on the seat by construction at the shared door."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "realized",
+          "evidence": "pipeline/jobfit/seed_jobs.py:141 consumes the typed ClaudeCliError subtype (`cli:<subtype>`) into the failure counts rather than a bare non-zero exit."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/pipeline.py:246 only consumes capability routing via resolve_provider(\"cv_analysis\"); the matrix lives in pipeline/jobfit/llm/capabilities.py (another context)."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/seed_jobs.py:169 every spawn in this context uses the default generate mode with no repo binding or tool grant, so no stance beyond the transport's neutral default is configured here."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/seed_jobs.py:136 one unattended complete() per spec in a batch; no human is inside the turn."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/seed_jobs.py:163 'resumable' means skipping already-generated record ids, not resuming a child thread; no thread id is stored."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "automation_cli.py:125 resolve_provider(use_case)/:128 provider_availability(provider) reuses the one shared predicate (not re-derived); :183 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason()) names the descent reason even when the availability gate itself said yes and a mid-flight failure caused the fallback; the printed {\"result\", \"source\"} envelope carries the rung label to the caller. app/api/decisions/* routes are pure HTTP wrappers with no separate CLI-transport logic of their own.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by cloud-20261031-kp-3"
+        }
+      ]
     }
   }
 }

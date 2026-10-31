@@ -11123,13 +11123,12 @@
           "revision": 9,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "state": "not-applicable",
-          "evidence": "not-applicable: this is the org/user/invite/workspace SQL layer, and app/_lib/db/companion.ts:596 is explicit that its search path exists to answer \"without spawning Python\". No agent-CLI surface in the 25 files; kp's transport is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evidence": "app/_lib/db/companion.ts:596 states this repository layer exists so the app can search 'without spawning Python'; a grep of all nine source files for spawn|child_process|execFile|claude|codex|gemini|python-runner|runPython|llm|provider finds no subprocess or agent-CLI call, only stored provenance labels (app/_lib/db/campaign.ts:9, app/_lib/db/companion.ts:36), so the precondition (this code spawns a coding-agent CLI as a transport) is absent.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "changedAt": "2026-10-02",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -22788,19 +22787,18 @@
             "host"
           ],
           "grounding": "use_when",
-          "state": "conformant",
-          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/llm/config.py:69 accepts any positive timeoutS and pipeline/jobfit/llm/base.py:505 floors a per-attempt timeout only to _MIN_ATTEMPT_S (1 s), and registry.py:363 hands that value straight to the Claude CLI engine, so a routing row with timeoutS 1 kills every CLI spawn and quietly moves that use case onto the deterministic floor, which the golden path says must be floored to a sane minimum. The layer composes pipeline/jobfit/claude_cli.py (not in any context's file_paths), where most of the transport is realized.",
           "confidence": "probable",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "digest": "sha256-b2:5791230ffb7d9fad",
           "revision": 9,
           "changedAt": "2026-10-02",
           "source": "conform",
           "adoptedFrom": "44d2103b-c7fa-4a73-a705-bc86c10ad099",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         }
       ],
       "governance": "governed"
@@ -26110,15 +26108,14 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "conformant",
-          "evidence": "automation_cli.py:125 resolve_provider(use_case)/:128 provider_availability(provider) reuses the one shared predicate (not re-derived); :183 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason()) names the descent reason even when the availability gate itself said yes and a mid-flight failure caused the fallback; the printed {\"result\", \"source\"} envelope carries the rung label to the caller. app/api/decisions/* routes are pure HTTP wrappers with no separate CLI-transport logic of their own.",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/seed_jobs.py:171 (and pipeline/jobfit/seed_candidates.py:429) reports 'Claude CLI not available on PATH' whenever available() is false, but that predicate is also false under KP_OFFLINE or the production consumer-terms veto (claude_cli.py:746), so a policy refusal reads as a missing binary. The fallback ladder forbids exactly this, because the operator is sent to repair the wrong cause.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "8d3f924f-69d7-4621-a70a-467598f6d627",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
