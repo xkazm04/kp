@@ -6674,7 +6674,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/intake/[id]/voice-turn/route.ts:58 The LLM reply goes to the voice transport with only the <<END>> sentinel stripped. No speech-ready markup door runs, though the repo has one (packages/voice-tts/src/validate.ts:23 speechReady). Any emphasis marker, URL or list the model emits reaches a transport told to say it 'exactly, verbatim'.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "prompt-assembly",
@@ -12014,7 +12018,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsComplianceState.ts:32 The only audio item in this context is a workspace boolean: whether candidates are offered a recording of their AI interview. The context has no capture, transcription, synthesis or playback, which is the precondition the subject needs. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt: the hits were that compliance flag, copy comments and a transcript-modal i18n key.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "module-design",
@@ -14967,8 +14975,8 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, and aggregate word-error rate is a separate budget, so the aggregate does not decide the gate.",
-          "evaluatedAt": "2026-10-13",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, a zero deletion budget on decisive terms. bakeoff.py:95 ranks recognizer candidates on recall, with aggregate WER only as a threshold and tie-break. That is the current standard's metric contract.",
+          "evaluatedAt": "2026-10-31",
           "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
           "evaluatedRevision": 23,
           "source": "conform",
@@ -18598,7 +18606,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:403 While the microphone is live, the only visible signal is the 'End call' label, tinted while the agent speaks. startOpenAiCall (line 289) is not handed the transport's `levels` box, so the requestor gets no input meter or capture indicator and cannot tell a dead microphone from a quiet one.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "talking-avatar",
@@ -25439,7 +25451,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/pipeline/command/route.ts:80 The one natural-language door in this context takes typed `text`. Its only client, app/features/hiring/pipeline/CommandBar.tsx:73, has no dictation, so no transcript ever crosses into these routes. Grepped voice|speech|audio|transcri|microphone|elevenlabs|getUserMedia|tts|stt over app/api/pipeline/ and dictat|voice|mic|speech in CommandBar.tsx: no hits.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "agent-runtime-assembly",
