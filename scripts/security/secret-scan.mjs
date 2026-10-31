@@ -31,10 +31,10 @@
 //   npm run security:secrets           # the gate CI runs, over tracked files
 //   npm run security:secrets -- --json # machine-readable findings
 //
-// EXIT CODES: 0 clean · 1 at least one finding, or the tree could not be
-// enumerated. The second is deliberate rather than a skip: this file is the
-// thing that says "no credential is committed", and it must not be able to say
-// it without having looked.
+// EXIT CODES: 0 clean · 1 at least one finding, the tree could not be
+// enumerated, or nothing was read (`vacuousScan`). The last two are deliberate
+// rather than a skip: this file is the thing that says "no credential is
+// committed", and it must not be able to say it without having looked.
 //
 // WHAT IT IS NOT. Entropy heuristics and bare prefixes are absent on purpose,
 // for the reason the diff lens already gives: a rule that cries wolf gets
@@ -191,6 +191,24 @@ export function scanFiles(files, { root = REPO_ROOT, read = null } = {}) {
   return { findings, scanned, skipped };
 }
 
+/**
+ * Why a scan result cannot be reported as clean, or null when it can.
+ *
+ * A scan that read ZERO files has measured nothing: an empty `git ls-files`
+ * (wrong cwd, a bare clone, `CLAUDE_PROJECT_DIR` pointed elsewhere), every path
+ * exempt or binary, or every tracked path missing from disk. Each of those used
+ * to print "no committed credential in 0 tracked text file(s)" and exit 0 — a
+ * gate that read nothing reporting clean. Same exit as an un-enumerable tree.
+ */
+export function vacuousScan({ scanned }) {
+  if (scanned > 0) return null;
+  return (
+    'secret-scan: read 0 tracked text files, so it cannot report "clean".\n' +
+    'Either git listed nothing here or every listed path was exempt, binary or missing from disk.\n' +
+    'Run it from the root of a full checkout.'
+  );
+}
+
 export function render({ findings, scanned, skipped }) {
   // Printed on BOTH paths. A file this gate did not read is the one place a key
   // could still be sitting, so "clean" has to say what it did not look at.
@@ -237,6 +255,11 @@ function main(argv) {
   }
 
   const result = scanFiles(files);
+  const vacuous = vacuousScan(result);
+  if (vacuous) {
+    process.stderr.write(`${vacuous}\n`);
+    return 1;
+  }
   if (args.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else process.stdout.write(`${render(result)}\n`);
   return result.findings.length ? 1 : 0;
