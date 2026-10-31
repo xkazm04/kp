@@ -144,3 +144,65 @@ test("the request carries format, and the answer's wrong-language header is kept
   assert.match(src, /unsupportedLanguage: res\.headers\.get\("x-tts-unsupported-language"\) \|\| null,/);
   assert.match(src, /unsupportedLanguage: chunk\.unsupportedLanguage,/, "and it reaches `served`, which is what a surface renders");
 });
+
+// first-input-wins-propagation, join clause. Each chunk is its own request and
+// the host resolves the engine per request, so one utterance can be served by
+// two engines. `served` used to be chunk 0's slots and nothing else: the switch
+// never reached the surface. The slots stay chunk 0's (no merge: two chunks'
+// `fallbackFrom` have no merged value); the engines are folded as a list in
+// order of first appearance, without repeats.
+import { servedWithChunk, type TtsServed } from "./useTts.ts";
+
+type C = Parameters<typeof servedWithChunk>[2];
+const ck = (provider: string, fallbackFrom: string | null = null, elapsedMs = 100): C =>
+  ({ provider, fallbackFrom, elapsedMs, voiceId: `${provider}-v`, unsupportedLanguage: null }) as C;
+
+/** Arm A: the rule this replaced - chunk 0 sets `served`, later chunks never touch it. */
+function armA(chunks: C[]): TtsServed | null {
+  let s: TtsServed | null = null;
+  chunks.forEach((c, i) => {
+    if (i === 0) s = { provider: c.provider, fallbackFrom: c.fallbackFrom, elapsedMs: c.elapsedMs, firstAudioMs: 42, voiceId: c.voiceId, unsupportedLanguage: c.unsupportedLanguage };
+  });
+  return s;
+}
+const armB = (chunks: C[]) => chunks.reduce<TtsServed | null>((s, c, i) => servedWithChunk(s, i, c, i === 0 ? 42 : 0), null);
+
+const CASES: Record<string, C[]> = {
+  uniform: [ck("kokoro"), ck("kokoro", null, 90), ck("kokoro", null, 80)],
+  "falls back mid-utterance": [ck("kokoro"), ck("elevenlabs", "kokoro"), ck("elevenlabs", "kokoro")],
+  "recovers mid-utterance": [ck("elevenlabs", "kokoro"), ck("kokoro"), ck("kokoro")],
+  "switches back and forth": [ck("kokoro"), ck("elevenlabs", "kokoro"), ck("kokoro"), ck("elevenlabs", "kokoro")],
+};
+
+test("served names every engine the utterance was heard in, in order, once each", () => {
+  const distinct = (cs: C[]) => [...new Set(cs.map((c) => c.provider))];
+  let seenA = 0;
+  let seenB = 0;
+  let total = 0;
+  for (const [name, cs] of Object.entries(CASES)) {
+    const want = distinct(cs);
+    total += want.length;
+    const a = armA(cs)!;
+    const b = armB(cs)!;
+    seenA += want.filter((p) => (a.providers ?? [a.provider]).includes(p)).length;
+    seenB += want.filter((p) => (b.providers ?? []).includes(p)).length;
+    assert.deepEqual(b.providers, want, name);
+    // Floor: every slot a surface already reads is chunk 0's, unchanged.
+    const rest: TtsServed = { ...b };
+    delete rest.providers;
+    assert.deepEqual(rest, a, `${name}: chunk 0's slots must not move`);
+  }
+  // Target: engines visible in `served` across the four utterances.
+  assert.equal(total, 7);
+  assert.equal(seenA, 4, "arm A shows only the first engine of each utterance");
+  assert.equal(seenB, 7);
+});
+
+test("a later chunk never rewrites chunk 0's fallback, and a repeat engine is not re-added", () => {
+  const s0 = servedWithChunk(null, 0, ck("kokoro"), 42);
+  const s1 = servedWithChunk(s0, 1, ck("elevenlabs", "kokoro"), 0);
+  assert.equal(s1.fallbackFrom, null);
+  assert.equal(s1.provider, "kokoro");
+  const s2 = servedWithChunk(s1, 2, ck("kokoro"), 0);
+  assert.equal(s2, s1, "no new engine, no new object - no re-render");
+});

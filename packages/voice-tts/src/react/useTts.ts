@@ -175,7 +175,44 @@ export type TtsServed = {
    *  The clip still played — silence is worse than an accent — but it is in the
    *  wrong one, and a surface that says nothing is a surface that hides it. */
   unsupportedLanguage?: string | null;
+  /** Every engine that served a chunk of this utterance, in the order each was
+   *  first heard, without repeats. The slots above are chunk 0's and stay
+   *  chunk 0's, but each chunk is a separate request the host resolves on its
+   *  own, so a probe that flips mid-utterance (a cached probe expiring, a
+   *  failure invalidating it) hands chunk 3 to a different engine. Before this
+   *  list, `served` named only the first engine and the switch was invisible:
+   *  a surface showed one voice while the operator heard two. Length > 1 means
+   *  the utterance was mixed. */
+  providers?: TtsProviderId[];
 };
+
+/** Fold one started chunk into what the surface reports for the utterance.
+ *
+ *  Chunk 0 sets every slot; a later chunk only appends its engine to
+ *  `providers` when it is new. Pure and exported so the rule is pinned without
+ *  a DOM. Not a merge of the scalar slots: two chunks that disagree on
+ *  `fallbackFrom` have no merged value, and picking "whichever has one" would
+ *  label the first chunk with a fallback it never made. */
+export function servedWithChunk(
+  prev: TtsServed | null,
+  idx: number,
+  chunk: Pick<Chunk, "provider" | "fallbackFrom" | "elapsedMs" | "voiceId" | "unsupportedLanguage">,
+  firstAudioMs: number,
+): TtsServed {
+  if (idx === 0 || !prev) {
+    return {
+      provider: chunk.provider,
+      fallbackFrom: chunk.fallbackFrom,
+      elapsedMs: chunk.elapsedMs,
+      firstAudioMs,
+      voiceId: chunk.voiceId,
+      unsupportedLanguage: chunk.unsupportedLanguage,
+      providers: [chunk.provider],
+    };
+  }
+  const providers = prev.providers ?? [prev.provider];
+  return providers.includes(chunk.provider) ? prev : { ...prev, providers: [...providers, chunk.provider] };
+}
 
 export type UseTts = {
   providers: TtsStatus[] | null;
@@ -389,16 +426,8 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
           }
         },
         onChunkStart: (idx, chunk) => {
-          if (idx === 0) {
-            setServed({
-              provider: chunk.provider,
-              fallbackFrom: chunk.fallbackFrom,
-              elapsedMs: chunk.elapsedMs,
-              firstAudioMs: Math.round(performance.now() - started),
-              voiceId: chunk.voiceId,
-              unsupportedLanguage: chunk.unsupportedLanguage,
-            });
-          }
+          const firstAudioMs = idx === 0 ? Math.round(performance.now() - started) : 0;
+          setServed((prev) => servedWithChunk(prev, idx, chunk, firstAudioMs));
         },
         onChunkSpoken: (idx) => {
           setProgress({ spoken: idx + 1, total: chunks.length });
