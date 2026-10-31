@@ -7882,19 +7882,48 @@
       "subject": "copy-quality-gates",
       "bundle": "localization",
       "state": "deviation",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T02:22:38.065Z",
-      "worker": "59987069-12c0-4042-938c-5de96b9bdd0f",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
       "techniques": [
         {
           "technique": "format-aware-check-catalog",
           "verdict": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:217 Direct calls returned [] for both literalErrors('12 12', '12') and literalErrors('12', '312'); multiplicity and literal identity are not enforced."
+          "evidence": "scripts/i18n/catalog-check.mjs:217 The literal check is containment, not identity plus count, which is the failure that technique's 'check identity as well as count' rule names. The precondition graph is realized: line 315 skips the literal and placeholder checks for a unit that does not parse."
         },
         {
           "technique": "rendered-string-extraction",
-          "verdict": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:236 The typography check receives the stored message directly; this path does not expand ICU branches, substitute typed placeholders or extract rendered samples before checking copy."
+          "verdict": "realized",
+          "evidence": "scripts/i18n/catalog-check.mjs:271 Fails the gate when the addressed walker's string count differs from an independent dumb recount. Line 268 fails on zero strings, and the success line prints strings, not keys (scripts/i18n-check.mjs:530)."
+        },
+        {
+          "technique": "source-defects-from-cross-language-agreement",
+          "verdict": "realized",
+          "evidence": "scripts/i18n/catalog-check.mjs:367 sourceSuspects groups target findings by source address with a floor of two locales, and i18n-check prints them as 'fix the source string first'."
+        },
+        {
+          "technique": "layered-mechanical-gate",
+          "verdict": "realized",
+          "evidence": "scripts/i18n-check.mjs:166 Structural parity, ICU and placeholder findings exit non-zero. The cross-language source-suspect signal is declared advisory and never blocks."
+        },
+        {
+          "technique": "enforcement-at-the-write-seams",
+          "verdict": "realized",
+          "evidence": ".github/workflows/ci.yml:101 i18n:check runs in CI, a seam every write path reaches, not only a file-tool hook."
+        },
+        {
+          "technique": "deterministic-repair-classes",
+          "verdict": "unread",
+          "evidence": "scripts/i18n/catalog-check.mjs:177 Control characters are reported rather than stripped. Not judged whether a source-derived repair is owed."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:217 Carried literals are checked by substring presence, allowing changed numbers and missing repeated occurrences despite the standard requiring identity and count.",
+          "evaluatedAt": "2026-10-16T02:22:38.065Z",
+          "worker": "59987069-12c0-4042-938c-5de96b9bdd0f",
+          "reason": "replaced by cloud-20261031-kp-5"
         }
       ]
     },
@@ -18886,29 +18915,39 @@
       "subject": "copy-quality-gates",
       "bundle": "localization",
       "state": "deviation",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:56:51.948Z",
-      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
       "techniques": [
         {
           "technique": "rendered-string-extraction",
           "verdict": "deviation",
-          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 Placeholders and plural branches are deleted, not expanded into samples, so branch text never reaches the prose rule. The walker reports no coverage count. The sibling i18n test does render with real values (devcase-studio-i18n.test.ts:272), but this walker does not."
-        },
-        {
-          "technique": "copy-contract-before-drafting",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:173 A one-concept-one-rendering termbase ruling is recorded in docs/features/README.md. Its forbidden variants are held by a checker, not by a writer prompt."
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 Placeholder stripping removes plural/select branch content instead of expanding the branches into rendered samples. No string count or planted-defect fixture guards this walker, unlike the literal extractor's fixture at devcase-studio-i18n.test.ts:52."
         },
         {
           "technique": "layered-mechanical-gate",
-          "verdict": "conformant",
-          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:193 The termbase forbidden-variant rule (an L1 class) blocks in test:unit from day one. Its allowlist must stay empty, and a separate test fails on a stale exemption."
+          "verdict": "realized",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:203 The termbase forbidden variant blocks in the unit suite. The allowlist is two-sided: line 220 fails a stale exemption."
+        },
+        {
+          "technique": "copy-contract-before-drafting",
+          "verdict": "realized",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:193 The forbidden-word list lives in the checker, not the writer's prompt, and the one-name ruling is recorded in docs/features/README.md (cited at line 172)."
         },
         {
           "technique": "format-aware-check-catalog",
           "verdict": "conformant",
-          "evidence": "app/features/tools/devcases/devcase-studio-i18n.test.ts:347 Skeleton checks run per locale: rich-tag parity here, and unresolved-placeholder detection on rendered output at line 278. There is no precondition graph, which is reasonable at this scale."
+          "evidence": "app/features/tools/devcases/devcase-studio-i18n.test.ts:347 Skeleton checks run per locale: rich-tag parity here, and unresolved-placeholder detection on rendered output at line 278. There is no precondition graph, which is reasonable at this scale.",
+          "carriedFrom": "2026-10-24"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The catalog walker that enforces the forbidden 'case' variant deletes the innermost brace groups instead of expanding them, so the text of every plural/select branch is erased before the rule runs: '{n, plural, one {# case} other {# cases}}' reduces to '{n, plural, one other }' (verified), which leaves 39 plural/select messages in the guarded namespaces outside the ban, and the walker prints no strings-checked count that would show the gap.",
+          "evaluatedAt": "2026-10-24T22:56:51.948Z",
+          "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+          "reason": "replaced by cloud-20261031-kp-5"
         }
       ]
     },
@@ -18917,20 +18956,38 @@
       "subject": "copy-quality-gates",
       "bundle": "localization",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:56:51.948Z",
-      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
-      "techniques": []
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent drift over code diffs. A search of scripts/review for termbase, messages/en.json, copy-contract, createTranslator, useTranslations and copy:check found nothing; the only i18n hit is a path in a sensitive-file list (constitution-check.mjs:197). No catalog copy is gated here.",
+          "evaluatedAt": "2026-10-24T22:56:51.948Z",
+          "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+          "reason": "replaced by cloud-20261031-kp-5"
+        }
+      ]
     },
     "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/copy-quality-gates": {
       "context": "lint-quality-gates",
       "subject": "copy-quality-gates",
       "bundle": "localization",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:56:51.948Z",
-      "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
-      "techniques": []
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet protocol counts code-suppression debt (eslint/ts/ruff), and the perf and design scripts budget wall-clock time and tokens. A search of scripts/lint, scripts/perf and scripts/design for termbase, messages/en.json, copy-contract, createTranslator and useTranslations found nothing, so no copy is extracted or gated in this context.",
+          "evaluatedAt": "2026-10-24T22:56:51.948Z",
+          "worker": "5bf1f2ac-a722-457d-8b38-19e02d162f90",
+          "reason": "replaced by cloud-20261031-kp-5"
+        }
+      ]
     },
     "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/hiring-policy-defaults-and-tiering": {
       "context": "decisions-screen-wave-logic",
@@ -23627,6 +23684,36 @@
           "evidence": "scripts/security/secret-scan.mjs:212 the refusal names rotation as the fix, and points to .env.example and docs/, both of which exist and are exempt."
         }
       ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/eval-harness": {
+      "context": "analytics-metrics",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
+      "techniques": []
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/eval-harness": {
+      "context": "cv-analysis-archetypes",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
+      "techniques": []
+    },
+    "3becf910-9c37-4542-a1b9-a176f76c72d1/eval-harness": {
+      "context": "group-eval-shared",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-31",
+      "evaluatedTs": "2026-10-31T00:00:00.000Z",
+      "worker": "cloud-20261031-kp-5",
+      "techniques": []
     }
   }
 }

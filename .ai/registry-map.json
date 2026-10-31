@@ -3916,7 +3916,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 The only measurement surface here plots the hiring score's predicted probability against measured advance rate on real candidates. No model or agent is run against declared scenarios. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?: hits are only 'judged against a goal' in the hiring-funnel sense (AnalyticsTargetInput.tsx:29, statGoalChip.ts:9).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "agent-memory",
@@ -8600,10 +8604,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:217 Carried literals are checked by substring presence, allowing changed numbers and missing repeated occurrences despite the standard requiring identity and count.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10,
+          "evidence": "scripts/i18n/catalog-check.mjs:217 The carried-literal check still tests `have.includes(literal)`, which is substring presence: a target that turns \"48\" into \"480\" or \"https://kp.io/term\" into \".../terms\" passes, and a literal the source repeats twice is satisfied by one occurrence. The header (line 191) promises identity, but this line only proves the literal is contained somewhere. The fixtures in i18n/catalog-check.test.ts:128 only plant a transposition (48 to 84).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11,
           "revisionsBehind": 0
         },
         {
@@ -9683,7 +9687,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/calibration.ts:6 The context measures the production fit score observationally, as score/100 against a binary hiring outcome (advanced/passed), with a holdout clean arm. No declared scenario suite is run against a model or agent candidate. Grepped the context for scenario|benchmark|golden|judge|evals?|trials?: hits are only 'group-eval' feature names in match-score.ts and 'score-blind trial' caveats in calibration.ts:493.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "selection-score-calibration",
@@ -14126,10 +14134,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The catalog walker that enforces the forbidden 'case' variant deletes the innermost brace groups instead of expanding them, so the text of every plural/select branch is erased before the rule runs: '{n, plural, one {# case} other {# cases}}' reduces to '{n, plural, one other }' (verified), which leaves 39 plural/select messages in the guarded namespaces outside the ban, and the walker prints no strings-checked count that would show the gap.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The forbidden-word walker deletes every innermost `{...}` group before matching. In a plural or select message, those groups are the branch TEXT the reader sees, so the 'case' ban is blind to the rendered words of all 38 nested-brace messages in the five guarded namespaces (measured; none offends today). Line 210 also walks a missing namespace silently, without failing on zero units.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "prompt-assembly",
@@ -16090,7 +16098,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:174 A 'group evaluation' here is a head-to-head ranking of job candidates (pipeline entries) for a recruiter. It is not a harness running models or agents against declared scenarios, so the eval-harness techniques' precondition (a model or agent under test) is absent. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?|model: no hits in groupEvalArm.ts.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "comparative-shortlist-evaluation",
@@ -22082,10 +22094,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet protocol counts code-suppression debt (eslint/ts/ruff), and the perf and design scripts budget wall-clock time and tokens. A search of scripts/lint, scripts/perf and scripts/design for termbase, messages/en.json, copy-contract, createTranslator and useTranslations found nothing, so no copy is extracted or gated in this context.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "scripts/lint/ratchet.mjs:21 The ratchet holds code-suppression classes (eslint/ts/ruff) to ceilings, and the perf and design scripts budget time and tokens. None of them reads catalog or product copy. Grepped the context's files for i18n|copy|catalog|messages/|locale|prose|en.json: the only hits are comments about code ('a third copy', 'prose' as non-directive comments) and ci-budget.mjs:5 naming the locale gate as a CI job it times.",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "mcp-tools",
@@ -28319,10 +28331,10 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent drift over code diffs. A search of scripts/review for termbase, messages/en.json, copy-contract, createTranslator, useTranslations and copy:check found nothing; the only i18n hit is a path in a sensitive-file list (constitution-check.mjs:197). No catalog copy is gated here.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
-          "evaluatedRevision": 10
+          "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent and scope. Neither decides whether catalog copy may merge. Grepped for i18n|copy|catalog|messages/|locale|prose|en.json: hits are code-prose masking (source-mask.mjs), an exempt-path entry for scripts/i18n-check.mjs (constitution-check.mjs:197) and the agent prompt naming the locale checker as already run (agent-review.mjs:75).",
+          "evaluatedAt": "2026-10-31",
+          "evaluatedAgainst": "sha256-b2:a18ac83ca9069a90",
+          "evaluatedRevision": 11
         },
         {
           "subject": "hitl-approval",

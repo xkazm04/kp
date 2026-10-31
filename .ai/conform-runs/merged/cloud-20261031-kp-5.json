@@ -1,0 +1,99 @@
+{
+  "worker": "cloud-20261031-kp-5",
+  "evaluatedAt": "2026-10-31",
+  "pairs": [
+    {
+      "context": "65792460-c7df-4a0e-ad4b-224ea3acd82b",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "deviation",
+      "evidence": "scripts/i18n/catalog-check.mjs:217 The carried-literal check still tests `have.includes(literal)`, which is substring presence: a target that turns \"48\" into \"480\" or \"https://kp.io/term\" into \".../terms\" passes, and a literal the source repeats twice is satisfied by one occurrence. The header (line 191) promises identity, but this line only proves the literal is contained somewhere. The fixtures in i18n/catalog-check.test.ts:128 only plant a transposition (48 to 84).",
+      "techniques": [
+        {"technique": "format-aware-check-catalog", "verdict": "deviation", "evidence": "scripts/i18n/catalog-check.mjs:217 The literal check is containment, not identity plus count, which is the failure that technique's 'check identity as well as count' rule names. The precondition graph is realized: line 315 skips the literal and placeholder checks for a unit that does not parse."},
+        {"technique": "rendered-string-extraction", "verdict": "realized", "evidence": "scripts/i18n/catalog-check.mjs:271 Fails the gate when the addressed walker's string count differs from an independent dumb recount. Line 268 fails on zero strings, and the success line prints strings, not keys (scripts/i18n-check.mjs:530)."},
+        {"technique": "source-defects-from-cross-language-agreement", "verdict": "realized", "evidence": "scripts/i18n/catalog-check.mjs:367 sourceSuspects groups target findings by source address with a floor of two locales, and i18n-check prints them as 'fix the source string first'."},
+        {"technique": "layered-mechanical-gate", "verdict": "realized", "evidence": "scripts/i18n-check.mjs:166 Structural parity, ICU and placeholder findings exit non-zero. The cross-language source-suspect signal is declared advisory and never blocks."},
+        {"technique": "enforcement-at-the-write-seams", "verdict": "realized", "evidence": ".github/workflows/ci.yml:101 i18n:check runs in CI, a seam every write path reaches, not only a file-tool hook."},
+        {"technique": "deterministic-repair-classes", "verdict": "unread", "evidence": "scripts/i18n/catalog-check.mjs:177 Control characters are reported rather than stripped. Not judged whether a source-derived repair is owed."}
+      ]
+    },
+    {
+      "context": "9b7307a3-ad7a-4237-9364-3503d0720eec",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "deviation",
+      "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 The forbidden-word walker deletes every innermost `{...}` group before matching. In a plural or select message, those groups are the branch TEXT the reader sees, so the 'case' ban is blind to the rendered words of all 38 nested-brace messages in the five guarded namespaces (measured; none offends today). Line 210 also walks a missing namespace silently, without failing on zero units.",
+      "techniques": [
+        {"technique": "rendered-string-extraction", "verdict": "deviation", "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:202 Placeholder stripping removes plural/select branch content instead of expanding the branches into rendered samples. No string count or planted-defect fixture guards this walker, unlike the literal extractor's fixture at devcase-studio-i18n.test.ts:52."},
+        {"technique": "layered-mechanical-gate", "verdict": "realized", "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:203 The termbase forbidden variant blocks in the unit suite. The allowlist is two-sided: line 220 fails a stale exemption."},
+        {"technique": "copy-contract-before-drafting", "verdict": "realized", "evidence": "app/features/tools/devcases/devcase-vocabulary.test.ts:193 The forbidden-word list lives in the checker, not the writer's prompt, and the one-name ruling is recorded in docs/features/README.md (cited at line 172)."}
+      ]
+    },
+    {
+      "context": "923796fb-9839-4b9d-bbf1-cb4e1cc7574f",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evidence": "scripts/lint/ratchet.mjs:21 The ratchet holds code-suppression classes (eslint/ts/ruff) to ceilings, and the perf and design scripts budget time and tokens. None of them reads catalog or product copy. Grepped the context's files for i18n|copy|catalog|messages/|locale|prose|en.json: the only hits are comments about code ('a third copy', 'prose' as non-directive comments) and ci-budget.mjs:5 naming the locale gate as a CI job it times.",
+      "techniques": []
+    },
+    {
+      "context": "de71aa9b-3319-42bc-8b1f-cc8e185ebebe",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evidence": "scripts/review/constitution-check.mjs:6 The constitution lens's rule classes are code-governance moves (skips, suppressions, baselines, route auth, tenancy, secrets), and agent-review judges intent and scope. Neither decides whether catalog copy may merge. Grepped for i18n|copy|catalog|messages/|locale|prose|en.json: hits are code-prose masking (source-mask.mjs), an exempt-path entry for scripts/i18n-check.mjs (constitution-check.mjs:197) and the agent prompt naming the locale checker as already run (agent-review.mjs:75).",
+      "techniques": []
+    },
+    {
+      "context": "12e121d6-6032-464b-a349-68911bfbdbba",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 The only measurement surface here plots the hiring score's predicted probability against measured advance rate on real candidates. No model or agent is run against declared scenarios. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?: hits are only 'judged against a goal' in the hiring-funnel sense (AnalyticsTargetInput.tsx:29, statGoalChip.ts:9).",
+      "techniques": []
+    },
+    {
+      "context": "df735e8e-4e1d-4661-8bdb-35ca96cb7c42",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "scripts/app-master-bench/soak/night.mjs:171 Misses are counted per night by a closed class set beside the rate, which realizes failure-signatures. That is 2 of 24 techniques anchored, under the evidence floor. Observation, not ruled a deviation: the matrix header at line 180 prints 'passed | rate' where passed means only `ran: true` (line 136, the observation quota defined in docs/development/app-master-soak.md), so the rendered table does not carry its predicate.",
+      "techniques": [
+        {"technique": "failure-signatures-beside-the-pass-rate", "verdict": "realized", "evidence": "scripts/app-master-bench/soak/night.mjs:171 Each night that did not run is tallied once under its miss class, with an unknown class folded to `unclassified` rather than dropped, beside nights/passed/rate."},
+        {"technique": "eval-economics", "verdict": "realized", "evidence": "scripts/app-master-bench/soak/night.mjs:321 Each night, with any calendar-gap backfill rows, is persisted in one append as it finishes, so an interrupted soak keeps every prior cell."}
+      ]
+    },
+    {
+      "context": "cb276b0e-97aa-483b-9f18-5cbd0dbb4140",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/calibration.ts:6 The context measures the production fit score observationally, as score/100 against a binary hiring outcome (advanced/passed), with a holdout clean arm. No declared scenario suite is run against a model or agent candidate. Grepped the context for scenario|benchmark|golden|judge|evals?|trials?: hits are only 'group-eval' feature names in match-score.ts and 'score-blind trial' caveats in calibration.ts:493.",
+      "techniques": []
+    },
+    {
+      "context": "82c3e0fd-b156-4895-a829-eec4f379ad63",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:149 The panel surfaces a self-grading judge seat, where the judge is the generator's own model, which realizes judge-stability's own-family conflict rule for the devcase judge. The context is a render layer over an LLM judge that grades human submissions and the pipeline's own artifacts. Whether the rest of the subject binds a panel layer was not established, so the pair stays under the evidence floor (1 of 24).",
+      "techniques": [
+        {"technique": "judge-stability", "verdict": "realized", "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:149 The integrity strip renders when judgeSeatState(...) is 'self_grading'. app/_lib/devcase-judge-independence.ts shows only the bad state, so an untested independence is never advertised as a pass."}
+      ]
+    },
+    {
+      "context": "3becf910-9c37-4542-a1b9-a176f76c72d1",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/shared/groupEvalTypes.ts:174 A 'group evaluation' here is a head-to-head ranking of job candidates (pipeline entries) for a recruiter. It is not a harness running models or agents against declared scenarios, so the eval-harness techniques' precondition (a model or agent under test) is absent. Grepped the context for scenario|benchmark|golden|judge|pass.?rate|trials?|model: no hits in groupEvalArm.ts.",
+      "techniques": []
+    }
+  ],
+  "declined": [],
+  "consults": [
+    {"ts": "2026-10-31T00:00:00Z", "bundle": "localization", "subjects": ["copy-quality-gates"], "techniques": ["format-aware-check-catalog", "rendered-string-extraction", "source-defects-from-cross-language-agreement", "layered-mechanical-gate", "enforcement-at-the-write-seams", "copy-contract-before-drafting", "deterministic-repair-classes"], "deviations": 2},
+    {"ts": "2026-10-31T00:00:00Z", "bundle": "software-engineering", "subjects": ["eval-harness"], "techniques": ["failure-signatures-beside-the-pass-rate", "eval-economics", "judge-stability"], "deviations": 0}
+  ]
+}
