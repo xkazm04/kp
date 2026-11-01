@@ -21436,6 +21436,27 @@
         }
       ],
       "registryProposal": "The 'ciphertext carries its term' rule in append-only-keyring-rotation applies equally to MAC and signing keys. This context stores the key id per row, binds it into the MAC, keeps retired keys readable, and refuses a compromised key generation as 'unverifiable' rather than 'tampered'. That pattern may belong in a signed-artifacts technique, because this subject's precondition (encryption at rest) excludes it."
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/stream-proxy-hop": {
+      "context": "platform-auth-api",
+      "subject": "stream-proxy-hop",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-01",
+      "evaluatedTs": "2026-11-01T22:03:11.039Z",
+      "worker": "6c36b465-22ce-455f-a4ce-856ea8a2b169",
+      "techniques": [
+        {
+          "technique": "idle-heartbeat-injection",
+          "verdict": "not-applicable",
+          "evidence": "app/api/workspace/export/route.ts:62 The export is a one-shot JSON attachment, not an event stream, so there is no idle path to keep warm."
+        },
+        {
+          "technique": "lifetime-cap-rotation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/workspace/export/route.ts:60 The response is fully buffered, so no stream reaches a lifetime cap."
+        }
+      ]
     }
   }
 }

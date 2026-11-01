@@ -26833,7 +26833,11 @@
           "revision": 7,
           "changedAt": "2026-10-08",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/workspace/export/route.ts:60 Every route in this context (auth login/logout/register/switch-workspace, workspace export/import, workspaces CRUD, ops, health) answers a single buffered JSON response and never opens a long-lived outbound read to re-emit downstream, so the subject's precondition does not hold; a search of the context directories and the app/api contract tests for text/event-stream, EventSource, getReader and pipeTo found nothing (zero hits across all of app/api too), and every 'proxy' hit means the Next proxy.ts auth gate, not a stream hop.",
+          "evaluatedAt": "2026-11-01",
+          "evaluatedAgainst": "sha256-b2:35d2934ae538833a",
+          "evaluatedRevision": 7
         }
       ],
       "governance": "governed"
