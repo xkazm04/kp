@@ -21632,6 +21632,38 @@
         }
       ],
       "registryProposal": "The golden path's use_when trigger 'read-then-write handlers race and the last writer silently wins' carries no replication qualifier, so the mapper attaches this subject to single-node SQLite repositories. Those belong to data-access/concurrency-guards. The subject's first law (never hold the writer across a slow round trip; re-verify at write) does generalize to an LLM or subprocess hop on one node, and actOnPipelineEntry's expectedStage CAS is exactly that shape. Consider stating that generalization in a neighbour subject and narrowing this trigger to 'on a store whose writes go through a consensus log'."
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/trust-base": {
+      "context": "e2e-suite",
+      "subject": "trust-base",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-02",
+      "evaluatedTs": "2026-11-02T22:24:59.359Z",
+      "worker": "317b3138-7c53-4b34-9973-c2a9ec1d270e",
+      "techniques": [
+        {
+          "technique": "census-counts-unmarked-members",
+          "verdict": "deviation",
+          "evidence": "e2e/activity-detail.spec.ts:93 A response body typed as the unchecked type is asserted into a hand-written shape with nothing checked at runtime. The same shape repeats across token-doors-axe, quality-tables, profile-roster, profile-builder, journey-one-thread, app-master-hire and journey-role-to-schedule, and no type-aware lint or ratchet counts these members. The technique's cure, decoding to `unknown` and passing the value through one checking function, is used nowhere. activity-detail.spec.ts:76 declares `lastTask: unknown` but then casts it with `as` instead of checking it."
+        },
+        {
+          "technique": "soundness-argument-names-its-dependencies",
+          "verdict": "deviation",
+          "evidence": "e2e/profile-builder.spec.ts:36 Each cast is sound only if the route's response matches a shape declared elsewhere. BuildResponse, ProfileGet and ActivityRow are hand-written copies that neither name the route declaration they depend on nor get named back by that route. journey-one-thread.spec.ts's BoardEntry doc comment (lines ~530-535) names its source routes, but that note has only one end."
+        },
+        {
+          "technique": "trusted-leaf-gets-an-outside-test",
+          "verdict": "not-applicable",
+          "evidence": "e2e/fixtures/mock-personas-bridge.ts:2 No prover or trusted-body construct exists. The closest analogue is the hand-written Personas mock that the suite trusts, and it does have an outside drift test: scripts/app-master-bench/personas-contract.test.mjs probes it against a contract derived from the real bridge client. That is the technique's spirit, but its precondition does not hold."
+        },
+        {
+          "technique": "assumptions-are-build-errors",
+          "verdict": "not-applicable",
+          "evidence": "e2e/app-master-hire.spec.ts:150 No proof states a platform fact. The suite's environmental premise, a keyless server, is asserted on every turn with a message naming the missing setting. That is the runtime analogue of the build-side assertion, not a proof/build pair."
+        }
+      ],
+      "registryProposal": "census-counts-unmarked-members names annotated callbacks as a shape the type-aware lint misses. It should also name the plain assertion over the unchecked type, `(await res.json()) as Shape`: the most common member in test suites, where the assertion keyword is present but asserts from an unchecked value. Whether the unsafe-flow lint family reports it depends on enabling the separate type-assertion rule, so the technique should say which rule visits this shape."
     }
   }
 }

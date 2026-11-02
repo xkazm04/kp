@@ -14642,7 +14642,11 @@
           "revision": 5,
           "changedAt": "2026-10-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "eslint.config.mjs:602 The lint block scoped to e2e/**/*.ts applies only the transaction and route-import selectors, with no type-aware unsafe-flow rule. So the many `(await res.json()) as {…}` sites in the specs reach typed assertions without any check, and no census counts them: a directive count over this context reports zero members.",
+          "evaluatedAt": "2026-11-02",
+          "evaluatedAgainst": "sha256-b2:0fd52192b37a88e4",
+          "evaluatedRevision": 6
         },
         {
           "subject": "conformance-checking",
