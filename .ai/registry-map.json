@@ -19276,7 +19276,11 @@
           "revision": 3,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/shared/renderTemplate.ts:161 The JD template catalog has one pure, deterministic mapping from (template body, data, output-language tokens) to a rendered JD. The client preview and the server build both call it, so the preview shows what Generate produces. Every write door also checks bodies against one closed token vocabulary.",
+          "evaluatedAt": "2026-11-02",
+          "evaluatedAgainst": "sha256-b2:3dd9549b75f4f998",
+          "evaluatedRevision": 3
         },
         {
           "subject": "voice-io",
