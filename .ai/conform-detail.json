@@ -21585,6 +21585,53 @@
           "evidence": "app/_components/toast-store.ts:6 These primitives cover the in-app tier only. A search of app/, packages/ and edge/ for new Notification(, Notification.permission and requestPermission found nothing."
         }
       ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/transactions-over-a-replicated-log": {
+      "context": "db-pipeline-store",
+      "subject": "transactions-over-a-replicated-log",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-02",
+      "evaluatedTs": "2026-11-02T22:18:59.528Z",
+      "worker": "b6b3df80-ed85-4cc8-87c6-6fb9a6f9a0e3",
+      "techniques": [
+        {
+          "technique": "snapshot-read-plus-verify-log",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3588 A single-node analog: the decision is made outside the tx and re-verified under the writer lock, but there is no consensus round trip, verify list or log entry; the technique excludes non-replicated stores."
+        },
+        {
+          "technique": "same-value-still-conflicts",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3603 The conflict is a column-value CAS in a local SQLite tx, not a hash verification at replicated apply; no sentinel taxonomy for log commits applies."
+        },
+        {
+          "technique": "capture-index-before-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3727 No log index or modified-since fast path exists; the tx takes the local engine's write lock at BEGIN."
+        },
+        {
+          "technique": "no-writes-no-log",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3725 There is no log for a read-only transaction to stay out of; commits go to the local file."
+        },
+        {
+          "technique": "list-verification-by-present-keys",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3725 No list verification hash is shipped anywhere; locking the SQLite writer covers the prefix reads."
+        },
+        {
+          "technique": "compose-then-conform",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3727 One engine, with no cache, view or encoding wrapper stack around a transactional storage interface in this context."
+        },
+        {
+          "technique": "live-file-is-the-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3727 No consensus library and no snapshot or log-truncation hooks; the store is a plain SQLite file."
+        }
+      ],
+      "registryProposal": "The golden path's use_when trigger 'read-then-write handlers race and the last writer silently wins' carries no replication qualifier, so the mapper attaches this subject to single-node SQLite repositories. Those belong to data-access/concurrency-guards. The subject's first law (never hold the writer across a slow round trip; re-verify at write) does generalize to an LLM or subprocess hop on one node, and actOnPipelineEntry's expectedStage CAS is exactly that shape. Consider stating that generalization in a neighbour subject and narrowing this trigger to 'on a store whose writes go through a consensus log'."
     }
   }
 }

@@ -11216,7 +11216,11 @@
           "revision": 2,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:3725 The pipeline store writes straight to a local better-sqlite3 engine inside its own IMMEDIATE transaction, with no consensus log, replicated state machine or apply step under it; a search of app/_lib/db/ for consensus, quorum, replicat and appliedIndex found nothing, so the subject's precondition (writes go through a replicated log) does not hold, and snapshot-read-plus-verify-log's own exclusion applies ('where the store is not replicated at all ... the ordinary transaction').",
+          "evaluatedAt": "2026-11-02",
+          "evaluatedAgainst": "sha256-b2:10473b2ddfd2ef20",
+          "evaluatedRevision": 3
         },
         {
           "subject": "delivery-guarantees",
