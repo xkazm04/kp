@@ -24188,7 +24188,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/sentry-client.ts:43 The only scrub on the error-boundary path to Sentry rewrites capability-token routes and credential shapes, but has no keyed field drop and no mail-address or quoted-span pattern, so a candidate email or name inside an error message leaves for the hosted sink unredacted.",
+          "evaluatedAt": "2026-11-02",
+          "evaluatedAgainst": "sha256-b2:291ed63388cf9602",
+          "evaluatedRevision": 1
         },
         {
           "subject": "retry-backoff",
