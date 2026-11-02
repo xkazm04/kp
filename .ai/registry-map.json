@@ -14978,7 +14978,11 @@
           "revision": 4,
           "changedAt": "2026-10-01",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/toast-store.ts:62 When more than three toasts arrive, the queue drops the oldest one whatever its severity, with no summary, no ledger record and no count. Repeats are also merged silently, because the nonce bump on line 56 shows no counter. A burst of successes can therefore push an unread error off screen and leave no trace of it.",
+          "evaluatedAt": "2026-11-02",
+          "evaluatedAgainst": "sha256-b2:81b073072d283dda",
+          "evaluatedRevision": 4
         },
         {
           "subject": "modal-stack",
