@@ -21664,6 +21664,47 @@
         }
       ],
       "registryProposal": "census-counts-unmarked-members names annotated callbacks as a shape the type-aware lint misses. It should also name the plain assertion over the unchecked type, `(await res.json()) as Shape`: the most common member in test suites, where the assertion keyword is present but asserts from an unchecked value. Whether the unsafe-flow lint family reports it depends on enabling the separate type-assertion rule, so the technique should say which rule visits this shape."
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/usage-event-ingestion": {
+      "context": "db-analytics-billing-llm",
+      "subject": "usage-event-ingestion",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-02",
+      "evaluatedTs": "2026-11-02T22:34:31.520Z",
+      "techniques": [
+        {
+          "technique": "dedupe-key-survives-soft-delete",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:321 The technique's own exclusions apply: the emitter is internal and the events are not billed. The useful parts exist anyway: a unique index the store enforces (core.ts:2666, no partial predicate), a counted terminal skip, and no delete path on llm_usage. The key is optional, though: a TS-direct write with no requestId stores a NULL key and gets no idempotence."
+        },
+        {
+          "technique": "thin-ingest-deferred-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:190 The caller is trusted, internal and low-volume (the app's own spawned child), which is the technique's stated 'when not to use'. There is no external door and no deferred pass."
+        },
+        {
+          "technique": "late-event-subscription-resolution",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:381 Usage is debited in-process at the moment of the action, into an allowance and credit-drawdown counter keyed by a period the caller supplies. Events are never resolved to a subscription window, so no late event can miss one."
+        },
+        {
+          "technique": "ingestion-contract-parity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:239 There are two writers (TS-direct insertLlmUsage and the sidecar fold), but they run on one runtime, write one table and share one unique index. That is not a second high-throughput lane, and neither writer feeds an invoice."
+        },
+        {
+          "technique": "running-total-or-increment",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:277 Each sidecar line is one call, a per-occurrence event. No interval counter reports are admitted, so there is no encoding to decode."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a40829d5-6d06-4b3e-842e-1c38186c4ac0",
+        "state": "not-applicable",
+        "at": "2026-11-02T22:35:09.393988+00:00",
+        "reason": "reviewer (sonnet): The anchor llm.ts:281 is only a docstring about the sidecar fold and does not show that there is no usage door. The 'unbilled telemetry' claim is contradicted by llm.ts comments at ~190 and ~321, which say the pricing meters bill and aggregate against llm_usage and that a replay would have 'billed d"
+      }
     }
   }
 }
