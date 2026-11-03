@@ -3950,7 +3950,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 The guard that the only write path to channel_spend is still rendered matches raw EconomicsBoard.tsx text, so a JSX comment `{/* <SpendInput … */}` satisfies 'actually render it' while the editor is gone, the exact silent-loss failure the file was written to catch.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "recruiting-funnel-metrics",
@@ -4085,7 +4089,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/sections/sealTraceabilityRender.test.ts:97 The 'has at least one PRODUCTION caller' guard counts any file whose raw text mentions the name, so an unused import or a comment naming parseSealTraceability passes, which is the zero-callers regression (LUC-ANA-13) the test exists to prevent.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "lazy-section-addressability",
@@ -27318,7 +27326,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:241 The capability ratchet treats a route as gated if the raw file text contains a requireCapability*( token anywhere (src is the unstripped readFileSync at line 238, not split by verb), so a gate that appears only in a comment, or only on the GET of a file whose POST asks nothing, reads as compliant; its tenancy sibling strips comments first (route-tenancy-coverage.test.ts:51), and this one does not.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "mcp-tools",
