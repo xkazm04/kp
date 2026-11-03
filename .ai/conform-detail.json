@@ -21898,6 +21898,36 @@
       "evaluatedTs": "2026-11-03T16:44:29.181Z",
       "worker": "2ee6b08e-9a20-4694-ae1c-cf867b2b736a",
       "techniques": []
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/prompt-assembly": {
+      "context": "llm-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:46:19.583Z",
+      "worker": "b142996e-2b28-481c-9b56-a9c48aa643b9",
+      "techniques": []
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/prompt-assembly": {
+      "context": "analytics-metrics",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:46:19.583Z",
+      "worker": "b142996e-2b28-481c-9b56-a9c48aa643b9",
+      "techniques": []
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/prompt-assembly": {
+      "context": "workspace-config-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:46:19.583Z",
+      "worker": "b142996e-2b28-481c-9b56-a9c48aa643b9",
+      "techniques": []
     }
   }
 }

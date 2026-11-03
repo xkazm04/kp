@@ -3861,7 +3861,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:8 These are client UI controls for metrics. The closest they come to a model is displaying the usage ledger read-only, so nothing here assembles, budgets or compacts a prompt. A recursive search of app/features/insights/analytics for systemPrompt, compaction, max_tokens, buildPrompt and assemblePrompt found 0 hits.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "delivery-analytics",
@@ -22424,7 +22428,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/llm/test/route.ts:57 The routes in this context hand typed arguments (use-case ids, entry ids) to the Python pipeline or to deterministic builders (sim/offer-draft is labelled NO LLM at line 14) and render no prompt text themselves. Searching app/api/llm, app/api/automation and app/api/sim for systemPrompt, compaction, max_tokens, buildPrompt and assemblePrompt found 0 hits. The only 'prompt' token is promptCacheStats in the read-only usage rollup.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -35506,7 +35514,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/profile/draft/route.ts:47 The only model-spending door here passes typed inputs (text, lang) to runProfileDraft, which is outside this context, and the prompt is built downstream in the Python CLI. A search of app/api/{me,brand,palette,demo,templates,tasks,profile,compliance} for prompt, systemPrompt, compaction, max_tokens and buildPrompt found 0 hits.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "voice-io",
