@@ -21805,6 +21805,48 @@
         "at": "2026-11-02T22:35:09.393988+00:00",
         "reason": "reviewer (sonnet): The anchor llm.ts:281 is only a docstring about the sidecar fold and does not show that there is no usage door. The 'unbilled telemetry' claim is contradicted by llm.ts comments at ~190 and ~321, which say the pricing meters bill and aggregate against llm_usage and that a replay would have 'billed d"
       }
+    },
+    "10943bc8-3713-4897-a618-ac1437d7c455/test-harness": {
+      "context": "tests-scoring-fairness",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T11:57:04.929Z",
+      "worker": "fc3e70cc-8c33-4950-9aba-c7f5c0052ae7",
+      "techniques": [
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:45 Raw INSERT bypasses the product's write path and seeds approval_detail='', which core.ts's null-contract heal says new rows never write. The narrow DDL at line 22 records no source and has no freshness check against core.ts."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_seed_jobs.py:80 Sentinels were chosen as values build_specs can never produce, after deleting a stamp line once left the suite green. This is a mutation the system cannot absorb."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_fit_threshold_sync.py:106 Calls the real fit_tier_for at both boundaries instead of trusting that the constants are used, so the decision is reached and not just named."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_fit_threshold_sync.py:59 The source-text pin strips TS comments and needs the name = <number> assignment shape. Prose cannot satisfy it."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:136 The consumer population comes from AST discovery and has a non-empty floor plus a known-consumers check, so an empty selection fails instead of passing."
+        },
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_seed_jobs.py:214 The suite forbids building the remote provider at all, so there is no recorded traffic to age."
+        }
+      ],
+      "registryProposal": "fixture-economics could name a shape this case shows: a cross-language seeder (Python) tested against a hand-narrowed copy of a schema owned by another language (TS). The freshness fingerprint has no shared builder to hang on, so the remedy is to read the real DDL or check the narrowed columns against it."
     }
   }
 }

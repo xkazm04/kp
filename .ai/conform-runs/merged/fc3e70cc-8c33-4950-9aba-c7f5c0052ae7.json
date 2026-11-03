@@ -1,0 +1,129 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fc3e70cc-8c33-4950-9aba-c7f5c0052ae7",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T11:57:04.929275+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tests-scoring-fairness",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:22 The calendar-seeder suite builds its own hand-copied pipeline_entries DDL that nothing checks against core.ts, and it inserts approval_detail '' (a legacy value core.ts now rewrites to NULL). If core.ts renames a column, this test still passes against an old schema while the real seeder breaks.",
+   "techniques": [
+    {
+     "technique": "fixture-economics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_seed_interview_calendar.py:45 Raw INSERT bypasses the product's write path and seeds approval_detail='', which core.ts's null-contract heal says new rows never write. The narrow DDL at line 22 records no source and has no freshness check against core.ts."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_seed_jobs.py:80 Sentinels were chosen as values build_specs can never produce, after deleting a stamp line once left the suite green. This is a mutation the system cannot absorb."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_fit_threshold_sync.py:106 Calls the real fit_tier_for at both boundaries instead of trusting that the constants are used, so the decision is reached and not just named."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_fit_threshold_sync.py:59 The source-text pin strips TS comments and needs the name = <number> assignment shape. Prose cannot satisfy it."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:136 The consumer population comes from AST discovery and has a non-empty floor plus a known-consumers check, so an empty selection fails instead of passing."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_seed_jobs.py:214 The suite forbids building the remote provider at all, so there is no recorded traffic to age."
+    }
+   ],
+   "registryProposal": "fixture-economics could name a shape this case shows: a cross-language seeder (Python) tested against a hand-narrowed copy of a schema owned by another language (TS). The freshness fingerprint has no shared builder to hang on, so the remedy is to read the real DDL or check the narrowed columns against it."
+  },
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 The 'renders the LanguageSwitcher' pin is a bare identifier, and StatusClient.tsx line 8 imports LanguageSwitcher, so the import line alone satisfies it. Deleting the rendered <LanguageSwitcher /> at line 224 would leave the test green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:63 read() at line 17 does not normalise line endings, and .tsx is text=auto with no eol pin. This end marker ends on a newline, so on a CRLF checkout (which .gitattributes calls Windows-primary) it never matches. Combined with the bare-identifier needle at quick-apply-status-link.test.ts:68, this is the technique's failure shape."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:81 The pin is run against a mutated block that mounts the form, showing that it can fail."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:77 The resume decision was lifted out of the mount effect into a pure function and executed, rather than only pinned as source text."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name could state the asymmetry seen here: a marker that BEGINS at a line boundary (\"\\n );\") survives CRLF because \"\\r\\n );\" contains it, while one that ENDS at a line boundary (\"\\n }\\n\") does not. Unnormalised suites in this repo are robust or fragile depending only on that choice."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "tests-devcase",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "platform-auth-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "shell-setup-wizard",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T11:57:04.929275+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "recorded-interaction-fixtures",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tests-scoring-fairness",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T11:57:04.929275+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
