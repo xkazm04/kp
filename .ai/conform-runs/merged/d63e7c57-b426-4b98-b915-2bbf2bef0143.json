@@ -1,0 +1,267 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d63e7c57-b426-4b98-b915-2bbf2bef0143",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T09:42:35.378030+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "e2e-suite",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "e2e/journey-role-to-schedule.spec.ts:6 The e2e lane keeps the previous run's database state, and nothing clears it automatically when a run starts. Each spec has to clean up after itself and use run-scoped ids (\"persisted in the same dev database\"). isolation-lanes requires a lane to inherit nothing from the previous run, with the launcher clearing stale leftovers at startup.",
+   "techniques": [
+    {
+     "technique": "isolation-lanes",
+     "verdict": "deviation",
+     "evidence": "e2e/journey-role-to-schedule.spec.ts:55 Specs compensate for state left by earlier runs and sibling specs using unique run ids and self-cleanup. Workers share one server and one SQLite file, and no startup step resets them."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "conformant",
+     "evidence": "e2e/journey-role-to-schedule.spec.ts:22 The keyless journeys drive a production build of the real product from outside, not code as a test imports it."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "e2e/quality-tables.spec.ts:25 The table is addressed by its accessible name. The header comment records that a .first() locator used to pass by reading the sibling log table."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "e2e/quality-tables.spec.ts:109 The fixture polls for its own sealed record by entry id, so it waits on a condition rather than a timer. This fixes the sibling-count problem the earlier verdict raised."
+    }
+   ]
+  },
+  {
+   "context": "tests-llm-eval",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The literal resolve_provider call-site scan walks every pipeline .py file, tests included, and regex-matches raw text. A test fixture, comment or docstring that spells resolve_provider(\"x\") therefore counts as a production call site.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:81 The searched text includes comments and the population includes tests. The AST pass at :117 excludes tests, but this literal pass still does not."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:87 A recorded mutation showed the old scan stayed green under a renamed map value, and the dynamic-site pass was added because of it."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_llm_offline.py:35 The offline fixture clears ambient base-URL variables, so results do not depend on the developer's shell."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_fault_injection.py:9 FaultProvider failures go through the real shared retry and re-prompt layer, so the decision under test is actually exercised."
+    }
+   ]
+  },
+  {
+   "context": "dev-toolchain",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/test/flake-policy.mjs:17 A flake is identified from one immediate re-run, and the result is only appended to the CI step summary. flake-lifecycle requires detection from a transition count over retained, stably keyed run history, and an owner on every quarantine entry. The register checks why, since and expires but never an owner.",
+   "techniques": [
+    {
+     "technique": "flake-lifecycle",
+     "verdict": "deviation",
+     "evidence": "scripts/test/flake-policy.mjs:174 Quarantine entries are checked for why, since and expires (with a 30-day ceiling) but never for an owner. Detection is a single re-run, not history."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:127 The single launcher scrubs the inherited NODE_TEST_CONTEXT that would make node always exit 0. The fix is applied once and the incident is documented in the header."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:313 A run that executes zero tests is red, using the machine reporter's count. A pattern that matches no file is also refused (:182)."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:138 Suite membership is decided by location globs (app, packages, edge, i18n), not by tags."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "scripts/dev-empty.mjs:10 The first-run lane clears stale leftovers at startup and deletes the throwaway database, so every launch starts from a clean profile."
+    }
+   ]
+  },
+  {
+   "context": "llm-inference-runtime",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The devcase JSON-file contract is pinned by a substring that prose can spell, searched over the unstripped source. A comment mentioning --need-json would satisfy it even if the call no longer passed the flag. The sibling llm-spawn-contract test strips comments and counts calls instead.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The needle is a bare flag name and the searched text still contains comments."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:31 The parameterised contract runs over a hand-written module list. No reverse scan derives the spawn sites from the tree, so a new LLM spawn site that is not added to the list is never checked."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:60 The concurrency cap is proved by counting interpreters in flight, not by elapsed time."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:20 The mutation used to prove each test can fail is recorded in the file."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:8 The poisoned interpreter makes a cache miss fail loudly, so the claimed cache-hit decision is actually reached and not answered by a fallback."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:16 Each test file gets an isolated throwaway database, not the operator's store."
+    }
+   ]
+  },
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/run_gated.py:181 Setting the ambient ALLOW_SKIP=1 variable turns the whole skip verdict (identity register plus count floor) into exit 0, and nothing refuses it in CI. A run that skipped tests the register does not name can therefore pass, announced only by one stderr line.",
+   "techniques": [
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:181 The lane's declared floor on what must run can be switched off by a runtime environment flag, with no pipeline refusal and no test proving such a refusal."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/__init__.py:36 The tests package neutralises the developer's .env.local and stubs the telemetry SDK before any test imports."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:355 The single wrapper checks its preconditions before the suite may certify anything and names the failure."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:16 A recorded mutation proved the guard was otherwise untested, which motivated the tripwire."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:370 Membership is decided by directory location, and the gated runner is the suite's own configuration."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-03T09:42:35.378030+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "isolation-lanes",
+    "live-app-harness",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "e2e-suite",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T09:42:35.378030+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tests-llm-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T09:42:35.378030+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "flake-lifecycle",
+    "isolation-lanes",
+    "platform-quirk-absorption",
+    "suite-partitioning"
+   ],
+   "deviations": 1,
+   "context": "dev-toolchain",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T09:42:35.378030+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T09:42:35.378030+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "isolation-lanes",
+    "negative-control-tests",
+    "platform-quirk-absorption",
+    "suite-partitioning"
+   ],
+   "deviations": 1,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
