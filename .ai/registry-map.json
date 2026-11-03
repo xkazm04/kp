@@ -6957,7 +6957,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/apply/apply-ack-after-response.test.ts:53 The 'core seam is the ONLY dispatch' rule is enforced as a literal-name absence check over three hand-picked files, so an aliased import, or a door file outside the list, could dispatch its own ack with the gate green.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "application-intake-and-conversion",
@@ -22737,7 +22741,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:289 The standing UNMEASURED_DEFAULTS exemptions are checked for a date, a reason and not-yet-baked, but never for still naming a live DEFAULT_MODELS slug, so a typo'd or orphaned waiver row is silently accepted forever (latent today: all three rows match current defaults).",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "credential-vault",
@@ -33691,7 +33699,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:40 When coverage drops, the gate's own message tells the author to lower the gate's threshold in the same commit, so the fixer softens the oracle inside the change instead of handing the floor change to a separate human-owned task.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "candidate-archetype-routing",

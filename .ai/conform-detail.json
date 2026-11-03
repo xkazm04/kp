@@ -22199,6 +22199,150 @@
           "evidence": "app/features/insights/analytics/sections/sealTraceabilityRender.test.ts:97 A caller is detected by substring over raw source, not a call over stripped code. The render checks at lines 113-115 have the same shape."
         }
       ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/quality-gates": {
+      "context": "tests-matching-taxonomy",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T23:53:29.085Z",
+      "worker": "ee3e1763-b859-4eca-8f82-db30153dac85",
+      "techniques": [
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:40 The threshold is part of the oracle set; the technique keeps threshold changes out of the change being gated, and this message instructs the opposite (the parent floors at line 63 do the same)."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:97 A stale-doc refusal prints a full in-tree command that runs from the repo root."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:23 Reads the checked-in data/taxonomy.json (TAXONOMY_PATH), a deterministic input, so blocking is earned."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:36 A family the loader did not find (a hole in the gate's own view) counts as 0 and fails against its nonzero floor; missing never reads as compliance."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:44 The 'instrument every family' convention is an inventory assertion over ROLE_FAMILIES, not prose."
+        }
+      ],
+      "registryProposal": "oracle-frozen-during-repair could state how it treats a ratchet re-pin that the remedy text tells the author to make in the same commit. The ratchet convention in metric-gates and the freeze rule pull in opposite directions here."
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/quality-gates": {
+      "context": "llm-config-provider",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T23:53:29.085Z",
+      "worker": "ee3e1763-b859-4eca-8f82-db30153dac85",
+      "techniques": [
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:285 Waivers are keyed by exact slug (good), but a waiver that matches no finding is not reported. UNMEASURED_USE_CASES gets that reverse check at line 156; UNMEASURED_DEFAULTS does not."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:107 An explicit anti-vacuity floor before any deepEqual."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:90 A declaration reshaped out of the recognised form is a red finding, not an empty parse."
+        },
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:73 Renaming the keyed declaration reddens the gate."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:200 Direction 3: a TS pin row with no Python call-site pin behind it fails."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:96 The Python reader is anchored to line-start keys so comments cannot satisfy it, and the TS side is imported as evaluated values."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:154 Names two in-tree remedies."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:153 An unmeasured use case must be declared (an announced SKIP), never silently absent."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:208 Records that tsc does not answer this question because the field is typed `string`."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:217 Turns 'please keep in sync' headers into checks."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:2 The TS catalogs that gate the admin API are pinned as exact projections of the one Python authority."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:51 Reads committed source only; no network or key involved."
+        }
+      ]
+    },
+    "14d4d7df-d27a-4533-a471-e4ed40575d8d/quality-gates": {
+      "context": "candidate-apply-api",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T23:53:29.085Z",
+      "worker": "ee3e1763-b859-4eca-8f82-db30153dac85",
+      "techniques": [
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "app/api/apply/apply-ack-after-response.test.ts:53 A negative-space chokepoint check over owned code does not reject escape forms (alias or re-export); it just fails to match them."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/apply/apply-ack-after-response.test.ts:52 Reach comes from a hand-written file list; a new door that nothing addresses is never scanned (today only application-filing.ts and comms-dispatch.ts reference the dispatcher)."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/apply-ack-after-response.test.ts:43 Asserts the extracted construct exists before testing its contents, so an empty slice is not a vacuous pass."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/apply-error-hygiene.test.ts:27 The refusal names the file and the in-tree responder to use."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/apply-ack-after-response.test.ts:23 Source-contract tests read only committed files, so the verdict is deterministic."
+        }
+      ]
     }
   }
 }
