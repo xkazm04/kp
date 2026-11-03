@@ -1,0 +1,175 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4c23d557-bc49-4eda-8ba1-59f21e310867",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-03T22:21:45.799260+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "eval-voice",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails on any decisive domain term missing from the transcript, while aggregate WER stays a separate threshold, and bakeoff.py ranks recogniser candidates by recall, not WER \u2014 so the harness's gate and choice instrument key on decisive terms as the standard requires.",
+   "techniques": [
+    {
+     "technique": "engine-choice-on-decisive-terms",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 Missing decisive terms are a hard gate and are listed by name. WER is only a budget threshold (line 191). bakeoff.py:95 ranks eligible engines on -recall first. wer.py matches terms longest-first with a bounded inflection suffix and deliberately excludes short ambiguous terms."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/recognizers.py:17 The selection instrument has its own narrow PCM-in/transcript-out recogniser seam, separate from the EL session driver, so it can reach a second engine. bakeoff reports unreachable engines rather than dropping them."
+    },
+    {
+     "technique": "duplex-agent-sessions",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:209 Catches the silent fall-back to the account-side config (an ignored or absent session override) as a gate failure rather than a green run."
+    },
+    {
+     "technique": "bounded-playback-wait",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/el_ws.py:307 The wait for the agent's turn is bounded by a fixed deadline and by the streamed audio's virtual playback clock, not by chunk arrival. It exits early when the driver has already errored."
+    },
+    {
+     "technique": "speech-ready-text",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:39 Persona replies are capped at a word boundary before synthesis, and the persona is told 'no lists, no markdown' (line 33). This is a minimal door for harness-generated text."
+    },
+    {
+     "technique": "stt-pipeline",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:189 'Heard nothing' is a distinct failure from a session error (line 184) and from 'nothing was spoken' (line 186). An empty transcript is never read as success."
+    },
+    {
+     "technique": "tts-pipeline",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/tts.py:34 Voice identity is per-language with no silent substitute voice. An unsupported language is refused with the reason instead of being spoken in the wrong voice."
+    },
+    {
+     "technique": "on-device-vs-cloud",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/tts.py:12 The synthetic candidate's TTS runs on-device (Piper), and the one cloud egress is stated explicitly."
+    },
+    {
+     "technique": "transcript-handoff-receipts",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/eval/voice/app_client.py:199 The transcript goes to the product's own /complete route, never into a foreign app through a clipboard."
+    },
+    {
+     "technique": "voice-setup-experience",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:116 A developer CLI harness with no end-user first-run voice flow."
+    },
+    {
+     "technique": "unattended-caller-attribution",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/eval/voice/el_ws.py:5 Synthesized speech is streamed into a provider socket, not played into a room, so there is no unhosted caller speaking to a listener."
+    }
+   ]
+  },
+  {
+   "context": "jd-intake-voice",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/library/jds/intake/voicePhase.ts:149 The intake voice surface decides availability by engine identity ('openai') and the component imports the OpenAI transport directly (JdsIntakeVoice.tsx:10). The declared `relay` capability (provider-traits.ts) is what the server branches on, so the surface has bypassed the engine seam. A second relay-capable or self-hosted provider would read as 'unconfigured' here until someone hunts the surface code.",
+   "techniques": [
+    {
+     "technique": "engine-abstraction",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/intake/voicePhase.ts:149 An engine name in surface code: it branches on provider identity instead of the declared relay capability, and startOpenAiCall/teardownOpenAi are hard-wired in the component."
+    },
+    {
+     "technique": "duplex-agent-sessions",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:36 Transport-vs-brain is decided explicitly as transport. Our engine produces each reply, and dialog state is server-side after every exchange."
+    },
+    {
+     "technique": "stt-pipeline",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/voicePhase.ts:30 Mic denial, no device and busy are distinct, recoverable states, rendered separately from transport or API failures."
+    },
+    {
+     "technique": "voice-ux-integration",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:357 A degraded voice affordance gives one honest sentence: 'unconfigured' is separated from 'could not ask', with a recheck, and typing stays available. Refused autoplay gets an enable-audio control (line 407)."
+    },
+    {
+     "technique": "tts-pipeline",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:340 Audio and session are torn down on unmount, and the closing-line hang-up timer is cancellable (voicePhase.scheduleHangUp), so speech does not outlive its surface."
+    },
+    {
+     "technique": "transcript-normalization",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/intake/voiceOrchestration.ts:54 Utterances bound for a reasoner (the intake engine) are only trimmed and coalesced, never rewritten. That matches 'never normalize toward a reasoner'."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-session",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "shell-companion-voice",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "voice-provider-io",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T22:21:45.799260+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "bounded-playback-wait",
+    "duplex-agent-sessions",
+    "engine-abstraction",
+    "engine-choice-on-decisive-terms",
+    "on-device-vs-cloud",
+    "speech-ready-text",
+    "stt-pipeline",
+    "transcript-handoff-receipts",
+    "tts-pipeline",
+    "unattended-caller-attribution",
+    "voice-setup-experience"
+   ],
+   "deviations": 0,
+   "context": "eval-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T22:21:45.799260+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "duplex-agent-sessions",
+    "engine-abstraction",
+    "stt-pipeline",
+    "transcript-normalization",
+    "tts-pipeline",
+    "voice-ux-integration"
+   ],
+   "deviations": 1,
+   "context": "jd-intake-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

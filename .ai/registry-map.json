@@ -15280,14 +15280,13 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, and aggregate word-error rate is a separate budget, so the aggregate does not decide the gate.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails on any decisive domain term missing from the transcript, while aggregate WER stays a separate threshold, and bakeoff.py ranks recogniser candidates by recall, not WER — so the harness's gate and choice instrument key on decisive terms as the standard requires.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
           "source": "conform",
           "adoptedFrom": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "voice-interview-fidelity",
@@ -18972,7 +18971,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/voicePhase.ts:149 The intake voice surface decides availability by engine identity ('openai') and the component imports the OpenAI transport directly (JdsIntakeVoice.tsx:10). The declared `relay` capability (provider-traits.ts) is what the server branches on, so the surface has bypassed the engine seam. A second relay-capable or self-hosted provider would read as 'unconfigured' here until someone hunts the surface code.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "talking-avatar",

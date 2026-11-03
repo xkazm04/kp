@@ -2052,84 +2052,106 @@
       "subject": "voice-io",
       "bundle": "software-engineering",
       "state": "conformant",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T02:20:44.632Z",
-      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:21:45.799Z",
+      "worker": "4c23d557-bc49-4eda-8ba1-59f21e310867",
       "techniques": [
         {
           "technique": "engine-choice-on-decisive-terms",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 wer.py matches terms longest-prefix-first, reports the missing list, and keeps diacritics. recognizers.py and bakeoff.py in this same directory (not in the context map file list) rank a second engine on recall with WER as a threshold."
-        },
-        {
-          "technique": "duplex-agent-sessions",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:8 The harness mints a candidate-mode session so the run sends the app's agentPrompt, and voice_checks flags a run that has no prompt to send."
-        },
-        {
-          "technique": "decode-time-vocabulary-biasing",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:67 An empty keyword override is omitted because it would bias toward nothing; a missing list is not sent as an empty one."
-        },
-        {
-          "technique": "on-device-vs-cloud",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/tts.py:33 Local Piper speaks the candidate, and a language with no voice is refused instead of being spoken in an English voice. The ElevenLabs session is an explicit cloud connect."
-        },
-        {
-          "technique": "real-time-synthesis-budget",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:205 First-audio latency is measured on the real websocket path and gated as p95, which is the network figure a hosted engine still owes."
-        },
-        {
-          "technique": "stt-pipeline",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:48 A no-word capture is a dropped utterance, counted apart from word errors."
-        },
-        {
-          "technique": "speech-ready-text",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:33 The persona is told to speak short prose without markup, and clip_spoken cuts on a word boundary."
-        },
-        {
-          "technique": "transcript-normalization",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/wer.py:9 The scoring normalizer folds case, punctuation, and spelled numbers, and it keeps diacritics because this transcript is evidence."
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 Missing decisive terms are a hard gate and are listed by name. WER is only a budget threshold (line 191). bakeoff.py:95 ranks eligible engines on -recall first. wer.py matches terms longest-first with a bounded inflection suffix and deliberately excludes short ambiguous terms."
         },
         {
           "technique": "engine-abstraction",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/eval/voice/recognizers.py:54 The choice instrument is a PCM-in transcript-out protocol; adding an engine is a register call, and the ElevenLabs session driver stays the regression path."
+          "evidence": "pipeline/jobfit/eval/voice/recognizers.py:17 The selection instrument has its own narrow PCM-in/transcript-out recogniser seam, separate from the EL session driver, so it can reach a second engine. bakeoff reports unreachable engines rather than dropping them."
         },
         {
-          "technique": "voice-ux-integration",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:3 The driver is headless; there is no capture affordance or narration surface here."
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:209 Catches the silent fall-back to the account-side config (an ignored or absent session override) as a gate failure rather than a green run."
+        },
+        {
+          "technique": "bounded-playback-wait",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:307 The wait for the agent's turn is bounded by a fixed deadline and by the streamed audio's virtual playback clock, not by chunk arrival. It exits early when the driver has already errored."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:39 Persona replies are capped at a word boundary before synthesis, and the persona is told 'no lists, no markdown' (line 33). This is a minimal door for harness-generated text."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:189 'Heard nothing' is a distinct failure from a session error (line 184) and from 'nothing was spoken' (line 186). An empty transcript is never read as success."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:34 Voice identity is per-language with no silent substitute voice. An unsupported language is refused with the reason instead of being spoken in the wrong voice."
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:12 The synthetic candidate's TTS runs on-device (Piper), and the one cloud egress is stated explicitly."
         },
         {
           "technique": "transcript-handoff-receipts",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:113 Transcripts stay on the run for scoring; nothing inserts them into another application."
+          "evidence": "pipeline/jobfit/eval/voice/app_client.py:199 The transcript goes to the product's own /complete route, never into a foreign app through a clipboard."
         },
         {
-          "technique": "portable-provider-package",
+          "technique": "voice-setup-experience",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/tts.py:1 Piper here is the harness mouth, wired to this eval, not a host-seamed package."
-        },
-        {
-          "technique": "authored-voice-identity",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/tts.py:28 Voices are named Piper files, one per language, not descriptions or clones."
-        },
-        {
-          "technique": "spoken-intent-parsing",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:155 The transcript is scored; these files do not turn it into a typed command."
+          "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:116 A developer CLI harness with no end-user first-run voice flow."
         },
         {
           "technique": "unattended-caller-attribution",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:270 This is a sealed outbound eval client, not a door other programs use to make the machine speak."
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:5 Synthesized speech is streamed into a provider socket, not played into a room, so there is no unhosted caller speaking to a listener."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:67 An empty keyword override is omitted because it would bias toward nothing; a missing list is not sent as an empty one.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "real-time-synthesis-budget",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:205 First-audio latency is measured on the real websocket path and gated as p95, which is the network figure a hosted engine still owes.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:9 The scoring normalizer folds case, punctuation, and spelled numbers, and it keeps diacritics because this transcript is evidence.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:3 The driver is headless; there is no capture affordance or narration surface here.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:1 Piper here is the harness mouth, wired to this eval, not a host-seamed package.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "authored-voice-identity",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:28 Voices are named Piper files, one per language, not descriptions or clones.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:155 The transcript is scored; these files do not turn it into a typed command.",
+          "carriedFrom": "2026-10-13"
         }
       ],
       "superseded": [
@@ -2139,6 +2161,13 @@
           "evaluatedAt": "2026-09-22",
           "worker": null,
           "reason": "replaced by bcee8cec-f63e-4301-8803-a25550497567"
+        },
+        {
+          "state": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, and aggregate word-error rate is a separate budget, so the aggregate does not decide the gate.",
+          "evaluatedAt": "2026-10-13T02:20:44.632Z",
+          "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+          "reason": "replaced by 4c23d557-bc49-4eda-8ba1-59f21e310867"
         }
       ]
     },
@@ -21928,6 +21957,47 @@
       "evaluatedTs": "2026-11-03T17:46:19.583Z",
       "worker": "b142996e-2b28-481c-9b56-a9c48aa643b9",
       "techniques": []
+    },
+    "475eb882-f8e1-47ea-9d34-2534405506c6/voice-io": {
+      "context": "jd-intake-voice",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:21:45.799Z",
+      "worker": "4c23d557-bc49-4eda-8ba1-59f21e310867",
+      "techniques": [
+        {
+          "technique": "engine-abstraction",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/intake/voicePhase.ts:149 An engine name in surface code: it branches on provider identity instead of the declared relay capability, and startOpenAiCall/teardownOpenAi are hard-wired in the component."
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:36 Transport-vs-brain is decided explicitly as transport. Our engine produces each reply, and dialog state is server-side after every exchange."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/voicePhase.ts:30 Mic denial, no device and busy are distinct, recoverable states, rendered separately from transport or API failures."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:357 A degraded voice affordance gives one honest sentence: 'unconfigured' is separated from 'could not ask', with a recheck, and typing stays available. Refused autoplay gets an enable-audio control (line 407)."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeVoice.tsx:340 Audio and session are torn down on unmount, and the closing-line hang-up timer is cancellable (voicePhase.scheduleHangUp), so speech does not outlive its surface."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/voiceOrchestration.ts:54 Utterances bound for a reasoner (the intake engine) are only trimmed and coalesced, never rewritten. That matches 'never normalize toward a reasoner'."
+        }
+      ]
     }
   }
 }
