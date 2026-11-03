@@ -1496,19 +1496,50 @@
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-12",
-      "evaluatedTs": "2026-10-12T22:15:58.163Z",
-      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:44:29.181Z",
+      "worker": "2ee6b08e-9a20-4694-ae1c-cf867b2b736a",
       "techniques": [
-        {
-          "technique": "consumer-coupled-decoration",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/intake.py:310 Numbered transcript decoration has a named consumer: the extraction contract requests sourceTurn citations, and the renderer documents that purpose."
-        },
         {
           "technique": "context-budgeting",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/intake.py:307 Traced from the intake message route through intake-run: render_transcript drops older turns, while run_turn labels the result CONVERSATION SO FAR without an omission notice."
+          "evidence": "pipeline/jobfit/intake.py:1677 The windowed transcript is labelled as the whole conversation and the omitted count is never stated. The model only sees absolute [N] indices. The attachment rung does it right: it marks its cut at line 1558."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/message/route.ts:143 The route hands typed inputs (transcript, brief, message, lang, attachments, dossier) to one engine assembler per family and never passes pre-rendered prompt text. The stable system brief is passed separately from the per-call prompt."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/intake.py:1562 Third-party attachment text enters at one declared, fenced insertion point. The text is defused and labelled as reference data, not instructions. The requestor message has its own fence."
+        },
+        {
+          "technique": "tiered-history-projection",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/intake.py:44 The technique's own gates are not met. Intake dialogs rarely outgrow a 48-turn tail, and long-range continuity is carried by the accumulated RoleBrief, not by a summary pyramid."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/intake.py:1686 The intake call grants no tools or operations, only an output schema, so there is no capability registry to document."
+        },
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/intake.py:310 Numbered transcript decoration has a named consumer: the extraction contract requests sourceTurn citations, and the renderer documents that purpose.",
+          "carriedFrom": "2026-10-12"
+        }
+      ],
+      "registryProposal": "context-budgeting could name a softer variant of the 'silent partial view': absolute turn indices like [12] imply that earlier history exists, but they do not count as a notice. The rule should say whether an implied gap satisfies 'truncation names what it dropped'.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/intake.py:307 The intake assembler renders only the recent transcript tail under a conversation-so-far heading without telling the model how much earlier history was omitted.",
+          "evaluatedAt": "2026-10-12T22:15:58.163Z",
+          "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+          "reason": "replaced by 2ee6b08e-9a20-4694-ae1c-cf867b2b736a"
         }
       ]
     },
@@ -21847,6 +21878,26 @@
         }
       ],
       "registryProposal": "fixture-economics could name a shape this case shows: a cross-language seeder (Python) tested against a hand-narrowed copy of a schema owned by another language (TS). The freshness fingerprint has no shared builder to hang on, so the remedy is to read the real DDL or check the narrowed columns against it."
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/prompt-assembly": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:44:29.181Z",
+      "worker": "2ee6b08e-9a20-4694-ae1c-cf867b2b736a",
+      "techniques": []
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/prompt-assembly": {
+      "context": "shell-tasks",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:44:29.181Z",
+      "worker": "2ee6b08e-9a20-4694-ae1c-cf867b2b736a",
+      "techniques": []
     }
   }
 }

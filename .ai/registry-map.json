@@ -6881,12 +6881,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/intake.py:307 The intake assembler renders only the recent transcript tail under a conversation-so-far heading without telling the model how much earlier history was omitted.",
-          "evaluatedAt": "2026-10-12",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "pipeline/jobfit/intake.py:307 The intake assembler that the message route calls keeps only the last 48 turns and renders them under 'CONVERSATION SO FAR' with no line saying earlier turns were left out, so a long session shows the model a partial history that looks complete (the earlier stale verdict still holds).",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -12138,7 +12137,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:17 These pure client-side modules only read verdict provenance out of stored approval payloads and never build a model request. A search of app/features/hiring/decisions/ for prompt, maxTokens, system_prompt and contextWindow found zero hits.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -31756,7 +31759,11 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksProviderTypes.ts:49 The tasks panel starts server tasks by a closed kind plus params and renders their ledger. Any prompt is assembled server-side elsewhere. A search of app/features/shell/tasks/ for prompt, maxTokens, system_prompt, contextWindow and transcript found zero hits; the only 'llm' hit is a comment in TasksIndicator.tsx.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
