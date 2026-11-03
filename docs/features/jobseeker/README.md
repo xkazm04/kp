@@ -638,7 +638,7 @@ owner questions and are never deleted from their words. Bullets are ranked by th
 ladder (a stated number > a stated scale > a before/after > action and object) and budgeted by
 recency: 6 for the current role, 4 within ten years, 2 older, one line past 15 years or off
 target (`CvRole.compact`); a role is never deleted, and bullets over budget are held back
-(`trimmed`, never printed; the designer lists them per role under "lines held back for length"). Skills are evidenced-first and capped at 15, with a level WORD, never
+(`trimmed`, never printed; the designer lists them per role under "lines held back for length"). Roles print newest first: a fully dated history written oldest first (a Lebenslauf) is re-ordered by end year before the budget is applied, so the oldest role never takes the current role's budget; an undated role leaves the CV's own order alone (`cvDocument.ts`). Skills are evidenced-first and capped at 15, with a level WORD, never
 pips; a skill no role shows, and a soft-skill list, becomes an owner question. Languages carry
 their CEFR level when stated. Bold is at most 2 terms per role, never in the skills list.
 Non-job evidence (projects, thesis, courses, certifications) becomes a dated `projects`

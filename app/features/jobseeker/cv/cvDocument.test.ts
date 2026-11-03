@@ -281,3 +281,35 @@ test("a self-rating meter is neither re-drawn nor read as a level: the word surv
   // A meter in the name must not read as "listed only" evidence the owner never gave.
   assert.ok(!withSkills(["Postgres 85%", "Kafka"]).questions.some((q) => q.kind === "listed_only" && /%/.test(q.text)));
 });
+
+test("a CV written oldest first prints newest first, and the budget follows the role's age, not its line", () => {
+  // technique relevance-ordering-and-recency-compression: section order never reorders
+  // time; inside a dated section entries run newest first. A Lebenslauf-style CV lists
+  // its oldest role first, and read in that order the oldest role took the current
+  // role's budget.
+  const five = (w: string) => [1, 2, 3, 4, 5].map((n) => `Delivered ${w} result ${n} for the team.`).join(" ");
+  const job = (title: string, w: string) => ({ kind: "job", title, text: five(w) });
+  const build = (evidence: { kind: string; title: string; text: string }[]) =>
+    buildCvDocument({ profile: { displayName: "Jana", evidence }, preferences: { targetTitles: [] }, cvSourceText: null, today: new Date("2026-10-31T00:00:00Z") });
+  const oldestFirst = build([
+    job("Analyst — Gamma Bank (2009 - 2012)", "gamma"),
+    job("Data Engineer — Acme Retail (2013 - 2019)", "acme"),
+    job("Platform Engineer — Delta Labs (2020 - present)", "delta"),
+  ]);
+  assert.deepEqual(
+    oldestFirst.experience.map((r) => [r.org, r.bullets.length]),
+    [
+      ["Delta Labs", 5],
+      ["Acme Retail", 4],
+      ["Gamma Bank", 2],
+    ]
+  );
+  // Compression keeps the interval: the held-back bullets are listed, never lost.
+  assert.equal(oldestFirst.experience[2]!.trimmed!.length, 3);
+  // A CV already newest first is untouched, and a role with no date leaves the CV's
+  // own order alone: there is nothing to order it by.
+  const newestFirst = build([job("Platform Engineer — Delta Labs (2020 - present)", "delta"), job("Analyst — Gamma Bank (2009 - 2012)", "gamma")]);
+  assert.deepEqual(newestFirst.experience.map((r) => r.org), ["Delta Labs", "Gamma Bank"]);
+  const undated = build([job("Analyst — Gamma Bank (2009 - 2012)", "gamma"), job("Volunteer — Epsilon Club", "eps"), job("Platform Engineer — Delta Labs (2020 - present)", "delta")]);
+  assert.deepEqual(undated.experience.map((r) => r.org), ["Gamma Bank", "Epsilon Club", "Delta Labs"]);
+});

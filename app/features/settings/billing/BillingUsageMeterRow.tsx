@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import type { MeterOverview } from "@/app/_lib/billing";
 import { meterCta } from "./billingMeterCta";
-import { meterForecast, type ForecastWindow } from "./meterForecast";
+import { boundaryDateOptions, meterForecast, type ForecastWindow } from "./meterForecast";
 
 // One usage meter: name, used-vs-limit progress bar, pack credits, and the
 // over-quota flag. A null limit is the BYOM "unlimited" state — no bar, just
@@ -62,7 +62,7 @@ export function MeterRow({
             ? t("forecast.overage")
             : forecast.kind === "runsOutBeforeReset"
               ? t("forecast.runsOut", {
-                  date: format.dateTime(new Date(forecast.runsOutAt), { day: "numeric", month: "short", timeZone: "UTC" }),
+                  date: format.dateTime(new Date(forecast.runsOutAt), boundaryDateOptions("short")),
                   days: forecast.daysBeforeReset,
                 })
               : null;

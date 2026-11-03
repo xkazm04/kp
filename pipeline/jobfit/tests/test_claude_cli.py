@@ -336,10 +336,14 @@ class SettingSourcesTest(unittest.TestCase):
         idx = args.index("--setting-sources")
         self.assertEqual(args[idx + 1], "project")
 
-    def test_repo_scan_keeps_default_setting_sources(self) -> None:
-        # Behavior parity for the scan path — no isolation flag added there.
+    def test_repo_scan_does_not_load_the_scanned_repos_settings(self) -> None:
+        # The cwd is the scanned repo: loading its project/local sources would
+        # run its hooks and obey its CLAUDE.md under a "read-only" scan
+        # (measured 2026-11-03, CLI 2.1.317). User sources only.
         args = ClaudeCliProvider(command=__file__).with_repo_access("/repo").cli_args()
-        self.assertNotIn("--setting-sources", args)
+        idx = args.index("--setting-sources")
+        self.assertEqual(args[idx + 1], "user")
+        self.assertEqual(args.count("--setting-sources"), 1)
 
 
 class JsonTest(unittest.TestCase):
