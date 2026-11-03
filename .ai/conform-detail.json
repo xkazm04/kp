@@ -21998,6 +21998,82 @@
           "evidence": "app/features/library/jds/intake/voiceOrchestration.ts:54 Utterances bound for a reasoner (the intake engine) are only trimmed and coalesced, never rewritten. That matches 'never normalize toward a reasoner'."
         }
       ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/quality-gates": {
+      "context": "security-agent-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:59:16.862Z",
+      "worker": "5a6a5855-bf92-43fd-9898-9bf85529bb6c",
+      "techniques": [
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:99 Location key: a real key pasted into any README.md (or docs/) is exempt, and the pass message at :202 claims the property rather than declaring itself a floor."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "scripts/security/check-actions.mjs:585 A missing workflow dir becomes zero files, which leads to zero findings and the 'every action is pinned' message with exit 0. Could-not-run folds into pass, though the check-actions fixture's readdirSync on the real dir partly backstops it."
+        },
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:334 Gate scripts, ratchet files and quarantine are protected. Test sources, helpers and fixtures are only protected against DELETION, so a dispatched agent can still weaken (rewrite) the test it is asked to make pass."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:25 The network-dependent --resolve is split off from the offline, tree-deterministic ratchet that blocks."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:706 The exit code is tied directly to blocking-severity findings. 'warn' notes cannot fail the build, by construction."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/security/secret-scan.mjs:40 Entropy and bare-prefix rules are excluded on purpose so that a match is worth stopping a build for."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/security/secret-scan.mjs:212 The refusal names the remedy that actually fixes it (rotation) and the sanctioned place for example shapes."
+        },
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:184 Each pin exception waives exactly one action@ref, carries a why, and a stale entry is itself blocking. Secrets are un-waivable (secret-scan.mjs:25)."
+        },
+        {
+          "technique": "self-reported-gate-inputs",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:197 The ceiling override lives where the gated agent cannot write during the run it would authorize."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/budget.mjs:122 Missing usage is metered as unknown or estimated (rounded up, still spends the ceiling, never priced) rather than as zero."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:150 The hand list of protected paths is checked against a set derived from the gates CI actually runs."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:5 A prose claim ('every action is pinned') that was false outside ci.yml is now mechanised repo-wide."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:59 It explicitly states that run-injection's green does not cover the quoting question, and adds a separate rule for it."
+        }
+      ]
     }
   }
 }

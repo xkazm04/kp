@@ -29780,7 +29780,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:202 The secret scan's pass states the property ('no committed credential') even though its key includes an author-movable path exemption (any README.md, docs/), so the green reports as a ceiling when it is really a floor of listed shapes outside exempt paths.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "mcp-tools",
