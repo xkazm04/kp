@@ -35771,7 +35771,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/tasks/tasks-route-tenancy.test.ts:71 The route-contract test proves each task route 'resolves a tenant via withWorkspace' with a bare-token regex over raw source. The import line (for example app/api/tasks/seen/route.ts:3) satisfies it on its own, so for seen/ and history/, whose other patterns only check that a `ws` argument is threaded, a handler that dropped the wrapper but kept the import and a local `ws` would pass.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "test-harness",

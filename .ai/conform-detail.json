@@ -22924,6 +22924,32 @@
         "at": "2026-11-04T02:41:28.150186+00:00",
         "reason": "reviewer (sonnet): The anchor profile/route.ts:32 is an ordinary handler line that does not show the absence of any gate, ratchet or suppression; the claim rests only on a keyword search. The search terms were narrow, and app/api/jobseeker/cvs/cvs-route.test.ts:88 and :95 read route source files, so the 'readFileSync "
       }
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/quality-gates": {
+      "context": "workspace-config-api",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:52:46.653Z",
+      "worker": "fbc4c4d1-a6b9-4159-b96a-d8872f5f11ce",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/tasks/tasks-route-tenancy.test.ts:71 Raw text with no normalisation. The needle appears in the import, so this leg cannot tell 'imported' from 'wraps the handler'."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/api/tasks/tasks-route-tenancy.test.ts:90 The ordering assertion first proves both needles exist, so a reworded guard is a failure rather than a vacuous ordering pass."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "app/api/profile/profile-spawn-timeout.test.ts:12 The 60s spawn bound is checked against the source shape rather than measured by waiting, which keeps a blocking unit gate deterministic given the tree."
+        }
+      ]
     }
   }
 }
