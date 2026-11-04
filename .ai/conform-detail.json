@@ -23168,6 +23168,68 @@
           "evidence": "app/api/interview/connect/route.ts:543 Provider failover happens at connect, before any turn. The resume carries plain-text turns the browser posted, not provider-minted continuation metadata, so no sealed segment is replayed across endpoints."
         }
       ]
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/prompt-assembly": {
+      "context": "llm-config-provider",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:14:42.052Z",
+      "worker": "39aafb6c-6989-4fef-a9c9-94daf3332834",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-config.ts:334 The model-identity input to the cache key is computed by a different lookup than the live route resolution uses, which breaks gate-sees-target: a wildcard-routed model switch leaves the fingerprint at \"\" and the stamp never changes."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/prompt-assembly": {
+      "context": "voice-interview-components",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:14:42.052Z",
+      "worker": "39aafb6c-6989-4fef-a9c9-94daf3332834",
+      "techniques": [
+        {
+          "technique": "variable-interpolation",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/openai.ts:173 An untrusted span (model reply passed in from JdsIntakeVoice data.reply) is interpolated into the instruction field with no trust class, delimiter or fence."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:172 The interviewer prompt is assembled on the server and the client only forwards it verbatim; it adds no prompt text of its own on this path."
+        },
+        {
+          "technique": "context-ownership-regimes",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/openai.ts:292 In the agent-held realtime protocol the client sends only deltas (one directive item) and never edits or compacts the provider-held conversation."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:196 Client tools are registered from the single director vocabulary rather than a hand-written list, so the registered tools cannot drift from the dispatcher."
+        }
+      ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/prompt-assembly": {
+      "context": "analyze-engine",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:14:42.052Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "39aafb6c-6989-4fef-a9c9-94daf3332834",
+        "state": "not-applicable",
+        "at": "2026-11-04T04:15:13.034842+00:00",
+        "reason": "reviewer (sonnet): The anchor at analyzeRunAnalysis.ts:22 is only an import line (submitAnalysis/watchAnalysis) and does not itself show that no prompt, budget or fingerprint is built in this context, so the not-applicable rests on an incidental anchor plus a keyword grep."
+      }
     }
   }
 }

@@ -4307,8 +4307,8 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "quality-gates",
@@ -22754,8 +22754,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/llm-config.ts:334 llmRouteFingerprint looks up only the exact use-case row, but both configuredModelFor (line 294) and the Python resolver (pipeline/jobfit/llm/config.py for_use_case: `use_cases.get(use_case) or use_cases.get(\"*\")`) fall back to the \"*\" wildcard row, so an operator who re-routes cv_analysis through the wildcard gets an empty fingerprint and the analyze cache serves the previous model's results for the whole TTL.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "settings",
@@ -34742,8 +34746,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/_components/voice/transport/openai.ts:173 speakText concatenates the intake agent's LLM reply (prior model output, which the standard classes as untrusted) straight onto the per-response instruction after a bare newline, with no declared insertion point or fence, so payload text is read by the realtime model as part of its own instructions; the <<END>> sentinel that was once read aloud (app/api/intake/reply-sentinel.ts) is this bleed showing up.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
