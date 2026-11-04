@@ -2711,7 +2711,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/agent-hire/transform-run.ts:13 The bridge spawns the Python agentfit_cli on a temp workdir and talks to the Personas loopback API. Its systemPromptDraft is a product prompt artifact (prompt-assembly), not a repo instruction file a coding harness loads, and a search of app/_lib/agent-hire and app/_lib/app-master for CLAUDE.md, AGENTS.md, setting-sources, cursorrules and instruction found nothing.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "mcp-tools",
@@ -9405,7 +9409,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/repo_scan.py:1099 The scan keeps the target repo's CLAUDE.md out of the harness's instruction channel (claude_cli passes `--setting-sources user` in repo_scan mode), but build_prompt then puts that same foreign file back into the prompt, unfenced and labelled as instructions to a machine reader, so a third-party tree's brief still reaches the agent as steering rather than as data.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "prompt-assembly",
@@ -10274,7 +10282,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 This context is browser-side intake and fetch glue to /api routes. A search of app/features/tools/analyze for CLAUDE.md, AGENTS.md, setting-sources, cursorrules and instruction found nothing, so it neither authors, loads nor launches an agent under an instruction file.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "eval-harness",
@@ -33185,7 +33197,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_repo_scan.py:354 The repo-scan prompt test checks that a fixture CLAUDE.md's text reaches the prompt. It never checks that the text is fenced as data, and the read-only access tests in this file check tools and permission mode but not which instruction sources load, so the downward-injection channel is locked in rather than guarded.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"

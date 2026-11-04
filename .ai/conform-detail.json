@@ -23230,6 +23230,69 @@
         "at": "2026-11-04T04:15:13.034842+00:00",
         "reason": "reviewer (sonnet): The anchor at analyzeRunAnalysis.ts:22 is only an import line (submitAnalysis/watchAnalysis) and does not itself show that no prompt, budget or fingerprint is built in this context, so the not-applicable rests on an incidental anchor plus a keyword grep."
       }
+    },
+    "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/agent-instruction-files": {
+      "context": "companion-appmaster",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:24:35.523Z",
+      "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/repo_scan.py:1099 The technique says that in a tree somebody else owns, the instruction file is data. The prompt calls it 'instructions', and unlike the GitHub review path (fence.ts) and devcase fenced_untrusted it adds no fence and no data-not-instructions clause. No run records or asserts which instruction files were loaded."
+        },
+        {
+          "technique": "line-earning",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/repo_scan.py:891 This module reads other repos' instruction files as scan input. It does not author an always-loaded file of its own, so the admission test has nothing to judge here."
+        }
+      ],
+      "registryProposal": "workspace-ancestry-isolation covers keeping a foreign tree's file out of the loaded set, but it says nothing about a tool that removes the file from discovery and then pastes it into its own prompt. That re-injection path could be stated outright: excerpting a foreign instruction file into a prompt should carry the same 'data, not brief' framing."
+    },
+    "9e9394dd-7db6-4f2a-b864-614fb416d9e9/agent-instruction-files": {
+      "context": "tests-companion-voice",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:24:35.523Z",
+      "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_repo_scan.py:354 The test covers the grounding but neither the isolation nor a data fence. The `--setting-sources user` check lives in test_claude_cli.py, which is outside this context."
+        },
+        {
+          "technique": "instruction-freshness",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_repo_scan.py:115 The only CLAUDE.md here is a throwaway fixture inside a TemporaryDirectory, not a maintained instruction file."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/agent-instruction-files": {
+      "context": "cv-analyze-intake",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:24:35.523Z",
+      "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
+      "techniques": []
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/agent-instruction-files": {
+      "context": "agent-hire-app-master",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:24:35.523Z",
+      "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
+      "techniques": []
     }
   }
 }
