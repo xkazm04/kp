@@ -3267,7 +3267,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/analyticsCalibrationFloorGate.test.ts:114 This guard matches the raw chips source even though the file defines a comment-stripping code() helper. AnalyticsFamilyFloorChips.tsx:21 carries `screening.autoRejectEnabled` in a doc comment, so the assertion 'the chips must receive the flag' would stay green if the prop were removed.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "prompt-assembly",
@@ -31368,7 +31372,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:316 The finish/settle source guard pairs absence assertions on finish() (lines 307-308) with presence assertions on settle() over raw useCallback bodies that contain comments. The presence controls are not normalised to code, as the standard requires. No comment currently satisfies them.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "wizard-flows",

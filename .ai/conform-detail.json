@@ -22627,6 +22627,48 @@
           "evidence": "packages/voice-tts/src/node/resolve-bin.ts:3 Readiness is asserted from the instrument itself, not from a flag."
         }
       ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/quality-gates": {
+      "context": "analytics-calibration",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:19:31.324Z",
+      "worker": "aba35055-180d-4723-8124-12e19ea71bfd",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsFamilyFloorChips.tsx:21 The needle the test-line-114 guard looks for sits in a comment, so the presence assertion is not normalised to code. code() at test line 31 exists and is used for other assertions, but not this one."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:73 A missing Brier score resolves to an explicit unknown verdict and never reads as trustworthy."
+        }
+      ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/quality-gates": {
+      "context": "shell-setup-wizard",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:19:31.324Z",
+      "worker": "aba35055-180d-4723-8124-12e19ea71bfd",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:316 Presence assertion over a raw slice of OnboardingExperience.tsx. The settle body carries comment lines 249-251 and 256-257."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:296 A missing extraction target fails loudly, so absence assertions cannot pass over an empty slice."
+        }
+      ]
     }
   }
 }
