@@ -10000,7 +10000,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/calibration-holdout-arm.test.ts:161 The holdout-arm call-site guard runs a presence regex over raw route source (routeSource() neither strips comments nor normalises CRLF), so prose naming the helper would satisfy it. The lockstep test in the same context does better: it normalises line endings, anchors `^const …;$` patterns and asserts each needle present.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "translation-pipeline-topology",
@@ -25479,7 +25483,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/attention-tenancy.test.ts:75 The tenancy call-site contract is a presence match over raw route source with no normalisation to executing code, so a comment that names `attentionCounts(ws)` would keep it green after the scoped call was removed. That is the false negative the technique names. Today the only match is code (route.ts:13), so the hole is latent, not exploited.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "pipeline-stage-modelling",

@@ -22867,6 +22867,63 @@
           "evidence": "app/_lib/db/pipeline-close-guard.test.ts:54 Renaming the function the detector keys on makes the guard fail loudly instead of silently dropping the finding."
         }
       ]
+    },
+    "ea210994-45ae-4cb6-8143-23633254094a/quality-gates": {
+      "context": "pipeline-actions-commands",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:40:53.368Z",
+      "worker": "489fa1af-758f-42e3-9ee7-884da49c9664",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/_lib/attention-tenancy.test.ts:75 Raw-text presence pin (unsafe direction); the haystack keeps comments and has no seeded prose/code pair."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-approval-cas.test.ts:96 Population count is asserted before each write is checked for expectedApprovalKind, so an empty match set cannot pass vacuously."
+        }
+      ]
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/quality-gates": {
+      "context": "cv-analysis-archetypes",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:40:53.368Z",
+      "worker": "489fa1af-758f-42e3-9ee7-884da49c9664",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/_lib/calibration-holdout-arm.test.ts:161 Raw-text presence pin. The positive-control half is done well elsewhere (archetype-registry-lockstep.test.ts:38 asserts the Python needle exists before comparing it)."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/_lib/match-score.test.ts:131 The negative-space sweep asserts its walk reached the decision-layer files before it reports zero offenders. Lockstep test :71-76 also guards against going vacuous."
+        }
+      ]
+    },
+    "81e52844-53c6-4e24-a255-6d199f016b0b/quality-gates": {
+      "context": "jobseeker-api",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:40:53.368Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "489fa1af-758f-42e3-9ee7-884da49c9664",
+        "state": "not-applicable",
+        "at": "2026-11-04T02:41:28.150186+00:00",
+        "reason": "reviewer (sonnet): The anchor profile/route.ts:32 is an ordinary handler line that does not show the absence of any gate, ratchet or suppression; the claim rests only on a keyword search. The search terms were narrow, and app/api/jobseeker/cvs/cvs-route.test.ts:88 and :95 read route source files, so the 'readFileSync "
+      }
     }
   }
 }
