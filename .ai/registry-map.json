@@ -10387,8 +10387,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/analyze/useAnalyzeForm.ts:82 The workspace is a recruiter UI that submits form data to /api/analyze. A recursive grep of app/features/tools/analyze for prompt-builder vocabulary (systemPrompt, buildPrompt, fenced_untrusted, max_tokens) found nothing, so no prompt is assembled in this context.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -16626,8 +16630,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/decisions/screen-wave/route.ts:110 These routes authorize, validate and hand typed arguments to library runners such as runScreenWave and getGroupEval. A case-insensitive grep of app/api/decisions and app/api/feedback for prompt, systemPrompt, fenced_untrusted and max_tokens found nothing, so any prompt assembly happens in app/_lib, outside this context.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "combining-signals-into-a-hire-decision",
@@ -24580,8 +24588,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:17 This settings UI pins a provider and model per capability and passes headless params such as maxTokens through without sizing them. A case-insensitive grep of app/features/settings/models for prompt, systemPrompt, fenced_untrusted and max_tokens found nothing, so no prompt is composed and no response reservation is chosen here.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "multi-provider-gateway-plane",

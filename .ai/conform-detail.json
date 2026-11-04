@@ -23619,6 +23619,36 @@
       "evaluatedTs": "2026-11-04T05:18:45.314Z",
       "worker": "e35a2482-eaab-411a-b2e5-a6bdf73e5093",
       "techniques": []
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/prompt-assembly": {
+      "context": "cv-analyze-workspace",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:35:05.810Z",
+      "worker": "3146af05-1e8d-4105-97e6-fd831253b9f0",
+      "techniques": []
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/prompt-assembly": {
+      "context": "models-keys-and-routing",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:35:05.810Z",
+      "worker": "3146af05-1e8d-4105-97e6-fd831253b9f0",
+      "techniques": []
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/prompt-assembly": {
+      "context": "hiring-decisions-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:35:05.810Z",
+      "worker": "3146af05-1e8d-4105-97e6-fd831253b9f0",
+      "techniques": []
     }
   }
 }
