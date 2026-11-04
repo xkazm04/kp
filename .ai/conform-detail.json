@@ -23003,6 +23003,93 @@
       "evaluatedTs": "2026-11-04T03:10:04.238Z",
       "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
       "techniques": []
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/quality-gates": {
+      "context": "cv-analyze-workspace",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:28:38.505Z",
+      "worker": "d15a75bc-a200-4777-82d5-febba4d9f37e",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:51 The haystack is raw source, not normalised to what executes. The import line `import { ... EYEBROW, INTRO, PANEL, TITLE_DISPLAY }` on HistoryTab.tsx:5 matches this pattern by itself, and comments are not stripped either."
+        },
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:42 The 're-typed PANEL' absence check is keyed on one literal class order. Reordering the same classes re-types the card and passes. Meanwhile the header (line 10) says each assertion names the property rather than the string."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:79 The test confirms all three needles exist before it compares their DOM order, so a missing control turns the test red instead of making the order comparison pass by default."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:37 Each failure message names the file and the recipe to apply. The remedy resolves inside the tree."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:1 The 'compose recipes, do not re-type them' rule used to exist only as prose. Here it is mechanised for this surface, and the header records the drift that happened while it was prose-only (21 files with no recipe imports)."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:22 The guard reads only files from the tree it gates, so it is deterministic and may legitimately block."
+        }
+      ]
+    },
+    "1b76972a-b723-44f7-a452-16729228461f/quality-gates": {
+      "context": "jobseeker-feed-rules",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:28:38.505Z",
+      "worker": "d15a75bc-a200-4777-82d5-febba4d9f37e",
+      "techniques": [
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:232 Missing robots.txt is split correctly: 4xx, meaning no policy published (the subject's world), is allowed, and 5xx refuses. But a network failure is a gap in the instrument and is resolved as compliance. The warning is logged once and is not counted on any surface. politeFetch.test.ts:168 pins this behaviour."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/dsl.ts:41 The capture-group count comes from the regex engine itself, not from scanning the pattern text, and a pattern that fails to compile is refused."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/dsl.ts:64 The nested-quantifier scanner is not a parser, so it refuses the form it cannot clear. Its scope (model- or owner-authored rules) is code the system controls, which is the precondition the technique requires."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/dsl.ts:123 Each refusal names the rule index, the field and the fix (flatten it, or one of the listed values)."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:196 The same check that validation runs is repeated at execution time, which catches rules stored before the gate existed."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/rules.test.ts:153 Six known-bad patterns are seeded and each must be refused, so the gate has been seen going red."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/rules/collapse.ts:13 The collapse gate pauses a source only when a required rule yields nothing, or when an optional rule with an established baseline (≥5 matches) yields nothing. Rarely-matching optional fields cannot trip it."
+        }
+      ]
     }
   }
 }

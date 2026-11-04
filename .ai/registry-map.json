@@ -10379,7 +10379,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:51 The design-surface source guard checks that HistoryTab 'uses' EYEBROW/TITLE_DISPLAY/INTRO by matching the raw file text, and the import on HistoryTab.tsx:5 already satisfies that match, so the presence check would stay green even if the recipe were imported but never applied.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "table",
@@ -21833,7 +21837,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:232 When robots.txt cannot be reached (network error or timeout), the robots gate fails open and proceeds as allowed, so a hole in the gate's own vision reads as permission. The same function treats a 5xx as an outage that refuses (lines 220-222), and RFC 9309 treats unreachable as a full disallow.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-memory",
