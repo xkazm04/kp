@@ -22655,8 +22655,8 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "optional-dependency-degradation",
@@ -25524,8 +25524,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/pipeline-entry-action.ts:376 This is the in-process command layer for pipeline advance, reject and hold, guarded by CAS. A search of app/_lib for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so these commands are not published as model-invocable tools on any protocol door.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "quality-gates",
@@ -30314,7 +30318,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/api-response.ts:72 These are HTTP response, rate-limit, body-parsing and cache helpers for Next route handlers. A case-insensitive search of app/_lib for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so no tool-protocol host, client or server exists here for the subject's techniques to govern.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "translation-pipeline-topology",
@@ -34594,8 +34602,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/interview/connect/route.ts:423 The only tools here are director tool definitions sent to the realtime voice vendor in its own function-calling format, which the golden path explicitly excludes. A search of app/api/interview for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so there is no protocol server or host.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
