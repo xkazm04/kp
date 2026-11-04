@@ -23753,6 +23753,26 @@
       "evaluatedTs": "2026-11-04T22:13:41.653Z",
       "worker": "f0124487-70a1-424c-ba59-ef18cc5fbb18",
       "techniques": []
+    },
+    "9c0d2517-766f-4afa-b5e6-09e375334a30/mcp-tools": {
+      "context": "ats-api",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:25:38.038Z",
+      "worker": "996c4e21-e0ff-4e8e-a415-ecf8d40f6dd2",
+      "techniques": []
+    },
+    "8f7cc39a-49a1-4d6a-954d-3da22c4e8290/mcp-tools": {
+      "context": "analyze-workspace",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:25:38.038Z",
+      "worker": "996c4e21-e0ff-4e8e-a415-ecf8d40f6dd2",
+      "techniques": []
     }
   }
 }

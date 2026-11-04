@@ -4476,8 +4476,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:33 The context is the recruiter UI for CV intake and analysis history; searching app/features/tools/analyze for mcp/modelcontextprotocol/jsonrpc/tools/call found nothing, so there is no tool catalog, transport or tool-result handling to judge.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -5466,8 +5470,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/ats/test/route.ts:35 The ATS context is HTTP connector routes (config, deliveries, test, tokenized data export, edge pairing) for operators and external systems, not a tool server read by a model; a search of app/api/ats, app/api/data and app/api/edge for mcp/modelcontextprotocol/jsonrpc/tools/call returned no hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "portable-hiring-records",
