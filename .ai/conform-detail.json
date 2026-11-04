@@ -17869,46 +17869,34 @@
       "context": "platform-auth-api",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:24:03.837Z",
+      "worker": "f7050ede-4926-4e65-84f1-dae71d5d9457",
       "techniques": [],
-      "withdrawn": {
-        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
-        "state": "not-applicable",
-        "at": "2026-10-24T02:26:57.716714+00:00",
-        "reason": "reviewer (sonnet): The anchor (app/api/auth/login/route.ts:68) is an ordinary request-body line in a route handler, so it does not show that no instruction file exists. The absence claim rests only on a grep that left out CLAUDE.md."
-      }
+      "registryProposal": "The map matched this pair on the tokens 'workspaces/workspace/capability' (confidence strong). Those are product-domain words that collide with the subject's harness vocabulary, so the matcher should down-weight them for prompt-and-context subjects."
     },
     "9179c3cd-8c4f-4065-b76a-70cd6ece2944/agent-instruction-files": {
       "context": "workspace-config-api",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:24:03.837Z",
+      "worker": "f7050ede-4926-4e65-84f1-dae71d5d9457",
       "techniques": [],
-      "withdrawn": {
-        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
-        "state": "not-applicable",
-        "at": "2026-10-24T02:26:57.769056+00:00",
-        "reason": "reviewer (sonnet): The anchor (app/api/me/getting-started/route.ts:17) is an incidental session-check line that does not show the precondition is absent. The grep terms also omitted CLAUDE.md."
-      }
+      "registryProposal": "Matched on 'started/capabilities/templates' (strong). 'getting-started' and 'templates' are product onboarding/message-template terms, a false-positive class for this subject."
     },
     "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/agent-instruction-files": {
       "context": "decisions-screen-wave-logic",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:26:29.131Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:24:03.837Z",
+      "worker": "f7050ede-4926-4e65-84f1-dae71d5d9457",
       "techniques": [],
-      "withdrawn": {
-        "worker": "4fbbe799-1152-4df3-beee-990683ea2049",
-        "state": "not-applicable",
-        "at": "2026-10-24T02:26:57.842171+00:00",
-        "reason": "reviewer (sonnet): The anchor (decisionsScreenWaveMachine.ts:98) is a reducer line that says nothing about whether an instruction file is present. The \"no file\" claim comes only from a grep, not from the cited line."
-      }
+      "registryProposal": "Matched on 'decisions/machine/floor' (strong). 'Decisions' and 'state machine' are domain words here, so the use_when matcher overweights them for this subject."
     },
     "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/module-design": {
       "context": "lint-quality-gates",
@@ -22423,6 +22411,22 @@
           "technique": "vacuous-by-evaluation",
           "verdict": "conformant",
           "evidence": "app/_lib/reasoning-cache-first.test.ts:9 A bogus interpreter makes any cache miss throw, so a passing 'cache hit' assertion is proven to discriminate."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/agent-instruction-files": {
+      "context": "interview-simulator",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:24:03.837Z",
+      "worker": "f7050ede-4926-4e65-84f1-dae71d5d9457",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.ts:10 The positional rule (launch outside the span) is realized: mkdtempSync under tmpdir, and no ancestor CLAUDE.md exists on this machine. The technique's 'make the loaded set an artifact' rule is not realized: the isolation is asserted from the layout, and neither providers.ts nor providers.test.ts asserts an empty loaded-instruction list."
         }
       ]
     }

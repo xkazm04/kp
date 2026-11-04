@@ -12256,7 +12256,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": ".ai/manifest.yaml:69 Pure hiring-decision logic (screen-wave state machine, queue load, peer compare) has no agent harness, no instruction file and no spawned agent. The declared guidance set is root-level only, and a search of app/features/hiring/decisions for CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions and setting-sources found nothing.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "hiring-policy-defaults-and-tiering",
@@ -18073,7 +18077,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.ts:142 Each simulated interviewer/candidate turn spawns a `claude -p` child in an empty temp directory with `--setting-sources project`, so kp's own CLAUDE.md is kept out by where the child is launched. But no run captures or asserts which instruction files the child actually loaded, so contamination would be silent if the layout or harness walk changed.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "fleet-orchestration",
@@ -27309,7 +27317,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": ".ai/manifest.yaml:66 These are auth/workspace/health/ops route handlers and API contract tests. They neither author, load nor spawn an agent instruction file. The manifest declares the full guidance set at the repo root, and guidance:check flags any undeclared one. A search of app/api for AGENTS.md, GEMINI.md, copilot-instructions, .cursorrules and setting-sources found nothing. `.claude/CLAUDE.md` appears only as provenance comments in 7 sibling routes outside this context's file list.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "agent-cli-transport",
@@ -35634,7 +35646,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": ".ai/manifest.yaml:68 Profile, brand, palette, demo, task, template, onboarding and compliance routes configure the product workspace, not an agent harness. The declared guidance projections live at the repo root, and searches of app/api/{me,brand,palette,demo,templates,tasks,profile,compliance} for CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions and setting-sources found nothing.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "prompt-assembly",
