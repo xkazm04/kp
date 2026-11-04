@@ -16535,12 +16535,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/decisions/records/route.ts:21 Grep across hiring-decisions-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles sealed candidate decision records, peer-context lookups, and recruiter feedback without an interactive agent memory loop.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 5,
-          "stale": true
+          "evidence": "app/api/decisions/peer-context/route.ts:13 The decisions and feedback routes read stored analyses, sealed decision records and recruiter feedback rows; no agent distils or recalls memory here. recall, episodic, consolidat, belief and working_memory all have zero hits in app/api/decisions and app/api/feedback.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 5
         },
         {
           "subject": "prompt-assembly",
@@ -20054,12 +20053,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter to edit. A search of app/features/library/jobs for recall/episod/consolidat/belief found nothing; the 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter. recall, episodic, consolidat, belief and working_memory have zero hits in app/features/library/jobs. The 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-instruction-files",

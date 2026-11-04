@@ -1764,19 +1764,30 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T00:06:40.160Z",
-      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:42:23.688Z",
+      "worker": "4ab1bd3f-8b73-4953-bb28-1ffe9aadefaf",
       "techniques": [
         {
           "technique": "episodic-capture",
           "verdict": "not-applicable",
-          "evidence": "app/api/feedback/route.ts:11 This route collects recruiter UI product feedback rather than capturing agent conversation episodes."
+          "evidence": "app/api/feedback/route.ts:11 This route collects recruiter UI product feedback rather than capturing agent conversation episodes.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "memory-governance",
           "verdict": "not-applicable",
-          "evidence": "app/api/decisions/records/route.ts:24 Hash-chained records seal recruiter screening decisions for adverse action auditability rather than governing agent memory writes."
+          "evidence": "app/api/decisions/records/route.ts:24 Hash-chained records seal recruiter screening decisions for adverse action auditability rather than governing agent memory writes.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/decisions/records/route.ts:21 Grep across hiring-decisions-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles sealed candidate decision records, peer-context lookups, and recruiter feedback without an interactive agent memory loop.",
+          "evaluatedAt": "2026-10-13T00:06:40.160Z",
+          "worker": "08401036-214f-421d-91d4-621f9d917a26",
+          "reason": "replaced by 4ab1bd3f-8b73-4953-bb28-1ffe9aadefaf"
         }
       ]
     },
@@ -1785,9 +1796,9 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:58:14.879Z",
-      "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T00:42:23.688Z",
+      "worker": "4ab1bd3f-8b73-4953-bb28-1ffe9aadefaf",
       "techniques": [
         {
           "technique": "working-memory",
@@ -1809,6 +1820,13 @@
           "evaluatedAt": "2026-10-13T00:06:40.160Z",
           "worker": "08401036-214f-421d-91d4-621f9d917a26",
           "reason": "replaced by bf1d1018-9a32-4702-a36b-79f96d75b51b"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:4 The Coach and Agent Fit surfaces are read-only client UI that pre-stage suggestions for the recruiter to edit. A search of app/features/library/jobs for recall/episod/consolidat/belief found nothing; the 'remember' hits (rememberPublishResult, jobsKitLogic.ts:85) are UI state, not agent memory.",
+          "evaluatedAt": "2026-10-24T02:58:14.879Z",
+          "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+          "reason": "replaced by 4ab1bd3f-8b73-4953-bb28-1ffe9aadefaf"
         }
       ]
     },
