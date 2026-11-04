@@ -4324,7 +4324,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:1 Its 'intake gate' is admission logic for uploaded CV files at runtime, not a quality gate over the codebase. A search of app/features/tools/analyze for ci.yml, pre-push, githooks, Gate-exemption and process.exit found no gate machinery.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "drag-drop",
@@ -8854,7 +8858,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:94 One free-prose `Doc-sync:` line on any commit in the range waives every stale-doc finding in that range, including docs it never names. So the waiver is a blanket, not one finding waived by its identity.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "translation-quality-measurement",
@@ -9547,7 +9555,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/control/controlRoomConfirm.ts:5 This is a runtime UI arm/confirm interlock for operator clicks, not a check that refuses a change or an artifact in a pipeline. A search of app/control for ci.yml, pre-push, githooks, Gate-exemption and process.exit found no gate machinery.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "hitl-approval",

@@ -22693,6 +22693,138 @@
           "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:296 A missing extraction target fails loudly, so absence assertions cannot pass over an empty slice."
         }
       ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/quality-gates": {
+      "context": "ci-doc-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:08:43.819Z",
+      "worker": "07f9aab7-b7a3-478e-9baf-31619e3a8430",
+      "techniques": [
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:94 DISMISS_RE matches `Doc-sync: <anything>` on any commit in the range and returns 0 for all hits. Nothing ties the trailer to a doc or a file, and a waiver that matches nothing is never reported."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/primitive-copy-defaults.mjs:29 The regex only matches a one-default-per-line, double-quoted form. I tested it: the one-line `export function Select({ placeholder = \"Select…\", … })` from the file's own header (line 7) does not match, and single-quoted defaults are missed too. The unrecognised form produces no finding, yet the gate blocks."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:55 When the base is unfetched (a gap in the gate's own view), the range silently narrows to one commit, and the success line never says the range was narrowed. The no-base skip at line 64 is announced; this fallback is not."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync.mjs:144 A missing transcript, an unreadable map or an empty map gets its own exit path, separate from pass (0) and refuse (2)."
+        },
+        {
+          "technique": "hook-hygiene",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync.mjs:159 The Stop hook only reads and refuses-with-explanation, never edits files, and treats a broken trigger or wiring as cannot-check, not as clean."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:33 The agent-turn hook and the CI range check share one pure rule (`evaluate`), so the two rungs read one rule source."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:10 The doc-sync rule, written in CLAUDE.md and previously enforced only per agent session, is mechanised over git ranges, so human and bot commits are covered too."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:530 The gate table and manifest copies of the CI policy are checked against the workflows in both directions (gate-unlisted / gate-stale / gate-undocumented)."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:385 Remedy paths printed in refusal sources are resolved against the repo root, and an unreachable one is a blocking finding."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:704 Every finding is rendered as BLOCK and every finding counts toward the non-zero exit; there is no advisory tier that is counted but neutralised."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:650 The verify and gate comparisons read the @include-expanded text an agent actually receives, not just the raw file bytes."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/i18n-check.mjs:28 Widening the eslint i18n mode was measured at 159 false positives and rejected in favour of a narrow detector. Precision was measured before blocking."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "scripts/i18n-check.mjs:12 States which instrument owns which question: tsc owns unknown keys, this gate owns cross-locale parity. The attribute greps close a gap the eslint rule cannot see."
+        }
+      ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/quality-gates": {
+      "context": "devcase-core",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:08:43.819Z",
+      "techniques": [
+        {
+          "technique": "gate-laddering",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_eval.py:302 Claims a CI rung that does not exist. No workflow, hook or npm script runs it."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:647 Under --strict, a degraded LLM path that silently fell back to deterministic templates fails instead of reading green. An empty run gives reliability 0 (line 447) and fails as well."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:542 Separates fail, inconclusive (thin sample, blocks) and not_evaluable (no data, announced skip with a reason). An instrument hole (errored or unreliable rows) still fails through reliability."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:643 Within the script, fail, inconclusive, unreliable, error-fallback and non-independent-judge findings all reach a non-zero exit under --strict. Without the flag the script is advisory by design, and no rung passes the flag (see gate-laddering)."
+        }
+      ],
+      "withdrawn": {
+        "worker": "07f9aab7-b7a3-478e-9baf-31619e3a8430",
+        "state": "deviation",
+        "at": "2026-11-04T02:10:27.723350+00:00",
+        "reason": "reviewer (sonnet): The claim that nothing on any rung invokes the --strict gates is contradicted: CI runs `npm run test:python:gate` (ci.yml:417), and pipeline/jobfit/tests/test_devcase_eval.py:379,385 and test_devcase_evaluation_pipeline.py call submission_eval main with --strict and assert its exit codes, so the gre"
+      }
+    },
+    "7f5ea59a-012e-4609-ac06-17249cb301d3/quality-gates": {
+      "context": "control-room-action-guard",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:08:43.819Z",
+      "worker": "07f9aab7-b7a3-478e-9baf-31619e3a8430",
+      "techniques": []
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/quality-gates": {
+      "context": "analyze-engine",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T02:08:43.819Z",
+      "worker": "07f9aab7-b7a3-478e-9baf-31619e3a8430",
+      "techniques": []
     }
   }
 }
