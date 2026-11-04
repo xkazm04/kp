@@ -4312,7 +4312,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 This context is client-side intake and run-delivery state that POSTs a form to the server analysis route. A recursive search of app/features/tools/analyze for systemPrompt, buildPrompt, assemblePrompt and max_tokens found nothing; the only 'prompt' hits are the English words 'promptly' and 'prompt poll' (AnalyzeApi.ts:224, :324). It assembles no model prompt.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -9223,8 +9227,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/companion-turn.ts:124 transcriptWindow keeps the newest 12 eligible turns and drops older ones with no count or notice; companion_cli.py then renders the remainder under 'THIS CONVERSATION SO FAR', so in a long thread the model takes a partial history to be the whole conversation.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",
@@ -12031,8 +12039,8 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "test-harness",

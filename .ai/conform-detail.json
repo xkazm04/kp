@@ -23220,16 +23220,11 @@
       "context": "analyze-engine",
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T04:14:42.052Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "39aafb6c-6989-4fef-a9c9-94daf3332834",
-        "state": "not-applicable",
-        "at": "2026-11-04T04:15:13.034842+00:00",
-        "reason": "reviewer (sonnet): The anchor at analyzeRunAnalysis.ts:22 is only an import line (submitAnalysis/watchAnalysis) and does not itself show that no prompt, budget or fingerprint is built in this context, so the not-applicable rests on an incidental anchor plus a keyword grep."
-      }
+      "evaluatedTs": "2026-11-04T04:44:04.695Z",
+      "worker": "521326d0-fa05-4468-a16b-ebdeb30674d2",
+      "techniques": []
     },
     "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/agent-instruction-files": {
       "context": "companion-appmaster",
@@ -23349,6 +23344,57 @@
       "evaluatedTs": "2026-11-04T04:32:19.511Z",
       "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
       "techniques": []
+    },
+    "03de9bcc-53c7-4571-9782-d203eb627b06/prompt-assembly": {
+      "context": "decisions-review-ui",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:44:04.695Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "521326d0-fa05-4468-a16b-ebdeb30674d2",
+        "state": "not-applicable",
+        "at": "2026-11-04T04:44:47.558483+00:00",
+        "reason": "reviewer (sonnet): The anchor at useDecisionsQueue.ts:51 is a comment about a paid group-eval LLM run, so it doesn't show that no prompt is assembled; the claim rests only on a grep for 'prompt' that matches nothing, and I found no line in the context that shows the precondition is absent."
+      }
+    },
+    "c0265e6e-9274-43db-9929-822cb417b96d/prompt-assembly": {
+      "context": "companion-ai",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:44:04.695Z",
+      "worker": "521326d0-fa05-4468-a16b-ebdeb30674d2",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-turn.ts:124 The bottom rung is silence, not a notice. Only {role, content} is shipped, with no dropped-turn count. The grounding summary also cuts the board to the busiest 5 roles (line 179, `.slice(0, TOP_ROLES)`) with no 'N more roles' line, inside a block the prompt labels 'the only facts you may state as facts'."
+        },
+        {
+          "technique": "tiered-history-projection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-turn.ts:15 The durable record lives in the store and the prompt is rebuilt every turn, which is the projection regime. Yet history is a fixed recent window with no coarser tier reaching the start of a thread the code itself calls 'a year of conversations' (line 273). Episodic recall is a memory store, not a projection of the record."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:33 The Node side ships one typed turn.json and no prompt prose. One assembler (companion_cli._system_prompt and _build_prompt) owns the layers: constitution → identity → contracts → language, then grounding → recall → transcript → fenced operator message."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:262 The action addendum in the prompt and the dispatch validator are both derived from the COMPANION_ACTIONS registry (companion-actions.ts:16). Proposals are re-validated on the Node side, and an empty catalog teaches the model nothing."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:87 The CLI never queries kp, so the board state cannot be reached any other way. It is injected as standing grounding from one function, companionGrounding, which treats it as a floor."
+        }
+      ]
     }
   }
 }
