@@ -29958,8 +29958,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "scripts/agent/dispatch.mjs:391 The prompt describes the dispatcher's refusal boundary in hand-written prose that names only a subset of PROTECTED_PREFIXES (it leaves out package.json, data/, deploy/helm/, the *-budget.json ceilings and most of scripts/), and it never states the MAX_FILES/MAX_FILE_BYTES/MAX_TOTAL_BYTES caps, so guardPlan can refuse a plan the prompt allowed only after both paid rounds have run.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",
@@ -35461,8 +35465,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "packages/voice-tts/src/types.ts:82 The package turns finished text into audio through provider adapters and assembles no model prompt. A search of packages/voice-tts for prompt, compaction, anthropic and max_tokens found no hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "voice-interview-fidelity",

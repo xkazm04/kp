@@ -23351,13 +23351,13 @@
       "bundle": "software-engineering",
       "state": "unknown",
       "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T04:44:04.695Z",
+      "evaluatedTs": "2026-11-04T04:53:34.498Z",
       "techniques": [],
       "withdrawn": {
-        "worker": "521326d0-fa05-4468-a16b-ebdeb30674d2",
+        "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
         "state": "not-applicable",
-        "at": "2026-11-04T04:44:47.558483+00:00",
-        "reason": "reviewer (sonnet): The anchor at useDecisionsQueue.ts:51 is a comment about a paid group-eval LLM run, so it doesn't show that no prompt is assembled; the claim rests only on a grep for 'prompt' that matches nothing, and I found no line in the context that shows the precondition is absent."
+        "at": "2026-11-04T04:54:23.103483+00:00",
+        "reason": "reviewer (sonnet): The anchor useDecisionsQueue.ts:51 is a comment about group eval being a paid LLM run that is never auto-fired from a URL. It does not show that the UI builds no prompt text or that its model runs are assembled server-side, so the not-applicable rests on an incidental line and a keyword search over "
       }
     },
     "c0265e6e-9274-43db-9929-822cb417b96d/prompt-assembly": {
@@ -23395,6 +23395,72 @@
           "evidence": "app/_lib/companion-run.ts:87 The CLI never queries kp, so the board state cannot be reached any other way. It is injected as standing grounding from one function, companionGrounding, which treats it as a floor."
         }
       ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/prompt-assembly": {
+      "context": "security-agent-gates",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:53:34.498Z",
+      "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
+      "techniques": [
+        {
+          "technique": "capability-documentation",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:391 Hand-written subset of the guard's authority, which is PROTECTED_PREFIXES at line 162; the prompt is not rendered from it, and the file caps enforced at lines 311-346 are never taught."
+        },
+        {
+          "technique": "response-reservation-sizing",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:635 No reservation is passed, so the lane inherits the reviewer's fixed max_tokens 4096 (scripts/review/agent-review.mjs:178). Round 2 asks for WHOLE file contents up to MAX_TOTAL_BYTES 240_000 (about 60k tokens). Nobody chose this ceiling for this lane."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:493 The issue text is fenced and labelled untrusted, but the round-1 model output (prior model output derived from that same untrusted issue) is interpolated into round 2 bare: no fence and no trust label."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:137 Agent-prompt digests only SYSTEM_PROMPT. The constitution rubric (buildRubric, sent first in both rounds) is a standing layer that is left out of the digest, so a rubric edit changes what the model was told without changing the stamp. The harness digest of the dispatch.mjs source (line 120) is conformant."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:431 Each round has one assembler that takes typed inputs. The system/policy layer is separate (SYSTEM_PROMPT), and the rubric leads each round."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:269 Per-file caps name what they dropped in the prompt, and the inventory heading carries total and 'truncated' (line 446). The section caps are reasoned against the lane total in agent-budget.json."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:244 Round 1 inlines paths only. The contents the model can request are pulled on demand instead of being inlined."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:379 Opens with a permission/autonomy fact rather than an expertise claim. A decline path and an output contract are stated."
+        },
+        {
+          "technique": "history-compaction",
+          "verdict": "not-applicable",
+          "evidence": "scripts/agent/dispatch.mjs:404 Two stateless single-message calls. No accumulated transcript, so the compaction family (and elision/folding) has no precondition here."
+        }
+      ]
+    },
+    "85aca759-e385-4fdf-8ad6-b2fbe9540b37/prompt-assembly": {
+      "context": "voice-tts-package",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:53:34.498Z",
+      "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
+      "techniques": []
     }
   }
 }
