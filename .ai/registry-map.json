@@ -6495,12 +6495,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_lib/billing/gateway.ts:1 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/billing, confirming this context manages merchant-of-record payment subscriptions and quota enforcement rather than spawning or managing an agent CLI transport.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/billing/gateway.ts:2 The context's provider seam is a merchant-of-record payment gateway, not an agent CLI. A search of app/_lib/billing and the billing-*.test.ts files for claude, spawn, --print, permission-mode, stream-json and --resume found nothing, so no agent binary is probed, spawned, billed or parsed here.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
+          "revisionsBehind": 1
         },
         {
           "subject": "usage-aggregation-semantics",
@@ -7587,14 +7586,13 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "conformant",
-          "evidence": "pipeline/jobfit/group_compare_cli.py:69 The matching LLM call sites take their provider from the shared .llm door, gate on its availability record before calling, pin the answer by expected keys, and label every deterministic serve with a named descent reason, so the transport discipline holds without any call site rebuilding spawn or env logic.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evidence": "pipeline/jobfit/group_compare_cli.py:69 Matching call sites get their provider from the shared .llm door. They gate on its availability record before calling, pin the answer by its expected top-level keys, and label every deterministic serve with a descent reason, so no call site rebuilds spawn, env or flag logic.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "b02c9ae5-749e-43ff-a0ac-2befb7871370",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "retrieval",
@@ -10861,18 +10859,17 @@
           ],
           "grounding": "use_when",
           "state": "not-applicable",
-          "evidence": "app/_lib/db/llm.ts:275 The context is a repository layer that ingests the usage ledger the Python side writes after a spawn (cost-metering) and stores Polar billing/analytics rows; a search of its files for --print, permission-mode, ANTHROPIC_API_KEY, stream-json and --resume found no hits, so it neither spawns, probes, authenticates nor parses an agent CLI.",
+          "evidence": "app/_lib/db/llm.ts:8 The LLM part of this context is a row store for llm_config, provider_keys and the usage ledger that runs record after the fact. claude_cli shows up only as a provider label in ledger test rows. A search of app/_lib/db for permission-mode, stream-json, dangerously-skip-permissions and --resume found nothing, so it does not spawn, probe, authenticate or parse an agent CLI.",
           "confidence": "probable",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "digest": "sha256-b2:75415727a875a42a",
           "revision": 10,
           "changedAt": "2026-10-27",
           "source": "conform",
           "adoptedFrom": "9768b616-8967-44b6-a919-cde6898667db",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
@@ -14392,12 +14389,9 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "not-applicable",
-          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
-          "evaluatedAt": "2026-09-22",
           "source": "conform",
           "adoptedFrom": "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1",
-          "stale": true
+          "state": "unknown"
         },
         {
           "subject": "mcp-tools",
