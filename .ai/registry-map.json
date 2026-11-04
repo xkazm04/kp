@@ -8826,7 +8826,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/check-guidance.mjs:478 The topology gate checks that each projection names the canonical file, but it also requires every projection to restate the verify commands by hand. It never checks the standard's 'no bridge carries body text' rule or a floor byte cap, so AGENTS.md can stay a projection that holds the whole gate table and other body content.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "test-harness",
@@ -11805,7 +11809,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/agents.ts:8 This context is a SQLite repository layer: tasks, hired-agent rows dispatched to an external app, salary benchmarks, repo-scan rows and skill profiles. It neither authors, loads, generates nor reconciles any agent instruction file. A search of app/_lib/db for the harness file names and isolation flags found none; the only 'CLAUDE.md' hits are code comments citing the canonical rule (e.g. tasks.ts:356), which is a cite, not instruction-file handling.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "agent-memory",
@@ -20111,7 +20119,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsAgentFitLogic.ts:3 This context is recruiter-facing UI and pure reducers for the Coach panel and the Agent Fit spec tab. It reads and dispatches specs over a bridge and contains no instruction file, prompt or harness-loading code. A search of app/features/library/jobs for CLAUDE.md, AGENTS.md, GEMINI.md, .cursorrules, setting-sources, and even 'prompt' or 'instruction', returned nothing.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "quality-gates",
@@ -28845,7 +28857,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:204 The local judgement lens starts `claude -p` in the caller's cwd (the repo root) with no neutral cwd and no `--setting-sources`. The reviewer therefore inherits kp's whole builder floor, rules and project hooks on top of the curated rubric, so the CLI path reviews with a different, uncontrolled brief than the CI Messages-API path. That contradicts the header's claim (line 22) that a maintainer gets the same review with no key.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"

@@ -2646,42 +2646,39 @@
       "context": "ci-doc-gates",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T04:25:18.955Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:10:04.238Z",
+      "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
       "techniques": [
+        {
+          "technique": "single-source-topology",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-guidance.mjs:478 Of the standard's three-part topology audit (bridge resolves, no bridge body, byte cap under the smallest host cap), only the first is checked (line 441, projection-not-pointing). This rule makes bridges carry restated content, and the vendor-neutral AGENTS.md is a projection of a harness-specific canonical file."
+        },
+        {
+          "technique": "instruction-freshness",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:458 An 'npm run x' named in any guidance file must exist in package.json, so 'paths and commands resolve' is a gate rather than a reading. keyless-e2e-pin.test.mjs also pins the guidance prose list to KEYLESS_SPECS in both directions."
+        },
         {
           "technique": "capability-coverage-contract",
           "verdict": "conformant",
-          "evidence": "scripts/docs/check-guidance.mjs:607 Within the CI-gate domain, expected commands are derived from the gating workflows, and an undeclared command produces gate-unlisted rather than relying solely on a maintained expected list."
+          "evidence": "scripts/docs/check-guidance.mjs:621 Set equality between the CI and review workflow steps and the declared gates, checked in both directions (gate-unlisted and gate-stale). An unnamed capability is a finding, not silence."
         },
         {
           "technique": "enforcement-demotion",
           "verdict": "conformant",
-          "evidence": "scripts/docs/check-doc-sync.mjs:137 The reminder's trigger is computed from observed edits and mapped source hits; it does not print its judgment-shaped instruction unconditionally on every turn."
-        },
-        {
-          "technique": "instruction-freshness",
-          "verdict": "deviation",
-          "evidence": "CLAUDE.md:17 The inline volatile counts carry no measurement date; the backing map has generated_at, but that date is absent from the delivered claim, and the counts are currently correct."
+          "evidence": "scripts/docs/check-doc-sync.mjs:180 The doc-sync Stop hook is condition-observed: a program decides when it speaks (edited source with no doc touched) and it stays silent otherwise. It exits 3 with CANNOT CHECK instead of a false green. Minor: its header comment (line 11) omits docs/design/, which DOC_PREFIXES line 44 and the stderr message do include."
         },
         {
           "technique": "line-earning",
           "verdict": "deviation",
-          "evidence": "CLAUDE.md:24 This is another entry in a generated overview of reachable map data; the preceding pointer already names the authoritative artifact, so the overview body fails the unreachability admission test."
-        },
-        {
-          "technique": "single-source-topology",
-          "verdict": "deviation",
-          "evidence": "scripts/docs/__tests__/check-guidance.test.mjs:174 The checker explicitly accepts independently restated verification guidance in canonical and projection bodies; the shipped AGENTS.md:23 also repeats the command in .claude/CLAUDE.md:32 instead of making the projection solely a bridge."
+          "evidence": "CLAUDE.md:24 This is another entry in a generated overview of reachable map data; the preceding pointer already names the authoritative artifact, so the overview body fails the unreachability admission test.",
+          "carriedFrom": "2026-10-13"
         }
       ],
-      "withdrawn": {
-        "worker": "d515f5fb-7e3b-4597-991b-ed8dd1ae7002",
-        "state": "deviation",
-        "at": "2026-10-13T04:26:17.675607+00:00",
-        "reason": "reviewer (sonnet): The deviation is about the content of the root CLAUDE.md (group overview list, inline counts), which is not among this context's files (scripts/docs/*, scripts/i18n/catalog-check.mjs). The cited check-guidance.mjs and check-doc-sync.mjs anchors show conformant behaviour, and I could not confirm any "
-      }
+      "registryProposal": "single-source-topology does not cover a gate that deliberately requires a short, drift-checked restatement (the verify commands) in every projection, a hand-copy regime inside the link regime. A ruling on whether a named, checked minimal restatement in bridges is sanctioned would make this verdict mechanical."
     },
     "6b5c4717-aa35-46d9-a266-50a296a27e09/agent-cli-transport": {
       "context": "billing-plan-and-spend",
@@ -22950,6 +22947,62 @@
           "evidence": "app/api/profile/profile-spawn-timeout.test.ts:12 The 60s spawn bound is checked against the source shape rather than measured by waiting, which keeps a blocking unit gate deterministic given the tree."
         }
       ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/agent-instruction-files": {
+      "context": "review-gates",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:10:04.238Z",
+      "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:204 An evaluator agent launched inside the tree whose instructions were written for a different role, with no assertion of the loaded set. The repo's own pipeline/jobfit/claude_cli.py already uses a neutral temp cwd for this exact reason."
+        },
+        {
+          "technique": "single-source-topology",
+          "verdict": "deviation",
+          "evidence": "scripts/review/rubric.mjs:93 Lines 95-100 hand-restate .claude/CLAUDE.md's 'Recurring patterns' paragraph (and add two items that paragraph does not hold), while line 6 claims there is 'no second copy of the rules'. Only the three section() extractions are single-sourced."
+        },
+        {
+          "technique": "instruction-freshness",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/agent-review.test.mjs:153 Renaming a canonical heading fails a test instead of silently stripping the constitution from the reviewer prompt."
+        },
+        {
+          "technique": "enforcement-demotion",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:12 The checkable rules (skips, baselines, route posture, tenancy manifest) are demoted to a deterministic program. The model-backed lens is kept separate and labelled as judgement, and it reports 'did not run' honestly."
+        },
+        {
+          "technique": "restraint-amplifier-balance",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:79 The restraints (do not repeat the gates, block only with a cited rule) ship with five named duties plus an explicit licence to raise uncertain findings as 'note'."
+        }
+      ]
+    },
+    "9de20269-8dd9-4ca8-a864-0037ee9ca817/agent-instruction-files": {
+      "context": "db-tasks-agents-misc",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:10:04.238Z",
+      "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
+      "techniques": []
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/agent-instruction-files": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T03:10:04.238Z",
+      "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
+      "techniques": []
     }
   }
 }
