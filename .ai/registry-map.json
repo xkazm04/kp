@@ -11475,7 +11475,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline-tenancy.test.ts:7 The per-statement tenancy guard for pipeline_entries walks a hand-written list of 5 files (line 17). A grep finds about 29 non-test files that query pipeline_entries, including pipeline-calibration.ts in this same context, and none of the others are judged. tenancy-coverage.test.ts explicitly delegates per-statement scoping to per-table guards like this one, and the header's 'EVERY file' claim is false.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "test-harness",
@@ -12858,7 +12862,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:31 The fairness and discrimination gates exit 0 under --strict when a cohort is empty, for example a --count below the 6 behaviours. A run that measured no fairness at all is therefore certified the same way as a passing run. The standard says absence in the gate's own sample must be REFUSE, spelled as failure when the protocol has only two states.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "voice-io",
