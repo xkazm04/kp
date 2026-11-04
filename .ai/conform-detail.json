@@ -23702,6 +23702,57 @@
           "evidence": "app/api/llm/test/route.ts:57 The route spawns Python at the project root. The harness cwd and setting-sources choice is owned by the Python LLM layer, not by this context."
         }
       ]
+    },
+    "8b2d6213-b08e-4a6a-b1bd-485ef0ccbd89/prompt-assembly": {
+      "context": "tests-pipeline-automation",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:13:41.653Z",
+      "worker": "f0124487-70a1-424c-ba59-ef18cc5fbb18",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_prompt_version_sync.py:117 Label-to-label lockstep. Nothing derives the version from the prompt bytes or checks text against version, so the technique's 'digest identities, not summaries that collide' rule is not met."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:39 Over-budget blocks are pinned to carry an explicit truncation marker naming the budget, and in-budget blocks to pass through byte-identical. Only per-block caps are exercised; no global total is tested."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:1 Untrusted spans are bound to declared fenced insertion points through each prompt's real entry point, and every assertion is proven non-vacuous."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_locale.py:113 One shared section renderer (language_directive) is pinned across families, driven from the shipped locale list."
+        }
+      ]
+    },
+    "a626dbb6-a28d-4c99-be26-a5d9592ba2eb/prompt-assembly": {
+      "context": "jd-intake-brief-logic",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:13:41.653Z",
+      "worker": "f0124487-70a1-424c-ba59-ef18cc5fbb18",
+      "techniques": []
+    },
+    "8f7cc39a-49a1-4d6a-954d-3da22c4e8290/prompt-assembly": {
+      "context": "analyze-workspace",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:13:41.653Z",
+      "worker": "f0124487-70a1-424c-ba59-ef18cc5fbb18",
+      "techniques": []
     }
   }
 }

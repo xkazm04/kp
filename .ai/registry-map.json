@@ -4493,8 +4493,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:36 This is the recruiter's form, history and picker UI, and it delegates all request logic to the analyze-engine hooks. Searching app/features/tools/analyze found no prompt builder, system prompt, token cap or fence; 'prompt' occurs only in UI copy keys (focusPrompt) and a comment.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -18865,8 +18869,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:441 These modules are client-side state for the intake session: they post only the requestor's new message to /api/intake/[id]/message, and the server assembles the prompt elsewhere. Searching the intake directory found no prompt builder, system prompt, token cap or fence; 'prompt' appears only as a promptVersion fixture field in a test and in voicePhase.ts microphone-permission copy.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "role-intake-conversation",
@@ -34039,8 +34047,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "pipeline/jobfit/tests/test_prompt_version_sync.py:117 The cache-key gate only checks that two hand-bumped version labels agree (TS vs Python). A prompt-text edit that bumps neither label passes, and the prompt cache (reasoning-run.ts lookupPromptCache(hash, REASONING_PROMPT_VERSION)) then serves the old prompt's output for its TTL. The key is a label, not a digest of the standing text.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
