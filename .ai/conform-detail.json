@@ -3216,54 +3216,70 @@
       "subject": "translation-pipeline-topology",
       "bundle": "localization",
       "state": "deviation",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:17:26.165Z",
-      "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:12:00.865Z",
+      "worker": "85066232-c05a-4e5f-81af-fab8cf2bffca",
       "techniques": [
         {
-          "technique": "canonical-fallback-serving",
-          "verdict": "not-applicable",
-          "evidence": "scripts/i18n-check.mjs:151 This build-time validator reports catalog problems rather than serving translated content."
-        },
-        {
-          "technique": "fuzzy-reuse-under-a-threshold",
-          "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:233 List-parity validation performs no translation-memory reuse."
+          "technique": "source-identical-value-audit",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:303 No value-equality comparison against en and no committed allowlist of legitimately identical values anywhere in checkCatalogs or i18n-check.mjs (grep for identical/untranslated finds only unrelated comments). Key parity plus next-intl's typed Messages contract is exactly the ambiguity the technique names."
         },
         {
           "technique": "language-registry-single-source",
           "verdict": "deviation",
-          "evidence": "scripts/i18n-check.mjs:148 The gate discovers its locale universe from existing files instead of LOCALES, so an absent supported target catalog is excluded rather than reported."
+          "evidence": "scripts/i18n-check.mjs:148 The gate takes its locale set from the messages/ folder instead of i18n/locales.ts LOCALES, and line 105 re-declares DEFAULT_LOCALE = \"en\". A catalog file with no LOCALES entry gets gated but never offered, and a LOCALES entry with no catalog never reaches this gate."
+        },
+        {
+          "technique": "canonical-fallback-serving",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:151 This build-time validator reports catalog problems rather than serving translated content.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "fuzzy-reuse-under-a-threshold",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:233 List-parity validation performs no translation-memory reuse.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "non-translatable-value-classification",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:213 Catalog-shape validation does not classify inputs before a translation-engine request."
+          "evidence": "scripts/i18n/catalog-check.mjs:213 Catalog-shape validation does not classify inputs before a translation-engine request.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "prompt-context-contract",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:88 The locale is used for ICU compilation, not a machine-translation prompt."
+          "evidence": "scripts/i18n/catalog-check.mjs:88 The locale is used for ICU compilation, not a machine-translation prompt.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "serialization-transport-safety",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n-check.mjs:145 Parsing committed catalog files is not the wire seam of a batch machine-translation request."
+          "evidence": "scripts/i18n-check.mjs:145 Parsing committed catalog files is not the wire seam of a batch machine-translation request.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "sharded-translation-ci",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:198 The gate walks existing catalogs without translating or publishing corpus shards."
+          "evidence": "scripts/i18n/catalog-check.mjs:198 The gate walks existing catalogs without translating or publishing corpus shards.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "source-hash-translation-cache",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:200 This in-process map holds validation walks, not persisted derived translations."
-        },
+          "evidence": "scripts/i18n/catalog-check.mjs:200 This in-process map holds validation walks, not persisted derived translations.",
+          "carriedFrom": "2026-10-13"
+        }
+      ],
+      "superseded": [
         {
-          "technique": "source-identical-value-audit",
-          "verdict": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:243 The following checks never compare value with baseValue for translatedness; an in-memory en/cs fixture containing identical ordinary prose in an object and an array returned problems: []."
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:245 The catalog gate checks structure and placeholders without rejecting unallowlisted source-identical prose, allowing untranslated object values and array items to pass.",
+          "evaluatedAt": "2026-10-13T09:17:26.165Z",
+          "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+          "reason": "replaced by 85066232-c05a-4e5f-81af-fab8cf2bffca"
         }
       ]
     },
@@ -23524,6 +23540,21 @@
       "evaluatedTs": "2026-11-04T05:03:33.842Z",
       "worker": "f3835323-1b0c-4058-92b9-6c9da4f30100",
       "techniques": []
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/translation-pipeline-topology": {
+      "context": "matrix-grid",
+      "subject": "translation-pipeline-topology",
+      "bundle": "localization",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:12:00.865Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "85066232-c05a-4e5f-81af-fab8cf2bffca",
+        "state": "not-applicable",
+        "at": "2026-11-04T05:12:30.489923+00:00",
+        "reason": "reviewer (sonnet): The anchor at MatrixEmptyState.tsx:75 is only a useTranslations call, so it doesn't show the precondition is absent. The context also handles per-locale content: MatrixReasoningPopover.tsx reads reasoning keyed by locale through matrixReasoningKey, and the matrixSelection tests show the request carr"
+      }
     }
   }
 }

@@ -8817,12 +8817,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:245 The catalog gate checks structure and placeholders without rejecting unallowlisted source-identical prose, allowing untranslated object values and array items to pass.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "scripts/i18n/catalog-check.mjs:303 The per-unit loop over every target string checks key presence, ICU syntax, carried literals and placeholder parity, but never compares a target value with its source value or reads an allowlist, so a value copied over from en passes as translated and the green gate amounts to key parity rather than coverage.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-instruction-files",
