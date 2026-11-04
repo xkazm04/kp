@@ -34552,8 +34552,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/interview/connect/route.ts:405 The connect route appends a resume addendum onto an already-assembled brief (the stored snapshot at line 422 and the default instructions at line 415). That text sits outside whatever budget, trust classification or snapshot test the brief builders apply, which is the 'door that can be appended to after it closes' failure.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "voice-interview-fidelity",

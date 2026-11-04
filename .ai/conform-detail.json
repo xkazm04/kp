@@ -23127,6 +23127,47 @@
           "evidence": "app/_lib/jobseeker/rules/collapse.ts:13 The collapse gate pauses a source only when a required rule yields nothing, or when an optional rule with an established baseline (≥5 matches) yields nothing. Rarely-matching optional fields cannot trip it."
         }
       ]
+    },
+    "0f0b2b00-f446-41b0-af7a-d927592c28de/prompt-assembly": {
+      "context": "voice-interview-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:03:45.722Z",
+      "worker": "b87335fe-2126-40c3-96cf-9ded5e46b816",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "deviation",
+          "evidence": "app/api/interview/connect/route.ts:405 A late layer (resume state) is added to the returned string at the call site instead of being passed in as an assembler input. The directed path does pass resume as an input (line 318); the fallback path suffixes it."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/api/interview/connect/route.ts:438 The brief actually sent is rebuilt from the current prep on every connect, but no digest, size or version of it is persisted. Only the mint-time `instructions` snapshot and the agenda are stored, so 'which brief did attempt 2 hear?' cannot be answered: the unrecorded send."
+        },
+        {
+          "technique": "continuation-prompts",
+          "verdict": "conformant",
+          "evidence": "app/api/interview/connect/route.ts:292 Lost-session regime: a reconnect keeps the same session id and attempt counter, rebuilds the standing brief fresh, and carries only the decided state (block ids, earlier turns) as resume context. A resumed attempt also keeps its stored agenda."
+        },
+        {
+          "technique": "deferred-interface-invalidation",
+          "verdict": "conformant",
+          "evidence": "app/api/interview/connect/route.ts:307 The kit version is pinned at mint, so a recruiter's mid-round edit takes effect on the next link rather than mid-round. Revocation applies immediately instead (line 175, revokeInterviewSession), which is the asymmetry the technique asks for."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/api/interview/connect/route.ts:423 Tools ride only with a brief that documents their protocol, and are withheld otherwise. A tool is never offered that the prompt does not teach."
+        },
+        {
+          "technique": "endpoint-sealed-continuation-metadata",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:543 Provider failover happens at connect, before any turn. The resume carries plain-text turns the browser posted, not provider-minted continuation metadata, so no sealed segment is replayed across endpoints."
+        }
+      ]
     }
   }
 }
