@@ -10177,7 +10177,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:189 This source guard matches raw file text without stripping comments, so a comment quoting the call would keep it green after the signal was dropped from code; the sibling analyzeFileIntakeGate.test.ts strips comments for exactly this reason (lines 26-29). The gap is latent: no current comment matches.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "prompt-assembly",
@@ -15029,7 +15033,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "e2e/journey-role-to-schedule.spec.ts:84 axe's exclude drops every node carrying the class from every rule on every audited page, not just the one contrast finding the comment names, and nothing checks the exclusion is still needed. In the same suite, landing.spec.ts waives contrast per named node and fails when a holdout stops failing.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "trust-base",
@@ -18039,7 +18047,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/baseline-diff.ts:33 The baseline diff labels a reliability regression BLOCKING and says a release reads it, but the CLI exits 0 (scripts/interview-sim-verdict.ts returns 0) and a search of scripts/, package.json and .github/workflows found no consumer of `.blocking`, so the label claims enforcement that no exit-code path carries.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "conversational-assessment-validation",
@@ -33314,7 +33326,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_eval.py:380 The test pins `--strict` to exit 0 when every fairness and discrimination cohort is empty (not_evaluable). In a two-state exit protocol, a run that measured nothing reads the same as a pass, but the standard requires a refusal to be spelled as failure.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "eval-harness",
@@ -35376,7 +35392,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:15 The probe's remedy hardcodes `--download-dir data/piper`, while the probe reads PIPER_VOICE_DIR first (line 33). On a host that sets that variable, which is a declared requiredEnv, following the remedy installs voices where the probe never looks.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "talking-avatar",

@@ -22447,6 +22447,186 @@
           "evidence": "app/_lib/interview-sim/providers.ts:10 The positional rule (launch outside the span) is realized: mkdtempSync under tmpdir, and no ancestor CLAUDE.md exists on this machine. The technique's 'make the loaded set an artifact' rule is not realized: the isolation is asserted from the layout, and neither providers.ts nor providers.test.ts asserts an empty loaded-instruction list."
         }
       ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/quality-gates": {
+      "context": "interview-simulator",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:06:07.425Z",
+      "worker": "955113f1-89a2-4731-9fae-793ab406cf8e",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/baseline-diff.ts:33 A 'report without a consumer': BLOCKING is printed in diff.md, the exit code is 0, and no release step reads diff.json. Advisory output labelled as enforcement."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:728 not_evaluable verdicts and zero conversations give distinct non-PASS outcomes; they never read as compliance."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:727 A coverage shortfall (fewer conversations produced than selected) makes the gate INCONCLUSIVE instead of a clean PASS."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/lexicon.ts:13 Lexicon detectors are deliberately tuned for precision, with the judge as the recall floor, and every form has a test example."
+        },
+        {
+          "technique": "fabrication-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:19 An unverifiable judge fact becomes an explicit null token that is counted as not_evaluable, never as pass or fail."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:717 A rules-only run does not answer the judge's questions; it reports them not_evaluable."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/lexicon.ts:24 The haystack is normalised before matching; boundaries are Unicode-aware."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:206 Findings, tallies and reports all map over the one SIM_INVARIANTS enumeration."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/quality-gates": {
+      "context": "cv-analyze-intake",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:06:07.425Z",
+      "worker": "955113f1-89a2-4731-9fae-793ab406cf8e",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:189 Raw readFileSync text, no comment stripping. The same holds for analyzeGithubRunPolicy.test.ts:105-108 and analyzeCvIntake.test.ts:127-130."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeFileIntakeGate.test.ts:65 The 'every File goes through one gate' rule is checked over a hand-typed ANALYZE_SURFACES list of 5 of the 14 .tsx files, not confined to the router across the directory. Latent: today only analyzeDropRouting.ts calls acceptUpload."
+        }
+      ]
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/quality-gates": {
+      "context": "tests-devcase",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:06:07.425Z",
+      "worker": "955113f1-89a2-4731-9fae-793ab406cf8e",
+      "techniques": [
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_eval.py:380 Empty cohorts come from the gate's own sample (--count), a hole in its own vision, and the exit code makes them indistinguishable from PASS. The status payload does carry not_evaluable and passed=False (test lines 331-334)."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_eval.py:163 Found an invariant whose evaluation made it unfireable, and moved the test onto the path that assigns flags."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_provenance.py:379 A seeded unfenced prompt must make the check fail, proving the guard red before trusting it green."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:196 A self-graded judged run is asserted on the exit code, not only on the printed text."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py:15 The probe threshold, enforced in two languages, is generated from one Python constant and pinned by the test."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_locale_signals.py:60 A widened detector is checked for precision, not only recall."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_provenance.py:288 Moved from checking the helper to checking each real rendered prompt."
+        }
+      ]
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/quality-gates": {
+      "context": "e2e-suite",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:06:07.425Z",
+      "worker": "955113f1-89a2-4731-9fae-793ab406cf8e",
+      "techniques": [
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "deviation",
+          "evidence": "e2e/journey-role-to-schedule.spec.ts:84 A blanket waiver keyed on a CSS selector, all rules, with no still-failing check. The same shape is at token-doors-axe.spec.ts:110. landing.spec.ts:152-157 shows the conformant shape."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "e2e/activity-detail.spec.ts:6 The spec now creates its own fixture, so it cannot pass while asserting nothing."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "e2e/quality-tables.spec.ts:61 Refuses to let a data-starved skip certify the surface; it creates the record instead."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "e2e/analyze-smoke.spec.ts:67 The axe gate blocks only on serious and critical impact, to keep precision."
+        }
+      ]
+    },
+    "85aca759-e385-4fdf-8ad6-b2fbe9540b37/quality-gates": {
+      "context": "voice-tts-package",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:06:07.425Z",
+      "worker": "955113f1-89a2-4731-9fae-793ab406cf8e",
+      "techniques": [
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "deviation",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:15 A derived path frozen as a string. The `reason` at line 72 names the real dirs, but the `setup` remedy does not."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "packages/voice-tts/src/react/useTts.test.ts:141 A raw-source positive match with no comment stripping, so a comment quoting the line would satisfy it. Latent."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/registry.ts:132 A provider that is not ready is skipped loudly, with its reason carried to the caller and the log."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/node/resolve-bin.ts:3 Readiness is asserted from the instrument itself, not from a flag."
+        }
+      ]
     }
   }
 }
