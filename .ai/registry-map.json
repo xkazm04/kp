@@ -22728,7 +22728,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/llm/test/route.ts:57 These routes configure providers and keys and trigger Python children. They neither author nor deliver a repo-owned instruction file, and they choose no harness workspace: any Claude CLI launch is decided in pipeline/jobfit/claude_cli.py, where generate mode uses a mkdtemp neutral cwd and loads only project setting sources. Searching app/api/llm, app/api/automation and app/api/sim found zero hits for AGENTS.md, setting-sources, 'instruction file' and cursorrules. The one CLAUDE.md hit is a comment citing the transaction rule (llm-config-race.test.ts:10).",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "multi-provider-gateway-plane",
@@ -25093,7 +25097,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/repo-scan/route.ts:13 These routes manage org members and invites, and only enqueue or poll the repo_scan task. The in-clone agent launch is judged under github-repo-intelligence (app/_lib/repo-scan-run.ts). Searching app/api/org, app/api/invite and app/api/repo-scan found zero hits for AGENTS.md, setting-sources, 'instruction file' and cursorrules. The only CLAUDE.md hit is a comment citing the repo's transaction rule (org/members/[userId]/route.ts:101), not an instruction file.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "mcp-tools",

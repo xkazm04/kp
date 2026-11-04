@@ -23649,6 +23649,59 @@
       "evaluatedTs": "2026-11-04T05:35:05.810Z",
       "worker": "3146af05-1e8d-4105-97e6-fd831253b9f0",
       "techniques": []
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/agent-instruction-files": {
+      "context": "agents-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:42:27.829Z",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/agents/dispatch/route.ts:18 The agent launch happens inside Personas, outside this repo. The routes create no workspace and start no harness."
+        }
+      ],
+      "withdrawn": {
+        "worker": "b66f451d-7c47-4e1b-8507-610acb08e4ae",
+        "state": "not-applicable",
+        "at": "2026-11-04T05:42:58.556633+00:00",
+        "reason": "reviewer (sonnet): The anchor (dispatch/route.ts:18) is only a comment about the Personas hand-off. The context's hire-from-need/route.ts calls startRepoScan({rootPath}) (line 213) and polls it, which starts the in-clone agent scan, and the verdict never accounts for that."
+      }
+    },
+    "05973fce-bf4d-4d6f-8788-05e2ce7534a6/agent-instruction-files": {
+      "context": "org-management-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:42:27.829Z",
+      "worker": "b66f451d-7c47-4e1b-8507-610acb08e4ae",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/repo-scan/route.ts:13 The route enqueues a task. It creates no workspace and launches no agent itself."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/agent-instruction-files": {
+      "context": "llm-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:42:27.829Z",
+      "worker": "b66f451d-7c47-4e1b-8507-610acb08e4ae",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/llm/test/route.ts:57 The route spawns Python at the project root. The harness cwd and setting-sources choice is owned by the Python LLM layer, not by this context."
+        }
+      ]
     }
   }
 }
