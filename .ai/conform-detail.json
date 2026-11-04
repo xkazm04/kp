@@ -2688,19 +2688,20 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T03:33:45.367Z",
-      "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:31:55.573Z",
+      "worker": "c7a58041-eb94-4c91-b20e-b53a997c4a3c",
       "techniques": [
         {
           "technique": "availability-probe",
           "verdict": "deviation",
-          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:144 Two-valued mapping of a PATH-existence boolean (engine-preflight.ts probeClaudeCli, existsSync per PATH dir) to 'available'; the technique requires installed vs authorized as separate answers and an 'unknown' that renders as unknown. The tooltip at :171 ('claude CLI resolves on PATH') names the true measurement, but the visible state word does not."
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 engineState (line 144) has only two values, and its input is EngineAvailability.claudeCli, which is a PATH-existence scan. There is no authorized/unauthorized/unknown split and no offline veto. The technique names this collapse as its failure mode."
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/spend/spendUsageFold.test.ts:51 The context only folds metered rows per provider for display; it builds no child environment."
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.test.ts:51 The context only folds metered rows per provider for display; it builds no child environment.",
+          "carriedFrom": "2026-10-24"
         },
         {
           "technique": "fallback-ladder",
@@ -2709,7 +2710,6 @@
           "carriedFrom": "2026-10-13"
         }
       ],
-      "registryProposal": "availability-probe could say explicitly that the rule binds the surface that RENDERS the probe, not only the probe: a host whose probe is honestly install-only must label the state 'installed', not 'available'.",
       "superseded": [
         {
           "state": "not-applicable",
@@ -2717,6 +2717,13 @@
           "evaluatedAt": "2026-09-20",
           "worker": null,
           "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        },
+        {
+          "state": "deviation",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel renders the Claude CLI engine as a two-valued 'available'/'unavailable' word from a boolean that only records whether a `claude` file exists on PATH, so an installed but logged-out (or offline-sealed) CLI reads 'Claude CLI available' — installed and authorized are collapsed into one claim and unknown authorization renders as a confident yes.",
+          "evaluatedAt": "2026-10-24T03:33:45.367Z",
+          "worker": "d6fe23ff-820d-4167-844f-9f9f5ce92405",
+          "reason": "replaced by c7a58041-eb94-4c91-b20e-b53a997c4a3c"
         }
       ]
     },
@@ -2755,19 +2762,21 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T07:59:37.071Z",
-      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:31:55.573Z",
+      "worker": "c7a58041-eb94-4c91-b20e-b53a997c4a3c",
       "techniques": [
         {
           "technique": "permission-stance-enforcement",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/auth/roles.ts:6 Defines application operator and member role hierarchies rather than configuring agent tool permission stances."
+          "evidence": "app/_lib/auth/roles.ts:6 Defines application operator and member role hierarchies rather than configuring agent tool permission stances.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/auth/session.ts:52 Validates operator HMAC session cookies with KP_SECRET rather than injecting or stripping LLM subscription tokens."
+          "evidence": "app/_lib/auth/session.ts:52 Validates operator HMAC session cookies with KP_SECRET rather than injecting or stripping LLM subscription tokens.",
+          "carriedFrom": "2026-10-13"
         }
       ],
       "superseded": [
@@ -2777,6 +2786,13 @@
           "evaluatedAt": "2026-09-20",
           "worker": null,
           "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/auth/require-operator.ts:10 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/auth, confirming this context manages operator HTTP session authentication and RBAC rather than hosting or spawning an agent CLI transport.",
+          "evaluatedAt": "2026-10-13T07:59:37.071Z",
+          "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+          "reason": "replaced by c7a58041-eb94-4c91-b20e-b53a997c4a3c"
         }
       ]
     },
@@ -2785,19 +2801,20 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T07:59:37.071Z",
-      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T01:31:55.573Z",
+      "worker": "c7a58041-eb94-4c91-b20e-b53a997c4a3c",
       "techniques": [
-        {
-          "technique": "output-normalization",
-          "verdict": "not-applicable",
-          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:60 Parses API JSON response payload into a UI outcome type rather than normalizing an agent CLI process stdout envelope."
-        },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:19 Carries the server-supplied score source tag for UI display rather than implementing an execution fallback ladder."
+          "evidence": "app/features/insights/matrix/MatrixReasoningPopover.tsx:155 The context is a consumer, not a transport. It does show which engine served the reasoning, but a missing or unknown `source` renders as 'rule-based' instead of 'unknown' (see notes)."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:60 Parses API JSON response payload into a UI outcome type rather than normalizing an agent CLI process stdout envelope.",
+          "carriedFrom": "2026-10-13"
         }
       ],
       "superseded": [
@@ -2807,6 +2824,13 @@
           "evaluatedAt": "2026-09-20",
           "worker": null,
           "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:5 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/features/insights/matrix, confirming this context invokes candidate matching via client HTTP fetch to /api/match/reasoning without hosting, probing, or spawning an agent CLI transport.",
+          "evaluatedAt": "2026-10-13T07:59:37.071Z",
+          "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+          "reason": "replaced by c7a58041-eb94-4c91-b20e-b53a997c4a3c"
         }
       ]
     },

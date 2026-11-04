@@ -5827,12 +5827,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_lib/auth/require-operator.ts:10 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/auth, confirming this context manages operator HTTP session authentication and RBAC rather than hosting or spawning an agent CLI transport.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/auth/require-operator.ts:10 A case-insensitive grep for claude, child_process, ANTHROPIC_API_KEY and permission-mode over app/_lib/auth found nothing. The only spawn mentions are comments saying this gate protects routes that spawn Python, so the context authenticates HTTP sessions and launches no agent child itself.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -6290,13 +6289,12 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel renders the Claude CLI engine as a two-valued 'available'/'unavailable' word from a boolean that only records whether a `claude` file exists on PATH, so an installed but logged-out (or offline-sealed) CLI reads 'Claude CLI available' — installed and authorized are collapsed into one claim and unknown authorization renders as a confident yes.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:173 The spend panel shows the Claude CLI as either 'available' or 'unavailable', based on a boolean that only says whether a `claude` file exists on PATH (app/_lib/engine-preflight.ts:51, existsSync). So a CLI that is installed but logged out, or blocked by the offline setting, still reads 'Claude CLI available'. That merges installed with authorized and shows an unknown authorization as a confident yes.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "subscription-billing-periods",
@@ -24197,13 +24195,12 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:5 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/features/insights/matrix, confirming this context invokes candidate matching via client HTTP fetch to /api/match/reasoning without hosting, probing, or spawning an agent CLI transport.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evidence": "app/features/insights/matrix/MatrixReasoningPopover.tsx:155 A case-insensitive grep for claude, child_process, ANTHROPIC_API_KEY and permission-mode over app/features/insights/matrix (recursive) found nothing. The context only fetches /api/match/reasoning over HTTP and renders the engine label it gets back; it never hosts, probes or spawns an agent CLI.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "conform",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
