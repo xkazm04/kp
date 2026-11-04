@@ -5800,8 +5800,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/auth/require-operator.ts:71 The auth layer guards HTTP routes with HMAC sessions and roles. It mints no per-consumer tool-server tokens and has no tool door for authentication-and-scoping or first-party-agent-is-a-principal to apply to. A case-insensitive search of app/_lib/auth (and of all app/_lib) for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -10357,8 +10361,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/analyze/useAnalyzeForm.ts:23 The workspace is a recruiter UI that calls first-party HTTP routes through AnalyzeApi, not a tool protocol; a case-insensitive search of app/features/tools/analyze for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -24546,8 +24554,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 This settings UI manages provider API keys and per-capability model routing through first-party /api/llm routes; it registers no tool servers and lists no tool catalog. A case-insensitive search of app/features/settings/models for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -29917,8 +29929,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "scripts/agent/dispatch.mjs:53 The agent dispatcher sends one prompt to the Messages API or the claude CLI and gets back a patch. It exposes and consumes no tool-protocol server, catalog or tool results, and the secret and actions gates are static scanners. A case-insensitive search of scripts/agent and scripts/security for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -30274,8 +30290,8 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "translation-pipeline-topology",

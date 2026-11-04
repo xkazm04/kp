@@ -23293,6 +23293,62 @@
       "evaluatedTs": "2026-11-04T04:24:35.523Z",
       "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
       "techniques": []
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/mcp-tools": {
+      "context": "shared-api-utilities",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:32:19.511Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+        "state": "not-applicable",
+        "at": "2026-11-04T04:32:57.058652+00:00",
+        "reason": "reviewer (sonnet): The anchor app/_lib/rate-limit.ts:44 is just the rateLimit() signature, and that file is not among the context's listed files. The line does not show that the context has no tool server or tool-call client, and the evidence generalizes to all of app/_lib, which also holds the voice, interview-sim an"
+      }
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/mcp-tools": {
+      "context": "cv-analyze-workspace",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:32:19.511Z",
+      "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+      "techniques": []
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/mcp-tools": {
+      "context": "models-keys-and-routing",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:32:19.511Z",
+      "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+      "techniques": []
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/mcp-tools": {
+      "context": "security-agent-gates",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:32:19.511Z",
+      "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+      "techniques": [],
+      "registryProposal": "The dispatcher fences untrusted issue text with a label the text cannot close (dispatch.mjs:409-440). That is the untrusted-result-handling discipline applied to prompt input rather than to tool results, so it belongs to a prompt-safety subject, not mcp-tools."
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/mcp-tools": {
+      "context": "auth-session-rbac",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T04:32:19.511Z",
+      "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+      "techniques": []
     }
   }
 }
