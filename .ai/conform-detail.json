@@ -23349,16 +23349,11 @@
       "context": "decisions-review-ui",
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T04:53:34.498Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
-        "state": "not-applicable",
-        "at": "2026-11-04T04:54:23.103483+00:00",
-        "reason": "reviewer (sonnet): The anchor useDecisionsQueue.ts:51 is a comment about group eval being a paid LLM run that is never auto-fired from a URL. It does not show that the UI builds no prompt text or that its model runs are assembled server-side, so the not-applicable rests on an incidental line and a keyword search over "
-      }
+      "evaluatedTs": "2026-11-04T05:03:33.842Z",
+      "worker": "f3835323-1b0c-4058-92b9-6c9da4f30100",
+      "techniques": []
     },
     "c0265e6e-9274-43db-9929-822cb417b96d/prompt-assembly": {
       "context": "companion-ai",
@@ -23460,6 +23455,74 @@
       "evaluatedAt": "2026-11-04",
       "evaluatedTs": "2026-11-04T04:53:34.498Z",
       "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
+      "techniques": []
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/prompt-assembly": {
+      "context": "shared-api-utilities",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:03:33.842Z",
+      "worker": "f3835323-1b0c-4058-92b9-6c9da4f30100",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache-key.ts:9 The prompt's identity in the key is a remembered label, not a canonical serialization of the template. The model route (line 120) and the archetype-registry digest (line 116) are folded in correctly, but nothing binds the analyze prompt text to PROMPT_VERSION. The repo's own test_prompt_version_sync.py says 'a comment is not a guard' and guards only the reasoning/automation pairs."
+        }
+      ],
+      "registryProposal": "fingerprinting-and-cache-keys is written for session reuse. It does not say whether a hand-bumped 'template version' label is an acceptable fingerprint input for a response cache when the prompt is assembled in another process or language and cannot be digested where the key is computed. One sentence on that cross-process case would settle verdicts like this one."
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/prompt-assembly": {
+      "context": "review-gates",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:03:33.842Z",
+      "worker": "f3835323-1b0c-4058-92b9-6c9da4f30100",
+      "techniques": [
+        {
+          "technique": "variable-interpolation",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:105 Absent input gets an honest declared default, but the untrusted variables (messages, diff, files) carry no trust class, and the files list is joined with no cap (line 110)."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:96 One assembler for the family takes typed inputs. Stable layers come first (system, then the rubric derived from repo files) and volatile ones trail (messages, files, diff, answer)."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:60 The diff is cut at file boundaries, and an in-prompt TRUNCATED notice names the dropped char count (line 114)."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:124 The done criterion is a concrete artifact schema. The system prompt opens with situational facts, not an expertise claim."
+        },
+        {
+          "technique": "response-reservation-sizing",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:178 Input is capped near 160k chars, far below the window, so the reservation displaces nothing (the technique's own precondition)."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:180 Single-turn call with no tools or operations offered; nothing to document. The same line shows there is no multi-turn history to compact."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/prompt-assembly": {
+      "context": "voice-stt-package",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T05:03:33.842Z",
+      "worker": "f3835323-1b0c-4058-92b9-6c9da4f30100",
       "techniques": []
     }
   }

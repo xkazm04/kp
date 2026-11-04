@@ -12040,7 +12040,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:191 This context is client UI that fetches already-computed server results. A search of app/features/hiring/decisions for prompt, max_tokens, buildPrompt and compaction found no hit, so nothing here assembles a model prompt.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -28840,8 +28844,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "scripts/review/agent-review.mjs:105 Commit messages and the diff come from the change author, which makes them untrusted. They are spliced into the prompt inside bare ``` fences with no declared trust class or insertion-point policy, so a diff or message containing a fence can escape its section. The reviewer being judged on the change is exposed to text written by that change.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "copy-quality-gates",
@@ -30285,8 +30293,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/cache-key.ts:9 The analyze result cache identifies the prompt by a hand-bumped PROMPT_VERSION label rather than a digest of the prompt text; the only test (cache-key.test.ts:72) pins the label's prefix, so editing the prompt without a bump serves the old prompt's cached analysis for the whole TTL.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",
@@ -35292,8 +35304,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "packages/voice-stt/src/types.ts:146 The package's only model interface is audio-in, transcript-out. A search of packages/voice-stt for max_tokens, systemPrompt, buildPrompt, compaction and initial_prompt found no hit; the only 'prompt' is the browser mic-permission prompt in useStt.ts. No text prompt is assembled here.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "talking-avatar",
