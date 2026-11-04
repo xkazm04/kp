@@ -17113,12 +17113,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "i18n/locales.ts:6 The frontend registry has independently maintained counterparts in Python and narrative-cache validation, so adding a language requires updating multiple language lists.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "i18n/locales.ts:5 The registry claims a new locale is a one-line edit. In fact the Python side keeps its own independent list (pipeline/jobfit/i18n.py:25 LANG_NAMES, synced only by a comment, plus role_research_cli.py:90 LANGS). So adding a language means editing several language lists, which fails the one-line-diff test.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
+          "revisionsBehind": 1
         },
         {
           "subject": "i18n",
@@ -28764,12 +28763,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "scripts/review/agent-review.mjs:80 Searches found no translation, catalog or termbase references in scripts/review, whose model contract reviews code-change intent rather than managing translations.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
-          "evaluatedRevision": 12,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "scripts/review/agent-review.mjs:75 The review lenses judge commit intent, scope and constitution rules over diffs. Their only touch with localization is noting that the locale-parity gate already ran (here) and listing scripts/i18n-check.mjs as a protected path (constitution-check.mjs:197). A search of scripts/review found no translation, termbase, glossary or pseudo-locale construct, so no catalog storage, movement or translation request lives in this context.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:7a5b5afa04e7f7ad",
+          "evaluatedRevision": 13,
+          "revisionsBehind": 1
         },
         {
           "subject": "docs-sync",
