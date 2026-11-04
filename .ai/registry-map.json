@@ -22524,7 +22524,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/llm/usage/usage-route-contract.test.ts:34 The guard that pins the usage route's authorization order runs over raw source text with no comment or string stripping. A comment naming `requireHomeOrgReader()` above the ledger read would satisfy it, which is exactly the authorization-guard case match-the-resolved-artifact measures. The other context guards strip comments, and a behavioural test outside this context (app/api/deployment-read-gate.test.ts) drives the real handler, so today the impact is limited to this instrument.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-memory",
@@ -22929,7 +22933,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-spawn-contract.test.ts:31 The env-routing contract covers only a hand-written module list, not the population of spawn sites in the tree. intake-run.ts, companion-run.ts, interview-letter-run.ts, job-translate-run.ts, jobseeker-run.ts and the jobseeker rules/propose route all spawn LLM-resolving Python CLIs and all pass buildLlmConfigEnv, but none is in the map. Dropping the env pin from any of them would leave the suite green, which is the same gap the file's own history records (a fifth site found only by a manual sweep).",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-runtime-assembly",
