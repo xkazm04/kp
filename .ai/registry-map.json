@@ -2969,7 +2969,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/agents/dispatch/route.ts:18 These routes send a persona spec (including a systemPromptDraft field, mint.ts:43) to Personas as request data; no file here writes, loads or governs a coding-harness instruction file. Searching app/api/agents, app/api/companion and the parent app/api for AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "copy-quality-gates",
@@ -4426,7 +4430,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:1 This context is client-side CV-intake and analysis-run state with no agent harness, instruction file or spawned agent workspace. Searching app/features (which contains app/features/tools/analyze) for CLAUDE.md, AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "eval-harness",
@@ -16724,7 +16732,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/decisions/screen-wave/route.ts:15 These are screening, decision-record and feedback route handlers; nothing in them writes, loads or governs an agent instruction file. Searching app/api/decisions, app/api/feedback and the parent app/api for AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "agent-runtime-assembly",

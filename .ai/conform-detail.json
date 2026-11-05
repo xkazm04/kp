@@ -23649,22 +23649,18 @@
       "context": "agents-api",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T05:42:27.829Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:49:21.690Z",
+      "worker": "0b2e73fa-3a00-4b62-9080-0fe317196760",
       "techniques": [
         {
           "technique": "workspace-ancestry-isolation",
           "verdict": "not-applicable",
-          "evidence": "app/api/agents/dispatch/route.ts:18 The agent launch happens inside Personas, outside this repo. The routes create no workspace and start no harness."
+          "evidence": "app/api/agents/dispatch/route.ts:18 The agent launch happens inside Personas, outside this repo. The routes create no workspace and start no harness.",
+          "carriedFrom": "2026-11-04"
         }
-      ],
-      "withdrawn": {
-        "worker": "b66f451d-7c47-4e1b-8507-610acb08e4ae",
-        "state": "not-applicable",
-        "at": "2026-11-04T05:42:58.556633+00:00",
-        "reason": "reviewer (sonnet): The anchor (dispatch/route.ts:18) is only a comment about the Personas hand-off. The context's hire-from-need/route.ts calls startRepoScan({rootPath}) (line 213) and polls it, which starts the in-clone agent scan, and the verdict never accounts for that."
-      }
+      ]
     },
     "05973fce-bf4d-4d6f-8788-05e2ce7534a6/agent-instruction-files": {
       "context": "org-management-api",
@@ -23839,6 +23835,26 @@
       "evaluatedAt": "2026-11-05",
       "evaluatedTs": "2026-11-05T23:06:18.768Z",
       "worker": "c56850c8-e501-462e-87cf-4cca36649ddb",
+      "techniques": []
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/agent-instruction-files": {
+      "context": "analyze-engine",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:49:21.690Z",
+      "worker": "0b2e73fa-3a00-4b62-9080-0fe317196760",
+      "techniques": []
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/agent-instruction-files": {
+      "context": "hiring-decisions-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:49:21.690Z",
+      "worker": "0b2e73fa-3a00-4b62-9080-0fe317196760",
       "techniques": []
     }
   }
