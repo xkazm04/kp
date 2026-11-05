@@ -23588,16 +23588,11 @@
       "context": "llm-api",
       "subject": "mcp-tools",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T05:18:45.314Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "e35a2482-eaab-411a-b2e5-a6bdf73e5093",
-        "state": "not-applicable",
-        "at": "2026-11-04T05:19:17.988968+00:00",
-        "reason": "reviewer (sonnet): The anchor at app/api/llm/config/route.ts:54 is the closing of a GET handler and the start of PUT (requireOperator), so it is incidental. It does not show that no tool protocol exists. The evidence also cites app/api/automation and app/api/sim, which are outside the listed context files, and I could"
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:05:01.012Z",
+      "worker": "79423439-2a32-463f-9fe9-8da6d9db4f30",
+      "techniques": []
     },
     "0f0b2b00-f446-41b0-af7a-d927592c28de/mcp-tools": {
       "context": "voice-interview-api",
@@ -23773,6 +23768,21 @@
       "evaluatedTs": "2026-11-04T22:25:38.038Z",
       "worker": "996c4e21-e0ff-4e8e-a415-ecf8d40f6dd2",
       "techniques": []
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/mcp-tools": {
+      "context": "llm-inference-runtime",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:05:01.012Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "79423439-2a32-463f-9fe9-8da6d9db4f30",
+        "state": "not-applicable",
+        "at": "2026-11-05T22:05:40.218854+00:00",
+        "reason": "reviewer (sonnet): The anchor at python-runner.ts:641 is a plain spawn() and says nothing about tool grants, and the context calls the Python pipeline, which passes --allowedTools/--disallowedTools (WebSearch,WebFetch, read-only tools plus a write denylist) to the claude CLI, a tool-governance surface the app/_lib-onl"
+      }
     }
   }
 }

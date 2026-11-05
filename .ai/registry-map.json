@@ -22674,7 +22674,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/llm/config/route.ts:37 These are ordinary session-gated Next.js HTTP routes for LLM config, keys, usage, automation and sim, not a tool-protocol server or host. A case-insensitive search of app/api/llm, app/api/automation and app/api/sim for mcp, modelcontextprotocol, jsonrpc/json-rpc, tools/call, tools/list, callTool and allowedTools found 0 hits, so there is no tool catalog, transport or tool-result boundary for the subject to govern.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "optional-dependency-degradation",
@@ -23036,8 +23040,8 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "quality-gates",
