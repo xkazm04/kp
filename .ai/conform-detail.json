@@ -23830,6 +23830,16 @@
         }
       ],
       "registryProposal": "fingerprinting-and-cache-keys could say explicitly that a timestamp/updatedAt comparison is not a fingerprint: it is the most common substitute and fails in exactly the 'unchanged sessions keep flagging as stale' way."
+    },
+    "9435610d-c621-4497-842c-37b7091276f3/mcp-tools": {
+      "context": "devcase-outbox-need",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:06:18.768Z",
+      "worker": "c56850c8-e501-462e-87cf-4cca36649ddb",
+      "techniques": []
     }
   }
 }
