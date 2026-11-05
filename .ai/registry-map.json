@@ -2661,8 +2661,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/app-master/spec-vintage.ts:52 Whether a composed App-master spec (which carries the persona's system-prompt draft) is stale is decided by comparing timestamps (intake updatedAt vs composedAt), not a digest of what shaped the spec. Any dialog turn that bumps updatedAt without changing the brief flags the spec stale and pushes the requestor into a paid recompose. The 2s grace window is the 'compare less' patch the fingerprinting technique warns about.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "eval-harness",
@@ -16385,8 +16389,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:44 The Group Evaluation modal displays a comparison narrative that was produced and saved on the server; nothing here assembles a prompt. A search of app/features/hiring/decisions for maxTokens, contextWindow, compaction, buildPrompt and fenced_untrusted found 0 files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "recruiter-anchored-model-evaluation",
@@ -27543,8 +27551,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/ops/route.ts:104 The auth, workspace, health and ops routes build no prompts. Their only LLM-related lines read telemetry (prompt-cache stats, llm_usage aggregates). A search of app/api for maxTokens, contextWindow, compaction, buildPrompt and fenced_untrusted found 0 files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "authorization",

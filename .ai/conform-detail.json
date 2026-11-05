@@ -23783,6 +23783,53 @@
         "at": "2026-11-05T22:05:40.218854+00:00",
         "reason": "reviewer (sonnet): The anchor at python-runner.ts:641 is a plain spawn() and says nothing about tool grants, and the context calls the Python pipeline, which passes --allowedTools/--disallowedTools (WebSearch,WebFetch, read-only tools plus a write denylist) to the claude CLI, a tool-governance surface the app/_lib-onl"
       }
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/prompt-assembly": {
+      "context": "platform-auth-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:30:23.039Z",
+      "worker": "70a8ad35-2e63-4ea4-b72f-6c983221b08f",
+      "techniques": []
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/prompt-assembly": {
+      "context": "group-eval-comparison",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:30:23.039Z",
+      "worker": "70a8ad35-2e63-4ea4-b72f-6c983221b08f",
+      "techniques": []
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/prompt-assembly": {
+      "context": "agent-hire-app-master",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:30:23.039Z",
+      "worker": "70a8ad35-2e63-4ea4-b72f-6c983221b08f",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/_lib/app-master/spec-vintage.ts:52 The staleness gate compares timestamps, not a content digest of the inputs that shaped the composed prompt. Line 8 says every dialog turn stamps updatedAt, and line 25's grace window exists only to hide false positives."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.ts:144 The agent-fit runner gives the Python assembler typed inputs (job, connector catalog, lang), not prompt text it has rendered itself."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/bridge-client.ts:205 The connector vocabulary that reaches the spec-drafting prompt comes from Personas' live catalog. The built-in fallback list is labelled source: 'builtin', so it is never presented as the registry's list."
+        }
+      ],
+      "registryProposal": "fingerprinting-and-cache-keys could say explicitly that a timestamp/updatedAt comparison is not a fingerprint: it is the most common substitute and fails in exactly the 'unchanged sessions keep flagging as stale' way."
     }
   }
 }
