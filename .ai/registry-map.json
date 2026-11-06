@@ -3298,8 +3298,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:1 The calibration context is pure statistics (Brier, base rate, floor and leakage gates) plus the charts that show them, with no LLM call. Grepping app/features/insights/analytics for systemPrompt/max_tokens/maxTokens/cache_control/compaction found nothing; the only 'prompt' hits are under sections/, where a decision record's prompt-version trace is displayed.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "usage-analytics",
@@ -17589,8 +17593,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/interview-lab/page.tsx:52 The page is a flag-gated server shell that mounts VoiceInterviewClient and TtsComparePanel from app/_components/voice; it assembles no interviewer prompt. Grepping app/interview-lab for prompt/systemPrompt/instructions/max_tokens/compaction found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "talking-avatar",
@@ -27689,8 +27697,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/profile/ProfileEditorAiDraft.tsx:46 The only AI touchpoint hands the recruiter's raw text to the server-side 'profile_draft' background task as a typed input, so the prompt is assembled outside this context. Grepping app/features/tools/profile for systemPrompt/max_tokens/maxTokens/cache_control/compaction found nothing; the two 'prompt' hits are confirm-dialog i18n keys (deletePrompt, confirmPrompt).",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",

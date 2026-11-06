@@ -23985,6 +23985,36 @@
       "evaluatedTs": "2026-11-06T00:36:42.048Z",
       "worker": "4e56d119-e0b8-48c1-b863-cb0e7aac02b6",
       "techniques": []
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/prompt-assembly": {
+      "context": "analytics-calibration",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:44:06.622Z",
+      "worker": "af6062b5-926c-4d47-935b-7f3fe5cbd01b",
+      "techniques": []
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/prompt-assembly": {
+      "context": "profile-editor",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:44:06.622Z",
+      "worker": "af6062b5-926c-4d47-935b-7f3fe5cbd01b",
+      "techniques": []
+    },
+    "f3c7a16c-32b1-4b6a-8df4-6181ab2734dc/prompt-assembly": {
+      "context": "interview-lab-harness",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:44:06.622Z",
+      "worker": "af6062b5-926c-4d47-935b-7f3fe5cbd01b",
+      "techniques": []
     }
   }
 }
