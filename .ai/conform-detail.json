@@ -24095,6 +24095,36 @@
       "evaluatedTs": "2026-11-06T01:42:17.556Z",
       "worker": "f0595fdb-b2ac-4da3-bb86-737506ccb82f",
       "techniques": []
+    },
+    "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/agent-instruction-files": {
+      "context": "app-master-bench-scenarios",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:53:58.380Z",
+      "worker": "d5d564e5-7703-4b7c-aefc-8bfc6beab0e4",
+      "techniques": []
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/agent-instruction-files": {
+      "context": "voice-stt-package",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:53:58.380Z",
+      "worker": "d5d564e5-7703-4b7c-aefc-8bfc6beab0e4",
+      "techniques": []
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/agent-instruction-files": {
+      "context": "cv-analyze-workspace",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:53:58.380Z",
+      "worker": "d5d564e5-7703-4b7c-aefc-8bfc6beab0e4",
+      "techniques": []
     }
   }
 }

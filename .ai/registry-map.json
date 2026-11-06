@@ -4782,7 +4782,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:1 The soak runner boots kp and a driver from the repo root and records nightly pass rates. It neither authors nor loads an agent instruction file, and it creates no agent workspace: agent sessions run inside Personas. Grepping scripts/app-master-bench for CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions and GEMINI.md returned no hits.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "prompt-assembly",
@@ -10516,7 +10520,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:1 This is recruiter-facing React UI: tab shell, forms, history table. Nothing in it is an agent instruction file or concerns one. Grepping app/features/tools for CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions and GEMINI.md returned no hits.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "module-design",
@@ -35520,7 +35528,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-stt/package.json:2 This is a source-only speech-to-text library with whisper.cpp and AssemblyAI adapters. It carries and loads no agent instruction file. Grepping packages/voice-stt for CLAUDE.md, AGENTS.md, .cursorrules, copilot-instructions and GEMINI.md returned no hits.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
