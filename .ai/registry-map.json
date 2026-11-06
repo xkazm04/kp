@@ -27935,8 +27935,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/profile/profileRosterView.ts:17 The roster, matrix and archetype manager are pure view models and UI over a population read from an API. Nothing here builds model input. A case-insensitive search of app/features/tools/profile for systemPrompt, max_tokens, anthropic, compaction and tokenBudget found nothing. 'llm' found nothing too, and the only 'prompt' hits are UI confirmation i18n keys (deletePrompt, confirmPrompt).",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "eval-harness",
@@ -31630,7 +31634,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:4 The wizard is a step model plus UI copy taken from i18n catalogs. Its only server contact related to the companion is a read-only probe, GET /api/companion/brain, in useSetupCompanionBrain.ts. A search of app/features/shell/setup for systemPrompt, max_tokens, anthropic, compaction and tokenBudget found nothing, and 'llm' found nothing either. The single 'prompt' hit is a UI 'resume prompt' comment.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "docs-sync",

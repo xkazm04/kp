@@ -24070,16 +24070,21 @@
       "context": "shell-setup-wizard",
       "subject": "prompt-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T01:15:58.855Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "8a01f823-e08f-4617-8b24-e097d69e4d64",
-        "state": "not-applicable",
-        "at": "2026-11-06T01:16:33.728776+00:00",
-        "reason": "reviewer (sonnet): The anchor setupSteps.ts:42 is a comment about importing the companion-brain probe module and does not show that prompt assembly is absent. The evidence also says the wizard only GETs or POSTs the companion brain status, but setupOnboardingFinish.ts and the hooks also call /api/brand, /api/org/invit"
-      }
+      "evaluatedTs": "2026-11-06T01:29:23.415Z",
+      "worker": "db3b3a2b-a6b4-4ba6-8319-33512459534a",
+      "techniques": []
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/prompt-assembly": {
+      "context": "profile-roster-matrix",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:29:23.415Z",
+      "worker": "db3b3a2b-a6b4-4ba6-8319-33512459534a",
+      "techniques": []
     }
   }
 }
