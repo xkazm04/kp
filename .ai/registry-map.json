@@ -4583,7 +4583,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeDraft.ts:13 The only thing this context persists is a transient form draft and task/result handles in sessionStorage, plus a localStorage cohort-layer pick. Under the subject's own boundary that is client view-state. A search of app/features/tools/analyze found no durable backend settings accessor or key registry.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "agent-instruction-files",
@@ -11519,7 +11523,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/organizations.ts:25 rowToOrg hands the org's default_locale out as a raw string with an inline \"cs\" fallback and no validation, while getWorkspaceDefaultLocale validates the same setting through isLocale. One setting therefore has two read paths with different ideas of what an illegal value is. Neither path reports a stored value it could not read: workspaces.ts valid() silently degrades it to WORKSPACE_LOCALE_FALLBACK.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "agent-instruction-files",
@@ -36217,7 +36225,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:20 The tab is a membership and RBAC console. Its writes are seat/unseat, role and status PATCH, capability overrides, invites and workspace rename. These are entity and authorization mutations, not keys in an application settings store. A search of the directory found no settings accessor, key registry or locale override.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "model-composed-workspace",

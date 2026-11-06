@@ -2972,7 +2972,7 @@
       "bundle": "software-engineering",
       "state": "unknown",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T05:07:22.747Z",
+      "evaluatedTs": "2026-11-06T22:46:08.508Z",
       "techniques": [
         {
           "technique": "cross-source-precedence-chain",
@@ -3000,10 +3000,10 @@
         }
       ],
       "withdrawn": {
-        "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
+        "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
         "state": "not-applicable",
-        "at": "2026-11-06T05:08:28.768523+00:00",
-        "reason": "reviewer (sonnet): The anchor billingTypes.ts:9 is a comment about shared types and doesn't show that no settings key is read or written; the real evidence (the sessionStorage lines in BillingTab.tsx) wasn't the anchor, so the not-applicable rests on an incidental line."
+        "at": "2026-11-06T22:49:04.950475+00:00",
+        "reason": "reviewer (sonnet): The anchor BillingTab.tsx:130 is just the read fetch(\"/api/billing\"), so it does not show that no settings key space exists. My grep found no settings accessor and only checkout, portal and alert POSTs, but the cited line itself is incidental."
       }
     },
     "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
@@ -25014,16 +25014,11 @@
       "context": "analyze-workspace",
       "subject": "settings",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T05:07:22.747Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
-        "state": "not-applicable",
-        "at": "2026-11-06T05:08:28.852708+00:00",
-        "reason": "reviewer (sonnet): The claim that the workspace persists only a sessionStorage draft and a last-result slug is contradicted by the analyze code: DimensionLayer.tsx:24 and useCohortVariant.ts:39 persist a layer choice in localStorage under kp-analyze-layer. The anchor analyzeDraft.ts:13 is also only a comment line."
-      }
+      "evaluatedTs": "2026-11-06T22:46:08.508Z",
+      "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
+      "techniques": []
     },
     "e6b85437-3bfd-4a78-828e-ce67fb2e6114/table": {
       "context": "profile-roster-matrix",
@@ -25180,6 +25175,37 @@
           "technique": "native-owned-stream",
           "verdict": "not-applicable",
           "evidence": "packages/voice-stt/src/node/spawn.ts:24 This is a bounded server-side subprocess per clip, not a long-lived stream that a hidden window throttles; the subprocess-lifecycle subject owns it."
+        }
+      ]
+    },
+    "e32280aa-3e4a-470c-90a2-300bfab66f42/settings": {
+      "context": "workspace-member-admin",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:46:08.508Z",
+      "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
+      "techniques": []
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/settings": {
+      "context": "db-org-users-channels",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:46:08.508Z",
+      "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
+      "techniques": [
+        {
+          "technique": "typed-accessors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/organizations.ts:25 The org locale is cast unvalidated and typed as string, not Locale, and its fallback is a second inline constant. The workspace path's valid() (workspaces.ts:52) replaces unknown stored values without reporting the corruption, contrary to step 2 of the accessor contract."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/workspaces.ts:69 A NULL override means the team follows its org continuously. Presence of the override row decides, and one door (getWorkspaceDefaultLocale) resolves it. clearWorkspaceLocaleOverride re-attaches the team (line 90)."
         }
       ]
     }
