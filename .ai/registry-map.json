@@ -10515,7 +10515,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeFormFooter.tsx:58 The only configuration in this context is per-run form input (report language, blind screening), mirrored into a sessionStorage draft. That is client state under the subject's own boundary, not a durable settings store. Searching app/features/tools/analyze (including subdirectories) for 'settings', 'getSetting' and 'setSetting' found no hits.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "agent-instruction-files",
@@ -36099,7 +36103,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/brand/route.ts:87 PUT /api/brand overwrites an org-wide setting that re-skins every workspace and candidate-facing page, and the write records no old value, new value, origin or actor, only the row's updated_at. So 'who changed the brand, and from what' has no answer, and nothing can revert it.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "hitl-approval",

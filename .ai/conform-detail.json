@@ -24362,6 +24362,47 @@
       "evaluatedTs": "2026-11-06T03:32:58.420Z",
       "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
       "techniques": []
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/settings": {
+      "context": "workspace-config-api",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:45:30.018Z",
+      "worker": "1f61465a-aa6e-4d56-90ec-d7ad5e72c3bf",
+      "techniques": [
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/api/brand/route.ts:87 saveBrand (app/_lib/brand-store.ts) upserts in place with only updated_at. A grep found no audit call for brand writes anywhere under app/_lib."
+        },
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "deviation",
+          "evidence": "app/_lib/templates-store.ts:56 The store behind /api/templates seeds the shipped 'Company standard' template into a user-editable collection behind a COUNT(*) gate instead of a ledger of applied defaults. A newly shipped default would never reach an install whose org tier already holds rows. The repo's own seed_marks rule forbids this gate too."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/api/compliance/route.ts:55 The stored regime is normalized at the read boundary, so a stale or hand-edited row falls back to the declared EU default instead of an empty jurisdiction. The brand read also re-runs sanitizeBrand on every read."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "app/api/brand/route.ts:79 An invalid accent is refused with a reason code. Before, the write answered 200 and silently replaced the color with null, so the editor could not tell the save had failed."
+        }
+      ]
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/settings": {
+      "context": "cv-analyze-workspace",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:45:30.018Z",
+      "worker": "1f61465a-aa6e-4d56-90ec-d7ad5e72c3bf",
+      "techniques": []
     }
   }
 }
