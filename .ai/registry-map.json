@@ -4721,7 +4721,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/app-master-bench/run.mjs:2 The bench drives a live kp instance over HTTP (repo-scan, intake, dialog, overnight ticks) and gates the results. It creates no agent workspace and authors or loads no instruction file; the repository clone happens inside kp's repo-scan route, outside this context. Grepping scripts/app-master-bench for CLAUDE.md, AGENTS.md, cursorrules, copilot-instructions and 'instruction file' found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
@@ -18624,7 +18628,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/jd-lint.ts:1 These files are job-description build, lint, limit and template logic. Nothing here is an agent instruction file or a tool that writes one: cursorrules, copilot-instructions, GEMINI.md and 'instruction file' have zero hits in app/_lib. The only CLAUDE.md mention, a code comment at templates-store.ts:179, cites the repo guidance and is not an instruction asset.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "pre-boarding-and-first-day-handoff",
@@ -22036,7 +22044,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/dsl.ts:1 The 'rules' in this context are a CSS/regex extraction DSL for scraping job boards, not standing briefs for a coding harness. Grepping app/_lib/jobseeker for CLAUDE.md, cursorrules, copilot-instructions, GEMINI.md and 'instruction file' found nothing, so the subject does not govern it.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
@@ -36420,7 +36432,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tabs.ts:1 This is the ?tab= React workspace shell. Its 'workspace' and 'capabilities' are product UI concepts, not agent workspaces or harness capabilities. Grepping app/features/shell for CLAUDE.md, AGENTS.md, cursorrules, copilot-instructions and 'instruction file' found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"

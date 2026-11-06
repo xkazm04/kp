@@ -24360,16 +24360,11 @@
       "context": "jd-build-templates",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T03:32:58.420Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
-        "state": "not-applicable",
-        "at": "2026-11-06T03:33:27.064167+00:00",
-        "reason": "reviewer (sonnet): The anchor app/_lib/templates-store.ts:179 is a comment citing .claude/CLAUDE.md as the source of a rule. It does not show that the context authors no instruction file, and the file is not among the listed context files (the list shows only jd-build-*, jd-limits, jd-lint, jd-template-tokens and spli"
-      }
+      "evaluatedTs": "2026-11-06T04:30:53.030Z",
+      "worker": "02e731a0-ed72-4084-a3ed-445da50029db",
+      "techniques": []
     },
     "e32280aa-3e4a-470c-90a2-300bfab66f42/agent-instruction-files": {
       "context": "workspace-member-admin",
@@ -24541,6 +24536,36 @@
       "evaluatedAt": "2026-11-06",
       "evaluatedTs": "2026-11-06T04:21:18.854Z",
       "worker": "80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e",
+      "techniques": []
+    },
+    "1b76972a-b723-44f7-a452-16729228461f/agent-instruction-files": {
+      "context": "jobseeker-feed-rules",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:30:53.030Z",
+      "worker": "02e731a0-ed72-4084-a3ed-445da50029db",
+      "techniques": []
+    },
+    "88981f4e-1bb3-4e78-a04c-dda7f5b53ff0/agent-instruction-files": {
+      "context": "app-master-bench",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:30:53.030Z",
+      "worker": "02e731a0-ed72-4084-a3ed-445da50029db",
+      "techniques": []
+    },
+    "1bf08cae-f1e4-42c6-b461-ba844cd10d0b/agent-instruction-files": {
+      "context": "workspace-shell-core",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:30:53.030Z",
+      "worker": "02e731a0-ed72-4084-a3ed-445da50029db",
       "techniques": []
     }
   }
