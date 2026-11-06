@@ -2536,12 +2536,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/insights/about/ChapterRail.tsx:46 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the explainer observes and animates its own document sections.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/insights/about/ChapterRail.tsx:46 The explainer observes only its own document sections. Searching app/features/insights/about for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so no native side exists here.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "supply-chain",
@@ -12558,12 +12557,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_dev-inspector/devLocate.ts:61 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, and inspection walks source-stamped elements within the product's own DOM.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_dev-inspector/devLocate.ts:61 The inspector walks data-loc stamps in the product's own DOM and never reads a foreign application's tree. Searching app/_dev-inspector for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so the overlay techniques have no native surface to govern.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -35590,8 +35588,12 @@
           "revision": 5,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "packages/voice-stt/src/react/useStt.ts:340 The client asks the browser for one microphone grant, and the server spawns whisper-cli as an ordinary subprocess (spawn.ts:24). Searching packages/voice-stt for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so there is no native wrapper whose capabilities need a presence or grant-vector contract.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6
         },
         {
           "subject": "quality-gates",
@@ -35890,12 +35892,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:96 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the palette binds keyboard handling to its own browser document.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:98 The palette binds its chord only on the browser document. A case-insensitive search of app/features/shell for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so no native process exists for this context to integrate with.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "search",

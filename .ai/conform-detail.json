@@ -5226,54 +5226,77 @@
       "subject": "native-shell-integration",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:30:03.799Z",
-      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:12:24.559Z",
+      "worker": "8c0b7804-1cb3-45d6-af69-52eef51ffdc8",
       "techniques": [
+        {
+          "technique": "host-forwarded-key-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:98 The page receives keys straight from the browser; no native wrapper forwards host-kept keys."
+        },
         {
           "technique": "capability-presence-contract",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:7 These capabilities describe application authorization, not platform capability presence."
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:7 These capabilities describe application authorization, not platform capability presence.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "layout-resolved-input-synthesis",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:78 Consumes received keyboard events for local navigation; synthesizes no foreign input."
+          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:78 Consumes received keyboard events for local navigation; synthesizes no foreign input.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-owned-stream",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/useWorkspaceCommandPaletteSearch.ts:80 Search uses an abortable request per query, not a persistent background stream."
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteSearch.ts:80 Search uses an abortable request per query, not a persistent background stream.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-side-owns-the-target-set",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:160 Palette destinations are application routes; this context exposes no native filesystem or process command."
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:160 Palette destinations are application routes; this context exposes no native filesystem or process command.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "non-stealing-overlay",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:231 The interactive dialog belongs to the product's own document."
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:231 The interactive dialog belongs to the product's own document.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "observer-perturbation",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:150 Observes its own option element rather than another application's structure."
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:150 Observes its own option element rather than another application's structure.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "permission-gate-vector",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:100 Document keyboard listeners require no separate operating-system input grants."
+          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:100 Document keyboard listeners require no separate operating-system input grants.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "query-transparent-overlay",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/WorkspacePaletteLedger.tsx:38 Selection references the product's own listbox options, not a host point-under-cursor query."
+          "evidence": "app/features/shell/WorkspacePaletteLedger.tsx:38 Selection references the product's own listbox options, not a host point-under-cursor query.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "unexported-capability-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/features/shell/workspaceChords.ts:36 Chord targets derive from application configuration without resolving private host entry points."
+          "evidence": "app/features/shell/workspaceChords.ts:36 Chord targets derive from application configuration without resolving private host entry points.",
+          "carriedFrom": "2026-10-14"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:96 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the palette binds keyboard handling to its own browser document.",
+          "evaluatedAt": "2026-10-14T23:30:03.799Z",
+          "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+          "reason": "replaced by 8c0b7804-1cb3-45d6-af69-52eef51ffdc8"
         }
       ]
     },
@@ -5343,54 +5366,71 @@
       "subject": "native-shell-integration",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:30:03.799Z",
-      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:12:24.559Z",
+      "worker": "8c0b7804-1cb3-45d6-af69-52eef51ffdc8",
       "techniques": [
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/devLocate.ts:61 The point query is an in-document closest() walk, not a host accessibility query that could return a topmost native overlay."
+        },
         {
           "technique": "capability-presence-contract",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspector.tsx:45 Inspector availability is a development-build condition, not a per-host native capability class."
+          "evidence": "app/_dev-inspector/DevInspector.tsx:45 Inspector availability is a development-build condition, not a per-host native capability class.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "layout-resolved-input-synthesis",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:148 Handles a received browser key event without injecting input into another application."
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:148 Handles a received browser key event without injecting input into another application.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-owned-stream",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:204 Inspection follows document pointer events; it has no persistent producer stream requiring native ownership."
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:204 Inspection follows document pointer events; it has no persistent producer stream requiring native ownership.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-side-owns-the-target-set",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:42 Copies a source reference through the browser clipboard API without exposing native filesystem or process commands."
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:42 Copies a source reference through the browser clipboard API without exposing native filesystem or process commands.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "non-stealing-overlay",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/devInspectorUi.tsx:39 The highlight is a DOM element inside the product's window, which the technique explicitly excludes."
+          "evidence": "app/_dev-inspector/devInspectorUi.tsx:39 The highlight is a DOM element inside the product's window, which the technique explicitly excludes.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "observer-perturbation",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/devLocate.ts:66 Walks the application's own DOM ancestors rather than a foreign application's accessibility provider."
+          "evidence": "app/_dev-inspector/devLocate.ts:66 Walks the application's own DOM ancestors rather than a foreign application's accessibility provider.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "permission-gate-vector",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:55 Clipboard copying has a checked browser fallback, not a vector of silent operating-system grants."
-        },
-        {
-          "technique": "query-transparent-overlay",
-          "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:173 HUD exclusion uses a scoped DOM relationship within the owned document, not global host accessibility traversal."
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:55 Clipboard copying has a checked browser fallback, not a vector of silent operating-system grants.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "unexported-capability-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/_dev-inspector/DevInspector.tsx:47 Loads an ordinary JavaScript module without discovering private native entry points."
+          "evidence": "app/_dev-inspector/DevInspector.tsx:47 Loads an ordinary JavaScript module without discovering private native entry points.",
+          "carriedFrom": "2026-10-14"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_dev-inspector/devLocate.ts:61 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, and inspection walks source-stamped elements within the product's own DOM.",
+          "evaluatedAt": "2026-10-14T23:30:03.799Z",
+          "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+          "reason": "replaced by 8c0b7804-1cb3-45d6-af69-52eef51ffdc8"
         }
       ]
     },
@@ -5399,54 +5439,71 @@
       "subject": "native-shell-integration",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:30:03.799Z",
-      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:12:24.559Z",
+      "worker": "8c0b7804-1cb3-45d6-af69-52eef51ffdc8",
       "techniques": [
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:46 It observes its own DOM sections, not a foreign application that could react to being covered."
+        },
         {
           "technique": "capability-presence-contract",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/AboutTab.tsx:153 The conditional link depends on application authorization rather than native platform capability presence."
+          "evidence": "app/features/insights/about/AboutTab.tsx:153 The conditional link depends on application authorization rather than native platform capability presence.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "layout-resolved-input-synthesis",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/ChapterRail.tsx:88 Navigation uses browser fragment links without synthesizing foreign keyboard input."
+          "evidence": "app/features/insights/about/ChapterRail.tsx:88 Navigation uses browser fragment links without synthesizing foreign keyboard input.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-owned-stream",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/stage/clock.ts:43 The animation clock intentionally stops when unseen; it is not a stream whose events must arrive in the background."
+          "evidence": "app/features/insights/about/stage/clock.ts:43 The animation clock intentionally stops when unseen; it is not a stream whose events must arrive in the background.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "native-side-owns-the-target-set",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/stage/Scene.tsx:64 Chapter handoffs are application URLs, not privileged native commands accepting filesystem targets."
+          "evidence": "app/features/insights/about/stage/Scene.tsx:64 Chapter handoffs are application URLs, not privileged native commands accepting filesystem targets.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "non-stealing-overlay",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/AboutTab.tsx:164 The explainer renders inside the application's document rather than over another application's work."
-        },
-        {
-          "technique": "observer-perturbation",
-          "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/ChapterRail.tsx:54 Observes owned chapter sections for reading position, not a foreign accessibility tree."
+          "evidence": "app/features/insights/about/AboutTab.tsx:164 The explainer renders inside the application's document rather than over another application's work.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "permission-gate-vector",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/AboutTab.tsx:115 Remembers a reader's animation choice in browser storage; no multiple host grants arm this feature."
+          "evidence": "app/features/insights/about/AboutTab.tsx:115 Remembers a reader's animation choice in browser storage; no multiple host grants arm this feature.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "query-transparent-overlay",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/stage/useSceneClock.ts:84 Visibility measurement is scoped to an owned element reference, without a global host point query."
+          "evidence": "app/features/insights/about/stage/useSceneClock.ts:84 Visibility measurement is scoped to an owned element reference, without a global host point query.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "unexported-capability-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/about/AboutTab.tsx:45 Scene loading uses ordinary application module imports, not unexported native capabilities."
+          "evidence": "app/features/insights/about/AboutTab.tsx:45 Scene loading uses ordinary application module imports, not unexported native capabilities.",
+          "carriedFrom": "2026-10-14"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:46 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the explainer observes and animates its own document sections.",
+          "evaluatedAt": "2026-10-14T23:30:03.799Z",
+          "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+          "reason": "replaced by 8c0b7804-1cb3-45d6-af69-52eef51ffdc8"
         }
       ]
     },
@@ -25104,6 +25161,27 @@
       "evaluatedTs": "2026-11-06T05:39:27.706Z",
       "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
       "techniques": []
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/native-shell-integration": {
+      "context": "voice-stt-package",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:12:24.559Z",
+      "worker": "8c0b7804-1cb3-45d6-af69-52eef51ffdc8",
+      "techniques": [
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:340 This is one browser grant, not several native-host grants with different blast radii."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:24 This is a bounded server-side subprocess per clip, not a long-lived stream that a hidden window throttles; the subprocess-lifecycle subject owns it."
+        }
+      ]
     }
   }
 }
