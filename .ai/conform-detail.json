@@ -24118,16 +24118,11 @@
       "context": "shell-simulation-engine",
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T01:02:45.861Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "c656c6e2-a56a-4d3d-82cc-7ed0e7b6db62",
-        "state": "not-applicable",
-        "at": "2026-11-06T01:03:28.043003+00:00",
-        "reason": "reviewer (sonnet): The anchor (simRunLease.ts:4) is a header comment about a lease-release bug. It does not show that the simulation never dispatches or supervises agent sessions, and 'scripted, deterministic' appears nowhere in it. The keyword grep over the directory is also weak evidence of absence."
-      }
+      "evaluatedTs": "2026-11-06T02:21:01.530Z",
+      "worker": "8478f1da-2ce5-4125-bcdb-2b9cacf0a6e6",
+      "techniques": []
     },
     "76d3b42f-9432-413e-a194-967ab66174d9/prompt-assembly": {
       "context": "auth-session-rbac",
@@ -24197,6 +24192,16 @@
       "evaluatedAt": "2026-11-06",
       "evaluatedTs": "2026-11-06T01:53:58.380Z",
       "worker": "d5d564e5-7703-4b7c-aefc-8bfc6beab0e4",
+      "techniques": []
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/fleet-orchestration": {
+      "context": "candidate-apply-flow",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:21:01.530Z",
+      "worker": "8478f1da-2ce5-4125-bcdb-2b9cacf0a6e6",
       "techniques": []
     }
   }

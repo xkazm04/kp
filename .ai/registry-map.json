@@ -7263,7 +7263,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/applicant-profile.ts:66 The apply flow spawns one bounded, deterministic Python normalizer per request. That is subprocess-lifecycle territory, not a fleet of autonomous agent sessions. Searching app/_lib for subagent/hibernat/agentSession/agent_session/sub-agent found nothing ('fleet' hit only an Upwork fixture JSON, so it is left out).",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "multi-provider-gateway-plane",
@@ -31971,7 +31975,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/simulation/simRunLease.ts:1 The simulation is a scripted demo walk run from the browser. Its lease is a single per-workspace run lock with a token (a concurrency guard), not a registry of agent sessions. Searching app/features/shell/simulation for fleet/subagent/hibernat/agentSession/headless found nothing; the 'dispatch' hits are DOM click dispatch and dispatchOffer comms.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "eval-harness",
