@@ -25203,6 +25203,88 @@
           "evidence": "app/_lib/db/workspaces.ts:69 A NULL override means the team follows its org continuously. Presence of the override row decides, and one door (getWorkspaceDefaultLocale) resolves it. clearWorkspaceLocaleOverride re-attaches the team (line 90)."
         }
       ]
+    },
+    "29da5120-0f66-4432-8a78-4e81724005bf/voice-io": {
+      "context": "interview-tools-api",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T23:55:05.021Z",
+      "worker": "56e4b8f6-a6fc-4168-8fa5-a3077f37c214",
+      "techniques": [
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "deviation",
+          "evidence": "app/api/stt/route.ts:133 The technique says falling from on-device to cloud is 'never automatic … never by fallback logic alone'. Here the residency floor is opt-in per clip, and the KP_STT_PROVIDERS lock is opt-in per deploy (unset means every provider is allowed)."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "app/api/tts/route.ts:1 The route holds policy (operator gate, throttle, body cap, mapping typed errors to status codes). The engines live in packages/voice-tts and packages/voice-stt."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/api/stt/route.ts:205 'Nothing can listen' is a distinct coded state, not a generic engine failure. A GET probe exposes provider status."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "app/api/tts/route.ts:86 Format now travels over the wire, so the package's single speechReady door can be reached over HTTP and the cache key tells the two formats apart."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/api/stt/route.ts:214 Route-level disposition: a cancelled request, an unavailable engine, too-long audio and an engine fault each get their own outcome."
+        },
+        {
+          "technique": "unattended-caller-attribution",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tts/route.ts:127 The route returns audio bytes to an operator-gated caller; it never makes the machine speak itself."
+        }
+      ]
+    },
+    "3fbaa8cf-25f9-4c19-9b05-f06cd4aac151/voice-io": {
+      "context": "shell-companion",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T23:55:05.021Z",
+      "worker": "56e4b8f6-a6fc-4168-8fa5-a3077f37c214",
+      "techniques": [
+        {
+          "technique": "stt-pipeline",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionInputPanel.tsx:118 No level meter (useStt exposes none). Line 113 admits 'a browser-side denial has no code', so denial and no-device share one message."
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionInputPanel.tsx:89 No onDevice floor is passed (useStt defaults it to false) and the panel never renders the serving provider or fallbackFrom. Cloud transcription can therefore be active with nothing on the surface saying so, while the standard requires cloud capture to be visibly active while in use."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/useCompanionSpeech.ts:107 One pure normalizer door, and a reply composed for the ear is preferred over the display prose."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/useCompanionSpeech.ts:151 Utterance identity is derived from playback rather than stored. A newer speak supersedes the older one, and the package stops playback on unmount (line 30)."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/companion/CompanionSpeakButton.tsx:52 A per-reply toggle where the control that started speech is the one that stops it. Auto-speak defaults to off (companionPrefs.ts:43) and is primed so it never reads a stored thread aloud."
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/companion/CompanionInputPanel.tsx:54 The transcript is dictation for review, never parsed into a command."
+        }
+      ]
     }
   }
 }

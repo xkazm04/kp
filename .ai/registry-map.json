@@ -18342,7 +18342,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/stt/route.ts:133 Unless a request opts into the on-device floor, the route sends an empty need set. The package's resolver then falls from an absent or broken whisper_cpp to the cloud engine on fallback logic alone (reported afterwards only as fallbackFrom), so uploaded interview audio can leave the machine without stored consent or an in-the-moment ask.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "voice-interview-fidelity",
@@ -30919,7 +30923,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/CompanionInputPanel.tsx:118 The mic surface the operator presses shows only 'recording/working' text with no live input level. A browser denial (which carries no code) and a missing device fall into the same generic micFailed sentence, so the meter's honesty device and the denied-vs-no-device distinction the stt-pipeline technique requires are both missing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "companion-runtime",
