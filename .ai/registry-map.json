@@ -35306,7 +35306,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/voice/preflight.ts:71 The transport probe exists but has no fallback: when the selected provider is WebRTC (OpenAI) and the browser has no RTCPeerConnection, the probe returns an error code (VoiceInterview.tsx:953-957 then stops the call) instead of falling back to the WebSocket provider (ElevenLabs) even when that provider is configured, so the better transport becomes a requirement for talking at all.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "cost-metering",

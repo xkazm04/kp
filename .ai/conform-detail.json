@@ -22560,48 +22560,43 @@
       "context": "voice-provider-io",
       "subject": "voice-io",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-03",
-      "evaluatedTs": "2026-11-03T23:16:58.528Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T23:35:01.748Z",
+      "worker": "459d27c2-df85-41b9-ac7c-5eb283827561",
       "techniques": [
         {
-          "technique": "tts-pipeline",
+          "technique": "duplex-agent-sessions",
           "verdict": "deviation",
-          "evidence": "app/_lib/tts-cache.ts:113 The cache key omits the serving engine (when 'auto') and the engine version, against the standard's rule that the key is the full (text, voice, parameters, engine version) tuple. The impact is bounded: in-memory, 64 entries, process lifetime."
-        },
-        {
-          "technique": "portable-provider-package",
-          "verdict": "conformant",
-          "evidence": "app/_lib/stt.ts:26 The app binds the portable STT/TTS packages through one host object (env, homeDir, cwd, log). The log sink never prints transcript or audio."
-        },
-        {
-          "technique": "on-device-vs-cloud",
-          "verdict": "conformant",
-          "evidence": "app/_lib/stt.ts:13 Transcription residency is a host-level allow-set that a request cannot widen, and the package registers on-device first."
-        },
-        {
-          "technique": "stt-pipeline",
-          "verdict": "conformant",
-          "evidence": "app/_lib/stt.ts:18 An engine-less install raises a typed unavailable instead of an empty transcript that reads as silence."
+          "evidence": "app/_lib/voice/preflight.ts:71 Transport is probed but has no fallback that still works. Everything else in the technique is realized: the drift gate's single OVERRIDE_FLAGS list drives both the live read and the comparison (eleven-agent-diff.mjs:157), and a failing brief build is kept outside the failover trigger (connect-failover.ts)."
         },
         {
           "technique": "engine-abstraction",
           "verdict": "conformant",
-          "evidence": "app/_lib/tts.ts:10 status() reports three probe states, so absent and broken are not collapsed."
+          "evidence": "app/_lib/stt.ts:17 The STT and TTS bindings report three probe states and throw a typed 'unavailable'. Connect failover records failedOver (connect-failover.ts:103), so a fallback is visible."
         },
         {
-          "technique": "duplex-agent-sessions",
+          "technique": "portable-provider-package",
           "verdict": "conformant",
-          "evidence": "app/_lib/voice/eleven-agent-diff.mjs:229 A pure field-by-field drift diff of the vendor-held agent (prompt, ASR keywords, override unlock flags, scalars, tools). Wrong-shape reads report drift, never agreement. connect-failover.ts:106 keeps brief building out of the failover trigger."
+          "evidence": "app/_lib/stt.ts:26 The app binds the packaged engine layer through one narrow host seam (env, a shared per-user home, cwd, a log sink that never logs transcript text); tts.ts:18 mirrors it."
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "conformant",
+          "evidence": "app/_lib/stt.ts:13 The allowed-provider list is the residency control for the input direction, filtered before any probe so no per-request field can widen it. The self-hosted realtime path is derived from the base URL (self-hosted.ts:92)."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/tts-cache.ts:159 Synthesis cache is keyed on the validated request (provider, voice, language, speed, format, text digest), bounded by entry count and bytes, and folds concurrent identical requests into one call (inflight map, line 171)."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/stt.ts:18 An engine-less install raises a typed unavailable instead of an empty transcript that reads as silence.",
+          "carriedFrom": "2026-11-03"
         }
-      ],
-      "registryProposal": "tts-pipeline's caching rule assumes the serving engine is known when the key is computed; under package-owned resolution (portable-provider-package) the engine is only known after probing. The standard should say whether to resolve before lookup or to key on the resolution, so 'auto' is not used as a key component.",
-      "withdrawn": {
-        "worker": "20c54d08-1221-4b4c-93b2-0e9e64524de5",
-        "state": "deviation",
-        "at": "2026-11-03T23:17:20.332925+00:00",
-        "reason": "reviewer (sonnet): The TTS cache key claim is accurate at app/_lib/tts-cache.ts:113, but tts-cache.ts and stt.ts are not in this context's files (app/_lib/voice/* realtime/provider code), and none of those files import them. The verdict therefore covers a different context (the /api/tts and /api/stt routes). I also co"
-      }
+      ]
     },
     "145b5d07-e126-4749-8ada-b0fa84fcfa37/quality-gates": {
       "context": "platform-auth-api",
