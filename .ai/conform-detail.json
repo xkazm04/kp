@@ -3506,47 +3506,62 @@
       "context": "task-automation-engine",
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:02:45.861Z",
+      "worker": "c656c6e2-a56a-4d3d-82cc-7ed0e7b6db62",
       "techniques": [
         {
-          "technique": "evidence-outranks-a-liveness-claim",
+          "technique": "session-registry",
           "verdict": "deviation",
-          "evidence": "app/_lib/task-maintenance.ts:46 Declares a task dead based purely on wall-clock elapsed time since start rather than checking if evidence of active progress was produced."
+          "evidence": "app/_lib/task-maintenance.ts:79 A consumer's own copy of the closed vocabulary, which is the use_when the technique names. It is test-only and drifts from the store predicate on any new status."
         },
         {
-          "technique": "parallel-dispatch",
+          "technique": "lifecycle-signals",
           "verdict": "conformant",
-          "evidence": "app/_lib/automation-pass.ts:246 Calculates spawn budget upfront by checking currently running scoring tasks against a concurrency cap before dispatching batch tasks."
+          "evidence": "app/_lib/tasks.ts:576 The reaper writes its own honest state, interrupted, which is kept distinct from failed or succeeded. Progress callbacks are the first-tier signal."
         },
         {
-          "technique": "absent-status-passthrough",
+          "technique": "evidence-outranks-a-liveness-claim",
           "verdict": "conformant",
-          "evidence": "app/_lib/task-poll-state.ts:62 Treats network poll failure as a transient state holding the last known task status without asserting terminal completion or failure."
+          "evidence": "app/_lib/tasks.ts:572 A live in-process handler outranks the expired budget. isTaskStale also never reaps a row with no start stamp (task-maintenance.ts:47)."
         },
         {
           "technique": "durable-fleet-state",
           "verdict": "conformant",
-          "evidence": "app/_lib/tasks.ts:590 Recovers running tasks from SQLite database on engine startup to restore durable state across orchestrator restarts."
+          "evidence": "app/_lib/tasks.ts:610 The DB row is the record of truth. Boot recovery marks running orphans interrupted and re-queues queued rows from the store before new work is pumped."
         },
         {
-          "technique": "session-registry",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/tasks.ts:359 Updates task status without fencing generation tokens or validating against an authoritative state machine transition door."
+          "technique": "parallel-dispatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/task-pump.ts:56 The slot cap is enforced at the one pump door with fair per-workspace selection. A queued entry is a durable 'queued' row, promotion runs on the same id, and a dedupe key stops two identical concurrent runs."
+        },
+        {
+          "technique": "result-harvest",
+          "verdict": "conformant",
+          "evidence": "app/_lib/task-outcome-summary.ts:203 Batch outcomes report ok out of total plus a failure count, with per-item ok/code ledgers. Caveat: the task row's status is still 'succeeded' when every item failed."
+        },
+        {
+          "technique": "absent-status-passthrough",
+          "verdict": "conformant",
+          "evidence": "app/_lib/task-poll-state.ts:64 A failed poll keeps the last good read and flags it, rather than substituting an empty 'nothing ran' state."
         },
         {
           "technique": "soft-budget-under-the-hard-cap",
-          "verdict": "deviation",
-          "evidence": "app/_lib/task-budget.ts:55 Rate limits task admissions with fixed window limits without providing a derived soft budget for graceful degradation."
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-maintenance.ts:28 Handlers are code loops, not model-driven dispatcher loops. The 15-minute cap does sit above a 10-minute inner limit as a backstop."
+        },
+        {
+          "technique": "outbound-compute-plane",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 The executors run inside the control-plane process, so there is no separate executor plane."
+        },
+        {
+          "technique": "hibernation-and-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:591 Tasks are bounded jobs with no session context to park. There is no parked state."
         }
-      ],
-      "withdrawn": {
-        "worker": "6722369d-d615-4671-830b-6d926a031895",
-        "state": "deviation",
-        "at": "2026-10-13T09:53:15.552708+00:00",
-        "reason": "reviewer (sonnet): The tasks are in-process handlers with no external executor or heartbeat, so the claim 'without querying external executor heartbeat signals' doesn't fit task-maintenance.ts:46. isTaskStale is a watchdog and orphan reaper that skips rows with a live in-process controller. The task-poll-state.ts:62 t"
-      }
+      ]
     },
     "5e59aca6-ce51-498d-85c6-6ad37b847bc6/fleet-orchestration": {
       "context": "agents-api",
@@ -24015,6 +24030,31 @@
       "evaluatedTs": "2026-11-06T00:44:06.622Z",
       "worker": "af6062b5-926c-4d47-935b-7f3fe5cbd01b",
       "techniques": []
+    },
+    "0f0b2b00-f446-41b0-af7a-d927592c28de/fleet-orchestration": {
+      "context": "voice-interview-api",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:02:45.861Z",
+      "worker": "c656c6e2-a56a-4d3d-82cc-7ed0e7b6db62",
+      "techniques": []
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/fleet-orchestration": {
+      "context": "shell-simulation-engine",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:02:45.861Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "c656c6e2-a56a-4d3d-82cc-7ed0e7b6db62",
+        "state": "not-applicable",
+        "at": "2026-11-06T01:03:28.043003+00:00",
+        "reason": "reviewer (sonnet): The anchor (simRunLease.ts:4) is a header comment about a lease-release bug. It does not show that the simulation never dispatches or supervises agent sessions, and 'scripted, deterministic' appears nowhere in it. The keyword grep over the directory is also weak evidence of absence."
+      }
     }
   }
 }

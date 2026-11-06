@@ -33094,7 +33094,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/task-maintenance.ts:79 The retention module keeps a private copy of the terminal statuses instead of deriving it from the one status definition. The function built on it (tasksToPrune) is only called by tests and disagrees with the store's real DELETE (`status NOT IN ('queued','running')`) on any status added later, so the tested mirror is not the code that runs.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "session-continuation",
@@ -34767,7 +34771,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:144 These routes guard one candidate-driven AI voice call per tokenized link, with attempts and a recency window. No orchestrator dispatches, rosters, parks or collects results from a set of agent sessions; a search of app/api/interview found no fleet, roster, hibernat or harvest construct.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "talking-avatar",
