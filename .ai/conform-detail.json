@@ -8629,29 +8629,44 @@
       "subject": "candidate-self-scheduling",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T22:23:03.377Z",
-      "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:26:34.855Z",
+      "worker": "5b184bba-de83-4306-aaae-ffc4090167d2",
       "techniques": [
         {
-          "technique": "reschedule-cap-with-a-recruiter-bypass",
+          "technique": "withdraw-is-not-cancel",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 Recruiter controls in the schedule lifecycle panel lack any reschedule affordance to repair mistaken bookings on the recruiter's authority."
+          "evidence": "app/features/hiring/schedule/ScheduleInviteHistorySection.tsx:39 Recruiter cancel and candidate RSVP-cancel render the same chip with no actor. The closed section does keep candidate 'declined' apart from 'no_show' (line 105)."
         },
         {
           "technique": "propose-your-own-times-escalation",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:72 Recruiters are only offered a binary decline button without an affordance to offer alternative dates or negotiate times."
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:72 The recruiter can accept one proposed time as it stands or 'Decline all'. A decline names no alternative (the candidate is told 'they'll reach out'), and the page offers no counter-offer route."
         },
         {
           "technique": "server-authored-slot-labels",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:57 Proposal time chips are rendered using server-formatted labels via slotLabel."
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:57 The proposal label is derived from the instant in the reader's locale. The stored label is only a fallback."
         },
         {
-          "technique": "withdraw-is-not-cancel",
-          "verdict": "conformant",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:65 The recruiter controls cleanly separate company-initiated cancellation from candidate withdrawals."
+          "technique": "interviewer-timezone-anchoring",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAgendaRow.tsx:51 The agenda shows the candidate's zone name but not their local hour next to the recruiter's, so a slot at the candidate's 06:00 is not visible as such. The week grid does declare the anchor zone (ScheduleCalendar.tsx:91-95)."
+        },
+        {
+          "technique": "reschedule-cap-with-a-recruiter-bypass",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 Recruiter controls in the schedule lifecycle panel lack any reschedule affordance to repair mistaken bookings on the recruiter's authority.",
+          "carriedFrom": "2026-10-16"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 The recruiter controls omit any recruiter-side reschedule capability, eliminating the recruiter bypass path needed to correct scheduling errors without debiting candidate attempts.",
+          "evaluatedAt": "2026-10-16T22:23:03.377Z",
+          "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+          "reason": "replaced by 5b184bba-de83-4306-aaae-ffc4090167d2"
         }
       ]
     },
@@ -8660,44 +8675,54 @@
       "subject": "candidate-self-scheduling",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T22:23:03.377Z",
-      "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:26:34.855Z",
+      "worker": "5b184bba-de83-4306-aaae-ffc4090167d2",
       "techniques": [
         {
           "technique": "propose-your-own-times-escalation",
           "verdict": "deviation",
-          "evidence": "app/_lib/schedule-slots.ts:309 The slot validation engine drops candidate-proposed alternative times on weekends, strictly limiting proposals to standard business weekdays."
+          "evidence": "app/_lib/schedule-slots.ts:310 Wider than the two fixed offered times, but evenings, weekends and weeks past the window are refused by a rule rather than sent to a human. There is no free-text constraint."
         },
         {
           "technique": "server-authored-slot-labels",
           "verdict": "conformant",
-          "evidence": "app/_lib/schedule-slots.ts:197 Slot labels are minted purely on the server from the instant and anchor timezone."
+          "evidence": "app/_lib/schedule-slots.ts:266 The label is minted server-side from the validated instant. The client's label is never read."
         },
         {
           "technique": "structural-slot-validation-on-submit",
           "verdict": "conformant",
-          "evidence": "app/_lib/schedule-slots.ts:249 offeredSlotFor enforces structural set membership across time, window, business day, and exact minute without range heuristics."
-        },
-        {
-          "technique": "reschedule-cap-with-a-recruiter-bypass",
-          "verdict": "conformant",
-          "evidence": "app/_lib/schedule-store.ts:641 Recruiter moves bypass incrementing the candidate's reschedule count in the database update transaction."
-        },
-        {
-          "technique": "withdraw-is-not-cancel",
-          "verdict": "deviation",
-          "evidence": "app/_lib/schedule-store.ts:717 Candidate withdrawal sets the terminal state 'declined' irreversibly with no mechanism to undo while the round remains active."
+          "evidence": "app/_lib/schedule-slots.ts:265 Checks the golden path's conjunction: future, within the window, weekday in the anchor zone, one of the offered TIMES, exact canonical instant. It is a predicate rather than membership in a regenerated grid; see the registry proposal."
         },
         {
           "technique": "interviewer-timezone-anchoring",
           "verdict": "deviation",
-          "evidence": "app/_lib/schedule-slots.ts:130 The scheduling engine relies on a global environment variable rather than storing an explicit timezone identifier on the invitation."
+          "evidence": "app/_lib/schedule-slots.ts:130 Generation and validation do run in a named IANA zone, not the server's (line 255). But the zone is one deployment-wide env value that is never stored on the invitation, and the stored label holds the wall clock with no zone name (line 199)."
+        },
+        {
+          "technique": "reschedule-cap-with-a-recruiter-bypass",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:597 The core holds: the cap applies only on the candidate path (631), re-picking the same time is free (634), and a recruiter move does not debit (641). But the cap is a global constant, not stored per invitation, and no actor or previous-slot record is kept per reschedule."
+        },
+        {
+          "technique": "withdraw-is-not-cancel",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:693 cancelAttendance serves both the candidate RSVP and the recruiter cancel with no actor column. The 'declined' withdrawal (717) is terminal and cannot be undone."
         },
         {
           "technique": "adjustments-asked-at-the-booking-step",
           "verdict": "deviation",
-          "evidence": "app/_lib/schedule-store.ts:191 The schedule store and invitation record lack any schema fields for storing or routing candidate adjustment requests."
+          "evidence": "app/_lib/schedule-store.ts:191 The schedule store and invitation record lack any schema fields for storing or routing candidate adjustment requests.",
+          "carriedFrom": "2026-10-16"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/schedule-slots.ts:310 The scheduling engine automatically invalidates candidate-proposed times that fall outside 08:00–18:00 business hours, defeating the purpose of the proposal escalation mechanism.",
+          "evaluatedAt": "2026-10-16T22:23:03.377Z",
+          "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+          "reason": "replaced by 5b184bba-de83-4306-aaae-ffc4090167d2"
         }
       ]
     },
@@ -19896,19 +19921,28 @@
       "subject": "candidate-self-scheduling",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-25",
-      "evaluatedTs": "2026-10-25T01:10:21.388Z",
-      "worker": "25d5e031-15e1-4289-bea6-1eb93b4f0ed4",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:26:34.855Z",
+      "worker": "5b184bba-de83-4306-aaae-ffc4090167d2",
       "techniques": [
         {
           "technique": "server-authored-slot-labels",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 candidate-timeline.ts:299 passes invite.slot (the cached column) through. The decision rule is \"give it the derivation, not the column\", and the localization section says to compose the label at render. The label is server-authored, so this is not an injection."
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The consumer reads the cached column, not the derivation (candidate-timeline.ts:299 passes invite.slot through), which breaks the localization rule."
         },
         {
           "technique": "withdraw-is-not-cancel",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:35 The timeline keeps separate facts: declined (\"Interview declined by the candidate\"), no_show and expired. A recruiter cancel is not shown as its own fact, because it returns the invite to pending."
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:36 The en copy reads 'Interview declined by the candidate', kept apart from no_show and expired."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline renders the stored slot column (an English, interviewer-zone label with no zone marker) inside a localized row, instead of deriving the label from slot_at in the reader's language.",
+          "evaluatedAt": "2026-10-25T01:10:21.388Z",
+          "worker": "25d5e031-15e1-4289-bea6-1eb93b4f0ed4",
+          "reason": "replaced by 5b184bba-de83-4306-aaae-ffc4090167d2"
         }
       ]
     },

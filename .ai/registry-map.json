@@ -6868,12 +6868,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/schedule-slots.ts:310 The scheduling engine automatically invalidates candidate-proposed times that fall outside 08:00–18:00 business hours, defeating the purpose of the proposal escalation mechanism.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/schedule-slots.ts:310 Candidate-proposed times are refused outside weekday 08:00-18:00 in the interview zone and beyond the 21-day horizon, so the escape hatch re-imposes the business-hours constraint the candidate has already said they cannot meet.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "guest-execution-bounding",
@@ -27257,12 +27256,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline renders the stored slot column (an English, interviewer-zone label with no zone marker) inside a localized row, instead of deriving the label from slot_at in the reader's language.",
-          "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline puts the stored slot column (a hardcoded English, interviewer-zone label with no zone marker) inside a localized sentence, instead of deriving the label from slot_at in the reader's language.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "ci-execution-trust",
@@ -29325,12 +29323,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 The recruiter controls omit any recruiter-side reschedule capability, eliminating the recruiter bypass path needed to correct scheduling errors without debiting candidate attempts.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/schedule/ScheduleInviteHistorySection.tsx:39 The recruiter's 'Cancel booking' and the candidate's 'I can't make it' RSVP both run the same cancelAttendance write, so the awaiting list shows the same actor-less 'cancelled' chip for a company cancellation and a candidate decline.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:c98d961dc620761e",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "eval-harness",
