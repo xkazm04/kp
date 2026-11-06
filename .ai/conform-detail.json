@@ -2971,35 +2971,39 @@
       "subject": "settings",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:07:22.747Z",
       "techniques": [
         {
           "technique": "cross-source-precedence-chain",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/useBillingPortal.ts:39 One portal endpoint. No ordered configuration sources."
+          "evidence": "app/features/settings/billing/useBillingPortal.ts:39 One portal endpoint. No ordered configuration sources.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "read-batching",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/spend/useSpendData.ts:9 The coalesced reads are usage and ops payloads, not settings keys."
+          "evidence": "app/features/settings/billing/spend/useSpendData.ts:9 The coalesced reads are usage and ops payloads, not settings keys.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "save-experience",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/billingTabState.ts:47 This guards a checkout redirect, not a settings write."
+          "evidence": "app/features/settings/billing/billingTabState.ts:47 This guards a checkout redirect, not a settings write.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "setting-kinds",
           "verdict": "not-applicable",
-          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:11 Self-host is an explicit unmetered mode displayed to the operator, not a classified settings key."
+          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:11 Self-host is an explicit unmetered mode displayed to the operator, not a classified settings key.",
+          "carriedFrom": "2026-10-13"
         }
       ],
       "withdrawn": {
-        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+        "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
         "state": "not-applicable",
-        "at": "2026-10-13T08:46:39.980625+00:00",
-        "reason": "reviewer (sonnet): The not-applicable anchor, useBillingPortal.ts:39, is a plain POST to the portal endpoint. It does not show that the context has no settings key space, and the grep for keyRegistry, settingsStore and similar names is not proof of absence."
+        "at": "2026-11-06T05:08:28.768523+00:00",
+        "reason": "reviewer (sonnet): The anchor billingTypes.ts:9 is a comment about shared types and doesn't show that no settings key is read or written; the real evidence (the sessionStorage lines in BillingTab.tsx) wasn't the anchor, so the not-applicable rests on an incidental line."
       }
     },
     "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
@@ -24768,6 +24772,78 @@
           "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:11 The async fetch stays in the hook and the move decision is synchronous."
         }
       ]
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/settings": {
+      "context": "analytics-dashboard",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:07:22.747Z",
+      "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
+      "techniques": [
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:1124 Writes overwrite the row in place: no old/new record, no category or origin. The target POST route (app/api/analytics/targets/route.ts) writes no audit row either, and grep found no audit trail for analytics_targets."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:117 Callers use named constants re-exported from one registry (analytics-target-keys.ts), and the save route validates writes against the same registry, so both ends of the pipe are covered."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 Targets ride in the single /api/analytics payload rather than per-key reads. After a save the panel reloads, and the route invalidates the server read memo (invalidateAnalyticsWorkspace), so a user reads back their own write."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/analyticsSaveFailure.ts:33 A failed inline write resolves to a localized, code-specific failure the input renders, so a 403 policy refusal and a 500 save failure are told apart instead of failing silently."
+        }
+      ]
+    },
+    "90c107cb-5bdc-4cc3-929e-a56119d48acc/settings": {
+      "context": "app-shell-brand",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:07:22.747Z",
+      "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
+      "techniques": [
+        {
+          "technique": "inherited-default-override",
+          "verdict": "deviation",
+          "evidence": "app/_components/LanguageSwitcher.tsx:24 Unconditional write: when the target equals the Accept-Language resolution the cookie is set rather than deleted, which is the 'correct on first press, corrupt on second' failure. The guard at line 22 only skips re-picking the already-active locale."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/_components/BrandStyle.tsx:12 The brand config is read once on the server per request and handed to every client consumer through context, with no per-component fetch and no flash."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_components/BrandStyle.tsx:24 The accent is validated at the write door (sanitizeAccentColor) and consumers get a typed BrandConfig. The provider default is a stated decision (BrandProvider.tsx:17, empty, never invent a company)."
+        }
+      ]
+    },
+    "8f7cc39a-49a1-4d6a-954d-3da22c4e8290/settings": {
+      "context": "analyze-workspace",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:07:22.747Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
+        "state": "not-applicable",
+        "at": "2026-11-06T05:08:28.852708+00:00",
+        "reason": "reviewer (sonnet): The claim that the workspace persists only a sessionStorage draft and a last-result slug is contradicted by the analyze code: DimensionLayer.tsx:24 and useCohortVariant.ts:39 persist a layer choice in localStorage under kp-analyze-layer. The anchor analyzeDraft.ts:13 is also only a comment line."
+      }
     }
   }
 }

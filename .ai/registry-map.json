@@ -3751,7 +3751,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:1124 The analytics goal and ROI-baseline keys the dashboard writes inline (recruiter hourly CZK, manual hours per hire) are upserted in place with only updated_at, and no old value, origin or actor is kept anywhere. Every hours-saved and CZK figure on the tab can therefore drift with no record of which baseline moved, when, or who moved it.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "browser-credential-boundary",
@@ -4893,7 +4897,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/LanguageSwitcher.tsx:24 The locale defaults to a live source (no cookie means Accept-Language, per getServerLocale), but the switcher writes the cookie for any newly picked locale. A user who switched away and then switches back to the locale their browser resolves to gets pinned to it, and no surface in the shell offers the 'auto' re-attach that setLocale already supports.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "prompt-assembly",
