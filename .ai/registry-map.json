@@ -13131,8 +13131,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/devcases/DevCaseDetail.tsx:137 The detail panel only calls server routes and renders the results. I searched its directory for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt and got zero hits, so nothing here builds or sends a model prompt.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",
