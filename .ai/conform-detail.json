@@ -23919,6 +23919,72 @@
       "evaluatedTs": "2026-11-05T23:49:21.690Z",
       "worker": "0b2e73fa-3a00-4b62-9080-0fe317196760",
       "techniques": []
+    },
+    "3e73bfbb-2232-43f7-9bd5-09155de4db6a/prompt-assembly": {
+      "context": "devcase-session-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:36:42.048Z",
+      "worker": "4e56d119-e0b8-48c1-b863-cb0e7aac02b6",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/chat.py:58 Each message is cut mid-text at 2000 chars, and the tail keeps only 30 messages (line 62). The current file is also cut at 4000 (line 99). None of these cuts leaves a notice for the model, which breaks the rule that truncation names what it dropped."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:113 The route passes typed data (case, role, transcript, message, current file, lang) to one assembler per family, runSessionChat -> chat.py, and never prose. The stable system persona goes first; the context JSON, the transcript, the message and the task come after it."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/chat.py:97 The transcript and the message are fenced as untrusted (lines 104-105). The file the candidate wrote is untrusted text too, but it is placed in the plain Context JSON with no fence. Trust is decided at each insertion site, not declared once per variable."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:133 chat.py stamps a hand-written CHAT_PROMPT_VERSION ('session-chat-v1', not a digest). The runSessionChat payload type reads only reply.reply, and the route saves only the reply. No digest, size or version of the sent prompt is recorded at the send site: the 'unrecorded send' failure."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/chat.py:106 This is a persona chat turn, not a delegated or dispatched task. The task line already names its output artifact. The persona identity changes behaviour rather than claiming competence."
+        },
+        {
+          "technique": "history-compaction",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/chat.py:104 The history goes in as one fenced data span inside a single-turn prompt. It has no tool calls or results, so there is no pairing invariant to protect. The tail-cut problem is covered under context-budgeting."
+        },
+        {
+          "technique": "pinned-prompt-clock",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/chat.py:107 The prompt has no date or time anywhere. The last section is the language directive."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/prompt-assembly": {
+      "context": "cv-analyze-intake",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:36:42.048Z",
+      "worker": "4e56d119-e0b8-48c1-b863-cb0e7aac02b6",
+      "techniques": []
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/prompt-assembly": {
+      "context": "jobseeker-sources-scans",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:36:42.048Z",
+      "worker": "4e56d119-e0b8-48c1-b863-cb0e7aac02b6",
+      "techniques": []
     }
   }
 }

@@ -10259,8 +10259,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 The intake code only gates files and POSTs them to /api/analyze; any prompt is built server-side in the Python pipeline. Searching app/features/tools/analyze for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -14658,8 +14662,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "deviation",
+          "priorNotApplicable": 5,
+          "evidence": "pipeline/jobfit/devcase/chat.py:62 The session-chat assembler that this context's chat route feeds drops every transcript message older than the last 30 and cuts each kept one at 2000 chars, with no notice in the prompt, so the stakeholder or assistant persona answers over a partial history that looks complete.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -22225,8 +22233,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/features/jobseeker/useScanTask.ts:98 The sources and scans pages toggle catalog entries and start or poll scan tasks over HTTP; they assemble no model prompt. Searching app/features/jobseeker for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",
