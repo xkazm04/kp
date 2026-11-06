@@ -8751,7 +8751,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/chat/chatBlockTypes.ts:47 The chat block vocabulary is a closed display set (table|chart) with no action, decision or consent block; grepping the chat, Markdown and icon files for approve/approval/consent/gate/pending/confirm found no approval semantics, so no gate is armed or answered here.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "conversation-orchestration",
@@ -9645,7 +9649,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/control/controlRoomConfirm.ts:73 The version fingerprint of the Art. 22 gate is computed and compared only inside this client reducer; the executed approve (app/control/ControlRoom.tsx:149 POSTs /api/devcase/lifecycle/${id}/approve with no body) carries only the id, so the server checks stage but never that the approved case is the one the operator saw.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "test-harness",
@@ -12212,7 +12220,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:88 The irreversible screen-wave reject commits only by echoing the approval token signed over the exact previewed set, so the server applies what the recruiter saw or refuses with a coded reason.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "voice-io",
