@@ -11528,14 +11528,10 @@
           "confidence": "probable",
           "revision": 10,
           "digest": "sha256-b2:75415727a875a42a",
+          "changedAt": "2026-10-27",
           "state": "not-applicable",
           "evidence": "not-applicable: this is the org/user/invite/workspace SQL layer, and app/_lib/db/companion.ts:596 is explicit that its search path exists to answer \"without spawning Python\". No agent-CLI surface in the 25 files; kp's transport is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
-          "changedAt": "2026-10-27",
-          "revisionsBehind": 4,
-          "stale": true
+          "evaluatedAt": "2026-09-20"
         }
       ],
       "governance": "governed"
@@ -23355,18 +23351,17 @@
           ],
           "grounding": "use_when",
           "state": "conformant",
-          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "evidence": "pipeline/jobfit/llm/registry.py:96 The registry hands out the Claude CLI engine (and the pin-only Codex CLI) behind one TextProvider contract, choosing the billing lane explicitly per deployment, vetoing it by policy with a named reason, and normalizing model text to the caller's schema, so the parts of the transport this context owns are realized.",
           "confidence": "probable",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "digest": "sha256-b2:75415727a875a42a",
           "revision": 10,
           "changedAt": "2026-10-27",
           "source": "conform",
           "adoptedFrom": "44d2103b-c7fa-4a73-a705-bc86c10ad099",
-          "revisionsBehind": 4,
-          "stale": true
+          "revisionsBehind": 4
         }
       ],
       "governance": "governed"
@@ -27563,8 +27558,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "deviation",
+          "priorNotApplicable": 7,
+          "evidence": "app/api/health/route.ts:139 /api/health publishes `engines.claudeCli` as a bare boolean (its shape is pinned at app/api/health/health-exposure.test.ts:146) from engine-preflight's PATH file-existence scan, so 'installed' and 'authorized' collapse into one value, there is no unknown state, and KP_OFFLINE or the production consumer-terms veto never turns it false. The signed-in shell is told the CLI is available on a box where every real call would be refused or would fail to log in, even though pipeline/jobfit/claude_cli.py already has a record-shaped probe (version + `auth status --json`).",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "quality-gates",

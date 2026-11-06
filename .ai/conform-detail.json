@@ -2845,9 +2845,14 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T05:27:34.697Z",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:10:01.622Z",
       "techniques": [
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:52 only uses the rung label after the fact, which is the right consumer behaviour, but the ladder itself is not built here"
+        },
         {
           "technique": "availability-probe",
           "verdict": "not-applicable",
@@ -2877,10 +2882,10 @@
         }
       ],
       "withdrawn": {
-        "worker": "e87ec51a-5320-4a3c-941d-5eb273b0a45b",
+        "worker": "858589a5-de3e-475a-986e-997b67425d0d",
         "state": "not-applicable",
-        "at": "2026-11-04T05:28:08.790081+00:00",
-        "reason": "reviewer (sonnet): app/_lib/devcase-assistant-live.ts, which sits in this context, calls engineAvailability() and reads its claudeCli flag to decide whether a Claude CLI is on PATH. That is an agent-CLI probe, so the claim that the context does no agent-CLI probe is contradicted; the cited line devcase-run.ts:48 only "
+        "at": "2026-11-06T04:10:49.457804+00:00",
+        "reason": "reviewer (sonnet): The anchor at devcase-orchestrator.ts:52 only shows the orchestrator reading the design `source` label, so it is incidental to whether an agent CLI is spawned or configured. devcase-run.ts, which is in this context, spawns the Python devcase_cli with `buildLlmConfigEnv()`. Its comment (line 47) says"
       }
     },
     "92d1ca34-143b-4d61-8cd6-b9becd08d145/settings": {
@@ -24403,6 +24408,107 @@
       "evaluatedTs": "2026-11-06T03:45:30.018Z",
       "worker": "1f61465a-aa6e-4d56-90ec-d7ad5e72c3bf",
       "techniques": []
+    },
+    "325329da-ef37-41f9-a4d1-ac5897f2ae7c/agent-cli-transport": {
+      "context": "llm-layer",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:10:01.622Z",
+      "worker": "858589a5-de3e-475a-986e-997b67425d0d",
+      "techniques": [
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/registry.py:96 billing lane (strip ANTHROPIC_API_KEY = seat, keep = Commercial terms) is an explicit choice made where the lane is known, passed to every CLI route rather than inherited"
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/base.py:115 policy vetoes an otherwise healthy engine with a named reason (offline_policy, consumer_terms_policy) distinct from not_installed; the zero-token auth-status probe itself lives in pipeline/jobfit/claude_cli.py outside this context"
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/monitor.py:245 deterministic-floor serves are recorded in the ledger with the descent reason (offline_policy / not_installed / disabled)"
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/registry.py:271 the flag vocabulary this context passes to argv carries its verification date, CLI version and method; the main flag matrix is in claude_cli.py (VERIFIED_CLI_VERSION), outside this context"
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/base.py:567 second parse (model text to caller schema) takes the last complete JSON value, pins it to expected keys, and skips a pointless repair call on truncation; envelope parsing is in claude_cli.py"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by 858589a5-de3e-475a-986e-997b67425d0d"
+        }
+      ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/agent-cli-transport": {
+      "context": "db-org-users-channels",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:10:01.622Z",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/companion.ts:596 no agent binary in the repository layer"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: this is the org/user/invite/workspace SQL layer, and app/_lib/db/companion.ts:596 is explicit that its search path exists to answer \"without spawning Python\". No agent-CLI surface in the 25 files; kp's transport is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 858589a5-de3e-475a-986e-997b67425d0d"
+        }
+      ],
+      "withdrawn": {
+        "worker": "858589a5-de3e-475a-986e-997b67425d0d",
+        "state": "not-applicable",
+        "at": "2026-11-06T04:10:49.354247+00:00",
+        "reason": "reviewer (sonnet): The anchor at app/_lib/db/companion.ts:596 is a doc comment on one search function ('without spawning Python'). It does not show the repository layer has no agent-CLI surface, and my grep of the sampled files found no CLI hits only because I never opened most of them."
+      }
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/agent-cli-transport": {
+      "context": "platform-auth-api",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:10:01.622Z",
+      "worker": "858589a5-de3e-475a-986e-997b67425d0d",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "deviation",
+          "evidence": "app/api/health/route.ts:139 publishes a one-boolean, PATH-only answer; no auth check, no version, no unknown state, no policy veto; the technique names collapsing installed/authorized into one boolean as the failure"
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "app/api/health/route.ts:134 a missing CLI is deliberately never a degradedReason, so a keyless/CLI-less deploy stays healthy on the deterministic floor"
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/api/health/route.ts:36 this context only reports that the CLI exists; it spawns no agent session"
+        }
+      ]
     }
   }
 }
