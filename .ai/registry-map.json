@@ -15621,12 +15621,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_components/Badge.tsx:215 The badge primitive degrades unrecognized scorecard recommendation verdicts to a neutral tone and displays raw unvouched tokens instead of degrading toward the least approved member.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/Badge.tsx:215 An unrecognised verdict in an approval vocabulary (advance/hold/reject) renders its raw labelized token in a calm neutral tone instead of degrading toward the least-approved member, which is the 'raw spelling' lie the technique names.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "app-shell",
@@ -24526,12 +24525,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/shared/memberUi.ts:72 Role presentation splits color from labels into an independent function that uses raw color utilities and a default branch instead of a unified table keyed by the union.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/shared/memberUi.ts:72 Role colour lives in a switch-with-default that is separate from the role labels (roleLabel), uses raw palette shades, and sends viewer and any future role to a default branch, so colour and label can drift apart and a new role compiles without a colour decision.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "invariant-placement",
@@ -25316,12 +25314,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/api/repo-scan/route.ts:32 The repo-scan route serializes status-shaped fields as bare strings across the network seam, breaking the typed vocabulary chain contract.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/api/repo-scan/route.ts:32 The list route's wire projection widens the closed RepoScanStatus (and the errorCode/fallbackClass classes) to bare strings, so GET /api/repo-scan's response type has lost the union at the serialization seam, while the detail route keeps it.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "data-access",
@@ -36267,12 +36264,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The workspace members table hand-picks raw color utility classes for the custom permissions state rather than resolving color through semantic roles and the shared badge system.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The custom-permissions marker hand-composes coral token classes, the hue this same tab reserves for failures, instead of resolving a semantic role through Badge, so a neutral fact reads as an alert.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:6a9ab99285e2cac0",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "invariant-placement",

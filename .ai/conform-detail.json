@@ -11270,24 +11270,49 @@
       "subject": "status-vocabulary",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T22:55:19.183Z",
-      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:18:16.645Z",
+      "worker": "65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f",
       "techniques": [
         {
           "technique": "status-color-mapping",
           "verdict": "deviation",
-          "evidence": "app/features/shared/memberUi.ts:72 roleTone maps MemberRole to raw Tailwind color utilities with a switch default fallback rather than semantic roles in a unified presentation table."
+          "evidence": "app/features/shared/memberUi.ts:72 The colour table runs parallel to the label lookup, is not total over MemberRole (default branch), and returns class strings instead of a Badge tone role."
+        },
+        {
+          "technique": "reserved-attention-hue",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:81 hiring_manager gets the same amber classes as Badge caution, which StatusChip uses for 'waiting' (a person must act), so a role identity wears the attention hue."
         },
         {
           "technique": "vocabulary-chain-integrity",
-          "verdict": "conformant",
-          "evidence": "app/features/shared/memberUi.ts:48 Compile-time conditional type check proves that the display list covers the full Locale vocabulary union at the keystroke."
+          "verdict": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:87 Hand-copied second authority of app/_lib/db/users.ts UserStatus rather than derived from it; nothing gates their agreement."
+        },
+        {
+          "technique": "epistemic-marks",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:103 An unknown status is drawn as a muted neutral status tone, not as a separate epistemic mark (the repo has no epistemic mark family). The neutral direction itself is correct for a state vocabulary."
+        },
+        {
+          "technique": "untrusted-label-rendering",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/memberUi.ts:62 Every label is a catalog key resolved through a typed translator. These helpers render no user-authored text."
         },
         {
           "technique": "vocabulary-evolution-checklist",
           "verdict": "conformant",
-          "evidence": "app/features/shared/memberUi.ts:35 Unifies AppLanguage directly with the Locale authority so expanding supported locales automatically extends the display vocabulary without drift."
+          "evidence": "app/features/shared/memberUi.ts:35 Unifies AppLanguage directly with the Locale authority so expanding supported locales automatically extends the display vocabulary without drift.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:72 Role presentation splits color from labels into an independent function that uses raw color utilities and a default branch instead of a unified table keyed by the union.",
+          "evaluatedAt": "2026-10-17T22:55:19.183Z",
+          "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+          "reason": "replaced by 65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f"
         }
       ]
     },
@@ -11296,14 +11321,28 @@
       "subject": "status-vocabulary",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T22:55:19.183Z",
-      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:18:16.645Z",
+      "worker": "65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f",
       "techniques": [
         {
           "technique": "vocabulary-chain-integrity",
           "verdict": "deviation",
-          "evidence": "app/api/repo-scan/route.ts:32 Status is serialized across the wire typed as a bare unconstrained string rather than a generated closed type derived from the status authority."
+          "evidence": "app/api/repo-scan/route.ts:32 publicRepoScanView's parameter type widens RepoScanStatus to string, and the inferred response carries a bare string."
+        },
+        {
+          "technique": "vocabulary-evolution-checklist",
+          "verdict": "deviation",
+          "evidence": "app/api/org/members/[userId]/route.ts:60 Door validation re-lists members as literals instead of deriving them from the UserStatus authority, and the error does not name the allowed members. A new member must be remembered here by hand."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/api/repo-scan/route.ts:32 The repo-scan route serializes status-shaped fields as bare strings across the network seam, breaking the typed vocabulary chain contract.",
+          "evaluatedAt": "2026-10-17T22:55:19.183Z",
+          "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+          "reason": "replaced by 65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f"
         }
       ]
     },
@@ -11312,29 +11351,54 @@
       "subject": "status-vocabulary",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T22:55:19.183Z",
-      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:18:16.645Z",
+      "worker": "65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f",
       "techniques": [
         {
           "technique": "status-color-mapping",
           "verdict": "deviation",
-          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 Call site hand-rolls custom status presentation with hardcoded color utilities rather than mapping through semantic roles or the Badge primitive."
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 Colour picked at the call site with no tone role. Coral means failed load elsewhere in the tab (WorkspaceTab.tsx comment at 311)."
         },
         {
-          "technique": "number-formatting",
+          "technique": "epistemic-marks",
           "verdict": "deviation",
-          "evidence": "app/features/settings/workspace/WorkspaceRail.tsx:82 Member count quantities are interpolated directly into UI text without routing through the locale-bound numeric display primitive."
+          "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:308 Partial or incomplete data is shown as a screen-level amber notice instead of a mark on the values that are missing."
+        },
+        {
+          "technique": "reserved-attention-hue",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:300 An informational locked-feature note uses the amber band that StatusChip assigns to 'waiting for a person'."
         },
         {
           "technique": "timestamp-display",
           "verdict": "conformant",
-          "evidence": "app/features/settings/workspace/WorkspaceDetailPanel.tsx:271 Formats invite expiration timestamp using the application's centralized locale-aware fixed-moment formatter (useDateFormat)."
+          "evidence": "app/features/settings/workspace/WorkspaceDetailPanel.tsx:271 Fixed moment goes through the shared useDateFormat named-shape primitive, which binds the locale internally (next-intl)."
         },
         {
           "technique": "untrusted-label-rendering",
           "verdict": "conformant",
-          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:97 Untrusted member display names are rendered as escaped text nodes with truncation to protect layout geometry."
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:97 The user-typed name renders as an escaped text node with truncation; no hue or logic is keyed on it."
+        },
+        {
+          "technique": "vocabulary-chain-integrity",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/workspace/workspaceAdminLoad.ts:21 The DTO types status with memberUi's hand-copied MemberStatus rather than the db UserStatus authority. The unknown path is counted honestly in workspaceAdminHelpers."
+        },
+        {
+          "technique": "number-formatting",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceRail.tsx:82 Member count quantities are interpolated directly into UI text without routing through the locale-bound numeric display primitive.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The workspace members table hand-picks raw color utility classes for the custom permissions state rather than resolving color through semantic roles and the shared badge system.",
+          "evaluatedAt": "2026-10-17T22:55:19.183Z",
+          "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+          "reason": "replaced by 65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f"
         }
       ]
     },
@@ -11343,34 +11407,59 @@
       "subject": "status-vocabulary",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T22:55:19.183Z",
-      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:18:16.645Z",
+      "worker": "65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f",
       "techniques": [
         {
           "technique": "status-color-mapping",
           "verdict": "deviation",
-          "evidence": "app/_components/Badge.tsx:215 Unknown interview recommendation values degrade to a neutral tone and display raw unvouched tokens instead of degrading toward the least approved member."
-        },
-        {
-          "technique": "number-formatting",
-          "verdict": "deviation",
-          "evidence": "app/_components/Badge.tsx:337 ConfidenceRange interpolates numeric bounds directly with a raw dash without locale-aware numeric formatting."
-        },
-        {
-          "technique": "timestamp-display",
-          "verdict": "deviation",
-          "evidence": "app/_components/LoadStatus.tsx:39 Elapsed time is calculated against an ambient Date instant at render time without subscribing to a shared live-updating ticker or clamping future skew."
+          "evidence": "app/_components/Badge.tsx:215 The unknown direction for an approval vocabulary is neutral plus raw token. TONE_CLASS at line 27 is properly keyed by the BadgeTone union."
         },
         {
           "technique": "vocabulary-chain-integrity",
           "verdict": "deviation",
-          "evidence": "app/_components/Badge.tsx:143 Badge token mappers accept unconstrained bare strings instead of closed union types and fall back to hardcoded English labels."
+          "evidence": "app/_components/Badge.tsx:143 Takes a bare string, and its labels are hardcoded English literals, so the catalog layer is bypassed and there is no union-keyed table."
+        },
+        {
+          "technique": "claim-rests-on-its-source",
+          "verdict": "deviation",
+          "evidence": "app/_components/Badge.tsx:147 Any status that is not ok/empty/error, including an unknown or corrupt one, is asserted to be the known member 'Disabled'."
+        },
+        {
+          "technique": "reserved-attention-hue",
+          "verdict": "deviation",
+          "evidence": "app/_components/StatusChip.tsx:43 'A person must act' maps to the shared caution amber, which also paints low confidence, wide band, template fallback, hold and stale (LoadStatus). The hue is not reserved."
+        },
+        {
+          "technique": "epistemic-marks",
+          "verdict": "deviation",
+          "evidence": "app/_components/LoadStatus.tsx:48 Stale is drawn as an amber warning status pill with an alert icon rather than a separate outline or hatch mark. It does carry its age."
+        },
+        {
+          "technique": "timestamp-display",
+          "verdict": "conformant",
+          "evidence": "app/_components/LoadStatus.tsx:39 The elapsed vocabulary comes from the platform via next-intl with the app locale bound. There is no future clamp and no shared ticker, but it renders only after a client-side failure."
         },
         {
           "technique": "untrusted-label-rendering",
           "verdict": "conformant",
-          "evidence": "app/_components/Tooltip.tsx:109 Tooltip primitive enforces plain text rendering and escapes labels by default in a dedicated portal text node."
+          "evidence": "app/_components/Tooltip.tsx:33 The tooltip primitive accepts text only and renders it as a text node. Badge likewise renders {label} as text."
+        },
+        {
+          "technique": "number-formatting",
+          "verdict": "deviation",
+          "evidence": "app/_components/Badge.tsx:337 ConfidenceRange interpolates numeric bounds directly with a raw dash without locale-aware numeric formatting.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_components/Badge.tsx:215 The badge primitive degrades unrecognized scorecard recommendation verdicts to a neutral tone and displays raw unvouched tokens instead of degrading toward the least approved member.",
+          "evaluatedAt": "2026-10-17T22:55:19.183Z",
+          "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+          "reason": "replaced by 65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f"
         }
       ]
     },
