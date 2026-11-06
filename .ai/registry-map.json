@@ -2428,12 +2428,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/insights/about/stage/stages.ts:29 In this context 'stage' means an animation beat in an explainer scene, not a pipeline column. A search of app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis and PIPELINE_STAGES found no hits, so the context neither reads nor edits a board axis.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/insights/about/stage/stages.ts:29 Here 'stage' is an animation beat in an explainer scene, not a pipeline column. Searching app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis, PIPELINE_STAGES, DEFAULT_STAGE_AXIS, pipeline-stages, StageRole and the literal stage names returned no hits, so the context neither reads nor edits a board axis.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
@@ -25624,12 +25623,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/pipeline-entry-action.ts:411 The set_stage action permits moving candidates out of a terminal stage because it does not check if the source stage has role terminal.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/pipeline-entry-action.ts:408 set_stage refuses only a terminal TARGET. A Hired candidate keeps status 'active' (pipeline-status.ts header), and setPipelineEntryStage refuses only terminal STATUSES, so a manual move out of the terminal stage is accepted and recorded as an ordinary 'moved' event with no reversal action.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -26217,12 +26215,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 Stale stage deep links do not render an off-axis notice because resolveStageFilter is uncalled by the board UI.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 The resolver that decides whether a ?stage= value is on this board is called only by pipelineStageFilter.test.ts, and no .tsx renders stageFilter at all. A stale stage deep link therefore filters OrbitMatches silently, with no 'not on this board' notice. This is exactly the green-resolver, unpinned-surface case the technique warns about.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "portable-hiring-records",
@@ -26831,12 +26828,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The moveTargetStages function returns non-terminal stages when called with the terminal stage, allowing candidates in Hired to be moved out.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The move menu drops the terminal stage as a target but not as a source, so a card on Hired is offered every other column, and pipelineMoveTargets.test.ts:43 pins 'a card CAN move back out of Hired'. The board treats terminal as a waypoint.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "quality-gates",
@@ -31452,12 +31448,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never a per-stage one, and add() at setupPipelineEdit.ts:96 creates a column with no sentence. So every custom column shows the generic custom-role sentence, which is the case the technique says to prompt against.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never one authored per stage. The stage wire schema (decision-config-schema.ts validateStage) has no meaning key, and add() mints a custom column with no sentence. So every custom column shows the generic custom-role line, which is the case the technique says to prompt against.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",
