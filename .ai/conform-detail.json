@@ -24262,6 +24262,31 @@
           "evidence": "app/api/pipeline/[id]/route.ts:182 Reinstate names the session actor and seals a 'reinstated' record that supersedes the auto-reject instead of editing it."
         }
       ]
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/agent-runtime-assembly": {
+      "context": "pipeline-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:45:56.233Z",
+      "worker": "05d9db46-e0bb-47bc-bfe1-0d41d04e07cb",
+      "techniques": []
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/agent-runtime-assembly": {
+      "context": "platform-auth-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:45:56.233Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "05d9db46-e0bb-47bc-bfe1-0d41d04e07cb",
+        "state": "not-applicable",
+        "at": "2026-11-06T02:46:26.499484+00:00",
+        "reason": "reviewer (sonnet): The anchor is only an import line (login/route.ts:3), so it doesn't show that no agent run is assembled. The 'health/ops telemetry' claim rests on app/api/ops and app/api/health, which are not among this context's files, so I could not confirm it for this context."
+      }
     }
   }
 }

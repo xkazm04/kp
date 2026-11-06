@@ -26097,8 +26097,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/api/pipeline/command/execute.ts:5 The 'command' layer is a deterministic board-action loop over runPipelineEntryAction, not an agent tool loop. Searching app/api/pipeline found no checkpoint, subagent, tool_call, wrapModelCall or 'hook chain' constructs; the only 'agent' hits are the agent hiring population and registerHooks hits are node:module test loaders.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "pipeline-stage-modelling",
@@ -27597,8 +27601,8 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "priorNotApplicable": 3,
+          "state": "unknown"
         },
         {
           "subject": "prompt-assembly",
