@@ -4087,12 +4087,11 @@
           "changedAt": "2026-10-27",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 Quality's unconditionally animated root remounts through the keyed analytics section switch, so returning repeats first-arrival choreography.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 The Quality section's root plays its arrival animation on every mount. The section switch is keyed by section, and the section re-fetches through LoadingGap, so returning to Quality repeats first-arrival choreography.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "quality-gates",
@@ -31181,12 +31180,11 @@
           "changedAt": "2026-10-27",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 Icon-only preference triggers rely on native title text for visual name discovery, which does not provide the keyboard-accessible, dismissible reveal the technique requires.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:85 Nav badges show the raw count with no display cap such as 99+, and a malformed ?tab= arriving mid-session is dropped with no message; both break rules the standard states, while the rest of the nav (derived highlight, lock doors, prefetch on intent) meets it.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "accessibility",
@@ -32023,12 +32021,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Provider unmount removes the pagehide handler without stopping or waking the running walk or releasing its lease, leaving component teardown without a complete reaper.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 When the provider unmounts, only the pagehide listener is removed. The ctrl.current stop flag is never set, a parked gate() is never woken, and the lease is never released, so a client-side route change away from the shell leaves a running walk with no reaper.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "guided-tours",
@@ -32706,12 +32703,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/landing/site/chrome/Header.tsx:65 The current landing header manually repeats destinations in separate desktop and phone lists, allowing the product map to drift between consumers.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/landing/spark/sections/LegalRow.tsx:34 LegalRow keeps its own list of the policy pages instead of importing app/landing/site/chrome/legal.ts, whose header claims to be 'the same three LegalRow renders'. That is one destination list written twice, so a change to the public front door can update one copy and not the other.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "translation-pipeline-topology",
@@ -36277,11 +36273,7 @@
           "confidence": "strong",
           "state": "deviation",
           "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 Every destination switch remounts the animated wrapper, so warm returns repeat entrance choreography and tear down healthy section subtrees.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evaluatedAt": "2026-10-15"
         },
         {
           "subject": "voice-io",
