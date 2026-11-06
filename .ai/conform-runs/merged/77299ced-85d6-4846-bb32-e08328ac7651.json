@@ -1,0 +1,216 @@
+{
+ "schema": "conform-run/1",
+ "worker": "77299ced-85d6-4846-bb32-e08328ac7651",
+ "subject": "module-design",
+ "evaluatedAt": "2026-11-06T04:58:08.696365+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-inference-runtime",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/python-runner.ts:86 The runtime separates pure decisions (interpreter resolution with an injected probe, the cache policy, argv builders) from the spawn and DB edges, so each decision is unit-testable without Python or a DB.",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner.ts:89 The interpreter probe is injected and the runtime wires spawnSync in at the edge. PYTHON_CMD is the outside enabling point the spawn tests use (node stands in)."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-policy.ts:1 The cache policy is a pure predicate kept apart from storage."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner.ts:861 One call hides the workdir lifecycle, input file writing, spawn, exit-code mapping and cleanup. timeoutMs is required, so a missing deadline is a type error."
+    },
+    {
+     "technique": "marked-unverifiable-region",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner.ts:878 The one unchecked cast is labelled at the boundary, kept to a single line, and has an optional guard."
+    },
+    {
+     "technique": "state-carrier-decides-the-lane",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-request-context.ts:61 AsyncLocalStorage carries only per-branch identifiers into the child env. Accumulated spend comes back through the ledger sidecar, not through a copied struct."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-request-context.ts:11 Explicitly trades parameter threading across ~20 modules for plumbing at the two ends that care."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pull-pass.ts:201 Serial on purpose and bounded per source. pullOneSource never throws, so the flow-control choice stays in the driver."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pull-pass.ts:204 One pass builds several tallies plus the outcome list, which is the multiple-outputs case where explicit sequential code is the right form."
+    }
+   ]
+  },
+  {
+   "context": "llm-layer",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/llm/base.py:502 TextProvider.complete fuses the retry/deadline policy with the wall clock, sleep, randomness and monitor emission, so test_llm_base.py has to patch base.time.monotonic, base.time.sleep, base.random.uniform and base.monitor to exercise one deadline branch, which is the many-doubles symptom io-free-core names.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/base.py:539 The retry policy is logic over events, yet time and jitter are read from the environment rather than passed in or injected. Tests patch module globals instead."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:261 One-verb provider seam. Production adapters and test fakes are both subclasses of TextProvider."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:264 Shared behaviour sits behind a small available/complete/complete_json/map surface."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/adapters/qwen.py:21 Inheritance adds a capability (endpoint and key env) and is not there to make a distinction, so inheriting the OpenAI surface is the benign case."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:704 The fan-out is the batch rule itself (map) and stays confined to one method."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/llm/base.py:499 The retry loop has effects and early exits, so an explicit loop is the correct form."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-move-bulk-operations",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:58 mergeMovedRow is exported and accepts Partial<Entry>, so the guarantee that stage is a string lives in moveOutcome (line 35) only by convention. A caller that skips moveOutcome writes undefined into the column key, the exact failure the module documents. The checker could prove this if the `applied` variant carried `stage: string`.",
+   "techniques": [
+    {
+     "technique": "marked-unverifiable-region",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:52 The cast is unmarked, and the checked surface encloses it by convention only, even though a typed alternative costs almost nothing."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.ts:151 Time is a parameter. Move, filter, layout and confirm decisions are pure modules driven by hooks."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.ts:83 Explicit single-slot state with a total switch, the recommended shape for a state machine."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardStorage.ts:53 Storage is injected so the cross-tenant invariant is tested without a DOM. The interface copies Storage's verbs, acceptable because it exists for testing, not replacement."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.ts:60 Hides the scope/cohort stamping from children, so callers learn less."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.ts:34 Disarm-by-derivation puts a whole change class (new filter mutators) in one place."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:11 The async fetch stays in the hook and the move decision is synchronous."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "module-design",
+   "context": "jobseeker-ats-adapters",
+   "reason": "evidence leans on ats/discover.ts, which is not a tracked file"
+  },
+  {
+   "subject": "module-design",
+   "context": "jobs-ai-coach-fit",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T04:58:08.696365+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "marked-unverifiable-region",
+    "module-depth",
+    "seams-and-adapters",
+    "state-carrier-decides-the-lane"
+   ],
+   "deviations": 0,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T04:58:08.696365+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "llm-layer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T04:58:08.696365+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "marked-unverifiable-region",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "pipeline-move-bulk-operations",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

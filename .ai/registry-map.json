@@ -23202,7 +23202,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/python-runner.ts:86 The runtime separates pure decisions (interpreter resolution with an injected probe, the cache policy, argv builders) from the spawn and DB edges, so each decision is unit-testable without Python or a DB.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",
@@ -23348,7 +23352,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/llm/base.py:502 TextProvider.complete fuses the retry/deadline policy with the wall clock, sleep, randomness and monitor emission, so test_llm_base.py has to patch base.time.monotonic, base.time.sleep, base.random.uniform and base.monitor to exercise one deadline branch, which is the many-doubles symptom io-free-core names.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "quality-gates",
@@ -27080,7 +27088,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:58 mergeMovedRow is exported and accepts Partial<Entry>, so the guarantee that stage is a string lives in moveOutcome (line 35) only by convention. A caller that skips moveOutcome writes undefined into the column key, the exact failure the module documents. The checker could prove this if the `applied` variant carried `stage: string`.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         }
       ],
       "governance": "governed"
