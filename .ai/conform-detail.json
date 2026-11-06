@@ -24967,6 +24967,143 @@
         "at": "2026-11-06T05:08:28.852708+00:00",
         "reason": "reviewer (sonnet): The claim that the workspace persists only a sessionStorage draft and a last-result slug is contradicted by the analyze code: DimensionLayer.tsx:24 and useCohortVariant.ts:39 persist a layer choice in localStorage under kp-analyze-layer. The anchor analyzeDraft.ts:13 is also only a comment line."
       }
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/table": {
+      "context": "profile-roster-matrix",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:39:27.706Z",
+      "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
+      "techniques": [
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:192 The tiebreaker is the label, which the technique names as wrong. Done right: a locale-aware collator, a declared home for absent completeness values, an aria-sort header and a TableStatus announcement."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:197 The client filters, sorts, pages and counts over cachedProfileRecords, which the server caps at PROFILE_LIST_LIMIT = 200 (app/_lib/db/profiles.ts:11). Past 200 profiles the count and the sort describe the window as if it were the set, and nothing says the read was truncated."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:76 When the filters return zero rows, the whole table is swapped out, including the header with its in-header ColumnFilter controls. The chrome becomes conditional on data, and a name search unmounts mid-edit. First load is handled properly: a reveal-quiet reserved height (line 144) and a distinct load-failure alert."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:209 All-client keystroke filtering with the matched count announced as a polite status. A filter change resets the page (line 105), clearing takes one action, and the facets come from the rows present."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:153 A client-side 20-row pager over the filtered set, clamped to a page that exists. Offset paging fits a small client-held set."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:150 Identity keys; the view model is derived in useMemo over named inputs; 20 rows mounted."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No CSV export in this context."
+        },
+        {
+          "technique": "clipboard-range-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No range clipboard."
+        },
+        {
+          "technique": "one-door-for-range-writes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No cell editing: row actions open an editor."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 Not windowed."
+        }
+      ]
+    },
+    "8f7cc39a-49a1-4d6a-954d-3da22c4e8290/table": {
+      "context": "analyze-workspace",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:39:27.706Z",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 The free-text search commits to the server by debounce with no explicit submit, and old-predicate rows survive a filter change (line 161). Done right: the dropdowns commit on change, a generation token makes the latest request win for both success and failure, and clearing takes one action."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:98 A failed refresh discards rows already on screen, and because the filter bar renders only in the rows branch (line 171), the chrome unmounts on error as well. Done right: a reserved first-load height, an empty state typed as no runs vs no match, and a distinct error with retry."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:48 All-server: the route filters the whole workspace before its window, and the facets come from the server."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:135 Keyset load-more via nextCursor; pages merge by slug; a page that returns after the query changed is dropped."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:46 Identity keys, and a bounded server window with load-more."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:59 A native table with one labelled action button per row."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No export from History."
+        },
+        {
+          "technique": "clipboard-range-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No range clipboard."
+        },
+        {
+          "technique": "one-door-for-range-writes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No cell editing: decisions go through the triage drawer."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 Not windowed."
+        }
+      ],
+      "withdrawn": {
+        "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
+        "state": "deviation",
+        "at": "2026-11-06T05:41:02.432304+00:00",
+        "reason": "reviewer (sonnet): The verdict and all five technique anchors are in app/features/tools/analyze/history/HistoryTab.tsx, but registry-map.json lists none of the history/ files in this context's 12 paths (only AnalyzeColumn, AnalyzeForm and similar), and the context's files don't call HistoryTab. The verdict is about a "
+      }
+    },
+    "01ce0010-7ed5-4f5c-9374-dd1283978131/table": {
+      "context": "pipeline-actions-events",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T05:39:27.706Z",
+      "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
+      "techniques": []
     }
   }
 }

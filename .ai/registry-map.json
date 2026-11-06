@@ -25948,7 +25948,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:4 This context holds utilities for a lane/card kanban board (event catalog, menu position, SLA, render diet, empty-state moves, map salary), not a table. A search of its files for <table, <thead, aria-sort, pagination and role=\"grid\" found nothing; the only <table in the directory tree is in candidate/scorecard, outside this context.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "quality-gates",
@@ -28010,7 +28014,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:192 The roster's sort breaks ties on the display name, which is mutable and can repeat, not on the row id, so the order is not total: two candidates with the same name can swap places across refreshes and page boundaries.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "prompt-assembly",
