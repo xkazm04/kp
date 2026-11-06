@@ -1,0 +1,194 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c0c91950-b5b0-4dd7-b922-f4987d20421c",
+ "subject": "hitl-approval",
+ "evaluatedAt": "2026-11-06T02:34:44.502546+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "autonomy-control-room",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/control/ControlRoom.tsx:149 The Art. 22 approve sends only the lifecycle id. The client computes a descriptor fingerprint (gateKey) but never sends it, so the server signs off whatever case the lifecycle holds when the request lands. The approval is not bound to the version the operator saw.",
+   "techniques": [
+    {
+     "technique": "decision-records",
+     "verdict": "deviation",
+     "evidence": "app/control/ControlRoom.tsx:149 No version or fingerprint in the approve request, so the 'what exactly' field is missing at the server door."
+    },
+    {
+     "technique": "resume-after-decision",
+     "verdict": "deviation",
+     "evidence": "app/control/ControlRoom.tsx:149 What runs on approval is re-read server-side, not the staged thing that was shown. The same line backs both technique verdicts, so it counts as one piece of evidence."
+    },
+    {
+     "technique": "review-queues",
+     "verdict": "deviation",
+     "evidence": "app/control/GatesPanel.tsx:50 The queue row offers Approve beside only a truncated title and detail line. The case itself is behind a Review link elsewhere, which is the 'decide without navigating' laundering the technique names. The positive half holds: the queue renders pendingGates from the system of record (ControlRoom.tsx:238)."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "app/control/ControlRoom.tsx:151 An approve that lands on a lifecycle whose state has already moved is refused loudly, with the current stage returned, and the refusal is shown."
+    }
+   ]
+  },
+  {
+   "context": "hiring-decisions-offers",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/approval-kinds.ts:28 needsHumanDecision treats an unrecognized approvalKind as 'no human needed', the quietest bucket, with no marker. The comment above it justifies this on purpose. An entry carrying a typo'd or newer kind drops out of every queue and badge. A source-scan test catches literal writers only.",
+   "techniques": [
+    {
+     "technique": "fail-loud-classification-default",
+     "verdict": "deviation",
+     "evidence": "app/_lib/approval-kinds.ts:26 An unknown classification falls to the cheapest bucket, not the most severe bucket with a marker. approval-kinds.test.ts admits the effect ('would sit in no queue and behind no badge')."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "app/_lib/offers-store.ts:387 Offer state is durable. The terminal transition is a compare-and-swap that only the first responder wins. A partial unique index backstops one open offer per entry (offers-store.ts:74)."
+    },
+    {
+     "technique": "resume-after-decision",
+     "verdict": "conformant",
+     "evidence": "app/_lib/offer-finalize.ts:72 A duplicate or late response reports the recorded outcome and runs none of the terminal side effects; only the claimer runs them."
+    },
+    {
+     "technique": "decision-records",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reinstate-seal.test.ts:25 A reversal is appended as a new sealed record beside the original, not written over it."
+    }
+   ]
+  },
+  {
+   "context": "workspace-config-api",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/tasks/route.ts:74 These routes are operator-driven configuration and task-admission doors where the human starts the action. The task kinds that reach a human gate (lifecycle and similar) are refused here as server-only. Searching the context's route directories for approv, approvalKind, awaiting_approval and 'human gate' found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "approv",
+    "approvalKind",
+    "awaiting_approval"
+   ]
+  },
+  {
+   "context": "pipeline-api",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/pipeline/batch/route.ts:31 The batch door accepts up to 200 items in one call with no check that their approval kinds match. A single call can ratify a mixed set of pending approvals and extend offer_review offers along with the rest. That is a heterogeneous batch verdict; the command bar explicitly refuses the same thing.",
+   "techniques": [
+    {
+     "technique": "review-queues",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/batch/route.ts:32 accept is batchable over any mix of approvalKind, including offer extension. Nothing enforces homogeneity on the server."
+    },
+    {
+     "technique": "resume-after-decision",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/command/route.ts:160 Execute acts only on previewed ids that still match. Ids that drop out are reported, not acted on."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/command/execute.ts:87 An expectedStage compare-and-swap refuses a decision on an entity that moved, and the refusal is counted rather than silently merged."
+    },
+    {
+     "technique": "fail-loud-classification-default",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/command/execute.ts:62 Any outcome the bucketing does not recognize falls to 'failed', never to 'count'. A bulk adverse action cannot overstate what it did."
+    },
+    {
+     "technique": "unattended-mode",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/command/execute.ts:108 The bulk command never extends an offer unattended. A drafted offer is held for a human, keyed on the approval rather than the column."
+    },
+    {
+     "technique": "decision-records",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/[id]/route.ts:182 Reinstate names the session actor and seals a 'reinstated' record that supersedes the auto-reject instead of editing it."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "hitl-approval",
+   "context": "control-room-action-guard",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T02:34:44.502546+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "decision-records",
+    "gate-state-machines",
+    "resume-after-decision",
+    "review-queues"
+   ],
+   "deviations": 1,
+   "context": "autonomy-control-room",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:34:44.502546+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "decision-records",
+    "fail-loud-classification-default",
+    "gate-state-machines",
+    "resume-after-decision"
+   ],
+   "deviations": 1,
+   "context": "hiring-decisions-offers",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:34:44.502546+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "workspace-config-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:34:44.502546+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "decision-records",
+    "fail-loud-classification-default",
+    "gate-state-machines",
+    "resume-after-decision",
+    "review-queues",
+    "unattended-mode"
+   ],
+   "deviations": 1,
+   "context": "pipeline-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -6017,7 +6017,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:149 The Art. 22 approve sends only the lifecycle id. The client computes a descriptor fingerprint (gateKey) but never sends it, so the server signs off whatever case the lifecycle holds when the request lands. The approval is not bound to the version the operator saw.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "combining-signals-into-a-hire-decision",
@@ -16928,7 +16932,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/approval-kinds.ts:28 needsHumanDecision treats an unrecognized approvalKind as 'no human needed', the quietest bucket, with no marker. The comment above it justifies this on purpose. An entry carrying a typo'd or newer kind drops out of every queue and badge. A source-scan test catches literal writers only.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "decision-audit-and-traceability",
@@ -26201,7 +26209,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:31 The batch door accepts up to 200 items in one call with no check that their approval kinds match. A single call can ratify a mixed set of pending approvals and extend offer_review offers along with the rest. That is a heterogeneous batch verdict; the command bar explicitly refuses the same thing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         }
       ],
       "governance": "governed"
@@ -36079,7 +36091,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:74 These routes are operator-driven configuration and task-admission doors where the human starts the action. The task kinds that reach a human gate (lifecycle and similar) are refused here as server-only. Searching the context's route directories for approv, approvalKind, awaiting_approval and 'human gate' found no hits.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         }
       ],
       "governance": "governed"

@@ -4777,32 +4777,38 @@
       "context": "autonomy-control-room",
       "subject": "hitl-approval",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:34:44.502Z",
+      "worker": "c0c91950-b5b0-4dd7-b922-f4987d20421c",
       "techniques": [
+        {
+          "technique": "decision-records",
+          "verdict": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:149 No version or fingerprint in the approve request, so the 'what exactly' field is missing at the server door."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:149 What runs on approval is re-read server-side, not the staged thing that was shown. The same line backs both technique verdicts, so it counts as one piece of evidence."
+        },
         {
           "technique": "review-queues",
           "verdict": "deviation",
-          "evidence": "app/control/ControlRoom.tsx:238 The queue exposes an approval button on the oversight list without embedding the case contents, bound parameters, consequence disclosures, or an SLA countdown in place."
+          "evidence": "app/control/GatesPanel.tsx:50 The queue row offers Approve beside only a truncated title and detail line. The case itself is behind a Review link elsewhere, which is the 'decide without navigating' laundering the technique names. The positive half holds: the queue renders pendingGates from the system of record (ControlRoom.tsx:238)."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "app/control/ControlRoom.tsx:151 An approve that lands on a lifecycle whose state has already moved is refused loudly, with the current stage returned, and the refusal is shown."
         },
         {
           "technique": "unattended-mode",
           "verdict": "deviation",
-          "evidence": "app/control/ControlRoom.tsx:227 The autonomy kill switch is a global binary toggle rather than a scoped, expiring grant with spend ceilings and error-rate circuit breakers."
-        },
-        {
-          "technique": "gate-state-machines",
-          "verdict": "deviation",
-          "evidence": "app/control/ControlRoom.tsx:149 The approve POST mutation sends an empty body with only the lifecycle id rather than binding approval to a content version hash from the client."
+          "evidence": "app/control/ControlRoom.tsx:227 The autonomy kill switch is a global binary toggle rather than a scoped, expiring grant with spend ceilings and error-rate circuit breakers.",
+          "carriedFrom": "2026-10-13"
         }
-      ],
-      "withdrawn": {
-        "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
-        "state": "deviation",
-        "at": "2026-10-13T21:43:41.701505+00:00",
-        "reason": "reviewer (sonnet): GatesPanel.tsx (opened beside the cited ControlRoom.tsx:238) renders each gate's title and server-composed detail in place, plus a Review link and a two-step arm/confirm button, so \"blind approvals\" is overstated. The ControlRoom.tsx:227 anchor is the sweep status message, not the kill switch, which"
-      }
+      ]
     },
     "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/hitl-approval": {
       "context": "review-gates",
@@ -4895,42 +4901,44 @@
       "context": "hiring-decisions-offers",
       "subject": "hitl-approval",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:34:44.502Z",
+      "worker": "c0c91950-b5b0-4dd7-b922-f4987d20421c",
       "techniques": [
         {
-          "technique": "cosmetic-vs-enforced-threshold-invariant",
+          "technique": "fail-loud-classification-default",
           "verdict": "deviation",
-          "evidence": "app/_lib/offer-policy.ts:56 The reminder lead time defaults to 48 hours while the minimum offer TTL is 24 hours, and no load-time assertion verifies that cosmetic urgency triggers before the enforcing lapse deadline."
-        },
-        {
-          "technique": "severity-sla-ladder",
-          "verdict": "deviation",
-          "evidence": "app/_lib/offers-store.ts:235 The expiry sweep resolves all expired offers to a single terminal status without a severity-keyed SLA ladder supporting escalation or hold rungs."
-        },
-        {
-          "technique": "decision-records",
-          "verdict": "conformant",
-          "evidence": "app/_lib/status-decisions.ts:65 The decision view extracts whether an automated decision received human sign-off into an immutable attribution structure with structured decisive facts."
+          "evidence": "app/_lib/approval-kinds.ts:26 An unknown classification falls to the cheapest bucket, not the most severe bucket with a marker. approval-kinds.test.ts admits the effect ('would sit in no queue and behind no badge')."
         },
         {
           "technique": "gate-state-machines",
           "verdict": "conformant",
-          "evidence": "app/_lib/approval-kinds.ts:28 The approval taxonomy explicitly enumerates recognized gate types on pipeline entries, rejecting unvetted kinds."
+          "evidence": "app/_lib/offers-store.ts:387 Offer state is durable. The terminal transition is a compare-and-swap that only the first responder wins. A partial unique index backstops one open offer per entry (offers-store.ts:74)."
         },
         {
           "technique": "resume-after-decision",
           "verdict": "conformant",
-          "evidence": "app/_lib/offer-finalize.ts:76 Responding to an offer executes a CAS claim to prevent duplicate side effects and guarantees idempotent continuation on concurrent requests."
+          "evidence": "app/_lib/offer-finalize.ts:72 A duplicate or late response reports the recorded outcome and runs none of the terminal side effects; only the claimer runs them."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reinstate-seal.test.ts:25 A reversal is appended as a new sealed record beside the original, not written over it."
+        },
+        {
+          "technique": "cosmetic-vs-enforced-threshold-invariant",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-policy.ts:56 The reminder lead time defaults to 48 hours while the minimum offer TTL is 24 hours, and no load-time assertion verifies that cosmetic urgency triggers before the enforcing lapse deadline.",
+          "carriedFrom": "2026-10-13"
+        },
+        {
+          "technique": "severity-sla-ladder",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offers-store.ts:235 The expiry sweep resolves all expired offers to a single terminal status without a severity-keyed SLA ladder supporting escalation or hold rungs.",
+          "carriedFrom": "2026-10-13"
         }
-      ],
-      "withdrawn": {
-        "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
-        "state": "deviation",
-        "at": "2026-10-13T21:43:41.810403+00:00",
-        "reason": "reviewer (sonnet): isOfferReminderDue at offer-policy.ts:92 tests ms > now && ms <= now + lead against the deadline itself, so a reminder can only fire before the deadline by construction. The lead-versus-TTL \"no assertion\" claim therefore does not describe a real gap. The other techniques (the expiry sweep, status-de"
-      }
+      ]
     },
     "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/delivery-analytics": {
       "context": "analytics-computation",
@@ -24203,6 +24211,57 @@
       "evaluatedTs": "2026-11-06T02:21:01.530Z",
       "worker": "8478f1da-2ce5-4125-bcdb-2b9cacf0a6e6",
       "techniques": []
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/hitl-approval": {
+      "context": "workspace-config-api",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:34:44.502Z",
+      "worker": "c0c91950-b5b0-4dd7-b922-f4987d20421c",
+      "techniques": []
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/hitl-approval": {
+      "context": "pipeline-api",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T02:34:44.502Z",
+      "worker": "c0c91950-b5b0-4dd7-b922-f4987d20421c",
+      "techniques": [
+        {
+          "technique": "review-queues",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:32 accept is batchable over any mix of approvalKind, including offer extension. Nothing enforces homogeneity on the server."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/route.ts:160 Execute acts only on previewed ids that still match. Ids that drop out are reported, not acted on."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/execute.ts:87 An expectedStage compare-and-swap refuses a decision on an entity that moved, and the refusal is counted rather than silently merged."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/execute.ts:62 Any outcome the bucketing does not recognize falls to 'failed', never to 'count'. A bulk adverse action cannot overstate what it did."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/execute.ts:108 The bulk command never extends an offer unattended. A drafted offer is held for a human, keyed on the approval rather than the column."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/[id]/route.ts:182 Reinstate names the session actor and seals a 'reinstated' record that supersedes the auto-reject instead of editing it."
+        }
+      ]
     }
   }
 }
