@@ -6243,49 +6243,70 @@
       "subject": "translation-quality-measurement",
       "bundle": "localization",
       "state": "deviation",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T03:01:23.199Z",
-      "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:21:18.854Z",
+      "worker": "80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e",
       "techniques": [
-        {
-          "technique": "cost-and-licence-of-measurement",
-          "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:88 This instrument validates ICU syntax; it does not select a translation-quality model."
-        },
         {
           "technique": "deterministic-checks-before-estimates",
           "verdict": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:127 An in-memory execution with both optional parsers unavailable accepted an unexpected Cyrillic placeholder with problems: []."
+          "evidence": "scripts/i18n/catalog-check.mjs:303 Skeleton parity is realized well: the ICU AST is compared in both directions separately (lines 320-331), alongside carried literals, control characters and ICU compile. But the decidable duplicate-source-divergence class has no rule at all, and there is no termbase check in the gate."
+        },
+        {
+          "technique": "context-sufficiency-signals",
+          "verdict": "conformant",
+          "evidence": "scripts/i18n/catalog-check.mjs:360 sourceSuspects attributes a failure seen in two or more locales to the shared source, cites each locale and check, and is advisory only (i18n-check.mjs:539 'fix the source string first (advisory)'). The signal is cross-locale check agreement rather than two-model disagreement, but the finding goes to the source owner as the technique requires."
+        },
+        {
+          "technique": "cost-and-licence-of-measurement",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:88 This instrument validates ICU syntax; it does not select a translation-quality model.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "engine-quality-from-reviewer-corrections",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n-check.mjs:143 The gate reads committed catalogs; it contains no machine-pretranslation approval or correction step."
+          "evidence": "scripts/i18n-check.mjs:143 The gate reads committed catalogs; it contains no machine-pretranslation approval or correction step.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "human-review-sampling-under-a-budget",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n-check.mjs:521 Reported coverage counts automated string checks, without claiming a human review sample."
+          "evidence": "scripts/i18n-check.mjs:521 Reported coverage counts automated string checks, without claiming a human review sample.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "language-scoped-check-exemptions",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:177 The shared dash restriction implements a documented product-copy rule, which the technique excludes from language orthography exemptions."
+          "evidence": "scripts/i18n/catalog-check.mjs:177 The shared dash restriction implements a documented product-copy rule, which the technique excludes from language orthography exemptions.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "per-pair-engine-selection",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:197 This pass receives existing locale catalogs and makes no translation-engine selection."
+          "evidence": "scripts/i18n/catalog-check.mjs:197 This pass receives existing locale catalogs and makes no translation-engine selection.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "reference-free-quality-estimation",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n/catalog-check.mjs:244 This pass produces mechanical constraint findings without an estimator score or reviewer-priority queue."
+          "evidence": "scripts/i18n/catalog-check.mjs:244 This pass produces mechanical constraint findings without an estimator score or reviewer-priority queue.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "regression-detection-under-a-moving-engine",
           "verdict": "not-applicable",
-          "evidence": "scripts/i18n-check.mjs:148 The gate checks catalog files already on disk; it does not regenerate them under changing engine configurations."
+          "evidence": "scripts/i18n-check.mjs:148 The gate checks catalog files already on disk; it does not regenerate them under changing engine configurations.",
+          "carriedFrom": "2026-10-15"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:127 When the optional parsers are unavailable, the ASCII-only fallback misses unexpected non-Latin placeholders, allowing a decidable skeleton defect through the gate.",
+          "evaluatedAt": "2026-10-15T03:01:23.199Z",
+          "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
+          "reason": "replaced by 80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e"
         }
       ]
     },
@@ -6385,8 +6406,8 @@
       "subject": "translation-quality-measurement",
       "bundle": "localization",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T05:32:53.119Z",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:21:18.854Z",
       "techniques": [
         {
           "technique": "context-sufficiency-signals",
@@ -6456,22 +6477,30 @@
           "evaluatedAt": "2026-10-15T03:01:23.199Z",
           "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
           "reason": "replaced by e291da95-8fb4-4ef8-becf-bcb5dc677b18"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
+          "evaluatedAt": "2026-10-15",
+          "worker": null,
+          "reason": "replaced by 80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e"
         }
       ],
       "withdrawn": {
-        "worker": "e291da95-8fb4-4ef8-becf-bcb5dc677b18",
+        "worker": "80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e",
         "state": "not-applicable",
-        "at": "2026-10-24T05:33:49.663487+00:00",
-        "reason": "reviewer (sonnet): The anchor, ts-ratchet.mjs:2, is a comment about the TS suppression ratchet. It does not show that no translated store is measured here, and the claim rests only on a keyword search whose terms may be the wrong ones for this subject."
+        "at": "2026-11-06T04:22:00.369348+00:00",
+        "reason": "reviewer (sonnet): The anchor scripts/lint/ratchet.mjs:6 is a header comment about the ratchet protocol. It does not show that no translated store is measured, and the absence search over scripts/lint, scripts/perf and scripts/design is the only support, so it is incidental."
       }
     },
     "10943bc8-3713-4897-a618-ac1437d7c455/translation-quality-measurement": {
       "context": "tests-scoring-fairness",
       "subject": "translation-quality-measurement",
       "bundle": "localization",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T05:32:53.119Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:21:18.854Z",
+      "worker": "80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e",
       "techniques": [
         {
           "technique": "context-sufficiency-signals",
@@ -6527,13 +6556,7 @@
           "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:90 The regression assertion preserves taxonomy alias resolution, without regenerating translated content.",
           "carriedFrom": "2026-10-15"
         }
-      ],
-      "withdrawn": {
-        "worker": "e291da95-8fb4-4ef8-becf-bcb5dc677b18",
-        "state": "not-applicable",
-        "at": "2026-10-24T05:33:49.768093+00:00",
-        "reason": "reviewer (sonnet): The anchor, test_i18n.py:53, asserts that the directive says never translate code values. That is an incidental line and does not show that no translation-quality store is measured, so the claim rests only on a keyword search."
-      }
+      ]
     },
     "c0265e6e-9274-43db-9929-822cb417b96d/companion-identity": {
       "context": "companion-ai",
@@ -24509,6 +24532,16 @@
           "evidence": "app/api/health/route.ts:36 this context only reports that the CLI exists; it spawns no agent session"
         }
       ]
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/translation-quality-measurement": {
+      "context": "e2e-suite",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T04:21:18.854Z",
+      "worker": "80bf05a1-09a8-4a90-b24a-fbc3ecc20f1e",
+      "techniques": []
     }
   }
 }

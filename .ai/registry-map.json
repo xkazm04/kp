@@ -8938,12 +8938,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "scripts/i18n/catalog-check.mjs:127 When the optional parsers are unavailable, the ASCII-only fallback misses unexpected non-Latin placeholders, allowing a decidable skeleton defect through the gate.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "scripts/i18n/catalog-check.mjs:303 The catalog gate only ever compares a target with the source at the same address. It never groups units by identical source value, so duplicate-source divergence, one of the four decidable classes, goes unchecked: a read-only count over messages/ found 357 (cs), 312 (de) and 335 (fr) of 1,081 identical-English groups whose targets differ. Termbase adherence is also not scripted here; contract.md §9 describes it only as a manual detector.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 2
         },
         {
           "subject": "i18n",
@@ -15297,7 +15296,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "e2e/locale-smoke.spec.ts:12 The only locale-aware spec checks that the plumbing renders cs.json, which is a wiring smoke test and not translation-quality measurement. A search of e2e/ for glossary, termbase, chrF and pretranslat found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "translation-pipeline-topology",
@@ -22540,8 +22543,7 @@
           "confidence": "probable",
           "state": "not-applicable",
           "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
-          "evaluatedAt": "2026-10-15",
-          "stale": true
+          "evaluatedAt": "2026-10-15"
         },
         {
           "subject": "invariant-placement",
@@ -34462,7 +34464,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_i18n.py:53 The language tests here cover lang normalisation, the write-in-language directive, Czech taxonomy aliases and narrative-language honesty, not the quality of a translated store. A search of pipeline/jobfit/tests for glossary, termbase, chrF and pretranslat found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "data-access",
