@@ -24317,6 +24317,51 @@
       "evaluatedTs": "2026-11-06T03:21:59.012Z",
       "worker": "454fa969-71c7-44e7-8ac6-9a740b39ac12",
       "techniques": []
+    },
+    "3a572009-313e-4210-b608-2c84f4e5eb34/agent-instruction-files": {
+      "context": "github-repo-intelligence",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:32:58.420Z",
+      "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
+      "techniques": []
+    },
+    "03ead2c6-6756-41a6-84c9-7b0843d9e216/agent-instruction-files": {
+      "context": "jd-build-templates",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:32:58.420Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
+        "state": "not-applicable",
+        "at": "2026-11-06T03:33:27.064167+00:00",
+        "reason": "reviewer (sonnet): The anchor app/_lib/templates-store.ts:179 is a comment citing .claude/CLAUDE.md as the source of a rule. It does not show that the context authors no instruction file, and the file is not among the listed context files (the list shows only jd-build-*, jd-limits, jd-lint, jd-template-tokens and spli"
+      }
+    },
+    "e32280aa-3e4a-470c-90a2-300bfab66f42/agent-instruction-files": {
+      "context": "workspace-member-admin",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:32:58.420Z",
+      "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
+      "techniques": []
+    },
+    "3e73bfbb-2232-43f7-9bd5-09155de4db6a/agent-instruction-files": {
+      "context": "devcase-session-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:32:58.420Z",
+      "worker": "9b837e62-2cf9-44d9-9cd7-fb2a0543b1d8",
+      "techniques": []
     }
   }
 }

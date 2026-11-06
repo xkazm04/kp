@@ -14786,7 +14786,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/devcase/session/session-limits.ts:1 These are devcase session route handlers and limiters that author no agent instruction file; a search of app/api/devcase for cursorrules, copilot-instructions, GEMINI.md, windsurfrules, 'instruction file', CLAUDE.md and AGENTS.md found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "session-continuation",
@@ -15996,7 +16000,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/github/client.ts:4 This context is a GitHub REST/heuristics layer that writes no harness-loaded instruction file; a search of app/_lib, app/devcase, app/features/settings/workspace and app/api/devcase for cursorrules, copilot-instructions, GEMINI.md, windsurfrules and 'instruction file' found nothing, and the context's own github/repo-* files do not mention CLAUDE.md or AGENTS.md either.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "docs-sync",
@@ -36181,7 +36189,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/workspace/workspaceAdminHelpers.ts:1 This is a settings UI for workspace members and contains no harness-loaded instruction file; a search of app/features/settings/workspace for cursorrules, copilot-instructions, GEMINI.md, windsurfrules, 'instruction file', CLAUDE.md and AGENTS.md found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "status-vocabulary",
