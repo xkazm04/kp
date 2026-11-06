@@ -8469,8 +8469,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/api/comms/route.ts:11 These routes read and resend the comms outbox, probe the relay and receive delivery and inbound webhooks; none of them runs an agent loop or hook chain. A search of app/api/comms and app/api/channels found no hits for checkpoint, subagent, toolCall, tool_call or plugin; the 'hook' hits are webhooks.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "outbound-notifications",
@@ -27602,7 +27606,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "priorNotApplicable": 3,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:109 These routes issue and clear HMAC sessions and manage workspaces, health and ops; none of them composes a model or tool call. A search of all of app/api, which also covers the root contract tests, found no hits for checkpoint, subagent, toolCall or tool_call. 'plugin' is left out because it appears once in upload-size-contract.test.ts, where it refers to Next's plugin chain.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "prompt-assembly",
@@ -32173,8 +32181,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 This context is a React panel that polls the task ledger over HTTP and renders it. It assembles no runtime, wraps no model or tool call and loads no contributed code. A search of app/features/shell/tasks found no hits for checkpoint, subagent, toolCall, tool_call or plugin; the only 'hook' hits are React hooks.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "eval-harness",

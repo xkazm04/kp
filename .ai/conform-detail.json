@@ -24277,16 +24277,11 @@
       "context": "platform-auth-api",
       "subject": "agent-runtime-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T02:45:56.233Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "05d9db46-e0bb-47bc-bfe1-0d41d04e07cb",
-        "state": "not-applicable",
-        "at": "2026-11-06T02:46:26.499484+00:00",
-        "reason": "reviewer (sonnet): The anchor is only an import line (login/route.ts:3), so it doesn't show that no agent run is assembled. The 'health/ops telemetry' claim rests on app/api/ops and app/api/health, which are not among this context's files, so I could not confirm it for this context."
-      }
+      "evaluatedTs": "2026-11-06T03:21:59.012Z",
+      "worker": "454fa969-71c7-44e7-8ac6-9a740b39ac12",
+      "techniques": []
     },
     "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/prompt-assembly": {
       "context": "app-master-bench-scenarios",
@@ -24302,6 +24297,26 @@
         "at": "2026-11-06T02:59:21.755404+00:00",
         "reason": "reviewer (sonnet): The evidence says searching soak and its parent found 0 hits, but the parent has hits in scenarios/kp-default.json (lines 38 and 44, which describe prompt and instruction assembly tasks), gate.mjs, and scenarios.test.mjs:345. The anchor is also night.mjs, the soak runner, not the scenarios the conte"
       }
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/agent-runtime-assembly": {
+      "context": "shell-tasks",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:21:59.012Z",
+      "worker": "454fa969-71c7-44e7-8ac6-9a740b39ac12",
+      "techniques": []
+    },
+    "d971fbfa-7db0-4a18-b766-e667707e30fb/agent-runtime-assembly": {
+      "context": "channels-comms-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T03:21:59.012Z",
+      "worker": "454fa969-71c7-44e7-8ac6-9a740b39ac12",
+      "techniques": []
     }
   }
 }
