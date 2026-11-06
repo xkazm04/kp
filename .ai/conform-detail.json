@@ -24055,6 +24055,31 @@
         "at": "2026-11-06T01:03:28.043003+00:00",
         "reason": "reviewer (sonnet): The anchor (simRunLease.ts:4) is a header comment about a lease-release bug. It does not show that the simulation never dispatches or supervises agent sessions, and 'scripted, deterministic' appears nowhere in it. The keyword grep over the directory is also weak evidence of absence."
       }
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/prompt-assembly": {
+      "context": "auth-session-rbac",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:15:58.855Z",
+      "worker": "8a01f823-e08f-4617-8b24-e097d69e4d64",
+      "techniques": []
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/prompt-assembly": {
+      "context": "shell-setup-wizard",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T01:15:58.855Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "8a01f823-e08f-4617-8b24-e097d69e4d64",
+        "state": "not-applicable",
+        "at": "2026-11-06T01:16:33.728776+00:00",
+        "reason": "reviewer (sonnet): The anchor setupSteps.ts:42 is a comment about importing the companion-brain probe module and does not show that prompt assembly is absent. The evidence also says the wizard only GETs or POSTs the companion brain status, but setupOnboardingFinish.ts and the hooks also call /api/brand, /api/org/invit"
+      }
     }
   }
 }

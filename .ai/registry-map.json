@@ -5852,8 +5852,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/_lib/auth/session.ts:4 This context issues and checks HMAC session tokens and roles and never calls a model. The only 'llm' text in app/_lib/auth is a comment about who may read the llm_usage table, and a case-insensitive search for systemPrompt, buildPrompt, max_tokens, compaction and cache_control found nothing.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-cli-transport",
@@ -31625,8 +31629,8 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "priorNotApplicable": 5,
+          "state": "unknown"
         },
         {
           "subject": "docs-sync",
