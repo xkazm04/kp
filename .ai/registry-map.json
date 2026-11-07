@@ -22453,7 +22453,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "docs/features/jobseeker/README.md:1168 The coupled doc says the locked scan-clock toggle carries its reason as a title, but ScansPage now passes it as a `hint` that SourceSwitch renders in a Tooltip. The commit that made this change (402b1f4b8) edited this same README, so the doc's timestamp reads fresh while the clause is stale, and no claim-level rot check catches it.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "quality-gates",
@@ -25469,7 +25473,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:335 The organization entry couples the invite page (app/invite/**) but not its API, so app/api/invite/[token]/route.ts matches no entry. Yet the organization README documents that route's rate limits, its reason-to-status map and its orgName:null answer, so a change to it raises no doc obligation.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "voice-io",
@@ -29309,7 +29317,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "docs/features/candidates/README.md:1987 The coupled doc keeps its own literal copy of its feature-doc-map entry under '## doc-map', and the copy has drifted from the real entry. It lists provenance-dossier.ts and ProfileTabTypes.ts, which the map does not, and omits app/_lib/github/**, app/api/github-analysis/** and app/api/analyses/**, which the map has. That leaves two half-right authorities for the coupling this context depends on.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "quality-gates",

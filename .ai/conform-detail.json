@@ -26398,6 +26398,69 @@
           "evidence": "app/_lib/db/profiles-stale-cas.test.ts:16 The CAS behaviour is tested against a real throwaway SQLite file."
         }
       ]
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/docs-sync": {
+      "context": "jobseeker-sources-scans",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:33:13.337Z",
+      "worker": "77b1bc17-c293-4e3e-99be-7ce4dd3e9f74",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/feature-doc-map.json:625 Every file in this context matches this glob and couples to docs/features/jobseeker/README.md, which names SourcesPage, ScansPage, ScanRunTable, AddSourceForm and the other pages."
+        },
+        {
+          "technique": "doc-rot-detection",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/ScansPage.tsx:165 The code moved from a title= attribute to a Tooltip hint (its own comment at lines 157-161 says so). Doc line 1168 still says 'as its title'. A timestamp check calls the doc fresh because both were edited in commit 402b1f4b8."
+        }
+      ]
+    },
+    "05973fce-bf4d-4d6f-8788-05e2ce7534a6/docs-sync": {
+      "context": "org-management-api",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:33:13.337Z",
+      "worker": "77b1bc17-c293-4e3e-99be-7ce4dd3e9f74",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:331 app/api/org/** and app/api/repo-scan/** (line 505, app-master doc) are mapped. app/api/invite/[token]/route.ts evaluates UNMAPPED under the hook's own compileGlob, and no coverage gate reports it."
+        },
+        {
+          "technique": "dated-corrections",
+          "verdict": "conformant",
+          "evidence": "docs/features/organization/README.md:978 A resolved defect is kept as a dated resolution stating what was wrong and what replaced it (jsonRefusal, confirmed at app/api/org/invites/route.ts:39)."
+        }
+      ]
+    },
+    "e7da66f4-7fae-4984-a81a-c031ee891301/docs-sync": {
+      "context": "saved-analysis-report",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:33:13.337Z",
+      "worker": "77b1bc17-c293-4e3e-99be-7ce4dd3e9f74",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/feature-doc-map.json:153 app/history/[slug]/* couples to docs/features/candidates/README.md, which has a 'Saved analysis report' entry naming page.tsx."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "deviation",
+          "evidence": "docs/features/candidates/README.md:1976 A literal copy of the coupling record with no mechanical assertion against feature-doc-map.json. They differ in 5 globs. This context's own glob, app/history/**, still agrees in both."
+        }
+      ]
     }
   }
 }
