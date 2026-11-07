@@ -1,0 +1,144 @@
+{
+  "schema": "conform-run/1",
+  "worker": "c7a12325-4ba1-4b41-8639-984b98f2e8c2",
+  "subject": "settings",
+  "evaluatedAt": "2026-11-07T04:13:24.983533+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "saved-analysis-report",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/history/[slug]/page.tsx:9 The page renders stored analysis records from the analyses store, and the locale comes from next-intl's getLocale. A search of app/history/[slug]/ for setting, process.env, localStorage, config and preference found no hits, so this context holds no settings store, accessor or settings surface.",
+      "techniques": [],
+      "absenceTerms": [
+        "setting",
+        "process.env",
+        "localStorage",
+        "config",
+        "preference"
+      ]
+    },
+    {
+      "context": "ats-sync-egress",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/ats-config-store.ts:271 Every accepted write overwrites the single ats_config row in place, keeping only updated_at, version and owner_org_id. Nothing records the old and new value, so 'who changed the outbound endpoint or its event subscriptions, and from what' cannot be answered.",
+      "techniques": [
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-config-store.ts:271 An upsert overwrites the row with no record of the old value, the new value, the category or the origin. Searches for audit, history, old_value and previous in the store and its route found nothing."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-config-store.ts:280 When a save leaves events out, the stored list is rebuilt from parseEvents, which drops event types this build does not recognize (line 131 logs them). After a rollback, saving only the URL permanently deletes subscriptions a newer build wrote, when the technique says unknown members are preserved by default."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-config-store.ts:118 One parser per field reports corruption and falls back to the declared empty default. The write side validates the same type (validateEvents, line 184), so reads and writes go through one validation door."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-config-store.ts:67 This is a single-row store with fixed columns. The schema closes the key space, so a free-string key, a typo key or an orphan key cannot exist."
+        }
+      ]
+    },
+    {
+      "context": "platform-admin-ops",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/public-base-url.ts:152 The public-origin chain runs APP_BASE_URL, then NEXT_PUBLIC_APP_BASE_URL, then the runtime origin, then the site default. When an override is present but malformed, the chain warns and falls through to a lower source, so a mistyped deploy value quietly sends candidate links to the request host or the default site origin instead of stopping.",
+      "techniques": [
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "deviation",
+          "evidence": "app/_lib/public-base-url.ts:152 The order is declared in one place (comment at line 15), and publicOriginHealth (line 125) reports fallback and conflict. But a present-and-malformed source is skipped, where the technique says it must stop the chain. publicBaseUrl returns only a string, with no provenance for which source answered."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/public-base-url.ts:151 One resolver validates that the value is an absolute http(s) URL and normalizes it (no trailing slash) before any caller sees it. That makes it the single typed door for candidate-link origins."
+        }
+      ],
+      "registryProposal": "cross-source-precedence-chain says 'malformed stops', and typed-accessors says 'on parse failure report and return the default'. For an environment-variable override that a single typed resolver reads, the two rules give opposite answers. The standard should say which one governs a read-only env source that sits above a runtime-derived fallback."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "settings",
+      "context": "jd-library-core",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "settings",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (BillingTab.tsx:43) is a header comment; the evidence's reads of /api/llm/usage and /api/ops appear nowhere under billing/, and BillingAlertsPanel.tsx calls /api/billing/alerts/${id}, a writable per-org alerts surface the claim ignores, so I could not confirm 'no settings key space'."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T04:13:24.983533+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:13:24.983533+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "saved-analysis-report",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:13:24.983533+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "in-place-document-patch",
+        "key-registry",
+        "settings-audit-and-history",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "ats-sync-egress",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:13:24.983533+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "cross-source-precedence-chain",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "platform-admin-ops",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

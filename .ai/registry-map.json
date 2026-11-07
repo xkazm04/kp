@@ -5804,7 +5804,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/ats-config-store.ts:271 Every accepted write overwrites the single ats_config row in place, keeping only updated_at, version and owner_org_id. Nothing records the old and new value, so 'who changed the outbound endpoint or its event subscriptions, and from what' cannot be answered.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         }
       ],
       "governance": "governed"
@@ -27470,7 +27474,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/public-base-url.ts:152 The public-origin chain runs APP_BASE_URL, then NEXT_PUBLIC_APP_BASE_URL, then the runtime origin, then the site default. When an override is present but malformed, the chain warns and falls through to a lower source, so a mistyped deploy value quietly sends candidate links to the request host or the default site origin instead of stopping.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "deployment-contract",

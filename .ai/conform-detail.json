@@ -2976,8 +2976,8 @@
       "subject": "settings",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T22:46:08.508Z",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:13:24.983Z",
       "techniques": [
         {
           "technique": "cross-source-precedence-chain",
@@ -3005,10 +3005,10 @@
         }
       ],
       "withdrawn": {
-        "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
+        "worker": "c7a12325-4ba1-4b41-8639-984b98f2e8c2",
         "state": "not-applicable",
-        "at": "2026-11-06T22:49:04.950475+00:00",
-        "reason": "reviewer (sonnet): The anchor BillingTab.tsx:130 is just the read fetch(\"/api/billing\"), so it does not show that no settings key space exists. My grep found no settings accessor and only checkout, portal and alert POSTs, but the cited line itself is incidental."
+        "at": "2026-11-07T04:14:08.360010+00:00",
+        "reason": "reviewer (sonnet): The anchor (BillingTab.tsx:43) is a header comment; the evidence's reads of /api/llm/usage and /api/ops appear nowhere under billing/, and BillingAlertsPanel.tsx calls /api/billing/alerts/${id}, a writable per-org alerts surface the claim ignores, so I could not confirm 'no settings key space'."
       }
     },
     "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
@@ -26151,6 +26151,59 @@
         "at": "2026-11-07T03:59:29.082436+00:00",
         "reason": "reviewer (sonnet): The truncation notice does sit inside the fence (fence.ts:58 calls capBlock inside fencedUntrusted), but the window cut the verdict depends on is practically unreachable: DEEP_REVIEW_REPO_LIMIT is 3, and each repo contributes at most about 3.5k of README plus 10 commits and 30 file names, far under "
       }
+    },
+    "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/settings": {
+      "context": "ats-sync-egress",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:13:24.983Z",
+      "worker": "c7a12325-4ba1-4b41-8639-984b98f2e8c2",
+      "techniques": [
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-config-store.ts:271 An upsert overwrites the row with no record of the old value, the new value, the category or the origin. Searches for audit, history, old_value and previous in the store and its route found nothing."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-config-store.ts:280 When a save leaves events out, the stored list is rebuilt from parseEvents, which drops event types this build does not recognize (line 131 logs them). After a rollback, saving only the URL permanently deletes subscriptions a newer build wrote, when the technique says unknown members are preserved by default."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-config-store.ts:118 One parser per field reports corruption and falls back to the declared empty default. The write side validates the same type (validateEvents, line 184), so reads and writes go through one validation door."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-config-store.ts:67 This is a single-row store with fixed columns. The schema closes the key space, so a free-string key, a typo key or an orphan key cannot exist."
+        }
+      ]
+    },
+    "735cafa0-53ed-4e9d-8a42-087ede0529b2/settings": {
+      "context": "platform-admin-ops",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:13:24.983Z",
+      "worker": "c7a12325-4ba1-4b41-8639-984b98f2e8c2",
+      "techniques": [
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "deviation",
+          "evidence": "app/_lib/public-base-url.ts:152 The order is declared in one place (comment at line 15), and publicOriginHealth (line 125) reports fallback and conflict. But a present-and-malformed source is skipped, where the technique says it must stop the chain. publicBaseUrl returns only a string, with no provenance for which source answered."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/public-base-url.ts:151 One resolver validates that the value is an absolute http(s) URL and normalizes it (no trailing slash) before any caller sees it. That makes it the single typed door for candidate-link origins."
+        }
+      ],
+      "registryProposal": "cross-source-precedence-chain says 'malformed stops', and typed-accessors says 'on parse failure report and return the default'. For an environment-variable override that a single typed resolver reads, the two rules give opposite answers. The standard should say which one governs a read-only env source that sits above a runtime-derived fallback."
     }
   }
 }
