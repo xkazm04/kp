@@ -4555,7 +4555,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:109 History search applies a server-filtered query on a 250ms debounce rather than an explicit commit, and by design (comment at lines 161-162) it keeps the previous predicate's rows on screen while the new filter loads.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -24272,7 +24276,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/export-utils.ts:17 The ranking CSV export (MatchResults.tsx:18 imports toCsv) goes through a shared encoder that applies the guard before quoting, but its trigger set leaves out the line-feed and the full-width = + - @ forms the technique requires.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "multi-provider-gateway-plane",
@@ -28691,7 +28699,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:339 The only table here is the static, read-only CV-variant compare table. It has a caption and scoped row and column headers, and most data-grid techniques do not apply. Golden-path miss outside the techniques: numeric cells are left-aligned.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "candidate-archetype-routing",

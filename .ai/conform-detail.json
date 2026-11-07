@@ -25195,67 +25195,72 @@
       "context": "analyze-workspace",
       "subject": "table",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T05:39:27.706Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:26:06.873Z",
+      "worker": "1f3d7430-1a92-4835-b418-8c1b2e39382e",
       "techniques": [
         {
           "technique": "filtering",
           "verdict": "deviation",
-          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:21 The free-text search commits to the server by debounce with no explicit submit, and old-predicate rows survive a filter change (line 161). Done right: the dropdowns commit on change, a generation token makes the latest request win for both success and failure, and clearing takes one action."
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:109 Keystroke-plus-debounce commit on a round-trip filter, and old-predicate rows stay visible during a filter change. Done well: the reqGen latest-wins token covers both success and failure, a single clear-all exists, the dropdowns commit on change onto the applied query, and the matched count reads the applied predicate."
         },
         {
           "technique": "loading-and-empty-states",
           "verdict": "deviation",
-          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:98 A failed refresh discards rows already on screen, and because the filter bar renders only in the rows branch (line 171), the chrome unmounts on error as well. Done right: a reserved first-load height, an empty state typed as no runs vs no match, and a distinct error with retry."
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:171 The error branch and the first-load branch (rows == null, line 182) render in place of HistoryFilterBar, so the toolbar chrome is unmounted during the first fetch, after a failure, and during retry (setRows(null) at line 121). Done well: a delayed reveal-quiet ghost, error kept separate from empty with a retry, and empty typed by cause (no runs vs no match plus clear)."
         },
         {
           "technique": "client-server-split",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:48 All-server: the route filters the whole workspace before its window, and the facets come from the server."
+          "evidence": "app/features/tools/analyze/history/historyQuery.ts:6 All-server regime: filter, order and window are applied together on the server, and facets come from the whole workspace."
         },
         {
           "technique": "pagination",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:135 Keyset load-more via nextCursor; pages merge by slug; a page that returns after the query changed is dropped."
+          "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:131 Keyset load-more under the applied query. A stale generation is dropped and pages merge by slug. A cut page says 'shown, newest first' instead of claiming a total."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/analyses.ts:252 Total order with the unique slug as tiebreaker, matching the keyset cursor."
         },
         {
           "technique": "performance",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:46 Identity keys, and a bounded server window with load-more."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:46 Rows are keyed by identity and the window is bounded."
         },
         {
           "technique": "grid-keyboard-model",
           "verdict": "conformant",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:59 A native table with one labelled action button per row."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:59 A native table with one labelled action button per row.",
+          "carriedFrom": "2026-11-06"
         },
         {
           "technique": "export-escapes-for-its-consumer",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No export from History."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No export from History.",
+          "carriedFrom": "2026-11-06"
         },
         {
           "technique": "clipboard-range-round-trip",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No range clipboard."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No range clipboard.",
+          "carriedFrom": "2026-11-06"
         },
         {
           "technique": "one-door-for-range-writes",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No cell editing: decisions go through the triage drawer."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 No cell editing: decisions go through the triage drawer.",
+          "carriedFrom": "2026-11-06"
         },
         {
           "technique": "compressed-scroll-space",
           "verdict": "not-applicable",
-          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 Not windowed."
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:30 Not windowed.",
+          "carriedFrom": "2026-11-06"
         }
-      ],
-      "withdrawn": {
-        "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
-        "state": "deviation",
-        "at": "2026-11-06T05:41:02.432304+00:00",
-        "reason": "reviewer (sonnet): The verdict and all five technique anchors are in app/features/tools/analyze/history/HistoryTab.tsx, but registry-map.json lists none of the history/ files in this context's 12 paths (only AnalyzeColumn, AnalyzeForm and similar), and the context's files don't call HistoryTab. The verdict is about a "
-      }
+      ]
     },
     "01ce0010-7ed5-4f5c-9374-dd1283978131/table": {
       "context": "pipeline-actions-events",
@@ -25850,6 +25855,78 @@
           "technique": "entitlement-lifecycle-revocation",
           "verdict": "conformant",
           "evidence": "app/api/devcase/lifecycle/route.ts:27 Read stays, write stops: the GET listing has no meter gate, so a lapsed tenant keeps its existing lifecycles. Only creation and redesign are gated."
+        }
+      ]
+    },
+    "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/table": {
+      "context": "matrix-focus",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:26:06.873Z",
+      "worker": "1f3d7430-1a92-4835-b418-8c1b2e39382e",
+      "techniques": [
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "deviation",
+          "evidence": "app/_lib/export-utils.ts:17 Done well: one shared encoder, guard before quote, numbers exempted by type. Missing: the \\n trigger and the full-width trigger forms. A job title or reasons line from another system can open as a formula."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:52 A failed re-rank keeps the ranking on screen. Empty is explained by cause through NoMatchesExplainer (line 147)."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:180 Ranked rows are keyed by job identity; MatchCard is not memoized, so the index prop costs nothing extra."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:54 The 2-4 column compare view is a native read-only table."
+        }
+      ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/table": {
+      "context": "results-core",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:26:06.873Z",
+      "worker": "1f3d7430-1a92-4835-b418-8c1b2e39382e",
+      "techniques": [
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:339 Native table, read-only cells, scoped headers plus an sr-only caption (line 168)."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:72 There is no fetch. A payload that cannot be compared gets a named empty state with an upload prompt instead of a broken table."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:21 Rows follow a fixed score taxonomy; there is no sortable axis."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:206 At most nine fixed metric rows; nothing to page."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ReportActions.tsx:42 The only export is a markdown dossier, not a CSV of table rows."
+        },
+        {
+          "technique": "clipboard-range-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ReportActions.tsx:36 The clipboard carries a report link, not a cell range."
         }
       ]
     }
