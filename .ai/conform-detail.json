@@ -14967,19 +14967,28 @@
       "subject": "regulated-credential-gating",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:43:05.289Z",
-      "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T22:54:20.281Z",
+      "worker": "23514948-6101-4d50-b90f-bd762e25f7b2",
       "techniques": [
-        {
-          "technique": "licence-is-a-precondition-not-a-preference",
-          "verdict": "deviation",
-          "evidence": "pipeline/jobfit/matching.py:754 The requirement loop scores all requirements using ordinary weights; licence requirements receive no separate, non-offsettable treatment."
-        },
         {
           "technique": "required-but-missing-as-a-blocking-gate",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/matching.py:1417 After the inspected KO filter and requirement scoring, the fit tier depends only on total; missing regulated credentials do not cap it."
+          "evidence": "pipeline/jobfit/matching.py:1417 The tier comes from the score only. No gap object, no capped verdict and no hold reason exist on MatchResult for a required licence that is not evidenced."
+        },
+        {
+          "technique": "licence-is-a-precondition-not-a-preference",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:781 Every requirement, a 'prerequisite' must-have included, goes into the same weighted arithmetic. No requirement field marks a regulated precondition that sits outside the score, so a licence requirement can be outweighed by strong skills: the 'offsettable licence' failure."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1417 The matcher derives its fit tier from the score without a regulated-credential cap, allowing an unevidenced licence requirement to coexist with a strong match.",
+          "evaluatedAt": "2026-10-19T00:43:05.289Z",
+          "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+          "reason": "replaced by 23514948-6101-4d50-b90f-bd762e25f7b2"
         }
       ]
     },
@@ -14988,14 +14997,28 @@
       "subject": "regulated-credential-gating",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T00:43:05.289Z",
-      "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T22:54:20.281Z",
+      "worker": "23514948-6101-4d50-b90f-bd762e25f7b2",
       "techniques": [
         {
           "technique": "issue-versus-expiry-date-disambiguation",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/models.py:23 The schema expressly allows issue dates to populate expiry instead of retaining a separate date role or an unknown role."
+          "evidence": "pipeline/jobfit/models.py:23 No separate issue/expiry fields, no date-role marker and no undetermined state. credentials.py:90 has to guess with max(years), and a single past issue date still reads as an expiry."
+        },
+        {
+          "technique": "deterministic-safety-net-behind-the-model",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/models.py:19 Procedure step 1 holds: credentials are first-class typed records (name/issuer/identifier/expiry/kind), not prose. Caveats: there is no jurisdiction or status field, and the deterministic pass itself is in credentials.py, outside this context."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/models.py:23 The credential model permits an issue date in the expiry field, allowing a historical award date to be interpreted downstream as a licence lapse.",
+          "evaluatedAt": "2026-10-19T00:43:05.289Z",
+          "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+          "reason": "replaced by 23514948-6101-4d50-b90f-bd762e25f7b2"
         }
       ]
     },

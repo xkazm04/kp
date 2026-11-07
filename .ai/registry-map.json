@@ -7710,13 +7710,12 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/matching.py:1417 The matcher derives its fit tier from the score without a regulated-credential cap, allowing an unevidenced licence requirement to coexist with a strong match.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
-          "evaluatedRevision": 3,
+          "evidence": "pipeline/jobfit/matching.py:1417 The matcher sets the strong/promising/partial tier from the weighted score alone, with no regulated-credential cap, so a candidate whose required licence is not evidenced can still be shown as a strong fit. MatchCandidate (matching.py:112-164) has no credentials field, and transform.py never mentions credentials, so this path has no data to cap on.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c50d247cc160e408",
+          "evaluatedRevision": 4,
           "source": "retained",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
@@ -10730,12 +10729,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/models.py:23 The credential model permits an issue date in the expiry field, allowing a historical award date to be interpreted downstream as a licence lapse.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "pipeline/jobfit/models.py:23 The credential schema has one date field whose own comment says it holds either the expiry or the issue date. Every date is filed into the expiry slot with its role unrecorded, so nothing downstream can tell an award date from a lapse. This is the failure the disambiguation technique forbids: a date filed as an expiry 'for now'.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c50d247cc160e408",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",
