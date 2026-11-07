@@ -18588,5 +18588,249 @@
     "decline": "Stapel ablehnen",
     "humanStep": "Ihre Entscheidung wird unter Ihrem Namen festgehalten. Nach Ihrer Entscheidung läuft der Lauf von selbst weiter.",
     "failed": "Bei diesem Lauf ist etwas schiefgegangen. Bitte versuchen Sie es erneut."
+  },
+  "one": {
+    "core": {
+      "meta": {
+        "region": "One",
+        "console": "Console",
+        "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
+        "layout": "Layout",
+        "variants": {
+          "greet": "Greet",
+          "stage": "Stage",
+          "brief": "Brief"
+        },
+        "regionLabel": "Views One put on screen",
+        "conversationLabel": "Conversation with One",
+        "regionEmpty": "Nothing on screen yet. Ask a question or pick one below."
+      },
+      "composer": {
+        "label": "Ask One",
+        "placeholder": "Ask what needs you, or say what to do",
+        "send": "Send",
+        "stop": "Stop",
+        "working": "Opening the views…"
+      },
+      "you": "You",
+      "one": "One",
+      "say": {
+        "empty": "Ask me what needs you, or pick a question below.",
+        "needsShown": "Here is what needs you.",
+        "decisionsShown": "These candidates are waiting on your decision.",
+        "pipelineShown": "Here is the active pipeline.",
+        "pipelineRoleShown": "Here is the pipeline for that role, with the role beside it.",
+        "stalledShown": "These candidates have sat in their step past its limit.",
+        "interviewsShown": "These are the interviews on the calendar ahead.",
+        "funnelShown": "Here is how candidates move through the funnel.",
+        "arrivalsShown": "These candidates arrived and wait for a first look.",
+        "draftsShown": "These roles are still drafts, not yet published.",
+        "outboxShown": "Here is what was sent to candidates lately.",
+        "roleShown": "Here is that role and its candidates.",
+        "roleAsk": "Which role? Say it like \"the pipeline for backend\".",
+        "waveRejectProposed": "I have set up that cut. Check who it touches; nothing happens until you confirm.",
+        "waveAdvanceProposed": "I have set up that advance. Check who it touches; nothing happens until you confirm.",
+        "companionProposed": "That one is done in the Console today. The way there is below.",
+        "consoleOffered": "The full workspace is one click away.",
+        "notYet": "That is not in this prototype yet. Try one of these."
+      },
+      "dropped": "{count, plural, one {One part of this answer could not be shown.} other {# parts of this answer could not be shown.}}",
+      "chips": {
+        "needs": "What needs me?",
+        "decisions": "Decisions waiting",
+        "pipeline": "The pipeline",
+        "stalled": "What is stalled?",
+        "interviews": "Interviews ahead",
+        "funnel": "How are we doing?",
+        "arrivals": "New arrivals",
+        "drafts": "Drafts to publish",
+        "outbox": "What was sent?",
+        "digest": "Today's digest"
+      },
+      "greeting": {
+        "loading": "Reading what needs you…",
+        "unknown": "I could not read what needs you right now. The questions below still work.",
+        "clear": "All clear. Nothing is waiting on you.",
+        "status": "{areas, plural, one {One area needs you.} other {# areas need you.}}",
+        "first": {
+          "decisions": "{count, plural, one {# candidate is} other {# candidates are}} waiting on your decision.",
+          "pipeline": "{count, plural, one {# candidate has} other {# candidates have}} sat in a step past its limit.",
+          "channels": "{count, plural, one {# new application waits} other {# new applications wait}} for a first look.",
+          "schedule": "{count, plural, one {# interview is} other {# interviews are}} on the calendar ahead.",
+          "jobs": "{count, plural, one {# role is} other {# roles are}} still a draft."
+        },
+        "show": "Show me"
+      },
+      "change": {
+        "shown": "Showing {panel}.",
+        "replaced": "Showing {panel} in place of {previous}.",
+        "focused": "Brought {panel} forward.",
+        "closed": "Closed {panel}.",
+        "pinned": "Pinned {panel}. It stays when new views arrive.",
+        "unpinned": "Unpinned {panel}.",
+        "undone": "Put the previous screen back.",
+        "dropped": "You acted first, so the pending change was dropped.",
+        "droppedSuffix": "The change One had pending was dropped.",
+        "stopped": "Stopped. The screen is as it was before that question.",
+        "pinLimit": "Two views are pinned already. Unpin one to pin {panel}.",
+        "undo": "Undo",
+        "dismiss": "Dismiss"
+      },
+      "panels": {
+        "openInConsole": "Open in Console",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "close": "Close",
+        "focus": "Bring forward",
+        "loadFailed": "This view could not load.",
+        "notReturned": "This read did not return it.",
+        "noScore": "No score yet.",
+        "firstOf": "Showing the first {shown} of {total}.",
+        "needs": {
+          "title": "What needs you",
+          "empty": "Nothing is waiting on you.",
+          "rows": {
+            "decisions": "Decisions waiting",
+            "pipeline": "Past their step's limit",
+            "channels": "New arrivals",
+            "schedule": "Interviews ahead",
+            "jobs": "Draft roles",
+            "companion": "Candi's open proposals"
+          },
+          "companionWhere": "Answered in Candi's dock in the Console"
+        },
+        "pipelineSlice": {
+          "title": "Pipeline",
+          "titleAging": "Stalled candidates",
+          "titleNew": "New arrivals",
+          "forRole": "For “{role}”",
+          "empty": "No active candidates on the board.",
+          "emptyRole": "No active candidates match “{role}”.",
+          "emptyAging": "Nobody has sat in a step past its limit.",
+          "emptyNew": "No new arrivals are waiting."
+        },
+        "scheduleAhead": {
+          "title": "Interviews ahead",
+          "empty": "No interviews are on the calendar ahead.",
+          "zone": "Times in {zone}",
+          "truncated": "Only the most recent invitations were read; there may be more."
+        },
+        "funnel": {
+          "title": "Funnel",
+          "window": "Last 30 days",
+          "empty": "No candidates entered in this window.",
+          "reached": "reached",
+          "noConversion": "The first step has nothing before it to convert from."
+        },
+        "jobDrafts": {
+          "title": "Drafts to publish",
+          "empty": "No draft roles are waiting to be published."
+        },
+        "outbox": {
+          "title": "Sent lately",
+          "empty": "Nothing has been sent to candidates yet.",
+          "relayOff": "No delivery relay is set up: messages are recorded here, and nothing reaches candidates.",
+          "verdict": {
+            "sent": "Sent",
+            "queued": "Queued",
+            "failed": "Failed",
+            "bounced": "Bounced",
+            "recovered": "Recovered",
+            "orphaned": "Unmatched receipt"
+          }
+        },
+        "decisionsQueue": {
+          "title": "Decisions waiting",
+          "empty": "No candidate is waiting on a decision.",
+          "advance": "Advance",
+          "reject": "Reject"
+        },
+        "roleCard": {
+          "title": "Role",
+          "needRole": "Name a role to see it, like “the role backend”.",
+          "notFound": "No role matches “{role}”.",
+          "more": "{count, plural, one {# more role matches} other {# more roles match}}; showing the first.",
+          "company": "Company",
+          "location": "Location",
+          "seniority": "Seniority",
+          "status": "Status",
+          "hired": "Hired",
+          "target": "Target",
+          "statuses": {
+            "open": "Open",
+            "draft": "Draft",
+            "closed": "Closed"
+          },
+          "pipeline": "Its pipeline"
+        }
+      },
+      "consent": {
+        "heading": "Needs your OK",
+        "notNow": "Not now",
+        "working": "Working…",
+        "final": "This is final from here; there is no undo on this screen.",
+        "stale": "This candidate moved since you looked. Refresh the view and decide again.",
+        "failed": "That did not go through.",
+        "cost": "Costs one model call when it runs.",
+        "disarmed": "This cannot be armed: {reason}",
+        "reasons": {
+          "badParams": "it arrived incomplete.",
+          "badThreshold": "the score line must be between 1 and 100.",
+          "badCount": "the number must be between 1 and 50.",
+          "unknownAction": "it names an action that does not exist."
+        },
+        "emails": {
+          "rejection": "Emails the candidate a rejection letter.",
+          "rejectionMany": "Emails each of them a rejection letter.",
+          "nextStep": "May email the candidate the next step's invitation (an AI interview or a work sample), depending on the step."
+        },
+        "entryAdvance": {
+          "title": "Advance {label}",
+          "body": "Moves them on from {stage} to the next step.",
+          "press": "Advance",
+          "done": "{label} moved on."
+        },
+        "entryReject": {
+          "title": "Reject {label}",
+          "body": "Closes them out of {stage}.",
+          "press": "Reject",
+          "done": "{label} is rejected.",
+          "commsFailed": "The rejection letter could not be queued; follow up by hand."
+        },
+        "routedToHumanRound": "Their next round needs a person; it is waiting in Decisions.",
+        "wave": {
+          "rejectTitle": "Reject everyone below {threshold}%",
+          "rejectTitleRole": "Reject everyone below {threshold}% on “{role}”",
+          "advanceTitle": "Advance the top {count} by score",
+          "advanceBody": "Candidates at the offer step wait for the offer flow instead.",
+          "preview": "Show who it touches",
+          "previewing": "Reading who it touches…",
+          "touches": "{total, plural, =0 {Nobody matches, so nothing would change.} one {Touches # candidate:} other {Touches # candidates:}}",
+          "moreRows": "{count, plural, one {and # more} other {and # more}}",
+          "pressReject": "Reject and notify",
+          "pressAdvance": "Advance them",
+          "done": "{count, plural, one {# candidate done.} other {# candidates done.}}",
+          "failedSome": "{count, plural, one {# could not be changed.} other {# could not be changed.}}",
+          "commsFailed": "{count, plural, one {# rejection letter could not be queued.} other {# rejection letters could not be queued.}}",
+          "heldAtOffer": "{count, plural, one {# held at the offer step.} other {# held at the offer step.}}",
+          "droppedOut": "{count, plural, one {# no longer matched and was left alone.} other {# no longer matched and were left alone.}}",
+          "undo": "Undo the rejections",
+          "undoTooMany": "Too many to undo from here; reverse them from the Console.",
+          "undone": "{restored, plural, one {# candidate is back.} other {# candidates are back.}}",
+          "undoneNotified": "{notified, plural, one {# had already been sent a letter; follow up by hand.} other {# had already been sent a letter; follow up by hand.}}",
+          "undoneSkipped": "{skipped, plural, one {# had moved since and was left alone.} other {# had moved since and were left alone.}}"
+        },
+        "companion": {
+          "title": {
+            "run_analysis": "Re-run a candidate's screening",
+            "draft_jd": "Draft a job description",
+            "draft_outreach": "Draft outreach to a candidate",
+            "generate_digest": "Write today's digest"
+          },
+          "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
+          "press": "Open in Console"
+        }
+      }
+    }
   }
 }
