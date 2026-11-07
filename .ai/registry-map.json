@@ -30317,7 +30317,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/setup-studio/VoicePanel.tsx:58 The first-run voice step lists cloud engines (ElevenLabs) beside local ones (Piper/Kokoro) with only a name, languages and state. Nothing says text leaves the machine, no heard local default is recommended, and the flow has no hearing (recognizer) step — contrary to voice-setup-experience rules 1 and 4.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "browser-credential-boundary",
