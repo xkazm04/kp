@@ -1,4 +1,4 @@
-// /one — the wire vocabulary every layout direction codes against (docs/design/one-interface.md).
+// /one — the wire vocabulary the layout codes against (docs/design/one-interface.md).
 //
 // Closed vocabularies in the repo's shape (app/features/shell/tabs.ts): ONE literal array,
 // the union derived from it, and a runtime guard built from the same array — so the type,
@@ -70,22 +70,11 @@ export const CHIP_IDS = [
 export type ChipId = (typeof CHIP_IDS)[number];
 export const isChipId = (v: unknown): v is ChipId => (CHIP_IDS as readonly unknown[]).includes(v);
 
-/** The directions under judgement. Round 4: the owner picked the DENSE finish; `dense` is
- *  the baseline and `workbench` / `sheets` / `cards` are three LAYOUTS of the round-4 tools
- *  (profile, letter, interview) — every one of them wears the dense finish (finish.css). */
-export const VARIANT_IDS = ["dense", "workbench", "sheets", "cards"] as const;
-export type VariantId = (typeof VARIANT_IDS)[number];
-export const isVariantId = (v: unknown): v is VariantId => (VARIANT_IDS as readonly unknown[]).includes(v);
-/** `?v=` absent or unknown → dense (the round-3 pick). */
-export function variantOf(raw: unknown): VariantId {
-  return isVariantId(raw) ? raw : "dense";
-}
-
 /** The candidate the user picked from a list (Enter / a row press). Navigation, not an undo
  *  step; a new answer clears it (engine/session.ts). */
 export type Selected = { entryId: string; label: string };
 
-/** The per-candidate tools a layout can host for the selection (VariantProps.renderTool). */
+/** The per-candidate tools the layout hosts for the selection (LayoutProps.renderTool). */
 export const TOOL_KINDS = ["profile", "letter", "interview"] as const;
 export type ToolKind = (typeof TOOL_KINDS)[number];
 
@@ -130,7 +119,7 @@ export const isSayKey = (v: unknown): v is SayKey => (SAY_KEYS as readonly unkno
 export type Say = { key: SayKey; values?: Record<string, string> };
 
 /** One reply. ≤ 4 ops, ≤ 4 chips (validate.ts). `fallback` = the honest "not in this
- *  prototype yet" answer — a variant may draw it differently, never hide it. */
+ *  prototype yet" answer — the layout may draw it its own way, never hide it. */
 export type Reply = { say: Say; ops: Op[]; chips: ChipId[]; fallback?: boolean };
 
 export const MAX_OPS = 4;

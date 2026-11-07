@@ -1,9 +1,10 @@
 "use client";
 
-// `?v=sheets` — the round-4 SLIDE-OVER SHEETS layout (docs/design/one-interface.md "Round 4
-// variants"). A fork of the Dense layout (../dense/DenseLayout.tsx): the page stays Dense —
-// the answer and its insight card on the left, the role-grouped list on the right — and every
-// TOOL opens as a full-height sheet sliding in over the main column.
+// THE /one layout (round 5: the owner kept Sheets — docs/design/one-interface.md "Round 4
+// verdict"). The page is the dense page — the answer and its insight card on the left, the
+// role-grouped list on the right — and every TOOL opens as a full-height sheet sliding in
+// over the main column. It sizes to the box OneShell gives it (the `/one` page or the
+// workspace tab), so it never uses `fixed`: the sheets are `absolute` inside the main column.
 //
 //   - Sheets: letters (the drafts waiting) · calendar (the week + who waits, pick → Book / Send
 //     a link) · profile (CV | score, the main column widens to half the body so both halves sit
@@ -20,23 +21,36 @@
 //   - Consent cards ride at the foot of the top sheet while one is open.
 //   - Motion: the sheet slide is the core snap preset (`sheetEnter`), the column change a 150ms
 //     track move; reduced motion = at once.
-import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button, ChipRow } from "@/app/_components/kit";
 import { EYEBROW, FIELD } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
-import { useOneMotion } from "../../motion";
-import { consoleHref as consoleHrefFor } from "../../panels/PanelShell";
-import { SEG_GROUP, Seg } from "../../Seg";
-import type { ChipId, PanelInstance, Selected } from "../../types";
-import type { VariantProps } from "../../variantProps";
-import { DENSE_ASKING_TRIM, DENSE_COMPACT, KEYCAP } from "../dense/styles";
-import { primaryOf, sideOf, tabsOf } from "../shared/side";
-import { FACE_DISPLAY, NO_CHROME, STICKER_COMPOSER } from "../shared/styles";
+import type { LayoutProps } from "../layoutProps";
+import { useOneMotion } from "../motion";
+import { ConsoleAnchor, consoleHref as consoleHrefFor } from "../panels/PanelShell";
+import { SEG_GROUP, Seg } from "../Seg";
+import type { ChipId, PanelInstance, Selected } from "../types";
+import { primaryOf, sideOf, tabsOf } from "./side";
 import { forAnswer, isPersonSheet, isWide, onClear, onPick, pop, popTo, push, sheetEnter, SHEET_PANELS, VISIBLE, type PickSource, type SheetKind } from "./stack";
-import { CAL_BESIDE, COLS_MOVE, COLS_NARROW, COLS_NONE, COLS_WIDE, FORCE_TWO, LETTERS_TRACKS, NO_HEAD, SPINE } from "./styles";
+import {
+  ASKING_TRIM,
+  CAL_BESIDE,
+  COLS_MOVE,
+  COLS_NARROW,
+  COLS_NONE,
+  COLS_WIDE,
+  COMPACT,
+  FACE_DISPLAY,
+  FORCE_TWO,
+  KEYCAP,
+  LETTERS_TRACKS,
+  NO_CHROME,
+  NO_HEAD,
+  SPINE,
+  STICKER_COMPOSER,
+} from "./styles";
 
 /** The views the host draws itself. */
 const NEEDS_VIEW: PanelInstance = { id: "sheets-needs", kind: "needs", params: {}, pinned: false };
@@ -62,7 +76,6 @@ function pickFrom(set: (s: PickSource) => void, src: PickSource) {
 }
 
 export function SheetsLayout({
-  variant,
   session,
   submit,
   greeting,
@@ -76,7 +89,7 @@ export function SheetsLayout({
   selected,
   select,
   renderTool,
-}: VariantProps) {
+}: LayoutProps) {
   const t = useTranslations("one.sheets");
   const tc = useTranslations("one.core");
   const m = useOneMotion();
@@ -217,7 +230,7 @@ export function SheetsLayout({
   };
 
   // ── The main card: the answer's insight (or the first need's) ───────
-  const cardClass = `data-[grows]:flex-auto ${asking ? `min-h-0 ${DENSE_ASKING_TRIM}` : "min-h-fit"}`;
+  const cardClass = `data-[grows]:flex-auto ${asking ? `min-h-0 ${ASKING_TRIM}` : "min-h-fit"}`;
   const card = primary
     ? renderPanel(primary, { look: "insight", className: cardClass })
     : !current && firstNeed
@@ -367,8 +380,8 @@ export function SheetsLayout({
   const cols = !open ? COLS_NONE : isWide(stack) ? COLS_WIDE : COLS_NARROW;
   return (
     <div
-      className={`grid gap-4 px-4 py-3 [font-variant-numeric:tabular-nums] lg:h-full lg:min-h-0 lg:gap-[var(--one-gap)] ${cols} ${COLS_MOVE} ${DENSE_COMPACT}`}
-      data-one-layout={variant}
+      className={`grid gap-4 px-4 py-3 [font-variant-numeric:tabular-nums] lg:h-full lg:min-h-0 lg:gap-[var(--one-gap)] ${cols} ${COLS_MOVE} ${COMPACT}`}
+      data-one-layout="sheets"
       data-finish="dense"
       data-sheets={open ? stack.join(" ") : undefined}
     >
@@ -419,9 +432,9 @@ export function SheetsLayout({
                     {current.reply.links.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {current.reply.links.map((l) => (
-                          <Link key={l.tab} className="k-btn k-btn--link k-btn--sm" href={consoleHrefFor(l.tab, l.params)}>
+                          <ConsoleAnchor key={l.tab} className="k-btn k-btn--link k-btn--sm" href={consoleHrefFor(l.tab, l.params)}>
                             {tc("meta.console")}
-                          </Link>
+                          </ConsoleAnchor>
                         ))}
                       </div>
                     ) : null}

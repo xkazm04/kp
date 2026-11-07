@@ -1,4 +1,4 @@
-// The sheet stack of `?v=sheets` — pure, so the rules are pinned by stack.test.ts.
+// The sheet stack of the /one layout (SheetsLayout.tsx) — pure, so the rules are pinned by stack.test.ts.
 //
 //   list sheets    letters (the drafts waiting) · calendar (the week + who waits)
 //   person sheets  profile · letter · schedule — bound to ONE candidate (the selection, or the
@@ -7,8 +7,8 @@
 // At most MAX_STACK sheets are kept; the top two are drawn (the lower one peeks at its
 // edge). Esc pops one. A new answer resets the stack to the sheet that answers it.
 import type { TargetAndTransition, Transition } from "framer-motion";
-import type { PanelKind } from "../../types";
-import type { MotionSpec, OneMotionPresets } from "../../motion";
+import type { PanelKind } from "../types";
+import type { MotionSpec, OneMotionPresets } from "../motion";
 
 export const SHEET_KINDS = ["letters", "calendar", "profile", "letter", "schedule"] as const;
 export type SheetKind = (typeof SHEET_KINDS)[number];

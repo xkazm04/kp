@@ -1,4 +1,4 @@
-// Which view the Split layout puts where — pure, so the rule is pinned by a test.
+// Which view the layout puts where (round 2 Split rule, kept by Sheets) — pure, so the rule is pinned by a test.
 //
 //   primary  the view that answers the question: the one in front (`focusId`), else the
 //            newest unpinned one, else the newest. Its SUMMARY is the main column's sticker
@@ -6,7 +6,7 @@
 //   tabs     every view on screen, primary first, then the pinned ones, then the rest in
 //            screen order. The side shows one of them at a time; picking a tab is LOCAL —
 //            it never focuses a panel in the session, so the main column never re-forms.
-import type { PanelInstance } from "../../types";
+import type { PanelInstance } from "../types";
 
 export function primaryOf(
   panels: readonly PanelInstance[],

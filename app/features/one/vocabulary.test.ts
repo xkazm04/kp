@@ -6,23 +6,23 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { CHANGE_KEYS, CHIP_IDS, PANEL_KINDS, SAY_KEYS, TOOL_KINDS, VARIANT_IDS, variantOf } from "./types.ts";
+import { CHANGE_KEYS, CHIP_IDS, PANEL_KINDS, SAY_KEYS } from "./types.ts";
+import { SHEET_KINDS } from "./layout/stack.ts";
 import { COMPANION_ACTION_IDS, PREVIEW_ACTS } from "./consent/acts.ts";
 import { parsePipeline, sliceEntries } from "./panels/pipelineRead.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const core = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one.core;
-const dense = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one.dense;
+const one = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one;
 const PREVIEW = [...PREVIEW_ACTS];
 
-test("every say key, chip, change key, panel and variant has words in all four locales", () => {
+test("every say key, chip, change key and panel has words in all four locales", () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
     const c = core(locale);
     for (const k of SAY_KEYS) assert.equal(typeof c.say[k], "string", `${locale} say.${k}`);
     for (const k of CHIP_IDS) assert.equal(typeof c.chips[k], "string", `${locale} chips.${k}`);
     for (const k of CHANGE_KEYS) assert.equal(typeof c.change[k], "string", `${locale} change.${k}`);
     for (const k of PANEL_KINDS) assert.equal(typeof c.panels[k].title, "string", `${locale} panels.${k}.title`);
-    for (const k of VARIANT_IDS) assert.equal(typeof c.meta.variants[k], "string", `${locale} variants.${k}`);
     for (const k of COMPANION_ACTION_IDS) assert.equal(typeof c.consent.companion.title[k], "string", `${locale} companion.${k}`);
   }
 });
@@ -33,23 +33,26 @@ test("the companion ids /one restates are still the real catalog's ids", () => {
   assert.deepEqual([...COMPANION_ACTION_IDS].sort(), real);
 });
 
-test("?v= falls back to dense; the round-3 losers are gone", () => {
-  assert.deepEqual([...VARIANT_IDS], ["dense", "workbench", "sheets", "cards"]);
-  assert.equal(variantOf("workbench"), "workbench");
-  assert.equal(variantOf("dense"), "dense");
-  assert.equal(variantOf("refined"), "dense");
-  assert.equal(variantOf("split"), "dense");
-  assert.equal(variantOf(undefined), "dense");
+// Round 5: Sheets is the one layout — no variant vocabulary is left to drift. The layouts'
+// catalog subtrees went with their folders, and nothing names a `?v=` direction any more.
+test("one layout: only the sheets and core subtrees remain, no switcher words", () => {
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    assert.deepEqual(Object.keys(one(locale)).sort(), ["core", "sheets"], `${locale} one.*`);
+    assert.equal(one(locale).core.meta.variants, undefined, `${locale} meta.variants`);
+    assert.equal(one(locale).core.meta.layout, undefined, `${locale} meta.layout`);
+  }
+  const types = readFileSync(path.join(ROOT, "app", "features", "one", "types.ts"), "utf8");
+  assert.doesNotMatch(types, /VARIANT_IDS|variantOf/);
 });
 
-test("every round-4 preview act and tool has its words in all four locales", () => {
+test("every round-4 preview act and sheet has its words in all four locales", () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
     const c = core(locale);
     assert.equal(typeof c.consent.preview, "string", `${locale} consent.preview`);
     for (const k of PREVIEW) {
       for (const f of ["title", "line", "press", "details"]) assert.equal(typeof c.consent.previewActs[k][f], "string", `${locale} previewActs.${k}.${f}`);
     }
-    for (const k of TOOL_KINDS) assert.equal(typeof dense(locale).tools[k], "string", `${locale} dense.tools.${k}`);
+    for (const k of SHEET_KINDS) assert.equal(typeof one(locale).sheets.sheet[k], "string", `${locale} sheets.sheet.${k}`);
     assert.equal(typeof c.header.stats.letters.label, "string");
   }
 });

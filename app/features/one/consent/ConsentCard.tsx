@@ -9,13 +9,12 @@
 // leads with title + one consequence line + an undo/final tag, the rest behind Details. After
 // the press: a result line, then Undo where a reverse door exists, otherwise a plain
 // statement that it is final from here. A stale refusal says "this moved — refresh".
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Note } from "@/app/_components/kit";
 import { CHIP_QUIET, PANEL_ACCENT } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
-import { consoleHref } from "../panels/PanelShell";
+import { ConsoleAnchor, consoleHref } from "../panels/PanelShell";
 import type { ProposalInstance } from "../types";
 import { resolveAct, WAVE_UNDO_CAP, type ResolvedAct } from "./acts";
 import { confirmWave, entryAct, previewWave, reverseWave, type WavePreview, type WaveResult } from "./doors";
@@ -270,9 +269,9 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
         t(`companion.title.${act.action}`),
         <p>{t("cost")}</p>,
         <>
-          <Link className="k-btn k-btn--primary" href={consoleHref(act.handoff)} data-role="one-consent-handoff">
+          <ConsoleAnchor className="k-btn k-btn--primary" href={consoleHref(act.handoff)} data-role="one-consent-handoff">
             {t("companion.press")}
-          </Link>
+          </ConsoleAnchor>
           <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />
         </>,
         { details: <p>{t("companion.body")}</p> }

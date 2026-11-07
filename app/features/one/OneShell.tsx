@@ -1,14 +1,21 @@
 "use client";
 
-// /one — the shell every layout direction mounts in (docs/design/one-interface.md).
+// /one — the shell the layout mounts in (docs/design/one-interface.md).
 //
-// It owns the shared core and hands it to the selected variant as VariantProps: the
-// attention read and the greeting it composes, the session (conductor + validation door
-// + reducer), the panel and consent renderers, the words. It also owns the two pieces of
-// fixed chrome no variant may move (composition-region "fixed chrome"): the Console link
-// (+ Ctrl/⌘ K) and the dev-visible layout switcher. Round 3: its root is the FINISH root
-// (`data-one-root` + `data-finish`, the hooks in finish.css) and the motion flavor's
-// provider (motion.ts), so the header follows the finish too.
+// It owns the shared core and hands it to the layout (layout/SheetsLayout.tsx — round 5:
+// the one layout) as LayoutProps: the attention read and the greeting it composes, the
+// session (conductor + validation door + reducer), the panel and consent renderers, the
+// words. Its root is the FINISH root (`data-one-root` + `data-finish`, the hooks in
+// finish.css) and the motion flavor's provider (motion.ts), so the header follows the
+// finish too.
+//
+// Round 5: two FRAMES (OneFrame, panels/PanelShell.tsx).
+//   page  `/one` — owns the viewport (`h-dvh` from lg), its header carries the brand and
+//         the Console link (+ Ctrl/⌘ K, composition-region "fixed chrome").
+//   tab   `/?tab=one` (OneTab.tsx) — fills the workspace's tab panel (`h-full min-h-0`);
+//         the workspace IS the console, so no brand, no Console link and no Ctrl/⌘ K of
+//         its own (the workspace's palette owns that key), and every Console link in the
+//         panels switches tabs in place (ConsoleAnchor).
 import { useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { KitSurface } from "@/app/_components/kit";
@@ -16,16 +23,16 @@ import { mkBody, mkHand } from "@/app/landing/site/chrome/fonts";
 import { ConsentCard } from "./consent/ConsentCard";
 import { greeting as composeGreeting } from "./engine/greeting";
 import { parseAttention } from "./panels/NeedsPanel";
-import { consoleHref } from "./panels/PanelShell";
+import { consoleHref, OneFrameContext, type OneFrame } from "./panels/PanelShell";
 import { useRead } from "./panels/read";
 import { PANEL_VIEWS, PanelChrome } from "./panels/registry";
 import { OneHeader } from "./OneHeader";
 import { useLettersWaiting, usePipeline } from "./tools/reads";
-import type { PanelInstance, PanelKind, ProposalInstance, Selected, ToolKind, VariantId } from "./types";
+import type { PanelInstance, PanelKind, ProposalInstance, Selected, ToolKind } from "./types";
 import { useOneSession } from "./useOneSession";
-import { FLAVOR_OF, OneMotion } from "./motion";
-import { VARIANTS } from "./variants";
-import type { GreetingState, PanelOpts, VariantProps } from "./variantProps";
+import { ONE_FLAVOR, OneMotion } from "./motion";
+import { SheetsLayout } from "./layout/SheetsLayout";
+import type { GreetingState, LayoutProps, PanelOpts } from "./layoutProps";
 import { useOneWords } from "./words";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import "./finish.css";
@@ -41,7 +48,14 @@ const TOOL_PANEL: Record<ToolKind, PanelKind> = { profile: "profile", letter: "l
 const KIT_FILL =
   "min-h-0 flex-1 [&>.k-kit]:h-full [&>.k-kit>.k-stage]:h-full [&>.k-kit>.k-stage]:grid-rows-[minmax(0,1fr)] [&>.k-kit>.k-stage>.k-sheet]:min-h-0 [&>.k-kit>.k-stage>.k-sheet]:flex [&>.k-kit>.k-stage>.k-sheet]:h-full [&>.k-kit>.k-stage>.k-sheet]:flex-col";
 
-export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSwitcher: boolean }) {
+/** The root's size per frame: the page owns the viewport from lg (below it the page scrolls);
+ *  the tab fills the panel it is given (OneTab gives it a definite height from lg). */
+const ROOT_SIZE: Record<OneFrame, string> = {
+  page: "min-h-dvh lg:h-dvh lg:overflow-hidden",
+  tab: "lg:h-full lg:min-h-0 lg:overflow-hidden",
+};
+
+export function OneShell({ frame }: { frame: OneFrame }) {
   const router = useRouter();
   const words = useOneWords();
   const attentionRead = useRead("/api/attention", parseAttention, 0);
@@ -60,8 +74,10 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
   const lettersRead = useLettersWaiting(session.epoch);
   const lettersWaiting = lettersRead.state === "ready" ? lettersRead.data.letters.length : null;
 
-  // Ctrl/⌘ K → the Console. The workspace's own palette is not mounted on /one.
+  // Ctrl/⌘ K → the Console, on the page only: the workspace's own palette is not mounted on
+  // /one, and inside the workspace that key is the palette's.
   useEffect(() => {
+    if (frame !== "page") return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -70,7 +86,7 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, frame]);
 
   const { epoch, focusId, focus, close, pin, unpin, propose, show, dismissProposal, bumpEpoch, select, selected } = session;
   const selectedEntryId = selected?.entryId ?? null;
@@ -141,9 +157,7 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     [bumpEpoch, dismissProposal]
   );
 
-  const Variant = VARIANTS[variant];
-  const props: VariantProps = {
-    variant,
+  const props: LayoutProps = {
     session,
     submit: session.submit,
     greeting,
@@ -155,18 +169,18 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     renderPanel,
     renderConsent,
     words,
-    consoleHref: CONSOLE_HREF,
     selected,
     select,
     renderTool,
   };
   const partial = attentionRead.state === "ready" ? attentionRead.data : null;
   return (
-    <OneMotion.Provider value={FLAVOR_OF[variant]}>
+    <OneFrameContext.Provider value={frame}>
+    <OneMotion.Provider value={ONE_FLAVOR}>
     <div
-      className={`${mkBody.variable} ${mkHand.variable} flex min-h-dvh flex-col bg-paper text-ink lg:h-dvh lg:overflow-hidden`}
+      className={`${mkBody.variable} ${mkHand.variable} flex flex-col bg-paper text-ink ${ROOT_SIZE[frame]}`}
       data-one-root
-      data-one-variant={variant}
+      data-one-frame={frame}
       data-finish="dense"
     >
       <div className={KIT_FILL}>
@@ -176,16 +190,16 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
             letters={lettersWaiting}
             activeChip={session.current?.asked.chip ?? null}
             onAsk={(chip) => session.submit({ chip })}
-            variant={variant}
-            showSwitcher={showSwitcher}
+            frame={frame}
             consoleHref={CONSOLE_HREF}
           />
           <div className="min-h-0 flex-1 overflow-y-auto" data-role="one-body">
-            <Variant {...props} />
+            <SheetsLayout {...props} />
           </div>
         </KitSurface>
       </div>
     </div>
     </OneMotion.Provider>
+    </OneFrameContext.Provider>
   );
 }

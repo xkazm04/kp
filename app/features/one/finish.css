@@ -1,8 +1,8 @@
 /*
  * /one — the FINISH hooks (round 3, docs/design/one-interface.md "Round 3 core").
  *
- * Round 4: the owner picked DENSE, so it is the one finish left; every layout (dense,
- * workbench, sheets, cards) sets `data-finish="dense"`. The core's components read these
+ * Round 4: the owner picked DENSE, so it is the one finish left; round 5 kept one layout
+ * (Sheets), which sets `data-finish="dense"` like the shell root. The core's components read these
  * custom properties, with the defaults below; the finish sets them in its block. The
  * finish root is any element with `data-finish` (OneShell's root, so the header follows,
  * and the layout's root).

@@ -1,18 +1,17 @@
-// What every /one layout direction receives — the whole shared core, so a variant
-// builder writes LAYOUT only (app/features/one/variants/<id>/) and never re-implements
-// data, the conductor, the session rules or the consent wiring.
+// What the /one layout receives — the whole shared core, so the layout
+// (app/features/one/layout/SheetsLayout.tsx, round 5: the one layout) writes LAYOUT only
+// and never re-implements data, the conductor, the session rules or the consent wiring.
 import type { ReactNode } from "react";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import type { Greeting } from "./engine/greeting";
 import type { PanelGroup, PanelLook } from "./panels/types";
-import type { OneInput, PanelInstance, ProposalInstance, Selected, ToolKind, VariantId } from "./types";
+import type { OneInput, PanelInstance, ProposalInstance, Selected, ToolKind } from "./types";
 import type { OneSession } from "./useOneSession";
 import type { OneWords } from "./words";
 
 export type GreetingState = { state: "loading" } | Greeting;
 
-export type VariantProps = {
-  variant: VariantId;
+export type LayoutProps = {
   /** Turns, panels on screen, pins, proposals, lastChange, pending — plus the hand
    *  actions (show / focus / close / pin / unpin / undo / stop / propose / dismiss). */
   session: OneSession;
@@ -38,8 +37,6 @@ export type VariantProps = {
   renderConsent: (proposal: ProposalInstance, opts?: { className?: string }) => ReactNode;
   /** Every user-facing word of the core (say keys, chips, view names, change line). */
   words: OneWords;
-  /** The Console (today's Workspace) — also reached with Ctrl/⌘ K. */
-  consoleHref: string;
   /** Round 4: the candidate picked from a list (a row press / Enter; Esc on a row clears),
    *  or null. Navigation, not undo; a new answer clears it (session.selected). */
   selected: Selected | null;

@@ -2807,6 +2807,7 @@
     "signOutConfirmBody": "Your session will end and you will return to the home page.",
     "signOutConfirmCancel": "Stay here",
     "tabs": {
+      "one": "One",
       "pipeline": "Overview",
       "channels": "Channels",
       "decisions": "Decisions",
@@ -18624,129 +18625,11 @@
         "link": "send a self-scheduling link"
       }
     },
-    "dense": {
-      "today": "Today",
-      "asked": "You asked",
-      "position": "{index} of {total}",
-      "notYet": "not built yet, honestly",
-      "changeLabel": "What changed",
-      "tabsLabel": "Views on screen",
-      "pinned": "pinned",
-      "keysLabel": "Keys",
-      "keyStep": "answers",
-      "keyList": "list",
-      "keyEsc": "Esc",
-      "tools": {
-        "label": "Candidate tools",
-        "profile": "Profile",
-        "letter": "Email",
-        "interview": "Interview",
-        "close": "Close the candidate"
-      }
-    },
-    "workbench": {
-      "today": "Today",
-      "asked": "You asked",
-      "position": "{index} of {total}",
-      "notYet": "not built yet, honestly",
-      "changeLabel": "What changed",
-      "tabsLabel": "Views on screen",
-      "pinned": "pinned",
-      "keysLabel": "Keys",
-      "keyStep": "answers",
-      "keyList": "list",
-      "keyEsc": "Esc",
-      "keyBack": "back",
-      "keyTools": "tools",
-      "benchFor": "Workbench for {label}",
-      "openConsole": "Open in Console",
-      "tools": {
-        "label": "Candidate tools",
-        "profile": "Profile",
-        "letter": "Email",
-        "interview": "Interview",
-        "close": "Close the candidate"
-      },
-      "desk": {
-        "label": "Desks",
-        "letters": "Letters",
-        "calendar": "Calendar",
-        "lettersHint": "Press a letter to open it with the person",
-        "calendarHint": "Press a waiting person to book them"
-      }
-    },
-    "cards": {
-      "today": "Today",
-      "asked": "You asked",
-      "position": "{index} of {total}",
-      "notYet": "not built yet, honestly",
-      "changeLabel": "What changed",
-      "tabsLabel": "Views on screen",
-      "pinned": "pinned",
-      "keysLabel": "Keys",
-      "keyStep": "answers",
-      "keyEsc": "Esc",
-      "keyList": "list",
-      "keyBack": "back",
-      "keyExpand": "expand",
-      "faces": {
-        "label": "Show for this candidate",
-        "profile": "Profile",
-        "letter": "Letter",
-        "interview": "Interview"
-      },
-      "eyebrow": {
-        "letterOf": "Letter {index} of {total} to approve",
-        "longest": "Waiting longest",
-        "waitingOf": "Waiting {index} of {total}",
-        "picked": {
-          "profile": "Picked · profile",
-          "letter": "Picked · letter",
-          "interview": "Picked · interview"
-        }
-      },
-      "expand": "Expand",
-      "collapse": "Back to the card",
-      "close": "Close the candidate",
-      "expandedLabel": "{label}, expanded",
-      "nextLetter": "Next letter",
-      "nextWaiting": "Next waiting",
-      "moreWaiting": "{count, plural, one {# more waiting:} other {# more waiting:}}",
-      "moreLabel": "Who else is waiting",
-      "retry": "Retry",
-      "loadFailed": "This could not be read.",
-      "noneHint": "Their profile fills in once their CV has been analysed.",
-      "topParts": "Strongest parts",
-      "cvLines": "CV, first lines",
-      "drafted": "drafted {date}",
-      "sampleNote": "Sample letter (?sample=letters): nothing is stored or sent.",
-      "waitingSince": "Waiting {days} for an interview slot",
-      "waitingUnknown": "Waiting for an interview slot (no date recorded)",
-      "notWaiting": "Not waiting for an interview slot.",
-      "invites": "Invitations",
-      "firstFree": "First free times",
-      "noFree": "No free time is on offer.",
-      "sendLink": "Send link instead",
-      "next": {
-        "label": "Next steps",
-        "writeLetter": "Write letter",
-        "schedule": "Schedule",
-        "letters": "Letters to approve",
-        "decisions": "Back to decisions"
-      }
-    },
     "core": {
       "meta": {
         "region": "One",
         "console": "Console",
         "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
-        "layout": "Layout",
-        "variants": {
-          "dense": "Dense",
-          "workbench": "Workbench",
-          "sheets": "Sheets",
-          "cards": "Cards"
-        },
         "regionLabel": "Views One put on screen",
         "conversationLabel": "Conversation with One",
         "regionEmpty": "Nothing on screen yet. Ask a question or pick one below."

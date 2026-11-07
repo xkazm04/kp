@@ -1,7 +1,7 @@
-// The sheet stack rules of `?v=sheets` (stack.ts).
+// The sheet stack rules of the /one layout (stack.ts).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { presets } from "../../motion.ts";
+import { presets } from "../motion.ts";
 import { forAnswer, isWide, MAX_STACK, onClear, onPick, pop, popTo, push, sheetEnter } from "./stack.ts";
 
 test("a row press on an empty stack opens the profile", () => {

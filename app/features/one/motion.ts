@@ -19,18 +19,12 @@
 import { createContext, useContext, useMemo } from "react";
 import type { TargetAndTransition, Transition } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import type { VariantId } from "./types";
 
 export type MotionFlavor = "calm" | "spring" | "snap";
 
-/** The flavor each direction moves in. Round 4: every layout wears the dense finish, so
- *  every one moves in `snap` (calm and spring stay as presets, unused for now). */
-export const FLAVOR_OF: Record<VariantId, MotionFlavor> = {
-  dense: "snap",
-  workbench: "snap",
-  sheets: "snap",
-  cards: "snap",
-};
+/** The flavor /one moves in. Round 5: one layout (Sheets) in the dense finish, so one
+ *  flavor — `snap` (calm and spring stay as presets, unused for now). */
+export const ONE_FLAVOR: MotionFlavor = "snap";
 
 export const ROW_STAGGER_MAX = 8;
 
@@ -129,7 +123,7 @@ export function presets(flavor: MotionFlavor, reduced: boolean): OneMotionPreset
   };
 }
 
-/** The flavor in effect below a provider (the shell provides the variant's). */
+/** The flavor in effect below a provider (the shell provides ONE_FLAVOR). */
 export const OneMotion = createContext<MotionFlavor>("calm");
 
 /** The presets for the flavor in effect, still under reduced motion. */

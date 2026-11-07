@@ -27,7 +27,6 @@
 // sizes it. Corner, outline width and padding follow the finish hooks (finish.css). Loading
 // is a quiet LoadingGap, error is a critical Note with a retry whose text is resolved from
 // the read's CODE (useErrorMessage) — the server's English `error` never renders.
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
@@ -38,7 +37,7 @@ import type { ScoreTone } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import { useOneMotion } from "../motion";
-import { consoleHref } from "./PanelShell";
+import { ConsoleAnchor, consoleHref } from "./PanelShell";
 import type { Selected } from "../types";
 import type { Read } from "./read";
 import type { PanelLook, PanelProps } from "./types";
@@ -157,9 +156,9 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
   const grouped = props.group !== "none";
   const ready = read.state === "ready";
   const consoleLink = data.console ? (
-    <Link className="k-btn k-btn--link k-btn--sm" href={consoleHref(data.console.tab, data.console.params)} data-role="one-console-link">
+    <ConsoleAnchor className="k-btn k-btn--link k-btn--sm" href={consoleHref(data.console.tab, data.console.params)} data-role="one-console-link">
       {data.console.label ?? t("openInConsole")}
-    </Link>
+    </ConsoleAnchor>
   ) : null;
 
   const body = (): ReactNode => {

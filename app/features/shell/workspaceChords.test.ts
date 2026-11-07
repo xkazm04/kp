@@ -74,6 +74,13 @@ test("integrations takes the single letter Onboarding freed", () => {
   assert.deepEqual(byId.get("integrations"), ["o"]);
 });
 
+// One heads the hiring group with chordOverflow: every letter of its id is already a
+// single chord, and its two-key letter `o` is drawn by no later overflow tab, so it takes
+// `g f o` and the two-key chords above (branding, billing) keep theirs.
+test("one takes g f o and moves no other chord", () => {
+  assert.deepEqual(byId.get("one"), ["f", "o"]);
+});
+
 // Agents sits INSIDE the first (hiring) group but is marked chordOverflow, so it
 // takes a two-key chord instead of stealing `a` from Analyze (which would have
 // cascaded through analytics too). Every pinned single above stays untouched.

@@ -1,17 +1,20 @@
-# /one — the AI-conducted home (spark `one-interface`, round 4)
+# One — the AI-conducted home (spark `one-interface`, round 5)
 
-`/one` is a signed-in alternative home for the recruiter: ONE surface, conducted from a
-conversation, that puts views from every module (pipeline, decisions, schedule, jobs,
-analytics, comms) in one sight. Today's Workspace (`/` with `?tab=`) stays exactly where it
-is and is reached from `/one` as the **Console** (top-right link, or Ctrl/⌘ K →
-`/?tab=pipeline`).
+One is the recruiter's AI-conducted home: ONE surface, conducted from a conversation, that
+puts views from every module (pipeline, decisions, schedule, jobs, analytics, comms) in one
+sight. Since round 5 it is a **workspace tab** (`/?tab=one`, first in the rail's hiring group)
+and `/one` stays as its **full-page alias**. On `/one` the Workspace is reached as the
+**Console** (top-right link, or Ctrl/⌘ K → `/?tab=pipeline`); inside the workspace there is no
+Console link — the workspace is the console, and a panel's "Open in Console" switches tabs in
+place.
 
 Round 1 shipped one shared **core** and three layout directions; round 2 refined the winner
 three ways (the owner picked **Split**); round 3 judged three finishes of it and the owner picked
-**Dense**. Round 4 extends what the simplified UI can do — a candidate's profile, their held
-outreach email, the interview calendar — as shared tools (real reads, preview acts) and judges
-three LAYOUTS of them: `?v=dense|workbench|sheets|cards` (unknown or absent → **dense**). See
-"Round 3 verdict" and "Round 4 core".
+**Dense**. Round 4 extended what the simplified UI can do — a candidate's profile, their held
+outreach email, the interview calendar — as shared tools (real reads, preview acts) and judged
+three LAYOUTS of them; the owner kept **Sheets** and round 5 consolidated on it: one layout, no
+variants, no `?v=`, and the tab. See "Round 4 verdict" and "Round 5 — one layout, two frames,
+the tab".
 
 Governing standard: registry subject `model-composed-workspace` (golden path +
 `composition-region`, `reversible-screen-ops`). Shape reference (not code):
@@ -21,10 +24,10 @@ Governing standard: registry subject `model-composed-workspace` (golden path +
 
 | Path | What |
 | --- | --- |
-| `app/one/page.tsx` | Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). Reads `?v=` server-side (`dense` · `workbench` · `sheets` · `cards`). `instant = false` (cookies + searchParams per request). The direction switcher shows only outside production builds. |
-| `app/features/one/OneShell.tsx` | Owns the core and the fixed chrome (Console link, Ctrl/⌘ K, switcher); hands the selected variant `VariantProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, the Figtree + Caveat font variables): it imports `finish.css` and provides the motion flavor (`motion.ts`). Wrapped in `KitSurface` (calm density). |
-| `app/features/one/variants/index.ts` | `VARIANTS: Record<VariantId, ComponentType<VariantProps>>`, each `next/dynamic`-loaded from `variants/<id>/<Id>Variant.tsx`. A builder replaces only its own folder. |
-| `app/features/one/variants/dense/DenseLayout.tsx` | The Dense layout (round-3 pick, round-4 baseline); `variants/shared/` holds the view-placement rule (`side.ts`) and the shared paint. |
+| `/?tab=one` → `app/features/one/OneTab.tsx` | The workspace tab: `OneShell` in the `tab` frame, mounted through the lazy tab-chunk map (`TAB_CHUNKS.one` in `app/features/shell/tabChunks.ts`, `TAB_PANELS.one` in `WorkspaceTabChunks.tsx`). Rail: first item of the hiring group, label "One" (`nav.tabs.one`), icon `Sparkles`, chord `g f o`. Not the default tab (Overview stays `DEFAULT_TAB`). |
+| `app/one/page.tsx` | The full-page alias, `page` frame. Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). `instant = false` (cookies per request). |
+| `app/features/one/OneShell.tsx` | Owns the core and, per frame, the fixed chrome (page: brand + Console link + Ctrl/⌘ K; tab: none); hands the layout `LayoutProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, `data-one-frame`, the Figtree + Caveat font variables): it imports `finish.css`, provides the motion flavor (`motion.ts`) and the frame (`OneFrameContext`, `panels/PanelShell.tsx`). Wrapped in `KitSurface` (calm density). |
+| `app/features/one/layout/` | THE layout: `SheetsLayout.tsx`, the sheet-stack rules (`stack.ts`, tested), the view-placement rule (`side.ts`, tested) and its paint (`styles.ts`, the dense compaction folded in). |
 | `app/features/one/tools/` | Round 4: the tools' reads (`reads.ts` hooks, `parse.ts` pure parsers) and views (`ProfileTool`, `LetterTool`); the interview tool is `panels/CalendarPanel.tsx` scoped to one entry. |
 | `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks, the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core". |
 
@@ -35,15 +38,15 @@ Closed vocabularies in the repo's shape (literal array + derived union + runtime
 decisionsQueue, roleCard; round 4: letters, calendar, profile, letter), `ACT_KINDS`
 (entryAdvance, entryReject, wave, companion; round 4 previews: letterApprove, letterSend,
 interviewBook, interviewLink), `CHIP_IDS` (+ letters, calendar), `SAY_KEYS`, `CHANGE_KEYS`,
-`TOOL_KINDS` (profile, letter, interview), `VARIANT_IDS` (`dense`, `workbench`, `sheets`, `cards`).
+`TOOL_KINDS` (profile, letter, interview). (`VARIANT_IDS` / `variantOf` were deleted in round 5.)
 
 - `Op` = `show` (a panel, params) · `focus` (a panel on screen) · `propose` (an act, params)
   · `navigate` (a Console tab, params). There is no verb that moves, hides or resizes chrome.
 - `Reply` = `{ say: { key, values? }, ops ≤ 4, chips ≤ 4, fallback? }`. `say` is a catalog key
   under `one.core.say.*`, never English, and carries **no figure**.
-- `VariantProps` (`variantProps.ts`): `variant`, `session` (state + hand actions), `submit`,
-  `greeting`, `attention`, `renderPanel(panel, {look, className, onExpand})`,
-  `renderConsent(proposal, {className})`, `words`, `consoleHref`; round 4: `selected`,
+- `LayoutProps` (`layoutProps.ts`; `VariantProps` until round 5): `session` (state + hand
+  actions), `submit`, `greeting`, `attention`, `renderPanel(panel, {look, className, onExpand})`,
+  `renderConsent(proposal, {className})`, `words`; round 4: `selected`,
   `select`, `renderTool(tool, entry, {look, className})`, and `renderPanel`'s `group` option.
 - `ChangeLine` carries the view's `params` (and `previousParams`) when it has any, so
   `words.change` names a view by its TITLE (`words.view(kind, params)`: "Stalled candidates",
@@ -142,7 +145,7 @@ recruiter's own pick from the table. Pinned by `panels/insight.test.ts`.
 The score bar is the board's tier (`scoreTone`), never a second scale; a missing score is a
 dash with no bar.
 
-## Round 2 core (shared by every direction)
+## Round 2 core
 
 ### The answer stepper — no infinite chat
 Every submitted turn becomes an `AnswerSnapshot { id, asked, turnId, arrangement,
@@ -158,10 +161,11 @@ written back into that answer. `OneSession` exposes `current: { asked, reply, pa
 | null` and `position: { index (0-based), total, canBack, canForward }`.
 
 ### The fixed-viewport shell
-At `lg` and up the page never scrolls: `h-dvh` flex column, the header, then a
-`min-h-0 flex-1` body the variant fills with `h-full`; regions scroll inside themselves. Below
-`lg` the page stacks and scrolls. `KIT_FILL` in `OneShell.tsx` passes the height through the kit
-surface's wrappers.
+At `lg` and up the page never scrolls: a flex column, the header, then a `min-h-0 flex-1` body
+the layout fills with `h-full`; regions scroll inside themselves. Below `lg` it stacks and the
+page scrolls. `KIT_FILL` in `OneShell.tsx` passes the height through the kit surface's wrappers.
+The column is `h-dvh` on `/one` and `h-full` of the box `OneTab` gives it in the workspace (see
+"The tab").
 
 ## Round 2 verdict
 
@@ -187,10 +191,11 @@ decisions — the counts from `/api/attention` as ONE segmented group (`Seg.tsx`
 same question the chip does, and the stat whose chip is the question in view carries the sliding
 pill (framer `layoutId`, the repo's segmented-control standard) and `aria-pressed`. A count the
 read did not return is "—", never 0; the most urgent non-zero stat's figure is the one coral
-figure; a changed figure tweens (`countTick`). Right: the direction switcher in the same
-segmented style (outside production), then the Console as a link-styled button ("Console →").
+figure; a changed figure tweens (`countTick`). Right: the Console as a link-styled button
+("Console →"). Round 5: the switcher is gone, and in the `tab` frame the header is the counts
+row alone (no mark, no Console link).
 
-### The layout (round 2's Split, now `variants/dense/DenseLayout.tsx`)
+### The layout (round 2's Split; since round 5 the page of `layout/SheetsLayout.tsx`)
 Two columns filling the body: main `max(32rem, 36vw)` on the left, the side takes the rest (the
 name track's floor is what allows the wider main column).
 - **Main** is a vertical stack that DISTRIBUTES — no spacer: the "YOU ASKED · …" / "TODAY" row
@@ -240,12 +245,12 @@ stagger, no tween). Every move is ≤ ~300 ms; nothing loops (`motion.test.ts`).
 
 | Preset | What moves | Wired in |
 | --- | --- | --- |
-| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | DenseLayout (`AnimatePresence`) |
-| `panelEnter` | the side's view when the primary or the tab changes | DenseLayout side |
+| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | SheetsLayout (`AnimatePresence`) |
+| `panelEnter` | the side's view when the primary or the tab changes | SheetsLayout side |
 | `rowStagger(i)` | a mounted table's first 8 rows, 20–30 ms apart; later rows arrive with the 8th | PanelFrame `TableBody` |
 
 Under reduced motion every preset returns its rest state at once. `rowStagger` returns an instant settle-to-rest spec, never `null`: `useReducedMotion()` starts `false` on mount, so a row may already sit at the stagger's opacity 0 when the preference arrives, and dropping `animate` would leave it invisible (found by the dense and spark finish builders, round 3).
-| `consentEnter` | a consent card rises and settles; leaves with a fade | DenseLayout consent stack |
+| `consentEnter` | a consent card rises and settles; leaves with a fade | SheetsLayout consent stack |
 | `countTick` | a header figure tweening to its new value | `CountTick` in OneHeader |
 | `tabIndicator` | the segmented pill sliding (stats, switcher, side tabs) | `Seg` |
 
@@ -270,12 +275,12 @@ Three finishes of the Split layout were judged (refined, spark, dense); the owne
 refined, spark and the split baseline were deleted in round 4 (their write-ups are in git history,
 this file before round 4). Dense, as it stands:
 
-### Dense (`?v=dense`) — compact, keyboard-first
+### Dense — compact, keyboard-first (the finish One wears)
 
-Folder `app/features/one/variants/dense/`: `DenseVariant.tsx` → `DenseLayout.tsx` (a fork of
-`SplitLayout`, same regions) + `styles.ts` (descendant-variant compaction of the shared panels,
-so `PanelFrame` is never forked). Hooks: the `[data-finish="dense"]` block in `finish.css`.
-Copy: `one.dense` (`keysLabel`, `keyStep`, `keyList`, `keyEsc`; English in all four catalogs).
+Round 5: the Dense LAYOUT is deleted; the finish lives on. Its compaction of the shared panels
+(descendant variants, so `PanelFrame` is never forked) is `COMPACT` / `ASKING_TRIM` in
+`layout/styles.ts`; its hooks are the `[data-finish="dense"]` block in `finish.css`; the copy it
+shared with Sheets lives in `one.sheets`. The table below is as measured in round 3.
 
 | Concern | Dense |
 | --- | --- |
@@ -311,7 +316,7 @@ engine".
 
 The pick is the **Dense** finish. `variants/refined`, `variants/spark` and the round-2 `split`
 layout were deleted with their catalog subtree (`one.split` — the keys Dense still used moved to
-`one.dense`); `split/side.ts` (+ test) and `split/styles.ts` live on in `variants/shared/`.
+`one.dense`); `split/side.ts` (+ test) and `split/styles.ts` live on in `variants/shared/` (round 5: `layout/`).
 `finish.css` keeps the dense block only and every layout sets `data-finish="dense"`; `FLAVOR_OF`
 is `snap` for all four. Owner decisions for round 4: **real reads, preview acts** (everything
 shown is real data; Approve / Send / Book / Send link arm a consent card whose confirm is disabled
@@ -319,14 +324,13 @@ with "Wired after the pick" — no write reaches any door), **one new read door*
 (`GET /api/outreach-letters?state=drafted`), and only the outreach letter is shown as held (no
 rejection or interview letter is a held draft today, so none is faked).
 
-## Round 4 core (the contract every round-4 layout codes against)
+## Round 4 core (the contract the layout codes against)
 
-`VARIANT_IDS` = `dense` (the baseline, the round-3 pick) · `workbench` · `sheets` · `cards`;
-unknown or absent `?v=` → `dense`. The three new folders start as scaffolds that render
-`DenseLayout`; their builders replace them with placement only.
+(Round 4 judged it through four `?v=` layouts — dense, workbench, sheets, cards; since round 5
+there is one.)
 
 ### Selection
-`session.selected: { entryId, label } | null`, `session.select(entry | null)` — on `VariantProps`
+`session.selected: { entryId, label } | null`, `session.select(entry | null)` — on `LayoutProps`
 as `selected` / `select`. A row that names a candidate (pipeline slice, decisions queue, letters,
 the calendar's waiting list, the agenda's interviews) is selectable: a press or Enter picks it,
 Esc on a row clears it, and the picked row is marked (ink lead stroke, sunken fill,
@@ -409,46 +413,68 @@ the axis's `entry` role, never someone hired or on an offer), each flagged `samp
 `one.core.sample.note`. Nothing is stored, the acts stay preview-only, and a production build
 never turns it on. Remove it when the hold mechanism is wired end to end.
 
-### Dense hosting (minimal, so the layout builders see the tools work)
-A candidate picked from the side's list takes the main column's card slot: a Profile · Email ·
-Interview strip (`Seg`), the name, × to close, over `renderTool(tool, selected)`.
-
-Measured (dev data, 2026-11-07, 1440x900, both themes): scrollHeight 900 in every capture
-(decisions, profile, email tool, letters, calendar, interview tool, preview consent). Data seen:
+Round-4 data seen (dev DB, 2026-11-07):
 29 decisions in 8 role groups; 6 entries waiting for an interview (4 roles; 3 with no recorded
 stage date); 0 outreach letters held in the dev DB (the letters view and the header say so); the
 profile tool rendered a seeded analysis (`seed-cand-*`, matched by name only per the timeline).
 
-## Round 4 variants
+## Round 4 verdict
 
-Three layouts of the same capabilities, all on the Dense finish; `dense` is the round-3 baseline
-that hosts the tools minimally. Every variant covers the same seven moments (role-grouped list,
-letters waiting → approve, one person's letter, calendar → book / send link, profile CV | score,
-Enter / Esc / `/` `[` `]`, no page scroll at 1440x900 and 1280x800 in both themes); every act is
-a preview.
+Owner (verbatim): "lets keep it, remove other variants and migrate to the app." — then, asked,
+keep **Sheets**; "migrate" = **add One as a workspace tab** (a nav rail entry alongside the
+existing tabs; `/one` stays as a full-page alias).
 
-### Workbench (`?v=workbench`) — the person takes half the page
-`variants/workbench/`. Picking a person turns the main column into their workbench (Profile ·
-Email · Interview, keys `1` `2` `3`) beside the role-grouped list, split about 55/45 (the list
-keeps the table look's keys; a 2/3 workbench would push the list under the table's 512px
-minimum at 1280). Letters and Calendar open in the same half as a "desk"; picking someone there
-opens them on Email or Interview. The reply shrinks to one line; the composer stays.
+History, one line each (the write-ups are in git history, this file at f4af53ad0):
+- **Dense** (`?v=dense`) — the round-3 pick as the baseline; tools hosted in the card slot. Deleted.
+- **Workbench** (`?v=workbench`) — the picked person took half the page. Deleted.
+- **Sheets** (`?v=sheets`) — tools slide over the main column as stacked sheets. **Kept.**
+- **Cards** (`?v=cards`) — the answer card became the tool. Deleted.
 
-### Sheets (`?v=sheets`) — tools slide over the main column
-`variants/sheets/` (stack rules pure in `stack.ts`, tested). Tools open as full-height sheets
-over the main column, with no scrim, so the list stays live; profile, letters and calendar widen to half the
-page. Sheets stack (the lower one is a 24px spine with its name, a breadcrumb names the stack);
-Esc pops one; another row swaps the top sheet's person. The header counts open their sheet.
+## Round 5 — one layout, two frames, the tab
 
-### Cards (`?v=cards`) — the answer card is the tool
-`variants/cards/` (`faces.tsx`). The main card becomes a letter card (Approve, Next letter, who
-else waits), a scheduling card (the longest waiter, three free times as Book buttons, Send link
-instead) or a person card (Profile · Letter · Interview faces). `E` expands to the full width:
-CV | score as two halves, the list collapsed to a slim rail of role groups. Next-step chips
-are ordinary submits, so `[` `]` walk back through what was done.
+**One layout.** `layout/SheetsLayout.tsx` is the layout; `OneShell` imports it directly (no
+`next/dynamic` map, no `?v=`, no switcher, no `VARIANT_IDS`; `ONE_FLAVOR = "snap"` replaces
+`FLAVOR_OF`). The `one.dense` / `one.workbench` / `one.cards` catalog subtrees and
+`one.core.meta.layout|variants` were deleted (Sheets used none of them); `vocabulary.test.ts`
+pins that only `one.sheets` and `one.core` remain. The page is the dense page (answer + insight
+card left, role-grouped list right); tools open as sheets over the main column: letters ·
+calendar · profile (CV | score, the main column widens to half) · letter · schedule. They stack
+(two drawn, the lower one a 24px spine with its name, a breadcrumb names the stack), Esc pops one,
+there is no scrim (the list stays live; another row swaps the top sheet's person), the header
+counts open their sheet, and consent cards ride at the foot of the top sheet. The sheets are
+`absolute` inside the main column, never `fixed`, so a transformed ancestor (the tab panel's
+entrance animation) cannot capture them.
 
-### Core debts the three builders found (owed at consolidation)
-- The tools go two-column only from 900px of their own width; every variant forces it locally
+**Two frames** (`OneFrame = "page" | "tab"`, `panels/PanelShell.tsx`):
+
+| | `page` (`/one`) | `tab` (`/?tab=one`) |
+| --- | --- | --- |
+| Size | owns the viewport: `h-dvh` from lg | fills `OneTab`'s box: `h-full min-h-0` from lg |
+| Header | brand mark + "One", counts, "Console →" | the counts row alone (the tab's own head) |
+| Ctrl/⌘ K | → `/?tab=pipeline` | not bound (the workspace palette owns it) |
+| Console links (`ConsoleAnchor`) | plain links to `/?tab=…` (a real navigation) | same href; a primary click switches tabs in place through `useShellNavigate().push` (the URL inbox adopts `?tab=` and strips it; like every workspace tab switch it is not a Back step); a modified click keeps the browser's meaning |
+
+### The tab
+The workspace's content frame (`Workspace.tsx`: `py-8 pb-24` around the panel) is
+content-sized, so the panel has no height to fill. `OneTab` gives it one from lg:
+`calc(100dvh - 2rem - max(6rem, var(--sim-bar-h)))` — the frame's top padding, and at the foot
+whichever is taller of the frame's padding and the fixed simulation dock's live strip
+(`--sim-bar-h`, published by the dock), so One's composer is never under the raised dock. The
+document stays one viewport tall; below lg One flows and the page scrolls.
+
+Rail position: first in the hiring group. One summarises that group's queues (its counts row IS
+their badges), so it sits above the tabs it asks across; it is not the default tab. Chord:
+`chordOverflow`, so it lands on `g f o` and no existing chord moves (every letter of "one" is
+already a single chord). Mounted through the lazy tab-chunk map like every tab — `app/page.tsx`
+does not import it statically, but `npm run perf:budget` walks dynamic imports too, so One's
+~45 modules count against `app/page.tsx` (see Known gaps).
+
+Measured (dev data, 2026-11-07, the dock lowered and raised, both themes): scrollHeight equals
+the viewport (900 / 800) in every capture of the tab and of `/one` — first beat, decisions,
+profile sheet, letters sheet (`&sample=letters`), calendar sheet.
+
+### Core debts the round-4 builders found (still owed)
+- The tools go two-column only from 900px of their own width; the layout forces it locally
   (half a screen is 610–760px). Lower it to about 600px or give tools a `columns` option.
 - The letters table's 5rem acts column overlaps the drafted date with "Open in Console" (Dense too).
 - The calendar puts the waiting list beside the week only from 760px; the free-time buttons
@@ -464,8 +490,10 @@ are ordinary submits, so `[` `]` walk back through what was done.
 ## History
 
 Round 1 (Greet, Stage, Brief), round 2 (Greet kept; Split, Spotlight, Ticker) and round 3's
-refined / spark finishes are recorded in git history (this file before rounds 3 and 4). Kept from them: the counts header, the answer stepper
-instead of a transcript, one surface per panel, the no-scroll frame, and Split's layout.
+refined / spark finishes and round 4's dense / workbench / cards layouts are recorded in git
+history (this file before rounds 3, 4 and 5). Kept from them: the counts header, the answer
+stepper instead of a transcript, one surface per panel, the no-scroll frame, Split's page,
+Dense's finish and the Sheets layout.
 
 ## Known gaps
 
@@ -476,7 +504,14 @@ instead of a transcript, one surface per panel, the no-scroll frame, and Split's
 - **Single-entry acts have no undo here.** `reinstate` reverses only an auto-rejection;
   a hand reject is reopened through the Console's re-add door.
 - **The conductor is keyword-matched**, English-only on the input side; the replies are
-  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.dense` strings until promotion.
+  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.sheets` strings until
+  promotion (`nav.tabs.one` is "One" in every locale — a name).
+- **In the tab at 1280 the side list scrolls sideways.** The workspace rail + item panel take ~270px and the frame ~60px, so
+  the side gets ~440px (~345px under a letters sheet) against the candidate table's 32rem
+  floor; the score and acts columns sit past the edge (the table scrolls horizontally, nothing
+  is lost). `/one` at 1280 is unaffected.
+- **One's modules count against the `app/page.tsx` perf budget** (the budget walks the lazy tab
+  loaders too): about +45 modules / +314 KB.
 - **The greeting is the first beat only**; it does not re-read after a data act (panels do).
 - **Undo of a reply is per step** (the last screen change), not "undo the whole reply".
 - **Round-4 acts are previews.** Approve / Send / Book / Send link arm a card whose confirm is
