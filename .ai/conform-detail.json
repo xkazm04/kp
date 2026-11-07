@@ -2971,9 +2971,10 @@
       "context": "billing-plan-and-spend",
       "subject": "settings",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-07",
-      "evaluatedTs": "2026-11-07T04:13:24.983Z",
+      "evaluatedTs": "2026-11-07T23:32:09.959Z",
+      "worker": "b00c2bb5-40ee-468d-96f6-218fc31dd025",
       "techniques": [
         {
           "technique": "cross-source-precedence-chain",
@@ -2999,13 +3000,7 @@
           "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:11 Self-host is an explicit unmetered mode displayed to the operator, not a classified settings key.",
           "carriedFrom": "2026-10-13"
         }
-      ],
-      "withdrawn": {
-        "worker": "c7a12325-4ba1-4b41-8639-984b98f2e8c2",
-        "state": "not-applicable",
-        "at": "2026-11-07T04:14:08.360010+00:00",
-        "reason": "reviewer (sonnet): The anchor (BillingTab.tsx:43) is a header comment; the evidence's reads of /api/llm/usage and /api/ops appear nowhere under billing/, and BillingAlertsPanel.tsx calls /api/billing/alerts/${id}, a writable per-org alerts surface the claim ignores, so I could not confirm 'no settings key space'."
-      }
+      ]
     },
     "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
       "context": "llm-config-provider",
@@ -26981,6 +26976,26 @@
           "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:92 A one-in/one-out transform written as a pipeline."
         }
       ]
+    },
+    "46245a9c-ff38-4cd4-88c3-b64b7cc7d185/settings": {
+      "context": "jd-library-core",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:32:09.959Z",
+      "worker": "b00c2bb5-40ee-468d-96f6-218fc31dd025",
+      "techniques": []
+    },
+    "8f83c835-1a44-4024-8647-a85025482995/settings": {
+      "context": "form-controls",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:32:09.959Z",
+      "worker": "b00c2bb5-40ee-468d-96f6-218fc31dd025",
+      "techniques": []
     }
   }
 }

@@ -6349,7 +6349,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:130 The tab sits in the Settings area, but it only shows the server's billing payload (plan, entitlements, meters, alerts) and LLM usage. Searching app/features/settings/billing for getSetting, setSetting, useSetting, settingsStore and org-settings found nothing: the context neither reads nor writes the settings key space. Its only persistence is a transient sessionStorage checkout hand-off (BillingTab.tsx:230), which is client state under the subject's boundary, not a setting.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "cost-metering",
@@ -15965,7 +15969,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/Checkbox.tsx:12 These are controlled, props-in/onChange-out input primitives with no store behind them. Searching app/_components for getSetting, setSetting, useSetting, settingsStore and SETTING_KEYS found nothing. Save-experience obligations belong to whichever settings surface composes these controls, not to the primitives.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "mcp-tools",
@@ -19591,7 +19599,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsEditClient.ts:3 The context's persistence is JD domain content written through the JD PATCH/revision routes with content-CAS, not a settings key space. Searching app/features/library/jds for getSetting, setSetting, useSetting, settingsStore and SETTING_KEYS found nothing. The org-settings import and the localStorage fold/voice preferences live in sibling files outside this context's list (jdsBuilderLogic.ts and intake/*).",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "markdown-vault",
