@@ -27154,7 +27154,11 @@
           "revision": 12,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardMove.ts:1 These modules move candidates between hiring-pipeline stages, bulk-confirm selections and lay out the board; none of them scans code or produces findings, and a search of app/features/hiring/pipeline/ for scanner, sensor and dead code found no hits (the 'population' match token here means board population, not a scan population).",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:06416fce13bc2342",
+          "evaluatedRevision": 12
         },
         {
           "subject": "module-design",

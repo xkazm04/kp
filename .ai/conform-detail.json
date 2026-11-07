@@ -19057,16 +19057,11 @@
       "context": "pipeline-move-bulk-operations",
       "subject": "codebase-scanning",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T06:20:55.619Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "5a49eda5-86ef-457f-8416-c924bbe04f3b",
-        "state": "not-applicable",
-        "at": "2026-10-24T06:21:13.586160+00:00",
-        "reason": "reviewer (sonnet): The anchor pipelineBoardMove.ts:33 is the moveOutcome doc comment and code, which does not show that a scanner is absent; it is an incidental line, and the context's other files were not traced."
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:43:47.375Z",
+      "worker": "3848657a-c9bb-4492-9105-d7725a03c9af",
+      "techniques": []
     },
     "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/codebase-scanning": {
       "context": "llm-config-provider",
@@ -26011,6 +26006,21 @@
       "evaluatedTs": "2026-11-07T03:38:05.855Z",
       "worker": "3cfebc1f-645b-4f7a-9434-d08b88c8961a",
       "techniques": []
+    },
+    "9435610d-c621-4497-842c-37b7091276f3/codebase-scanning": {
+      "context": "devcase-outbox-need",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:43:47.375Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "3848657a-c9bb-4492-9105-d7725a03c9af",
+        "state": "not-applicable",
+        "at": "2026-11-07T03:44:24.946513+00:00",
+        "reason": "reviewer (sonnet): The anchor (outboxView.ts:1) only covers the outbox half of the context; the context also holds the need form, which collects codebase repo URLs (buildNeed.ts `codebaseRefs`, DevNeedForm.tsx) and useDevTabNeedAnalysis.ts, whose comment mentions 'Pulling the codebase + reflecting…'. That makes 'nothi"
+      }
     }
   }
 }
