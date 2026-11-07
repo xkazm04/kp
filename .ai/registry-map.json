@@ -7501,13 +7501,12 @@
           "revision": 4,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "pipeline/jobfit/taxonomy.py:1311 skill_match_score orchestrates canonical term resolution, hierarchy traversal with directional credit, sub-threshold sibling adjacency, and bounded token-overlap fallback before discounting by provenance.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/taxonomy.py:641 Surface resolution silently settles duplicate surfaces by load order, and the live data has 10 surfaces owned by two term ids (e.g. 'quality assurance' -> qa and quality_management, 'conflict resolution' -> two terms). That is the coin-flip resolution the standard's lint exists to prevent, and a hierarchy walk gives full specialization credit across any number of steps.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "candidate-archetype-routing",
@@ -34104,13 +34103,12 @@
           "revision": 4,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:21 This test suite pins the taxonomy hierarchy contract, validating that sibling adjacency earns the documented sub-threshold score and cannot cross into reported matches.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_check.py:102 The lint suite pins only duplicate surfaces inside one term, so the 10 live surfaces shared by two term ids pass every test while resolution settles them by load order.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -34522,13 +34520,12 @@
           "revision": 4,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:41 Asserts the honesty boundary in candidate scoring by testing the matrix of exact, specialization, generalization, and sibling matches across provenance levels.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:166 The test asserts 100% 'bilingual parity' for the tech families on a metric that counts any 2 surfaces as bilingual, so terms with no Czech surface (rest_api, frontend) are certified as at parity.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f868ad4bd3033e7d",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-interview-fidelity",
