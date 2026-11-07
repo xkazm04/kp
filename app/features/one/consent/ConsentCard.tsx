@@ -45,7 +45,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
 
   const frame = (title: string, body: ReactNode, footer: ReactNode) => (
     <section
-      className={`${PANEL_ACCENT} flex flex-col gap-3 p-4 ${className ?? ""}`}
+      className={`${PANEL_ACCENT} flex min-w-0 flex-col gap-2 p-3 ${className ?? ""}`}
       data-one-consent={proposal.act}
       data-proposal-id={proposal.id}
       data-phase={phase.at}
@@ -53,8 +53,8 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
     >
       <p className={EYEBROW}>{t("heading")}</p>
       <h3 className="font-serif text-h3 text-ink">{title}</h3>
-      <div className="flex flex-col gap-2 text-body text-ink">{body}</div>
-      <div className="flex flex-wrap items-center gap-2">{footer}</div>
+      <div className="flex flex-col gap-1.5 text-micro text-ink">{body}</div>
+      <div className="flex flex-wrap items-center gap-2 [&_.k-btn]:h-8 [&_.k-btn]:px-3">{footer}</div>
     </section>
   );
 
@@ -87,7 +87,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
         <Button label={t("wave.undo")} variant="secondary" onClick={() => void phase.undo?.()} />
       ) : (
         <>
-          <p className="text-meta text-steel">{t("final")}</p>
+          <p className="text-micro text-steel">{t("final")}</p>
           <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />
         </>
       );
@@ -104,7 +104,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
         <>
           <p>{t(`${act.act}.body`, { stage: proposal.params.expectedStage })}</p>
           <p>{act.emails === "rejection" ? t("emails.rejection") : t("emails.nextStep")}</p>
-          {phase.at === "idle" ? <p className="text-meta text-steel">{t("final")}</p> : null}
+          {phase.at === "idle" ? <p className="text-micro text-steel">{t("final")}</p> : null}
           {outcome()}
         </>,
         settled ? settledFooter() : (
@@ -137,7 +137,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
             <div data-role="one-wave-preview">
               <p>{t("wave.touches", { total: preview.total })}</p>
               {preview.rows.length > 0 ? (
-                <ul className="flex flex-col gap-1 text-meta text-ink">
+                <ul className="flex flex-col gap-1 text-micro text-ink">
                   {preview.rows.slice(0, 6).map((r) => (
                     <li key={r.id}>{r.jobTitle ? `${r.label} · ${r.jobTitle}` : r.label}</li>
                   ))}

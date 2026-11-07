@@ -1,4 +1,4 @@
-# /one — the AI-conducted home (spark `one-interface`, round 1)
+# /one — the AI-conducted home (spark `one-interface`, round 2)
 
 `/one` is a signed-in alternative home for the recruiter: ONE surface, conducted from a
 conversation, that puts views from every module (pipeline, decisions, schedule, jobs,
@@ -6,9 +6,11 @@ analytics, comms) in one sight. Today's Workspace (`/` with `?tab=`) stays exact
 is and is reached from `/one` as the **Console** (top-right link, or Ctrl/⌘ K →
 `/?tab=pipeline`).
 
-Round 1 ships one shared **core** and three **layout directions** on it — Greet, Stage,
-Brief — chosen with `?v=greet|stage|brief` (unknown or absent → greet). The round judges
-shape and visual register; the core is the part that must already be complete and honest.
+Round 1 shipped one shared **core** and three layout directions (Greet, Stage, Brief).
+Round 2 keeps Greet as the baseline and adds three refinements — Split, Spotlight, Ticker —
+chosen with `?v=greet|split|spotlight|ticker` (unknown or absent → **split**, the round-2
+lead). They share one core and differ only in WHERE the current answer lands; the core is
+the part that must already be complete and honest.
 
 Governing standard: registry subject `model-composed-workspace` (golden path +
 `composition-region`, `reversible-screen-ops`). Shape reference (not code):
@@ -72,12 +74,13 @@ decisionsQueue, roleCard), `ACT_KINDS` (entryAdvance, entryReject, wave, compani
 
 Each panel reads an EXISTING GET route through `panels/read.ts` (keeps the error body's
 `code`; an unrecognised body is an error, never "empty"; two panels on the same URL share
-one request; `epoch` re-reads after a data act). Every panel renders in a kit `Section`
-(loading = the quiet line, no skeleton; error = critical note with Retry, text from
-`useErrorMessage()`), states a real empty sentence, and offers "Open in Console" via
+one request; `epoch` re-reads after a data act). Every panel hands one `PanelData`
+(columns, rows, headline) to `panels/PanelFrame.tsx`, which draws it as ONE surface in the
+requested look (below): loading = the quiet `LoadingGap`, no skeleton; error = critical note
+with Retry, text from `useErrorMessage()`; a real empty sentence; and "Open in Console" via
 `buildUrl` / `clearedTabScopedParams` (`app/features/shell/tabs.ts`). A count the read did
 not return is "—" with its reason, never 0. Layout hooks: `look` → `data-look`,
-`className` on the panel root.
+`className` on the panel root (the frame paints the border; `className` only places and sizes it).
 
 | Kind | Reads | Shows | Empty / error | Console |
 | --- | --- | --- | --- | --- |
@@ -89,6 +92,74 @@ not return is "—" with its reason, never 0. Layout hooks: `look` → `data-loo
 | jobDrafts | `/api/jobs/status` | draft roles | "No draft roles…" / generic (that route has no coded failure) | `jobs` (+`job`) |
 | outbox | `/api/comms?limit=8` | newest messages with `commsVerdict`; a caution note when no relay is configured | "Nothing has been sent…" / coded | `channels` |
 | roleCard | `/api/jobs?q=<role>&limit=1` | company, location, seniority, lifecycle, hired / target; "N more match" | "Name a role…" / "No role matches…" / coded | `jobs` (+`job`), its pipeline (`role=<id>`) |
+
+### Panel looks (round 2)
+
+`renderPanel(panel, { look, className, onExpand })`. A panel is one surface — the frame paints
+the border (`PANEL`), the host only gives it a cell. Hairline row dividers in light, the kit's
+dashed rows and 2px rules in dark. 14px floor, tabular figures, 44px rows.
+
+| Look | Shape | Use |
+| --- | --- | --- |
+| `table` | fills its container (`h-full min-h-0`): head, sticky column head, dense aligned rows on ONE CSS grid template per panel, the body scrolls inside the panel; rows take keyboard focus (↑ ↓ move, Enter selects); the Console door appears on hover / focus | the main answer region |
+| `summary` | a compact card: the headline figure, ≤ 3 rows, a **See all** button (`onExpand`) or the Console link; never scrolls | a secondary answer beside the main one |
+| `list` | a dense single column for a narrow side (≤ 320px): one line + a meta line per item, no table chrome, the Console link in a foot row | a rail |
+| `default` / `compact` / `spotlight` | round 1 (Greet): the list drawn bare inside the host's own frame | Greet only |
+
+Per kind, as a table (columns) and as a list (line · meta · trail):
+
+| Kind | Table columns | List / summary |
+| --- | --- | --- |
+| needs | Area · Waiting · (Console door) — a row press opens the view that answers it | bucket · its companion line · numeral |
+| pipelineSlice | Candidate+role · Stage chip · Score (right figure + tier bar) · In stage (age, ⚠ when stalled) · door | name · stage · role · score |
+| decisionsQueue | the same four + **Advance / Reject** (hand proposals) | name · stage · role · score, acts under it |
+| scheduleAhead | When · Candidate · Role · door | time · candidate · role |
+| funnel | Stage · Reached (figure + bar) · Conversion | stage · conversion · reached |
+| jobDrafts | Role · Company · door | role · company |
+| outbox | Candidate+subject · Status (mark + verdict) · Sent; relay-off note above the rows | name · verdict · subject · time |
+| roleCard | Field · Value | field · value |
+
+The score bar is the board's tier (`scoreTone`), never a second scale; a missing score is a
+dash with no bar. The ConsentCard is one compact surface that fits a ~360px column (primary
+button never wraps).
+
+## Round 2 core (shared by every variant)
+
+### The answer stepper — no infinite chat
+Every submitted turn becomes an `AnswerSnapshot { id, asked, turnId, arrangement,
+proposalIds }`, captured when its pending ops apply (a reply with no screen ops is captured
+at once; one whose ops the user's hand superseded is captured with the hand's arrangement; a
+`stop` or a superseding question captures nothing). State carries `answers` (cap 20) and
+`cursor` (the index in view, -1 before anything is asked). `stepBack` / `stepForward` move the
+cursor and restore that answer's arrangement, reply and proposals; they are **navigation**,
+not undo steps (the undo stack is untouched; the change line reads "Showing answer 2 of 5")
+and they wait out a pending beat. A submit while an older answer is in view appends at the
+END and moves the cursor there; a hand change to the arrangement while an answer is current is
+written back into that answer. Stepping back stops at the first answer. `OneSession` exposes
+`current: { asked, reply, panels, proposals } | null` (the pending turn while its beat runs)
+and `position: { index (0-based), total, canBack, canForward }`. The full turn list stays in
+`session.turns` for a variant that wants a history drawer.
+
+### The header (`OneHeader`, every variant)
+Left: the mark and "One". Centre: the **decisions** — the counts from `/api/attention`
+(decisions waiting · stalled · new arrivals · interviews ahead · drafts to publish) as
+clickable stats. A press asks the same question the chip does and the stat whose chip is the
+current question is marked (`aria-pressed`). A count the read did not return is "—", never 0;
+the most urgent non-zero stat (that order) is the only one in coral. Right: the layout
+switcher (outside production builds, a quiet segmented control), then Console. Size comes from
+`HEADER_SIZE` in `variants/index.ts`: `compact` = inline stats (64px), `hero` = big stat
+tiles with the figure in display type (ticker).
+
+### The fixed-viewport shell
+At `lg` and up the page never scrolls: `h-dvh` flex column, the header, then a
+`min-h-0 flex-1` body (`overflow-y-auto`) the variant fills with `h-full`; regions scroll
+inside themselves. Below `lg` the page stacks and scrolls. The kit surface's three wrappers
+are given the viewport height by `KIT_FILL` in `OneShell.tsx`.
+
+### `VariantProps`
+`variant, session, submit, greeting, attention, current, position, stepBack, stepForward,
+renderPanel(panel, { look?, className?, onExpand? }), renderConsent(proposal, { className? }),
+words, consoleHref`.
 
 ## Acts and their doors (`consent/`)
 
@@ -105,9 +176,27 @@ exists. One primary (coral) button per card; "Not now" dismisses. Rendering runs
 The wave's text is built so the existing parser (`app/_lib/pipeline-command.ts`) reads it
 back to the same intent (pinned by `consent/acts.test.ts`).
 
+## Round 1 verdict
+
+Owner: "Keep Greet variant … the visual quality is mediocre in both main components and
+right sidebar. We should move number of decisions into the header, using side space for
+lists and tables, keeping experience in one page sight without scrolling — avoiding infinite
+chat but rather displaying last message + component or section related to the answer."
+
+Director's diagnosis of r1 Greet at 1440x900: (1) the header was a bare wordmark and
+switcher pills; (2) a panel rendered inside an empty outer card — a double frame; (3) table
+rows were sparse, a lone score floated mid-row, 72px rows, no column grid; (4) the page was
+~1430px tall on a 900px viewport; (5) the side index was a bare list with orphan counts.
+Round 2's core answers each: the header carries the counts, a panel is one surface, tables
+sit on a real grid, the shell does not scroll, and the answer stepper replaces the transcript.
+
 ## Round 1 variants
 
-Three layout directions on the one core, chosen with `?v=` (a switcher shows outside production builds). Each is judged in both themes; the owner's pick is recorded here when the round closes.
+Greet is the baseline kept for round 2 (`?v=greet`).
+
+### Stage — retired after round 1.
+
+### Brief — retired after round 1.
 
 ### Greet — the home is a conversation (`?v=greet`, round 1)
 
@@ -161,79 +250,9 @@ Send are secondary.
   phone layout should fold the index into a chip row at the top.
 - The chips' 4-limit and the ≤ 3 views are the core's; nothing re-imposed here.
 
-## Variant: Stage (`?v=stage`) — composed region, pinned sticker-sheet register
+## Round 2 variants
 
-**Files:** `app/features/one/variants/stage/StageVariant.tsx` (layout), `slots.ts` (+ `slots.test.ts`, 7 tests: seating and slot stability), `stage.css` (the pinned register); strings under `one.stage.*`.
-
-### Layout
-- **Composer bar on top.** Cause reads before effect (ask, then answer, then stage). No docked bar ever covers the stage, and tab order runs input → chips (≤ 4) → views. While a change is pending, Send turns into Stop. Send drops to secondary while a consent card is open, so each view has only one coral primary.
-- **Conversation strip** under the bar. It holds one display-size sentence: the greeting status first, then the last reply. Under it: "You asked: …", the dropped-ops line, Console links from `navigate` ops and the "opening the views…" status. A fallback reply carries a "Not in this prototype yet" tag. History opens on demand with "History (n)" (`aria-expanded`). Consent cards from replies and from the user's own panel actions render here in place, under "Waiting on you", through `renderConsent`.
-- **Stage.** Its edge is a 2px ink rule holding the "Stage" heading, the what-changed line (`role=status`, `aria-live`; before any change it reads "Nothing has moved on the stage yet.") and Undo. Below it is a declared 3-slot grid: **A = lead** (`lg:col-span-4 row-span-2`), **B / C = side** (`lg:col-span-2`). It is one column in A, B, C order below `lg`.
-- **Seating** (`slots.ts`, pure). A view keeps the slot it holds. A close frees its slot and the neighbours do not slide. When the stage is full, the reducer replaces the oldest unpinned view in place, so the newcomer lands in that view's slot. Every seat is remembered, so Undo puts a restored view back where it was.
-- **First beat.** Before anything is placed, slot A holds the first need as a card ("First up", the need sentence, "Show me"). The free side slots show dashed outlines with "The next view lands here." This is the fixed default layout composition-region §4 asks for.
-- **Focus dims, never removes.** With more than one view on stage, the focused view lifts (ink offset shadow, `spotlight` look, an "In focus" tag). The others lie flat with no shadow. The tags carry the state in words, so nothing depends on colour, and there is no opacity dimming because it would cost text contrast. "Pinned" is also a text tag in the slot head.
-- **Motion.** A view entering a slot drops in like a sticker: framer spring, y −8 → 0 and rotate −0.6° → 0, keyed on the panel id so a replacement re-drops. Under `useReducedMotion` it appears in place with no motion.
-
-### Register (pinned) — how, and its limit
-Without a hex value, the look can only be pinned by deriving from tokens. `stage.css` uses two scopes:
-- `.one-stage` captures a `--sheet-*` palette. In light it uses the tokens as they are. In dark it inverts the brand pair (dark `--color-ink` is within a few points of light paper, dark `--color-paper` within a few points of light ink) and builds the other roles with `color-mix()` toward their light values (steel, coral, coral-ink/solid, moss, limewash, coralwash, dial-*, stone-50..300, red-600/700, amber-800).
-- `.one-stage__sheet` re-points `--color-*` at that capture. It also re-declares the `score-*` aliases and the kit's `--k-*` variables, because both are computed on ancestors and would otherwise keep the theme's values. It pins Bricolage as `--font-serif`, the ink hard-offset shadows (`--panel/sticker/pop-shadow`), 2px lines and 12/16px radii.
-
-**Limits:** in dark the colours are approximations, not the light hex values. Status shades other than red-600/700 and amber-800 still follow the theme, but their tinted boxes stay legible because background and text flip together. Kit rules gated on `[data-theme="dark"]` (dashed rows, 2px section heads) only add their structure in dark. The OneShell nav above the variant is core and still follows the theme.
-
-**Exact pin (Director's call, globals.css + brand.ts):** add theme-invariant sheet tokens, as `--color-white-fixed` and `--color-cv-*` already are. Declare them identically in `@theme` and in `[data-theme="dark"]` (`--color-sheet-paper: #fdf8ee; --color-sheet-card: #ffffff; --color-sheet-ink: #17202a; --color-sheet-steel: #42606f; --color-sheet-coral: #d65a4a; --color-sheet-coral-ink: #a53626; --color-sheet-coral-solid: #b8412f; --color-sheet-moss: #526b4f; --color-sheet-limewash: #dce7d0; --color-sheet-coralwash: #f7d4ce; --color-sheet-stone-50..300` = the light ramp), and mirror them in `brand.ts`. `stage.css` then drops its dark block and points `--sheet-*` at those tokens. The kit's dark-only structural selectors stay as they are.
-
-## Variant: Brief (editorial bands) — `?v=brief`
-
-Files: `app/features/one/variants/brief/BriefVariant.tsx` (the page), `BriefDesk.tsx` (the
-conversation dock), `bands.ts` (pure front-page model) + `bands.test.ts`. Copy under
-`one.brief.*` (cs/de/fr carry the English for now).
-
-**Metaphor.** Today's hiring as a front page. Reading order, top to bottom:
-
-| Part | What it holds | Source |
-| --- | --- | --- |
-| Masthead | kicker "Today's brief · <reader's own date>", the status line as a `SectionTitle` (amber squiggle in Spark Dark) | `words.greeting` |
-| The lead | the first need as the lead story: kicker, a `HandNote` ("start here"), the need sentence at `text-h2`, "Open the lead" (secondary) + the greeting's ≤ 4 chips, on a `LitGround` | `greeting.first` |
-| On the page now | the views on screen, inserted under the lead as bands; a "n of 3 views · p of 2 pinned" capacity line; hand-pressed consent cards first; the brought-forward view is outlined in ink and labelled | `session.panels`, `renderPanel`, `renderConsent` |
-| The news | one band per OTHER bucket with news: a tilted sticker kicker, the numeral at display size, the core's own need sentence, 2-3 ask-chips; buckets at zero collapse into ONE quiet line ("Nothing new in Decisions and Drafts.") | `frontPage(attention)` |
-| Regular columns | funnel / outbox / pipeline chips: questions with no attention bucket behind them | `COLUMN_CHIPS` |
-| The desk | side column ≥ lg, sticky bottom dock below it: what changed + Undo (always first), the latest answer (the user's question, One's sentence, fallback line, dropped ops, Console links), reply consent cards ("Waiting for your yes"), follow-up chips, composer (Send is the view's ONE coral primary; Stop while pending), earlier turns folded behind a toggle | `session`, `words` |
-
-**Decisions.**
-- *A band never renders a panel of its own.* The brief asked for "one band per module, each with
-  its panel", but the region contract is ≤ 3 views and `renderPanel` always attaches the host's
-  pin/close/focus chrome, which only acts on panels in `session.panels`. A band therefore ASKS
-  (its chips go through the conductor, so the transcript records the question) and, when the view
-  that answers it is already on the page (`answeringPanel`: same kind and the bucket's filter),
-  says "<View> is on the page above" with a "Jump to it" control that focuses it.
-- *The lead is not repeated as a band.* `frontPage` takes the greeting's priority order, so the
-  lead and the band list can never disagree.
-- *Unknown is not quiet.* A failed attention read draws no bands and no quiet line, only a
-  sentence saying the news desk could not be read; the regular columns still work.
-- *Proposals stay findable.* Reply acts live in the dock outside the folded transcript; hand
-  acts (a panel row's press) land at the top of "On the page now", next to the row that raised them.
-- *Scroll follows focus.* When `focusId` changes (a reply's show, a jump, a hand focus) the page
-  scrolls the view into sight (`block: nearest`) and moves keyboard focus to its wrapper
-  (`tabIndex -1`, a coral focus ring).
-- *Dateline* comes from `useSyncExternalStore` with a null server snapshot, so the server's clock
-  and time zone never reach the markup.
-
-**Register.** Spark Dark is the hero: 2px ink outlines, sticker shadows, a slight tilt on the
-lead card (-0.4deg) and the band kickers (-2deg, amber sticker), dashed rules between parts,
-Bricolage through `--font-serif`, the amber squiggle. Studio Light uses the same markup with
-hairlines, `shadow-panel` and no tilt. All colour comes from tokens (`ink paper coral-ink steel
-stone-200/300 white dial-amber`). The landing fonts module was NOT imported: the register's face
-already flips to Bricolage through `--font-serif`, and `HandNote` forbids a new font.
-
-**Motion.** Inserted views enter on a spring (opacity, y 14px, rotate -0.6deg to rest), re-flow
-with `layout`, and leave with a short fade-up (`AnimatePresence mode="popLayout"`). Under reduced
-motion (`useReducedMotion`) there is no initial offset, no layout animation, a 0-duration
-transition and an instant scroll. Hand notes are static.
-
-**Known gaps (round 1).** No module band for funnel/outbox: they have no attention count, so they
-cannot claim news. The band numeral is the attention read's, not a live panel read, so it can lag
-an open view by one re-read. Not yet checked in a browser (no kp dev server was running).
+<!-- The Director fills this once Split, Spotlight and Ticker are built. -->
 
 ## Known gaps
 

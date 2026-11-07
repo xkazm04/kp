@@ -5,8 +5,8 @@
 // state line; an entry stage's conversion is a dash with its reason (it has nothing
 // before it), never 0 %.
 import { useLocale, useTranslations } from "next-intl";
-import { ListRow, ABSENT, formatCount } from "@/app/_components/kit";
-import { EmptyLine, PanelShell } from "./PanelShell";
+import { ABSENT, formatCount } from "@/app/_components/kit";
+import { NameCell, PanelFrame } from "./PanelFrame";
 import { isCount, useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -36,29 +36,54 @@ export function FunnelPanel(props: PanelProps) {
   const data = read.state === "ready" ? read.data : null;
   const empty = data !== null && (data.total === 0 || data.steps.every((s) => s.reached === 0));
   const pct = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
+  const max = data ? Math.max(1, ...data.steps.map((s) => s.reached)) : 1;
+  const conversion = (s: Step, i: number) =>
+    s.conversionPct !== null ? (
+      pct.format(s.conversionPct / 100)
+    ) : (
+      <span data-tip={i === 0 ? t("funnel.noConversion") : t("notReturned")} tabIndex={0}>
+        {ABSENT}
+      </span>
+    );
+  const first = data && !empty ? data.steps[0] : undefined;
   return (
-    <PanelShell props={props} title={t("funnel.title")} state={t("funnel.window")} read={read} console={{ tab: "analytics" }}>
-      {empty ? <EmptyLine>{t("funnel.empty")}</EmptyLine> : null}
-      {data && !empty
-        ? data.steps.map((s, i) => (
-            <ListRow
-              key={s.stage}
-              rowKey={s.stage}
-              name={s.stage}
-              meta={t("funnel.reached")}
-              fig={<span className="k-nums">{formatCount(s.reached, locale)}</span>}
-              time={
-                s.conversionPct !== null ? (
-                  <span className="k-nums">{pct.format(s.conversionPct / 100)}</span>
-                ) : (
-                  <span data-tip={i === 0 ? t("funnel.noConversion") : t("notReturned")} tabIndex={0}>
-                    {ABSENT}
-                  </span>
-                )
-              }
-            />
-          ))
-        : null}
-    </PanelShell>
+    <PanelFrame
+      props={props}
+      data={{
+        title: t("funnel.title"),
+        state: t("funnel.window"),
+        headline: first ? { figure: formatCount(first.reached, locale), label: `${first.stage} · ${t("funnel.reached")}` } : undefined,
+        console: { tab: "analytics" },
+        read,
+        cols: [
+          { key: "name", label: t("cols.stage"), track: "minmax(0,1fr)" },
+          { key: "reached", label: t("cols.reached"), track: "11rem", end: true },
+          { key: "conv", label: t("cols.conversion"), track: "6rem", end: true },
+        ],
+        actsTrack: "0",
+        rows:
+          data && !empty
+            ? data.steps.map((s, i) => ({
+                key: s.stage,
+                cells: {
+                  name: <NameCell name={s.stage} />,
+                  reached: (
+                    <span className="flex items-center justify-end gap-2">
+                      <span className="w-12 text-right">{formatCount(s.reached, locale)}</span>
+                      <span className="h-1.5 w-20 overflow-hidden rounded-full bg-stone-200" aria-hidden>
+                        <span className="block h-full rounded-full bg-steel" style={{ width: `${Math.round((s.reached / max) * 100)}%` }} />
+                      </span>
+                    </span>
+                  ),
+                  conv: conversion(s, i),
+                },
+                line: s.stage,
+                meta: s.conversionPct !== null ? pct.format(s.conversionPct / 100) : undefined,
+                trail: formatCount(s.reached, locale),
+              }))
+            : [],
+        empty: t("funnel.empty"),
+      }}
+    />
   );
 }

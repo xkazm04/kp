@@ -13,7 +13,14 @@
 //     region (pin, close, focus) supersedes them — the stale ops are dropped and the
 //     drop is said, never applied over the user's click;
 //   - `stop` drops anything pending and restores the arrangement the user saw before
-//     the turn began.
+//     the turn began;
+//   - ANSWERS, not a transcript: every submitted turn becomes an AnswerSnapshot (what was
+//     asked, the reply, the arrangement it left, the proposals it raised), captured when
+//     its pending ops apply. `stepBack` / `stepForward` move a cursor over them and restore
+//     that answer's arrangement — navigation, NOT an undo step (the undo stack is for
+//     screen changes only). A submit while an older answer is in view appends a new answer
+//     at the END and moves the cursor there. A hand change on the arrangement while an
+//     answer is current is written back into that answer.
 import {
   MAX_PANELS,
   MAX_PINS,
@@ -28,6 +35,25 @@ import {
 
 export type Arrangement = { panels: PanelInstance[]; focusId: string | null };
 
+/** One answered question: what was asked, which "one" turn replied, the screen it left. */
+export type AnswerSnapshot = {
+  id: string;
+  asked: OneInput;
+  turnId: string;
+  arrangement: Arrangement;
+  proposalIds: string[];
+};
+
+/** What a layout draws as "the answer in view". */
+export type CurrentAnswer = {
+  asked: OneInput;
+  reply: Extract<Turn, { who: "one" }>;
+  panels: PanelInstance[];
+  proposals: ProposalInstance[];
+};
+
+export const ANSWER_CAP = 20;
+
 export type SessionState = {
   turns: Turn[];
   panels: PanelInstance[];
@@ -37,7 +63,10 @@ export type SessionState = {
   history: Arrangement[];
   lastChange: ChangeLine | null;
   /** A reply's ops not yet applied, and the arrangement before its turn began. */
-  pending: { turnId: string; ops: Op[]; before: Arrangement } | null;
+  pending: { turnId: string; ops: Op[]; before: Arrangement; input: OneInput } | null;
+  /** Answered questions, oldest first (≤ ANSWER_CAP), and the index in view (-1 = none yet). */
+  answers: AnswerSnapshot[];
+  cursor: number;
   /** Monotonic id source — ids are the host's, never the model's. */
   seq: number;
 };
@@ -50,6 +79,8 @@ export const initialSession = (): SessionState => ({
   history: [],
   lastChange: null,
   pending: null,
+  answers: [],
+  cursor: -1,
   seq: 0,
 });
 
@@ -63,6 +94,8 @@ export type SessionAction =
   | { type: "pin"; panelId: string }
   | { type: "unpin"; panelId: string }
   | { type: "undo" }
+  | { type: "stepBack" }
+  | { type: "stepForward" }
   | { type: "propose"; act: ProposalInstance["act"]; params: Record<string, string> }
   | { type: "dismissProposal"; proposalId: string };
 
@@ -132,7 +165,66 @@ function applyOp(s: SessionState, op: Op): SessionState {
   }
 }
 
+/** Hand actions that rearrange the region (or step it back). */
+const ARRANGING = new Set<SessionAction["type"]>(["show", "focus", "close", "pin", "unpin", "undo"]);
+
+const cloneArrangement = (a: Arrangement): Arrangement => ({ panels: a.panels.map((p) => ({ ...p, params: { ...p.params } })), focusId: a.focusId });
+
+/** Record the answer for a turn whose ops just settled, and put the cursor on it. */
+function capture(s: SessionState, turnId: string, input: OneInput): SessionState {
+  const snap: AnswerSnapshot = {
+    id: `n-${turnId}`,
+    asked: { ...input },
+    turnId,
+    arrangement: snapshot(s),
+    proposalIds: s.proposals.filter((p) => p.turnId === turnId).map((p) => p.id),
+  };
+  const answers = [...s.answers, snap].slice(-ANSWER_CAP);
+  return { ...s, answers, cursor: answers.length - 1 };
+}
+
+/** The user's change to the arrangement while an answer is current belongs to that answer. */
+function syncCurrent(s: SessionState, newProposal = false): SessionState {
+  const cur = s.answers[s.cursor];
+  if (!cur) return s;
+  const proposalIds = newProposal && s.proposals.length > 0 ? [...cur.proposalIds, s.proposals[s.proposals.length - 1].id] : cur.proposalIds;
+  const answers = s.answers.map((x, i) => (i === s.cursor ? { ...x, arrangement: snapshot(s), proposalIds } : x));
+  return { ...s, answers };
+}
+
+/** The answer in view: the pending one while its beat runs, else the cursor's. */
+export function currentOf(s: SessionState): CurrentAnswer | null {
+  const turnId = s.pending ? s.pending.turnId : (s.answers[s.cursor]?.turnId ?? null);
+  if (!turnId) return null;
+  const reply = s.turns.find((t): t is Extract<Turn, { who: "one" }> => t.who === "one" && t.id === turnId);
+  if (!reply) return null;
+  const asked = s.pending ? s.pending.input : s.answers[s.cursor].asked;
+  const ids = s.pending ? null : new Set(s.answers[s.cursor].proposalIds);
+  const proposals = s.proposals.filter((p) => (ids ? ids.has(p.id) : p.turnId === turnId));
+  return { asked, reply, panels: s.panels, proposals };
+}
+
+export const positionOf = (s: SessionState) => ({ index: s.cursor, total: s.answers.length });
+
 export function sessionReducer(s: SessionState, a: SessionAction): SessionState {
+  const next = reduceBase(s, a);
+  if (next === s) return s;
+  const wasPending = s.pending;
+  if (wasPending && !next.pending && (a.type === "applyPending" || ARRANGING.has(a.type))) {
+    // The beat ended — applied, or superseded by the user's own hand — so the question
+    // has its answer (the hand's arrangement, when it won).
+    return capture(next, wasPending.turnId, wasPending.input);
+  }
+  if (a.type === "submit" && !next.pending) {
+    const turn = next.turns[next.turns.length - 1];
+    return capture(next, turn.id, a.input);
+  }
+  if (ARRANGING.has(a.type)) return syncCurrent(next);
+  if (a.type === "propose") return syncCurrent(next, true);
+  return next;
+}
+
+function reduceBase(s: SessionState, a: SessionAction): SessionState {
   switch (a.type) {
     case "submit": {
       // A new turn supersedes a pending one: its ops are dropped, not stacked.
@@ -162,7 +254,7 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
         seq: nextSeq,
         turns: [...base.turns, userTurn, oneTurn],
         proposals: [...base.proposals, ...proposals],
-        pending: ops.length > 0 ? { turnId: oneTurn.id, ops, before: snapshot(base) } : null,
+        pending: ops.length > 0 ? { turnId: oneTurn.id, ops, before: snapshot(base), input: { ...a.input } } : null,
       };
     }
     case "applyPending": {
@@ -211,6 +303,16 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
       const prev = s.history.at(-1);
       if (!prev) return s;
       return { ...s, pending: null, panels: prev.panels, focusId: prev.focusId, history: s.history.slice(0, -1), lastChange: { key: "undone" } };
+    }
+    case "stepBack":
+    case "stepForward": {
+      if (s.pending) return s; // a beat is running: navigation waits for it
+      const target = s.cursor + (a.type === "stepBack" ? -1 : 1);
+      const to = s.answers[target];
+      if (!to) return s;
+      const arr = cloneArrangement(to.arrangement);
+      // Navigation, not a step: the undo stack is untouched.
+      return { ...s, cursor: target, panels: arr.panels, focusId: arr.focusId, lastChange: { key: "stepped", answer: target + 1, of: s.answers.length } };
     }
     case "propose": {
       const seq = s.seq + 1;

@@ -14,6 +14,8 @@ export type OneEntry = {
   stage: string;
   stageLabel: string;
   stageChangedAt: string | null;
+  /** Whole days since the stage changed (null = unknown), computed at read time. */
+  ageDays: number | null;
   /** The canonical score the board shows; null = none on record (rendered as a dash). */
   score: number | null;
   stale: boolean;
@@ -50,6 +52,7 @@ export function parsePipeline(body: unknown, now: number = Date.now()): Pipeline
       stage,
       stageLabel: stages.find((s) => s.id === stage)?.label ?? stage,
       stageChangedAt,
+      ageDays: stageChangedAt && Number.isFinite(Date.parse(stageChangedAt)) ? Math.max(0, Math.floor((now - Date.parse(stageChangedAt)) / 86_400_000)) : null,
       score: num(e.canonicalScore) ?? num(e.matchScore),
       stale: agingTierAt(stage, stageChangedAt, now, axis) !== "none",
       isNew: stageHasRole(stage, "entry", axis),

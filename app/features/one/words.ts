@@ -30,6 +30,8 @@ export function useOneWords(): OneWords {
         const main = t(`change.${c.key}`, {
           panel: c.panel ? panel(c.panel) : "",
           previous: c.previous ? panel(c.previous) : "",
+          answer: c.answer ?? 0,
+          of: c.of ?? 0,
         });
         return c.droppedPending ? `${main} ${t("change.droppedSuffix")}` : main;
       },

@@ -22,8 +22,18 @@ export type VariantProps = {
   greeting: GreetingState;
   /** The raw attention read (null until it lands or when it failed). */
   attention: AttentionCounts | null;
-  /** Render one view with its data, states and the host's pin/close/focus chrome. */
-  renderPanel: (panel: PanelInstance, opts?: { look?: PanelLook; className?: string }) => ReactNode;
+  /** The answer in view (same as session.current): asked, reply, panels, proposals. */
+  current: OneSession["current"];
+  /** Which answer is in view: 0-based `index` of `total`, plus whether a step exists. */
+  position: OneSession["position"];
+  /** Walk the answers. Navigation, not undo; ignored while a reply is pending. */
+  stepBack: () => void;
+  stepForward: () => void;
+  /** Render one view with its data, states and the host's pin/close/focus chrome.
+   *  `look`: "table" fills its container (give it a height), "summary" is a compact card
+   *  (≤ 3 rows, `onExpand` drives its See-all), "list" is a dense single column for a
+   *  narrow side; "default" / "compact" / "spotlight" are the round-1 looks (Greet). */
+  renderPanel: (panel: PanelInstance, opts?: { look?: PanelLook; className?: string; onExpand?: () => void }) => ReactNode;
   /** Render the consent card for one proposed act. */
   renderConsent: (proposal: ProposalInstance, opts?: { className?: string }) => ReactNode;
   /** Every user-facing word of the core (say keys, chips, view names, change line). */

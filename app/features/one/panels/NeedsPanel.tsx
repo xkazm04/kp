@@ -4,11 +4,12 @@
 // numeral, the view that answers it on /one, and its Console door. A bucket the read did
 // not return is a dash with its reason, never 0.
 import { useLocale, useTranslations } from "next-intl";
-import { ListRow, Mark, ABSENT, formatCount } from "@/app/_components/kit";
+import { ABSENT, formatCount } from "@/app/_components/kit";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import { NEED_PANEL, type NeedKey } from "../engine/greeting";
-import { ConsoleLink, EmptyLine, PanelShell } from "./PanelShell";
+import { NameCell, PanelFrame } from "./PanelFrame";
+import { ConsoleLink } from "./PanelShell";
 import { isCount, useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -40,37 +41,50 @@ export function NeedsPanel(props: PanelProps) {
   const read = useRead("/api/attention", parseAttention, props.epoch);
   const counts = read.state === "ready" ? read.data : null;
   const waiting = counts ? ROWS.filter((k) => (counts[k] ?? 0) > 0).length : null;
+  const dash = (
+    <span data-tip={t("notReturned")} tabIndex={0}>
+      {ABSENT}
+    </span>
+  );
   return (
-    <PanelShell props={props} title={t("needs.title")} count={waiting ?? undefined} read={read}>
-      {counts && waiting === 0 ? <EmptyLine>{t("needs.empty")}</EmptyLine> : null}
-      {counts && waiting !== 0
-        ? ROWS.map((k) => {
-            const raw = counts[k];
-            const n = isCount(raw) ? raw : null;
-            const spec = k === "companion" ? null : NEED_PANEL[k];
-            return (
-              <ListRow
-                key={k}
-                rowKey={k}
-                mark={<Mark kind={n === null ? "unknown" : n > 0 ? "needs" : "ok"} />}
-                name={t(`needs.rows.${k}`)}
-                sub={k === "companion" ? t("needs.companionWhere") : undefined}
-                fig={
-                  n !== null ? (
-                    formatCount(n, locale)
-                  ) : (
-                    <span data-tip={t("notReturned")} tabIndex={0}>
-                      {ABSENT}
-                    </span>
-                  )
-                }
-                state={n !== null && n > 0 ? ["needs"] : ["muted"]}
-                onSelect={spec && n !== null && n > 0 ? () => props.onShow(spec.panel, spec.params) : undefined}
-                actions={k === "companion" ? undefined : <ConsoleLink tab={TAB_OF[k]} />}
-              />
-            );
-          })
-        : null}
-    </PanelShell>
+    <PanelFrame
+      props={props}
+      data={{
+        title: t("needs.title"),
+        count: waiting,
+        headline: { figure: waiting ?? "", label: t("needs.areas") },
+        read,
+        cols: [
+          { key: "name", label: t("cols.area"), track: "minmax(0,1fr)" },
+          { key: "n", label: t("cols.waiting"), track: "5rem", end: true },
+        ],
+        actsTrack: "8rem",
+        rows:
+          counts && waiting !== 0
+            ? ROWS.map((k) => {
+                const raw = counts[k];
+                const n = isCount(raw) ? raw : null;
+                const spec = k === "companion" ? null : NEED_PANEL[k];
+                const open = spec && n !== null && n > 0 ? () => props.onShow(spec.panel, spec.params) : undefined;
+                const mark = n === null ? ("unknown" as const) : n > 0 ? ("needs" as const) : ("ok" as const);
+                return {
+                  key: k,
+                  cells: {
+                    name: <NameCell name={t(`needs.rows.${k}`)} sub={k === "companion" ? t("needs.companionWhere") : undefined} mark={mark} />,
+                    n: n !== null ? formatCount(n, locale) : dash,
+                  },
+                  line: t(`needs.rows.${k}`),
+                  meta: k === "companion" ? t("needs.companionWhere") : undefined,
+                  trail: n !== null ? formatCount(n, locale) : dash,
+                  mark,
+                  tone: n !== null && n > 0 ? ("needs" as const) : undefined,
+                  onSelect: open,
+                  door: k === "companion" ? undefined : <ConsoleLink tab={TAB_OF[k]} />,
+                };
+              })
+            : [],
+        empty: t("needs.empty"),
+      }}
+    />
   );
 }

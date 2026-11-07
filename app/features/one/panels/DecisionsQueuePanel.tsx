@@ -8,9 +8,10 @@
 // refuses a decision made on a stale row.
 import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit";
-import { ConsoleLink, EmptyLine, PanelShell } from "./PanelShell";
-import { EntryRow, ROW_LIMIT } from "./PipelineSlicePanel";
+import { PanelFrame } from "./PanelFrame";
+import { rowLimit } from "./cells";
 import { matchesRole, parsePipeline } from "./pipelineRead";
+import { useEntryCols, useEntryRow } from "./PipelineSlicePanel";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -18,35 +19,37 @@ export function DecisionsQueuePanel(props: PanelProps) {
   const t = useTranslations("one.core.panels");
   const { params } = props.panel;
   const read = useRead("/api/pipeline", parsePipeline, props.epoch);
+  const cols = useEntryCols();
+  const entryRow = useEntryRow();
   const rows = read.state === "ready" ? read.data.entries.filter((e) => e.needsDecision && matchesRole(e, params.role)) : [];
-  const shown = rows.slice(0, ROW_LIMIT);
+  const limit = rowLimit(props.look);
   return (
-    <PanelShell
+    <PanelFrame
       props={props}
-      title={t("decisionsQueue.title")}
-      count={read.state === "ready" ? rows.length : undefined}
-      read={read}
-      console={{ tab: "decisions" }}
-    >
-      {read.state === "ready" && rows.length === 0 ? <EmptyLine>{t("decisionsQueue.empty")}</EmptyLine> : null}
-      {shown.map((e) => {
-        const act = { entryId: e.id, expectedStage: e.stage, label: e.label, ...(e.jobTitle ? { role: e.jobTitle } : {}) };
-        return (
-          <EntryRow
-            key={e.id}
-            e={e}
-            needs
-            actions={
+      data={{
+        title: t("decisionsQueue.title"),
+        count: rows.length,
+        headline: { figure: rows.length, label: t("decisionsQueue.waiting") },
+        console: { tab: "decisions" },
+        read,
+        cols,
+        actsTrack: "11rem",
+        rows: rows.slice(0, limit).map((e) => {
+          const act = { entryId: e.id, expectedStage: e.stage, label: e.label, ...(e.jobTitle ? { role: e.jobTitle } : {}) };
+          return entryRow(e, {
+            tone: "needs",
+            door: undefined,
+            acts: (
               <>
-                <Button label={t("decisionsQueue.advance")} variant="affirm" size="sm" onClick={() => props.onPropose("entryAdvance", act)} />
+                <Button label={t("decisionsQueue.advance")} variant="secondary" size="sm" onClick={() => props.onPropose("entryAdvance", act)} />
                 <Button label={t("decisionsQueue.reject")} variant="ghost" size="sm" onClick={() => props.onPropose("entryReject", act)} />
-                <ConsoleLink tab="pipeline" params={{ q: e.label }} />
               </>
-            }
-          />
-        );
-      })}
-      {rows.length > shown.length ? <EmptyLine>{t("firstOf", { shown: shown.length, total: rows.length })}</EmptyLine> : null}
-    </PanelShell>
+            ),
+          });
+        }),
+        empty: t("decisionsQueue.empty"),
+        foot: rows.length > limit ? t("firstOf", { shown: limit, total: rows.length }) : undefined,
+      }}
+    />
   );
 }

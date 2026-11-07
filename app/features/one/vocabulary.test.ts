@@ -31,10 +31,12 @@ test("the companion ids /one restates are still the real catalog's ids", () => {
   assert.deepEqual([...COMPANION_ACTION_IDS].sort(), real);
 });
 
-test("?v= falls back to greet", () => {
-  assert.equal(variantOf("stage"), "stage");
-  assert.equal(variantOf("nope"), "greet");
-  assert.equal(variantOf(undefined), "greet");
+test("?v= falls back to split; the round-1 losers are gone", () => {
+  assert.deepEqual([...VARIANT_IDS], ["greet", "split", "spotlight", "ticker"]);
+  assert.equal(variantOf("ticker"), "ticker");
+  assert.equal(variantOf("stage"), "split");
+  assert.equal(variantOf("nope"), "split");
+  assert.equal(variantOf(undefined), "split");
 });
 
 test("the pipeline parser keeps active entries only, refuses a body it does not know", () => {

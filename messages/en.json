@@ -18620,68 +18620,6 @@
         "heading": "Kept beside you"
       }
     },
-    "brief": {
-      "masthead": {
-        "kicker": "Today's brief"
-      },
-      "lead": {
-        "kicker": "The lead",
-        "note": "start here",
-        "open": "Open the lead",
-        "clear": "No lead story today. The regular columns below still answer.",
-        "unknown": "No lead story: the news desk could not be read. The questions below still work."
-      },
-      "page": {
-        "kicker": "On the page now",
-        "capacity": "{shown} of {max} views · {pinned} of {pins} pinned",
-        "forward": "Brought forward",
-        "pinned": "Pinned",
-        "note": "pinned views stay put"
-      },
-      "bands": {
-        "label": "Today's news by module",
-        "kicker": "The news",
-        "decisions": "Decisions",
-        "pipeline": "Aging",
-        "channels": "Arrivals",
-        "schedule": "Interviews",
-        "jobs": "Drafts",
-        "answered": "{view} is on the page above.",
-        "jump": "Jump to it",
-        "quiet": "Nothing new in {list}.",
-        "none": "No other module has news today.",
-        "unknown": "The news desk could not be read, so no module bands are drawn. The regular columns below still work."
-      },
-      "columns": {
-        "kicker": "Regular columns"
-      },
-      "desk": {
-        "kicker": "Ask the desk",
-        "changed": "What changed:",
-        "unchanged": "Nothing on the page has changed yet.",
-        "none": "Ask a question, or press a chip on any band.",
-        "fallback": "Not in this prototype yet.",
-        "waiting": "Waiting for your yes",
-        "show": "{count, plural, one {Show the earlier question} other {Show the # earlier questions}}",
-        "hide": "Hide the earlier conversation"
-      }
-    },
-    "stage": {
-      "stage": "Stage",
-      "noChange": "Nothing has moved on the stage yet.",
-      "slot": "Slot {name}",
-      "slotFree": "Slot {name}, free",
-      "slotHolds": "Slot {name}: {view}",
-      "slotFreeHint": "The next view lands here.",
-      "firstUp": "First up",
-      "pinned": "Pinned",
-      "inFocus": "In focus",
-      "fallback": "Not in this prototype yet",
-      "historyShow": "History ({count})",
-      "historyHide": "Hide history",
-      "asked": "You asked: {words}",
-      "waiting": "Waiting on you"
-    },
     "core": {
       "meta": {
         "region": "One",
@@ -18690,8 +18628,9 @@
         "layout": "Layout",
         "variants": {
           "greet": "Greet",
-          "stage": "Stage",
-          "brief": "Brief"
+          "split": "Split",
+          "spotlight": "Spotlight",
+          "ticker": "Ticker"
         },
         "regionLabel": "Views One put on screen",
         "conversationLabel": "Conversation with One",
@@ -18703,6 +18642,36 @@
         "send": "Send",
         "stop": "Stop",
         "working": "Opening the views…"
+      },
+      "step": {
+        "back": "Earlier answer",
+        "forward": "Later answer",
+        "position": "Answer {index} of {total}"
+      },
+      "header": {
+        "label": "What is waiting",
+        "stats": {
+          "decisions": {
+            "label": "Decisions",
+            "full": "Decisions waiting on you"
+          },
+          "pipeline": {
+            "label": "Stalled",
+            "full": "Candidates past their step's limit"
+          },
+          "channels": {
+            "label": "New",
+            "full": "New arrivals waiting for a first look"
+          },
+          "schedule": {
+            "label": "Interviews",
+            "full": "Interviews ahead"
+          },
+          "jobs": {
+            "label": "Drafts",
+            "full": "Draft roles to publish"
+          }
+        }
       },
       "you": "You",
       "one": "One",
@@ -18765,6 +18734,7 @@
         "droppedSuffix": "The change One had pending was dropped.",
         "stopped": "Stopped. The screen is as it was before that question.",
         "pinLimit": "Two views are pinned already. Unpin one to pin {panel}.",
+        "stepped": "Showing answer {answer} of {of}.",
         "undo": "Undo",
         "dismiss": "Dismiss"
       },
@@ -18789,7 +18759,8 @@
             "jobs": "Draft roles",
             "companion": "Candi's open proposals"
           },
-          "companionWhere": "Answered in Candi's dock in the Console"
+          "companionWhere": "Answered in Candi's dock in the Console",
+          "areas": "areas need you"
         },
         "pipelineSlice": {
           "title": "Pipeline",
@@ -18835,7 +18806,8 @@
           "title": "Decisions waiting",
           "empty": "No candidate is waiting on a decision.",
           "advance": "Advance",
-          "reject": "Reject"
+          "reject": "Reject",
+          "waiting": "waiting on you"
         },
         "roleCard": {
           "title": "Role",
@@ -18854,7 +18826,28 @@
             "closed": "Closed"
           },
           "pipeline": "Its pipeline"
-        }
+        },
+        "retry": "Try again",
+        "seeAll": "See all",
+        "seeAllCount": "See all {count}",
+        "cols": {
+          "candidate": "Candidate",
+          "stage": "Stage",
+          "score": "Score",
+          "inStage": "In stage",
+          "when": "When",
+          "role": "Role",
+          "area": "Area",
+          "waiting": "Waiting",
+          "company": "Company",
+          "status": "Status",
+          "sent": "Sent",
+          "reached": "Reached",
+          "conversion": "Conversion",
+          "field": "Field",
+          "value": "Value"
+        },
+        "stalled": "Past its step's limit"
       },
       "consent": {
         "heading": "Needs your OK",

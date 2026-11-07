@@ -5,8 +5,8 @@
 // hired / target). `matching` is the route's unbounded count over the same predicate, so
 // "more roles match" is stated, never hidden. Params: role (required).
 import { useLocale, useTranslations } from "next-intl";
-import { KeyValueGrid, formatCount } from "@/app/_components/kit";
-import { ConsoleLink, EmptyLine, PanelShell } from "./PanelShell";
+import { ABSENT, formatCount } from "@/app/_components/kit";
+import { PanelFrame } from "./PanelFrame";
 import { isCount, useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -55,39 +55,42 @@ export function RoleCardPanel(props: PanelProps) {
   const r = data?.role ?? null;
   const more = data && r && data.matching !== null && data.matching > 1 ? data.matching - 1 : 0;
   const n = (v: number | null) => (v === null ? null : formatCount(v, locale));
-  if (!role) {
-    // Nothing to read: a stated state, not a spinner that never ends.
-    return (
-      <PanelShell props={props} title={t("roleCard.title")} read={{ state: "ready", data: null, retry: () => undefined }}>
-        <EmptyLine>{t("roleCard.needRole")}</EmptyLine>
-      </PanelShell>
-    );
-  }
+  const facts: { key: string; label: string; value: string | null }[] = r
+    ? [
+        { key: "company", label: t("roleCard.company"), value: r.company },
+        { key: "location", label: t("roleCard.location"), value: r.location },
+        { key: "seniority", label: t("roleCard.seniority"), value: r.seniority },
+        { key: "status", label: t("roleCard.status"), value: t(`roleCard.statuses.${r.status}`) },
+        { key: "hired", label: t("roleCard.hired"), value: n(r.hired) },
+        { key: "target", label: t("roleCard.target"), value: n(r.target) },
+      ]
+    : [];
+  const absent = (
+    <span data-tip={t("notReturned")} tabIndex={0}>
+      {ABSENT}
+    </span>
+  );
   return (
-    <PanelShell
+    <PanelFrame
       props={props}
-      title={r?.title ?? t("roleCard.title")}
-      state={more > 0 ? t("roleCard.more", { count: more }) : undefined}
-      read={read}
-      console={r ? { tab: "jobs", params: { job: r.id } } : undefined}
-    >
-      {data && !r ? <EmptyLine>{t("roleCard.notFound", { role })}</EmptyLine> : null}
-      {r ? (
-        <>
-          <KeyValueGrid
-            cols={3}
-            items={[
-              { label: t("roleCard.company"), value: r.company, absent: t("notReturned") },
-              { label: t("roleCard.location"), value: r.location, absent: t("notReturned") },
-              { label: t("roleCard.seniority"), value: r.seniority, absent: t("notReturned") },
-              { label: t("roleCard.status"), value: t(`roleCard.statuses.${r.status}`) },
-              { label: t("roleCard.hired"), value: n(r.hired), absent: t("notReturned") },
-              { label: t("roleCard.target"), value: n(r.target), absent: t("notReturned") },
-            ]}
-          />
-          <ConsoleLink tab="pipeline" params={{ role: r.id }} label={t("roleCard.pipeline")} />
-        </>
-      ) : null}
-    </PanelShell>
+      data={{
+        title: r?.title ?? t("roleCard.title"),
+        state: more > 0 ? t("roleCard.more", { count: more }) : undefined,
+        console: r ? { tab: "pipeline", params: { role: r.id }, label: t("roleCard.pipeline") } : undefined,
+        read: role ? read : { state: "ready", data: null, retry: () => undefined },
+        cols: [
+          { key: "label", label: t("cols.field"), track: "10rem" },
+          { key: "value", label: t("cols.value"), track: "minmax(0,1fr)" },
+        ],
+        actsTrack: "0",
+        rows: facts.map((f) => ({
+          key: f.key,
+          cells: { label: <span className="text-steel">{f.label}</span>, value: <span className="font-semibold">{f.value ?? absent}</span> },
+          line: f.label,
+          trail: f.value ?? absent,
+        })),
+        empty: !role ? t("roleCard.needRole") : data && !r ? t("roleCard.notFound", { role }) : undefined,
+      }}
+    />
   );
 }

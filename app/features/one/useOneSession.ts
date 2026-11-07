@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import { resolve } from "./engine/resolve";
-import { initialSession, sessionReducer, type SessionState } from "./engine/session";
+import { currentOf, initialSession, positionOf, sessionReducer, type CurrentAnswer, type SessionState } from "./engine/session";
 import { validateReply } from "./engine/validate";
 import type { ActKind, OneInput, PanelKind } from "./types";
 
@@ -23,6 +23,15 @@ export type OneSession = SessionState & {
   stop: () => void;
   undo: () => void;
   canUndo: boolean;
+  /** Walk the answers (navigation, never an undo step). Both are ignored while a reply's
+   *  beat is pending. */
+  stepBack: () => void;
+  stepForward: () => void;
+  /** The answer in view: what was asked, what One said, the views and the proposals it
+   *  left. null on the first beat (nothing asked yet). */
+  current: CurrentAnswer | null;
+  /** `index` is 0-based (-1 = nothing asked yet); show `index + 1` of `total`. */
+  position: { index: number; total: number; canBack: boolean; canForward: boolean };
   /** The user's own hand on the region. */
   show: (kind: PanelKind, params?: Record<string, string>) => void;
   focus: (panelId: string) => void;
@@ -66,6 +75,8 @@ export function useOneSession(attention: AttentionCounts | null): OneSession {
     () => ({
       stop: () => dispatch({ type: "stop" }),
       undo: () => dispatch({ type: "undo" }),
+      stepBack: () => dispatch({ type: "stepBack" }),
+      stepForward: () => dispatch({ type: "stepForward" }),
       show: (kind: PanelKind, params?: Record<string, string>) => dispatch({ type: "show", kind, params }),
       focus: (panelId: string) => dispatch({ type: "focus", panelId }),
       close: (panelId: string) => dispatch({ type: "close", panelId }),
@@ -78,5 +89,12 @@ export function useOneSession(attention: AttentionCounts | null): OneSession {
     []
   );
 
-  return { ...state, ...actions, submit, canUndo: state.history.length > 0, epoch };
+  const current = useMemo(() => currentOf(state), [state]);
+  const base = positionOf(state);
+  const position = {
+    ...base,
+    canBack: !state.pending && base.index > 0,
+    canForward: !state.pending && base.index >= 0 && base.index < base.total - 1,
+  };
+  return { ...state, ...actions, submit, canUndo: state.history.length > 0, epoch, current, position };
 }

@@ -52,13 +52,15 @@ export const CHIP_IDS = [
 export type ChipId = (typeof CHIP_IDS)[number];
 export const isChipId = (v: unknown): v is ChipId => (CHIP_IDS as readonly unknown[]).includes(v);
 
-/** The layout directions under judgement in round 1. */
-export const VARIANT_IDS = ["greet", "stage", "brief"] as const;
+/** The layout directions under judgement. `greet` is the round-1 baseline (kept); `split`,
+ *  `spotlight` and `ticker` are the round-2 refinements — they differ only in WHERE the
+ *  current answer lands. */
+export const VARIANT_IDS = ["greet", "split", "spotlight", "ticker"] as const;
 export type VariantId = (typeof VARIANT_IDS)[number];
 export const isVariantId = (v: unknown): v is VariantId => (VARIANT_IDS as readonly unknown[]).includes(v);
-/** `?v=` absent or unknown → greet. */
+/** `?v=` absent or unknown → split (the round-2 lead). */
 export function variantOf(raw: unknown): VariantId {
-  return isVariantId(raw) ? raw : "greet";
+  return isVariantId(raw) ? raw : "split";
 }
 
 /** The closed set of screen operations. `navigate` is a Console deep link: the region
@@ -137,6 +139,7 @@ export const CHANGE_KEYS = [
   "dropped",
   "stopped",
   "pinLimit",
+  "stepped",
 ] as const;
 export type ChangeKey = (typeof CHANGE_KEYS)[number];
 export type ChangeLine = {
@@ -145,6 +148,9 @@ export type ChangeLine = {
   previous?: PanelKind;
   /** The user's hand landed while a reply's change was pending; that change was dropped. */
   droppedPending?: boolean;
+  /** `stepped`: which answer is in view, 1-based, of how many ("Showing answer 2 of 5"). */
+  answer?: number;
+  of?: number;
 };
 
 /** One exchange in the conversation. `input` is the user's own words (or chip), kept

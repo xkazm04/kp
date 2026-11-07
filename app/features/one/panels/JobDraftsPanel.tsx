@@ -3,9 +3,10 @@
 // jobDrafts — GET /api/jobs/status: the roles still sitting as drafts (the cohort the
 // sidebar's jobs badge counts), newest first, each with its Console door on the Jobs tab.
 import { useTranslations } from "next-intl";
-import { ListRow, Mark } from "@/app/_components/kit";
-import { ConsoleLink, EmptyLine, PanelShell } from "./PanelShell";
-import { ROW_LIMIT } from "./PipelineSlicePanel";
+import { ABSENT } from "@/app/_components/kit";
+import { ConsoleLink } from "./PanelShell";
+import { NameCell, PanelFrame } from "./PanelFrame";
+import { rowLimit } from "./cells";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -26,21 +27,32 @@ export function JobDraftsPanel(props: PanelProps) {
   const t = useTranslations("one.core.panels");
   const read = useRead("/api/jobs/status", parseDrafts, props.epoch);
   const drafts = read.state === "ready" ? read.data : null;
-  const shown = drafts ? drafts.slice(0, ROW_LIMIT) : [];
+  const limit = rowLimit(props.look);
   return (
-    <PanelShell props={props} title={t("jobDrafts.title")} count={drafts ? drafts.length : undefined} read={read} console={{ tab: "jobs" }}>
-      {drafts && drafts.length === 0 ? <EmptyLine>{t("jobDrafts.empty")}</EmptyLine> : null}
-      {shown.map((d) => (
-        <ListRow
-          key={d.id}
-          rowKey={d.id}
-          mark={<Mark kind="wait" />}
-          name={d.title}
-          sub={d.company ?? undefined}
-          actions={<ConsoleLink tab="jobs" params={{ job: d.id }} />}
-        />
-      ))}
-      {drafts && drafts.length > shown.length ? <EmptyLine>{t("firstOf", { shown: shown.length, total: drafts.length })}</EmptyLine> : null}
-    </PanelShell>
+    <PanelFrame
+      props={props}
+      data={{
+        title: t("jobDrafts.title"),
+        count: drafts ? drafts.length : null,
+        headline: { figure: drafts ? drafts.length : "", label: t("jobDrafts.title") },
+        console: { tab: "jobs" },
+        read,
+        cols: [
+          { key: "name", label: t("cols.role"), track: "minmax(0,1.4fr)" },
+          { key: "company", label: t("cols.company"), track: "minmax(0,1fr)" },
+        ],
+        actsTrack: "8rem",
+        rows: (drafts ?? []).slice(0, limit).map((d) => ({
+          key: d.id,
+          cells: { name: <NameCell name={d.title} mark="wait" />, company: <span className="block truncate text-steel">{d.company ?? ABSENT}</span> },
+          line: d.title,
+          meta: d.company ?? undefined,
+          mark: "wait" as const,
+          door: <ConsoleLink tab="jobs" params={{ job: d.id }} />,
+        })),
+        empty: t("jobDrafts.empty"),
+        foot: drafts && drafts.length > limit ? t("firstOf", { shown: limit, total: drafts.length }) : undefined,
+      }}
+    />
   );
 }

@@ -9,8 +9,6 @@
 // (+ Ctrl/⌘ K) and the dev-visible layout switcher.
 import { useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
 import { KitSurface } from "@/app/_components/kit";
 import { ConsentCard } from "./consent/ConsentCard";
 import { greeting as composeGreeting } from "./engine/greeting";
@@ -19,18 +17,22 @@ import { consoleHref } from "./panels/PanelShell";
 import { useRead } from "./panels/read";
 import { PANEL_VIEWS, PanelChrome } from "./panels/registry";
 import type { PanelLook } from "./panels/types";
-import { Switcher } from "./Switcher";
+import { OneHeader } from "./OneHeader";
 import type { PanelInstance, ProposalInstance, VariantId } from "./types";
 import { useOneSession } from "./useOneSession";
-import { VARIANTS } from "./variants";
+import { HEADER_SIZE, VARIANTS } from "./variants";
 import type { GreetingState, VariantProps } from "./variantProps";
 import { useOneWords } from "./words";
 import type { AttentionCounts } from "@/app/_lib/attention";
 
 const CONSOLE_HREF = consoleHref("pipeline");
 
+/** KitSurface's three wrappers (kit, stage, sheet) are plain blocks; the frame needs the
+ *  viewport height to flow through them so the body can fill what the header leaves. */
+const KIT_FILL =
+  "min-h-0 flex-1 [&>.k-kit]:h-full [&>.k-kit>.k-stage]:h-full [&>.k-kit>.k-stage]:grid-rows-[minmax(0,1fr)] [&>.k-kit>.k-stage>.k-sheet]:min-h-0 [&>.k-kit>.k-stage>.k-sheet]:flex [&>.k-kit>.k-stage>.k-sheet]:h-full [&>.k-kit>.k-stage>.k-sheet]:flex-col";
+
 export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSwitcher: boolean }) {
-  const t = useTranslations("one.core.meta");
   const router = useRouter();
   const words = useOneWords();
   const attentionRead = useRead("/api/attention", parseAttention, 0);
@@ -57,7 +59,7 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
 
   const { epoch, focusId, focus, close, pin, unpin, propose, show, dismissProposal, bumpEpoch } = session;
   const renderPanel = useCallback(
-    (panel: PanelInstance, opts?: { look?: PanelLook; className?: string }): ReactNode => {
+    (panel: PanelInstance, opts?: { look?: PanelLook; className?: string; onExpand?: () => void }): ReactNode => {
       const View = PANEL_VIEWS[panel.kind];
       return (
         <View
@@ -66,6 +68,7 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
           epoch={epoch}
           look={opts?.look}
           className={opts?.className}
+          onExpand={opts?.onExpand}
           onPropose={propose}
           onShow={show}
           chrome={
@@ -103,25 +106,34 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     submit: session.submit,
     greeting,
     attention,
+    current: session.current,
+    position: session.position,
+    stepBack: session.stepBack,
+    stepForward: session.stepForward,
     renderPanel,
     renderConsent,
     words,
     consoleHref: CONSOLE_HREF,
   };
+  const partial = attentionRead.state === "ready" ? attentionRead.data : null;
   return (
-    <div className="min-h-screen bg-paper text-ink" data-one-variant={variant}>
-      <KitSurface density="calm">
-        <nav className="flex items-center justify-between gap-4 px-4 py-3" aria-label={t("region")}>
-          <span className="font-serif text-h3 text-ink">{t("region")}</span>
-          <div className="flex items-center gap-3">
-            {showSwitcher ? <Switcher current={variant} /> : null}
-            <Link className="k-btn k-btn--secondary k-btn--sm" href={CONSOLE_HREF} data-tip={t("consoleTip")} data-role="one-console">
-              {t("console")}
-            </Link>
+    <div className="flex min-h-dvh flex-col bg-paper text-ink lg:h-dvh lg:overflow-hidden" data-one-variant={variant}>
+      <div className={KIT_FILL}>
+        <KitSurface density="calm">
+          <OneHeader
+            size={HEADER_SIZE[variant]}
+            counts={partial}
+            activeChip={session.current?.asked.chip ?? null}
+            onAsk={(chip) => session.submit({ chip })}
+            variant={variant}
+            showSwitcher={showSwitcher}
+            consoleHref={CONSOLE_HREF}
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto" data-role="one-body">
+            <Variant {...props} />
           </div>
-        </nav>
-        <Variant {...props} />
-      </KitSurface>
+        </KitSurface>
+      </div>
     </div>
   );
 }

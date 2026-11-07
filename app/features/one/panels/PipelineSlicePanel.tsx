@@ -4,37 +4,62 @@
 // (the user's own words, matched against the job title or id), to the stalled (the same
 // aging tier the sidebar badge counts) or to new arrivals (the axis's entry stage).
 // Params: role?, filter? ("aging" | "new").
-import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ListRow, Mark } from "@/app/_components/kit";
-import { ConsoleLink, EmptyLine, PanelShell } from "./PanelShell";
+import { Mark } from "@/app/_components/kit";
+import { ConsoleLink } from "./PanelShell";
+import { CellTag, NameCell, PanelFrame, type Col, type PanelRow } from "./PanelFrame";
+import { rowLimit, useDays } from "./cells";
 import { parsePipeline, sliceEntries, type OneEntry } from "./pipelineRead";
 import { useRead } from "./read";
-import { ScoreFig } from "./ScoreFig";
+import { ScoreBar, ScoreFig } from "./ScoreFig";
 import type { PanelProps } from "./types";
 
 export const ROW_LIMIT = 8;
 
-export function EntryRow({ e, actions, needs = false }: { e: OneEntry; actions?: ReactNode; needs?: boolean }) {
-  return (
-    <ListRow
-      rowKey={e.id}
-      mark={<Mark kind={e.stale ? "caution" : needs ? "needs" : "wait"} />}
-      name={e.label}
-      sub={e.jobTitle ?? undefined}
-      meta={e.stageLabel}
-      fig={<ScoreFig score={e.score} />}
-      state={needs ? ["needs"] : []}
-      actions={actions ?? <ConsoleLink tab="pipeline" params={{ q: e.label }} />}
-    />
-  );
+/** The columns the two pipeline views share (decisionsQueue adds its acts). */
+export function useEntryCols(): Col[] {
+  const t = useTranslations("one.core.panels.cols");
+  return [
+    { key: "name", label: t("candidate"), track: "minmax(0,1.6fr)" },
+    { key: "stage", label: t("stage"), track: "minmax(6rem,1fr)" },
+    { key: "score", label: t("score"), track: "8.5rem", end: true },
+    { key: "age", label: t("inStage"), track: "6rem", end: true },
+  ];
+}
+
+export function useEntryRow(): (e: OneEntry, extra?: Pick<PanelRow, "acts" | "door" | "tone">) => PanelRow {
+  const t = useTranslations("one.core.panels");
+  const days = useDays();
+  return (e, extra) => ({
+    key: e.id,
+    cells: {
+      name: <NameCell name={e.label} sub={e.jobTitle} />,
+      stage: <CellTag>{e.stageLabel}</CellTag>,
+      score: <ScoreBar score={e.score} />,
+      age: (
+        <span className="inline-flex items-center justify-end gap-1.5">
+          {e.stale ? <Mark kind="caution" tip={t("stalled")} /> : null}
+          {days(e.ageDays)}
+        </span>
+      ),
+    },
+    line: e.label,
+    meta: [e.stageLabel, e.jobTitle].filter(Boolean).join(" · "),
+    trail: <ScoreFig score={e.score} />,
+    mark: e.stale ? "caution" : undefined,
+    door: <ConsoleLink tab="pipeline" params={{ q: e.label }} />,
+    ...extra,
+  });
 }
 
 export function PipelineSlicePanel(props: PanelProps) {
   const t = useTranslations("one.core.panels");
   const { params } = props.panel;
   const read = useRead("/api/pipeline", parsePipeline, props.epoch);
+  const cols = useEntryCols();
+  const entryRow = useEntryRow();
   const rows = read.state === "ready" ? sliceEntries(read.data.entries, params) : [];
+  const limit = rowLimit(props.look);
   const title =
     params.filter === "aging" ? t("pipelineSlice.titleAging") : params.filter === "new" ? t("pipelineSlice.titleNew") : t("pipelineSlice.title");
   const empty = params.role
@@ -44,21 +69,22 @@ export function PipelineSlicePanel(props: PanelProps) {
       : params.filter === "new"
         ? t("pipelineSlice.emptyNew")
         : t("pipelineSlice.empty");
-  const shown = rows.slice(0, ROW_LIMIT);
   return (
-    <PanelShell
+    <PanelFrame
       props={props}
-      title={title}
-      count={read.state === "ready" ? rows.length : undefined}
-      state={params.role ? t("pipelineSlice.forRole", { role: params.role }) : undefined}
-      read={read}
-      console={{ tab: "pipeline", params: params.role ? { role: params.role } : {} }}
-    >
-      {read.state === "ready" && rows.length === 0 ? <EmptyLine>{empty}</EmptyLine> : null}
-      {shown.map((e) => (
-        <EntryRow key={e.id} e={e} />
-      ))}
-      {rows.length > shown.length ? <EmptyLine>{t("firstOf", { shown: shown.length, total: rows.length })}</EmptyLine> : null}
-    </PanelShell>
+      data={{
+        title,
+        count: rows.length,
+        state: params.role ? t("pipelineSlice.forRole", { role: params.role }) : undefined,
+        headline: { figure: rows.length, label: title },
+        console: { tab: "pipeline", params: params.role ? { role: params.role } : {} },
+        read,
+        cols,
+        actsTrack: "8rem",
+        rows: rows.slice(0, limit).map((e) => entryRow(e)),
+        empty,
+        foot: rows.length > limit ? t("firstOf", { shown: limit, total: rows.length }) : undefined,
+      }}
+    />
   );
 }

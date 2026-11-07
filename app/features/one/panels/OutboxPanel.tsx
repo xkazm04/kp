@@ -5,11 +5,11 @@
 // When no relay is configured the panel says, before any row, that nothing reaches
 // candidates — a calm "queued" badge would be a green lie.
 import { useTranslations } from "next-intl";
-import { ListRow, Mark, Note, type MarkKind } from "@/app/_components/kit";
+import { Mark, Note, type MarkKind } from "@/app/_components/kit";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { commsVerdict, type CommsVerdict } from "@/app/_lib/comms-view";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
-import { EmptyLine, PanelShell } from "./PanelShell";
+import { NameCell, PanelFrame } from "./PanelFrame";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -61,22 +61,40 @@ export function OutboxPanel(props: PanelProps) {
   const read = useRead(OUTBOX_URL, parseOutbox, props.epoch);
   const data = read.state === "ready" ? read.data : null;
   return (
-    <PanelShell props={props} title={t("outbox.title")} read={read} console={{ tab: "channels" }}>
-      {data?.relayConfigured === false ? <Note tone="caution">{t("outbox.relayOff")}</Note> : null}
-      {data && data.messages.length === 0 ? <EmptyLine>{t("outbox.empty")}</EmptyLine> : null}
-      {data
-        ? data.messages.map((m) => (
-            <ListRow
-              key={m.id}
-              rowKey={m.id}
-              mark={<Mark kind={MARK_OF[m.verdict]} tip={t(`outbox.verdict.${m.verdict}`)} />}
-              name={m.who ?? t("notReturned")}
-              sub={m.subject ?? undefined}
-              meta={t(`outbox.verdict.${m.verdict}`)}
-              time={fmt.dayTime(m.at)}
-            />
-          ))
-        : null}
-    </PanelShell>
+    <PanelFrame
+      props={props}
+      data={{
+        title: t("outbox.title"),
+        count: data ? data.messages.length : null,
+        headline: { figure: data ? data.messages.length : "", label: t("outbox.title") },
+        console: { tab: "channels" },
+        read,
+        cols: [
+          { key: "name", label: t("cols.candidate"), track: "minmax(0,1.6fr)" },
+          { key: "status", label: t("cols.status"), track: "9rem" },
+          { key: "at", label: t("cols.sent"), track: "10rem", end: true },
+        ],
+        actsTrack: "0",
+        note: data?.relayConfigured === false ? <Note tone="caution">{t("outbox.relayOff")}</Note> : null,
+        rows: (data?.messages ?? []).map((m) => ({
+          key: m.id,
+          cells: {
+            name: <NameCell name={m.who ?? t("notReturned")} sub={m.subject ?? undefined} />,
+            status: (
+              <span className="flex items-center gap-2">
+                <Mark kind={MARK_OF[m.verdict]} tip={t(`outbox.verdict.${m.verdict}`)} />
+                {t(`outbox.verdict.${m.verdict}`)}
+              </span>
+            ),
+            at: <span className="text-steel">{fmt.dayTime(m.at)}</span>,
+          },
+          line: m.who ?? t("notReturned"),
+          meta: [t(`outbox.verdict.${m.verdict}`), m.subject].filter(Boolean).join(" · "),
+          trail: fmt.dayTime(m.at),
+          mark: MARK_OF[m.verdict],
+        })),
+        empty: t("outbox.empty"),
+      }}
+    />
   );
 }
