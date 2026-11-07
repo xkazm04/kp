@@ -6400,13 +6400,12 @@
           "revision": 3,
           "changedAt": "2026-10-31",
           "confidence": "probable",
-          "state": "deviation",
-          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period labels omit an explicit timezone and can display different calendar dates for the same enforced boundary in different environments.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 2,
-          "stale": true
+          "state": "conformant",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:56 Every boundary label on the card, the meter row and the spend panel is drawn from the server-derived boundary through one declared zone (boundaryDateOptions → BOUNDARY_ZONE='UTC'). The earlier verdict's zoneless paid-period label is gone, and one instant can no longer read as two different days.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ec7859c7a542ef72",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 2
         },
         {
           "subject": "usage-aggregation-semantics",
@@ -6551,12 +6550,11 @@
           "changedAt": "2026-10-31",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/billing/plans.ts:194 Allowance recurrence uses the provider's rolling current-period start as its anchor, so a clamped renewal can shift subsequent locally derived allowance boundaries.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/_lib/billing/plans.ts:194 The allowance recurrence uses billing_state.current_period_start as its anchor. The webhook writer overwrites that value on every renewal (sync.ts:82), and the window end is re-advanced locally (plans.ts:201) instead of read from the provider's currentPeriodEnd. So the 'anchor' is the previous boundary, not durable contract data, and a clamped renewal (31st→28 Feb) can either lose the original day or open an extra allowance key before the provider's next period starts.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ec7859c7a542ef72",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 2
         },
         {
           "subject": "agent-cli-transport",
