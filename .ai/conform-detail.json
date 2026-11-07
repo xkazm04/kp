@@ -15663,81 +15663,121 @@
       "subject": "demo-data-plane",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T07:31:02.439Z",
-      "worker": "8892f3ee-4a38-409c-a205-f5df61328a61",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:38:26.421Z",
+      "worker": "7dc0b9ae-6d8f-40c2-8466-e0613642119b",
       "techniques": [
         {
           "technique": "runtime-dispatch-not-build-flag",
           "verdict": "deviation",
-          "evidence": "app/api/demo/route.ts:47 The demo route checks environment configuration rather than dispatching to a fake data plane per call from session state, refusing demo access on gated deployments."
-        },
-        {
-          "technique": "one-interface-many-planes",
-          "verdict": "deviation",
-          "evidence": "app/api/demo/route.ts:54 Instead of routing queries through a client interface implemented by a fake plane, demo entry redirects to an auto-starting simulation that drives real server routes."
-        },
-        {
-          "technique": "fake-surface-honesty-contract",
-          "verdict": "conformant",
-          "evidence": "app/api/profile/candidates/route.ts:18 Profiles without analysis render an honest null em-dash badge conforming to the honesty contract ban on fabricated scores."
+          "evidence": "app/api/demo/route.ts:47 Demo availability is decided by deployment config (KP_SECRET present => refuse), not by session state; the landing advertises 'Try the live demo' publicly, so the gated-internal-only exemption does not apply. The refusal itself is honest (named code, no cookie minted, tested in demo-door.test.ts), which satisfies the entry route's visible-failure-path clause."
         },
         {
           "technique": "network-faithful-mocks",
           "verdict": "not-applicable",
-          "evidence": "app/api/demo/route.ts:43 The route handler provides a server HTTP endpoint with rate limiting rather than a client-side mock plane simulating network latency or error injection."
+          "evidence": "app/api/demo/route.ts:54 There is no mock plane: the demo is the real simulation running against the real routes, so latency, failures and validation are the live ones."
+        },
+        {
+          "technique": "one-interface-many-planes",
+          "verdict": "deviation",
+          "evidence": "app/api/demo/route.ts:54 Instead of routing queries through a client interface implemented by a fake plane, demo entry redirects to an auto-starting simulation that drives real server routes.",
+          "carriedFrom": "2026-10-19"
+        },
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "conformant",
+          "evidence": "app/api/profile/candidates/route.ts:18 Profiles without analysis render an honest null em-dash badge conforming to the honesty contract ban on fabricated scores.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "seeded-determinism",
           "verdict": "not-applicable",
-          "evidence": "app/api/demo/demo-door.test.ts:32 These workspace config API route handlers return stored database state or redirects without generating variation from a seeded pseudo-random stream."
+          "evidence": "app/api/demo/demo-door.test.ts:32 These workspace config API route handlers return stored database state or redirects without generating variation from a seeded pseudo-random stream.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "fixture-self-consistency",
           "verdict": "not-applicable",
-          "evidence": "app/api/me/getting-started/route.ts:20 The route checks caller workspace authorization and does not declare or project demo fixture entity graphs."
+          "evidence": "app/api/me/getting-started/route.ts:20 The route checks caller workspace authorization and does not declare or project demo fixture entity graphs.",
+          "carriedFrom": "2026-10-19"
         }
       ],
-      "registryProposal": "The standard assumes a client-side architecture where a fake API client plane is dispatched in the browser; it should explicitly address full-stack architectures where database bootstrap, multi-tenant workspace isolation, and server-side route handlers are used instead of client interface mocks."
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/api/demo/route.ts:47 The demo route gates demo availability on the server's KP_SECRET environment variable instead of dispatching to an in-artifact fake data plane at runtime, refusing gated deployments.",
+          "evaluatedAt": "2026-10-19T07:31:02.439Z",
+          "worker": "8892f3ee-4a38-409c-a205-f5df61328a61",
+          "reason": "replaced by 7dc0b9ae-6d8f-40c2-8466-e0613642119b"
+        }
+      ]
     },
     "ee64b398-8e4c-40aa-a4af-8ff922026ef2/demo-data-plane": {
       "context": "db-core-migrations",
       "subject": "demo-data-plane",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T07:31:02.439Z",
-      "worker": "8892f3ee-4a38-409c-a205-f5df61328a61",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:38:26.421Z",
+      "worker": "7dc0b9ae-6d8f-40c2-8466-e0613642119b",
       "techniques": [
         {
-          "technique": "runtime-dispatch-not-build-flag",
+          "technique": "mixed-plane-coexistence",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/seed-gate.ts:11 Fixture seeding is gated at database initialization by the KP_EMPTY environment variable instead of dispatching to a fake data plane per call from live session state."
-        },
-        {
-          "technique": "fake-surface-honesty-contract",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/core.ts:2834 By default when KP_EMPTY is unset, demo data is automatically seeded and the tenant is marked onboarded in persistent storage, violating the rule that demo mode must never be auto-entered or persisted across sessions."
-        },
-        {
-          "technique": "one-interface-many-planes",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/core.ts:2821 No declared client interface exists with distinct implementations for live and fake planes; fixture rows are written directly into shared application tables."
+          "evidence": "app/_lib/db/core.ts:3894 The seeded row carries no demo marker, and no seeded-id predicate in the data source excludes demo rows from counts. Searching app/_lib/db for is_demo/isSeeded/seeded found none. Only analyses.engine distinguishes deterministic rows, and only jobs keep seeded corpus rows at workspace_id NULL."
         },
         {
           "technique": "seeded-determinism",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/core.ts:3333 Job seeding captures the ambient current time new Date().toISOString() as created_at instead of deriving all timestamps from a fixed reference instant or seeded sequence."
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:3903 Variation comes from a deterministic index formula over committed seed JSON, with no Math.random, so every install gets the same spread."
         },
         {
-          "technique": "fixture-self-consistency",
-          "verdict": "deviation",
-          "evidence": "app/_lib/db/seed-benchmark-team.ts:39 The benchmark team and its 24 funnel entries are independently declared and inserted rather than projected from a unified root roster."
+          "technique": "replay-clock-pinning",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3890 Fixtures are inserted directly with entry-relative ages, not replayed through ingestion; the technique's when-not case."
+        },
+        {
+          "technique": "cross-plane-parity-test",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3893 The demo seeds the same store the live screens read, so there is no derivation between planes to test (the technique's when-not case)."
+        },
+        {
+          "technique": "one-interface-many-planes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3049 There is one data source: demo data is rows written through the same connection, not a second client implementation."
         },
         {
           "technique": "network-faithful-mocks",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/db/core.ts:2822 The database boot sequence executes direct synchronous better-sqlite3 calls and does not implement a network client mock or simulated network latency."
+          "evidence": "app/_lib/db/core.ts:3107 Seeded rows are served by the real data layer, so there is no mock to give latency, copies or failures."
+        },
+        {
+          "technique": "runtime-dispatch-not-build-flag",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-gate.ts:11 Fixture seeding is gated at database initialization by the KP_EMPTY environment variable instead of dispatching to a fake data plane per call from live session state.",
+          "carriedFrom": "2026-10-19"
+        },
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/core.ts:2834 By default when KP_EMPTY is unset, demo data is automatically seeded and the tenant is marked onboarded in persistent storage, violating the rule that demo mode must never be auto-entered or persisted across sessions.",
+          "carriedFrom": "2026-10-19"
+        },
+        {
+          "technique": "fixture-self-consistency",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-benchmark-team.ts:39 The benchmark team and its 24 funnel entries are independently declared and inserted rather than projected from a unified root roster.",
+          "carriedFrom": "2026-10-19"
+        }
+      ],
+      "registryProposal": "The golden path assumes a separate fake plane. A product that seeds demo rows into its real store through the write path (embedded-DB, self-hosted) gets most of its guidance from mixed-plane-coexistence, while runtime-dispatch and one-interface do not fit. A short paragraph on the 'seeded-store demo' shape, saying which clauses survive (row marker, source-owned predicate, explicit seed act) and which drop, would stop seats from flagging boot-time env seeding as a dispatch deviation.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:2821 The database boot sequence seeds fixture content directly into persistent SQLite tables gated by an environment variable rather than resolving an isolated fake data plane per call from session state.",
+          "evaluatedAt": "2026-10-19T07:31:02.439Z",
+          "worker": "8892f3ee-4a38-409c-a205-f5df61328a61",
+          "reason": "replaced by 7dc0b9ae-6d8f-40c2-8466-e0613642119b"
         }
       ]
     },

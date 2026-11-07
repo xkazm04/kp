@@ -11084,12 +11084,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/db/core.ts:2821 The database boot sequence seeds fixture content directly into persistent SQLite tables gated by an environment variable rather than resolving an isolated fake data plane per call from session state.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/db/core.ts:3894 Demo pipeline rows are written into the live pipeline_entries table of the default workspace with no provenance column or source-owned seeded predicate, so once a person adds real work they sit beside the demo rows and every count and attention signal mixes the two planes indistinguishably.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5,
+          "revisionsBehind": 1
         },
         {
           "subject": "data-access",
@@ -36333,12 +36332,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/api/demo/route.ts:47 The demo route gates demo availability on the server's KP_SECRET environment variable instead of dispatching to an in-artifact fake data plane at runtime, refusing gated deployments.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/api/demo/route.ts:47 The public demo door decides whether a visitor gets the demo or a refusal from a deployment environment variable rather than from a per-session plane choice, which the runtime-dispatch technique names as a build flag wearing a costume; on an open deploy the 'demo' is the real product writing into the real store.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5,
+          "revisionsBehind": 1
         },
         {
           "subject": "settings",
