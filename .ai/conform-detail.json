@@ -26552,6 +26552,36 @@
           "evidence": "app/_lib/screen-wave.ts:160 Same line as above. The set where an automated screen may act should be screeningStageIds(axis) (entry/screening roles intersected with the gate), not a named column."
         }
       ]
+    },
+    "74171ef0-a76e-499a-8dbc-5f0af5bebeb6/supply-chain": {
+      "context": "shared-client-hooks",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:56:04.956Z",
+      "worker": "2a352679-0b18-4913-8137-1d93bbf9273a",
+      "techniques": []
+    },
+    "e52eec3f-4cbb-4b6e-a212-e71e0a679584/supply-chain": {
+      "context": "architecture-diagrams-explorer",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:56:04.956Z",
+      "worker": "2a352679-0b18-4913-8137-1d93bbf9273a",
+      "techniques": []
+    },
+    "d02d8b99-5d84-4f2e-897c-8dbed84aab91/supply-chain": {
+      "context": "jobseeker-core",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:56:04.956Z",
+      "worker": "2a352679-0b18-4913-8137-1d93bbf9273a",
+      "techniques": []
     }
   }
 }

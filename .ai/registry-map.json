@@ -5275,7 +5275,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/diagrams/readDiagramSource.ts:21 The page reads only committed docs/diagrams/*.puml sources from the app's own tree and renders them in-process. No third-party or downloaded content crosses in, and nothing is unpacked or executed. A ripgrep over app/diagrams found 0 hits for pickle, unzip, extractall and lockfile. 'spawn' occurs only as label text inside diagram sources.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "client-fetch-cache",
@@ -21699,7 +21703,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/jobseeker/python-cli.ts:40 The only execution is the repo's own pipeline.jobfit modules. Fetched postings move as JSON data, which falls under web-scraping and prompt-safety rather than supply-chain. A ripgrep over app/_lib/jobseeker found 0 hits for pickle, unzip, extractall and lockfile.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
@@ -30944,7 +30952,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/useJsonFetch.ts:75 These are client React hooks that fetch the app's own API routes and format values. They unpack no archives, deserialize no foreign object graphs, run no foreign content, and own no dependency manifest or permission grant. A ripgrep over app/_lib found 0 hits for pickle, unzip, extractall and lockfile.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "client-fetch-cache",
