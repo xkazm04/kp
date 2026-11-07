@@ -2193,27 +2193,32 @@
       "context": "voice-interview-session",
       "subject": "voice-io",
       "bundle": "software-engineering",
-      "state": "conformant",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:00:44.926Z",
       "techniques": [
         {
           "technique": "decode-time-vocabulary-biasing",
           "verdict": "deviation",
-          "evidence": "app/_lib/voice/asr-keywords.mjs:25 buildAsrKeywords puts job terms first, then fills remaining slots from BASE_ASR_KEYWORDS for any screen. That is a conversation-wide catalog, not a list limited to measured misses for this turn."
+          "evidence": "app/_lib/voice/asr-keywords.mjs:31 The per-job terms come first, which is good scoping, but the static floor fills every slot that is left over for the whole conversation. Its own comment calls it the 'terms most likely to be spoken in ANY screen'. It is not limited to measured misses, and nothing reports both the recognition rate and the false-positive rate."
         },
         {
           "technique": "duplex-agent-sessions",
           "verdict": "conformant",
-          "evidence": "app/_lib/voice/candidate-brief.ts:18 The candidate-sent brief is built by an allow-list, and candidateSafeTopic strips bracketed assessment asides. interviewFinalStatus and unmountBeaconStatus compute completed versus failed from turns and ending, not from the socket close. The live-config drift diff is not in this file list."
+          "evidence": "app/_lib/voice/candidate-brief.ts:12 The client-sent ElevenLabs prompt is a brief derived from the internal one through an allow-list. finalize-status.ts:93 also computes the end-of-call verdict from what happened (reachedLive, candidate turns, errors), not from the close event."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/types.ts:101 There is one adapter interface for the realtime providers, with requiredEnv as the single source for available() and for the not-configured message. Provider ids come from one literal array."
         },
         {
           "technique": "transcript-normalization",
-          "verdict": "conformant",
-          "evidence": "app/_lib/voice/discarded-turns.ts:29 Duplicate detection compares stored turn text exactly, so the transcript kept as the record is not rewritten first."
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/discarded-turns.ts:29 The interview transcript is evidence (it is scored and compared verbatim), which is the technique's own 'transcript is evidence' exclusion. No cleanup pass applies."
         }
       ],
-      "registryProposal": "decode-time-vocabulary-biasing scopes bias to one turn's visible choices. A voice interview's known words are the job's terms for the whole call. The technique should say whether a per-conversation list is in bounds or is the session-wide failure.",
+      "registryProposal": "decode-time-vocabulary-biasing assumes the bias can be scoped per turn. Hosted duplex agents (ElevenLabs overrides.asr.keywords) accept a keyword list only once per conversation, with a vendor cap of 50. The technique could name the duplex case: per-conversation scope as the floor, with the account-wide filler list as the specific failure.",
       "superseded": [
         {
           "state": "conformant",
@@ -2224,10 +2229,10 @@
         }
       ],
       "withdrawn": {
-        "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+        "worker": "3562ace4-1773-4698-83b1-ec87a29b03d9",
         "state": "deviation",
-        "at": "2026-10-13T02:22:28.254029+00:00",
-        "reason": "reviewer (sonnet): The deviation anchor asr-keywords.mjs is not among this context's listed files, and none of them import it (a grep of app/_lib/voice found only its own test, the d.mts and the eleven-agent-diff scripts), so the verdict is about code outside this context."
+        "at": "2026-11-07T01:02:45.938024+00:00",
+        "reason": "reviewer (sonnet): The deviation rests on app/_lib/voice/asr-keywords.mjs, which is not one of this context's files, and the comment there names two measured confusions (React→Rust and PostgreSQL→'później SQL'), not the single one the evidence says; the other technique anchors (candidate-brief, types, discarded-turns)"
       }
     },
     "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/voice-io": {
@@ -25397,6 +25402,72 @@
       "evaluatedTs": "2026-11-07T00:39:52.794Z",
       "worker": "401036a2-5a93-4da2-85c8-80ef3d455e21",
       "techniques": []
+    },
+    "7ebeb4f1-a99e-45de-ae21-d45f788ae12e/voice-io": {
+      "context": "studio-dialog-kit",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:00:44.926Z",
+      "worker": "3562ace4-1773-4698-83b1-ec87a29b03d9",
+      "techniques": [
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/StudioVoiceBar.tsx:118 There is a continuously visible level meter while listening, painted only when the level is really measured, so a flat bar never gives a false diagnosis. The capture is toggled explicitly, and mic errors render from their code."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:127 'Stop means now' extends to a session switch. Synthesis is aborted and the element released through the voice-tts package, and the surface only uses speak, stop and resume."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:102 There is one door before the engine, so markdown is not voiced. An empty result means there is nothing to say."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioDictation.ts:76 The surface talks to the host route and never names an engine."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:4 Both hooks are thin wrappers over the portable packages/voice-tts and packages/voice-stt. Only surface policy lives in the kit."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:77 Auto-speak is OFF by default, primed on mount and silent in a hidden tab. A missing capability is drawn as a struck glyph with its reason (StudioVoiceBar.tsx:103)."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:100 Only the join point is touched. The destination is an editable draft that a model reads, which is the technique's 'destination is a model' exclusion, so no rewrite pass belongs here."
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:85 The transcript never crosses into a typed command; it is free text that the user edits."
+        },
+        {
+          "technique": "bounded-playback-wait",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:107 The speak call is fire-and-forget, so nothing waits on playback."
+        },
+        {
+          "technique": "transcript-handoff-receipts",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/StudioVoiceBar.tsx:49 The destination is the product's own text field, which is the technique's first exclusion. No clipboard is involved."
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/StudioComposer.tsx:29 The kit is turn-based. A full-call relay arrives as a consumer slot, so no duplex session is hosted here."
+        }
+      ]
     }
   }
 }

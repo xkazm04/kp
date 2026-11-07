@@ -33039,7 +33039,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_components/studio/StudioVoiceBar.tsx:118 The kit wires the two pipelines independently: dictation has a live meter and appends to an editable draft without sending, and read-aloud has a one-door normalizer, opt-in auto-speak and stop-on-switch. Each degrades on its own sticky unavailable latch, which matches the golden path's two-pipeline, degrade-never-block shape.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "prompt-assembly",
@@ -35240,12 +35244,9 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
-          "evaluatedAt": "2026-09-22",
           "source": "conform",
           "adoptedFrom": "5e8c1a9d-62a1-4673-a0eb-2c27ecefc5f7",
-          "stale": true
+          "state": "unknown"
         },
         {
           "subject": "voice-interview-fidelity",
