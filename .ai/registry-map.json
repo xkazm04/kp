@@ -4611,7 +4611,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeWorkspace.tsx:15 This is recruiter-facing React UI for CV-analysis intake and history, and its comments point only at design docs; a case-insensitive search of app/features/tools/analyze for AGENTS.md, CLAUDE.md, cursorrules, copilot-instructions and GEMINI.md found nothing, so the subject's precondition (a repo-owned instruction file) does not hold.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
@@ -5473,7 +5477,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/diagrams/pipelineSteps.test.ts:1 These are CI contract tests that check diagram and drawer paths against the code; a case-insensitive search of app/diagrams for AGENTS.md, CLAUDE.md, cursorrules, copilot-instructions and GEMINI.md found nothing, so no agent instruction file is written or loaded here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
@@ -6012,7 +6020,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:3 This is HMAC session and RBAC runtime code; a case-insensitive search of app/_lib/auth for AGENTS.md, CLAUDE.md, cursorrules, copilot-instructions and GEMINI.md found nothing, so it neither writes nor references an agent instruction file.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         }
       ],
       "governance": "governed"
@@ -11554,7 +11566,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/users.ts:5 This is a better-sqlite3 repository layer for orgs, users and channels that writes no instruction file; a search of app/_lib/db found no AGENTS.md, cursorrules, copilot-instructions or GEMINI.md, but sibling files outside this context (billing.ts:96, jobs.ts:198, tasks.ts:356, interview-kits.ts:86, two tests) cite `.claude/CLAUDE.md` sections in comments, which reads the instruction file rather than writing it, so CLAUDE.md is deliberately left out of the absence terms.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "agent-cli-transport",

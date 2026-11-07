@@ -25971,6 +25971,46 @@
           "evidence": "app/_components/results/ReportActions.tsx:36 The clipboard carries a report link, not a cell range."
         }
       ]
+    },
+    "db36ad73-4dd2-43c2-9664-7eda9663b1ab/agent-instruction-files": {
+      "context": "architecture-diagrams-tests",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:38:05.855Z",
+      "worker": "3cfebc1f-645b-4f7a-9434-d08b88c8961a",
+      "techniques": []
+    },
+    "8f7cc39a-49a1-4d6a-954d-3da22c4e8290/agent-instruction-files": {
+      "context": "analyze-workspace",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:38:05.855Z",
+      "worker": "3cfebc1f-645b-4f7a-9434-d08b88c8961a",
+      "techniques": []
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/agent-instruction-files": {
+      "context": "auth-session-rbac",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:38:05.855Z",
+      "worker": "3cfebc1f-645b-4f7a-9434-d08b88c8961a",
+      "techniques": []
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/agent-instruction-files": {
+      "context": "db-org-users-channels",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:38:05.855Z",
+      "worker": "3cfebc1f-645b-4f7a-9434-d08b88c8961a",
+      "techniques": []
     }
   }
 }
