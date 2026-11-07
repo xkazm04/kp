@@ -21153,12 +21153,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/library/jobs/useJobsList.ts:161 The client calls only same-origin /api routes on its session cookie and holds no dependency credential. A grep of app/features/library/jobs for NEXT_PUBLIC, process.env, apiKey/api_key and Authorization found nothing, so there is no credential-boundary decision in this context.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/library/jobs/useJobsList.ts:161 The jobs table only calls the same-origin /api/jobs route on the session cookie and holds no dependency credential; a case-insensitive search of app/features/library/jobs for NEXT_PUBLIC, Authorization, apiKey and createClient found no hits, so this context makes no credential-boundary decision.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -30349,8 +30348,12 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "deviation",
+          "priorNotApplicable": 2,
+          "evidence": "scripts/onboard-ui/server.mjs:236 The wizard server acts with the person's ambient Claude CLI login and writes .env.local. It binds to 127.0.0.1, but its request handler never checks the Host, forwarded-host, Origin or forwarded-for headers before routing, so the only gate is the per-run token. The technique requires that header gate in addition to the bind and treats neither as optional.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "native-shell-integration",
@@ -30642,8 +30645,12 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "conformant",
+          "priorNotApplicable": 2,
+          "evidence": "app/_lib/api-response.ts:74 The shared response helper answers a failure with a closed code and a generic message, and keeps the raw error in the server log. The env split, the scheme allowlist and the IP-literal refusal for server-fetched endpoints all live in this context too.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "concurrency-guards",
@@ -33148,12 +33155,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/_components/table/TablePager.tsx:21 Searches found no NEXT_PUBLIC_, Authorization, createClient, or apiKey occurrences in the table directory, whose primitives manipulate supplied rows and UI state without implementing a credential boundary.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/table/TablePager.tsx:17 The table primitives page, sort and filter rows the caller already holds and make no fetch; a case-insensitive search of app/_components/table for NEXT_PUBLIC, Authorization, apiKey and createClient found nothing, so no credential crosses this layer.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-memory",
