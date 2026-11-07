@@ -6302,13 +6302,12 @@
           "revision": 8,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:21 The billing settings tab replaces the plan catalog and upgrade controls with an unmetered status panel when self-hosted, ensuring copy and interface actions respect deployment mode.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "deviation",
+          "evidence": "app/features/settings/billing/billingTypes.ts:84 The billing tab keeps its own hand-copied set of subscription statuses (commented as a MIRROR of the server set in entitlements.ts) to decide checkout vs portal, and billingTypes.test.ts pins it only against status strings typed into the test, never against the server set, so a status added on the server silently forks the client's billing policy.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         },
         {
           "subject": "settings",
@@ -6513,7 +6512,11 @@
           "revision": 8,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/billing/entitlements.ts:266 The gate answer is a boolean plus one reason: meterGate returns null or a verdict with a single code. So 'not included' (a 0 limit, such as Free's interview_minutes), 'allowance exhausted' and 'balance empty' all come back as the same refusal, and the upgrade prompt cannot tell them apart.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "subscription-billing-periods",
@@ -14156,7 +14159,11 @@
           "revision": 8,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/api/devcase/lifecycle/route.ts:67 New case-design work is write-gated server-side through the shared meterGate door, after the permission check (requireOperator plus pipeline:write) and separate from it, while listing existing lifecycles stays ungated.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "hitl-approval",
@@ -22447,12 +22454,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/features/jobseeker/SourceCard.tsx:19 Here 'tier' means a job source's rights class (A/B/C), not a paid plan. A grep of app/features/jobseeker found no meterGate, entitledPlan, PLANS, upgrade or entitle, and no jobseeker API route calls the meter gates, so this context has no plan entitlements.",
-          "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/jobseeker/SourcesPage.tsx:19 Here 'tier' is a job source's acquisition-rights class (ADR 0009), not a paid plan. A search of app/features/jobseeker for meterGate, entitledPlan, meterAllowance, PLANS, QUOTA_CODE, isSelfServePlan, upgrade and entitlement found 0 hits, and no app/api/jobseeker route appears among the meterGate/meterAllows/jobPostGate callers, so this context has no plan entitlements.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         },
         {
           "subject": "translation-pipeline-topology",
@@ -32733,7 +32739,11 @@
           "revision": 8,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/landing/spark/PricingSection.test.ts:95 The public pricing band's tiers, prices and allowance bullets are hand-written copy in four locale catalogs, but this test reads PLANS and fails on any mismatch, so the landing page's tier list and figures cannot drift from what the gates enforce.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "compensation-banding-and-market-honesty",
