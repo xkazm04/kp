@@ -15692,12 +15692,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_components/Tooltip.tsx:98 Tooltip places the description relationship on a wrapper span, so its text does not become the focused child control's accessible description.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/Tooltip.tsx:98 The tooltip wires aria-describedby onto a wrapper span rather than the focused child control, so the description never reaches the control. IconAction's hint is only delivered through this tooltip, so it is lost to screen-reader users everywhere IconAction is used.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         },
         {
           "subject": "concurrency-guards",
@@ -31375,12 +31374,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The rail declares a vertical tablist while leaving every tab independently tabbable and providing no arrow-key navigation.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The rail declares a vertical tablist, but every rail button stays independently tabbable and no arrow, Home or End handler exists anywhere in app/features/shell/nav (grep found none), so the composite promises tab-strip keys it does not deliver.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
@@ -33218,15 +33216,14 @@
           "source": "conform",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/_components/table/FilterMenu.tsx:59 The active option follows an array position, so refreshing or reordering options while the popup remains open can silently change the keyboard selection.",
+          "evidence": "app/_components/table/FilterMenu.tsx:50 The listbox's active descendant is kept as an array index. If the options prop refreshes or reorders while the popup is open, the remembered position silently points at a different option and Enter picks it.",
           "digest": "sha256-b2:d839f62eac6007da",
           "revision": 8,
           "changedAt": "2026-10-25",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:d839f62eac6007da",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
