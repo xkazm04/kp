@@ -8,6 +8,8 @@ import { stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 export type OneEntry = {
   id: string;
+  /** The candidate's own id (null for a legacy row) — the profile tool's seed fallback. */
+  candidateId: string | null;
   label: string;
   jobId: string | null;
   jobTitle: string | null;
@@ -21,6 +23,10 @@ export type OneEntry = {
   stale: boolean;
   isNew: boolean;
   needsDecision: boolean;
+  /** The approval gate the entry stands on (null = none). */
+  approvalKind: string | null;
+  /** On the `calendar` gate: waiting for an interview slot (useScheduleTab's rule). */
+  waitingInterview: boolean;
 };
 
 export type PipelineRead = { entries: OneEntry[] };
@@ -46,6 +52,7 @@ export function parsePipeline(body: unknown, now: number = Date.now()): Pipeline
     const stageChangedAt = str(e.stageChangedAt);
     entries.push({
       id,
+      candidateId: str(e.candidateId),
       label: str(e.candidateLabel) ?? id,
       jobId: str(e.jobId),
       jobTitle: str(e.jobTitle),
@@ -57,9 +64,22 @@ export function parsePipeline(body: unknown, now: number = Date.now()): Pipeline
       stale: agingTierAt(stage, stageChangedAt, now, axis) !== "none",
       isNew: stageHasRole(stage, "entry", axis),
       needsDecision: needsHumanDecision(str(e.approvalKind)),
+      approvalKind: str(e.approvalKind),
+      waitingInterview: e.approvalKind === "calendar",
     });
   }
   return { entries };
+}
+
+/** Oldest known time first; an unknown time sorts LAST. (A "~" sentinel with localeCompare
+ *  does not do this: locale collation puts punctuation before digits, so the unknowns came
+ *  first and "waiting longest" named someone with no recorded date.) */
+export function byKnownTimeFirst(a: string | null, b: string | null): number {
+  const ta = a ? Date.parse(a) : NaN;
+  const tb = b ? Date.parse(b) : NaN;
+  if (Number.isNaN(ta)) return Number.isNaN(tb) ? 0 : 1;
+  if (Number.isNaN(tb)) return -1;
+  return ta - tb;
 }
 
 /** Does an entry belong to the role the user named, in their own words? */
@@ -69,15 +89,24 @@ export function matchesRole(e: OneEntry, role: string | undefined): boolean {
   return e.jobId === role || (e.jobTitle ?? "").toLowerCase().includes(q);
 }
 
+/** Does an entry's label hold the name the user typed ("open Jana")? Case- and
+ *  accent-insensitive, every word of the query must appear. */
+export function matchesName(e: Pick<OneEntry, "label">, name: string | undefined): boolean {
+  if (!name) return true;
+  const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const label = fold(e.label);
+  return fold(name).split(/\s+/).filter(Boolean).every((w) => label.includes(w));
+}
+
 /** The pipelineSlice selection, as the panel draws it: filter, then order. */
 export function sliceEntries(entries: readonly OneEntry[], params: Record<string, string>): OneEntry[] {
   const filter = params.filter;
   const picked = entries.filter(
-    (e) => matchesRole(e, params.role) && (filter === "aging" ? e.stale : filter === "new" ? e.isNew : true)
+    (e) => matchesRole(e, params.role) && matchesName(e, params.name) && (filter === "aging" ? e.stale : filter === "new" ? e.isNew : true)
   );
   if (filter === "aging") {
     // Longest-waiting first; an unknown change time sorts last rather than first.
-    return picked.sort((a, b) => (a.stageChangedAt ?? "~").localeCompare(b.stageChangedAt ?? "~"));
+    return picked.sort((a, b) => byKnownTimeFirst(a.stageChangedAt, b.stageChangedAt));
   }
   return picked.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 }

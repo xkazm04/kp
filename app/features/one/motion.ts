@@ -23,13 +23,13 @@ import type { VariantId } from "./types";
 
 export type MotionFlavor = "calm" | "spring" | "snap";
 
-/** The flavor each direction moves in. A finish may provide its own `OneMotion` value
- *  around its layout; the header follows the shell's (this map). */
+/** The flavor each direction moves in. Round 4: every layout wears the dense finish, so
+ *  every one moves in `snap` (calm and spring stay as presets, unused for now). */
 export const FLAVOR_OF: Record<VariantId, MotionFlavor> = {
-  split: "calm",
-  refined: "calm",
-  spark: "spring",
   dense: "snap",
+  workbench: "snap",
+  sheets: "snap",
+  cards: "snap",
 };
 
 export const ROW_STAGGER_MAX = 8;

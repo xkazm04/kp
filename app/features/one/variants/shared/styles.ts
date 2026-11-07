@@ -1,5 +1,5 @@
-// Split's paint — the parts a finish re-skins through the hooks in finish.css rather than
-// by forking markup. Every colour resolves through a token; no literal colour in this folder.
+// The layouts' shared paint (moved from the round-2 Split layout in round 4) — the parts a
+// finish re-skins through the hooks in finish.css. Every colour resolves through a token.
 //
 // Faces: the display face is the finish's (`--one-display-font`, default Bricolage); the
 // hand note keeps the landing's Caveat (`--font-mk-hand`, put on the shell root by OneShell).

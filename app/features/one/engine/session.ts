@@ -21,6 +21,11 @@
 //     screen changes only). A submit while an older answer is in view appends a new answer
 //     at the END and moves the cursor there. A hand change on the arrangement while an
 //     answer is current is written back into that answer.
+//   - SELECTION (round 4): the candidate the user picked from a list. It is navigation, not
+//     an undo step (undo and the answer snapshots never record it). A NEW answer clears it
+//     (a fresh question is a fresh context); stepping through answers, the user's hand on
+//     the region and undo leave it where it is, so a tool open beside the list survives a
+//     glance back at an older answer.
 import {
   MAX_PANELS,
   MAX_PINS,
@@ -30,6 +35,7 @@ import {
   type PanelInstance,
   type ProposalInstance,
   type Reply,
+  type Selected,
   type Turn,
 } from "../types";
 
@@ -67,6 +73,8 @@ export type SessionState = {
   /** Answered questions, oldest first (≤ ANSWER_CAP), and the index in view (-1 = none yet). */
   answers: AnswerSnapshot[];
   cursor: number;
+  /** The candidate picked from a list (Enter / a row press), or null. */
+  selected: Selected | null;
   /** Monotonic id source — ids are the host's, never the model's. */
   seq: number;
 };
@@ -81,6 +89,7 @@ export const initialSession = (): SessionState => ({
   pending: null,
   answers: [],
   cursor: -1,
+  selected: null,
   seq: 0,
 });
 
@@ -97,7 +106,8 @@ export type SessionAction =
   | { type: "stepBack" }
   | { type: "stepForward" }
   | { type: "propose"; act: ProposalInstance["act"]; params: Record<string, string> }
-  | { type: "dismissProposal"; proposalId: string };
+  | { type: "dismissProposal"; proposalId: string }
+  | { type: "select"; entry: Selected | null };
 
 const HISTORY_CAP = 20;
 
@@ -257,6 +267,8 @@ function reduceBase(s: SessionState, a: SessionAction): SessionState {
       const ops = a.reply.ops.filter((op) => op.op === "show" || op.op === "focus");
       return {
         ...base,
+        // A new answer is a new context: the pick from the last list does not carry over.
+        selected: null,
         seq: nextSeq,
         turns: [...base.turns, userTurn, oneTurn],
         proposals: [...base.proposals, ...proposals],
@@ -326,5 +338,10 @@ function reduceBase(s: SessionState, a: SessionAction): SessionState {
     }
     case "dismissProposal":
       return { ...s, proposals: s.proposals.filter((p) => p.id !== a.proposalId) };
+    case "select": {
+      const cur = s.selected;
+      if (cur === a.entry || (cur && a.entry && cur.entryId === a.entry.entryId && cur.label === a.entry.label)) return s;
+      return { ...s, selected: a.entry ? { entryId: a.entry.entryId, label: a.entry.label } : null };
+    }
   }
 }

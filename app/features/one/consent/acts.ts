@@ -65,7 +65,42 @@ export type ResolvedAct =
       /** Every companion action spends a model call when run. */
       cost: "modelCall";
     }
+  | {
+      armed: true;
+      act: "letterApprove";
+      entryId: string;
+      letterId: string;
+      revision: number;
+      label: string | null;
+      preview: true;
+    }
+  | { armed: true; act: "letterSend"; entryId: string; letterId: string; revision: number | null; label: string | null; preview: true }
+  | {
+      armed: true;
+      act: "interviewBook";
+      entryId: string;
+      /** "YYYY-MM-DD HH:MM" in the interview zone — the book door's `dateSlot`. */
+      dateSlot: string;
+      /** The slot's server-authored label ("Tue 10 Nov · 10:00"), when the caller had it. */
+      when: string | null;
+      zone: string | null;
+      label: string | null;
+      preview: true;
+    }
+  | { armed: true; act: "interviewLink"; entryId: string; label: string | null; preview: true }
   | { armed: false; act: ActKind; reason: DisarmReason };
+
+/** Round 4: acts the card ARMS and states from real data, but whose confirm is disabled
+ *  ("Wired after the pick") — no write reaches any door yet. Wiring one later is this flag
+ *  plus its door in doors.ts:
+ *    letterApprove → POST /api/outreach-letters/[id]/approve {revision}
+ *    letterSend    → POST /api/outreach-letters/[id]/release
+ *    interviewBook → POST /api/schedule {action:"book", entryId, dateSlot}
+ *    interviewLink → POST /api/schedule/invite {entryId} */
+export const PREVIEW_ACTS: ReadonlySet<ActKind> = new Set<ActKind>(["letterApprove", "letterSend", "interviewBook", "interviewLink"]);
+export const isPreviewAct = (act: ActKind): boolean => PREVIEW_ACTS.has(act);
+
+const DATE_SLOT = /^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d$/;
 
 function intIn(raw: string | undefined, lo: number, hi: number): number | null {
   if (raw == null || !/^\d{1,3}$/.test(raw)) return null;
@@ -118,5 +153,37 @@ export function resolveAct(act: ActKind, params: Record<string, string>): Resolv
       if (!isCompanionAction(params.action)) return { armed: false, act, reason: "unknownAction" };
       return { armed: true, act, action: params.action, handoff: COMPANION_HANDOFF[params.action], cost: "modelCall" };
     }
+    case "letterApprove": {
+      // The approval is bound to ONE revision: a malformed one cannot be armed.
+      if (!/^\d{1,6}$/.test(params.revision)) return { armed: false, act, reason: "badParams" };
+      return { armed: true, act, entryId: params.entryId, letterId: params.letterId, revision: Number(params.revision), label: params.label ?? null, preview: true };
+    }
+    case "letterSend": {
+      if (params.revision !== undefined && !/^\d{1,6}$/.test(params.revision)) return { armed: false, act, reason: "badParams" };
+      return {
+        armed: true,
+        act,
+        entryId: params.entryId,
+        letterId: params.letterId,
+        revision: params.revision !== undefined ? Number(params.revision) : null,
+        label: params.label ?? null,
+        preview: true,
+      };
+    }
+    case "interviewBook": {
+      if (!DATE_SLOT.test(params.dateSlot)) return { armed: false, act, reason: "badParams" };
+      return {
+        armed: true,
+        act,
+        entryId: params.entryId,
+        dateSlot: params.dateSlot,
+        when: params.when?.trim().slice(0, 60) || null,
+        zone: params.zone?.trim().slice(0, 60) || null,
+        label: params.label ?? null,
+        preview: true,
+      };
+    }
+    case "interviewLink":
+      return { armed: true, act, entryId: params.entryId, label: params.label ?? null, preview: true };
   }
 }

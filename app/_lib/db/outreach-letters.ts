@@ -144,6 +144,74 @@ export function outreachLetterById(letterId: string, workspaceId: string): Outre
   return r ? rowToLetter(r) : null;
 }
 
+/** One row of the "letters waiting" list: the letter's identity and state plus who it is
+ *  to and for which role — never the body (the list is a queue, the reader opens one). */
+export type OutreachLetterListItem = {
+  id: string;
+  entryId: string;
+  candidateLabel: string;
+  jobTitle: string | null;
+  subject: string | null;
+  state: OutreachLetterState;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** The list's ceiling: a queue a person reads, not an export. */
+export const OUTREACH_LETTER_LIST_MAX = 200;
+
+/**
+ * The team's letters in ONE state, oldest first (the one waiting longest leads), at most
+ * `limit` (clamped to 1..OUTREACH_LETTER_LIST_MAX). Rides `idx_outreach_letters_open`
+ * (workspace_id, state, created_at). An erased row is left out — its text is gone and
+ * nothing can be approved from it. One row past the limit is read so the caller can say
+ * truthfully that there is more (`truncated`).
+ */
+export function outreachLetterListByState(
+  state: OutreachLetterState,
+  limit: number,
+  workspaceId: string
+): { letters: OutreachLetterListItem[]; truncated: boolean } {
+  const cap = Math.min(Math.max(1, Math.trunc(limit) || 1), OUTREACH_LETTER_LIST_MAX);
+  const rows = ensureDb()
+    .prepare(
+      `SELECT ol.id, ol.entry_id, ol.state, ol.revision, ol.subject, ol.created_at, ol.updated_at,
+              pe.candidate_label, pe.job_title
+         FROM outreach_letters ol
+         JOIN pipeline_entries pe ON pe.id = ol.entry_id AND pe.workspace_id = ol.workspace_id
+        WHERE ol.workspace_id = ? AND ol.state = ? AND ol.erased_at IS NULL
+        ORDER BY ol.created_at ASC, ol.id ASC
+        LIMIT ?`
+    )
+    .all(workspaceId, state, cap + 1) as {
+    id: string;
+    entry_id: string;
+    state: string;
+    revision: number;
+    subject: string | null;
+    created_at: string;
+    updated_at: string;
+    candidate_label: string;
+    job_title: string | null;
+  }[];
+  const truncated = rows.length > cap;
+  return {
+    truncated,
+    letters: rows.slice(0, cap).map((r) => ({
+      id: r.id,
+      entryId: r.entry_id,
+      candidateLabel: r.candidate_label,
+      jobTitle: r.job_title,
+      subject: r.subject,
+      state: STATES.has(r.state) ? (r.state as OutreachLetterState) : "drafted",
+      revision: r.revision,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })),
+  };
+}
+
 /**
  * Record the machine's draft for an application.
  *

@@ -33,7 +33,13 @@ test("typed intents map to the expected view", () => {
     ["any decisions waiting on me", "decisionsQueue"],
     ["show me the pipeline", "pipelineSlice"],
     ["who is stalled", "pipelineSlice"],
-    ["interviews this week", "scheduleAhead"],
+    ["interviews this week", "calendar"],
+    ["upcoming interviews", "scheduleAhead"],
+    ["who is waiting for an interview", "calendar"],
+    ["calendar", "calendar"],
+    ["emails to approve", "letters"],
+    ["drafts waiting", "letters"],
+    ["outreach", "letters"],
     ["how are we doing", "funnel"],
     ["new arrivals", "pipelineSlice"],
     ["drafts to publish", "jobDrafts"],
@@ -98,4 +104,23 @@ test("follow-up chips lead with what the attention read says needs the user", ()
 test("console offers a navigate op (a link), nothing else", () => {
   const r = resolve({ text: "open the console" }, ctx);
   assert.deepEqual(r.ops, [{ op: "navigate", tab: "pipeline" }]);
+});
+
+test("open <name> binds to ONE candidate; ambiguous, unknown or unread names show the matching slice", () => {
+  const entries = [
+    { id: "pe-1", label: "Jana Nováková" },
+    { id: "pe-2", label: "Jan Novák" },
+    { id: "pe-3", label: "Petr Dvořák" },
+  ];
+  const one = resolve({ text: "open petr dvorak" }, { attention: null, entries });
+  rules(one);
+  assert.equal(one.say.key, "profileShown");
+  assert.deepEqual(one.ops, [{ op: "show", panel: "profile", params: { entryId: "pe-3", label: "Petr Dvořák" } }]);
+  const many = resolve({ text: "open Novák" }, { attention: null, entries });
+  assert.equal(many.say.key, "profileMany");
+  assert.deepEqual(many.ops, [{ op: "show", panel: "pipelineSlice", params: { name: "Novák" } }]);
+  assert.equal(resolve({ text: "profile of Zed" }, { attention: null, entries }).say.key, "profileNone");
+  assert.equal(resolve({ text: "open Petr" }, ctx).say.key, "profileMany", "pipeline not read yet: the slice decides");
+  assert.equal(matchIntent("open the pipeline")?.intent, "pipeline", "a view word is not a name");
+  assert.equal(matchIntent("open the calendar")?.intent, "calendar");
 });

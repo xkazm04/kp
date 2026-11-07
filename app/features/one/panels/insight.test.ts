@@ -19,6 +19,9 @@ const entry = (id: string, over: Partial<OneEntry> = {}): OneEntry => ({
   stale: false,
   isNew: false,
   needsDecision: true,
+  candidateId: null,
+  approvalKind: null,
+  waitingInterview: false,
   ...over,
 });
 

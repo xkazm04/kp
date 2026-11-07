@@ -19,24 +19,31 @@ import { CountTick, SEG_GROUP, Seg } from "./Seg";
 import { Switcher } from "./Switcher";
 import type { ChipId, VariantId } from "./types";
 
-/** The stats, in urgency order: the first non-zero one takes the accent. */
+/** The header's counts: the attention read's buckets plus (round 4) the outreach letters
+ *  waiting for approval, read from the one new door. */
+export type HeaderCounts = Partial<AttentionCounts> & { letters?: number };
+
+/** The stats, in urgency order: the first non-zero one takes the accent. Round 4: Letters
+ *  (asks the `letters` chip), and Interviews now opens the calendar. */
 export const HEADER_STATS = [
   { key: "decisions", chip: "decisions" },
   { key: "pipeline", chip: "stalled" },
   { key: "channels", chip: "arrivals" },
-  { key: "schedule", chip: "interviews" },
+  { key: "letters", chip: "letters" },
+  { key: "schedule", chip: "calendar" },
   { key: "jobs", chip: "drafts" },
-] as const satisfies readonly { key: keyof AttentionCounts; chip: ChipId }[];
+] as const satisfies readonly { key: keyof HeaderCounts; chip: ChipId }[];
 
 /** The key of the stat to accent: the most urgent one with something waiting. */
-export function urgentStat(counts: Partial<AttentionCounts> | null): (typeof HEADER_STATS)[number]["key"] | null {
+export function urgentStat(counts: HeaderCounts | null): (typeof HEADER_STATS)[number]["key"] | null {
   if (!counts) return null;
   const hit = HEADER_STATS.find((s) => (counts[s.key] ?? 0) > 0);
   return hit ? hit.key : null;
 }
 
 export function OneHeader({
-  counts,
+  counts: attentionCounts,
+  letters,
   activeChip,
   onAsk,
   variant,
@@ -44,6 +51,8 @@ export function OneHeader({
   consoleHref,
 }: {
   counts: Partial<AttentionCounts> | null;
+  /** Drafted outreach letters waiting (null = not read: a dash, never 0). */
+  letters: number | null;
   /** The chip behind the question in view, if it was a chip. */
   activeChip: ChipId | null;
   onAsk: (chip: ChipId) => void;
@@ -53,6 +62,8 @@ export function OneHeader({
 }) {
   const t = useTranslations("one.core");
   const locale = useLocale();
+  const counts: HeaderCounts | null =
+    attentionCounts || letters !== null ? { ...(attentionCounts ?? {}), ...(letters !== null ? { letters } : {}) } : null;
   const urgent = urgentStat(counts);
   const fmt = (n: number) => formatCount(n, locale);
   return (

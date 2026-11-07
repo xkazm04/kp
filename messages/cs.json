@@ -18590,21 +18590,150 @@
     "failed": "U tohoto běhu se něco pokazilo. Zkuste to prosím znovu."
   },
   "one": {
-    "split": {
+    "sheets": {
       "today": "Today",
       "asked": "You asked",
       "position": "{index} of {total}",
-      "startHere": "start here",
       "notYet": "not built yet, honestly",
       "changeLabel": "What changed",
       "tabsLabel": "Views on screen",
-      "pinned": "pinned"
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyEnter": "Enter",
+      "keyOpen": "open",
+      "keyEsc": "Esc",
+      "keyBack": "back",
+      "stackLabel": "Open sheets",
+      "back": "Back to {name}",
+      "close": "Close {name}",
+      "sheet": {
+        "letters": "Letters to approve",
+        "calendar": "Interview calendar",
+        "profile": "{label} · Profile",
+        "letter": "{label} · Letter",
+        "schedule": "{label} · Schedule"
+      },
+      "push": {
+        "letter": "Letter",
+        "schedule": "Schedule"
+      },
+      "calendar": {
+        "pick": "Pick someone who is waiting, then a free time to book them.",
+        "picked": "{label}: pick a free time to book, or",
+        "link": "send a self-scheduling link"
+      }
     },
     "dense": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
       "keysLabel": "Keys",
       "keyStep": "answers",
       "keyList": "list",
-      "keyEsc": "Esc"
+      "keyEsc": "Esc",
+      "tools": {
+        "label": "Candidate tools",
+        "profile": "Profile",
+        "letter": "Email",
+        "interview": "Interview",
+        "close": "Close the candidate"
+      }
+    },
+    "workbench": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyList": "list",
+      "keyEsc": "Esc",
+      "keyBack": "back",
+      "keyTools": "tools",
+      "benchFor": "Workbench for {label}",
+      "openConsole": "Open in Console",
+      "tools": {
+        "label": "Candidate tools",
+        "profile": "Profile",
+        "letter": "Email",
+        "interview": "Interview",
+        "close": "Close the candidate"
+      },
+      "desk": {
+        "label": "Desks",
+        "letters": "Letters",
+        "calendar": "Calendar",
+        "lettersHint": "Press a letter to open it with the person",
+        "calendarHint": "Press a waiting person to book them"
+      }
+    },
+    "cards": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyEsc": "Esc",
+      "keyList": "list",
+      "keyBack": "back",
+      "keyExpand": "expand",
+      "faces": {
+        "label": "Show for this candidate",
+        "profile": "Profile",
+        "letter": "Letter",
+        "interview": "Interview"
+      },
+      "eyebrow": {
+        "letterOf": "Letter {index} of {total} to approve",
+        "longest": "Waiting longest",
+        "waitingOf": "Waiting {index} of {total}",
+        "picked": {
+          "profile": "Picked · profile",
+          "letter": "Picked · letter",
+          "interview": "Picked · interview"
+        }
+      },
+      "expand": "Expand",
+      "collapse": "Back to the card",
+      "close": "Close the candidate",
+      "expandedLabel": "{label}, expanded",
+      "nextLetter": "Next letter",
+      "nextWaiting": "Next waiting",
+      "moreWaiting": "{count, plural, one {# more waiting:} other {# more waiting:}}",
+      "moreLabel": "Who else is waiting",
+      "retry": "Retry",
+      "loadFailed": "This could not be read.",
+      "noneHint": "Their profile fills in once their CV has been analysed.",
+      "topParts": "Strongest parts",
+      "cvLines": "CV, first lines",
+      "drafted": "drafted {date}",
+      "sampleNote": "Sample letter (?sample=letters): nothing is stored or sent.",
+      "waitingSince": "Waiting {days} for an interview slot",
+      "waitingUnknown": "Waiting for an interview slot (no date recorded)",
+      "notWaiting": "Not waiting for an interview slot.",
+      "invites": "Invitations",
+      "firstFree": "First free times",
+      "noFree": "No free time is on offer.",
+      "sendLink": "Send link instead",
+      "next": {
+        "label": "Next steps",
+        "writeLetter": "Write letter",
+        "schedule": "Schedule",
+        "letters": "Letters to approve",
+        "decisions": "Back to decisions"
+      }
     },
     "core": {
       "meta": {
@@ -18613,10 +18742,10 @@
         "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
         "layout": "Layout",
         "variants": {
-          "split": "Split",
-          "refined": "Refined",
-          "spark": "Spark",
-          "dense": "Dense"
+          "dense": "Dense",
+          "workbench": "Workbench",
+          "sheets": "Sheets",
+          "cards": "Cards"
         },
         "regionLabel": "Views One put on screen",
         "conversationLabel": "Conversation with One",
@@ -18649,6 +18778,10 @@
             "label": "New",
             "full": "New arrivals waiting for a first look"
           },
+          "letters": {
+            "label": "Letters",
+            "full": "Outreach letters waiting for your approval"
+          },
           "schedule": {
             "label": "Interviews",
             "full": "Interviews ahead"
@@ -18673,6 +18806,11 @@
         "arrivalsShown": "These candidates arrived and wait for a first look.",
         "draftsShown": "These roles are still drafts, not yet published.",
         "outboxShown": "Here is what was sent to candidates lately.",
+        "lettersShown": "Here are the emails waiting for your approval.",
+        "calendarShown": "Here is the interview calendar, with who is waiting for a slot.",
+        "profileShown": "Here is their profile.",
+        "profileMany": "Several candidates answer to that name. Pick one.",
+        "profileNone": "No active candidate answers to that name.",
         "roleShown": "Here is that role and its candidates.",
         "roleAsk": "Which role? Say it like \"the pipeline for backend\".",
         "waveRejectProposed": "I have set up that cut. Check who it touches; nothing happens until you confirm.",
@@ -18692,7 +18830,9 @@
         "arrivals": "New arrivals",
         "drafts": "Drafts to publish",
         "outbox": "What was sent?",
-        "digest": "Today's digest"
+        "digest": "Today's digest",
+        "letters": "Emails to approve",
+        "calendar": "Calendar"
       },
       "greeting": {
         "loading": "Reading what needs you…",
@@ -18751,11 +18891,13 @@
           "title": "Pipeline",
           "titleAging": "Stalled candidates",
           "titleNew": "New arrivals",
+          "titleName": "Candidates named “{name}”",
           "forRole": "For “{role}”",
           "empty": "No active candidates on the board.",
           "emptyRole": "No active candidates match “{role}”.",
           "emptyAging": "Nobody has sat in a step past its limit.",
-          "emptyNew": "No new arrivals are waiting."
+          "emptyNew": "No new arrivals are waiting.",
+          "emptyName": "No active candidate answers to “{name}”."
         },
         "scheduleAhead": {
           "title": "Interviews ahead",
@@ -18813,6 +18955,141 @@
           },
           "pipeline": "Its pipeline"
         },
+        "letters": {
+          "title": "Letters to approve",
+          "empty": "No outreach letter is waiting for approval.",
+          "revision": "Revision {revision}",
+          "noSubject": "No subject",
+          "truncated": "There may be more letters than shown.",
+          "oldest": "Waiting longest",
+          "since": "Drafted {date}",
+          "perRole": "Letters per role",
+          "open": "Open the letter to {label}",
+          "approveWho": "Approve the letter to {label}",
+          "keys": "↑↓ move · Enter open · A approve"
+        },
+        "calendar": {
+          "title": "Interview calendar",
+          "empty": "Nothing on the calendar and nobody waiting.",
+          "week": "Week of {date}",
+          "prevWeek": "Previous week",
+          "nextWeek": "Next week",
+          "zone": "Times in {zone}",
+          "free": "free",
+          "confirmed": "booked",
+          "pending": "awaiting the candidate",
+          "noDay": "Nothing booked",
+          "waitingTitle": "Waiting for a slot",
+          "noneWaiting": "Nobody is waiting for an interview slot.",
+          "truncated": "The schedule read hit its limit; some interviews may be missing.",
+          "slotsFailed": "Free times could not be read.",
+          "notConnected": "No calendar is connected, so free times are kp's own offer list.",
+          "unavailable": "The connected calendar did not answer; free times are kp's own offer list.",
+          "agendaFree": "Free · {time}",
+          "thisWeek": "This week",
+          "interviews": "Interviews",
+          "freeSlots": "Free times",
+          "longest": "Waiting longest",
+          "waitingFor": "{days} on the calendar step",
+          "waitingForUnknown": "On the calendar step (no date recorded)",
+          "suggest": "Book {label}",
+          "suggestHint": "{when}, the first free time",
+          "cols": {
+            "when": "When",
+            "who": "Candidate",
+            "status": "Status"
+          }
+        },
+        "profile": {
+          "title": "Profile",
+          "titleFor": "Profile · {label}",
+          "pick": "Pick a candidate from a list to see their profile.",
+          "none": "No analysis on record for {label}.",
+          "cv": "CV",
+          "cvNone": "The analysis holds no CV text.",
+          "cvNote": "The text the analysis read. The CV file itself is not stored.",
+          "score": "Score",
+          "unscored": "Unscored",
+          "jobFit": "Job fit",
+          "jobFitNone": "Not scored against a job.",
+          "overall": "Overall",
+          "partOf": "{value} of {max}",
+          "meter": "{label}: {value} of {max}",
+          "parts": {
+            "experience": "Experience",
+            "skills": "Skills",
+            "roleSeniority": "Role and seniority",
+            "education": "Education",
+            "traits": "Traits"
+          },
+          "matching": "Matching",
+          "missing": "Missing",
+          "unproven": "Unproven",
+          "strengths": "Strengths",
+          "gaps": "Gaps",
+          "signals": "Soft signals",
+          "signalStrength": "Strength",
+          "signalWatch": "Watch",
+          "labelOnly": "Matched by name only. This analysis may belong to someone else with the same name.",
+          "engine": {
+            "llm": "Model analysis",
+            "deterministic": "Deterministic analysis",
+            "unknown": "Engine not recorded"
+          },
+          "analysed": "Analysed {date}"
+        },
+        "letter": {
+          "title": "Email",
+          "titleFor": "Email · {label}",
+          "pick": "Pick a candidate from a list to see their email.",
+          "none": "No outreach letter is held for {label}.",
+          "heldOnly": "Only the first-contact outreach letter is held for approval today.",
+          "subject": "Subject",
+          "to": "To",
+          "noRecipient": "No deliverable address",
+          "noSubject": "No subject",
+          "erased": "The text was erased.",
+          "revision": "Revision {revision}",
+          "sends": "What a release would send",
+          "forecast": {
+            "refused": "Would not be sent: no deliverable recipient.",
+            "simulation": "A simulation candidate: nothing leaves.",
+            "suppressed": "Would be held back by the send gate (consent or a halted sequence).",
+            "relay": "Would leave through the configured relay.",
+            "local": "No relay is configured: it would wait in the local outbox.",
+            "unknown": "Delivery forecast not returned."
+          },
+          "state": {
+            "drafted": "Draft",
+            "approved": "Approved",
+            "released": "Sent",
+            "delivery_failed": "Delivery failed",
+            "suppressed": "Held back",
+            "discarded": "Discarded"
+          },
+          "approve": "Approve",
+          "send": "Send",
+          "thread": "Sent to them",
+          "threadEmpty": "Nothing has been sent to them yet."
+        },
+        "interview": {
+          "title": "Interview",
+          "titleFor": "Interview · {label}",
+          "pick": "Pick a candidate from a list to schedule their interview.",
+          "gone": "This candidate is no longer active on the board.",
+          "waiting": "Waiting for an interview slot for {days}.",
+          "waitingUnknown": "Waiting for an interview slot.",
+          "notWaiting": "Not on the calendar step.",
+          "booked": "Booked {when}",
+          "proposed": "Link sent, no time picked yet",
+          "invites": "Their invitations",
+          "slots": "Free times",
+          "noSlots": "No free time in the next three weeks.",
+          "book": "Book",
+          "bookAt": "Book {when}",
+          "link": "Send a link to pick a time",
+          "zone": "Times in {zone}"
+        },
         "retry": "Try again",
         "seeAll": "See all",
         "cols": {
@@ -18830,10 +19107,16 @@
           "reached": "Reached",
           "conversion": "Conversion",
           "field": "Field",
-          "value": "Value"
+          "value": "Value",
+          "revision": "Revision",
+          "drafted": "Drafted"
         },
         "stalled": "Past its step's limit",
         "withRole": "{title} · {role}",
+        "group": {
+          "stalled": "{count} stalled",
+          "none": "No role"
+        },
         "keysLabel": "Keys",
         "insight": {
           "stages": "Where they stand",
@@ -18953,7 +19236,41 @@
           },
           "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
           "press": "Open in Console"
+        },
+        "preview": "Wired after the pick",
+        "previewActs": {
+          "someone": "this candidate",
+          "letterApprove": {
+            "title": "Approve the letter to {label}",
+            "line": "Approves the letter to {label} (revision {revision}). Nothing is sent yet.",
+            "press": "Approve",
+            "details": "Approval binds this exact revision; an edit after it needs a new approval. The letter leaves only on Send."
+          },
+          "letterSend": {
+            "title": "Send the letter to {label}",
+            "line": "Sends the approved letter to {label}.",
+            "press": "Send",
+            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox."
+          },
+          "interviewBook": {
+            "title": "Book {label}",
+            "line": "Books {label} on {when}.",
+            "lineZone": "Books {label} on {when} ({zone}).",
+            "press": "Book",
+            "details": "The booking emails the candidate a confirmation with the time."
+          },
+          "interviewLink": {
+            "title": "Send {label} a scheduling link",
+            "line": "Emails {label} a link to pick a time.",
+            "press": "Send link",
+            "details": "The link offers the free times and expires after seven days."
+          }
         }
+      },
+      "sample": {
+        "note": "Sample letter: this database holds no drafted letters, so this one was made up for the prototype (?sample=letters). Nothing is stored or sent.",
+        "subject": "Your profile and our {role} role",
+        "body": "Hi {name},\n\nI came across your profile while looking for someone for our {role} role, and your experience stood out. The team is small and the work is hands-on, and I think it could be a good fit.\n\nWould you have 20 minutes this week or next for a short call? If the timing is wrong, just say so and I will not follow up.\n\nBest regards"
       }
     }
   }

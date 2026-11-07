@@ -183,3 +183,26 @@ test("the change line carries a view's params, so it can be named by its title",
   s = run(s, show("needs"), show("funnel"), show("outbox"));
   assert.deepEqual(s.lastChange, { key: "replaced", panel: "outbox", previous: "pipelineSlice", previousParams: { filter: "aging" } });
 });
+
+test("selection is navigation: no undo step, kept across a hand change and a step back, cleared by a new answer", () => {
+  const ask = (key: "needsShown" | "funnelShown", panel: "needs" | "funnel"): SessionAction => ({
+    type: "submit",
+    input: { text: panel },
+    reply: { say: { key }, ops: [{ op: "show", panel }], chips: [] },
+    dropped: 0,
+  });
+  let s = run(initialSession(), ask("needsShown", "needs"), { type: "applyPending" }, ask("funnelShown", "funnel"), { type: "applyPending" });
+  const undoDepth = s.history.length;
+  s = run(s, { type: "select", entry: { entryId: "pe-1", label: "Ana" } });
+  assert.deepEqual(s.selected, { entryId: "pe-1", label: "Ana" });
+  assert.equal(s.history.length, undoDepth, "selecting is not an undo step");
+  assert.equal(run(s, { type: "select", entry: { entryId: "pe-1", label: "Ana" } }), s, "re-selecting the same candidate changes nothing");
+  s = run(s, { type: "stepBack" });
+  assert.equal(s.selected?.entryId, "pe-1", "a glance at an older answer keeps the tool open");
+  s = run(s, show("outbox"), { type: "undo" });
+  assert.equal(s.selected?.entryId, "pe-1", "the hand and undo leave it");
+  s = run(s, { type: "select", entry: null });
+  assert.equal(s.selected, null);
+  s = run(s, { type: "select", entry: { entryId: "pe-2", label: "Ben" } }, ask("needsShown", "needs"));
+  assert.equal(s.selected, null, "a new answer is a new context");
+});

@@ -7,12 +7,16 @@ import type { ComponentType } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit";
 import type { PanelInstance, PanelKind } from "../types";
+import { CalendarPanel } from "./CalendarPanel";
 import { DecisionsQueuePanel } from "./DecisionsQueuePanel";
 import { FunnelPanel } from "./FunnelPanel";
 import { JobDraftsPanel } from "./JobDraftsPanel";
+import { LetterPanel } from "./LetterPanel";
+import { LettersPanel } from "./LettersPanel";
 import { NeedsPanel } from "./NeedsPanel";
 import { OutboxPanel } from "./OutboxPanel";
 import { PipelineSlicePanel } from "./PipelineSlicePanel";
+import { ProfilePanel } from "./ProfilePanel";
 import { RoleCardPanel } from "./RoleCardPanel";
 import { ScheduleAheadPanel } from "./ScheduleAheadPanel";
 import type { PanelLook, PanelProps } from "./types";
@@ -26,6 +30,10 @@ export const PANEL_VIEWS: Record<PanelKind, ComponentType<PanelProps>> = {
   outbox: OutboxPanel,
   decisionsQueue: DecisionsQueuePanel,
   roleCard: RoleCardPanel,
+  letters: LettersPanel,
+  calendar: CalendarPanel,
+  profile: ProfilePanel,
+  letter: LetterPanel,
 };
 
 /** The host's own controls on every view: pin / unpin, bring forward, close. They are the

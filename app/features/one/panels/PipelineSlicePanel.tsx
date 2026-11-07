@@ -3,7 +3,8 @@
 // pipelineSlice — GET /api/pipeline, the ACTIVE entries, optionally narrowed to a role
 // (the user's own words, matched against the job title or id), to the stalled (the same
 // aging tier the sidebar badge counts) or to new arrivals (the axis's entry stage).
-// Params: role?, filter? ("aging" | "new").
+// Params: role?, filter? ("aging" | "new"), name? (round 4: "open <name>" that did not bind
+// to one candidate — every word of it must appear in the label).
 import { useLocale, useTranslations } from "next-intl";
 import { Mark } from "@/app/_components/kit";
 import { ConsoleLink } from "./PanelShell";
@@ -36,7 +37,11 @@ export function useEntryRow(): (e: OneEntry, extra?: Pick<PanelRow, "acts" | "do
     const age =
       e.ageDays !== null ? (
         <>
-          {e.jobTitle ? <span aria-hidden>·</span> : null}
+          {e.jobTitle ? (
+            <span aria-hidden data-role-sub>
+              ·
+            </span>
+          ) : null}
           {e.stale ? <Mark kind="caution" tip={t("stalled")} /> : null}
           <span className="k-nums">{days(e.ageDays)}</span>
         </>
@@ -44,7 +49,9 @@ export function useEntryRow(): (e: OneEntry, extra?: Pick<PanelRow, "acts" | "do
     return {
       key: e.id,
       cells: {
-        name: <NameCell name={e.label} sub={e.jobTitle ?? undefined} trail={age} />,
+        // The role subline is marked: under a role group's head it says the same thing twice,
+        // so a grouped table hides it (PanelFrame GROUPED_SUB).
+        name: <NameCell name={e.label} sub={e.jobTitle ? <span data-role-sub>{e.jobTitle}</span> : undefined} trail={age} />,
         stage: <CellTag>{e.stageLabel}</CellTag>,
         score: <ScoreBar score={e.score} />,
       },
@@ -53,6 +60,10 @@ export function useEntryRow(): (e: OneEntry, extra?: Pick<PanelRow, "acts" | "do
       trail: <ScoreFig score={e.score} />,
       mark: e.stale ? "caution" : undefined,
       door: <ConsoleLink tab="pipeline" params={{ q: e.label }} />,
+      // Round 4: the row IS a candidate (selectable), in a role group, stalled or not.
+      entry: { entryId: e.id, label: e.label },
+      group: { key: e.jobId ?? e.jobTitle ?? "", label: e.jobTitle ?? t("group.none") },
+      stalled: e.stale,
       ...extra,
     };
   };
@@ -121,9 +132,16 @@ export function PipelineSlicePanel(props: PanelProps) {
   const all = read.state === "ready" ? read.data.entries : [];
   const rows = read.state === "ready" ? sliceEntries(all, params) : [];
   const limit = rowLimit(props.look);
-  const title =
-    params.filter === "aging" ? t("pipelineSlice.titleAging") : params.filter === "new" ? t("pipelineSlice.titleNew") : t("pipelineSlice.title");
-  const empty = params.role
+  const title = params.name
+    ? t("pipelineSlice.titleName", { name: params.name })
+    : params.filter === "aging"
+      ? t("pipelineSlice.titleAging")
+      : params.filter === "new"
+        ? t("pipelineSlice.titleNew")
+        : t("pipelineSlice.title");
+  const empty = params.name
+    ? t("pipelineSlice.emptyName", { name: params.name })
+    : params.role
     ? t("pipelineSlice.emptyRole", { role: params.role })
     : params.filter === "aging"
       ? t("pipelineSlice.emptyAging")

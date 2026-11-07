@@ -17,6 +17,9 @@
 //     are tabular everywhere on the surface.
 //   - Motion is the `snap` flavor (motion.ts, ≤ 120ms, small offsets, no spring); the still
 //     forms apply under reduced motion.
+//   - Round 4 (minimal hosting, so the layout builders see the tools work): a candidate picked
+//     from the side's list (a row press / Enter) takes the main column's card slot — a
+//     Profile · Email · Interview strip over `renderTool(...)`, × (or Esc on the row) closes.
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
@@ -27,10 +30,10 @@ import { useTablist } from "@/app/_components/ui/useTablist";
 import { useOneMotion } from "../../motion";
 import { consoleHref as consoleHrefFor } from "../../panels/PanelShell";
 import { SEG_GROUP, Seg } from "../../Seg";
-import type { ChipId, PanelInstance } from "../../types";
+import { TOOL_KINDS, type ChipId, type PanelInstance, type ToolKind } from "../../types";
 import type { VariantProps } from "../../variantProps";
-import { primaryOf, sideOf, tabsOf } from "../split/side";
-import { FACE_DISPLAY, NO_CHROME, STICKER_COMPOSER } from "../split/styles";
+import { primaryOf, sideOf, tabsOf } from "../shared/side";
+import { FACE_DISPLAY, NO_CHROME, STICKER_COMPOSER } from "../shared/styles";
 import { DENSE_ASKING_TRIM, DENSE_COMPACT, KEYCAP } from "./styles";
 
 /** The views the host draws itself before anything is on screen (the first beat). */
@@ -54,9 +57,12 @@ export function DenseLayout({
   renderPanel,
   renderConsent,
   words,
+  selected,
+  select,
+  renderTool,
 }: VariantProps) {
-  const t = useTranslations("one.split");
   const td = useTranslations("one.dense");
+  const t = td;
   const tc = useTranslations("one.core");
   const m = useOneMotion();
   const [draft, setDraft] = useState("");
@@ -162,6 +168,25 @@ export function DenseLayout({
         })
       : null;
 
+  // ── Round 4: the picked candidate's tool takes the card slot ─────────
+  const [tool, setTool] = useState<ToolKind>("profile");
+  const toolView = selected ? (
+    <div className="flex min-h-0 flex-auto flex-col gap-2 pr-1 pb-1" data-role="dense-tool">
+      <div className="flex shrink-0 items-center gap-2">
+        <div role="tablist" aria-label={td("tools.label")} className={SEG_GROUP}>
+          {TOOL_KINDS.map((k) => (
+            <Seg key={k} group="dense-tools" active={k === tool} role="tab" aria-selected={k === tool} onClick={() => setTool(k)}>
+              {td(`tools.${k}`)}
+            </Seg>
+          ))}
+        </div>
+        <span className="min-w-0 flex-1 truncate text-micro font-semibold text-ink">{selected.label}</span>
+        <Button label={td("tools.close")} icon="x" iconOnly variant="ghost" size="sm" onClick={() => select(null)} />
+      </div>
+      {renderTool(tool, selected, { className: "min-h-0 flex-1" })}
+    </div>
+  ) : null;
+
   const swap = m.answerSwap(seen.dir);
   const replyLine = `${FACE_DISPLAY} max-w-3xl text-h2 font-bold leading-snug tracking-tight text-balance`;
   return (
@@ -237,11 +262,11 @@ export function DenseLayout({
                 </p>
               ) : null}
 
-              {card ? (
+              {toolView ?? (card ? (
                 <div className={`relative flex flex-col pr-1 pb-1 has-[[data-grows]]:flex-auto ${asking ? "min-h-0" : "min-h-fit"}`} data-role="split-card">
                   {card}
                 </div>
-              ) : null}
+              ) : null)}
             </motion.div>
           </AnimatePresence>
 

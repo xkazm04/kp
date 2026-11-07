@@ -11,4 +11,13 @@ export const ACT_PARAMS: Record<ActKind, { required: readonly string[]; allowed:
   wave: { required: ["mode"], allowed: ["mode", "threshold", "count", "role"] },
   // A companion catalog action (app/_lib/companion-actions.ts COMPANION_ACTIONS ids).
   companion: { required: ["action"], allowed: ["action", "candidate", "role"] },
+  // Round 4 PREVIEW acts (consent/acts.ts PREVIEW_ACTS) — bound to one candidate.
+  // A held outreach letter: approve ONE revision (the door's CAS), or send the approved one.
+  letterApprove: { required: ["entryId", "letterId", "revision"], allowed: ["entryId", "letterId", "revision", "label"] },
+  letterSend: { required: ["entryId", "letterId"], allowed: ["entryId", "letterId", "revision", "label"] },
+  // Book one offered time ("YYYY-MM-DD HH:MM" in the interview zone, the book door's
+  // dateSlot); `when` is the slot's server-authored label, `zone` the interview zone.
+  interviewBook: { required: ["entryId", "dateSlot"], allowed: ["entryId", "dateSlot", "label", "when", "zone"] },
+  // Email the candidate a self-scheduling link (POST /api/schedule/invite {entryId}).
+  interviewLink: { required: ["entryId"], allowed: ["entryId", "label"] },
 };

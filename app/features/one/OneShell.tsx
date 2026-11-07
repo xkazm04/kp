@@ -19,18 +19,22 @@ import { parseAttention } from "./panels/NeedsPanel";
 import { consoleHref } from "./panels/PanelShell";
 import { useRead } from "./panels/read";
 import { PANEL_VIEWS, PanelChrome } from "./panels/registry";
-import type { PanelLook } from "./panels/types";
 import { OneHeader } from "./OneHeader";
-import type { PanelInstance, ProposalInstance, VariantId } from "./types";
+import { useLettersWaiting, usePipeline } from "./tools/reads";
+import type { PanelInstance, PanelKind, ProposalInstance, Selected, ToolKind, VariantId } from "./types";
 import { useOneSession } from "./useOneSession";
 import { FLAVOR_OF, OneMotion } from "./motion";
 import { VARIANTS } from "./variants";
-import type { GreetingState, VariantProps } from "./variantProps";
+import type { GreetingState, PanelOpts, VariantProps } from "./variantProps";
 import { useOneWords } from "./words";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import "./finish.css";
 
 const CONSOLE_HREF = consoleHref("pipeline");
+
+/** The panel kind each per-candidate tool is drawn by (`interview` = the calendar scoped
+ *  to one candidate). */
+const TOOL_PANEL: Record<ToolKind, PanelKind> = { profile: "profile", letter: "letter", interview: "calendar" };
 
 /** KitSurface's three wrappers (kit, stage, sheet) are plain blocks; the frame needs the
  *  viewport height to flow through them so the body can fill what the header leaves. */
@@ -48,7 +52,13 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
       ? (attentionRead.data as AttentionCounts)
       : null;
   const greeting: GreetingState = attentionRead.state === "loading" ? { state: "loading" } : composeGreeting(attention);
-  const session = useOneSession(attention);
+  // The shared pipeline read: "open <name>" binds to one of its active entries.
+  const pipelineRead = usePipeline(0);
+  const entries = pipelineRead.state === "ready" ? pipelineRead.data.entries : null;
+  const session = useOneSession(attention, entries);
+  // The header's Letters figure: the one new door (drafted outreach waiting for approval).
+  const lettersRead = useLettersWaiting(session.epoch);
+  const lettersWaiting = lettersRead.state === "ready" ? lettersRead.data.letters.length : null;
 
   // Ctrl/⌘ K → the Console. The workspace's own palette is not mounted on /one.
   useEffect(() => {
@@ -62,9 +72,10 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  const { epoch, focusId, focus, close, pin, unpin, propose, show, dismissProposal, bumpEpoch } = session;
+  const { epoch, focusId, focus, close, pin, unpin, propose, show, dismissProposal, bumpEpoch, select, selected } = session;
+  const selectedEntryId = selected?.entryId ?? null;
   const renderPanel = useCallback(
-    (panel: PanelInstance, opts?: { look?: PanelLook; className?: string; onExpand?: () => void }): ReactNode => {
+    (panel: PanelInstance, opts?: PanelOpts): ReactNode => {
       const View = PANEL_VIEWS[panel.kind];
       return (
         <View
@@ -74,6 +85,9 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
           look={opts?.look}
           className={opts?.className}
           onExpand={opts?.onExpand}
+          group={opts?.group}
+          selectedEntryId={selectedEntryId}
+          onSelectEntry={select}
           onPropose={propose}
           onShow={show}
           chrome={
@@ -89,7 +103,30 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
         />
       );
     },
-    [epoch, focusId, focus, close, pin, unpin, propose, show]
+    [epoch, focusId, focus, close, pin, unpin, propose, show, select, selectedEntryId]
+  );
+  // A tool is a panel bound to one candidate, drawn by the host outside the session's
+  // region (no pin / close chrome: the layout closes it by clearing the selection).
+  const renderTool = useCallback(
+    (tool: ToolKind, entry: Selected, opts?: { look?: "pane" | "insight"; className?: string }): ReactNode => {
+      const kind: PanelKind = TOOL_PANEL[tool];
+      const View = PANEL_VIEWS[kind];
+      const panel: PanelInstance = { id: `tool-${tool}-${entry.entryId}`, kind, params: { entryId: entry.entryId, label: entry.label }, pinned: false };
+      return (
+        <View
+          key={panel.id}
+          panel={panel}
+          epoch={epoch}
+          look={opts?.look ?? "pane"}
+          className={opts?.className}
+          selectedEntryId={selectedEntryId}
+          onSelectEntry={select}
+          onPropose={propose}
+          onShow={show}
+        />
+      );
+    },
+    [epoch, propose, show, select, selectedEntryId]
   );
   const renderConsent = useCallback(
     (proposal: ProposalInstance, opts?: { className?: string }): ReactNode => (
@@ -119,6 +156,9 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
     renderConsent,
     words,
     consoleHref: CONSOLE_HREF,
+    selected,
+    select,
+    renderTool,
   };
   const partial = attentionRead.state === "ready" ? attentionRead.data : null;
   return (
@@ -127,12 +167,13 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
       className={`${mkBody.variable} ${mkHand.variable} flex min-h-dvh flex-col bg-paper text-ink lg:h-dvh lg:overflow-hidden`}
       data-one-root
       data-one-variant={variant}
-      data-finish={variant === "split" ? undefined : variant}
+      data-finish="dense"
     >
       <div className={KIT_FILL}>
         <KitSurface density="calm">
           <OneHeader
             counts={partial}
+            letters={lettersWaiting}
             activeChip={session.current?.asked.chip ?? null}
             onAsk={(chip) => session.submit({ chip })}
             variant={variant}

@@ -44,6 +44,9 @@ const isStringRecord = (v: unknown): v is Record<string, string> =>
   v != null && typeof v === "object" && !Array.isArray(v) && Object.values(v as object).every((x) => typeof x === "string");
 
 const MAX_PARAM_CHARS = 120;
+
+/** Acts bound to one candidate: an id the user was never shown drops the act. */
+const ENTRY_ACTS: ReadonlySet<string> = new Set(["entryAdvance", "entryReject", "letterApprove", "letterSend", "interviewBook", "interviewLink"]);
 const paramsOk = (p: Record<string, string>) => Object.values(p).every((v) => v.length <= MAX_PARAM_CHARS);
 
 function validOp(raw: unknown, ctx: ValidateContext): Op | null {
@@ -66,7 +69,7 @@ function validOp(raw: unknown, ctx: ValidateContext): Op | null {
       const keys = Object.keys(o.params);
       if (keys.some((k) => !spec.allowed.includes(k))) return null; // a stray field drops the whole act
       if (spec.required.some((k) => !o.params || !(o.params as Record<string, string>)[k])) return null;
-      if ((o.act === "entryAdvance" || o.act === "entryReject") && !ctx.knownEntryIds?.has((o.params as Record<string, string>).entryId)) return null;
+      if (ENTRY_ACTS.has(o.act) && !ctx.knownEntryIds?.has((o.params as Record<string, string>).entryId)) return null;
       return { op: "propose", act: o.act, params: { ...(o.params as Record<string, string>) } };
     }
     case "navigate": {

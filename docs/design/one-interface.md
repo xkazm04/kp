@@ -1,4 +1,4 @@
-# /one — the AI-conducted home (spark `one-interface`, round 3)
+# /one — the AI-conducted home (spark `one-interface`, round 4)
 
 `/one` is a signed-in alternative home for the recruiter: ONE surface, conducted from a
 conversation, that puts views from every module (pipeline, decisions, schedule, jobs,
@@ -7,11 +7,11 @@ is and is reached from `/one` as the **Console** (top-right link, or Ctrl/⌘ K 
 `/?tab=pipeline`).
 
 Round 1 shipped one shared **core** and three layout directions; round 2 refined the winner
-three ways; the owner picked **Split**. Round 3 is visual polish only: the Split LAYOUT is
-fixed and three **finishes** of it are judged, `?v=refined|spark|dense` (`?v=split` is the
-round-2 baseline with the round-3 core flowing through; unknown or absent → **refined**). They
-share one core and differ only in finish (type, spacing, surfaces, motion), never in where
-things are.
+three ways (the owner picked **Split**); round 3 judged three finishes of it and the owner picked
+**Dense**. Round 4 extends what the simplified UI can do — a candidate's profile, their held
+outreach email, the interview calendar — as shared tools (real reads, preview acts) and judges
+three LAYOUTS of them: `?v=dense|workbench|sheets|cards` (unknown or absent → **dense**). See
+"Round 3 verdict" and "Round 4 core".
 
 Governing standard: registry subject `model-composed-workspace` (golden path +
 `composition-region`, `reversible-screen-ops`). Shape reference (not code):
@@ -21,18 +21,21 @@ Governing standard: registry subject `model-composed-workspace` (golden path +
 
 | Path | What |
 | --- | --- |
-| `app/one/page.tsx` | Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). Reads `?v=` server-side. `instant = false` (cookies + searchParams per request). The direction switcher shows only outside production builds. |
+| `app/one/page.tsx` | Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). Reads `?v=` server-side (`dense` · `workbench` · `sheets` · `cards`). `instant = false` (cookies + searchParams per request). The direction switcher shows only outside production builds. |
 | `app/features/one/OneShell.tsx` | Owns the core and the fixed chrome (Console link, Ctrl/⌘ K, switcher); hands the selected variant `VariantProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, the Figtree + Caveat font variables): it imports `finish.css` and provides the motion flavor (`motion.ts`). Wrapped in `KitSurface` (calm density). |
 | `app/features/one/variants/index.ts` | `VARIANTS: Record<VariantId, ComponentType<VariantProps>>`, each `next/dynamic`-loaded from `variants/<id>/<Id>Variant.tsx`. A builder replaces only its own folder. |
-| `app/features/one/variants/split/SplitLayout.tsx` | The Split layout every direction renders (`finish?` sets `data-finish` on its root). A finish may fork it into its own folder. |
+| `app/features/one/variants/dense/DenseLayout.tsx` | The Dense layout (round-3 pick, round-4 baseline); `variants/shared/` holds the view-placement rule (`side.ts`) and the shared paint. |
+| `app/features/one/tools/` | Round 4: the tools' reads (`reads.ts` hooks, `parse.ts` pure parsers) and views (`ProfileTool`, `LetterTool`); the interview tool is `panels/CalendarPanel.tsx` scoped to one entry. |
 | `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks, the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core". |
 
 ## The contract (`app/features/one/types.ts`)
 
 Closed vocabularies in the repo's shape (literal array + derived union + runtime guard):
 `PANEL_KINDS` (needs, pipelineSlice, scheduleAhead, funnel, jobDrafts, outbox,
-decisionsQueue, roleCard), `ACT_KINDS` (entryAdvance, entryReject, wave, companion),
-`CHIP_IDS`, `SAY_KEYS`, `CHANGE_KEYS`, `VARIANT_IDS` (`split`, `refined`, `spark`, `dense`).
+decisionsQueue, roleCard; round 4: letters, calendar, profile, letter), `ACT_KINDS`
+(entryAdvance, entryReject, wave, companion; round 4 previews: letterApprove, letterSend,
+interviewBook, interviewLink), `CHIP_IDS` (+ letters, calendar), `SAY_KEYS`, `CHANGE_KEYS`,
+`TOOL_KINDS` (profile, letter, interview), `VARIANT_IDS` (`dense`, `workbench`, `sheets`, `cards`).
 
 - `Op` = `show` (a panel, params) · `focus` (a panel on screen) · `propose` (an act, params)
   · `navigate` (a Console tab, params). There is no verb that moves, hides or resizes chrome.
@@ -40,7 +43,8 @@ decisionsQueue, roleCard), `ACT_KINDS` (entryAdvance, entryReject, wave, compani
   under `one.core.say.*`, never English, and carries **no figure**.
 - `VariantProps` (`variantProps.ts`): `variant`, `session` (state + hand actions), `submit`,
   `greeting`, `attention`, `renderPanel(panel, {look, className, onExpand})`,
-  `renderConsent(proposal, {className})`, `words`, `consoleHref`.
+  `renderConsent(proposal, {className})`, `words`, `consoleHref`; round 4: `selected`,
+  `select`, `renderTool(tool, entry, {look, className})`, and `renderPanel`'s `group` option.
 - `ChangeLine` carries the view's `params` (and `previousParams`) when it has any, so
   `words.change` names a view by its TITLE (`words.view(kind, params)`: "Stalled candidates",
   "Pipeline · backend"), never by its module ("Pipeline").
@@ -186,7 +190,7 @@ read did not return is "—", never 0; the most urgent non-zero stat's figure is
 figure; a changed figure tweens (`countTick`). Right: the direction switcher in the same
 segmented style (outside production), then the Console as a link-styled button ("Console →").
 
-### The Split layout (`variants/split/SplitLayout.tsx`)
+### The layout (round 2's Split, now `variants/dense/DenseLayout.tsx`)
 Two columns filling the body: main `max(32rem, 36vw)` on the left, the side takes the rest (the
 name track's floor is what allows the wider main column).
 - **Main** is a vertical stack that DISTRIBUTES — no spacer: the "YOU ASKED · …" / "TODAY" row
@@ -230,18 +234,18 @@ Custom properties with defaults at zero specificity (`:where([data-one-root])`, 
 | `--one-sticker-border` | ink / stone-300 | the answer card, the composer outline |
 
 ### Motion (`app/features/one/motion.ts`)
-Named presets, each in three flavors — **calm** (split, refined), **spring** (spark), **snap**
-(dense), `FLAVOR_OF` — and each with a STILL form under `useReducedMotion()` (no offset, no
+Named presets, each in three flavors — **calm** and **spring** (unused since round 4), **snap**
+(every layout), `FLAVOR_OF` — and each with a STILL form under `useReducedMotion()` (no offset, no
 stagger, no tween). Every move is ≤ ~300 ms; nothing loops (`motion.test.ts`).
 
 | Preset | What moves | Wired in |
 | --- | --- | --- |
-| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | SplitLayout (`AnimatePresence mode="wait"`) |
-| `panelEnter` | the side's view when the primary or the tab changes | SplitLayout side |
+| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | DenseLayout (`AnimatePresence`) |
+| `panelEnter` | the side's view when the primary or the tab changes | DenseLayout side |
 | `rowStagger(i)` | a mounted table's first 8 rows, 20–30 ms apart; later rows arrive with the 8th | PanelFrame `TableBody` |
 
 Under reduced motion every preset returns its rest state at once. `rowStagger` returns an instant settle-to-rest spec, never `null`: `useReducedMotion()` starts `false` on mount, so a row may already sit at the stagger's opacity 0 when the preference arrives, and dropping `animate` would leave it invisible (found by the dense and spark finish builders, round 3).
-| `consentEnter` | a consent card rises and settles; leaves with a fade | SplitLayout consent stack |
+| `consentEnter` | a consent card rises and settles; leaves with a fade | DenseLayout consent stack |
 | `countTick` | a header figure tweening to its new value | `CountTick` in OneHeader |
 | `tabIndicator` | the segmented pill sliding (stats, switcher, side tabs) | `Seg` |
 
@@ -262,45 +266,9 @@ back to the same intent (pinned by `consent/acts.test.ts`).
 
 ## Round 3 finishes
 
-Three finishes of the Split layout on the round-3 core; `?v=split` stays as the round-2 baseline. Each sets its `[data-finish]` block in `finish.css` and forks `SplitLayout` only where markup differs.
-
-### Finish: refined (`?v=refined`, the default) — calm editorial
-
-Files: `variants/refined/RefinedLayout.tsx` (a fork of SplitLayout; same layout),
-`variants/refined/styles.ts` (the paint), `variants/refined/motion.ts` (+ `motion.test.ts`),
-`finish.css` `[data-finish="refined"]`. No catalog keys of its own (reuses `one.split.*`, `one.core.*`).
-
-| Axis | Refined |
-| --- | --- |
-| Type | ONE display face, once: the reply line, `--one-display-font: var(--font-serif)` — Fraunces in Studio Light, Bricolage in Spark Dark (each theme's own register), `text-display` medium, `leading-[1.12]`, `text-balance`. The asked line is `META_LABEL` (steel, not a coral eyebrow); the "what changed" note is body face `text-micro` steel (no Caveat hand note, no "start here" scribble). |
-| Spacing | 8-pt rhythm: 16px page edge (the header's own, so header / left / right edges align), `--one-gap` 24px, 16px stack gap, 8px dock gap. Table rows 2px tighter (`py-0.5`, `--one-row-h` 2.75rem). |
-| Surfaces | Light: 1px hairlines, `rounded-lg`, the answer card wears the soft `--panel-shadow` and a stone-200 outline — the same weight as the table, a page, not a sticker. Dark keeps its register (16px, 2px, the offset). Composer: hairline field + soft shadow, coral border + 30% coral ring on focus. |
-| Colour | Ink, steel, stone; coral only for the act (Send / a consent's primary) and the score tiers. Panel "Open in Console" links are steel; the rows' coral lead stroke is dropped (every decision row carried it, so it said nothing — marks and ⚠ ages still do). |
-| Insight card | Stacked bar a 6px rule; the spread a SMALL chart — slim columns (≤ 2rem) centred in their bins, so the card still grows into the column without ochre slabs; facts on a hairline. While a consent card is open the spread folds to the one-line strip; at ≤ 56rem tall the spread goes and the card stops growing (`SHORT_STILL`), so no half-clipped strip and no blank band in the surface. |
-| Motion | `answerSwap` 6px + fade 200 ms, leave 80 ms fade; `panelEnter` 4px rise 180 ms; `consentEnter` 8px rise 220 ms, no scale; all one ease-out curve, no spring. The side (tables + tab strip) is provided the `snap` flavor: rows rise 2px 20 ms apart (all 8 in ~240 ms) and the tab pill is a 120 ms tween. Still under reduced motion (rows also pinned at rest in CSS). Header count tick / header pills follow the shell's calm flavor. |
-
-Measured (dev DB, 2026-11-07): decisions table rows fully visible 15 at 1440x900 (baseline 13), 12 at
-1280x800; left column empty ≈ 0 (the stack's 8px bottom padding; no overflow); scrollHeight == viewport
-in every state, both themes.
-
-### Spark (`?v=spark`) — bold landing stickers, springy
-
-Files: `app/features/one/variants/spark/` — `SparkVariant.tsx` (entry), `SparkLayout.tsx` (fork of
-`split/SplitLayout.tsx`, same regions, same order), `styles.ts` (the finish's class strings, tokens
-only), `motion.ts` (finish-local springs on top of the `spring` flavor); the `[data-finish="spark"]`
-block in `finish.css`.
-
-| Part | Spark |
-| --- | --- |
-| Type | ONE display face, Bricolage, for the brand, the reply (`text-display`, extrabold, `leading-[1.05]`, `text-balance`) AND panel titles (`--one-title-font`, bold). Caveat only for the one hand note: the change line (and "start here" on the first beat, when there is no change line). "Opening the views…" and "not yet" are body text. |
-| Spacing | `--one-gap 1.5rem`, `--one-pad 0.875rem`, page padding `py-3`, table head `min-h-11`; table rows are content-height — two 18px lines + 2px padding = 41px (core: 49px), so 16 rows sit fully in sight at 1440x900 and 14 at 1280x800 (core: 13 / 11). Left column: 8px below the stack (its padding for the sticker's offset), no empty band. |
-| Surfaces | The insight card is THE sticker: 2px ink outline, 4px hard ink offset (dark: stone-300 outline + `--pop-shadow`), resting tilt -0.6deg (`CARD_TILT`). The table keeps the hairline (1px light / 2px dark); corners 14px light / 16px dark. Chips are small stickers: 2px ink outline + 2px hard offset that presses flat on `:active`, neutral fill (candy is meaning, not decoration). The user's asked words sit on a limewash highlighter — limewash means "your words", nowhere else. |
-| While asking | `SPARK_TRIM` replaces Split's `ASKING_TRIM`: the suggestion goes, insight gaps tighten, and the spread folds to its one-line strip instead of vanishing at ≤56rem tall — so card (shape + strip + facts) and the consent card fit one sight at 1280x800 with no clip. |
-| Motion | `answerSwap`: x ±24px on a 520/30 spring, opacity 120ms. `cardSettle`: the card drops from +1.2deg/+10px onto its tilt, 40ms behind the reply. `consentEnter`: rise 18px + untilt 1.5deg → 0 on a 460/26 spring. Tab indicator, count tick, panel enter and row stagger: the core `spring` presets. All settle < ~300ms; nothing loops. The pending line moved into the asked row so the card never jumps. `MotionConfig reducedMotion="user"` wraps the layout so transforms are dropped from a component's first frame. |
-
-Known gap (core): `useReducedMotion` seeds `false` per mount, so a freshly mounted table's row
-stagger starts its opacity fade before the preference is known; framer's `reducedMotion="user"`
-removes the transform but keeps the staggered fade.
+Three finishes of the Split layout were judged (refined, spark, dense); the owner picked Dense, and
+refined, spark and the split baseline were deleted in round 4 (their write-ups are in git history,
+this file before round 4). Dense, as it stands:
 
 ### Dense (`?v=dense`) — compact, keyboard-first
 
@@ -331,10 +299,172 @@ invisible (seen on `?v=split` too after stepping back). Dense guards it in CSS
 form of `rowStagger` a spec, not null — `{ initial: false, animate: { opacity: 1, y: 0 },
 transition: { duration: 0 } }` — in `motion.ts`.
 
+## Round 3 verdict
+
+Owner (verbatim): "group candidates by role on right side in lists, lets now extend the
+functionality available from the simplified UI related to what we can do now in the app: 1. Wire
+email channel and approve AI generated draft email 2. Ability to view calendar and schedule
+interview for those waiting for interview 3. Display candidate profile from the view (CV preview,
+scoring if available on other half of the screen)... Create three variants with different visual
+approaches ... after winning we can wire all the features to work end to end, together with LLM
+engine".
+
+The pick is the **Dense** finish. `variants/refined`, `variants/spark` and the round-2 `split`
+layout were deleted with their catalog subtree (`one.split` — the keys Dense still used moved to
+`one.dense`); `split/side.ts` (+ test) and `split/styles.ts` live on in `variants/shared/`.
+`finish.css` keeps the dense block only and every layout sets `data-finish="dense"`; `FLAVOR_OF`
+is `snap` for all four. Owner decisions for round 4: **real reads, preview acts** (everything
+shown is real data; Approve / Send / Book / Send link arm a consent card whose confirm is disabled
+with "Wired after the pick" — no write reaches any door), **one new read door**
+(`GET /api/outreach-letters?state=drafted`), and only the outreach letter is shown as held (no
+rejection or interview letter is a held draft today, so none is faked).
+
+## Round 4 core (the contract every round-4 layout codes against)
+
+`VARIANT_IDS` = `dense` (the baseline, the round-3 pick) · `workbench` · `sheets` · `cards`;
+unknown or absent `?v=` → `dense`. The three new folders start as scaffolds that render
+`DenseLayout`; their builders replace them with placement only.
+
+### Selection
+`session.selected: { entryId, label } | null`, `session.select(entry | null)` — on `VariantProps`
+as `selected` / `select`. A row that names a candidate (pipeline slice, decisions queue, letters,
+the calendar's waiting list, the agenda's interviews) is selectable: a press or Enter picks it,
+Esc on a row clears it, and the picked row is marked (ink lead stroke, sunken fill,
+`aria-selected` / `data-picked`; its quiet acts show). Selection is **navigation, not an undo
+step**: the undo stack and the answer snapshots never record it; a **new answer clears it** (a
+fresh question is a fresh context); stepping through answers, the user's hand on the region and
+undo leave it (pinned by `engine/session.test.ts`).
+
+### Tools — `renderTool(tool, entry, { look?, className? })`
+`TOOL_KINDS` = `profile` · `letter` · `interview`. A tool is a panel bound to one candidate,
+drawn by the host outside the session's region (no pin / close chrome — the layout closes it
+with `select(null)`). Default look `pane` (fills its container — give it a height; **two columns
+from 900px of its own width**, a container query, stacked below); `insight` = a compact card.
+
+| Tool | Panel kind (params `entryId`, `label`) | Reads | Pane |
+| --- | --- | --- | --- |
+| profile | `profile` | `GET /api/pipeline/[id]/timeline` → the analysis it links (`labelOnly` = matched by name only, said in a caution note); none linked → `seed-<candidateId>` (the demo corpus); then `GET /api/analyses/[slug]` | the CV as the analysis read it (`candidate.rawText` — there is no CV file store, said under it) \| overall + job-fit (`resolveVerdict`, a blocked score is "Unscored"), the five parts against their maxima (25 / 30 / 23 / 12 / 10, `ScoreList`), job-fit matching / missing / unproven, strengths, gaps, soft signals; engine + analysed date |
+| letter | `letter` | `GET /api/outreach-letters/by-entry/[entryId]` + `GET /api/comms?entry=<id>&limit=20` | the letter a release would SEND (state, revision, recipient, subject, body with the legal footers, the delivery forecast line) and its one next act — Approve (drafted) / Send (approved, delivery failed, held back) \| the thread with the one delivery verdict per message. No letter held → said, plus "only first-contact outreach is held today" |
+| interview | `calendar` scoped to the entry | the ONE schedule read, `?slots=1`, the pipeline read | waiting or not (an unknown wait length is said, never "0 days"), their invitations, Send a link, the free times as Book buttons, the interview zone |
+
+### Panels added (`PANEL_KINDS`)
+| Kind | Reads | Looks |
+| --- | --- | --- |
+| `letters` | `GET /api/outreach-letters?state=drafted&limit=200` (the new door) | table / list: candidate (subject under), revision, drafted; rows selectable, grouped by role; the quiet ✓ or `a` arms a preview Approve. insight: letters per role, the one waiting longest, and one suggestion that is a READ (open the oldest in the email tool) |
+| `calendar` | `GET /api/schedule?limit=200` (filtered client-side by week), `GET /api/schedule?slots=1`, `GET /api/pipeline` | table / pane: the week grid (Mon–Fri; booked = ok mark, awaiting the candidate = wait mark; free times; a pager from the first week with a day still ahead to the end of the 21-day offer horizon) beside the waiting list grouped by role (from 760px of its own width, under it below); with a waiting candidate selected the free times become Book buttons. list: the week as an agenda grouped by day. insight: this week's shape, who waits longest, ONE suggested booking (longest waiter × first free time → preview consent). `truncated`, a failed slots read and an unavailable calendar are notes; "no calendar connected" is said beside the zone |
+| `profile`, `letter` | above | `pane`, `insight` |
+
+`PanelLook` gains `pane`. Waiting for an interview = an active entry with
+`approvalKind === "calendar"` (`useScheduleTab`'s rule); its `approvalDetail` ("Tue 14:00") is a
+placeholder and is never drawn as a slot. Reads live in `tools/reads.ts` (hooks over
+`panels/read.ts`) with the pure parsers in `tools/parse.ts` (`tools/parse.test.ts`).
+
+### Role grouping
+Pipeline rows in the `table` and `list` looks are grouped by role (`PanelRow.group`): a head per
+role (title, count, "N stalled" with the caution mark when > 0) that sticks under the column
+head (`--one-colhead-h`, finish.css) while its group is in view; groups sit where their first row
+was and rows keep the view's own order inside; one group only → no head. Under a head the row's
+role subline is hidden (it would say the role twice; the age stays). Group heads are not focus
+stops — ↑ ↓ cross groups. `renderPanel(panel, { group: "none" })` keeps a view flat; views whose
+rows carry no role (outbox, schedule) are never grouped.
+
+### Preview acts (`ACT_KINDS`)
+`letterApprove` (entryId, letterId, revision, label) · `letterSend` (entryId, letterId,
+revision?, label) · `interviewBook` (entryId, dateSlot `YYYY-MM-DD HH:MM` in the interview zone,
+label, when = the slot's server label, zone) · `interviewLink` (entryId, label). `consent/acts.ts`
+`PREVIEW_ACTS` marks them: the card renders title + ONE consequence line from the real data
+("Approves the letter to Ana (revision 2). Nothing is sent yet." / "Books Ana on Mon 9 Nov · 10:00
+(Europe/Prague)." / "Emails Ana a link to pick a time."), a disabled confirm and the line
+`one.core.consent.preview` "Wired after the pick". A malformed revision or a non-slot (`Tue 14:00`)
+disarms. Wiring one later = drop it from `PREVIEW_ACTS` + its door in `doors.ts`
+(`POST /api/outreach-letters/[id]/approve` `{revision}`, `…/release`, `POST /api/schedule`
+`{action:"book", entryId, dateSlot}`, `POST /api/schedule/invite` `{entryId}`). The validation
+door treats all four as entry acts (an id the user was never shown drops the act).
+
+### Conductor and header
+Intents + chips `letters` ("emails to approve", "drafts waiting", "letters", "outreach" — "draft /
+write outreach to …" stays the companion's act) and `calendar` ("calendar", "schedule", "this
+week", "who is waiting for an interview", "book", "slots"; plain "interviews" still answers with
+`scheduleAhead`). `open <name>` / `profile of <name>` → the profile of the ONE active entry whose
+label holds every word (case- and accent-insensitive, from the shared pipeline read the shell
+passes as `ResolveContext.entries`); several, none, or the read not landed → `pipelineSlice
+{ name }` with `profileMany` / `profileNone`. "open the pipeline" (a view word) is not a name.
+Header: a **Letters** stat from the new door (a dash until it lands; its press asks `letters`);
+the **Interviews** stat now asks `calendar`.
+
+### The new read door
+`GET /api/outreach-letters?state=drafted[&limit=]` → `{ letters: [{ id, entryId, candidateLabel,
+jobTitle, subject, state, revision, createdAt, updatedAt }], state, limit, truncated }`.
+`outreachLetterListByState` (`app/_lib/db/outreach-letters.ts`): workspace-bound, on
+`idx_outreach_letters_open`, erased rows left out, oldest first, cap 200, one row past the cap read
+for `truncated`; no body on the list. `withWorkspace` + `requireOperator` like the by-entry read.
+Documented in `docs/features/comms/README.md` §8a.
+
+### Sample letters (`?sample=letters`, development builds only)
+The dev DB holds no drafted letter, so the email moments could not be judged. In a development
+build opened with `?sample=letters`, `useLettersWaiting` (tools/reads.ts) answers an EMPTY real
+list with three made-up drafts addressed to real candidates (the highest-scored new arrivals —
+the axis's `entry` role, never someone hired or on an offer), each flagged `sample`; `useLetter` serves the matching draft
+(`one.core.sample.subject|body`). The letters view's foot and the letter tool both say
+`one.core.sample.note`. Nothing is stored, the acts stay preview-only, and a production build
+never turns it on. Remove it when the hold mechanism is wired end to end.
+
+### Dense hosting (minimal, so the layout builders see the tools work)
+A candidate picked from the side's list takes the main column's card slot: a Profile · Email ·
+Interview strip (`Seg`), the name, × to close, over `renderTool(tool, selected)`.
+
+Measured (dev data, 2026-11-07, 1440x900, both themes): scrollHeight 900 in every capture
+(decisions, profile, email tool, letters, calendar, interview tool, preview consent). Data seen:
+29 decisions in 8 role groups; 6 entries waiting for an interview (4 roles; 3 with no recorded
+stage date); 0 outreach letters held in the dev DB (the letters view and the header say so); the
+profile tool rendered a seeded analysis (`seed-cand-*`, matched by name only per the timeline).
+
+## Round 4 variants
+
+Three layouts of the same capabilities, all on the Dense finish; `dense` is the round-3 baseline
+that hosts the tools minimally. Every variant covers the same seven moments (role-grouped list,
+letters waiting → approve, one person's letter, calendar → book / send link, profile CV | score,
+Enter / Esc / `/` `[` `]`, no page scroll at 1440x900 and 1280x800 in both themes); every act is
+a preview.
+
+### Workbench (`?v=workbench`) — the person takes half the page
+`variants/workbench/`. Picking a person turns the main column into their workbench (Profile ·
+Email · Interview, keys `1` `2` `3`) beside the role-grouped list, split about 55/45 (the list
+keeps the table look's keys; a 2/3 workbench would push the list under the table's 512px
+minimum at 1280). Letters and Calendar open in the same half as a "desk"; picking someone there
+opens them on Email or Interview. The reply shrinks to one line; the composer stays.
+
+### Sheets (`?v=sheets`) — tools slide over the main column
+`variants/sheets/` (stack rules pure in `stack.ts`, tested). Tools open as full-height sheets
+over the main column, with no scrim, so the list stays live; profile, letters and calendar widen to half the
+page. Sheets stack (the lower one is a 24px spine with its name, a breadcrumb names the stack);
+Esc pops one; another row swaps the top sheet's person. The header counts open their sheet.
+
+### Cards (`?v=cards`) — the answer card is the tool
+`variants/cards/` (`faces.tsx`). The main card becomes a letter card (Approve, Next letter, who
+else waits), a scheduling card (the longest waiter, three free times as Book buttons, Send link
+instead) or a person card (Profile · Letter · Interview faces). `E` expands to the full width:
+CV | score as two halves, the list collapsed to a slim rail of role groups. Next-step chips
+are ordinary submits, so `[` `]` walk back through what was done.
+
+### Core debts the three builders found (owed at consolidation)
+- The tools go two-column only from 900px of their own width; every variant forces it locally
+  (half a screen is 610–760px). Lower it to about 600px or give tools a `columns` option.
+- The letters table's 5rem acts column overlaps the drafted date with "Open in Console" (Dense too).
+- The calendar puts the waiting list beside the week only from 760px; the free-time buttons
+  overflow ~85px day columns at 1280.
+- A tool's own head repeats the name the host already shows; a headless `pane` would remove
+  three local overrides.
+- With a letter consent open, the tool's Approve and the card's disabled confirm are both coral.
+- The letter body box collapses at 1280 while a consent card is open.
+- Fixed by the Director: "waiting longest" sorted people with no recorded date FIRST (a `"~"`
+  sentinel under locale collation); `byKnownTimeFirst` in `panels/pipelineRead.ts` now puts them last, in the
+  calendar and the stalled slice.
+
 ## History
 
-Round 1 (Greet, Stage, Brief) and round 2 (Greet kept; Split, Spotlight, Ticker) are recorded in
-git history (this file before round 3). Kept from them: the counts header, the answer stepper
+Round 1 (Greet, Stage, Brief), round 2 (Greet kept; Split, Spotlight, Ticker) and round 3's
+refined / spark finishes are recorded in git history (this file before rounds 3 and 4). Kept from them: the counts header, the answer stepper
 instead of a transcript, one surface per panel, the no-scroll frame, and Split's layout.
 
 ## Known gaps
@@ -346,6 +476,10 @@ instead of a transcript, one surface per panel, the no-scroll frame, and Split's
 - **Single-entry acts have no undo here.** `reinstate` reverses only an auto-rejection;
   a hand reject is reopened through the Console's re-add door.
 - **The conductor is keyword-matched**, English-only on the input side; the replies are
-  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.split` strings until promotion.
+  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.dense` strings until promotion.
 - **The greeting is the first beat only**; it does not re-read after a data act (panels do).
 - **Undo of a reply is per step** (the last screen change), not "undo the whole reply".
+- **Round-4 acts are previews.** Approve / Send / Book / Send link arm a card whose confirm is
+  disabled; the doors exist and are wired after the layout pick.
+- **No CV file is stored**; the profile's CV is the analysis text, and a corpus entry's analysis
+  may be matched by name only (said on the tool).

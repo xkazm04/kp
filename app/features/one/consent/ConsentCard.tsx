@@ -218,6 +218,53 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
         }
       );
     }
+    case "letterApprove":
+    case "letterSend":
+    case "interviewBook":
+    case "interviewLink": {
+      // Round 4 PREVIEW: the card is armed and its one line comes from the real data the
+      // tool read (who, which revision, which slot), but the confirm is disabled — no write
+      // reaches any door this round (acts.ts PREVIEW_ACTS).
+      const who = act.label ?? t("previewActs.someone");
+      const title =
+        act.act === "letterApprove"
+          ? t("previewActs.letterApprove.title", { label: who })
+          : act.act === "letterSend"
+            ? t("previewActs.letterSend.title", { label: who })
+            : act.act === "interviewBook"
+              ? t("previewActs.interviewBook.title", { label: who })
+              : t("previewActs.interviewLink.title", { label: who });
+      const line =
+        act.act === "letterApprove"
+          ? t("previewActs.letterApprove.line", { label: who, revision: act.revision })
+          : act.act === "letterSend"
+            ? t("previewActs.letterSend.line", { label: who })
+            : act.act === "interviewBook"
+              ? act.zone
+                ? t("previewActs.interviewBook.lineZone", { label: who, when: act.when ?? act.dateSlot, zone: act.zone })
+                : t("previewActs.interviewBook.line", { label: who, when: act.when ?? act.dateSlot })
+              : t("previewActs.interviewLink.line", { label: who });
+      const press =
+        act.act === "letterApprove"
+          ? t("previewActs.letterApprove.press")
+          : act.act === "letterSend"
+            ? t("previewActs.letterSend.press")
+            : act.act === "interviewBook"
+              ? t("previewActs.interviewBook.press")
+              : t("previewActs.interviewLink.press");
+      return frame(
+        title,
+        <p>{line}</p>,
+        <>
+          <Button label={press} variant="primary" disabled data-role="one-consent-preview-confirm" />
+          <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />
+          <span className="text-micro text-steel" data-role="one-consent-preview">
+            {t("preview")}
+          </span>
+        </>,
+        { details: <p>{t(`previewActs.${act.act}.details`)}</p> }
+      );
+    }
     case "companion":
       return frame(
         t(`companion.title.${act.action}`),

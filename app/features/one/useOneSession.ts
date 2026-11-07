@@ -12,7 +12,7 @@ import type { AttentionCounts } from "@/app/_lib/attention";
 import { resolve } from "./engine/resolve";
 import { currentOf, initialSession, positionOf, sessionReducer, type CurrentAnswer, type SessionState } from "./engine/session";
 import { validateReply } from "./engine/validate";
-import type { ActKind, OneInput, PanelKind } from "./types";
+import type { ActKind, OneInput, PanelKind, Selected } from "./types";
 
 export const PENDING_MS = 450;
 
@@ -41,12 +41,14 @@ export type OneSession = SessionState & {
   /** A panel row's own act (the user's press) → a ConsentCard. */
   propose: (act: ActKind, params: Record<string, string>) => void;
   dismissProposal: (proposalId: string) => void;
+  /** Pick a candidate from a list (null clears). Navigation, not undo; a new answer clears it. */
+  select: (entry: Selected | null) => void;
   /** Bumped after a data act; panels re-read on change. */
   epoch: number;
   bumpEpoch: () => void;
 };
 
-export function useOneSession(attention: AttentionCounts | null): OneSession {
+export function useOneSession(attention: AttentionCounts | null, entries: readonly { id: string; label: string }[] | null = null): OneSession {
   const [state, dispatch] = useReducer(sessionReducer, undefined, initialSession);
   const [epoch, setEpoch] = useState(0);
 
@@ -63,12 +65,12 @@ export function useOneSession(attention: AttentionCounts | null): OneSession {
     (input: OneInput) => {
       const text = input.text?.trim();
       if (!input.chip && !text) return;
-      const raw = resolve(input, { attention });
+      const raw = resolve(input, { attention, entries });
       // Every reply passes the one door, even our own deterministic one.
       const { reply, dropped } = validateReply(raw, { panelIds: new Set(state.panels.map((p) => p.id)) });
       dispatch({ type: "submit", input, reply, dropped });
     },
-    [attention, state.panels]
+    [attention, entries, state.panels]
   );
 
   const actions = useMemo(
@@ -84,6 +86,7 @@ export function useOneSession(attention: AttentionCounts | null): OneSession {
       unpin: (panelId: string) => dispatch({ type: "unpin", panelId }),
       propose: (act: ActKind, params: Record<string, string>) => dispatch({ type: "propose", act, params }),
       dismissProposal: (proposalId: string) => dispatch({ type: "dismissProposal", proposalId }),
+      select: (entry: Selected | null) => dispatch({ type: "select", entry }),
       bumpEpoch: () => setEpoch((n) => n + 1),
     }),
     []

@@ -4,9 +4,10 @@
 //
 // Colour and face still resolve through tokens; nothing here sets a colour.
 
-/** Panel heads one step shorter (48 → 40px) and the sticky column head 36 → 32px. */
+/** Panel heads one step shorter (48 → 40px). The sticky column head (32px) is the
+ *  `--one-colhead-h` hook in finish.css, so a role group head sticks right under it. */
 const HEADS =
-  "[&_[data-one-surface]>div:first-child]:min-h-10 [&_[data-one-surface]>div:first-child]:py-1 [&_[data-role=one-table]_[role=row]:not([data-row])]:h-8";
+  "[&_[data-one-surface]>div:first-child]:min-h-10 [&_[data-one-surface]>div:first-child]:py-1";
 
 /** A row is ONE line: the candidate's name, then its subline (role · age) on the same
  *  baseline. The name never truncates (it keeps its width); the subline gives way. With

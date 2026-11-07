@@ -6,12 +6,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { CHANGE_KEYS, CHIP_IDS, PANEL_KINDS, SAY_KEYS, VARIANT_IDS, variantOf } from "./types.ts";
-import { COMPANION_ACTION_IDS } from "./consent/acts.ts";
+import { CHANGE_KEYS, CHIP_IDS, PANEL_KINDS, SAY_KEYS, TOOL_KINDS, VARIANT_IDS, variantOf } from "./types.ts";
+import { COMPANION_ACTION_IDS, PREVIEW_ACTS } from "./consent/acts.ts";
 import { parsePipeline, sliceEntries } from "./panels/pipelineRead.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const core = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one.core;
+const dense = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one.dense;
+const PREVIEW = [...PREVIEW_ACTS];
 
 test("every say key, chip, change key, panel and variant has words in all four locales", () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
@@ -31,13 +33,25 @@ test("the companion ids /one restates are still the real catalog's ids", () => {
   assert.deepEqual([...COMPANION_ACTION_IDS].sort(), real);
 });
 
-test("?v= falls back to refined; the round-2 losers are gone", () => {
-  assert.deepEqual([...VARIANT_IDS], ["split", "refined", "spark", "dense"]);
-  assert.equal(variantOf("split"), "split");
+test("?v= falls back to dense; the round-3 losers are gone", () => {
+  assert.deepEqual([...VARIANT_IDS], ["dense", "workbench", "sheets", "cards"]);
+  assert.equal(variantOf("workbench"), "workbench");
   assert.equal(variantOf("dense"), "dense");
-  assert.equal(variantOf("greet"), "refined");
-  assert.equal(variantOf("ticker"), "refined");
-  assert.equal(variantOf(undefined), "refined");
+  assert.equal(variantOf("refined"), "dense");
+  assert.equal(variantOf("split"), "dense");
+  assert.equal(variantOf(undefined), "dense");
+});
+
+test("every round-4 preview act and tool has its words in all four locales", () => {
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const c = core(locale);
+    assert.equal(typeof c.consent.preview, "string", `${locale} consent.preview`);
+    for (const k of PREVIEW) {
+      for (const f of ["title", "line", "press", "details"]) assert.equal(typeof c.consent.previewActs[k][f], "string", `${locale} previewActs.${k}.${f}`);
+    }
+    for (const k of TOOL_KINDS) assert.equal(typeof dense(locale).tools[k], "string", `${locale} dense.tools.${k}`);
+    assert.equal(typeof c.header.stats.letters.label, "string");
+  }
 });
 
 test("the pipeline parser keeps active entries only, refuses a body it does not know", () => {

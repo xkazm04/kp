@@ -66,6 +66,9 @@ export function useOneWords(): OneWords {
 type Tr = (key: string, values?: Record<string, string>) => string;
 
 export function viewTitle(k: PanelKind, params: Record<string, string>, t: Tr): string {
+  // A tool on one candidate is named by them ("Profile · Ana Malá").
+  if ((k === "profile" || k === "letter") && params.label) return t(`panels.${k}.titleFor`, { label: params.label });
+  if (k === "pipelineSlice" && params.name) return t("panels.pipelineSlice.titleName", { name: params.name });
   const base =
     k === "pipelineSlice" && params.filter === "aging"
       ? t("panels.pipelineSlice.titleAging")

@@ -14,6 +14,14 @@
 //            and at most one suggested act. It never repeats the table's count. The answer
 //            card is the screen's one sticker (`data-one-sticker`, finish.css).
 //   list     a dense single column for a narrow side: a line + a meta line per item.
+//   pane     round 4: a TOOL filling its container (profile, letter, calendar). The panel
+//            hands its own body for it (`body.pane`); without one the table is drawn.
+//
+// Round 4 also: pipeline rows are GROUPED BY ROLE in the table and list looks (a sticky
+// group head: role, count, stalled count; groups sit where their first row was, rows keep
+// the view's order inside), and rows that carry an `entry` are SELECTABLE — a press or
+// Enter picks the candidate in the session (`onSelectEntry`), Esc on a row clears it, and
+// the picked row is marked. Group heads are not focus stops; ↑ ↓ cross groups.
 //
 // A panel is one surface: the frame paints the border, the host's className only places and
 // sizes it. Corner, outline width and padding follow the finish hooks (finish.css). Loading
@@ -31,8 +39,9 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import { useOneMotion } from "../motion";
 import { consoleHref } from "./PanelShell";
+import type { Selected } from "../types";
 import type { Read } from "./read";
-import type { PanelProps } from "./types";
+import type { PanelLook, PanelProps } from "./types";
 
 /** One table column: `track` is its CSS grid track ("minmax(0,1fr)", "6rem"). */
 export type Col = { key: string; label: string; track: string; end?: boolean };
@@ -56,6 +65,13 @@ export type PanelRow = {
   mark?: MarkKind;
   tone?: "needs" | "caution";
   onSelect?: () => void;
+  /** Round 4: the candidate this row is (rows with one are selectable when the host passes
+   *  `onSelectEntry`; the picked one is marked). */
+  entry?: Selected;
+  /** Round 4: the role group this row belongs to (role grouping), and whether it is stalled
+   *  (the group head counts those). */
+  group?: { key: string; label: string };
+  stalled?: boolean;
 };
 
 /** One part of a stacked bar / one bin of a spread. */
@@ -97,6 +113,9 @@ export type PanelData = {
   note?: ReactNode;
   /** Under the rows ("Showing the first 8 of 12."). */
   foot?: string;
+  /** Round 4: a panel's own body for a look (the tools' `pane`, the calendar's week grid).
+   *  The frame still draws the head and the loading / error states; `rows` may be empty. */
+  body?: Partial<Record<PanelLook, ReactNode>>;
 };
 
 /** The finish-hooked title: one face (`--one-title-font`, the body face by default), h3, semibold. */
@@ -133,6 +152,9 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
   const { read } = data;
   const insight = look === "insight";
   const surface = insight ? `${PANEL} flex flex-col` : `${PANEL} flex min-h-0 flex-col overflow-hidden`;
+  const own = data.body?.[look];
+  const rows = withSelection(data.rows, props);
+  const grouped = props.group !== "none";
   const ready = read.state === "ready";
   const consoleLink = data.console ? (
     <Link className="k-btn k-btn--link k-btn--sm" href={consoleHref(data.console.tab, data.console.params)} data-role="one-console-link">
@@ -151,6 +173,7 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
         </div>
       );
     }
+    if (own) return own;
     if (data.rows.length === 0) {
       return (
         <>
@@ -161,9 +184,9 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
         </>
       );
     }
-    if (look === "table") return <TableBody data={data} />;
+    if (look === "table" || look === "pane") return <TableBody data={{ ...data, rows }} grouped={grouped} props={props} />;
     if (insight) return <InsightBody data={data} />;
-    return <ListBody data={data} />;
+    return <ListBody data={{ ...data, rows }} grouped={grouped} selectedEntryId={props.selectedEntryId ?? null} />;
   };
 
   return (
@@ -197,7 +220,7 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
           <span className="flex-1" />
         )}
         <div className="flex shrink-0 items-center gap-1">
-          {insight && onExpand ? <Button label={t("seeAll")} variant="link" size="sm" onClick={onExpand} /> : look === "table" || insight ? consoleLink : null}
+          {insight && onExpand ? <Button label={t("seeAll")} variant="link" size="sm" onClick={onExpand} /> : look === "table" || look === "pane" || insight ? consoleLink : null}
           {insight ? null : chrome}
         </div>
       </div>
@@ -207,29 +230,97 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
   );
 }
 
+/* ── selection + role groups ───────────────────────────────────────────────── */
+
+/** Rows that name a candidate become selectable when the host lets them: a press or Enter
+ *  picks the candidate (a row's own onSelect, if it has one, still wins). */
+function withSelection(rows: PanelRow[], props: PanelProps): PanelRow[] {
+  const pick = props.onSelectEntry;
+  if (!pick) return rows;
+  return rows.map((r) => (r.entry && !r.onSelect ? { ...r, onSelect: () => pick(r.entry ?? null) } : r));
+}
+
+type RowGroup = { key: string; label: string; rows: PanelRow[]; stalled: number };
+
+/** The rows grouped by role, in first-row order — or null when there is nothing to group
+ *  (grouping off, a row without a group, or one group only: a lone head says nothing). */
+export function roleGroups(rows: readonly PanelRow[], grouped: boolean): RowGroup[] | null {
+  if (!grouped || rows.length === 0 || rows.some((r) => !r.group)) return null;
+  const out: RowGroup[] = [];
+  const at = new Map<string, RowGroup>();
+  for (const r of rows) {
+    const g = r.group as { key: string; label: string };
+    let hit = at.get(g.key);
+    if (!hit) {
+      hit = { key: g.key, label: g.label, rows: [], stalled: 0 };
+      at.set(g.key, hit);
+      out.push(hit);
+    }
+    hit.rows.push(r);
+    if (r.stalled) hit.stalled += 1;
+  }
+  return out.length > 1 ? out : null;
+}
+
+/** A role group's head: the role, its count, and its stalled count when there are any. Not a
+ *  focus stop (the rowgroup carries the name for assistive tech). */
+function GroupHead({ group, sticky }: { group: RowGroup; sticky: boolean }) {
+  const t = useTranslations("one.core.panels.group");
+  return (
+    <div
+      className={`flex min-h-8 items-center gap-2 border-b border-stone-200 bg-stone-50 px-[var(--one-pad)] py-1 dark:border-dashed ${sticky ? "sticky top-[var(--one-colhead-h)] z-[5]" : ""}`}
+      data-role="one-group-head"
+      aria-hidden
+    >
+      <span className="min-w-0 truncate text-micro font-semibold text-ink">{group.label}</span>
+      <span className="k-nums shrink-0 text-micro text-steel">{group.rows.length}</span>
+      {group.stalled > 0 ? (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-micro text-steel">
+          <Mark kind="caution" />
+          {t("stalled", { count: group.stalled })}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 /* ── table ─────────────────────────────────────────────────────────────────── */
 
 /** A row's quiet acts: hidden until the row is hovered, focused or selected — the first
  *  row always shows them, so the affordance is never a secret. */
-const QUIET_ACTS = "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 group-data-[selected]:opacity-100";
+const QUIET_ACTS = "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 group-data-[selected]:opacity-100 group-data-[picked]:opacity-100";
 
-function TableBody({ data }: { data: PanelData }) {
+/** Under a role group's head a row's role subline (marked `data-role-sub`) repeats the head,
+ *  so a grouped table hides it (the age stays). */
+const GROUPED_SUB = "[&_[data-role-sub]]:hidden [&_.truncate:has(>[data-role-sub])]:hidden";
+
+function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean; props: PanelProps }) {
   const t = useTranslations("one.core.panels");
   const m = useOneMotion();
   const [selected, setSelected] = useState<string | null>(null);
   const template = [...data.cols.map((c) => c.track), ...(data.actsTrack && data.actsTrack !== "0" ? [data.actsTrack] : [])].join(" ");
   const style: CSSProperties = { gridTemplateColumns: template };
   const hasActs = data.actsTrack != null && data.actsTrack !== "0";
+  const groups = roleGroups(data.rows, grouped);
+  // Display order: grouped (groups in first-row order), else the view's own.
+  const ordered = groups ? groups.flatMap((g) => g.rows) : data.rows;
+  const firstKey = ordered[0]?.key;
 
   const onKeys = (e: KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (!target.matches("[data-row]")) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      // Every row in document order — group heads are not rows, so ↑ ↓ cross groups.
       const rows = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[data-row]"));
       const next = rows[rows.indexOf(target) + (e.key === "ArrowDown" ? 1 : -1)];
       if (!next) return;
       e.preventDefault();
       next.focus();
+      return;
+    }
+    if (e.key === "Escape" && props.selectedEntryId && props.onSelectEntry) {
+      e.preventDefault();
+      props.onSelectEntry(null);
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -241,12 +332,58 @@ function TableBody({ data }: { data: PanelData }) {
     }
   };
 
+  const rowOf = (r: PanelRow) => {
+    const i = ordered.indexOf(r);
+    const enter = m.rowStagger(i);
+    const first = r.key === firstKey;
+    const picked = r.entry != null && r.entry.entryId === props.selectedEntryId;
+    return (
+      <motion.div
+        key={r.key}
+        {...(enter ?? {})}
+        role="row"
+        data-row
+        data-row-key={r.key}
+        data-selected={selected === r.key || undefined}
+        data-picked={picked || undefined}
+        aria-selected={r.entry && props.onSelectEntry ? picked : undefined}
+        tabIndex={0}
+        onFocus={(e) => {
+          if (e.target === e.currentTarget) setSelected(r.key);
+        }}
+        onClick={r.onSelect}
+        onKeyDown={(e) => {
+          if (r.onSelect && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            r.onSelect();
+          }
+        }}
+        className={`group grid min-h-[var(--one-row-h)] items-center gap-x-4 border-b border-stone-200 px-[var(--one-pad)] py-1 outline-none last:border-b-0 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-coral data-[selected]:bg-stone-50 data-[picked]:bg-stone-100 dark:border-dashed ${
+          r.onSelect ? "cursor-pointer" : ""
+        } ${picked ? "shadow-[inset_3px_0_0_var(--color-ink)]" : r.tone === "needs" ? "shadow-[inset_3px_0_0_var(--color-coral)]" : ""}`}
+        style={style}
+      >
+        {data.cols.map((c) => (
+          <div key={c.key} role="cell" className={`min-w-0 text-micro text-ink ${c.end ? "k-nums text-right" : ""}`}>
+            {r.cells[c.key]}
+          </div>
+        ))}
+        {hasActs ? (
+          <div role="cell" className={`flex items-center justify-end gap-0.5 ${first ? "" : QUIET_ACTS}`} data-role="one-row-acts">
+            {r.acts}
+            {r.door ? <span className={first && !r.acts ? QUIET_ACTS : ""}>{r.door}</span> : null}
+          </div>
+        ) : null}
+      </motion.div>
+    );
+  };
+
   return (
     <>
       {data.note ? <div className="shrink-0 px-3 pt-3">{data.note}</div> : null}
-      <div className="min-h-0 flex-1 overflow-auto" role="table" aria-label={data.title} onKeyDown={onKeys} data-role="one-table">
+      <div className={`min-h-0 flex-1 overflow-auto ${groups ? GROUPED_SUB : ""}`} role="table" aria-label={data.title} onKeyDown={onKeys} data-role="one-table" data-grouped={groups ? "role" : undefined}>
         <div className="min-w-[32rem]">
-          <div role="row" className="sticky top-0 z-10 grid h-9 items-center gap-x-4 border-b border-stone-200 bg-white px-[var(--one-pad)] dark:border-b-2" style={style}>
+          <div role="row" className="sticky top-0 z-10 grid h-[var(--one-colhead-h)] items-center gap-x-4 border-b border-stone-200 bg-white px-[var(--one-pad)] dark:border-b-2" style={style}>
             {data.cols.map((c) => (
               <div key={c.key} role="columnheader" className={`${META_LABEL} truncate ${c.end ? "text-right" : ""}`}>
                 {c.label}
@@ -254,46 +391,16 @@ function TableBody({ data }: { data: PanelData }) {
             ))}
             {hasActs ? <div role="presentation" /> : null}
           </div>
-          {data.rows.map((r, i) => {
-            const enter = m.rowStagger(i);
-            return (
-              <motion.div
-                key={r.key}
-                {...(enter ?? {})}
-                role="row"
-                data-row
-                data-row-key={r.key}
-                data-selected={selected === r.key || undefined}
-                tabIndex={0}
-                onFocus={(e) => {
-                  if (e.target === e.currentTarget) setSelected(r.key);
-                }}
-                onClick={r.onSelect}
-                onKeyDown={(e) => {
-                  if (r.onSelect && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    r.onSelect();
-                  }
-                }}
-                className={`group grid min-h-[var(--one-row-h)] items-center gap-x-4 border-b border-stone-200 px-[var(--one-pad)] py-1 outline-none last:border-b-0 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-coral data-[selected]:bg-stone-50 dark:border-dashed ${
-                  r.onSelect ? "cursor-pointer" : ""
-                } ${r.tone === "needs" ? "shadow-[inset_3px_0_0_var(--color-coral)]" : ""}`}
-                style={style}
-              >
-                {data.cols.map((c) => (
-                  <div key={c.key} role="cell" className={`min-w-0 text-micro text-ink ${c.end ? "k-nums text-right" : ""}`}>
-                    {r.cells[c.key]}
-                  </div>
-                ))}
-                {hasActs ? (
-                  <div role="cell" className={`flex items-center justify-end gap-0.5 ${i === 0 ? "" : QUIET_ACTS}`} data-role="one-row-acts">
-                    {r.acts}
-                    {r.door ? <span className={i === 0 && !r.acts ? QUIET_ACTS : ""}>{r.door}</span> : null}
-                  </div>
-                ) : null}
-              </motion.div>
-            );
-          })}
+          {groups
+            ? groups.map((g) => (
+                // A rowgroup per role: its head sticks under the column head while the group
+                // is in view, and the next group's head pushes it out.
+                <div key={g.key} role="rowgroup" aria-label={g.label} data-role="one-group">
+                  <GroupHead group={g} sticky />
+                  {g.rows.map(rowOf)}
+                </div>
+              ))
+            : data.rows.map(rowOf)}
         </div>
       </div>
       {data.foot || data.keyHint ? (
@@ -313,59 +420,79 @@ function TableBody({ data }: { data: PanelData }) {
 
 /* ── list ──────────────────────────────────────────────────────────────────── */
 
-function ListRows({ rows }: { rows: PanelRow[] }) {
+function ListRows({ rows, grouped, selectedEntryId }: { rows: PanelRow[]; grouped: boolean; selectedEntryId: string | null }) {
+  const groups = roleGroups(rows, grouped);
+  if (groups) {
+    return (
+      <div className="flex flex-col">
+        {groups.map((g) => (
+          <div key={g.key} role="group" aria-label={g.label} data-role="one-group">
+            <GroupHead group={g} sticky={false} />
+            <ListRows rows={g.rows} grouped={false} selectedEntryId={selectedEntryId} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   // When some rows carry a mark and some do not, the unmarked ones keep the slot, so the
   // lines stay on one left edge.
   const anyMark = rows.some((r) => r.mark);
   return (
     <ul className="flex flex-col">
-      {rows.map((r) => (
-        <li
-          key={r.key}
-          className={`flex flex-col gap-1 border-b border-stone-200 px-3 py-2 last:border-b-0 dark:border-dashed ${r.tone === "needs" ? "shadow-[inset_3px_0_0_var(--color-coral)]" : ""}`}
-          data-row
-        >
-          <div
-            className={`flex items-start gap-2 ${r.onSelect ? "cursor-pointer" : ""}`}
-            onClick={r.onSelect}
-            role={r.onSelect ? "button" : undefined}
-            tabIndex={r.onSelect ? 0 : undefined}
-            onKeyDown={
-              r.onSelect
-                ? (e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      r.onSelect?.();
-                    }
-                  }
-                : undefined
-            }
+      {rows.map((r) => {
+        const picked = r.entry != null && r.entry.entryId === selectedEntryId;
+        return (
+          <li
+            key={r.key}
+            className={`flex flex-col gap-1 border-b border-stone-200 px-3 py-2 last:border-b-0 data-[picked]:bg-stone-100 dark:border-dashed ${
+              picked ? "shadow-[inset_3px_0_0_var(--color-ink)]" : r.tone === "needs" ? "shadow-[inset_3px_0_0_var(--color-coral)]" : ""
+            }`}
+            data-row
+            data-picked={picked || undefined}
           >
-            {r.mark ? (
-              <span className="mt-0.5 shrink-0">
-                <Mark kind={r.mark} />
-              </span>
-            ) : anyMark ? (
-              <span className="size-4 shrink-0" aria-hidden />
-            ) : null}
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-micro font-semibold leading-5 text-ink">{r.line}</span>
-              {r.meta ? <span className="truncate text-micro leading-5 text-steel">{r.meta}</span> : null}
+            <div
+              className={`flex items-start gap-2 ${r.onSelect ? "cursor-pointer" : ""}`}
+              onClick={r.onSelect}
+              role={r.onSelect ? "button" : undefined}
+              aria-pressed={r.onSelect && r.entry ? picked : undefined}
+              tabIndex={r.onSelect ? 0 : undefined}
+              onKeyDown={
+                r.onSelect
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        r.onSelect?.();
+                      }
+                    }
+                  : undefined
+              }
+            >
+              {r.mark ? (
+                <span className="mt-0.5 shrink-0">
+                  <Mark kind={r.mark} />
+                </span>
+              ) : anyMark ? (
+                <span className="size-4 shrink-0" aria-hidden />
+              ) : null}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="break-words text-micro font-semibold leading-5 text-ink">{r.line}</span>
+                {r.meta ? <span className="truncate text-micro leading-5 text-steel">{r.meta}</span> : null}
+              </div>
+              {r.trail != null ? <span className="k-nums shrink-0 text-micro leading-5 text-ink">{r.trail}</span> : null}
             </div>
-            {r.trail != null ? <span className="k-nums shrink-0 text-micro leading-5 text-ink">{r.trail}</span> : null}
-          </div>
-          {r.acts ? <div className="flex flex-wrap items-center gap-1 pl-6">{r.acts}</div> : null}
-        </li>
-      ))}
+            {r.acts ? <div className="flex flex-wrap items-center gap-1 pl-6">{r.acts}</div> : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-function ListBody({ data }: { data: PanelData }) {
+function ListBody({ data, grouped, selectedEntryId }: { data: PanelData; grouped: boolean; selectedEntryId: string | null }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {data.note ? <div className="px-3 pt-3">{data.note}</div> : null}
-      <ListRows rows={data.rows} />
+      <ListRows rows={data.rows} grouped={grouped} selectedEntryId={selectedEntryId} />
       {data.foot ? <p className="px-3 py-2 text-micro text-steel">{data.foot}</p> : null}
     </div>
   );
@@ -382,7 +509,7 @@ const SPREAD_FILL: Record<ScoreTone, string> = {
   null: "bg-score-null",
 };
 
-function InsightBody({ data }: { data: PanelData }) {
+export function InsightBody({ data }: { data: PanelData }) {
   const ins = data.insight;
   if (!ins) return null;
   const shapeTotal = ins.shape ? ins.shape.parts.reduce((n, p) => n + p.value, 0) : 0;

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseCommand } from "@/app/_lib/pipeline-command";
-import { resolveAct, COMPANION_ACTION_IDS } from "./acts.ts";
+import { PREVIEW_ACTS, resolveAct, COMPANION_ACTION_IDS } from "./acts.ts";
 
 test("entry acts carry the CAS stage and say what reaches the candidate", () => {
   const r = resolveAct("entryReject", { entryId: "e1", expectedStage: "Screened", label: "Jana" });
@@ -48,4 +48,18 @@ test("every companion action is downgraded to a Console hand-off with its cost s
     const r = resolveAct("companion", { action });
     assert.ok(r.armed && r.act === "companion" && r.cost === "modelCall" && typeof r.handoff === "string");
   }
+});
+
+test("the round-4 acts are PREVIEWS: armed from real params, malformed ones disarm", () => {
+  for (const act of ["letterApprove", "letterSend", "interviewBook", "interviewLink"] as const) assert.ok(PREVIEW_ACTS.has(act), act);
+  assert.ok(!PREVIEW_ACTS.has("entryAdvance"), "the round-1 acts stay wired");
+  const approve = resolveAct("letterApprove", { entryId: "pe-1", letterId: "ol-1", revision: "3", label: "Ana" });
+  assert.ok(approve.armed && approve.act === "letterApprove" && approve.revision === 3 && approve.preview === true);
+  assert.equal(resolveAct("letterApprove", { entryId: "pe-1", letterId: "ol-1", revision: "three" }).armed, false);
+  assert.equal(resolveAct("letterApprove", { entryId: "pe-1", letterId: "ol-1" }).armed, false, "no revision, no approval");
+  const book = resolveAct("interviewBook", { entryId: "pe-1", dateSlot: "2026-11-10 10:00", label: "Ana", when: "Tue 10 Nov · 10:00", zone: "Europe/Prague" });
+  assert.ok(book.armed && book.act === "interviewBook" && book.dateSlot === "2026-11-10 10:00" && book.zone === "Europe/Prague");
+  assert.equal(resolveAct("interviewBook", { entryId: "pe-1", dateSlot: "Tue 14:00" }).armed, false, "a placeholder is not a slot");
+  assert.equal(resolveAct("interviewLink", { entryId: "pe-1", stray: "x" }).armed, false, "an undeclared field disarms");
+  assert.ok(resolveAct("letterSend", { entryId: "pe-1", letterId: "ol-1" }).armed);
 });

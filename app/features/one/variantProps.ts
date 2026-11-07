@@ -4,8 +4,8 @@
 import type { ReactNode } from "react";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import type { Greeting } from "./engine/greeting";
-import type { PanelLook } from "./panels/types";
-import type { OneInput, PanelInstance, ProposalInstance, VariantId } from "./types";
+import type { PanelGroup, PanelLook } from "./panels/types";
+import type { OneInput, PanelInstance, ProposalInstance, Selected, ToolKind, VariantId } from "./types";
 import type { OneSession } from "./useOneSession";
 import type { OneWords } from "./words";
 
@@ -33,11 +33,25 @@ export type VariantProps = {
    *  `look`: "table" fills its container (give it a height), "insight" is the answer's card
    *  (the shape of the answer + at most one suggested act; it grows into the height it is
    *  given; `onExpand` adds a See-all), "list" is a dense single column for a narrow side. */
-  renderPanel: (panel: PanelInstance, opts?: { look?: PanelLook; className?: string; onExpand?: () => void }) => ReactNode;
+  renderPanel: (panel: PanelInstance, opts?: PanelOpts) => ReactNode;
   /** Render the consent card for one proposed act. */
   renderConsent: (proposal: ProposalInstance, opts?: { className?: string }) => ReactNode;
   /** Every user-facing word of the core (say keys, chips, view names, change line). */
   words: OneWords;
   /** The Console (today's Workspace) — also reached with Ctrl/⌘ K. */
   consoleHref: string;
+  /** Round 4: the candidate picked from a list (a row press / Enter; Esc on a row clears),
+   *  or null. Navigation, not undo; a new answer clears it (session.selected). */
+  selected: Selected | null;
+  select: (entry: Selected | null) => void;
+  /** Round 4: render one per-candidate TOOL for an entry — `profile` (CV | score),
+   *  `letter` (the held outreach letter + their thread), `interview` (their invitations, the
+   *  free times, Book / Send a link). Each fills its container (`pane`, two columns from 900px
+   *  of its own width; give it a height) or, with `look: "insight"`, a compact card. Every act
+   *  it offers arms a PREVIEW consent card (renderConsent) — nothing is written this round. */
+  renderTool: (tool: ToolKind, entry: Selected, opts?: { look?: "pane" | "insight"; className?: string }) => ReactNode;
 };
+
+/** renderPanel's options. `group` (pipeline views; default `role`) groups the table / list
+ *  rows by role under a sticky head — `none` keeps them flat (outbox, schedule). */
+export type PanelOpts = { look?: PanelLook; className?: string; onExpand?: () => void; group?: PanelGroup };

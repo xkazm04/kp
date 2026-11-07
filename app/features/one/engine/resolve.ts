@@ -21,6 +21,10 @@ export type ResolveContext = {
   /** The latest /api/attention read, or null when it has not landed or failed. Used
    *  only to ORDER follow-up chips (what needs the user first) — never quoted. */
   attention: AttentionCounts | null;
+  /** The active entries from the shared pipeline read (null until it lands). Used only to
+   *  bind "open <name>" to ONE candidate; an ambiguous or unread name shows the matching
+   *  slice instead, never a guess. */
+  entries?: readonly { id: string; label: string }[] | null;
 };
 
 /** The intents round 1 answers. Exported for the tests and the doc table. */
@@ -34,6 +38,9 @@ export const INTENTS = [
   "arrivals",
   "drafts",
   "outbox",
+  "letters",
+  "calendar",
+  "openProfile",
   "role",
   "rejectBelow",
   "advanceTop",
@@ -56,6 +63,8 @@ const CHIP_INTENT: Record<ChipId, Intent> = {
   drafts: "drafts",
   outbox: "outbox",
   digest: "companionDigest",
+  letters: "letters",
+  calendar: "calendar",
 };
 
 /** The chips offered after an unknown request: the three most useful questions. */
@@ -81,6 +90,9 @@ export function roleOf(text: string): string | null {
 
 type Match = { intent: Intent; text: string };
 
+/** Words after "open" that name a VIEW, not a candidate ("open the pipeline"). */
+const VIEW_WORDS = /\b(pipeline|board|calendar|schedule|decisions?|letters?|outbox|console|workspace|funnel|drafts?|interviews?|needs)\b/i;
+
 /** Typed words → intent, or null. Order matters and is the whole design: the specific
  *  (a wave, a companion act) is tested before the general it contains ("draft a JD"
  *  before "drafts", "reject below" before "pipeline"). */
@@ -92,12 +104,20 @@ export function matchIntent(raw: string): Match | null {
   if (/\badvance\b.*\btop\s+\d{1,3}\b/.test(t)) return { intent: "advanceTop", text };
   if (/\b(analy[sz]e|screen|re-?run)\b.*\b(cv|resume|candidate|analysis)\b/.test(t)) return { intent: "companionAnalyse", text };
   if (/\b(draft|write|build)\b.*\b(jd|job description|job ad)\b/.test(t)) return { intent: "companionJd", text };
-  if (/\boutreach\b|\b(draft|write)\b.*\b(message|email|letter)\s+to\b/.test(t)) return { intent: "companionOutreach", text };
+  // A companion draft needs the verb: bare "outreach" is the held letters' view (below).
+  if (/\b(draft|write|compose)\b.*\boutreach\b|\b(draft|write)\b.*\b(message|email|letter)\s+to\b/.test(t)) return { intent: "companionOutreach", text };
   if (/\bdigest\b|\bsummar(y|ise|ize)\b.*\b(day|today)\b/.test(t)) return { intent: "companionDigest", text };
   if (/\b(console|workspace|full board|old view)\b/.test(t)) return { intent: "console", text };
+  // "open Jana Nováková" / "profile of Jana" — a candidate by name, unless the rest names a view.
+  const named = text.match(/^\s*(?:open|profile\s+(?:of|for))\s+(?:the\s+)?(.{2,60}?)[\s.?!]*$/i);
+  if (named && !VIEW_WORDS.test(named[1])) return { intent: "openProfile", text: named[1].trim() };
+  // Held outreach letters: "emails to approve", "drafts waiting", "letters", "outreach" — but
+  // "draft / write outreach to …" is the companion's act (tested above, so it never lands here).
+  if (/\b(emails? to approve|drafts? waiting|letters?|outreach)\b/.test(t) && !/\b(draft|write|compose)\b/.test(t)) return { intent: "letters", text };
   if (/\b(decision|decisions|approve|approval|waiting on me|sign[- ]off)\b/.test(t)) return { intent: "decisions", text };
   if (/\b(stalled|stuck|aging|ageing|overdue|slow|past (the|their) limit)\b/.test(t)) return { intent: "stalled", text };
-  if (/\b(interview|interviews|calendar|schedule|scheduled|booked)\b/.test(t)) return { intent: "interviews", text };
+  if (/\b(calendar|schedule|this week|waiting for an? interviews?|book|slots?)\b/.test(t)) return { intent: "calendar", text };
+  if (/\b(interview|interviews|scheduled|booked)\b/.test(t)) return { intent: "interviews", text };
   if (/\b(how are we doing|funnel|conversion|analytics|metrics|how is it going)\b/.test(t)) return { intent: "funnel", text };
   if (/\b(new arrivals?|arrived|new applications?|applied|inbound|newcomers?)\b/.test(t)) return { intent: "arrivals", text };
   if (/\b(drafts?|unpublished|to publish|publish)\b/.test(t)) return { intent: "drafts", text };
@@ -161,6 +181,21 @@ function answer(m: Match, ctx: ResolveContext, chip: ChipId | null): Reply {
       return reply("draftsShown", [{ op: "show", panel: "jobDrafts" }], followUps(["drafts", ...own], ctx));
     case "outbox":
       return reply("outboxShown", [{ op: "show", panel: "outbox" }], followUps(["outbox", ...own], ctx));
+    case "letters":
+      return reply("lettersShown", [{ op: "show", panel: "letters" }], followUps(["letters", "outbox", ...own], ctx));
+    case "calendar":
+      return reply("calendarShown", [{ op: "show", panel: "calendar" }], followUps(["calendar", "interviews", ...own], ctx));
+    case "openProfile": {
+      // m.text is the NAME (matchIntent cut it out). One active candidate answers to it →
+      // their profile; several, none, or the pipeline not read yet → the slice filtered by
+      // that name, where the user picks (or reads that nobody matches).
+      const name = m.text;
+      const hits = ctx.entries ? ctx.entries.filter((e) => nameMatches(e.label, name)) : null;
+      if (hits && hits.length === 1) {
+        return reply("profileShown", [{ op: "show", panel: "profile", params: { entryId: hits[0].id, label: hits[0].label } }], followUps([], ctx));
+      }
+      return reply(hits && hits.length === 0 ? "profileNone" : "profileMany", [{ op: "show", panel: "pipelineSlice", params: { name } }], followUps(["pipeline"], ctx));
+    }
     case "role":
       return role
         ? reply("roleShown", [{ op: "show", panel: "roleCard", params: { role } }, { op: "show", panel: "pipelineSlice", params: { role } }], followUps(["pipeline"], ctx))
@@ -195,6 +230,14 @@ function answer(m: Match, ctx: ResolveContext, chip: ChipId | null): Reply {
     case "console":
       return reply("consoleOffered", [{ op: "navigate", tab: "pipeline" }], followUps([], ctx));
   }
+}
+
+/** Every word of the typed name appears in the label (case- and accent-insensitive) — the
+ *  same rule the slice filters by (panels/pipelineRead.ts matchesName). */
+function nameMatches(label: string, name: string): boolean {
+  const fold = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const l = fold(label);
+  return fold(name).split(/\s+/).filter(Boolean).every((w) => l.includes(w));
 }
 
 function unknown(): Reply {

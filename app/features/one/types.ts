@@ -25,13 +25,29 @@ export const PANEL_KINDS = [
   "outbox",
   "decisionsQueue",
   "roleCard",
+  // Round 4 — the tools the simplified UI acts through (reads only; acts are previews).
+  "letters",
+  "calendar",
+  "profile",
+  "letter",
 ] as const;
 export type PanelKind = (typeof PANEL_KINDS)[number];
 export const isPanelKind = (v: unknown): v is PanelKind => (PANEL_KINDS as readonly unknown[]).includes(v);
 
 /** The data-changing acts. Never executed by being applied — a `propose` op renders a
  *  ConsentCard, and only the user's press reaches the existing door (consent/acts.ts). */
-export const ACT_KINDS = ["entryAdvance", "entryReject", "wave", "companion"] as const;
+export const ACT_KINDS = [
+  "entryAdvance",
+  "entryReject",
+  "wave",
+  "companion",
+  // Round 4 — PREVIEW acts (consent/acts.ts `PREVIEW_ACTS`): the card arms and states the
+  // consequence from real data, its confirm is disabled ("Wired after the pick").
+  "letterApprove",
+  "letterSend",
+  "interviewBook",
+  "interviewLink",
+] as const;
 export type ActKind = (typeof ACT_KINDS)[number];
 export const isActKind = (v: unknown): v is ActKind => (ACT_KINDS as readonly unknown[]).includes(v);
 
@@ -48,22 +64,30 @@ export const CHIP_IDS = [
   "drafts",
   "outbox",
   "digest",
+  "letters",
+  "calendar",
 ] as const;
 export type ChipId = (typeof CHIP_IDS)[number];
 export const isChipId = (v: unknown): v is ChipId => (CHIP_IDS as readonly unknown[]).includes(v);
 
-/** The directions under judgement. Round 3: the owner picked Split's LAYOUT; `split` is
- *  the round-2 baseline and `refined` / `spark` / `dense` are three FINISHES of the same
- *  layout (variants/<id>/) — they differ only in type, spacing, surfaces and motion. */
-export const VARIANT_IDS = ["split", "refined", "spark", "dense"] as const;
+/** The directions under judgement. Round 4: the owner picked the DENSE finish; `dense` is
+ *  the baseline and `workbench` / `sheets` / `cards` are three LAYOUTS of the round-4 tools
+ *  (profile, letter, interview) — every one of them wears the dense finish (finish.css). */
+export const VARIANT_IDS = ["dense", "workbench", "sheets", "cards"] as const;
 export type VariantId = (typeof VARIANT_IDS)[number];
 export const isVariantId = (v: unknown): v is VariantId => (VARIANT_IDS as readonly unknown[]).includes(v);
-/** The finishes (every variant but the baseline). */
-export type FinishId = Exclude<VariantId, "split">;
-/** `?v=` absent or unknown → refined (the round-3 lead finish). */
+/** `?v=` absent or unknown → dense (the round-3 pick). */
 export function variantOf(raw: unknown): VariantId {
-  return isVariantId(raw) ? raw : "refined";
+  return isVariantId(raw) ? raw : "dense";
 }
+
+/** The candidate the user picked from a list (Enter / a row press). Navigation, not an undo
+ *  step; a new answer clears it (engine/session.ts). */
+export type Selected = { entryId: string; label: string };
+
+/** The per-candidate tools a layout can host for the selection (VariantProps.renderTool). */
+export const TOOL_KINDS = ["profile", "letter", "interview"] as const;
+export type ToolKind = (typeof TOOL_KINDS)[number];
 
 /** The closed set of screen operations. `navigate` is a Console deep link: the region
  *  offers it as a link on the turn, it never yanks the user off /one by itself. */
@@ -88,6 +112,11 @@ export const SAY_KEYS = [
   "arrivalsShown",
   "draftsShown",
   "outboxShown",
+  "lettersShown",
+  "calendarShown",
+  "profileShown",
+  "profileMany",
+  "profileNone",
   "roleShown",
   "roleAsk",
   "waveRejectProposed",
