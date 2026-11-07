@@ -25623,6 +25623,120 @@
         }
       ],
       "registryProposal": "loopback-addressed-request-gate could say explicitly how to judge a server that binds to loopback and requires a CSPRNG per-run capability token on every state-changing route but has no Host check. Today the technique calls the header gate mandatory and positions a per-session credential as a complement, so a token-only design is a deviation even though the token defeats rebinding for every route that acts. Stating the residual (token-free static routes and topology readable under a rebound name) would make the verdict less arguable."
+    },
+    "d13f4735-d089-40d1-9579-f98bef981a57/module-design": {
+      "context": "jobseeker-ats-adapters",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:49:00.447Z",
+      "worker": "db03168e-244d-468a-abf4-f5a6669a0853",
+      "techniques": [
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/adapters/registry.ts:61 Information leakage: the per-vendor config key and host rule are re-encoded outside the adapter because SourceAdapter has no host(config) member. That puts the same decision in two places (here and greenhouse.ts:36)."
+        },
+        {
+          "technique": "locality-and-leverage",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/adapters/ats/discover.ts:25 The probe list restates the config key { token } a third time, plus a per-vendor shape regex. Changing one vendor touches the adapter, the registry and discover, which is scattered change. Judged from structure; the history is one commit, so no scatter was measured."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/adapters/types.ts:2 The adapter seam takes the fetcher from AdapterContext, so the real politeFetch and the scripted test fetch are two adapters of one PoliteFetch type. adapters.test.ts runs a shared KP_OFFLINE contract over every adapter in the registry."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/jobseeker/adapters/ats/greenhouse.ts:42 The loop skips, mutates raw.company, yields and stops at a cap. Effects are mixed into the classification, so explicit sequential code is the right form."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/adapters/ats/greenhouse.ts:12 The vendor mapping is already a pure function, and the adapter tests need only one double (the scripted fetch). None of the technique's triggers (two or more doubles, several runtimes) holds."
+        },
+        {
+          "technique": "mirror-type-at-the-edge",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/adapters/adapters.test.ts:26 Every input (source row, JSON body) is a plain value a test can construct, so there is no host-only type to mirror."
+        }
+      ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/module-design": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:49:00.447Z",
+      "worker": "db03168e-244d-468a-abf4-f5a6669a0853",
+      "techniques": [
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:16 This is the technique's named failure for seamless code: a test that reaches into the implementation (source text) because no seam lets the behaviour be reached."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsAgentFitLogic.ts:2 useAgentFitLogic has a single caller (JobsAgentFitTab) and returns a 24-member bag, including `t`, which the caller also builds itself. The stated reason for the split is a line cap, which the technique calls a metric, not a reason. Counterexample in the same context: jobsCoachApply.ts:8-10 keeps one deep-link grammar for both ends."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 The verdict, coverage, spec-form and timeline logic is pure and tested under node:test. The hook is the only driver that does I/O."
+        }
+      ]
+    },
+    "82d9357b-d510-47ef-9578-f63aeeea4d3e/module-design": {
+      "context": "jobs-rediscovery",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:49:00.447Z",
+      "worker": "db03168e-244d-468a-abf4-f5a6669a0853",
+      "techniques": [
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:237 Depth in the wrong place: the caller works around the module's interface instead of using it, and the 'added' decision is encoded in two modules. The hook file also says it was extracted for a 200-line threshold (line 2)."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsRediscoveryDismiss.ts:1 extractRow, restoreRow and dropAddedMark are pure transitions tested without React, and sweepNote is likewise pure."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:11 The feed and JobsRediscoverPanel (useAddToPipeline) both reach pipeline-add through one shared module rather than calling the route directly."
+        }
+      ]
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/module-design": {
+      "context": "cv-analyze-workspace",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:49:00.447Z",
+      "worker": "db03168e-244d-468a-abf4-f5a6669a0853",
+      "techniques": [
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTypes.ts:14 Information leakage: two hand-maintained encodings of one record layout, with a documented incident from their divergence. The closed-set side holds elsewhere in this context (analyzeJdLibraryState.ts:14 JD_LIBRARY_STATES)."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeJdLibraryState.ts:48 The loading/ready/failed decision is a pure function of the payload. useAnalyzeJdLibrary only fetches and stores."
+        }
+      ]
     }
   }
 }

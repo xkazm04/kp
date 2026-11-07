@@ -10577,7 +10577,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/history/HistoryTypes.ts:14 The client hand-restates the analysis list row (AnalysisRow) instead of deriving it from the server's AnalysisListRow in app/_lib/db/analyses.ts. The row layout is therefore encoded twice, and the file's own comment records the drift defect that caused: decision_note was fetched and thrown away. DISPOSITION_STYLE is also keyed by an open string where the server has a closed ANALYSIS_DISPOSITIONS set.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "generated-workflow-candidates",
@@ -20391,7 +20395,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:16 There is no seam where the route's poolTruncated decision or the panel's admission can be exercised, so the test regex-matches source text (e.g. /const \\{ entries, truncated \\}/). That pins how the code is written rather than what it does, and a behaviour-preserving refactor turns it red.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "agent-host-experience",
@@ -21090,7 +21098,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:237 applyAddResult's only caller invokes it twice with made-up empty `added` sets to pull out one field each time, because the added mark now lives in applyAddOutcome (jobsRediscoveryFeedGroups, keyed by pair). The tested transition's `added` half (jobsRediscoveryAdd.test.ts:19) governs no production behaviour.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         }
       ],
       "governance": "governed"
@@ -21541,7 +21553,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/jobseeker/adapters/registry.ts:61 Three modules that do not reference each other each restate which config key a vendor reads and how its host is derived: the adapter (greenhouse.ts:36 reads cfg(ctx.source, \"token\")), registry.hostForAdapter, and the discover probe list. Renaming or adding a vendor's config key means three edits, and only the registry's switch is compiler-checked.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "workflow-property-contracts",
