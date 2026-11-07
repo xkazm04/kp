@@ -15503,7 +15503,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:246 The entity gate counts only spoken-but-unheard terms (recall); it never computes the terms the transcript holds that were never spoken. Meanwhile the same harness turns on per-job ASR keyword biasing (el_ws.py:82) and runs no null-audio control, so a boosted phantom skill passes every gate.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "eval-harness",
@@ -31166,7 +31170,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/companion/voice/voiceHistory.ts:12 This is voice playback of the workspace companion's own answers to the operator, not a candidate interview. A case-insensitive grep of the directory for interview/candidate/scorecard/recogni found no hits (only 'transcript', meaning the companion thread), so no candidate speech is recognised or assessed here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "companion-identity",

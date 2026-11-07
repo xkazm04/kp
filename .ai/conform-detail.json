@@ -25356,6 +25356,47 @@
           "evidence": "app/features/setup-studio/VoicePanel.tsx:182 The panel uses a single Audio element, so a new preview stops the previous one, and unmount pauses it and revokes the URL. There is no latest-wins generation counter, though: the later-returning synthesis wins, not the later-requested one."
         }
       ]
+    },
+    "40e7d65d-bb8a-4321-aa57-b845a86def9a/voice-interview-fidelity": {
+      "context": "eval-voice",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:39:52.794Z",
+      "worker": "401036a2-5a93-4da2-85c8-80ef3d455e21",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:246 Only ref−hyp is computed; there is no hyp−ref phantom list. Searching eval/voice for phantom/null-audio/precision finds nothing, although asr.keywords biasing is sent (el_ws.py:82)."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:239 Gate on a restricted tech lexicon with a zero deletion budget. Matching is by stem with a bounded inflection allowance (_MAX_INFLECTION=3), longest term first, and short ambiguous names are excluded. session_runner.voice_checks fails on any missing term separately from aggregate WER."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:28 One synthetic Piper speaker per language (en, cs), so fidelity is never stratified by accent or first language. The accent matrix is admitted as future work."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:78 The scenario language is sent into the realtime speech configuration override, not only into the prompt, mirroring production. Per-turn drift detection is not in this context's files (it lives in interview_eval)."
+        }
+      ]
+    },
+    "97ecbe06-1f46-4d39-8cfc-9f811d2ec98d/voice-interview-fidelity": {
+      "context": "shell-companion-voice",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:39:52.794Z",
+      "worker": "401036a2-5a93-4da2-85c8-80ef3d455e21",
+      "techniques": []
     }
   }
 }
