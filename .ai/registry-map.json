@@ -30469,8 +30469,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "deviation",
+          "priorNotApplicable": 7,
+          "evidence": "scripts/onboard-ui/engine.mjs:1387 The engine drops the stream-json result frame without reading its is_error/subtype, so the tool's own failure classification never reaches the studio as a typed value. Only a non-zero exit plus a stderr tail is reported.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "remote-capability-probing",
@@ -34415,8 +34419,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "conformant",
+          "priorNotApplicable": 7,
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:195 The Claude CLI transport tests pin the zero-token auth probe, the key strip, the closed mode vocabulary, the typed error subtype, the version-drift check against the verified pin, and the refuse-before-spawn rungs, so a regression in any of these fails the gated suite.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "mcp-tools",

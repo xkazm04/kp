@@ -26204,6 +26204,123 @@
         }
       ],
       "registryProposal": "cross-source-precedence-chain says 'malformed stops', and typed-accessors says 'on parse failure report and return the default'. For an environment-variable override that a single typed resolver reads, the two rules give opposite answers. The standard should say which one governs a read-only env source that sits above a runtime-derived fallback."
+    },
+    "3f292c0f-e802-49de-8c2e-46bf992416d7/agent-cli-transport": {
+      "context": "setup-studio",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:19:27.263Z",
+      "worker": "fb82c17a-567e-437e-9afd-e41b209befb7",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1387 The result envelope's error subtype is ignored. Separately, the stdin write at line 1321 is wrapped in try/catch but has no stdin 'error' listener, so an EPIPE after a quick child exit arrives as an unhandled stream event."
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1239 start() spawns straight away with no version check and no zero-token auth check (e.g. `auth status`). A missing or logged-out CLI shows up only as a spawn error or exit code."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:54 The flag behaviour is recorded only as a version in a comment. buildArgs hardcodes the flags and nothing compares the installed version to the measured one, unlike claude_cli.py's VERIFIED_CLI_VERSION drift check."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "conformant",
+          "evidence": "scripts/onboard-ui/engine.mjs:239 Every ANTHROPIC_*_KEY/AUTH_TOKEN is removed at the single spawn door (sanitizeEnv), so the session runs on the subscription."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "conformant",
+          "evidence": "scripts/onboard-ui/engine.mjs:1246 assertEnforcement re-checks the argv and the settings file the child will actually load (ask-hook present, no bypass tokens) and refuses to start if either is wrong."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "conformant",
+          "evidence": "scripts/onboard-ui/engine.mjs:1406 A tripwire compares the tool_use blocks the child reports with the can_use_tool requests it sent, so the stance is checked against what the child did, not assumed from the host's intent."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "conformant",
+          "evidence": "scripts/onboard-ui/engine.mjs:1655 Approvals are routed over the permission-prompt-tool stdio channel to studio cards. On stop or exit, failPending turns every unanswered request into a deny, and unknown control subtypes get an error response."
+        },
+        {
+          "technique": "derived-bash-allowlist",
+          "verdict": "not-applicable",
+          "evidence": "scripts/onboard-ui/engine.mjs:1517 The session is attended and every shell call is routed to the host for a decision, so the technique's own 'person within reach' exclusion applies. No per-call allow file is used."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "scripts/onboard-ui/engine.mjs:1330 Each run starts a fresh session. No thread id is stored or resumed."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "scripts/onboard-ui/engine.mjs:1282 The installer is the agent session itself, so there is no model verdict for a deterministic floor to replace. Absence is reported loudly rather than imitated."
+        }
+      ]
+    },
+    "8b2d6213-b08e-4a6a-b1bd-485ef0ccbd89/agent-cli-transport": {
+      "context": "tests-pipeline-automation",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:19:27.263Z",
+      "worker": "fb82c17a-567e-437e-9afd-e41b209befb7",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:195 The probe runs `auth status --json` (zero tokens). Line 197 asserts it runs under the same key-stripped env as the real call."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:261 Asserts the key is stripped by default. test_claude_cli_terms.py BillingLaneTest pins the per-lane strip/keep direction."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:73 The tool's own error subtype reaches the caller as a value. Empty, non-JSON and over-cap stdout are pinned as named failures."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:146 repo_scan can only be built through with_repo_access. Stance kwargs such as acceptEdits are refused at construction, and the scanned repo's own settings are not loaded."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:290 A drift from VERIFIED_CLI_VERSION logs a warning once and never fails the call. The flag rows in claude_cli.py carry verification dates."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:245 Each descent has a named reason (offline_policy before not_installed). The terms veto refuses before any spawn (test_claude_cli_terms.py:143)."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:141 The provider is a batch, unattended print-mode transport with a closed mode vocabulary, so there is no person to route approvals to."
+        },
+        {
+          "technique": "derived-bash-allowlist",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:153 There is no edit seam (MODES = generate/repo_scan/web_research) and write-capable stances are refused, so no edit-session shell grants exist to derive."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:304 Every call is a fresh one-shot run. claude_cli.py has no resume path."
+        }
+      ]
     }
   }
 }
