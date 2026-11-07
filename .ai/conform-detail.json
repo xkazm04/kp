@@ -26623,6 +26623,47 @@
           "evidence": "app/_lib/useLoader.ts:50 Latest-wins: a newer request aborts the one in flight, so a superseded predicate's answer cannot land. Clearing rows on a predicate change is left to consumers (see the devcase-workspace and analytics-sections verdicts)."
         }
       ]
+    },
+    "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/agent-cli-transport": {
+      "context": "companion-appmaster",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:18:06.139Z",
+      "worker": "bf8d577d-2854-489c-92b2-b3877ef5493d",
+      "techniques": [
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/repo_scan.py:1271 The stance is composed behind one door (with_repo_access applies plan mode, the allowlist and the write denylist), and the scan only appends a deny-only --settings that narrows it further."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/repo_scan.py:296 The deny-rule behaviour is pinned to a version that was checked live (the comment dates it v2.1.258, 2026-09-02); any other version renders as unverified_version or version_unknown, never silently as verified."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/repo_scan.py:1322 The deterministic heuristic walk is the floor; source=heuristic|llm is stamped, the descent reason is classified into the closed FALLBACK_CLASSES, and the probe is the shared provider_availability predicate."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/companion_cli.py:372 The companion chat surface makes a plain text completion; no wrapped agent emits tool approvals mid-turn."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/companion_cli.py:7 session_id belongs to the host and the host sends the whole transcript on each turn; no child thread id is stored or resumed."
+        },
+        {
+          "technique": "derived-bash-allowlist",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/repo_scan.py:1260 The only agent session here is a read-only scan; no unattended editing agent runs project checks."
+        }
+      ]
     }
   }
 }

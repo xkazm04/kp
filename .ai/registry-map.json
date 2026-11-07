@@ -9541,8 +9541,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "conformant",
+          "priorNotApplicable": 7,
+          "evidence": "pipeline/jobfit/repo_scan.py:1271 The repo scan gets its read-only, in-repo Claude CLI session only through the provider's with_repo_access factory, narrows it further with secret-file deny rules, records which CLI version the fence was verified against, and falls back to the heuristic walk with a classified reason.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "mcp-tools",
