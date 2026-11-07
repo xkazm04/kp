@@ -15947,7 +15947,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Select.test.ts:8 Select's commit/typeahead/navigation decisions live inside the .tsx, which the node:test runner can't load, so its tests match regexes against the source text: they pin the implementation's spelling, not the behaviour, which is the failure seams-and-adapters names for code with no seam.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "settings",
@@ -18802,7 +18806,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/jd-build-run.ts:298 runJdBuild spawns three Python steps but its seam substitutes only two, and runMarketSalary (jd-build-run.ts:380, spawnPython at :173) has no enabling point, so the market-research branch, the Promise.all join and the salary-label path into the persisted body can't be reached by the Node-only unit suite (every runJdBuild test either turns marketResearch off or fails validation before spawning).",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "prompt-assembly",
@@ -19565,7 +19573,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/library/jds/jdsEditClient.ts:1 The JD write contract (CAS payloads, the 401 gate / 409 conflict / error / ok classification, the injectable fetch) is one pure module under one hook, so both editors share it and every branch can be tested with a fetch stub.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "settings",
@@ -22148,7 +22160,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:11 Every adapter fetches through one polite door whose clock and fetch can be swapped, and the extraction engine is a pure function from html to items, so the scrape logic runs against fixtures with no network and no real sleeps.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "agent-instruction-files",
@@ -27333,7 +27349,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/useSchedulerControlState.ts:84 The scheduler's pure state machine was moved out of the hook, but its subtlest rule stayed in it: the write-generation rule that drops a poll response issued before a write landed. It sits in a React hook over the global fetch (line 78) with no test, so the logic piles up in the driver where nothing can test it.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "prompt-assembly",
