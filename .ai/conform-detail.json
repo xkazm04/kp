@@ -26582,6 +26582,47 @@
       "evaluatedTs": "2026-11-07T04:56:04.956Z",
       "worker": "2a352679-0b18-4913-8137-1d93bbf9273a",
       "techniques": []
+    },
+    "8f83c835-1a44-4024-8647-a85025482995/table": {
+      "context": "form-controls",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:03:58.491Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "a6d2f6a9-3469-4e7b-a3e2-df4780c4851a",
+        "state": "not-applicable",
+        "at": "2026-11-07T05:04:32.717404+00:00",
+        "reason": "reviewer (sonnet): The anchor Select.tsx:24 is incidental, because it does not show that no table or grid surface exists. The grep over app/_components did hit several raw <table> elements outside this context's files, so only a narrow file-level absence holds, and the search terms (role=\"grid\", aria-rowcount, colSpan"
+      }
+    },
+    "74171ef0-a76e-499a-8dbc-5f0af5bebeb6/table": {
+      "context": "shared-client-hooks",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:03:58.491Z",
+      "worker": "a6d2f6a9-3469-4e7b-a3e2-df4780c4851a",
+      "techniques": [
+        {
+          "technique": "pagination",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useInfiniteScroll.ts:79 Offset cursor for load-more/infinite scroll, where the technique calls for keyset; appended pages are not deduplicated by row identity."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/_lib/useInfiniteScroll.ts:141 Initial placeholder is held behind a 300ms grace so warm loads never flash; error phase is distinct from empty; useJsonFetch.reload keeps rendered data (line 105)."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "conformant",
+          "evidence": "app/_lib/useLoader.ts:50 Latest-wins: a newer request aborts the one in flight, so a superseded predicate's answer cannot land. Clearing rows on a predicate change is left to consumers (see the devcase-workspace and analytics-sections verdicts)."
+        }
+      ]
     }
   }
 }

@@ -30899,7 +30899,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/useInfiniteScroll.ts:79 The shared load-more engine pages by offset for a sequential infinite-scroll consumer and appends each page with no identity dedupe, so a row inserted while the user scrolls repeats or drops a row at the page boundary.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "narrative-scroll-surface",
