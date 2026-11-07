@@ -25489,6 +25489,36 @@
       "evaluatedTs": "2026-11-07T01:58:20.980Z",
       "worker": "fdef7172-7e43-45be-b338-891f20bfa9be",
       "techniques": []
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/mcp-tools": {
+      "context": "profile-roster-matrix",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:07:54.673Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "bbafb9ec-4c90-4195-8793-dc8fac828d04",
+        "state": "not-applicable",
+        "at": "2026-11-07T02:08:51.566159+00:00",
+        "reason": "reviewer (sonnet): The anchor ProfileRoster.tsx:25 is only a header comment about roster actions. It doesn't show the REST-only claim, and the /api/archetypes calls the evidence names are in ArchetypeManager.tsx, which isn't the anchor."
+      }
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/mcp-tools": {
+      "context": "db-org-users-channels",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:07:54.673Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "bbafb9ec-4c90-4195-8793-dc8fac828d04",
+        "state": "not-applicable",
+        "at": "2026-11-07T02:08:51.712962+00:00",
+        "reason": "reviewer (sonnet): The anchor companion.ts:61 is a type comment about proposalIds and kp:action fences. It is not one of the context's files (users, orgs, memberships, channels and similar), so it doesn't show a tool-protocol surface is absent there."
+      }
     }
   }
 }
