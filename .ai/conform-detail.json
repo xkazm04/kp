@@ -25468,6 +25468,22 @@
           "evidence": "app/_components/studio/StudioComposer.tsx:29 The kit is turn-based. A full-call relay arrives as a consumer slot, so no duplex session is hosted here."
         }
       ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/voice-io": {
+      "context": "shell-setup-wizard",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:21:41.887Z",
+      "worker": "10ce6120-603b-4b29-9897-8218302986b3",
+      "techniques": [
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:51 This wizard does not build first-run voice onboarding, so the technique's precondition does not hold."
+        }
+      ]
     }
   }
 }

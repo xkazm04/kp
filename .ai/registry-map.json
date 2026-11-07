@@ -31678,7 +31678,11 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:51 The first-run wizard's closed step vocabulary has no voice step, and a case-insensitive grep of app/features/shell/setup/ for tts, microphone, elevenlabs, getUserMedia, speechSynthesis, audio and transcri found zero files. Every 'voice' hit refers to prose register, and the companion step asks for consent to a memory folder, not to speech.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "test-harness",
