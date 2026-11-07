@@ -17490,7 +17490,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-run.ts:758 Every voice session gets a recogniser bias list (job terms plus a fallback list that boosts both React and Rust, the exact pair the repo's own harness saw swapped), and no null-audio check or precision-side phantom count exists anywhere in the repo, so the fix for substituted skills can add skills nobody said.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "voice-io",
@@ -26621,7 +26625,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/PipelineInterviewTelemetryStrip.tsx:50 The recruiter's read-and-act drawer shows 'Longest pause after a question' and candidate talk share under 'Conversation signals' beside the ratings and verdict. The only caveat is 'not scores'; nothing says silence is not evidence about the candidate, so manner enters the human assessment.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",

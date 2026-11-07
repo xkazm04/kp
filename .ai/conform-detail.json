@@ -26021,6 +26021,73 @@
         "at": "2026-11-07T03:44:24.946513+00:00",
         "reason": "reviewer (sonnet): The anchor (outboxView.ts:1) only covers the outbox half of the context; the context also holds the need form, which collects codebase repo URLs (buildNeed.ts `codebaseRefs`, DevNeedForm.tsx) and useDevTabNeedAnalysis.ts, whose comment mentions 'Pulling the codebase + reflecting…'. That makes 'nothi"
       }
+    },
+    "efd0489d-4270-4455-97ca-28fce88d5c8a/voice-interview-fidelity": {
+      "context": "interview-execution-scoring",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:50:22.310Z",
+      "worker": "8e732b0e-cabe-411f-8fec-7d7ea135bb74",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:758 Biasing list shipped per job; BASE_ASR_KEYWORDS (asr-keywords.mjs:31-37) boosts the confusable React/Rust pair. A repo-wide grep for null-audio/phantom/confusable found no control, and the offline wer.py measures recall only."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:790 The scorer runs on every transcript with no entity-fidelity or deletion gate first. Entity fidelity exists only in the offline eval (pipeline/jobfit/eval/voice/wer.py, bakeoff.py), never at run time."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-scorecard.ts:148 Three states, documented precedence (line 177) and null-when-absent all conform. But `heard` is only parsed: nothing resolves ratings[].evidence against corrected[].heard, so a quote holding the misheard form is shown as the candidate's words. The technique names this failure."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-transcript.ts:244 Whole below budget; head+tail on turn boundaries with an in-band marker; coverage emitted only when something was dropped (coverageFromNotes); same shape at the persistence cap (capTranscriptTurns). The split is even (line 207), which the standard calls defensible. No explicit anchor on the read-back."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:811 The per-turn lock verdict (interview-telemetry.ts:166) is computed only AFTER the scorer has rated the transcript and is 'never a gate', so drifted turns reach the rating unchecked and a drift-heavy call never reaches a remedy."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-telemetry.ts:27 The response gap and talk ratio are framed as signal about the candidate and attached to the scorecard object for later weight validation. This reads delay as candidate information, which the technique forbids. The scorer prompt's own manner clause lives in Python, outside this context."
+        }
+      ]
+    },
+    "98501252-cbce-4e0c-a2f0-712967e6604d/voice-interview-fidelity": {
+      "context": "pipeline-candidate-drawer",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:50:22.310Z",
+      "worker": "8e732b0e-cabe-411f-8fec-7d7ea135bb74",
+      "techniques": [
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/PipelineInterviewTelemetryStrip.tsx:50 Silence length shown to the decision-maker as a candidate signal (catalog: telemetryNote = 'Descriptive signals from the call, not scores.'). Not scored, but it enters the human assessment surface."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx:78 The read-back buckets are surfaced to the human reader, not only to the scorer. Not-assessed axes render as not assessed rather than 3/5 (line 63)."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx:51 The sampling fact reaches the recruiter only when sampling dropped turns, and the caveat points to the full transcript."
+        }
+      ]
     }
   }
 }
