@@ -2556,7 +2556,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/about/chapters.ts:2 This is a static, animated product explainer: chapter structure plus catalog strings. I searched app/features/insights/about for child_process, tarball, unzip, lockfile and pickle and found nothing, so it has no supply-chain boundary of its own.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "eval-harness",
@@ -12218,7 +12222,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:1 This is a React review surface over the app's own pipeline API. I searched app/features/hiring/decisions for child_process, tarball, unzip, lockfile and pickle and found nothing. Its only 'spawn' hits are comments, and its third-party imports are framework packages governed by the repo-wide dependency gates.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "hitl-approval",
@@ -19318,7 +19326,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:7 This context is a client table and detail view over JD rows and build artifacts that the server already stored. I searched app/features/library/jds for child_process, tarball, unzip, lockfile and pickle and found nothing: no dependency manifest, archive, subprocess, secret scan or foreign-state loader, so no supply-chain crossing is owned here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "data-access",
@@ -19472,7 +19484,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsEditClient.ts:3 This is the shell, hooks and edit client of the JD library tab, which talk to the app's own JD API. I searched app/features/library/jds for child_process, tarball, unzip, lockfile and pickle and found nothing, so no dependency, archive, secret or third-party-code crossing lives here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "module-design",

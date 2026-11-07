@@ -25285,6 +25285,46 @@
           "evidence": "app/features/shell/companion/CompanionInputPanel.tsx:54 The transcript is dictation for review, never parsed into a command."
         }
       ]
+    },
+    "23ea22ae-fc24-4af0-a51f-58347b533287/supply-chain": {
+      "context": "jd-ledger",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:05:39.112Z",
+      "worker": "e85b00c6-b764-47dd-a2d8-91846192a694",
+      "techniques": []
+    },
+    "46245a9c-ff38-4cd4-88c3-b64b7cc7d185/supply-chain": {
+      "context": "jd-library-core",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:05:39.112Z",
+      "worker": "e85b00c6-b764-47dd-a2d8-91846192a694",
+      "techniques": []
+    },
+    "03de9bcc-53c7-4571-9782-d203eb627b06/supply-chain": {
+      "context": "decisions-review-ui",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:05:39.112Z",
+      "worker": "e85b00c6-b764-47dd-a2d8-91846192a694",
+      "techniques": []
+    },
+    "23edc789-314a-44a3-b30f-ee7353edfab4/supply-chain": {
+      "context": "about-product",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:05:39.112Z",
+      "worker": "e85b00c6-b764-47dd-a2d8-91846192a694",
+      "techniques": []
     }
   }
 }
