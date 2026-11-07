@@ -26088,6 +26088,52 @@
           "evidence": "app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx:51 The sampling fact reaches the recruiter only when sampling dropped turns, and the caveat points to the full transcript."
         }
       ]
+    },
+    "3a572009-313e-4210-b608-2c84f4e5eb34/codebase-scanning": {
+      "context": "github-repo-intelligence",
+      "subject": "codebase-scanning",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T03:58:32.105Z",
+      "techniques": [
+        {
+          "technique": "the-narrowest-view-owns-the-number",
+          "verdict": "deviation",
+          "evidence": "app/_lib/github/fence.ts:58 The scope statement '[truncated at N chars]' is placed inside the fence that voids the material's authority. readBasis (code-review.ts describeCapsHit) and `partial` carry no term for the window cut."
+        },
+        {
+          "technique": "sensor-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/repo-snapshot.ts:119 Each GitHub read is tri-state (read / 404 / could-not-read), and unread parts travel in the snapshot, so a throttled read is never scored as absence."
+        },
+        {
+          "technique": "ingestion-budget",
+          "verdict": "conformant",
+          "evidence": "app/_lib/github/client.ts:224 Coverage loss is derived from fetch success (a 404 counts as a read), not from target size. Cap hits are reported separately (client.ts:254), and repo-list truncation is disclosed as analyzed/total (analysis.ts:153)."
+        },
+        {
+          "technique": "evidence-scoping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/github/skills.ts:77 Potential gaps (negative findings) are asserted from a sample: language maps come from only 20 of N owned repos (analysis.ts:73), and the repo list can be truncated at 300. The gate checks fetch success only, with no minimum sample fraction. Skill credit also comes from repo names, descriptions and topics (skills.ts:41), i.e. a name taken as evidence."
+        },
+        {
+          "technique": "llm-assisted-scanning",
+          "verdict": "deviation",
+          "evidence": "app/_lib/github/code-review.ts:317 Model output becomes 'confirmed' verdicts with no check against the fetched bundles. Malformed fields are silently snapped to defaults by .catch (code-review.ts:63) and never counted."
+        },
+        {
+          "technique": "the-tree-is-not-the-population",
+          "verdict": "deviation",
+          "evidence": "app/_lib/repo-scan-run.ts:157 The only exclusion count carried to the row is symlinks. The walk's SKIP_DIRS and secret-file filters (pipeline/jobfit/repo_scan.py:683) remove files without a published per-filter count."
+        }
+      ],
+      "withdrawn": {
+        "worker": "5f656d6e-b0b3-4b63-b2e5-821bcd281b09",
+        "state": "deviation",
+        "at": "2026-11-07T03:59:29.082436+00:00",
+        "reason": "reviewer (sonnet): The truncation notice does sit inside the fence (fence.ts:58 calls capBlock inside fencedUntrusted), but the window cut the verdict depends on is practically unreachable: DEEP_REVIEW_REPO_LIMIT is 3, and each repo contributes at most about 3.5k of README plus 10 commits and 30 file names, far under "
+      }
     }
   }
 }
