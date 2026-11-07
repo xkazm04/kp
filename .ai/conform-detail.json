@@ -24137,16 +24137,11 @@
       "context": "llm-inference-runtime",
       "subject": "mcp-tools",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-05",
-      "evaluatedTs": "2026-11-05T22:05:01.012Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "79423439-2a32-463f-9fe9-8da6d9db4f30",
-        "state": "not-applicable",
-        "at": "2026-11-05T22:05:40.218854+00:00",
-        "reason": "reviewer (sonnet): The anchor at python-runner.ts:641 is a plain spawn() and says nothing about tool grants, and the context calls the Python pipeline, which passes --allowedTools/--disallowedTools (WebSearch,WebFetch, read-only tools plus a write denylist) to the claude CLI, a tool-governance surface the app/_lib-onl"
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:58:20.980Z",
+      "worker": "fdef7172-7e43-45be-b338-891f20bfa9be",
+      "techniques": []
     },
     "145b5d07-e126-4749-8ada-b0fa84fcfa37/prompt-assembly": {
       "context": "platform-auth-api",
@@ -25484,6 +25479,16 @@
           "evidence": "app/features/shell/setup/setupSteps.ts:51 This wizard does not build first-run voice onboarding, so the technique's precondition does not hold."
         }
       ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/mcp-tools": {
+      "context": "platform-auth-api",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:58:20.980Z",
+      "worker": "fdef7172-7e43-45be-b338-891f20bfa9be",
+      "techniques": []
     }
   }
 }

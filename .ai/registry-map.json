@@ -23185,7 +23185,11 @@
           "changedAt": "2026-10-15",
           "confidence": "probable",
           "priorNotApplicable": 5,
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/python-runner.ts:555 The runtime gets to LLMs by spawning the Python jobfit pipeline per request and folding a usage sidecar into a ledger; a search of app/_lib found no MCP server or client, no tool listing and no tool-call dispatch, so the tool-protocol trust boundary this subject governs is not present (spawning a child process here is subprocess-lifecycle, not a standard-stream MCP transport).",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "quality-gates",
@@ -27674,8 +27678,12 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "app/api/auth/login/route.ts:68 These are Next.js route handlers for HMAC-session auth, workspaces, ops and health, plus contract tests; a search of app/api found no MCP endpoint, tool listing, tool-call dispatch or MCP token minting, so the subject's authentication-and-scoping and transport rules have no tool-protocol door to govern here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "agent-runtime-assembly",
