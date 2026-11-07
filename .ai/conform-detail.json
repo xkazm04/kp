@@ -13675,13 +13675,13 @@
       "subject": "silver-medalist-rediscovery",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T21:16:18.181Z",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:51:49.047Z",
       "techniques": [
         {
           "technique": "read-time-relevance-refilter",
           "verdict": "deviation",
-          "evidence": "app/api/rediscovery/alerts/route.ts:29 Positives: the read is filtered at render time, and the POST returns `truncated` and `failedJobs` (:84). The refilter predicate it serves misses hire/active-elsewhere and fit re-checks."
+          "evidence": "app/api/rediscovery/alerts/route.ts:29 Both GET and POST read through the one shared refilter, so the render-time filter is in place. But that predicate leaves out hire/active status and the floor re-check (see candidate-rediscovery)."
         },
         {
           "technique": "band-limited-prior-depth-boost",
@@ -13721,13 +13721,20 @@
           "evaluatedAt": "2026-10-18T02:34:11.655Z",
           "worker": "ef5188f2-2fc4-42a9-8148-298802e5b3ef",
           "reason": "replaced by 784ee38e-adb1-46e6-ab3b-12a5a3640c18"
+        },
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
+          "evaluatedAt": "2026-10-18",
+          "worker": null,
+          "reason": "replaced by 9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c"
         }
       ],
       "withdrawn": {
-        "worker": "784ee38e-adb1-46e6-ab3b-12a5a3640c18",
+        "worker": "9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c",
         "state": "deviation",
-        "at": "2026-10-24T21:17:27.047127+00:00",
-        "reason": "reviewer (sonnet): The cited route does gate on consent and publish state. `filterRelevantAlerts` deliberately leaves out the active-elsewhere check (its doc comment says so). The fit-floor re-check does exist, in the POST sweep's `reconcileRediscoveryAlerts`, which retracts alerts. I could not find the 'refilter rule"
+        "at": "2026-11-07T23:54:30.195894+00:00",
+        "reason": "reviewer (sonnet): The route at alerts/route.ts:29 does what the technique asks, reading the feed through one shared render-time refilter (liveRediscoveryAlerts) with consent re-checked; the missing hired/active-elsewhere exclusion lives in rediscover.ts (pickPrior), which is the candidate-rediscovery context, and the"
       }
     },
     "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/test-input-generation": {
@@ -26996,6 +27003,51 @@
       "evaluatedTs": "2026-11-07T23:32:09.959Z",
       "worker": "b00c2bb5-40ee-468d-96f6-218fc31dd025",
       "techniques": []
+    },
+    "124722c0-47ae-4af5-be2f-b62f65cef7de/silver-medalist-rediscovery": {
+      "context": "candidate-rediscovery",
+      "subject": "silver-medalist-rediscovery",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:51:49.047Z",
+      "worker": "9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c",
+      "techniques": [
+        {
+          "technique": "prior-outcome-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscover.ts:114 'Currently in process' and 'Hired' are ineligible classes. Here they get an 'elsewhere' kind. Also, a person with a rejected prior who is now active in another role is still surfaced as 'rejected', because nothing excludes live candidates as a group. The rest holds: the lookup is tenant-scoped (candidateOutcomes(opts.workspaceId)), the role_closed/declined values match what the writer emits, and a row with no prior is dropped."
+        },
+        {
+          "technique": "band-limited-prior-depth-boost",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscovery-rank.ts:26 Half of the 10-point tier step. priorDepthBoost is clamped to [0, band]. The comparator (rank.ts:54) keeps the honest score as the tiebreak, the displayed score stays honest, and rank.test.ts:44 asserts the band guarantee arithmetically. Active 'elsewhere' rows get depth 0 (rediscover.ts:119), but per the taxonomy they should not be ranked at all."
+        },
+        {
+          "technique": "fit-floor-for-readmission",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscover.ts:200 Admission uses the raw score, before any boost. SCORE_FLOOR = FIT_PROMISING_FLOOR (rediscover.ts:28), which the pool-fit filter also uses with >=. The Python total is already an integer (matching.py round), so Math.round does not fork the comparator at the boundary. The consent gate runs before the floor (rediscover.ts:157)."
+        },
+        {
+          "technique": "person-level-consent-collapse",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscovery-relevance.ts:49 Consent is collapsed per candidate: anonymisation is terminal, grants union to the latest expiry, and opt-out is merged person-wide in withheldCandidateIds. The 'never granted' and 'lapsed' states stay distinct. A read error suppresses everyone and logs it (rediscovery-alert-store.ts:471). The gate runs before ranking (rediscover.ts:157) and also guards the write, the feed read and the outreach door."
+        },
+        {
+          "technique": "read-time-relevance-refilter",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscover.ts:326 At read time the feed re-checks only role-published, presence in the target role, and the consent gate. It does not re-check hired or active elsewhere, does not re-run the fit floor, and does not re-run the sweep predicate (pickPrior). There is also no staleness horizon short of the 90-day prune. On the plus side, sweep truncation is bounded, rotated and logged (rediscover.ts:474), and the result cap reports `more`."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "deviation: pickPrior's `elsewhere` branch at app/_lib/rediscover.ts:103 admits candidates whose prior entry is status \"active\" or stage \"Hired\" - two populations the golden path puts structurally out of scope (someone mid-process elsewhere was never told no; someone Hired converted), so the Rediscover panel can pitch a role to a live candidate or to your own hire. Zeroing their depth boost at :108 treats a population rule as an ordering rule. The rest is strong and cited: fit-floor-for-readmission shares one expression with the general pool (rediscover.ts:27 SCORE_FLOOR = FIT_PROMISING_FLOOR, admission on the honest score at :187); band-limited-prior-depth-boost is structural (rediscovery-rank.ts:26 PRIOR_DEPTH_BAND = 5, half a fit tier, comparator at :50); person-level-consent-collapse resolves at the durable candidate identity before ranking (rediscover.ts:143-146) and fails closed on a read error (rediscovery-alert-store.ts:369); prior-outcome-taxonomy excludes the never-assessed structurally (rediscover.ts:196 drops a row with no prior).",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c"
+        }
+      ]
     }
   }
 }

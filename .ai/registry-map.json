@@ -7759,8 +7759,7 @@
           "confidence": "strong",
           "state": "deviation",
           "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
-          "evaluatedAt": "2026-10-18",
-          "stale": true
+          "evaluatedAt": "2026-10-18"
         },
         {
           "subject": "eval-harness",
@@ -8067,12 +8066,11 @@
           "changedAt": "2026-10-21",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "deviation: pickPrior's `elsewhere` branch at app/_lib/rediscover.ts:103 admits candidates whose prior entry is status \"active\" or stage \"Hired\" - two populations the golden path puts structurally out of scope (someone mid-process elsewhere was never told no; someone Hired converted), so the Rediscover panel can pitch a role to a live candidate or to your own hire. Zeroing their depth boost at :108 treats a population rule as an ordering rule. The rest is strong and cited: fit-floor-for-readmission shares one expression with the general pool (rediscover.ts:27 SCORE_FLOOR = FIT_PROMISING_FLOOR, admission on the honest score at :187); band-limited-prior-depth-boost is structural (rediscovery-rank.ts:26 PRIOR_DEPTH_BAND = 5, half a fit tier, comparator at :50); person-level-consent-collapse resolves at the durable candidate identity before ranking (rediscover.ts:143-146) and fails closed on a read error (rediscovery-alert-store.ts:369); prior-outcome-taxonomy excludes the never-assessed structurally (rediscover.ts:196 drops a row with no prior).",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256-b2:02b33939b6fbed96",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/rediscover.ts:114 pickPrior still lets in people whose other-role entry is live (status active) or who reached Hired. The taxonomy puts both groups out of scope, so the Rediscover panel and the alert feed can pitch a role to someone mid-process elsewhere or to your own hire, and rediscover.test.ts:124 pins that behaviour.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:97a511057c0bde11",
+          "evaluatedRevision": 2,
+          "revisionsBehind": 1
         },
         {
           "subject": "retrieval",
