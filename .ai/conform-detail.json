@@ -12158,34 +12158,48 @@
       "subject": "candidate-communication-integrity",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T00:32:37.773Z",
-      "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:39:03.268Z",
+      "worker": "ef6a6273-e0b4-4657-88d3-7195f7ed8409",
       "techniques": [
+        {
+          "technique": "recipient-addressability-contract",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:73 Name and opaque-id tiers are not addresses; there is no tier stored on the row; the relay path does no shape validation before transport (comms.ts WebhookChannel). It also duplicates the cascade in comms-recipient.ts (a test pins the two equal), so there are two resolvers. The agent refusal is the only tier-4 short-circuit."
+        },
+        {
+          "technique": "terminal-delivery-status-vocabulary",
+          "verdict": "conformant",
+          "evidence": "app/_lib/comms-status.ts:35 There is one closed enum with queued declared terminal, and coerceOutboxStatus maps unknown values to failed. Caveat: dispatchOutcome re-derives the claim inline instead of calling deliveryClaim, and delivered() lets a queued row write *_sent timeline events."
+        },
         {
           "technique": "bounce-receipt-supersedes-a-green-send",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms-view.ts:187 Even an exact messageId match passes through timestamp filtering, so a receipt recorded before its send remains orphaned and the send stays unbounced; a read-only probe confirmed this."
+          "evidence": "app/_lib/comms-view.ts:217 latestOkAt counts any non-failed row, including a queued row and a sent row that later bounced, so a dead letter is marked 'recovered' with no external acceptance behind it. Also at line 167, a receipt that is stamped before its send row is never bound to that send, which breaks the arrival-order rule."
+        },
+        {
+          "technique": "candidate-locale-resolution-authority",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:94 The three-step authority is used and links are ?lang= pinned. But the composition path drops which step supplied the locale, and recordOutbox has no locale field, so a message never records its locale or that locale's source."
         },
         {
           "technique": "capability-honesty-never-promise-a-channel",
-          "verdict": "deviation",
-          "evidence": "app/_lib/comms-truth.ts:70 A syntactically configured domain and token produce an advertised address without a round-trip verification state."
+          "verdict": "conformant",
+          "evidence": "app/_lib/comms-dispatch.ts:232 The legal footer links are absolute through candidateLinkBase, which warns loudly when it falls back to the default origin. The footer is never dropped except for erased entries."
         },
         {
           "technique": "dead-letter-escalation-and-orphan-receipts",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms.ts:334 The terminal-failure handler emits console output and a log file, but implements no timed notification to a responsible human."
-        },
+          "evidence": "app/_lib/comms.ts:350 Escalation is a console line plus comms.log, which ops-telemetry only counts. Nothing routes a dead letter to a human on a clock, and the row does not carry the attempt count."
+        }
+      ],
+      "superseded": [
         {
-          "technique": "recipient-addressability-contract",
-          "verdict": "deviation",
-          "evidence": "app/_lib/comms-dispatch.ts:72 Missing candidate contact falls through to names and identifiers, and the result reaches the channel without boundary address validation."
-        },
-        {
-          "technique": "terminal-delivery-status-vocabulary",
-          "verdict": "deviation",
-          "evidence": "app/_lib/comms-dispatch.ts:535 Terminal queued outreach returns sent:true and also writes outreach_sent and the outreach send counter, despite no external acceptance."
+          "state": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:72 Recipient resolution forwards names, opaque identifiers and malformed contacts instead of rejecting unaddressable recipients before transport.",
+          "evaluatedAt": "2026-10-18T00:32:37.773Z",
+          "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+          "reason": "replaced by ef6a6273-e0b4-4657-88d3-7195f7ed8409"
         }
       ]
     },
@@ -12194,29 +12208,43 @@
       "subject": "candidate-communication-integrity",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T00:32:37.773Z",
-      "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:39:03.268Z",
+      "worker": "ef6a6273-e0b4-4657-88d3-7195f7ed8409",
       "techniques": [
         {
-          "technique": "bounce-receipt-supersedes-a-green-send",
+          "technique": "terminal-delivery-status-vocabulary",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms-receipt.ts:168 Deferred outcomes enter this non-bounce branch and are discarded, leaving the acceptance standing instead of retaining a soft adverse state until resolution."
+          "evidence": "app/_lib/comms-resend-outcome.ts:66 The technique says an unmapped transport result must be treated as failed, not sent. Here the default branch is the optimistic resend."
         },
         {
           "technique": "candidate-locale-resolution-authority",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms-translator.ts:53 Composition uses the locale-only wrapper, which discards the source returned by resolveCommsLocaleWithSource; the source-aware API had no production callers in the repository search."
+          "evidence": "app/_lib/comms-locale.ts:47 The recorded → workspace → app-default authority is correct and resolveCommsLocaleWithSource exists. But the only production entry point discards `source`, and grep finds no non-test caller of the WithSource form, so no message records which step supplied its locale."
         },
         {
           "technique": "recipient-addressability-contract",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms-recipient.ts:102 The resolver returns non-address identifiers and does not return a resolution tier or reject malformed contacts; bulk preview validation does not repair this resolver contract."
+          "evidence": "app/_lib/comms-recipient.ts:102 The shared cascade resolves display names and opaque ids as recipients. bulk-invite.ts does report unaddressable as its own bucket (conformant there), but the resolver itself does not return a tier and does not shape-validate."
         },
         {
-          "technique": "terminal-delivery-status-vocabulary",
+          "technique": "bounce-receipt-supersedes-a-green-send",
           "verdict": "deviation",
-          "evidence": "app/_lib/comms-resend-outcome.ts:66 Missing and unknown successful-response statuses default to sent; resendOutcome(true, 200, null) was confirmed to return sent."
+          "evidence": "app/_lib/comms-receipt.ts:168 A deferred or soft outcome is answered not_a_bounce and records nothing (\"opened\"/\"deferred\" are accepted and not surfaced), so a green sent stands over an attempt the relay reported as not delivered. The technique says a soft bounce stays adverse until something ends it."
+        },
+        {
+          "technique": "dead-letter-escalation-and-orphan-receipts",
+          "verdict": "conformant",
+          "evidence": "app/_lib/comms-receipt.ts:177 A receipt naming nothing kp issued is attached to no tenant but counted install-wide. An unmatched receipt for a known ref is stored and reported as no_matching_send. Only the orphan-receipt half is judged here."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/comms-resend-outcome.ts:66 A successful HTTP response with an absent or unrecognised message status becomes sent, permitting a delivery claim without readable delivery evidence.",
+          "evaluatedAt": "2026-10-18T00:32:37.773Z",
+          "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+          "reason": "replaced by ef6a6273-e0b4-4657-88d3-7195f7ed8409"
         }
       ]
     },
@@ -12224,40 +12252,51 @@
       "context": "candidate-channels-ui",
       "subject": "candidate-communication-integrity",
       "bundle": "recruiting",
-      "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T00:32:37.773Z",
-      "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T02:39:03.268Z",
+      "worker": "ef6a6273-e0b4-4657-88d3-7195f7ed8409",
       "techniques": [
+        {
+          "technique": "terminal-delivery-status-vocabulary",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 One resolver, with labels from the catalog; queued has its own info tone and is never rendered as sent."
+        },
         {
           "technique": "bounce-receipt-supersedes-a-green-send",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Status rendering consumes the shared derived verdict and maps bounced messages to a critical badge rather than their stored sent status."
-        },
-        {
-          "technique": "candidate-locale-resolution-authority",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/channels/night/setup/SetupAddReceiver.tsx:35 Receiver setup preselects the application default and always submits lang, so untouched setup supplies a candidate-message language without consulting the workspace default or preserving an unrecorded choice."
-        },
-        {
-          "technique": "capability-honesty-never-promise-a-channel",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/channels/night/setup/setupModel.ts:46 A configured domain alone selects a forwarding address; receiver liveness and round-trip verification do not gate its publication."
-        },
-        {
-          "technique": "dead-letter-escalation-and-orphan-receipts",
-          "verdict": "deviation",
-          "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Actionable rows are grouped first, then ordered by recency without considering offer, adverse-decision or nurture impact."
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:77 The derived bounce outranks the stored sent on this surface. It inherits comms-view's recovered-by-queued flaw (judged on comms-dispatch-relay), not one of its own."
         },
         {
           "technique": "recipient-addressability-contract",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/channels/night/message/ChannelsNightLetter.tsx:82 The letter uses the shared warning predicate, which stays silent for unknown addressability, absent transport and orphan receipts."
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:20 The corrected address is shape-validated through the shared predicate before resend is enabled."
         },
         {
-          "technique": "terminal-delivery-status-vocabulary",
+          "technique": "capability-honesty-never-promise-a-channel",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:90 A receiver counts as live only after an observed authenticated inbound POST, which is round-trip proof rather than configuration."
+        },
+        {
+          "technique": "candidate-locale-resolution-authority",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/channels/useCommsResend.ts:40 Unreadable successful responses become null and enter the shared fold's sent default, allowing the resend control to display Resent without reading a terminal message status."
+          "evidence": "app/features/hiring/channels/night/setup/SetupAddReceiver.tsx:35 Receiver setup preselects the application default and always submits lang, so untouched setup supplies a candidate-message language without consulting the workspace default or preserving an unrecorded choice.",
+          "carriedFrom": "2026-10-18"
+        },
+        {
+          "technique": "dead-letter-escalation-and-orphan-receipts",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Actionable rows are grouped first, then ordered by recency without considering offer, adverse-decision or nurture impact.",
+          "carriedFrom": "2026-10-18"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Within the actionable failure group, the queue prioritises newest records rather than candidate impact, so a recent routine message can precede an older undelivered offer.",
+          "evaluatedAt": "2026-10-18T00:32:37.773Z",
+          "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+          "reason": "replaced by ef6a6273-e0b4-4657-88d3-7195f7ed8409"
         }
       ]
     },

@@ -7375,13 +7375,12 @@
           "revision": 7,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "deviation",
-          "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Within the actionable failure group, the queue prioritises newest records rather than candidate impact, so a recent routine message can precede an older undelivered offer.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "conformant",
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 The ledger maps the single shared commsVerdict resolver to tone and copy rather than re-deriving status, so this surface and the candidate drawer cannot disagree about one message.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
+          "revisionsBehind": 1
         },
         {
           "subject": "delivery-analytics",
@@ -9088,12 +9087,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/comms-dispatch.ts:72 Recipient resolution forwards names, opaque identifiers and malformed contacts instead of rejecting unaddressable recipients before transport.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/comms-dispatch.ts:73 The dispatcher's recipient cascade falls back from contact to display name, candidate id and the literal \"candidate\" with no shape check, and WebhookChannel.send (comms.ts) posts whatever it gets to the relay (only SmtpChannel checks isDeliverableAddress), so an unaddressable candidate is handed to transport rather than dead-lettered at the boundary, and the cascade is a second copy of comms-recipient.resolveCandidateRecipient.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
+          "revisionsBehind": 1
         },
         {
           "subject": "fleet-orchestration",
@@ -9169,12 +9167,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/comms-resend-outcome.ts:66 A successful HTTP response with an absent or unrecognised message status becomes sent, permitting a delivery claim without readable delivery evidence.",
-          "evaluatedAt": "2026-10-18",
-          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/comms-resend-outcome.ts:66 Any 2xx resend whose body carries no recognised entry status (an absent entry, or a status outside queued/failed/bounced) falls through to 'sent', so an unmappable outcome licenses the word Resent instead of resolving to the adverse member.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:bc7f247331d1e433",
+          "evaluatedRevision": 7,
+          "revisionsBehind": 1
         },
         {
           "subject": "i18n",
