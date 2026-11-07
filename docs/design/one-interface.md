@@ -29,7 +29,8 @@ Governing standard: registry subject `model-composed-workspace` (golden path +
 | `app/features/one/OneShell.tsx` | Owns the core and, per frame, the fixed chrome (page: brand + Console link + Ctrl/⌘ K; tab: none); hands the layout `LayoutProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, `data-one-frame`, the Figtree + Caveat font variables): it imports `finish.css`, provides the motion flavor (`motion.ts`) and the frame (`OneFrameContext`, `panels/PanelShell.tsx`). Wrapped in `KitSurface` (calm density). |
 | `app/features/one/layout/` | THE layout: `SheetsLayout.tsx`, the sheet-stack rules (`stack.ts`, tested), the view-placement rule (`side.ts`, tested) and its paint (`styles.ts`, the dense compaction folded in). |
 | `app/features/one/tools/` | Round 4: the tools' reads (`reads.ts` hooks, `parse.ts` pure parsers) and views (`ProfileTool`, `LetterTool`); the interview tool is `panels/CalendarPanel.tsx` scoped to one entry. |
-| `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks, the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core". |
+| `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks (+ the narrow-table fold), the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core" and "Motion orchestration". |
+| `app/features/one/panels/readCache.ts` · `read.ts` · `seen.ts` · `layout/Swap.tsx` | Round 5: the stale-while-revalidate read cache (tested), its hook, the seen-record (tested) and the in-place crossfade region. See "Motion orchestration". |
 
 ## The contract (`app/features/one/types.ts`)
 
@@ -238,21 +239,109 @@ Custom properties with defaults at zero specificity (`:where([data-one-root])`, 
 | `--one-sticker-shadow` | ink 5px offset / `--pop-shadow` | the answer card (`[data-one-sticker]`) |
 | `--one-sticker-border` | ink / stone-300 | the answer card, the composer outline |
 
-### Motion (`app/features/one/motion.ts`)
-Named presets, each in three flavors — **calm** and **spring** (unused since round 4), **snap**
-(every layout), `FLAVOR_OF` — and each with a STILL form under `useReducedMotion()` (no offset, no
-stagger, no tween). Every move is ≤ ~300 ms; nothing loops (`motion.test.ts`).
+### Motion orchestration (round 5 — replaces the round-3 motion table)
 
-| Preset | What moves | Wired in |
+Owner, round 5: *"the cascade of components is blinking on renders, there is no clear
+orchestration"*. The causes were in the read layer as much as in the motion: a view mounted a
+second after its URL had answered drew a LoadingGap first (the answer lived in the component),
+every `epoch` bump dropped every view back to loading at once, every table replayed its row
+stagger on every mount, and the regions were keyed by answer id with `popLayout`, so the SAME
+view left and re-entered on every answer. Governing standard: the registry's `motion` subject
+(`continuity-across-change`, `one-shot-guarding`, `reduced-motion-mechanics`,
+`performance-discipline`) and `async-ui-states` → `arrival-choreography`.
+
+**The read lifecycle — stale-while-revalidate** (`panels/readCache.ts`, pure + tested;
+`panels/read.ts` is the hook). A module-level last-good cache per URL holds the raw body; every
+view on a URL subscribes to it (`useSyncExternalStore`) and parses at read (once per body and
+parser, so data keeps its identity).
+
+| The URL… | The view draws |
+| --- | --- |
+| has never answered | `loading` — the ONLY case that draws a `LoadingGap` |
+| answered (any view, any epoch) | `ready` at once; `refreshing` while its own request runs |
+| is re-asked (`epoch` bump, Retry) | the data stays on screen, `refreshing` |
+| fails to refresh after data | the data stays + one quiet line "Couldn't refresh · Retry" (`data-role="one-refresh-failed"`, `one.core.panels.refreshFailed`) |
+| failed with no data | the error Note with Retry (unchanged) |
+
+Requests are keyed `${url}#${epoch}#${attempt}`; views mounting together share one request,
+and a key settled less than `FRESH_MS` (4 s) ago is answered from the cache. Every view on a URL
+shows the newest answer any of them got (the header's counts follow the needs table's re-read).
+`PanelFrame` marks its section `data-read` / `data-refreshing`.
+
+**The seen-record** (`panels/seen.ts`, tested) — consulted before ANY entrance, module-level so
+it outlives a remount (a workspace tab switch). Views by identity (`viewKey`: look + kind +
+params, never the session's panel id, which is new on every answer); rows by stable row key,
+surface-wide. A row the surface has shown is `still` wherever it appears again; an unseen row
+`cascade`s on its view's FIRST arrival (never-seen → ready) or, in a view already shown, plays the
+`member` gesture once. The decision is frozen at mount (`useState`), so a re-render never
+changes a running move.
+
+**The orchestration tree**
+
+```
+MotionConfig reducedMotion="user" + the flavor's base transition   OneShell — reduced motion, ONCE
+└─ LayoutGroup id="one"                                            header pill + layout measure together
+   ├─ OneHeader → Seg pill (layoutId) · CountTick
+   └─ SheetsLayout
+      ├─ reply line   Swap keyed by answer id   answerSwap(dir)            direction from the stepper
+      ├─ answer card  Swap keyed by VIEW        unseen: answerSwap · seen: viewSwap
+      ├─ side         Swap keyed by VIEW        unseen: panelEnter · seen: viewSwap
+      ├─ sheets       AnimatePresence, keyed by place in the stack: sheetEnter + spineEnter
+      │  └─ person content  Swap keyed by entry   viewSwap (the sheet stays)
+      └─ table (PanelFrame) list = variants parent (rowList: delayChildren cascade, capped)
+         └─ LayoutGroup inherit={false} → rows: variants child, layout="position" (layoutDependency = row order)
+```
+
+| Element | Owns | Never |
 | --- | --- | --- |
-| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | SheetsLayout (`AnimatePresence`) |
-| `panelEnter` | the side's view when the primary or the tab changes | SheetsLayout side |
-| `rowStagger(i)` | a mounted table's first 8 rows, 20–30 ms apart; later rows arrive with the 8th | PanelFrame `TableBody` |
+| `Swap` (`layout/Swap.tsx`) | an in-place crossfade in ONE grid cell (`sync` presence): the leaver fades in 60 ms, the arriver's opacity waits 40 ms (its move starts at once) so two texts are never both half-visible | `popLayout` (the leaver leaves the flow, neighbours jump) · `wait` (an empty beat). The child it MOUNTS with does not move: that is the item's own `initial={false}` — never `AnimatePresence initial={false}`, which reaches every motion element below through the presence context and blocked the side table's first cascade (measured) |
+| a sheet | the push / pop slide from the column edge, with the spine of the sheet below (`sheetEnter`, `spineEnter`) | re-sliding on a person swap — its key is its place in the stack; the content crossfades by entry |
+| the sheets layer | always mounted (`pointer-events-none` when empty), so the first push slides in and the last pop slides out | appearing / vanishing at once |
+| the row list | the first-arrival cascade: `delayChildren(i)` = min(i, 7) × 20 ms, the last row lands ≤ 240 ms | per-row computed delays |
+| a row | `member`: `hidden → shown` once; `still`: rest at mount; a leaving row unmounts and its neighbours close the gap with `layout="position"` | an exit fade, an `AnimatePresence` around the rows (a presence boundary cut the rows off the list's variants: measured stuck at `hidden`) |
+| the rows' own `LayoutGroup` (`inherit={false}`) | keeps row measurement local | joining One's group: there every member re-measures when any does (the header pill does on every render), and a column change then slid every unchanged row sideways (measured) |
+| `CountTick` | tweens a CHANGED value (`countTick`); the first value renders plain | tweening under reduced motion (it is JS-driven, so it checks `reduced` — read from the root MotionConfig) |
+| the column change (no sheet → narrow → wide) | a snap, in the frame the sheet starts sliding | a `grid-template-columns` tween (it reflowed every table each frame; only transform and opacity move) |
 
-Under reduced motion every preset returns its rest state at once. `rowStagger` returns an instant settle-to-rest spec, never `null`: `useReducedMotion()` starts `false` on mount, so a row may already sit at the stagger's opacity 0 when the preference arrives, and dropping `animate` would leave it invisible (found by the dense and spark finish builders, round 3).
-| `consentEnter` | a consent card rises and settles; leaves with a fade | SheetsLayout consent stack |
-| `countTick` | a header figure tweening to its new value | `CountTick` in OneHeader |
-| `tabIndicator` | the segmented pill sliding (stats, switcher, side tabs) | `Seg` |
+Presets (`motion.ts`, tested) are built once per flavor and reduced flag, so motion props keep
+their identity across renders: `answerSwap(dir)`, `panelEnter`, `viewSwap`, `rowList` / `row`,
+`consentEnter`, `countTick`, `tabIndicator`. There is no second, per-component still form:
+`MotionConfig reducedMotion="user"` drops every transform and layout move and keeps at most the
+opacity change; the dense paint keeps rows fully at rest under `motion-reduce` (`styles.ts`).
+
+**The narrow table** (`finish.css`, the `one-table` / `one-panel` containers). Below 32rem of its
+own width a table folds instead of scrolling sideways: the lead column takes the width, the
+middle columns (the stage chip) drop under it, the trailing figure keeps the edge without its
+bar (`data-score-bar`), and the row's acts lie over the figure on the row's own ground — shown
+on hover, focus and the selected / picked row only. The panel head wraps its doors under the
+title. The layout's tightened tracks (`ENTRY_TRACKS`, `LETTERS_TRACKS`) apply only from 32rem.
+At 1280x800 in the tab with the letters sheet open the side table measured 312–314 px with
+`scrollWidth == clientWidth` in both themes.
+
+**The blink detector** (the acceptance test; a throwaway Playwright script, not committed):
+after the first load settles, each action is polled every animation frame for 1 s, counting
+(a) frames where a `LoadingGap` sits in a panel whose URL had already answered, (b) rows that
+were visible before the action and run an entrance (computed opacity < 1 or a transform).
+Round 5, dev data, 1440x900:
+
+| Action | before (a / b) | after (a / b) |
+| --- | --- | --- |
+| first load (reference) | 35 gap frames / 0 | 12–15 / 35 entering (the one cascade) |
+| tab round trip (first beat) | 0 / 0 | 0 / 0 |
+| chip press | 4 / 29 | 0 / 0 |
+| header stat press | 2 / 0 | 0 / 0 |
+| stepper `[` / `]` | 2 / 0 · 1 / 0 | 0 / 0 · 0 / 0 |
+| row select (profile sheet push) | 0 / 0 | 0 / 0 |
+| push a second sheet · Esc pop | 0 / 0 · 0 / 0 | 0 / 0 · 0 / 0 |
+| swap the person on the top sheet | 0 / 0 | 0 / 0 |
+| Esc close | 0 / 0 | 0 / 0 |
+| letters sheet (cached URL, first view) | 6 / 0 | 0 / 0 |
+| re-ask a stat (a cached view reloaded) | 6 / 0 | 0 / 0 |
+| tab round trip (mid-conversation) | 0 / 0 | 0 / 0 |
+
+Under `reducedMotion: "reduce"` every action is 0 / 0 and the first load has no row entering.
+No action in /one bumps `epoch` without a write (only a consent confirm does), so the epoch
+path is pinned by `readCache.test.ts` and measured through the cached-view reloads above.
 
 ## Acts and their doors (`consent/`)
 
@@ -289,20 +378,17 @@ shared with Sheets lives in `one.sheets`. The table below is as measured in roun
 | Surfaces | Quiet: light 1px hairlines, 8px corners, the answer card keeps its ink outline but wears `--sticker-sm-shadow` instead of the 5px ink pop; dark keeps the drawn 2px outline, steps the corner to 12px and the offset to the small sticker. |
 | Insight card | Same reading as the core (stage mix bar, score spread, longest waiter, top role, one suggestion). The spread's bars are drawn at 3/5 of their bin so a tall card reads as a chart, not a wall of colour. While a consent card is open the spread never disappears: it folds into the one-line strip (its size container), so the card has no dead band at 1280x800 (Split hides it there). |
 | Keys | `/` → composer (a `/` keycap sits inside the bar); `[` `]` → step answers; `Esc` (or `↓` on an empty composer) → the table's selected/first row, where the core's `↑↓ a r` work. Page keys are ignored while a field has the cursor or a modifier is held. Named in one status line under the composer, beside "↳ what changed" + Undo. |
-| Motion | The `snap` flavor unchanged (≤120ms per element, 4–8px position + opacity, no spring). Row stagger 20ms apart (last of 8 rows lands ~240ms). Under reduced motion rows are forced at rest (see core gap below). |
+| Motion | The `snap` flavor (≤120ms per element, 4–8px position + opacity, no spring). Since round 5 orchestrated — see "Motion orchestration": the row cascade (20ms apart, last of 8 rows lands ~240ms) plays on a view's first arrival only. Under reduced motion rows are forced at rest. |
 
 Measured (dev data, 29 decisions): rows fully visible in the side table — **19 at 1440x900 light /
 18 dark**, **16 at 1280x800** (Split baseline ≈ 13 / ≈ 11). Left column empty px: **4** (the card's
 shadow room) in every state, consent open or not. scrollHeight == viewport (900 / 800) in all
 12 captures.
 
-Core gap found: `useReducedMotion()` starts `false` in every newly mounted component, so a table
-mounted under reduced motion first renders rows with `rowStagger`'s `initial` (opacity 0); the
-hook then flips, `rowStagger` returns `null`, `animate` disappears and framer leaves the rows
-invisible (seen on `?v=split` too after stepping back). Dense guards it in CSS
-(`motion-reduce:` opacity-100!/transform-none! on `[data-row]`). The core fix: make the still
-form of `rowStagger` a spec, not null — `{ initial: false, animate: { opacity: 1, y: 0 },
-transition: { duration: 0 } }` — in `motion.ts`.
+Core gap found in round 3 — `useReducedMotion()` started `false` in every newly mounted
+component, so a table mounted under reduced motion first rendered rows at the stagger's opacity 0
+— is closed in round 5: reduced motion is read once, by the root `MotionConfig`, and the presets
+carry no per-component still form ("Motion orchestration").
 
 ## Round 3 verdict
 
@@ -506,13 +592,10 @@ Dense's finish and the Sheets layout.
 - **The conductor is keyword-matched**, English-only on the input side; the replies are
   catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.sheets` strings until
   promotion (`nav.tabs.one` is "One" in every locale — a name).
-- **In the tab at 1280 the side list scrolls sideways.** The workspace rail + item panel take ~270px and the frame ~60px, so
-  the side gets ~440px (~345px under a letters sheet) against the candidate table's 32rem
-  floor; the score and acts columns sit past the edge (the table scrolls horizontally, nothing
-  is lost). `/one` at 1280 is unaffected.
 - **One's modules count against the `app/page.tsx` perf budget** (the budget walks the lazy tab
   loaders too): about +45 modules / +314 KB.
-- **The greeting is the first beat only**; it does not re-read after a data act (panels do).
+- **The greeting is the first beat only**; it is not recomposed after a data act (panels re-read; the header's counts follow any view's re-read of `/api/attention` through the shared read cache).
+- **A tool for a person the surface has not read yet still waits on a LoadingGap** (the profile's timeline + analysis, the letter's thread): stale-while-revalidate has nothing to show for a URL that never answered, and nothing prefetches on hover.
 - **Undo of a reply is per step** (the last screen change), not "undo the whole reply".
 - **Round-4 acts are previews.** Approve / Send / Book / Send link arm a card whose confirm is
   disabled; the doors exist and are wired after the layout pick.

@@ -9,6 +9,14 @@
 // finish.css) and the motion flavor's provider (motion.ts), so the header follows the
 // finish too.
 //
+// Round 5 — the motion orchestration root (docs/design/one-interface.md "Motion
+// orchestration"): ONE <MotionConfig> (reducedMotion "user" — reduced motion is honoured
+// here, once, for every motion element below — and the flavor's base move as the default
+// transition), then ONE <LayoutGroup> around the header and the layout, so the header's
+// sliding pill, the sheet stack and the tables' row moves measure and animate together.
+// Views are keyed by their identity (kind + params, panels/seen.ts), so a view the next
+// answer shows again stays mounted.
+//
 // Round 5: two FRAMES (OneFrame, panels/PanelShell.tsx).
 //   page  `/one` — owns the viewport (`h-dvh` from lg), its header carries the brand and
 //         the Console link (+ Ctrl/⌘ K, composition-region "fixed chrome").
@@ -17,6 +25,7 @@
 //         its own (the workspace's palette owns that key), and every Console link in the
 //         panels switches tabs in place (ConsoleAnchor).
 import { useCallback, useEffect, type ReactNode } from "react";
+import { LayoutGroup, MotionConfig } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { KitSurface } from "@/app/_components/kit";
 import { mkBody, mkHand } from "@/app/landing/site/chrome/fonts";
@@ -30,7 +39,8 @@ import { OneHeader } from "./OneHeader";
 import { useLettersWaiting, usePipeline } from "./tools/reads";
 import type { PanelInstance, PanelKind, ProposalInstance, Selected, ToolKind } from "./types";
 import { useOneSession } from "./useOneSession";
-import { ONE_FLAVOR, OneMotion } from "./motion";
+import { ONE_FLAVOR, ONE_MOTION_CONFIG, OneMotion } from "./motion";
+import { viewKey } from "./panels/seen";
 import { SheetsLayout } from "./layout/SheetsLayout";
 import type { GreetingState, LayoutProps, PanelOpts } from "./layoutProps";
 import { useOneWords } from "./words";
@@ -95,7 +105,9 @@ export function OneShell({ frame }: { frame: OneFrame }) {
       const View = PANEL_VIEWS[panel.kind];
       return (
         <View
-          key={panel.id}
+          // The view's identity, not the session's panel id (new on every answer): the same
+          // view in the same place stays mounted across answers.
+          key={viewKey(panel, opts?.look ?? "list")}
           panel={panel}
           epoch={epoch}
           look={opts?.look}
@@ -177,6 +189,8 @@ export function OneShell({ frame }: { frame: OneFrame }) {
   return (
     <OneFrameContext.Provider value={frame}>
     <OneMotion.Provider value={ONE_FLAVOR}>
+    <MotionConfig {...ONE_MOTION_CONFIG}>
+    <LayoutGroup id="one">
     <div
       className={`${mkBody.variable} ${mkHand.variable} flex flex-col bg-paper text-ink ${ROOT_SIZE[frame]}`}
       data-one-root
@@ -199,6 +213,8 @@ export function OneShell({ frame }: { frame: OneFrame }) {
         </KitSurface>
       </div>
     </div>
+    </LayoutGroup>
+    </MotionConfig>
     </OneMotion.Provider>
     </OneFrameContext.Provider>
   );

@@ -38,9 +38,11 @@ const ONE_LINE_ROWS =
 
 /** The candidate tables' tracks, tightened: the name track takes every spare px, stage and
  *  score sit at their content's width. The core sets the template inline per row, so the
- *  override needs `!`; the four tracks are the core's own (name, stage, score, acts). */
+ *  override needs `!`; the four tracks are the core's own (name, stage, score, acts). Only
+ *  while the table has 32rem of its own width (the `one-table` container, finish.css) —
+ *  narrower, the core folds the row instead. */
 const ENTRY_TRACKS =
-  "[&_[data-one-panel=decisionsQueue]_[role=row]]:grid-cols-[minmax(12rem,1fr)_7rem_7.5rem_5rem]! [&_[data-one-panel=pipelineSlice]_[role=row]]:grid-cols-[minmax(12rem,1fr)_7rem_7.5rem_8rem]!";
+  "@min-[32rem]/one-table:[&_[data-one-panel=decisionsQueue]_[role=row]]:grid-cols-[minmax(12rem,1fr)_7rem_7.5rem_5rem]! @min-[32rem]/one-table:[&_[data-one-panel=pipelineSlice]_[role=row]]:grid-cols-[minmax(12rem,1fr)_7rem_7.5rem_8rem]!";
 
 /** The table foot (key hint) one step shorter. */
 const FOOT = "[&_[data-role=one-table-foot]]:py-1.5";
@@ -50,9 +52,9 @@ const FOOT = "[&_[data-role=one-table-foot]]:py-1.5";
 const INSIGHT =
   "[&_[data-role=one-insight]]:gap-3 [&_[data-insight=facts]]:gap-x-4 [&_[data-insight=spread]_li>span:nth-child(2)>span]:mx-auto [&_[data-insight=spread]_li>span:nth-child(2)>span]:w-3/5";
 
-/** Reduced motion: a row is always at rest. Guards a CORE race (reported): a freshly mounted
- *  table reads `useReducedMotion()` as false on its first render and mounts its rows at the
- *  stagger's `initial` (opacity 0). `!` beats framer's inline style. */
+/** Reduced motion: a row is always at rest. The root MotionConfig (reducedMotion "user")
+ *  already drops the rows' rise and keeps only their fade; this keeps them fully still too
+ *  (`!` beats framer's inline style). */
 const ROWS_AT_REST = "motion-reduce:[&_[data-row]]:opacity-100! motion-reduce:[&_[data-row]]:transform-none!";
 
 export const COMPACT = `${HEADS} ${ONE_LINE_ROWS} ${ENTRY_TRACKS} ${FOOT} ${INSIGHT} ${ROWS_AT_REST}`;
@@ -70,9 +72,6 @@ export const ASKING_TRIM =
 export const COLS_NONE = "lg:grid-cols-[minmax(0,max(30rem,34vw))_minmax(0,1fr)]";
 export const COLS_NARROW = "lg:grid-cols-[minmax(0,max(36rem,40vw))_minmax(0,1fr)]";
 export const COLS_WIDE = "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
-
-/** The column change moves at the snap preset's pace; reduced motion = at once. */
-export const COLS_MOVE = "transition-[grid-template-columns] duration-150 ease-out motion-reduce:transition-none";
 
 /** A half-screen sheet is narrower than the tools' 900px two-column query, but the owner's
  *  ask is CV | score SIDE BY SIDE: force the profile pane's two columns (and the interview
@@ -96,4 +95,4 @@ export const NO_HEAD = "[&>[data-one-surface]>div:first-child]:hidden";
 /** The letters table in its sheet: the core's 5rem acts track holds the ✓ AND the Console
  *  door, which then spills over the date — a wider acts track, narrower revision column
  *  (a local adapter, reported). */
-export const LETTERS_TRACKS = "[&_[data-one-panel=letters]_[role=row]]:grid-cols-[minmax(9rem,1fr)_5rem_7rem_9rem]!";
+export const LETTERS_TRACKS = "@min-[32rem]/one-table:[&_[data-one-panel=letters]_[role=row]]:grid-cols-[minmax(9rem,1fr)_5rem_7rem_9rem]!";

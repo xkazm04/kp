@@ -1,24 +1,29 @@
 "use client";
 
-// /one's motion presets (round 3) — ONE vocabulary of moves the finishes pick from, so the
-// three finishes differ in FEEL (calm / spring / snap), never in what moves or when.
+// /one's motion presets — ONE vocabulary of moves (round 3), orchestrated in round 5
+// (docs/design/one-interface.md "Motion orchestration"). Which element owns which gesture:
 //
-//   answerSwap    the reply + the answer's card, keyed by answer id. Direction comes from the
-//                 stepper: back enters from the left, forward / a new answer from the right.
-//   panelEnter    a view arriving on the side (a new primary, a tab pick).
-//   rowStagger    a table's first ROW_STAGGER_MAX rows on mount, 20–30 ms apart (the rest
-//                 arrive with the last of them).
+//   answerSwap    the reply line, keyed by answer id. Direction comes from the stepper: back
+//                 enters from the left, forward / a new answer from the right.
+//   panelEnter    a view a region has NEVER shown arriving in it (fade + a small rise).
+//   viewSwap      a view the region HAS shown before swapping back in: a plain crossfade.
+//   rowList/row   a table's rows on the view's FIRST arrival only (panels/seen.ts decides):
+//                 the list is the parent and orchestrates (`delayChildren` cascade over the
+//                 first ROW_STAGGER_MAX rows, the rest arrive with the last of them); a row
+//                 that joins later plays `row` once on its own; a row that leaves is gone
+//                 at once and its neighbours close the gap with `layout="position"`.
 //   consentEnter  a consent card: rise + settle.
-//   countTick     a header figure tweening to its new value.
+//   countTick     a header figure tweening to a CHANGED value (the first value is plain).
 //   tabIndicator  the shared-layout pill under the active segment (framer `layoutId`, the
 //                 repo's segmented-control standard — AnalyzeWorkspace.tsx).
 //
-// Every preset has a STILL form under the OS "reduce motion" preference
-// (useReducedMotion): the end state, at once, with at most a short opacity change. Every
-// move is under ~300 ms and nothing loops.
-import { createContext, useContext, useMemo } from "react";
-import type { TargetAndTransition, Transition } from "framer-motion";
-import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+// Reduced motion is honoured in ONE place: OneShell's root <MotionConfig reducedMotion="user">
+// (ONE_MOTION_CONFIG), which drops every transform and layout animation and keeps at most the
+// opacity change — so these presets do NOT carry a second, per-component still form. The
+// JS-driven moves framer cannot see (the count tween, a smooth scroll) read `reduced` here,
+// which comes from that same MotionConfig. Every move is under ~300 ms and nothing loops.
+import { createContext, useContext } from "react";
+import { useReducedMotionConfig, type MotionConfigProps, type TargetAndTransition, type Transition, type Variants } from "framer-motion";
 
 export type MotionFlavor = "calm" | "spring" | "snap";
 
@@ -44,6 +49,13 @@ function base(flavor: MotionFlavor, scale = 1): Transition {
 
 const OFFSET: Record<MotionFlavor, number> = { calm: 8, spring: 16, snap: 4 };
 
+/** The root MotionConfig: reduced motion honoured once, for every motion element below, and
+ *  the flavor's base move as the default transition. */
+export function motionConfig(flavor: MotionFlavor): Pick<MotionConfigProps, "reducedMotion" | "transition"> {
+  return { reducedMotion: "user", transition: base(flavor) };
+}
+export const ONE_MOTION_CONFIG = motionConfig(ONE_FLAVOR);
+
 /** The props a preset hands a `motion.*` element. */
 export type MotionSpec = {
   initial: false | TargetAndTransition;
@@ -52,83 +64,94 @@ export type MotionSpec = {
   transition: Transition;
 };
 
-/** Leaving is always quick and directionless (a fade), so an `AnimatePresence mode="wait"`
- *  swap never holds the next answer back. */
-const LEAVE: TargetAndTransition = { opacity: 0, transition: { duration: 0.09 } };
-
-const STILL: MotionSpec = { initial: false, animate: { opacity: 1, x: 0, y: 0, scale: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } };
+/** Leaving is always quick and directionless (a fade), so a swap never holds the next view back. */
+const LEAVE: TargetAndTransition = { opacity: 0, transition: { duration: 0.06 } };
 
 export type OneMotionPresets = {
   flavor: MotionFlavor;
+  /** The reader asked for reduced motion (from the root MotionConfig). For JS-driven moves only. */
   reduced: boolean;
   /** `dir` 1 = forward / new (from the right), -1 = back (from the left). */
   answerSwap: (dir: 1 | -1) => MotionSpec;
   panelEnter: MotionSpec;
-  /** Row `index` of a freshly mounted table; rows past ROW_STAGGER_MAX arrive with the last
-   *  staggered one. null = no motion (reduced). */
-  rowStagger: (index: number) => MotionSpec | null;
+  viewSwap: MotionSpec;
+  /** The row list (the parent): `hidden` → `shown` orchestrates its rows' first arrival. */
+  rowList: Variants;
+  /** One row: `hidden` → `shown`. */
+  row: Variants;
   consentEnter: MotionSpec;
   /** Duration in seconds of a count tween (0 = jump). */
   countTick: number;
   tabIndicator: Transition;
 };
 
-export function presets(flavor: MotionFlavor, reduced: boolean): OneMotionPresets {
+/** The cascade step between two rows. */
+const STEP: Record<MotionFlavor, number> = { calm: 0.015, spring: 0.015, snap: 0.02 };
+
+/** Row `i`'s delay in the first-arrival cascade: rows past the cap arrive with the last
+ *  staggered one — never before it, so a tall table never shows a hole. */
+export function cascadeDelay(flavor: MotionFlavor, i: number): number {
+  return Math.min(i, ROW_STAGGER_MAX - 1) * STEP[flavor];
+}
+
+function build(flavor: MotionFlavor, reduced: boolean): OneMotionPresets {
   const d = OFFSET[flavor];
-  if (reduced) {
-    return {
-      flavor,
-      reduced,
-      answerSwap: () => STILL,
-      panelEnter: STILL,
-      // NOT null: useReducedMotion starts false on mount, so a row may already have
-      // mounted at the stagger's opacity 0. Dropping `animate` would leave it there; an
-      // instant animate-to-rest settles it whenever the preference arrives.
-      rowStagger: () => ({ initial: false, animate: { opacity: 1, x: 0, y: 0, scale: 1 }, transition: { duration: 0 } }),
-      consentEnter: STILL,
-      countTick: 0,
-      tabIndicator: { duration: 0 },
-    };
-  }
+  const rowMove = base(flavor === "spring" ? "calm" : flavor, 0.8);
   return {
     flavor,
     reduced,
-    answerSwap: (dir) => ({
-      initial: { opacity: 0, x: dir * d * 2 },
-      animate: { opacity: 1, x: 0 },
-      exit: LEAVE,
-      transition: flavor === "spring" ? { ...base("spring"), opacity: { duration: 0.16 } } : base(flavor),
-    }),
+    answerSwap: (dir) => (dir === 1 ? SWAP[flavor].fwd : SWAP[flavor].back),
     panelEnter: {
       initial: { opacity: 0, y: d },
       animate: { opacity: 1, y: 0 },
       exit: LEAVE,
       transition: flavor === "spring" ? { ...base("spring"), opacity: { duration: 0.14 } } : base(flavor),
     },
-    // Rows past the cap arrive together with the last staggered one — never before it, so
-    // a tall table never shows a hole where rows 2–8 are still on their way.
-    rowStagger: (index) => ({
-      initial: { opacity: 0, y: Math.ceil(d / 2) },
-      animate: { opacity: 1, y: 0 },
-      transition: { ...base(flavor === "spring" ? "calm" : flavor, 0.8), delay: Math.min(index, ROW_STAGGER_MAX - 1) * (flavor === "snap" ? 0.02 : 0.03) },
-    }),
+    viewSwap: { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: LEAVE, transition: { duration: 0.12, ease: EASE_OUT } },
+    rowList: { hidden: {}, shown: { transition: { delayChildren: (i: number) => cascadeDelay(flavor, i) } } },
+    row: { hidden: { opacity: 0, y: Math.ceil(d / 2) }, shown: { opacity: 1, y: 0, transition: rowMove } },
     consentEnter: {
       initial: { opacity: 0, y: d * 1.5, scale: flavor === "spring" ? 0.96 : 0.99 },
       animate: { opacity: 1, y: 0, scale: 1 },
       exit: LEAVE,
       transition: flavor === "spring" ? { type: "spring", stiffness: 380, damping: 22 } : base(flavor, 1.2),
     },
-    countTick: flavor === "snap" ? 0.18 : flavor === "spring" ? 0.32 : 0.28,
+    countTick: reduced ? 0 : flavor === "snap" ? 0.18 : flavor === "spring" ? 0.32 : 0.28,
     tabIndicator: flavor === "spring" ? { type: "spring", stiffness: 420, damping: 30 } : flavor === "snap" ? { duration: 0.12, ease: EASE_OUT } : { type: "spring", stiffness: 420, damping: 38 },
   };
+}
+
+const swapOf = (flavor: MotionFlavor, dir: 1 | -1): MotionSpec => ({
+  initial: { opacity: 0, x: dir * OFFSET[flavor] * 2 },
+  animate: { opacity: 1, x: 0 },
+  exit: LEAVE,
+  transition: flavor === "spring" ? { ...base("spring"), opacity: { duration: 0.16 } } : base(flavor),
+});
+const SWAP: Record<MotionFlavor, { fwd: MotionSpec; back: MotionSpec }> = {
+  calm: { fwd: swapOf("calm", 1), back: swapOf("calm", -1) },
+  spring: { fwd: swapOf("spring", 1), back: swapOf("spring", -1) },
+  snap: { fwd: swapOf("snap", 1), back: swapOf("snap", -1) },
+};
+
+/** Presets are built once per (flavor, reduced): the same objects every render, so a motion
+ *  element's props never change identity under it (performance-discipline). */
+const BUILT = new Map<string, OneMotionPresets>();
+export function presets(flavor: MotionFlavor, reduced: boolean): OneMotionPresets {
+  const k = `${flavor}|${reduced}`;
+  let hit = BUILT.get(k);
+  if (!hit) {
+    hit = build(flavor, reduced);
+    BUILT.set(k, hit);
+  }
+  return hit;
 }
 
 /** The flavor in effect below a provider (the shell provides ONE_FLAVOR). */
 export const OneMotion = createContext<MotionFlavor>("calm");
 
-/** The presets for the flavor in effect, still under reduced motion. */
+/** The presets for the flavor in effect. `reduced` is the root MotionConfig's answer. */
 export function useOneMotion(): OneMotionPresets {
   const flavor = useContext(OneMotion);
-  const reduced = useReducedMotion();
-  return useMemo(() => presets(flavor, reduced), [flavor, reduced]);
+  const reduced = useReducedMotionConfig() === true;
+  return presets(flavor, reduced);
 }

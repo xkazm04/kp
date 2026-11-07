@@ -39,14 +39,17 @@ export function Seg({
   );
 }
 
-/** A figure that tweens to a new value (countTick); the still form jumps. */
+/** A figure that tweens to a CHANGED value (countTick). The first value it is given renders
+ *  plain (the motion value starts there, so the first effect has nothing to move); under
+ *  reduced motion (countTick 0, from the root MotionConfig) a change jumps. */
 export function CountTick({ value, format }: { value: number; format: (n: number) => string }) {
   const { countTick } = useOneMotion();
   const mv = useMotionValue(value);
   const text = useTransform(mv, (v) => format(Math.round(v)));
   useEffect(() => {
+    if (mv.get() === value) return;
     if (countTick === 0) {
-      mv.set(value);
+      mv.jump(value);
       return;
     }
     const c = animate(mv, value, { duration: countTick, ease: "easeOut" });

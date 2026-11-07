@@ -19,8 +19,15 @@
 //     `calendar`, and an answer whose view is one of the sheets' opens that sheet (the side
 //     then keeps a candidate list instead of repeating the sheet as a table).
 //   - Consent cards ride at the foot of the top sheet while one is open.
-//   - Motion: the sheet slide is the core snap preset (`sheetEnter`), the column change a 150ms
-//     track move; reduced motion = at once.
+//   - Motion (round 5, docs/design/one-interface.md "Motion orchestration"): every region is
+//     keyed by IDENTITY and changes by an in-place crossfade (Swap.tsx) — the reply line by
+//     answer (direction from the stepper), the answer's card and the side by VIEW (kind +
+//     params), so the same view stays mounted across answers. A push / pop is ONE gesture: the
+//     sheet slides from the column edge and the spine of the sheet below slides with it
+//     (`sheetEnter`, `spineEnter`). Swapping the person on the top sheet does not re-slide the
+//     sheet: its content crossfades, keyed by the entry. The column change is a snap (no
+//     grid-template tween: only transform and opacity move). Reduced motion is the root
+//     MotionConfig's (OneShell).
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -29,15 +36,16 @@ import { EYEBROW, FIELD } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
 import type { LayoutProps } from "../layoutProps";
 import { useOneMotion } from "../motion";
+import { viewKey } from "../panels/seen";
+import { Swap } from "./Swap";
 import { ConsoleAnchor, consoleHref as consoleHrefFor } from "../panels/PanelShell";
 import { SEG_GROUP, Seg } from "../Seg";
 import type { ChipId, PanelInstance, Selected } from "../types";
 import { primaryOf, sideOf, tabsOf } from "./side";
-import { forAnswer, isPersonSheet, isWide, onClear, onPick, pop, popTo, push, sheetEnter, SHEET_PANELS, VISIBLE, type PickSource, type SheetKind } from "./stack";
+import { forAnswer, isPersonSheet, isWide, onClear, onPick, pop, popTo, push, sheetEnter, SHEET_PANELS, spineEnter, VISIBLE, type PickSource, type SheetKind } from "./stack";
 import {
   ASKING_TRIM,
   CAL_BESIDE,
-  COLS_MOVE,
   COLS_NARROW,
   COLS_NONE,
   COLS_WIDE,
@@ -286,6 +294,14 @@ export function SheetsLayout({
     </nav>
   );
 
+  /** A person sheet's content, keyed by the person: a swap crossfades it in place while the
+   *  sheet (keyed by its place in the stack) stays where it is. */
+  const personBody = (k: SheetKind, extra: string, tool: ReactNode): ReactNode => (
+    <Swap id={`${k}:${person?.entryId ?? ""}`} spec={() => m.viewSwap} className="min-h-0 flex-1" itemClassName={`${NO_HEAD} ${extra}`} data-role="sheets-person">
+      {tool}
+    </Swap>
+  );
+
   const bodyOf = (k: SheetKind): ReactNode => {
     const fill = "min-h-0 flex-1";
     switch (k) {
@@ -294,11 +310,11 @@ export function SheetsLayout({
       case "calendar":
         return <div className={`flex min-h-0 flex-1 flex-col ${CAL_BESIDE}`} {...pickFrom(setSource, "calendar")}>{renderPanel(CALENDAR_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
       case "profile":
-        return person ? <div className={`flex min-h-0 flex-1 flex-col ${NO_HEAD} ${FORCE_TWO}`}>{renderTool("profile", person, { className: fill })}</div> : null;
+        return person ? personBody(k, FORCE_TWO, renderTool("profile", person, { className: fill })) : null;
       case "letter":
-        return person ? <div className={`flex min-h-0 flex-1 flex-col ${NO_HEAD}`}>{renderTool("letter", person, { className: fill })}</div> : null;
+        return person ? personBody(k, "", renderTool("letter", person, { className: fill })) : null;
       case "schedule":
-        return person ? <div className={`flex min-h-0 flex-1 flex-col ${NO_HEAD} ${FORCE_TWO}`}>{renderTool("interview", person, { className: fill })}</div> : null;
+        return person ? personBody(k, FORCE_TWO, renderTool("interview", person, { className: fill })) : null;
     }
   };
 
@@ -330,8 +346,12 @@ export function SheetsLayout({
     ) : null;
 
   const enter = sheetEnter(m);
+  const spine = spineEnter(m);
+  // ALWAYS mounted (an empty layer lets every press through), so the first push slides in
+  // and the last pop slides out instead of the layer appearing / vanishing at once. Its paper
+  // shows only behind two sheets (the strip between the spine and the top sheet).
   const sheets = (
-    <div className="absolute inset-0 z-20 bg-paper" data-role="sheets-layer">
+    <div className={`absolute inset-0 z-20 ${visible.length > 1 ? "bg-paper" : ""} ${open ? "" : "pointer-events-none"}`} data-role="sheets-layer" data-open={open || undefined}>
       <AnimatePresence initial={false}>
         {visible.map((k, i) => {
           const isTop = i === visible.length - 1;
@@ -339,6 +359,8 @@ export function SheetsLayout({
           const index = stack.length - visible.length + i;
           return (
             <motion.div
+              // Keyed by its PLACE in the stack: a person swap keeps the key (the sheet stays,
+              // its content crossfades); a push / pop changes it (the sheet slides).
               key={`${index}-${k}`}
               {...enter}
               className={`absolute inset-y-0 right-0 isolate flex min-h-0 flex-col gap-2 bg-paper ${lower ? "invisible left-0 z-0" : visible.length > 1 ? "left-7 z-[2]" : "left-0 z-[2]"}`}
@@ -366,21 +388,27 @@ export function SheetsLayout({
             </motion.div>
           );
         })}
+        {/* The spine of the sheet below: part of the same push / pop gesture. */}
+        {visible.length > 1 ? (
+          <motion.button key="spine" type="button" className={SPINE} {...spine} onClick={() => reshape(pop(stack))} aria-label={t("back", { name: nameOf(visible[0]) })} data-role="sheets-spine">
+            <span className="rotate-180 truncate whitespace-nowrap [writing-mode:vertical-rl]">{nameOf(visible[0])}</span>
+          </motion.button>
+        ) : null}
       </AnimatePresence>
-      {visible.length > 1 ? (
-        <button type="button" className={SPINE} onClick={() => reshape(pop(stack))} aria-label={t("back", { name: nameOf(visible[0]) })} data-role="sheets-spine">
-          <span className="rotate-180 truncate whitespace-nowrap [writing-mode:vertical-rl]">{nameOf(visible[0])}</span>
-        </button>
-      ) : null}
     </div>
   );
 
   const swap = m.answerSwap(seen.dir);
   const replyLine = `${FACE_DISPLAY} max-w-3xl text-h2 font-bold leading-snug tracking-tight text-balance`;
   const cols = !open ? COLS_NONE : isWide(stack) ? COLS_WIDE : COLS_NARROW;
+  // Region identities: the card and the side are keyed by the VIEW they draw (kind + params),
+  // never by the answer or the session's panel id.
+  const cardPanel = primary ?? (!current ? firstNeed : null);
+  const cardKey = cardPanel ? viewKey(cardPanel, "insight") : "no-card";
+  const sideKey = sideView ? viewKey(sideView, "table") : current ? viewKey(LIST_VIEW, "table") : "side-host";
   return (
     <div
-      className={`grid gap-4 px-4 py-3 [font-variant-numeric:tabular-nums] lg:h-full lg:min-h-0 lg:gap-[var(--one-gap)] ${cols} ${COLS_MOVE} ${COMPACT}`}
+      className={`grid gap-4 px-4 py-3 [font-variant-numeric:tabular-nums] lg:h-full lg:min-h-0 lg:gap-[var(--one-gap)] ${cols} ${COMPACT}`}
       data-one-layout="sheets"
       data-finish="dense"
       data-sheets={open ? stack.join(" ") : undefined}
@@ -419,8 +447,9 @@ export function SheetsLayout({
 
           {/* The stack that distributes: reply, the insight card (grows), consent. */}
           <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1 [scrollbar-gutter:stable]" data-role="split-stack">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div key={answerKey} className={`flex flex-auto flex-col gap-2.5 ${asking ? "min-h-0" : ""}`} {...swap} data-role="split-answer">
+            <div className={`flex flex-auto flex-col gap-2.5 ${asking ? "min-h-0" : ""}`} data-role="split-answer">
+              {/* The reply line: per answer, entering from the side the stepper went to. */}
+              <Swap id={answerKey} spec={() => swap} className="shrink-0" data-role="split-reply">
                 {current ? (
                   <div className="flex shrink-0 flex-col gap-1" data-role="one-answer" data-fallback={current.reply.fallback || undefined}>
                     <h1 className={`${replyLine} text-ink`} aria-live="polite">
@@ -446,20 +475,26 @@ export function SheetsLayout({
                     </h1>
                   </div>
                 )}
+              </Swap>
 
-                {pending ? (
-                  <p className="shrink-0 text-micro text-steel" role="status">
-                    {tc("composer.working")}
-                  </p>
-                ) : null}
+              {pending ? (
+                <p className="shrink-0 text-micro text-steel" role="status">
+                  {tc("composer.working")}
+                </p>
+              ) : null}
 
-                {card ? (
-                  <div className={`relative flex flex-col pr-1 pb-1 has-[[data-grows]]:flex-auto ${asking ? "min-h-0" : "min-h-fit"}`} data-role="split-card">
-                    {card}
-                  </div>
-                ) : null}
-              </motion.div>
-            </AnimatePresence>
+              {/* The answer's card: per VIEW — the same view stays mounted across answers. */}
+              {card ? (
+                <Swap
+                  id={cardKey}
+                  spec={(known) => (known ? m.viewSwap : swap)}
+                  className={`relative pr-1 pb-1 has-[[data-grows]]:flex-auto ${asking ? "min-h-0" : "min-h-fit"}`}
+                  data-role="split-card"
+                >
+                  {card}
+                </Swap>
+              ) : null}
+            </div>
 
             {asking && !open ? consentStack : null}
           </div>
@@ -515,7 +550,7 @@ export function SheetsLayout({
           </div>
         </div>
 
-        {open ? sheets : null}
+        {sheets}
       </section>
 
       {/* ── Side: the role-grouped list — live under any sheet ─────────── */}
@@ -533,8 +568,8 @@ export function SheetsLayout({
           </div>
         ) : null}
         <div {...(tabs.length > 1 ? panelProps : {})} className="relative flex min-h-0 flex-1 flex-col outline-none">
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.div key={sideView?.id ?? (current ? LIST_VIEW.id : "side-host")} className="flex min-h-0 flex-1 flex-col" {...m.panelEnter}>
+          {/* Per VIEW: a view the side has shown before crossfades back, a new one arrives. */}
+          <Swap id={sideKey} spec={(known) => (known ? m.viewSwap : m.panelEnter)} className="min-h-0 flex-1" data-role="split-side-view">
               {sideView ? (
                 renderPanel(sideView, { look: "table", className: "min-h-0" })
               ) : current ? (
@@ -545,8 +580,7 @@ export function SheetsLayout({
                   {firstNeed ? renderPanel(firstNeed, { look: "table", className: `min-h-0 flex-1 ${NO_CHROME}` }) : null}
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+          </Swap>
         </div>
       </aside>
     </div>

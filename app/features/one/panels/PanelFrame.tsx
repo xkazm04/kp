@@ -27,9 +27,18 @@
 // sizes it. Corner, outline width and padding follow the finish hooks (finish.css). Loading
 // is a quiet LoadingGap, error is a critical Note with a retry whose text is resolved from
 // the read's CODE (useErrorMessage) — the server's English `error` never renders.
-import { motion } from "framer-motion";
+//
+// Round 5 (motion orchestration, docs/design/one-interface.md): reads are
+// stale-while-revalidate (read.ts), so the LoadingGap is drawn only for a URL that has NEVER
+// answered; a refresh that fails after data keeps the data and adds one quiet line ("couldn't
+// refresh · Retry"). A table's rows consult the seen-record (seen.ts) before any entrance:
+// the list orchestrates the cascade on the view's FIRST arrival only, a row that joins later
+// plays once on its own, a row that leaves is gone at once while its neighbours close the gap
+// (`layout="position"`, measured only when the row order changes), and every other row stays
+// still. Below 32rem of its own width the table folds (finish.css `one-table` container).
+import { LayoutGroup, motion, type HTMLMotionProps } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Button, Mark, Note, type MarkKind } from "@/app/_components/kit";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
@@ -38,6 +47,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import { useOneMotion } from "../motion";
 import { ConsoleAnchor, consoleHref } from "./PanelShell";
+import { oneSeen, viewKey } from "./seen";
 import type { Selected } from "../types";
 import type { Read } from "./read";
 import type { PanelLook, PanelProps } from "./types";
@@ -155,6 +165,12 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
   const rows = withSelection(data.rows, props);
   const grouped = props.group !== "none";
   const ready = read.state === "ready";
+  // The seen-record learns the view once it has been drawn ready (a region swapping back to
+  // it crossfades instead of arriving; its table rows mark themselves in TableBody).
+  const view = viewKey(panel, look);
+  useEffect(() => {
+    if (ready) oneSeen.mark(view);
+  }, [ready, view]);
   const consoleLink = data.console ? (
     <ConsoleAnchor className="k-btn k-btn--link k-btn--sm" href={consoleHref(data.console.tab, data.console.params)} data-role="one-console-link">
       {data.console.label ?? t("openInConsole")}
@@ -193,6 +209,8 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
       className={`${surface} ${className}`}
       data-one-panel={panel.kind}
       data-panel-id={panel.id}
+      data-read={read.state}
+      data-refreshing={(read.state === "ready" && read.refreshing) || undefined}
       data-look={look}
       data-one-surface
       data-one-sticker={insight || undefined}
@@ -223,6 +241,13 @@ export function PanelFrame({ props, data }: { props: PanelProps; data: PanelData
           {insight ? null : chrome}
         </div>
       </div>
+      {read.state === "ready" && read.refreshFailed ? (
+        // The data on screen is the last good answer; the refresh behind it failed.
+        <div className="flex shrink-0 items-center gap-2 border-b border-stone-200 px-[var(--one-pad)] py-1 text-micro text-steel dark:border-dashed" role="status" data-role="one-refresh-failed">
+          <span className="min-w-0 truncate">{t("refreshFailed")}</span>
+          <Button label={t("retry")} variant="link" size="sm" className="shrink-0" onClick={read.retry} />
+        </div>
+      ) : null}
       {body()}
       {look === "list" && ready && consoleLink ? <div className="flex shrink-0 border-t border-stone-200 px-2 py-1 dark:border-dashed">{consoleLink}</div> : null}
     </section>
@@ -293,6 +318,37 @@ const QUIET_ACTS = "opacity-0 transition-opacity group-hover:opacity-100 group-f
  *  so a grouped table hides it (the age stays). */
 const GROUPED_SUB = "[&_[data-role-sub]]:hidden [&_.truncate:has(>[data-role-sub])]:hidden";
 
+/** One table row: its arrival is decided ONCE, at mount, from the seen-record — `cascade`
+ *  rows inherit the list's orchestration, a `member` plays `row` on its own, a `still` row
+ *  renders at rest.
+ *
+ *  No AnimatePresence around the rows, on purpose: a presence boundary cuts the rows off
+ *  from the list's variant orchestration (measured: the cascade never left `hidden`), and the
+ *  list IS the orchestrator. A leaving row therefore unmounts at once and its neighbours
+ *  collapse the gap with their `layout="position"` move — the "rows that leave collapse with
+ *  layout" rule, with no exit fade to hold the gap open. */
+function MotionRow({
+  view,
+  rowKey,
+  order,
+  children,
+  ...rest
+}: { view: string; rowKey: string; order: string; children: ReactNode } & Omit<HTMLMotionProps<"div">, "children">) {
+  const m = useOneMotion();
+  const [arrival] = useState(() => oneSeen.row(view, rowKey));
+  // `member` CONTROLS its own variants (a label in `initial`), so it names `animate` too;
+  // `still` and `cascade` inherit the list's `animate="shown"`.
+  const enter = arrival === "member" ? { initial: "hidden", animate: "shown" } : arrival === "still" ? { initial: false as const } : {};
+  return (
+    <motion.div {...rest} {...enter} variants={m.row} layout="position" layoutDependency={order}>
+      {children}
+    </motion.div>
+  );
+}
+
+/** The row keys of a table, in display order, as one string (the rows' layoutDependency). */
+const ORDER_SEP = "|";
+
 function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean; props: PanelProps }) {
   const t = useTranslations("one.core.panels");
   const m = useOneMotion();
@@ -304,6 +360,21 @@ function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean
   // Display order: grouped (groups in first-row order), else the view's own.
   const ordered = groups ? groups.flatMap((g) => g.rows) : data.rows;
   const firstKey = ordered[0]?.key;
+  // The seen-record: the view's identity (never the session's panel id) and its row order —
+  // the order is also the rows' layoutDependency, so a re-render that moves nothing measures
+  // nothing.
+  const view = viewKey(props.panel, props.look === "pane" ? "pane" : "table");
+  const keys = ordered.map((r) => r.key);
+  const order = keys.join(ORDER_SEP);
+  // Decided once, at mount (a view's identity keys its TableBody): the list's `initial` must
+  // not change under a running cascade.
+  const [firstArrival] = useState(() => !oneSeen.seen(view));
+  useEffect(() => {
+    oneSeen.mark(view, order ? order.split(ORDER_SEP) : []);
+  }, [view, order]);
+  // A cell's place when the table folds (finish.css): the lead column, the trailing figures,
+  // and the middle ones (which drop under the lead).
+  const colOf = (i: number, end?: boolean) => (i === 0 ? "lead" : end ? "end" : "mid");
 
   const onKeys = (e: KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -332,14 +403,14 @@ function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean
   };
 
   const rowOf = (r: PanelRow) => {
-    const i = ordered.indexOf(r);
-    const enter = m.rowStagger(i);
     const first = r.key === firstKey;
     const picked = r.entry != null && r.entry.entryId === props.selectedEntryId;
     return (
-      <motion.div
+      <MotionRow
         key={r.key}
-        {...(enter ?? {})}
+        view={view}
+        rowKey={r.key}
+        order={order}
         role="row"
         data-row
         data-row-key={r.key}
@@ -362,8 +433,8 @@ function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean
         } ${picked ? "shadow-[inset_3px_0_0_var(--color-ink)]" : r.tone === "needs" ? "shadow-[inset_3px_0_0_var(--color-coral)]" : ""}`}
         style={style}
       >
-        {data.cols.map((c) => (
-          <div key={c.key} role="cell" className={`min-w-0 text-micro text-ink ${c.end ? "k-nums text-right" : ""}`}>
+        {data.cols.map((c, i) => (
+          <div key={c.key} role="cell" className={`min-w-0 text-micro text-ink ${c.end ? "k-nums text-right" : ""}`} data-col={colOf(i, c.end)}>
             {r.cells[c.key]}
           </div>
         ))}
@@ -373,35 +444,53 @@ function TableBody({ data, grouped, props }: { data: PanelData; grouped: boolean
             {r.door ? <span className={first && !r.acts ? QUIET_ACTS : ""}>{r.door}</span> : null}
           </div>
         ) : null}
-      </motion.div>
+      </MotionRow>
     );
   };
 
   return (
     <>
       {data.note ? <div className="shrink-0 px-3 pt-3">{data.note}</div> : null}
-      <div className={`min-h-0 flex-1 overflow-auto ${groups ? GROUPED_SUB : ""}`} role="table" aria-label={data.title} onKeyDown={onKeys} data-role="one-table" data-grouped={groups ? "role" : undefined}>
-        <div className="min-w-[32rem]">
+      {/* `layoutScroll`: the rows' layout moves are measured inside this scroller. */}
+      <motion.div
+        layoutScroll
+        className={`min-h-0 flex-1 overflow-auto ${groups ? GROUPED_SUB : ""}`}
+        role="table"
+        aria-label={data.title}
+        onKeyDown={onKeys}
+        data-role="one-table"
+        data-grouped={groups ? "role" : undefined}
+      >
+        {/* The list orchestrates its rows' FIRST arrival (a capped cascade); a view shown
+            before mounts at rest (initial false). */}
+        <motion.div className="relative min-w-[32rem]" variants={m.rowList} initial={firstArrival ? "hidden" : false} animate="shown" data-role="one-rows">
           <div role="row" className="sticky top-0 z-10 grid h-[var(--one-colhead-h)] items-center gap-x-4 border-b border-stone-200 bg-white px-[var(--one-pad)] dark:border-b-2" style={style}>
-            {data.cols.map((c) => (
-              <div key={c.key} role="columnheader" className={`${META_LABEL} truncate ${c.end ? "text-right" : ""}`}>
+            {data.cols.map((c, i) => (
+              <div key={c.key} role="columnheader" className={`${META_LABEL} truncate ${c.end ? "text-right" : ""}`} data-col={colOf(i, c.end)}>
                 {c.label}
               </div>
             ))}
-            {hasActs ? <div role="presentation" /> : null}
+            {hasActs ? <div role="presentation" data-role="one-acts-head" /> : null}
           </div>
-          {groups
-            ? groups.map((g) => (
-                // A rowgroup per role: its head sticks under the column head while the group
-                // is in view, and the next group's head pushes it out.
-                <div key={g.key} role="rowgroup" aria-label={g.label} data-role="one-group">
-                  <GroupHead group={g} sticky />
-                  {g.rows.map(rowOf)}
-                </div>
-              ))
-            : data.rows.map(rowOf)}
-        </div>
-      </div>
+          {/* The rows are a layout group OF THEIR OWN (inherit false): in One's root group
+              every member re-measures whenever any other does (the header pill does on every
+              render), and a column change would then slide every unchanged row sideways. */}
+          <LayoutGroup inherit={false}>
+          {groups ? (
+            groups.map((g) => (
+              // A rowgroup per role: its head sticks under the column head while the group
+              // is in view, and the next group's head pushes it out.
+              <div key={g.key} role="rowgroup" aria-label={g.label} data-role="one-group">
+                <GroupHead group={g} sticky />
+                {g.rows.map(rowOf)}
+              </div>
+            ))
+          ) : (
+            data.rows.map(rowOf)
+          )}
+          </LayoutGroup>
+        </motion.div>
+      </motion.div>
       {data.foot || data.keyHint ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-stone-200 px-[var(--one-pad)] py-2 text-micro text-steel dark:border-dashed" data-role="one-table-foot">
           <span>{data.foot ?? ""}</span>

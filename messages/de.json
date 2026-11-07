@@ -18975,6 +18975,7 @@
         },
         "retry": "Try again",
         "seeAll": "See all",
+        "refreshFailed": "Couldn't refresh",
         "cols": {
           "candidate": "Candidate",
           "stage": "Stage",

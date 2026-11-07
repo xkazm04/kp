@@ -85,13 +85,20 @@ export function isWide(stack: readonly SheetKind[]): boolean {
 }
 
 /** The sheet slide — built from the core snap preset (its transition, its offset scaled to a
- *  sheet's travel). Reduced motion: the core's still form, at once. */
+ *  sheet's travel): in from the column's edge, out the same way. Reduced motion is the root
+ *  MotionConfig's (the slide's transform drops, the fade stays) — no second still form here. */
 export const SHEET_TRAVEL = 6;
-export function sheetEnter(m: Pick<OneMotionPresets, "reduced" | "answerSwap">): MotionSpec {
+export function sheetEnter(m: Pick<OneMotionPresets, "answerSwap">): MotionSpec {
   const base = m.answerSwap(-1);
-  if (m.reduced || base.initial === false) return base;
-  const from = typeof base.initial.x === "number" ? base.initial.x : 0;
+  const from = base.initial !== false && typeof base.initial.x === "number" ? base.initial.x : 0;
   const x = from * SHEET_TRAVEL;
   const leave: TargetAndTransition = { opacity: 0, x, transition: base.exit?.transition as Transition | undefined };
   return { initial: { opacity: 0, x }, animate: { opacity: 1, x: 0 }, exit: leave, transition: base.transition };
+}
+
+/** The lower sheet's spine arriving with a push (and leaving with the pop): a short slide in
+ *  from the column edge, the same pace as the sheet. */
+export function spineEnter(m: Pick<OneMotionPresets, "answerSwap">): MotionSpec {
+  const base = m.answerSwap(-1);
+  return { initial: { opacity: 0, x: -8 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -8, transition: base.exit?.transition as Transition | undefined }, transition: base.transition };
 }

@@ -56,11 +56,9 @@ test("profile and calendar take half the screen", () => {
   assert.equal(isWide(["calendar"]), true);
 });
 
-test("the sheet slide is the snap preset; reduced motion is the still form", () => {
+test("the sheet slide is the snap preset; reduced motion is the root MotionConfig's, not a second form", () => {
   const moving = sheetEnter(presets("snap", false));
   assert.ok(moving.initial !== false && typeof moving.initial.x === "number" && moving.initial.x < 0);
   assert.deepEqual(moving.transition, presets("snap", false).answerSwap(-1).transition);
-  const still = sheetEnter(presets("snap", true));
-  assert.equal(still.initial, false);
-  assert.equal(still.transition.duration, 0);
+  assert.deepEqual(sheetEnter(presets("snap", true)), moving, "one form: MotionConfig reducedMotion=user drops the transform");
 });

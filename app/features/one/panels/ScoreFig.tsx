@@ -35,7 +35,7 @@ export function ScoreBar({ score }: { score: number | null }) {
       <span className="w-10 text-right">
         <ScoreFig score={score} />
       </span>
-      <span className="h-1.5 w-12 overflow-hidden rounded-full bg-stone-200" aria-hidden>
+      <span className="h-1.5 w-12 overflow-hidden rounded-full bg-stone-200" aria-hidden data-score-bar>
         {score === null ? null : <span className={`block h-full rounded-full ${BAR[scoreTone(score)]}`} style={{ width: `${pct}%` }} />}
       </span>
     </span>

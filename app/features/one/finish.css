@@ -84,3 +84,66 @@
   --one-surface-border: 2px;
   --one-sticker-shadow: var(--sticker-sm-shadow);
 }
+
+/* ── The table in a narrow column (round 5). ──
+   A table is the `one-table` container. With 32rem of its own width or more it is the core's
+   grid (and the layout's tightened tracks, styles.ts ENTRY_TRACKS, apply only then). Below
+   that it FOLDS instead of scrolling sideways: the lead column takes the width, the middle
+   columns (a stage chip) drop under it, the trailing figure keeps the right edge with its bar
+   dropped (the figure says it), and the row's acts lie over the figure — shown on hover,
+   focus and the selected / picked row only, on the row's own ground. Nothing here sets a
+   colour (the acts inherit the row's background). */
+[data-one-root] [data-role="one-table"] {
+  container: one-table / inline-size;
+}
+@container one-table (width < 32rem) {
+  [data-one-root] [data-role="one-rows"] {
+    min-width: 0;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    position: relative;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"] > [data-col="lead"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"] > [data-col="mid"] {
+    grid-column: 1;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"] > [data-col="end"] {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  [data-one-root] [data-role="one-rows"] [role="columnheader"][data-col="mid"],
+  [data-one-root] [data-role="one-rows"] [data-role="one-acts-head"],
+  [data-one-root] [data-role="one-rows"] [data-score-bar] {
+    display: none;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"] > [data-role="one-row-acts"] {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    padding-inline: 0.5rem var(--one-pad);
+    background: inherit;
+    opacity: 0;
+  }
+  [data-one-root] [data-role="one-rows"] [role="row"]:is(:hover, :focus-within, [data-selected], [data-picked]) > [data-role="one-row-acts"] {
+    opacity: 1;
+  }
+}
+
+/* The same narrow column, at the panel's head: the title keeps its words and the head's
+   doors (Console, pin, close) wrap under it instead of squeezing the title to nothing. */
+[data-one-root] section[data-one-surface][data-look="table"] {
+  container: one-panel / inline-size;
+}
+@container one-panel (width < 32rem) {
+  [data-one-root] section[data-one-surface] > div:first-child {
+    flex-wrap: wrap;
+  }
+  [data-one-root] section[data-one-surface] > div:first-child > [data-role="one-panel-title"] {
+    flex-shrink: 0;
+    max-width: 100%;
+  }
+}
