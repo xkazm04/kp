@@ -21451,39 +21451,50 @@
       "subject": "self-describing-model-packages",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T00:26:24.611Z",
-      "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:15:43.131Z",
+      "worker": "d807dd13-f2b9-478e-bcb5-84d68d147adf",
       "techniques": [
         {
           "technique": "normative-layout-contract",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 Consumes whisper.cpp's own ggml-*.bin naming. kp writes no layout specification for a model package."
-        },
-        {
-          "technique": "self-locating-validation-schema",
-          "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:122 No metadata file is read. Language comes from the filename, and an unknown language is null rather than a default, which matches the golden path's 'absent is not a default' failure mode."
-        },
-        {
-          "technique": "advisory-version-floors",
-          "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:43 No framework or engine version is recorded or checked. The only floor is a byte-size integrity heuristic for truncated downloads, which is not a version floor."
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:115 Only consumes the upstream GGML naming convention; the package defines no layout of its own."
         },
         {
           "technique": "symbolic-shape-constraints",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:40 Input is a 16 kHz WAV handed to a CLI, not a tensor family that a package describes."
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:40 The input is a 16 kHz WAV file handed to a CLI, not a tensor shape family this package declares or proves."
         },
         {
           "technique": "declared-vs-derived-outputs",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/src/types.ts:108 Output is a library transcript type, not a model-metadata output declaration."
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The output is whisper-cli's JSON transcript; the package declares no raw or derived network outputs."
+        },
+        {
+          "technique": "advisory-version-floors",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/package.json:3 The only version is the npm library's own; no model package records the framework or engine versions it was built on."
+        },
+        {
+          "technique": "self-locating-validation-schema",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:122 No metadata file is read. Language comes from the filename, and an unknown language is null rather than a default, which matches the golden path's 'absent is not a default' failure mode.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "config-frozen-artifact",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-stt/package.json:5 A source-only npm library with no build step. No compiled model form is exported."
+          "evidence": "packages/voice-stt/package.json:5 A source-only npm library with no build step. No compiled model form is exported.",
+          "carriedFrom": "2026-10-26"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not package, describe or export a trained model: it finds third-party whisper.cpp GGML files by upstream filename convention and passes them to an external binary. A search of packages/voice-stt for the subject's vocabulary found no hits for $schema, schema, schema_version, logits, symbolic or format_version, so there is no package metadata or contract for these techniques to govern.",
+          "evaluatedAt": "2026-10-26T00:26:24.611Z",
+          "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+          "reason": "replaced by d807dd13-f2b9-478e-bcb5-84d68d147adf"
         }
       ]
     },
@@ -21492,42 +21503,53 @@
       "subject": "self-describing-model-packages",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T00:26:24.611Z",
-      "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:15:43.131Z",
+      "worker": "d807dd13-f2b9-478e-bcb5-84d68d147adf",
       "techniques": [
         {
           "technique": "normative-layout-contract",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/kokoro.ts:52 Follows the sherpa-onnx kokoro layout with fixed file names, and probes a missing voices.bin or tokens.txt as broken (line 82). It consumes an upstream layout rather than specifying one."
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:52 Uses the fixed upstream sherpa-onnx Kokoro layout; the layout belongs to upstream, not to this package."
         },
         {
           "technique": "self-locating-validation-schema",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/piper.ts:57 The sidecar metadata is required to be present but is not validated against any schema. That is the upstream Piper format's concern, not one kp authors."
-        },
-        {
-          "technique": "advisory-version-floors",
-          "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/piper.ts:74 No version is recorded or compared. Readiness is a size and integrity probe, not a version floor."
-        },
-        {
-          "technique": "symbolic-shape-constraints",
-          "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/piper.ts:98 Text goes to a CLI on stdin. No tensor input family is described."
+          "evidence": "packages/voice-tts/src/providers/piper.ts:52 Reads one field from upstream Piper metadata whose format it does not own; it has no schema of its own to name."
         },
         {
           "technique": "declared-vs-derived-outputs",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/src/types.ts:63 Output is a library audio type, not a model-metadata output section."
+          "evidence": "packages/voice-tts/src/providers/piper.ts:98 The output is the WAV file the piper CLI writes; no network output is declared here."
+        },
+        {
+          "technique": "advisory-version-floors",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/package.json:3 The only version is the npm library's own; no built-on framework or engine versions are recorded for any model."
+        },
+        {
+          "technique": "symbolic-shape-constraints",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:98 Text goes to a CLI on stdin. No tensor input family is described.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "config-frozen-artifact",
           "verdict": "not-applicable",
-          "evidence": "packages/voice-tts/package.json:5 A source-only library. Nothing is compiled or exported from a model config."
+          "evidence": "packages/voice-tts/package.json:5 A source-only library. Nothing is compiled or exported from a model config.",
+          "carriedFrom": "2026-10-26"
         }
       ],
-      "registryProposal": "The golden path lists 'validating a third-party model package before running it' under use_when, but all six techniques are written from the author's side. A consumer like this one, which runs upstream model files through an external binary and only checks presence, size and sibling metadata, has no technique telling it whether such checks are enough or whether it should validate the upstream metadata. A consumer-side technique, or narrowing that use_when, would make the boundary clear."
+      "registryProposal": "The golden path's use_when lists 'validating a third-party model package before running it', but all six techniques are written from the author's side. A consumer-side rule (for example, check the upstream package's own metadata contract instead of a size proxy or a single cast field) would make thin adapter consumers like these judgeable rather than not-applicable.",
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package consumes third-party Piper voices (.onnx plus the upstream .onnx.json) and a fixed-name Kokoro/sherpa-onnx model directory, reading only language.code from the upstream metadata. It authors no package, schema or export. A search of packages/voice-tts for $schema, schema, schema_version, logits, symbolic and format_version found no hits.",
+          "evaluatedAt": "2026-10-26T00:26:24.611Z",
+          "worker": "0082df84-e3b2-4a32-bc50-03aac08ff20c",
+          "reason": "replaced by d807dd13-f2b9-478e-bcb5-84d68d147adf"
+        }
+      ]
     },
     "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/skill-adjacency-and-normalization": {
       "context": "cv-analysis-archetypes",

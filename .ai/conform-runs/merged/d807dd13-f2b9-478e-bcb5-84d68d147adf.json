@@ -1,0 +1,118 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d807dd13-f2b9-478e-bcb5-84d68d147adf",
+ "subject": "self-describing-model-packages",
+ "evaluatedAt": "2026-11-07T23:15:43.131726+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-stt-package",
+   "subject": "self-describing-model-packages",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not create, describe or export a model package: it finds third-party whisper.cpp GGML files by their upstream ggml-*.bin filename and passes them to the external whisper-cli binary. A search of packages/voice-stt for $schema, schema, schema_version, format_version, logits and symbolic found no hits, so this context has no package metadata, schema, shape rule or export for the techniques to govern.",
+   "techniques": [
+    {
+     "technique": "normative-layout-contract",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:115 Only consumes the upstream GGML naming convention; the package defines no layout of its own."
+    },
+    {
+     "technique": "symbolic-shape-constraints",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:40 The input is a 16 kHz WAV file handed to a CLI, not a tensor shape family this package declares or proves."
+    },
+    {
+     "technique": "declared-vs-derived-outputs",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The output is whisper-cli's JSON transcript; the package declares no raw or derived network outputs."
+    },
+    {
+     "technique": "advisory-version-floors",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/package.json:3 The only version is the npm library's own; no model package records the framework or engine versions it was built on."
+    }
+   ],
+   "absenceTerms": [
+    "$schema",
+    "format_version",
+    "logits",
+    "symbolic"
+   ]
+  },
+  {
+   "context": "voice-tts-package",
+   "subject": "self-describing-model-packages",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package uses third-party Piper voices (.onnx plus the upstream .onnx.json) and a Kokoro/sherpa-onnx folder with fixed file names, and reads only language.code from the upstream metadata. It creates no package, schema or export of its own. A search of packages/voice-tts for $schema, schema, schema_version, format_version, logits and symbolic found no hits.",
+   "techniques": [
+    {
+     "technique": "normative-layout-contract",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/kokoro.ts:52 Uses the fixed upstream sherpa-onnx Kokoro layout; the layout belongs to upstream, not to this package."
+    },
+    {
+     "technique": "self-locating-validation-schema",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/piper.ts:52 Reads one field from upstream Piper metadata whose format it does not own; it has no schema of its own to name."
+    },
+    {
+     "technique": "declared-vs-derived-outputs",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/src/providers/piper.ts:98 The output is the WAV file the piper CLI writes; no network output is declared here."
+    },
+    {
+     "technique": "advisory-version-floors",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/package.json:3 The only version is the npm library's own; no built-on framework or engine versions are recorded for any model."
+    }
+   ],
+   "absenceTerms": [
+    "$schema",
+    "format_version",
+    "logits",
+    "symbolic"
+   ],
+   "registryProposal": "The golden path's use_when lists 'validating a third-party model package before running it', but all six techniques are written from the author's side. A consumer-side rule (for example, check the upstream package's own metadata contract instead of a size proxy or a single cast field) would make thin adapter consumers like these judgeable rather than not-applicable."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T23:15:43.131726+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "self-describing-model-packages"
+   ],
+   "techniques": [
+    "advisory-version-floors",
+    "declared-vs-derived-outputs",
+    "normative-layout-contract",
+    "symbolic-shape-constraints"
+   ],
+   "deviations": 0,
+   "context": "voice-stt-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T23:15:43.131726+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "self-describing-model-packages"
+   ],
+   "techniques": [
+    "advisory-version-floors",
+    "declared-vs-derived-outputs",
+    "normative-layout-contract",
+    "self-locating-validation-schema"
+   ],
+   "deviations": 0,
+   "context": "voice-tts-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

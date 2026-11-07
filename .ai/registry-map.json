@@ -35699,12 +35699,11 @@
           "changedAt": "2026-10-31",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not package, describe or export a trained model: it finds third-party whisper.cpp GGML files by upstream filename convention and passes them to an external binary. A search of packages/voice-stt for the subject's vocabulary found no hits for $schema, schema, schema_version, logits, symbolic or format_version, so there is no package metadata or contract for these techniques to govern.",
-          "evaluatedAt": "2026-10-26",
-          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:133 The package does not create, describe or export a model package: it finds third-party whisper.cpp GGML files by their upstream ggml-*.bin filename and passes them to the external whisper-cli binary. A search of packages/voice-stt for $schema, schema, schema_version, format_version, logits and symbolic found no hits, so this context has no package metadata, schema, shape rule or export for the techniques to govern.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:bd272d2a3cc87197",
+          "evaluatedRevision": 2,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -35905,12 +35904,11 @@
           "changedAt": "2026-10-31",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package consumes third-party Piper voices (.onnx plus the upstream .onnx.json) and a fixed-name Kokoro/sherpa-onnx model directory, reading only language.code from the upstream metadata. It authors no package, schema or export. A search of packages/voice-tts for $schema, schema, schema_version, logits, symbolic and format_version found no hits.",
-          "evaluatedAt": "2026-10-26",
-          "evaluatedAgainst": "sha256-b2:d22f4172adbc5004",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "packages/voice-tts/src/providers/piper.ts:52 The package uses third-party Piper voices (.onnx plus the upstream .onnx.json) and a Kokoro/sherpa-onnx folder with fixed file names, and reads only language.code from the upstream metadata. It creates no package, schema or export of its own. A search of packages/voice-tts for $schema, schema, schema_version, format_version, logits and symbolic found no hits.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:bd272d2a3cc87197",
+          "evaluatedRevision": 2,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",
