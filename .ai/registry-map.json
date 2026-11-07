@@ -11714,7 +11714,11 @@
           "revision": 6,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:1148 The per-job 'reached interview' rate resolves every row against the live axis only (axis = getPipelineAxis(ws).stages). Closed candidates are excluded from migration by design and keep a removed column's id, so someone interviewed and then rejected on a since-retired Interview column counts as never having advanced, even though the tombstone keeps that column's role.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "concurrency-guards",
@@ -26023,12 +26027,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The per-column meaning line on the empty board is keyed by the five shipped stage ids (Accepted, Screened, Interview, Offer, Hired). Any column a team adds or composes gets the generic fallback 'nothing here yet', and no line exists per role.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The empty board's per-column meaning line is looked up by the stage id of the five shipped columns (\"a CV lands here\", \"matched and scored\"…), so any column a team adds or renames gets the generic 'nothing here yet', with no per-role or per-stage sentence behind it.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "table",
@@ -30145,7 +30148,11 @@
           "revision": 6,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:160 The screening wave, which drives irreversible auto-rejections, picks its cohort by the literal stage name 'Screened' instead of the workspace's entry/screening roles before the gate. On a board that renamed or replaced that column the wave silently acts on nobody, or on the wrong column, and nothing errors.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:83fe44f86efb3eca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "test-harness",

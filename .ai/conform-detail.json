@@ -19386,24 +19386,33 @@
       "subject": "pipeline-stage-modelling",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:26:00.183Z",
-      "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:41:02.361Z",
+      "worker": "d4720071-f33a-476e-8529-ee1510969816",
       "techniques": [
         {
           "technique": "one-sentence-meaning-per-stage",
           "verdict": "deviation",
-          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The meaning comes from shipped-id catalog keys with a placeholder fallback, and is neither authored per stage nor defaulted per role. The en copy ('the offer', 'slots and scorecards') describes the column rather than what the candidate is waiting for."
+          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 Meaning is keyed by the stage id and falls back to a generic line. There is no role default and no authored per-stage sentence, so custom columns get nothing."
         },
         {
           "technique": "retired-stage-tombstones-and-migration",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/pipelineEventCatalog.ts:87 A board-shape move is its own event kind with its own glyph (:223), not 'moved'. The comment at :83-86 states the reason the technique gives."
+          "evidence": "app/features/hiring/pipeline/pipelineEventCatalog.ts:87 A board-shape move has its own event kind, separate from 'moved', with its own icon and tone (line 223)."
         },
         {
           "technique": "stage-role-vocabulary-not-stage-names",
           "verdict": "conformant",
-          "evidence": "app/features/hiring/pipeline/empty/pipelineEmptyMoves.ts:41 The inflow lane is resolved by the entry role, not by index 0 or a name. agingBucket resolves terminal by role on the axis too, but boardSignature falls back to DEFAULT_STAGE_AXIS when a caller omits the axis (pipelineRenderDiet.ts:163), and usePipelineBoardData, outside this context, omits it."
+          "evidence": "app/features/hiring/pipeline/empty/pipelineEmptyMoves.ts:41 The inflow lane is chosen by the entry role, not by index 0 or the name 'Accepted'. Aging in pipelineRenderDiet.ts:47 also resolves through the workspace axis."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The per-column meaning line on the empty board is keyed by the five shipped stage ids (Accepted, Screened, Interview, Offer, Hired). Any column a team adds or composes gets the generic fallback 'nothing here yet', and no line exists per role.",
+          "evaluatedAt": "2026-10-24T22:26:00.183Z",
+          "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+          "reason": "replaced by d4720071-f33a-476e-8529-ee1510969816"
         }
       ]
     },
@@ -26459,6 +26468,68 @@
           "technique": "named-duplication-points",
           "verdict": "deviation",
           "evidence": "docs/features/candidates/README.md:1976 A literal copy of the coupling record with no mechanical assertion against feature-doc-map.json. They differ in 5 globs. This context's own glob, app/history/**, still agrees in both."
+        }
+      ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/pipeline-stage-modelling": {
+      "context": "db-pipeline-store",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:41:02.361Z",
+      "worker": "d4720071-f33a-476e-8529-ee1510969816",
+      "techniques": [
+        {
+          "technique": "screening-gate-index",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:1148 The gate is role-derived and inclusive (good), but a retired stage is treated as unrecognised instead of being resolved through the tombstone's role. This is the 'tombstone that resolves a label and nothing else' failure."
+        },
+        {
+          "technique": "retired-stage-tombstones-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:1267 Migration is one IMMEDIATE transaction with one event per candidate, refuses terminal targets before any write, and excludes all four terminal statuses. Calibration also ignores stage_migrated as evidence (line 716)."
+        },
+        {
+          "technique": "entry-and-terminal-role-requirements",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3652 The terminal stage is reachable only with an offer_accepted outcome, resolved by role. Reject on a hired row is refused (line 3627)."
+        },
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:1149 Hire counts read the terminal role, not the literal 'Hired'."
+        },
+        {
+          "technique": "off-axis-candidate-recovery",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:1175 Occupancy is counted over the raw stage column, not joined to live stages, so off-axis occupants are counted rather than dropped."
+        },
+        {
+          "technique": "one-sentence-meaning-per-stage",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:1149 The repository layer holds no display copy."
+        }
+      ]
+    },
+    "01537eaf-44d0-4058-8141-9172d479c156/pipeline-stage-modelling": {
+      "context": "screening-fairness",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:41:02.361Z",
+      "worker": "d4720071-f33a-476e-8529-ee1510969816",
+      "techniques": [
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:160 A string comparison in a rule that drives auto-rejection. The automation-fairness backstop (line 11) also documents Python's stage == \"Screened\" invariant."
+        },
+        {
+          "technique": "screening-gate-index",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:160 Same line as above. The set where an automated screen may act should be screeningStageIds(axis) (entry/screening roles intersected with the gate), not a named column."
         }
       ]
     }
