@@ -52,15 +52,17 @@ export const CHIP_IDS = [
 export type ChipId = (typeof CHIP_IDS)[number];
 export const isChipId = (v: unknown): v is ChipId => (CHIP_IDS as readonly unknown[]).includes(v);
 
-/** The layout directions under judgement. `greet` is the round-1 baseline (kept); `split`,
- *  `spotlight` and `ticker` are the round-2 refinements — they differ only in WHERE the
- *  current answer lands. */
-export const VARIANT_IDS = ["greet", "split", "spotlight", "ticker"] as const;
+/** The directions under judgement. Round 3: the owner picked Split's LAYOUT; `split` is
+ *  the round-2 baseline and `refined` / `spark` / `dense` are three FINISHES of the same
+ *  layout (variants/<id>/) — they differ only in type, spacing, surfaces and motion. */
+export const VARIANT_IDS = ["split", "refined", "spark", "dense"] as const;
 export type VariantId = (typeof VARIANT_IDS)[number];
 export const isVariantId = (v: unknown): v is VariantId => (VARIANT_IDS as readonly unknown[]).includes(v);
-/** `?v=` absent or unknown → split (the round-2 lead). */
+/** The finishes (every variant but the baseline). */
+export type FinishId = Exclude<VariantId, "split">;
+/** `?v=` absent or unknown → refined (the round-3 lead finish). */
 export function variantOf(raw: unknown): VariantId {
-  return isVariantId(raw) ? raw : "split";
+  return isVariantId(raw) ? raw : "refined";
 }
 
 /** The closed set of screen operations. `navigate` is a Console deep link: the region
@@ -146,6 +148,10 @@ export type ChangeLine = {
   key: ChangeKey;
   panel?: PanelKind;
   previous?: PanelKind;
+  /** The view's params, when it has any, so the line names the view by its TITLE
+   *  ("Stalled candidates", not "Pipeline"). */
+  params?: Record<string, string>;
+  previousParams?: Record<string, string>;
   /** The user's hand landed while a reply's change was pending; that change was dropped. */
   droppedPending?: boolean;
   /** `stepped`: which answer is in view, 1-based, of how many ("Showing answer 2 of 5"). */

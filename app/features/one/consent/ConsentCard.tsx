@@ -5,14 +5,15 @@
 // It renders from the RESOLVED act (acts.ts) — who, what, the consequence including
 // "emails the candidate" where the door does, any cost, and whether an undo exists —
 // never from the conductor's words. Rendering runs nothing; only the user's press does,
-// once, against an existing door (doors.ts). One primary (coral) button per card. After
+// once, against an existing door (doors.ts). One primary (coral) button per card; the card
+// leads with title + one consequence line + an undo/final tag, the rest behind Details. After
 // the press: a result line, then Undo where a reverse door exists, otherwise a plain
 // statement that it is final from here. A stale refusal says "this moved — refresh".
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Note } from "@/app/_components/kit";
-import { EYEBROW, PANEL_ACCENT } from "@/app/_components/ui/recipes";
+import { CHIP_QUIET, PANEL_ACCENT } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { consoleHref } from "../panels/PanelShell";
 import type { ProposalInstance } from "../types";
@@ -43,18 +44,45 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
   const act = resolveAct(proposal.act, proposal.params);
   const busy = phase.at === "busy";
 
-  const frame = (title: string, body: ReactNode, footer: ReactNode) => (
+  // Round 3: title (act + who), ONE consequence line, a quiet tag that says whether it can
+  // be undone here, the buttons — and everything else (what reaches the inbox, the offer
+  // step, the cost) behind a "Details" disclosure, so the card reads in one glance.
+  const frame = (title: string, line: ReactNode, footer: ReactNode, opts?: { tag?: "final" | "undo"; details?: ReactNode; extra?: ReactNode }) => (
     <section
-      className={`${PANEL_ACCENT} flex min-w-0 flex-col gap-2 p-3 ${className ?? ""}`}
+      className={`${PANEL_ACCENT} flex min-w-0 flex-col gap-2 p-[var(--one-pad)] ${className ?? ""}`}
       data-one-consent={proposal.act}
       data-proposal-id={proposal.id}
       data-phase={phase.at}
+      data-one-surface
       aria-label={t("heading")}
     >
-      <p className={EYEBROW}>{t("heading")}</p>
-      <h3 className="font-serif text-h3 text-ink">{title}</h3>
-      <div className="flex flex-col gap-1.5 text-micro text-ink">{body}</div>
-      <div className="flex flex-wrap items-center gap-2 [&_.k-btn]:h-8 [&_.k-btn]:px-3">{footer}</div>
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="min-w-0 font-[family-name:var(--one-title-font)] text-h3 font-semibold text-ink">{title}</h3>
+        {opts?.tag ? (
+          <span className={`${CHIP_QUIET} shrink-0`} data-role="one-consent-tag">
+            {opts.tag === "final" ? t("finalTag") : t("undoTag")}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1.5 text-micro text-ink">
+        {line}
+        {opts?.extra}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 [&_.k-btn]:h-8 [&_.k-btn]:px-3">
+        {footer}
+        {opts?.details ? (
+          // Everything past the one line lives here; open, it takes the row under the buttons.
+          <details className="group ml-auto text-micro text-steel open:ml-0 open:basis-full" data-role="one-consent-details">
+            <summary className="focus-ring ml-auto w-fit cursor-pointer list-none rounded-sm font-semibold text-steel group-open:ml-0 hover:text-ink [&::-webkit-details-marker]:hidden">
+              <span className="inline-block transition-transform group-open:rotate-90" aria-hidden>
+                ›
+              </span>{" "}
+              {t("details")}
+            </summary>
+            <div className="mt-1 flex flex-col gap-1 pl-3">{opts.details}</div>
+          </details>
+        ) : null}
+      </div>
     </section>
   );
 
@@ -103,8 +131,6 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
         t(`${act.act}.title`, { label: act.label ?? "" }),
         <>
           <p>{t(`${act.act}.body`, { stage: proposal.params.expectedStage })}</p>
-          <p>{act.emails === "rejection" ? t("emails.rejection") : t("emails.nextStep")}</p>
-          {phase.at === "idle" ? <p className="text-micro text-steel">{t("final")}</p> : null}
           {outcome()}
         </>,
         settled ? settledFooter() : (
@@ -118,7 +144,17 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
             />
             <Button label={t("notNow")} variant="ghost" disabled={busy} onClick={onDismiss} />
           </>
-        )
+        ),
+        {
+          tag: settled ? undefined : "final",
+          details: settled ? undefined : (
+            <>
+              <p>{act.emails === "rejection" ? t("emails.rejection") : t("emails.nextStep")}</p>
+              <p>{t("final")}</p>
+              {act.role ? <p>{t("forRole", { role: act.role })}</p> : null}
+            </>
+          ),
+        }
       );
     case "wave": {
       const title =
@@ -131,8 +167,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
       return frame(
         title,
         <>
-          <p>{act.mode === "reject" ? t("emails.rejectionMany") : t("emails.nextStep")}</p>
-          {act.mode === "advance" ? <p>{t("wave.advanceBody")}</p> : null}
+          <p>{act.mode === "reject" ? t("emails.rejectionMany") : t("wave.advanceLine")}</p>
           {preview ? (
             <div data-role="one-wave-preview">
               <p>{t("wave.touches", { total: preview.total })}</p>
@@ -164,22 +199,36 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
             <Button label={t("wave.preview")} variant="primary" loading={busy} loadingLabel={t("wave.previewing")} onClick={() => void runPreview(act.text)} />
             <Button label={t("notNow")} variant="ghost" disabled={busy} onClick={onDismiss} />
           </>
-        )
+        ),
+        {
+          tag: settled ? undefined : act.mode === "reject" ? "undo" : "final",
+          details:
+            settled ? undefined : act.mode === "advance" ? (
+              <>
+                <p>{t("emails.nextStep")}</p>
+                <p>{t("wave.advanceBody")}</p>
+                <p>{t("wave.scope")}</p>
+              </>
+            ) : (
+              <>
+                <p>{t("wave.undoBody")}</p>
+                <p>{t("wave.scope")}</p>
+              </>
+            ),
+        }
       );
     }
     case "companion":
       return frame(
         t(`companion.title.${act.action}`),
-        <>
-          <p>{t("companion.body")}</p>
-          <p>{t("cost")}</p>
-        </>,
+        <p>{t("cost")}</p>,
         <>
           <Link className="k-btn k-btn--primary" href={consoleHref(act.handoff)} data-role="one-consent-handoff">
             {t("companion.press")}
           </Link>
           <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />
-        </>
+        </>,
+        { details: <p>{t("companion.body")}</p> }
       );
   }
 

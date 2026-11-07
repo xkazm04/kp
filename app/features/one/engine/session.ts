@@ -109,6 +109,11 @@ const sameParams = (a: Record<string, string>, b: Record<string, string>) => {
   return ka.length === kb.length && ka.every((k, i) => k === kb[i] && a[k] === b[k]);
 };
 
+/** The change line's view: its kind, plus its params when it has any — so the line can name
+ *  the view by its title ("Stalled candidates", not "Pipeline"). */
+const named = (p: Pick<PanelInstance, "kind" | "params">): Pick<ChangeLine, "panel" | "params"> =>
+  Object.keys(p.params).length > 0 ? { panel: p.kind, params: { ...p.params } } : { panel: p.kind };
+
 /** Record the prior arrangement, then apply `next` — the order the standard requires. */
 function step(s: SessionState, next: Partial<SessionState>, change: ChangeLine): SessionState {
   return { ...s, history: [...s.history, snapshot(s)].slice(-HISTORY_CAP), ...next, lastChange: change };
@@ -133,19 +138,20 @@ function applyShow(s: SessionState, kind: PanelInstance["kind"], params: Record<
   const existing = s.panels.find((p) => p.kind === kind && sameParams(p.params, params));
   if (existing) {
     if (s.focusId === existing.id) return s; // already there and forward: nothing changed, no step
-    return step(s, { focusId: existing.id }, { key: "focused", panel: kind });
+    return step(s, { focusId: existing.id }, { key: "focused", ...named(existing) });
   }
   const seq = s.seq + 1;
   const fresh: PanelInstance = { id: `p${seq}`, kind, params: { ...params }, pinned: false };
   if (s.panels.length < MAX_PANELS) {
-    return step(s, { panels: [...s.panels, fresh], focusId: fresh.id, seq }, { key: "shown", panel: kind });
+    return step(s, { panels: [...s.panels, fresh], focusId: fresh.id, seq }, { key: "shown", ...named(fresh) });
   }
   // Replace the oldest unpinned in place: its slot keeps its position in reading order.
   const victimIndex = s.panels.findIndex((p) => !p.pinned);
   if (victimIndex < 0) return s; // unreachable while MAX_PINS < MAX_PANELS
   const victim = s.panels[victimIndex];
   const panels = s.panels.map((p, i) => (i === victimIndex ? fresh : p));
-  return step(s, { panels, focusId: fresh.id, seq }, { key: "replaced", panel: kind, previous: victim.kind });
+  const was = Object.keys(victim.params).length > 0 ? { previous: victim.kind, previousParams: { ...victim.params } } : { previous: victim.kind };
+  return step(s, { panels, focusId: fresh.id, seq }, { key: "replaced", ...named(fresh), ...was });
 }
 
 function applyOp(s: SessionState, op: Op): SessionState {
@@ -155,7 +161,7 @@ function applyOp(s: SessionState, op: Op): SessionState {
     case "focus": {
       const p = s.panels.find((x) => x.id === op.panelId);
       if (!p || s.focusId === p.id) return s;
-      return step(s, { focusId: p.id }, { key: "focused", panel: p.kind });
+      return step(s, { focusId: p.id }, { key: "focused", ...named(p) });
     }
     case "propose":
     case "navigate":
@@ -276,7 +282,7 @@ function reduceBase(s: SessionState, a: SessionAction): SessionState {
       const { s: base, dropped } = byHand(s);
       const p = base.panels.find((x) => x.id === a.panelId);
       if (!p || base.focusId === p.id) return markDropped(base, base, dropped);
-      return markDropped(base, step(base, { focusId: p.id }, { key: "focused", panel: p.kind }), dropped);
+      return markDropped(base, step(base, { focusId: p.id }, { key: "focused", ...named(p) }), dropped);
     }
     case "close": {
       const { s: base, dropped } = byHand(s);
@@ -284,7 +290,7 @@ function reduceBase(s: SessionState, a: SessionAction): SessionState {
       if (!p) return markDropped(base, base, dropped);
       const panels = base.panels.filter((x) => x.id !== a.panelId);
       const focusId = base.focusId === p.id ? (panels.at(-1)?.id ?? null) : base.focusId;
-      return markDropped(base, step(base, { panels, focusId }, { key: "closed", panel: p.kind }), dropped);
+      return markDropped(base, step(base, { panels, focusId }, { key: "closed", ...named(p) }), dropped);
     }
     case "pin":
     case "unpin": {
@@ -294,10 +300,10 @@ function reduceBase(s: SessionState, a: SessionAction): SessionState {
       const pin = a.type === "pin";
       if (p.pinned === pin) return markDropped(base, base, dropped);
       if (pin && base.panels.filter((x) => x.pinned).length >= MAX_PINS) {
-        return markDropped(base, { ...base, lastChange: { key: "pinLimit", panel: p.kind } }, dropped);
+        return markDropped(base, { ...base, lastChange: { key: "pinLimit", ...named(p) } }, dropped);
       }
       const panels = base.panels.map((x) => (x.id === p.id ? { ...x, pinned: pin } : x));
-      return markDropped(base, step(base, { panels }, { key: pin ? "pinned" : "unpinned", panel: p.kind }), dropped);
+      return markDropped(base, step(base, { panels }, { key: pin ? "pinned" : "unpinned", ...named(p) }), dropped);
     }
     case "undo": {
       const prev = s.history.at(-1);

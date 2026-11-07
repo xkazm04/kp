@@ -6,11 +6,10 @@ import { useLocale } from "next-intl";
 import { ABSENT } from "@/app/_components/kit";
 import type { PanelLook } from "./types";
 
-/** How many rows a look draws before it says "showing the first N of M". The summary
- *  keeps every row — its frame shows three and counts the rest in See all. */
+/** How many rows a look draws before it says "showing the first N of M". The insight
+ *  draws no rows (its reading is computed from the whole read). */
 export function rowLimit(look: PanelLook | undefined): number {
   if (look === "table") return 60;
-  if (look === "summary") return 200;
   return 8;
 }
 

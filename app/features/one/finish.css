@@ -1,0 +1,72 @@
+/*
+ * /one — the FINISH hooks (round 3, docs/design/one-interface.md "Round 3 core").
+ *
+ * The Split layout is shared; the three finishes (refined, spark, dense) differ ONLY in
+ * finish. The core's components read these custom properties, with the defaults below;
+ * a finish sets them in its own block. The finish root is any element with
+ * `data-finish="<id>"` (OneShell's root, so the header follows, and the layout's root).
+ *
+ * Values resolve to TOKENS for colour, shadow and face (var(--color-…), var(--*-shadow),
+ * var(--font-…)); lengths are plain lengths. No literal colour here (design law).
+ *
+ *   --one-display-font    the one display face: brand, the reply line
+ *   --one-title-font      panel + consent titles (core default: the body face)
+ *   --one-body-font       the body face of the whole surface
+ *   --one-row-h           a table row's minimum height
+ *   --one-pad             a panel's inner padding (insight body, table cells' inline edge)
+ *   --one-gap             the layout's column / stack gap
+ *   --one-radius          a surface's corner (panels, the answer card, consent)
+ *   --one-surface-border  a surface's outline width
+ *   --one-sticker-shadow  the answer card's offset (a token shadow, or none)
+ *   --one-sticker-border  the answer card's outline colour
+ */
+
+/* Defaults at ZERO specificity (:where), so a finish block's plain `[data-finish="x"]`
+   wins in both themes; a finish that wants a dark-only value writes
+   `[data-theme="dark"] [data-finish="x"]`. */
+:where([data-one-root]) {
+  --one-body-font: var(--font-mk-body), var(--font-sans);
+  --one-display-font: var(--font-bricolage), var(--font-sans);
+  --one-title-font: var(--one-body-font);
+  --one-row-h: 44px;
+  --one-pad: 1rem;
+  --one-gap: 2rem;
+  --one-radius: 0.5rem;
+  --one-surface-border: 1px;
+  --one-sticker-shadow: 5px 5px 0 var(--color-ink);
+  --one-sticker-border: var(--color-ink);
+  font-family: var(--one-body-font);
+}
+
+/* Spark Dark's register: drawn 2px outlines, 16px corners, the deep pop offset. */
+:where([data-theme="dark"]) :where([data-one-root]) {
+  --one-radius: 16px;
+  --one-surface-border: 2px;
+  --one-sticker-shadow: var(--pop-shadow);
+  --one-sticker-border: var(--color-stone-300);
+}
+
+/* The surfaces the hooks shape. Specificity (0,2,1) so they hold over the app-wide dark
+   `.shadow-panel` ride (0,2,0) whatever the stylesheet order. */
+[data-one-root] section[data-one-surface] {
+  border-radius: var(--one-radius);
+  border-width: var(--one-surface-border);
+}
+[data-one-root] section[data-one-surface][data-one-sticker] {
+  border-color: var(--one-sticker-border);
+  box-shadow: var(--one-sticker-shadow);
+}
+
+/* ── Finish blocks — each finish builder owns ONE block below (targeted edits only). ── */
+
+[data-finish="refined"] {
+  /* refined — calm editorial (placeholder: the core defaults) */
+}
+
+[data-finish="spark"] {
+  /* spark — bold landing stickers, springy (placeholder: the core defaults) */
+}
+
+[data-finish="dense"] {
+  /* dense — compact, keyboard-first (placeholder: the core defaults) */
+}

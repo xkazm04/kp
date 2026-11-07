@@ -8,6 +8,7 @@ import { ABSENT, formatCount } from "@/app/_components/kit";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import { NEED_PANEL, type NeedKey } from "../engine/greeting";
+import { biggest } from "./insight";
 import { NameCell, PanelFrame } from "./PanelFrame";
 import { ConsoleLink } from "./PanelShell";
 import { isCount, useRead } from "./read";
@@ -37,10 +38,13 @@ const ROWS = ["decisions", "pipeline", "channels", "schedule", "jobs", "companio
 
 export function NeedsPanel(props: PanelProps) {
   const t = useTranslations("one.core.panels");
+  const tg = useTranslations("one.core.greeting.first");
   const locale = useLocale();
   const read = useRead("/api/attention", parseAttention, props.epoch);
   const counts = read.state === "ready" ? read.data : null;
   const waiting = counts ? ROWS.filter((k) => (counts[k] ?? 0) > 0).length : null;
+  const NEED_ORDER = ["decisions", "pipeline", "channels", "schedule", "jobs"] as const;
+  const top = counts ? biggest(counts, NEED_ORDER) : null;
   const dash = (
     <span data-tip={t("notReturned")} tabIndex={0}>
       {ABSENT}
@@ -52,7 +56,20 @@ export function NeedsPanel(props: PanelProps) {
       data={{
         title: t("needs.title"),
         count: waiting,
-        headline: { figure: waiting ?? "", label: t("needs.areas") },
+        insight: counts
+          ? {
+              shape: {
+                label: t("insight.waiting"),
+                parts: ROWS.flatMap((k) => {
+                  const n = counts[k];
+                  return isCount(n) && n > 0 ? [{ key: k, label: t(`needs.rows.${k}`), value: n }] : [];
+                }).sort((a, b) => b.value - a.value),
+              },
+              facts: top
+                ? [{ key: "biggest", label: t("insight.biggest"), value: t(`needs.rows.${top.key}`), sub: tg(top.key, { count: top.count }), mark: "needs" as const }]
+                : [],
+            }
+          : undefined,
         read,
         cols: [
           { key: "name", label: t("cols.area"), track: "minmax(0,1fr)" },

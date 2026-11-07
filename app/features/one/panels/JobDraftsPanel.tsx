@@ -7,6 +7,7 @@ import { ABSENT } from "@/app/_components/kit";
 import { ConsoleLink } from "./PanelShell";
 import { NameCell, PanelFrame } from "./PanelFrame";
 import { rowLimit } from "./cells";
+import { tally } from "./insight";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -28,13 +29,24 @@ export function JobDraftsPanel(props: PanelProps) {
   const read = useRead("/api/jobs/status", parseDrafts, props.epoch);
   const drafts = read.state === "ready" ? read.data : null;
   const limit = rowLimit(props.look);
+  // The route lists drafts newest first (created_at DESC), so the oldest is the last one.
+  const oldest = drafts?.at(-1);
+  const companies = drafts ? tally(drafts.flatMap((d) => (d.company ? [d.company] : []))) : [];
+  const topCompany = companies.length > 1 && companies[0].count > 1 ? companies[0] : null;
   return (
     <PanelFrame
       props={props}
       data={{
         title: t("jobDrafts.title"),
         count: drafts ? drafts.length : null,
-        headline: { figure: drafts ? drafts.length : "", label: t("jobDrafts.title") },
+        insight: drafts
+          ? {
+              facts: [
+                ...(oldest ? [{ key: "oldest", label: t("insight.oldestDraft"), value: oldest.title, sub: oldest.company ?? undefined, mark: "wait" as const }] : []),
+                ...(topCompany ? [{ key: "company", label: t("insight.topCompany"), value: topCompany.key, sub: t("insight.drafts", { count: topCompany.count }) }] : []),
+              ],
+            }
+          : undefined,
         console: { tab: "jobs" },
         read,
         cols: [

@@ -6,6 +6,7 @@
 // before it), never 0 %.
 import { useLocale, useTranslations } from "next-intl";
 import { ABSENT, formatCount } from "@/app/_components/kit";
+import { funnelInsight } from "./insight";
 import { NameCell, PanelFrame } from "./PanelFrame";
 import { isCount, useRead } from "./read";
 import type { PanelProps } from "./types";
@@ -45,14 +46,31 @@ export function FunnelPanel(props: PanelProps) {
         {ABSENT}
       </span>
     );
-  const first = data && !empty ? data.steps[0] : undefined;
+  const reading = data && !empty ? funnelInsight(data.steps) : null;
+  const last = data && !empty ? data.steps.at(-1) : undefined;
   return (
     <PanelFrame
       props={props}
       data={{
         title: t("funnel.title"),
         state: t("funnel.window"),
-        headline: first ? { figure: formatCount(first.reached, locale), label: `${first.stage} · ${t("funnel.reached")}` } : undefined,
+        insight:
+          data && reading
+            ? {
+                spread: {
+                  label: t("insight.reachedPerStep"),
+                  bins: data.steps.map((s) => ({ key: s.stage, label: s.stage, value: s.reached })),
+                },
+                facts: [
+                  ...(reading.drop
+                    ? [{ key: "drop", label: t("insight.biggestDrop"), value: t("insight.dropValue", { from: reading.drop.from, to: reading.drop.to }), sub: t("insight.lost", { pct: pct.format(reading.drop.lostPct / 100) }), mark: "caution" as const }]
+                    : []),
+                  ...(reading.overallPct !== null && last
+                    ? [{ key: "overall", label: t("insight.overall"), value: pct.format(reading.overallPct / 100), sub: t("insight.overallSub", { stage: last.stage }) }]
+                    : []),
+                ],
+              }
+            : undefined,
         console: { tab: "analytics" },
         read,
         cols: [

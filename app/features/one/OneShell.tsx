@@ -6,10 +6,13 @@
 // attention read and the greeting it composes, the session (conductor + validation door
 // + reducer), the panel and consent renderers, the words. It also owns the two pieces of
 // fixed chrome no variant may move (composition-region "fixed chrome"): the Console link
-// (+ Ctrl/⌘ K) and the dev-visible layout switcher.
+// (+ Ctrl/⌘ K) and the dev-visible layout switcher. Round 3: its root is the FINISH root
+// (`data-one-root` + `data-finish`, the hooks in finish.css) and the motion flavor's
+// provider (motion.ts), so the header follows the finish too.
 import { useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { KitSurface } from "@/app/_components/kit";
+import { mkBody, mkHand } from "@/app/landing/site/chrome/fonts";
 import { ConsentCard } from "./consent/ConsentCard";
 import { greeting as composeGreeting } from "./engine/greeting";
 import { parseAttention } from "./panels/NeedsPanel";
@@ -20,10 +23,12 @@ import type { PanelLook } from "./panels/types";
 import { OneHeader } from "./OneHeader";
 import type { PanelInstance, ProposalInstance, VariantId } from "./types";
 import { useOneSession } from "./useOneSession";
-import { HEADER_SIZE, VARIANTS } from "./variants";
+import { FLAVOR_OF, OneMotion } from "./motion";
+import { VARIANTS } from "./variants";
 import type { GreetingState, VariantProps } from "./variantProps";
 import { useOneWords } from "./words";
 import type { AttentionCounts } from "@/app/_lib/attention";
+import "./finish.css";
 
 const CONSOLE_HREF = consoleHref("pipeline");
 
@@ -117,11 +122,16 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
   };
   const partial = attentionRead.state === "ready" ? attentionRead.data : null;
   return (
-    <div className="flex min-h-dvh flex-col bg-paper text-ink lg:h-dvh lg:overflow-hidden" data-one-variant={variant}>
+    <OneMotion.Provider value={FLAVOR_OF[variant]}>
+    <div
+      className={`${mkBody.variable} ${mkHand.variable} flex min-h-dvh flex-col bg-paper text-ink lg:h-dvh lg:overflow-hidden`}
+      data-one-root
+      data-one-variant={variant}
+      data-finish={variant === "split" ? undefined : variant}
+    >
       <div className={KIT_FILL}>
         <KitSurface density="calm">
           <OneHeader
-            size={HEADER_SIZE[variant]}
             counts={partial}
             activeChip={session.current?.asked.chip ?? null}
             onAsk={(chip) => session.submit({ chip })}
@@ -135,5 +145,6 @@ export function OneShell({ variant, showSwitcher }: { variant: VariantId; showSw
         </KitSurface>
       </div>
     </div>
+    </OneMotion.Provider>
   );
 }

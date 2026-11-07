@@ -4,7 +4,7 @@ import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
 import { OneShell } from "@/app/features/one/OneShell";
 import { variantOf } from "@/app/features/one/types";
 
-// /one — the recruiter's AI-conducted alternative home (spark `one-interface`, round 2;
+// /one — the recruiter's AI-conducted alternative home (spark `one-interface`, round 3;
 // docs/design/one-interface.md). Today's Workspace stays at `/` as the Console.
 //
 // NOT public: it is absent from app/_lib/auth/public-routes.ts, so proxy.ts walls it when
@@ -12,7 +12,7 @@ import { variantOf } from "@/app/features/one/types";
 // or open mode's entry marker — hasEnteredWorkspace), so an anonymous visitor in open
 // mode lands on the landing at `/` rather than on a recruiter surface.
 //
-// `?v=greet|split|spotlight|ticker` picks the layout direction (unknown → split), read here on the
+// `?v=split|refined|spark|dense` picks the direction (unknown → refined), read here on the
 // server so the client needs no useSearchParams. The switcher is a judging aid and is
 // shown only outside production builds.
 //

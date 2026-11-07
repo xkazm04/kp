@@ -1,4 +1,4 @@
-# /one — the AI-conducted home (spark `one-interface`, round 2)
+# /one — the AI-conducted home (spark `one-interface`, round 3)
 
 `/one` is a signed-in alternative home for the recruiter: ONE surface, conducted from a
 conversation, that puts views from every module (pipeline, decisions, schedule, jobs,
@@ -6,11 +6,12 @@ analytics, comms) in one sight. Today's Workspace (`/` with `?tab=`) stays exact
 is and is reached from `/one` as the **Console** (top-right link, or Ctrl/⌘ K →
 `/?tab=pipeline`).
 
-Round 1 shipped one shared **core** and three layout directions (Greet, Stage, Brief).
-Round 2 keeps Greet as the baseline and adds three refinements — Split, Spotlight, Ticker —
-chosen with `?v=greet|split|spotlight|ticker` (unknown or absent → **split**, the round-2
-lead). They share one core and differ only in WHERE the current answer lands; the core is
-the part that must already be complete and honest.
+Round 1 shipped one shared **core** and three layout directions; round 2 refined the winner
+three ways; the owner picked **Split**. Round 3 is visual polish only: the Split LAYOUT is
+fixed and three **finishes** of it are judged, `?v=refined|spark|dense` (`?v=split` is the
+round-2 baseline with the round-3 core flowing through; unknown or absent → **refined**). They
+share one core and differ only in finish (type, spacing, surfaces, motion), never in where
+things are.
 
 Governing standard: registry subject `model-composed-workspace` (golden path +
 `composition-region`, `reversible-screen-ops`). Shape reference (not code):
@@ -20,25 +21,29 @@ Governing standard: registry subject `model-composed-workspace` (golden path +
 
 | Path | What |
 | --- | --- |
-| `app/one/page.tsx` | Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). Reads `?v=` server-side. `instant = false` (cookies + searchParams per request). The layout switcher shows only outside production builds. |
-| `app/features/one/OneShell.tsx` | Owns the core and the fixed chrome (Console link, Ctrl/⌘ K, switcher); hands the selected variant `VariantProps`. Wrapped in `KitSurface` (calm density) so kit tips and tokens work in every variant. |
-| `app/features/one/variants/index.ts` | `VARIANTS: Record<VariantId, ComponentType<VariantProps>>`, each `next/dynamic`-loaded from `variants/<id>/<Id>Variant.tsx`. A builder replaces only its own file. |
-| `app/features/one/variants/PlaceholderLayout.tsx` | The plain reference wiring every variant starts from: greeting, turns, chips, composer (Send / Stop), change line + Undo, region of views, consent cards. |
+| `app/one/page.tsx` | Server page. Not public (absent from `app/_lib/auth/public-routes.ts`); repeats the home gate (`hasEnteredWorkspace`, else redirect to `/`). Reads `?v=` server-side. `instant = false` (cookies + searchParams per request). The direction switcher shows only outside production builds. |
+| `app/features/one/OneShell.tsx` | Owns the core and the fixed chrome (Console link, Ctrl/⌘ K, switcher); hands the selected variant `VariantProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, the Figtree + Caveat font variables): it imports `finish.css` and provides the motion flavor (`motion.ts`). Wrapped in `KitSurface` (calm density). |
+| `app/features/one/variants/index.ts` | `VARIANTS: Record<VariantId, ComponentType<VariantProps>>`, each `next/dynamic`-loaded from `variants/<id>/<Id>Variant.tsx`. A builder replaces only its own folder. |
+| `app/features/one/variants/split/SplitLayout.tsx` | The Split layout every direction renders (`finish?` sets `data-finish` on its root). A finish may fork it into its own folder. |
+| `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks, the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core". |
 
 ## The contract (`app/features/one/types.ts`)
 
 Closed vocabularies in the repo's shape (literal array + derived union + runtime guard):
 `PANEL_KINDS` (needs, pipelineSlice, scheduleAhead, funnel, jobDrafts, outbox,
 decisionsQueue, roleCard), `ACT_KINDS` (entryAdvance, entryReject, wave, companion),
-`CHIP_IDS`, `SAY_KEYS`, `CHANGE_KEYS`, `VARIANT_IDS`.
+`CHIP_IDS`, `SAY_KEYS`, `CHANGE_KEYS`, `VARIANT_IDS` (`split`, `refined`, `spark`, `dense`).
 
 - `Op` = `show` (a panel, params) · `focus` (a panel on screen) · `propose` (an act, params)
   · `navigate` (a Console tab, params). There is no verb that moves, hides or resizes chrome.
 - `Reply` = `{ say: { key, values? }, ops ≤ 4, chips ≤ 4, fallback? }`. `say` is a catalog key
   under `one.core.say.*`, never English, and carries **no figure**.
 - `VariantProps` (`variantProps.ts`): `variant`, `session` (state + hand actions), `submit`,
-  `greeting`, `attention`, `renderPanel(panel, {look, className})`,
+  `greeting`, `attention`, `renderPanel(panel, {look, className, onExpand})`,
   `renderConsent(proposal, {className})`, `words`, `consoleHref`.
+- `ChangeLine` carries the view's `params` (and `previousParams`) when it has any, so
+  `words.change` names a view by its TITLE (`words.view(kind, params)`: "Stalled candidates",
+  "Pipeline · backend"), never by its module ("Pipeline").
 
 ## The turn
 
@@ -75,7 +80,7 @@ decisionsQueue, roleCard), `ACT_KINDS` (entryAdvance, entryReject, wave, compani
 Each panel reads an EXISTING GET route through `panels/read.ts` (keeps the error body's
 `code`; an unrecognised body is an error, never "empty"; two panels on the same URL share
 one request; `epoch` re-reads after a data act). Every panel hands one `PanelData`
-(columns, rows, headline) to `panels/PanelFrame.tsx`, which draws it as ONE surface in the
+(columns, rows, an insight reading) to `panels/PanelFrame.tsx`, which draws it as ONE surface in the
 requested look (below): loading = the quiet `LoadingGap`, no skeleton; error = critical note
 with Retry, text from `useErrorMessage()`; a real empty sentence; and "Open in Console" via
 `buildUrl` / `clearedTabScopedParams` (`app/features/shell/tabs.ts`). A count the read did
@@ -93,37 +98,47 @@ not return is "—" with its reason, never 0. Layout hooks: `look` → `data-loo
 | outbox | `/api/comms?limit=8` | newest messages with `commsVerdict`; a caution note when no relay is configured | "Nothing has been sent…" / coded | `channels` |
 | roleCard | `/api/jobs?q=<role>&limit=1` | company, location, seniority, lifecycle, hired / target; "N more match" | "Name a role…" / "No role matches…" / coded | `jobs` (+`job`), its pipeline (`role=<id>`) |
 
-### Panel looks (round 2)
+### Panel looks (round 3)
 
 `renderPanel(panel, { look, className, onExpand })`. A panel is one surface — the frame paints
-the border (`PANEL`), the host only gives it a cell. Hairline row dividers in light, the kit's
-dashed rows and 2px rules in dark. 14px floor, tabular figures, 44px rows.
+the border (`PANEL`), the host only gives it a cell. Corner, outline width, row height and inner
+padding follow the finish hooks (`finish.css`). Hairline row dividers in light, the kit's dashed
+rows and 2px rules in dark. 14px floor, tabular figures.
 
 | Look | Shape | Use |
 | --- | --- | --- |
-| `table` | fills its container (`h-full min-h-0`): head, sticky column head, dense aligned rows on ONE CSS grid template per panel, the body scrolls inside the panel; rows take keyboard focus (↑ ↓ move, Enter selects); the Console door appears on hover / focus | the main answer region |
-| `summary` | a compact card: the headline figure, ≤ 3 rows, a **See all** button (`onExpand`) or the Console link; never scrolls | a secondary answer beside the main one |
-| `list` | a dense single column for a narrow side (≤ 320px): one line + a meta line per item, no table chrome, the Console link in a foot row | a rail |
-| `default` / `compact` / `spotlight` | round 1 (Greet): the list drawn bare inside the host's own frame | Greet only |
+| `table` | fills its container: head (title + count), sticky column head, rows on ONE CSS grid template per panel (`--one-row-h`, default 44px), the body scrolls inside. Rows take keyboard focus: ↑ ↓ move, Enter selects, a row's own keys (`a` advance, `r` reject on decisions) arm its acts; the key hint sits in the table foot. Row acts are QUIET: icon buttons shown on the first row, on hover, on focus-within and on the selected row only. The Console door appears on hover / focus. | the side's answer |
+| `insight` | the answer's card — "insight, not rows": the SHAPE of the answer (a stacked part bar + legend, a spread that grows into the card's spare height and folds into a one-line strip when squeezed, a few facts) and at most ONE suggested act. It never repeats the table's count. It is the screen's one sticker (`data-one-sticker`); `data-grows` marks a card that has a spread to grow into; `onExpand` adds a See-all link. | the main column's card |
+| `list` | a dense single column for a narrow side (≤ 320px): one line + a meta line per item, no table chrome, the Console link in a foot row | kept for a rail |
 
-Per kind, as a table (columns) and as a list (line · meta · trail):
+`summary` and the round-1 bare looks were removed with Greet / Spotlight / Ticker.
 
-| Kind | Table columns | List / summary |
+Per kind (the insight is computed by `panels/insight.ts`, pure, from the read the panel already
+made — no new route, never a number from the reply):
+
+| Kind | Table columns | Insight |
 | --- | --- | --- |
-| needs | Area · Waiting · (Console door) — a row press opens the view that answers it | bucket · its companion line · numeral |
-| pipelineSlice | Candidate+role · Stage chip · Score (right figure + tier bar) · In stage (age, ⚠ when stalled) · door | name · stage · role · score |
-| decisionsQueue | the same four + **Advance / Reject** (hand proposals) | name · stage · role · score, acts under it |
-| scheduleAhead | When · Candidate · Role · door | time · candidate · role |
-| funnel | Stage · Reached (figure + bar) · Conversion | stage · conversion · reached |
-| jobDrafts | Role · Company · door | role · company |
-| outbox | Candidate+subject · Status (mark + verdict) · Sent; relay-off note above the rows | name · verdict · subject · time |
-| roleCard | Field · Value | field · value |
+| needs | Area · Waiting · door — a row press opens the view that answers it | the buckets as parts; the biggest bucket and why (its greeting line) |
+| pipelineSlice | Candidate (name over role · age, ⚠ when stalled) · Stage chip · Score (figure + tier bar) · door | where they stand (count per stage, ≤ 4 parts + other), score spread (5 bins: <40, 40–49, 50–64, 65–74, 75+ — edges on the command bar's usual lines and the board tiers), waiting longest (name, stage, days), most from one role (only when rows span roles); at most one suggested single-entry advance on a row of the slice |
+| decisionsQueue | the same three + a 5rem acts track (✓ advance / ✕ reject, hand proposals) | as pipelineSlice, over the queue |
+| scheduleAhead | When · Candidate · Role · door | how soon (24 hours · 7 days · 30 days · later) and the next interview (when, who, role); `truncated` noted |
+| funnel | Stage · Reached (figure + bar) · Conversion | reached per step as the spread, the biggest stage-to-stage drop (share lost), overall conversion first → last |
+| jobDrafts | Role · Company · door | the oldest draft (the route lists newest first), the company with most drafts |
+| outbox | Candidate+subject · Status (mark + verdict) · Sent; relay-off note above | delivery of the newest N as parts, the latest message, how many failed or bounced |
+| roleCard | Field · Value | its key fields |
+
+**The suggested act** (`suggestEntry`) only ever touches a candidate the card describes: a
+SINGLE-ENTRY advance through the existing door (`entryAdvance` → `POST /api/pipeline/[id]`, the
+row's stage as `expectedStage`), armed as a hand proposal, so it still goes through the
+ConsentCard. The highest-scoring row at or above 65 → "Advance <name>" (reason: the score and the
+days waiting); else the longest waiter when stalled → "Advance <name>" (reason: days past the
+limit); else nothing. Never a board-wide wave and never a reject: an adverse act is the
+recruiter's own pick from the table. Pinned by `panels/insight.test.ts`.
 
 The score bar is the board's tier (`scoreTone`), never a second scale; a missing score is a
-dash with no bar. The ConsentCard is one compact surface that fits a ~360px column (primary
-button never wraps).
+dash with no bar.
 
-## Round 2 core (shared by every variant)
+## Round 2 core (shared by every direction)
 
 ### The answer stepper — no infinite chat
 Every submitted turn becomes an `AnswerSnapshot { id, asked, turnId, arrangement,
@@ -135,31 +150,98 @@ cursor and restore that answer's arrangement, reply and proposals; they are **na
 not undo steps (the undo stack is untouched; the change line reads "Showing answer 2 of 5")
 and they wait out a pending beat. A submit while an older answer is in view appends at the
 END and moves the cursor there; a hand change to the arrangement while an answer is current is
-written back into that answer. Stepping back stops at the first answer. `OneSession` exposes
-`current: { asked, reply, panels, proposals } | null` (the pending turn while its beat runs)
-and `position: { index (0-based), total, canBack, canForward }`. The full turn list stays in
-`session.turns` for a variant that wants a history drawer.
-
-### The header (`OneHeader`, every variant)
-Left: the mark and "One". Centre: the **decisions** — the counts from `/api/attention`
-(decisions waiting · stalled · new arrivals · interviews ahead · drafts to publish) as
-clickable stats. A press asks the same question the chip does and the stat whose chip is the
-current question is marked (`aria-pressed`). A count the read did not return is "—", never 0;
-the most urgent non-zero stat (that order) is the only one in coral. Right: the layout
-switcher (outside production builds, a quiet segmented control), then Console. Size comes from
-`HEADER_SIZE` in `variants/index.ts`: `compact` = inline stats (64px), `hero` = big stat
-tiles with the figure in display type (ticker).
+written back into that answer. `OneSession` exposes `current: { asked, reply, panels, proposals }
+| null` and `position: { index (0-based), total, canBack, canForward }`.
 
 ### The fixed-viewport shell
 At `lg` and up the page never scrolls: `h-dvh` flex column, the header, then a
-`min-h-0 flex-1` body (`overflow-y-auto`) the variant fills with `h-full`; regions scroll
-inside themselves. Below `lg` the page stacks and scrolls. The kit surface's three wrappers
-are given the viewport height by `KIT_FILL` in `OneShell.tsx`.
+`min-h-0 flex-1` body the variant fills with `h-full`; regions scroll inside themselves. Below
+`lg` the page stacks and scrolls. `KIT_FILL` in `OneShell.tsx` passes the height through the kit
+surface's wrappers.
 
-### `VariantProps`
-`variant, session, submit, greeting, attention, current, position, stepBack, stepForward,
-renderPanel(panel, { look?, className?, onExpand? }), renderConsent(proposal, { className? }),
-words, consoleHref`.
+## Round 2 verdict
+
+Owner: "lets go with /one?v=split, focus now one round on visual polish only, motion
+transitions, UI quality, component design and spacing efficiency". Greet, Spotlight and Ticker
+were deleted (folders and their `one.greet` / `one.spotlight` / `one.ticker` catalog subtrees).
+
+The Director's shared defects at 1440x900 / 1280x800, each answered in the round-3 core:
+(1) the left summary repeated the table's rows and Advance / Reject, and "29" appeared four times
+→ the `insight` look; (2) 15 rows × Advance + Reject → quiet icon acts + row keys; (3) a mostly
+empty "In stage" column → age folded into the subline, column dropped, name floor
+`minmax(9rem,1.6fr)`; (4) three type voices → one display face per finish, panel titles in the
+body face; (5) a tab said "Pipeline" over "Stalled candidates" → views named by title
+everywhere; (6) three control styles in the header → one segmented language; (7) losers pruned;
+(8) finishes scaffolded; (9) finish hooks; (10) motion presets; (11) a four-line consent card →
+title, one line, a tag, Details; (12) a dead band in the left column → a stack that distributes.
+
+## Round 3 core (the polish contract every finish inherits)
+
+### The header (`OneHeader`)
+Left: the Kandidate mark and "One" in the display face (`--one-display-font`). Centre: the
+decisions — the counts from `/api/attention` as ONE segmented group (`Seg.tsx`); a press asks the
+same question the chip does, and the stat whose chip is the question in view carries the sliding
+pill (framer `layoutId`, the repo's segmented-control standard) and `aria-pressed`. A count the
+read did not return is "—", never 0; the most urgent non-zero stat's figure is the one coral
+figure; a changed figure tweens (`countTick`). Right: the direction switcher in the same
+segmented style (outside production), then the Console as a link-styled button ("Console →").
+
+### The Split layout (`variants/split/SplitLayout.tsx`)
+Two columns filling the body: main `max(32rem, 36vw)` on the left, the side takes the rest (the
+name track's floor is what allows the wider main column).
+- **Main** is a vertical stack that DISTRIBUTES — no spacer: the "YOU ASKED · …" / "TODAY" row
+  with the ‹ n of m › stepper; the reply (or the greeting's status line) in the display face;
+  the answer's `insight` card; consent cards; and, anchored to the foot, the chips (ONE line —
+  they scroll sideways rather than wrap), the composer (drawn outline, a coral focus ring around
+  the whole bar) and the "what changed" hand note + Undo. A card that has a spread
+  (`data-grows`) takes the spare height, so its chart grows; a card of facts alone keeps its size.
+- **While a consent card is open** (`ASKING_TRIM`): the card drops its suggestion, its spread may
+  shrink (folding into the one-line strip), and on a ≤ 56rem-tall viewport the spread goes, so
+  card + consent fit one sight at 1280x800.
+- **Side**: the primary view's `table`; with more than one view on screen, a `Seg` tab strip
+  (shared-layout pill, `useTablist` keys) names each view by its TITLE, primary first, then the
+  pinned ones ("· pinned"). Picking a tab is local. First beat: the needs table and the first
+  need's table under it (host-drawn, chrome hidden).
+- **Coral**: Send is primary only while no consent card is open.
+
+### The consent card
+Title (act + who) with a quiet tag ("Final: no undo here", or "Undo available" on a reject wave),
+ONE consequence line, the buttons, and a "Details" disclosure at the end of the button row that
+holds the rest (what reaches the inbox, the offer step, the wave's board-wide scope, the cost).
+The preview rows and the result lines still render in the body.
+
+### Finish hooks (`app/features/one/finish.css`)
+Custom properties with defaults at zero specificity (`:where([data-one-root])`, dark values under
+`:where([data-theme="dark"]) :where([data-one-root])`), so a finish's plain
+`[data-finish="<id>"] { … }` block wins in both themes (a dark-only value:
+`[data-theme="dark"] [data-finish="<id>"]`). Colour, shadow and face resolve to tokens.
+
+| Hook | Default (light / dark) | Read by |
+| --- | --- | --- |
+| `--one-display-font` | Bricolage | brand, the reply line |
+| `--one-title-font` | `--one-body-font` | panel + consent titles (h3, semibold) |
+| `--one-body-font` | Figtree, then the app sans | the whole surface |
+| `--one-row-h` | 44px | table rows |
+| `--one-pad` | 1rem | panel heads, insight body, table cell edges, consent |
+| `--one-gap` | 2rem | the layout's column gap |
+| `--one-radius` | 0.5rem / 16px | every `[data-one-surface]` (panels, insight, consent), the composer |
+| `--one-surface-border` | 1px / 2px | every `[data-one-surface]` |
+| `--one-sticker-shadow` | ink 5px offset / `--pop-shadow` | the answer card (`[data-one-sticker]`) |
+| `--one-sticker-border` | ink / stone-300 | the answer card, the composer outline |
+
+### Motion (`app/features/one/motion.ts`)
+Named presets, each in three flavors — **calm** (split, refined), **spring** (spark), **snap**
+(dense), `FLAVOR_OF` — and each with a STILL form under `useReducedMotion()` (no offset, no
+stagger, no tween). Every move is ≤ ~300 ms; nothing loops (`motion.test.ts`).
+
+| Preset | What moves | Wired in |
+| --- | --- | --- |
+| `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | SplitLayout (`AnimatePresence mode="wait"`) |
+| `panelEnter` | the side's view when the primary or the tab changes | SplitLayout side |
+| `rowStagger(i)` | a mounted table's first 8 rows, 20–30 ms apart; later rows arrive with the 8th | PanelFrame `TableBody` |
+| `consentEnter` | a consent card rises and settles; leaves with a fade | SplitLayout consent stack |
+| `countTick` | a header figure tweening to its new value | `CountTick` in OneHeader |
+| `tabIndicator` | the segmented pill sliding (stats, switcher, side tabs) | `Seg` |
 
 ## Acts and their doors (`consent/`)
 
@@ -176,227 +258,15 @@ exists. One primary (coral) button per card; "Not now" dismisses. Rendering runs
 The wave's text is built so the existing parser (`app/_lib/pipeline-command.ts`) reads it
 back to the same intent (pinned by `consent/acts.test.ts`).
 
-## Round 1 verdict
+## Round 3 finishes
 
-Owner: "Keep Greet variant … the visual quality is mediocre in both main components and
-right sidebar. We should move number of decisions into the header, using side space for
-lists and tables, keeping experience in one page sight without scrolling — avoiding infinite
-chat but rather displaying last message + component or section related to the answer."
+_Filled by the Director after the finish builders report._
 
-Director's diagnosis of r1 Greet at 1440x900: (1) the header was a bare wordmark and
-switcher pills; (2) a panel rendered inside an empty outer card — a double frame; (3) table
-rows were sparse, a lone score floated mid-row, 72px rows, no column grid; (4) the page was
-~1430px tall on a 900px viewport; (5) the side index was a bare list with orphan counts.
-Round 2's core answers each: the header carries the counts, a panel is one surface, tables
-sit on a real grid, the shell does not scroll, and the answer stepper replaces the transcript.
+## History
 
-## Round 1 variants
-
-Greet is the baseline kept for round 2 (`?v=greet`).
-
-### Stage — retired after round 1.
-
-### Brief — retired after round 1.
-
-### Greet — the home is a conversation (`?v=greet`, round 1)
-
-**Files.** `app/features/one/variants/greet/` — `GreetVariant.tsx` (layout), `placement.ts`
-(+ `placement.test.ts`: which reply owns which view), `styles.ts` (the sticker paint). Copy in
-`one.greet.*` (en authored; cs/de/fr carry the English for now).
-
-**What the user sees first.** An eyebrow ("Today"), the status line set big in Bricolage
-(`text-display`, extrabold), and the first need as ONE tilted sticker card (ink outline, hard ink
-offset, coral dot) with a Caveat "start here" note above it and "Show me" inside. The greeting's
-≤ 4 chips sit under it until the first reply arrives; after that the chips always sit under the
-newest reply.
-
-**Where answers land.** Inline. The user's words are a limewash sticker on the right; One's reply
-is a line beside the Kandidate mark, and the views it opened render UNDER that reply as sticker
-cards. `placement.ts` records, per view id, the reply that was newest when the view first
-appeared (or the greeting, for "Show me" before any reply). Owners are never forgotten, so Undo
-restores a view under the reply it came from, not at the bottom. Consent cards render in their
-reply turn (hand-proposed acts below the conversation), Console links in the turn.
-
-**Side.** A slim index of the 8 modules — a click is a question (the module's chip; the role card
-starts "Show me the role for " in the composer and focuses it, because it needs a role in the
-user's words). Each row says in words when its view is "on screen" or "pinned" and carries the
-attention read's numeral for decisions / interviews / drafts ("—" when the read is absent).
-Pinned views (≤ 2) LEAVE the conversation and sit under the index as "Kept beside you"; unpinning
-returns them to their reply. The Console link + "Ctrl K / ⌘K" hint closes the side.
-
-**What changed + Undo.** Docked: a sticky strip at the bottom of the conversation column holds the
-"what changed" line as a Caveat hand note (`↳ Showing Decisions.`, `role="status"`, with an
-sr-only "What changed:" label) and its Undo, directly above the composer — so it is in reach
-after every screen change however far the conversation scrolled. While a reply's change is
-pending, the reply shows "Opening the views…" and Send becomes Stop.
-
-**Focus.** The view in front (only when ≥ 2 are on screen) is drawn in coral AND tagged "in front"
-in hand — never colour alone; it is scrolled into reach.
-
-**Motion.** Turns and views arrive with the shared `animate-tab-in` (springy in Spark Dark), all
-behind `motion-safe:`; scroll-into-view is `auto` under reduced motion. No framer-motion — the
-variant stays lean.
-
-**Register.** The landing's sticker sheet in both themes: Studio Light = ink outline + hard ink
-offset on white over paper; Spark Dark = stone-300 drawn outline + `shadow-pop`, 16px radius.
-Faces: Bricolage (app-wide `--font-bricolage`), Figtree body and Caveat hand from
-`app/landing/site/chrome/fonts.ts` (variables applied on the variant root; no landing CSS).
-Coral is reserved for acts: the only coral primary on screen is the ConsentCard's; "Show me" and
-Send are secondary.
-
-**Deviations from the shared contract.**
-- Pinned views move to the side rather than staying in place — "pin" reads as "keep beside me".
-- Below `lg` the side stacks after the conversation (index + pins at the page foot); a round-2
-  phone layout should fold the index into a chip row at the top.
-- The chips' 4-limit and the ≤ 3 views are the core's; nothing re-imposed here.
-
-## Round 2 variants
-
-Three Greet refinements on the round-2 core (counts header, stepper, no-scroll frame). Greet stays as the round-1 baseline.
-
-### Split — the answer on the left, its full list on the right (`?v=split`, round 2)
-
-**Files.** `app/features/one/variants/split/` — `SplitVariant.tsx` (layout), `side.ts` (+ `side.test.ts`:
-which view is the answer's primary, the tab order, which tab the side shows), `styles.ts` (the
-sticker paint, re-using Greet's faces). Copy in `one.split.*` (en authored; cs/de/fr carry the English).
-
-**Frame.** A two-column grid filling the body (`h-full`, nothing scrolls the page at 1280x800 or
-1440x900). Main = `max(30rem, 34vw)` on the left; the side takes the rest. Edges: 16px gutters,
-the same as the header's mark and Console button, so header, main and side share left and right edges.
-
-**Main column (top to bottom).**
-- A fixed row: the eyebrow "YOU ASKED · <the question>" (or "TODAY" on the first beat) and the
-  ‹ n of m › stepper at its right. It sits outside the scroll region, so the stepper is always in reach.
-- The reply in Bricolage `text-display` extrabold, the ONE display-size line on screen (the first
-  beat shows the status line here). A fallback adds "not built yet, honestly"; dropped parts and
-  Console links follow.
-- The answer's **summary** (`look: "summary"`): the only sticker on screen (ink outline + hard ink
-  offset; Spark Dark: drawn stone-300 outline + `shadow-pop`). The sticker replaces PANEL's outline
-  via important modifiers, so it is still ONE surface. Its session chrome is hidden (pin/close live
-  once, on the side table). See all → the side shows that view's table and focus lands on its first row.
-- Consent cards under it. While one is open the summary keeps only headline + See all (on a
-  ≤ 56rem-tall viewport its head goes too), and a new card is scrolled into reach.
-- The dock (pinned to the column foot, a hairline / dashed rule above it): follow-up chips, the
-  composer (2px outline, no offset), and under it the "what changed" line as the Caveat hand note
-  + Undo, indented 48px so it clears the bottom-left corner.
-
-**Side.** The primary view's full **table** (`look: "table"`, content height, scrolls inside
-itself). When more than one view is on screen, a segmented tab strip (`TOGGLE_GROUP` +
-`toggleBtn`, `useTablist`: arrows, Home/End) lists them: primary first, then the pinned ones
-("· pinned"), then the rest. Picking a tab is local state: it never focuses a panel in the session,
-so the main column does not change. A new answer resets the pick to its primary.
-
-**First beat.** Main = "TODAY", the status line, the first need as the sticker summary with a
-Caveat "start here" (See all = Show me). Side = the needs table, and under it the first need's full
-table filling the rest of the height. Both are drawn by the host (they are not on the session's
-screen), so their pin/close chrome is hidden. Nothing waiting / read failed → status line + needs table.
-
-**Short viewport (≤ 56rem tall).** The summary shows headline + 2 rows (See all still names the
-full count). That is what keeps 1280x800 in one sight with a decision summary, whose rows carry
-Advance / Reject.
-
-**Coral.** Send is the primary only while no consent card is open; with a card, the card's button
-is the one coral primary and Send turns secondary.
-
-**Deviations.**
-- Width split is ~36/64 at 1440 and ~40/60 at 1280, not 55/45: the core's entry tables have 31.5rem
-  of fixed tracks plus an 11rem acts column, so at 45% of 1280 the candidate column collapsed to
-  "F…". Core fix that would allow 55/45: give the name track a floor (`minmax(9rem,1.6fr)` in
-  `useEntryCols`, `PipelineSlicePanel.tsx`) and let the table scroll sideways.
-- Chips moved from under the summary into the dock (above the composer), so they never fall below
-  the fold of the scroll region.
-- The "what changed" note sits UNDER the composer (indented), not above it, so the composer can run
-  to the column's left edge while the bottom-left corner stays clear.
-- Tab labels use the module name (`words.panel`), so a stalled pipeline view reads "Pipeline"
-  while its table title says "Stalled candidates".
-
-### Spotlight: one answer at a time, on a stage (`?v=spotlight`, round 2)
-
-**Files.** `app/features/one/variants/spotlight/`: `SpotlightVariant.tsx` (layout), `stage.ts`
-(+ `stage.test.ts`: which view is the hero, which sit beside it, which are pinned), `styles.ts`
-(faces + the hero sticker). Copy lives in `one.spotlight.*` (en authored; cs/de/fr carry the English for now).
-
-**Grid.** Two columns, `minmax(0,1fr) | 18rem` (20rem at xl), and two rows, `auto | minmax(0,1fr)`,
-inside the shell's fixed body. The page does not scroll at 1440x900 or 1280x800. Each region scrolls
-inside itself. Row 1 is the caption band, split on the same column line as the body:
-- **Left:** "You asked" plus the asked words (small), then the reply sentence as the screen's one
-  display line (Bricolage, `text-display`, at most two lines). Under it in steel: pending, not-yet,
-  dropped and Console links.
-- **Right (the answer cell):** the `‹ Answer n of m ›` stepper, then the "what changed" line as the
-  one Caveat hand note (truncated to one line, full text on its tip) with Undo inline.
-On the first beat, the left side holds an eyebrow, the status line and the first need. The right
-side holds the hand note "start here ↓", which points at the stage.
-
-**Stage (row 2, left).** The hero view in `look:"table"` fills the stage. It is the ONLY sticker on
-screen: ink outline with a hard ink offset in Studio Light, and a cream outline with `shadow-pop` in
-Spark Dark, applied as `!` overrides on the panel's own surface so no frame sits inside another. The
-hero is the focused unpinned view, or else the newest one. Other unpinned views sit beside it in a
-17rem/20rem column as `look:"list"` (filling the height, scrolling inside). The first beat previews
-the first need's view (or the funnel when all is clear) as a host-rendered table with no chrome. An
-answer that left nothing on stage shows a stated empty ("Nothing on the stage").
-
-**Dock (under the stage).** A "Next" eyebrow and the reply's chips, then the composer: the Kandidate
-mark, a 44px field and Send. Send is primary unless a consent card is on screen, so there is one coral
-primary per view. The field starts 56px in, which keeps it clear of the dev badge's corner.
-
-**Standing side (row 2, right).** It looks the same on every answer:
-1. Consent cards (reply and hand proposals).
-2. The worklist: the needs view in `look:"list"`, host-rendered with no pin or close, so it never
-   uses up one of the region's three slots. Its rows open views on the stage.
-3. "Kept beside you": pinned views as list looks, or a one-line hint.
-4. "Open a view": an index of the 8 modules where a click is a question. The role module pre-fills
-   the composer. The index shows only when there are no pins and no consent, and its bottom edge
-   lines up with the composer.
-
-**Why consent sits on the side.** Putting consent above the composer would shrink the stage, the
-data the act is about. Putting it in the caption band would make the display line jump. At the top
-of the side, the card sits directly under the answer cell, beside the rows it acts on, in the column
-that is already "what is waiting on me". The worklist below it shrinks and scrolls.
-
-**Deviations.**
-- The side's needs list repeats the header's counts (the brief asks for it). Its rows add the
-  route to the stage and the Console door. Next round could drop the numerals there.
-- Pins render only on the side, never on the stage, as in Greet.
-- I added the "Open a view" index. Without it the side had about 250px of dead band under the
-  "Kept beside you" hint.
-
-**Motion.** A new answer's caption arrives with `motion-safe:animate-tab-in`. The still form is the element itself.
-
-### Ticker (`?v=ticker`) — a data page under the hero header
-
-Files: `app/features/one/variants/ticker/` — `TickerVariant.tsx` (layout), `pick.ts` (+ `pick.test.ts`:
-which view is the table, which are sheet tabs, which are pins), `styles.ts` (paint). Copy in `one.ticker.*`.
-
-**The header is the navigation.** The core draws the hero stat tiles; a press asks. Ticker draws no counts.
-
-**Main column (left, fills to the side rail).**
-1. The reply line: `YOU ASKED · <question>` (META_LABEL, the question in ink), then One's sentence in
-   Bricolage `text-h2` extrabold. Right of it: the stepper (‹ Answer n of m ›) over the "what changed"
-   hand note (Caveat, the screen's one hand-written aside) with Undo; while a beat runs the note reads
-   "Opening the views…". Fallback / dropped-ops / Console links sit on a micro line under the sentence.
-   First beat: eyebrow "Today", the status line bold + the first need in steel on the same line.
-2. Consent cards (current answer's + hand proposals) in a horizontal strip, 22rem each, above the table.
-3. THE answer: one `look:"table"` in the sticker frame (ink 2px outline + hard ink offset in light;
-   stone-300 outline + `shadow-pop` in dark) — the only sticker on the screen. The panel's own PANEL
-   border is stripped by a child selector, so there is one frame. When the answer left more than one
-   unpinned view open, the others are sheet tabs attached to the table's top edge (focus on press);
-   a pipeline slice is named by its filter ("What is stalled?" / "New arrivals"), not "Pipeline".
-   Nothing unpinned on screen → a PANEL_SUNKEN stated empty state.
-4. The dock: follow-up chips, then a slim bar (Kandidate mark · 48px field · Send). Send is the coral
-   primary only when no consent card is on screen (one coral primary per view).
-
-**Side rail (20rem).** "Kept beside you" (n of 2): up to two pinned views in `look:"list"`, sharing the
-height and scrolling inside; empty → an invitation ("Pin a table to keep it here"). "This session": the
-answers asked, newest first, the one in view marked; a press walks the stepper there. While nothing is
-pinned, "More to ask" offers the four questions the tiles do not (needs, pipeline, funnel, outbox).
-Console link + Ctrl K at the foot.
-
-**First beat.** When the attention read lands and nothing is on screen, Ticker presses the core's own
-"Show me" once (`session.show(first need)`; the needs view when nothing waits / the read failed) so the
-table is never empty on arrival. It is a real hand action: the change line says it and Undo reverts it.
-
-**Fixed viewport.** 1440x900 and 1280x800: scrollHeight equals the viewport before and after a chip,
-a tile press, a pin and a consent card. The table, the pinned lists and the session index scroll inside.
+Round 1 (Greet, Stage, Brief) and round 2 (Greet kept; Split, Spotlight, Ticker) are recorded in
+git history (this file before round 3). Kept from them: the counts header, the answer stepper
+instead of a transcript, one surface per panel, the no-scroll frame, and Split's layout.
 
 ## Known gaps
 
@@ -407,6 +277,6 @@ a tile press, a pin and a consent card. The table, the pinned lists and the sess
 - **Single-entry acts have no undo here.** `reinstate` reverses only an auto-rejection;
   a hand reject is reopened through the Console's re-add door.
 - **The conductor is keyword-matched**, English-only on the input side; the replies are
-  catalogued. `cs` / `de` / `fr` carry the English `one.core` strings until promotion.
+  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.split` strings until promotion.
 - **The greeting is the first beat only**; it does not re-read after a data act (panels do).
 - **Undo of a reply is per step** (the last screen change), not "undo the whole reply".

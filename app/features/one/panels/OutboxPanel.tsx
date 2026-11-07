@@ -9,6 +9,7 @@ import { Mark, Note, type MarkKind } from "@/app/_components/kit";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { commsVerdict, type CommsVerdict } from "@/app/_lib/comms-view";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
+import { tally } from "./insight";
 import { NameCell, PanelFrame } from "./PanelFrame";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
@@ -60,13 +61,28 @@ export function OutboxPanel(props: PanelProps) {
   const fmt = useDateFormat();
   const read = useRead(OUTBOX_URL, parseOutbox, props.epoch);
   const data = read.state === "ready" ? read.data : null;
+  const latest = data?.messages[0];
+  const trouble = data ? data.messages.filter((m) => m.verdict === "failed" || m.verdict === "bounced").length : 0;
   return (
     <PanelFrame
       props={props}
       data={{
         title: t("outbox.title"),
         count: data ? data.messages.length : null,
-        headline: { figure: data ? data.messages.length : "", label: t("outbox.title") },
+        insight: data
+          ? {
+              shape: {
+                label: t("insight.delivery", { count: data.messages.length }),
+                parts: tally(data.messages.map((m) => m.verdict)).map((v) => ({ key: v.key, label: t(`outbox.verdict.${v.key}`), value: v.count })),
+              },
+              facts: [
+                ...(latest
+                  ? [{ key: "latest", label: t("insight.latest"), value: latest.who ?? t("notReturned"), sub: [t(`outbox.verdict.${latest.verdict}`), fmt.dayTime(latest.at)].join(" · "), mark: MARK_OF[latest.verdict] }]
+                  : []),
+                { key: "trouble", label: t("insight.trouble"), value: trouble > 0 ? t("insight.troubleCount", { count: trouble }) : t("insight.troubleNone"), mark: trouble > 0 ? ("fail" as const) : ("ok" as const) },
+              ],
+            }
+          : undefined,
         console: { tab: "channels" },
         read,
         cols: [

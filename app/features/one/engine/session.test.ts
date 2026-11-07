@@ -176,3 +176,10 @@ test("a proposal belongs to the answer it came with, and a hand proposal to the 
   assert.equal(currentOf(s)?.proposals.length, 1, "answer one's own proposal, not answer two's");
   assert.equal(currentOf(s)?.proposals[0].act, "wave");
 });
+
+test("the change line carries a view's params, so it can be named by its title", () => {
+  let s = run(initialSession(), { type: "show", kind: "pipelineSlice", params: { filter: "aging" } });
+  assert.deepEqual(s.lastChange, { key: "shown", panel: "pipelineSlice", params: { filter: "aging" } });
+  s = run(s, show("needs"), show("funnel"), show("outbox"));
+  assert.deepEqual(s.lastChange, { key: "replaced", panel: "outbox", previous: "pipelineSlice", previousParams: { filter: "aging" } });
+});

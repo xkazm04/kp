@@ -30,9 +30,9 @@ export type VariantProps = {
   stepBack: () => void;
   stepForward: () => void;
   /** Render one view with its data, states and the host's pin/close/focus chrome.
-   *  `look`: "table" fills its container (give it a height), "summary" is a compact card
-   *  (≤ 3 rows, `onExpand` drives its See-all), "list" is a dense single column for a
-   *  narrow side; "default" / "compact" / "spotlight" are the round-1 looks (Greet). */
+   *  `look`: "table" fills its container (give it a height), "insight" is the answer's card
+   *  (the shape of the answer + at most one suggested act; it grows into the height it is
+   *  given; `onExpand` adds a See-all), "list" is a dense single column for a narrow side. */
   renderPanel: (panel: PanelInstance, opts?: { look?: PanelLook; className?: string; onExpand?: () => void }) => ReactNode;
   /** Render the consent card for one proposed act. */
   renderConsent: (proposal: ProposalInstance, opts?: { className?: string }) => ReactNode;

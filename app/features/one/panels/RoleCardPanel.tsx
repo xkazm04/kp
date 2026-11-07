@@ -76,6 +76,11 @@ export function RoleCardPanel(props: PanelProps) {
       data={{
         title: r?.title ?? t("roleCard.title"),
         state: more > 0 ? t("roleCard.more", { count: more }) : undefined,
+        insight: r
+          ? {
+              facts: facts.map((f) => ({ key: f.key, label: f.label, value: f.value ?? absent })),
+            }
+          : undefined,
         console: r ? { tab: "pipeline", params: { role: r.id }, label: t("roleCard.pipeline") } : undefined,
         read: role ? read : { state: "ready", data: null, retry: () => undefined },
         cols: [

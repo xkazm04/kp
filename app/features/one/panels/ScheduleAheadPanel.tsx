@@ -4,12 +4,14 @@
 // cohort the sidebar's schedule badge counts), soonest first, in the zone the server
 // states (`interviewTz`). The route reads a bounded page; when it says `truncated`, the
 // panel says there may be more instead of presenting a clipped agenda as complete.
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ABSENT } from "@/app/_components/kit";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { ConsoleLink } from "./PanelShell";
 import { NameCell, PanelFrame } from "./PanelFrame";
 import { rowLimit } from "./cells";
+import { AHEAD_BUCKETS, aheadBuckets } from "./insight";
 import { useRead } from "./read";
 import type { PanelProps } from "./types";
 
@@ -46,6 +48,10 @@ export function ScheduleAheadPanel(props: PanelProps) {
   const read = useRead(SCHEDULE_URL, parseSchedule, props.epoch);
   const data = read.state === "ready" ? read.data : null;
   const limit = rowLimit(props.look);
+  const next = data?.ahead[0];
+  // The read's own clock: parseSchedule kept only slots after its `now`, so the horizons
+  // are measured from the same instant the panel rendered.
+  const [now] = useState(() => Date.now());
   const when = (iso: string) => fmt.dayTime(iso, data?.zone ? { timeZone: data.zone } : undefined);
   const foot = data
     ? [data.ahead.length > limit ? t("firstOf", { shown: limit, total: data.ahead.length }) : null, data.truncated ? t("scheduleAhead.truncated") : null].filter(Boolean).join(" ")
@@ -57,7 +63,26 @@ export function ScheduleAheadPanel(props: PanelProps) {
         title: t("scheduleAhead.title"),
         count: data ? data.ahead.length : null,
         state: data?.zone ? t("scheduleAhead.zone", { zone: data.zone }) : undefined,
-        headline: { figure: data ? data.ahead.length : "", label: t("scheduleAhead.title") },
+        insight: data
+          ? {
+              spread: {
+                label: t("insight.horizon"),
+                note: data.truncated ? t("scheduleAhead.truncated") : undefined,
+                bins: (() => {
+                  const b = aheadBuckets(
+                    data.ahead.map((i) => i.slotAt),
+                    now
+                  );
+                  return AHEAD_BUCKETS.map((k) => ({ key: k, label: t(`insight.ahead.${k}`), value: b[k] }));
+                })(),
+              },
+              facts: next
+                ? [
+                    { key: "next", label: t("insight.next"), value: when(next.slotAt), sub: [next.label ?? t("notReturned"), next.jobTitle].filter(Boolean).join(" · ") },
+                  ]
+                : [],
+            }
+          : undefined,
         console: { tab: "schedule" },
         read,
         cols: [

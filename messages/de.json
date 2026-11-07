@@ -18590,32 +18590,6 @@
     "failed": "Bei diesem Lauf ist etwas schiefgegangen. Bitte versuchen Sie es erneut."
   },
   "one": {
-    "spotlight": {
-      "caption": {
-        "label": "The answer in view",
-        "asked": "You asked",
-        "today": "Today",
-        "startHere": "start here ↓",
-        "notYet": "Not built in this prototype yet. Said plainly rather than guessed."
-      },
-      "change": {
-        "label": "What changed"
-      },
-      "stage": {
-        "emptyTitle": "Nothing on the stage",
-        "emptyBody": "Pick a view from the side, or ask in your own words below.",
-        "rolePrefill": "Show me the role for "
-      },
-      "dock": {
-        "next": "Next"
-      },
-      "side": {
-        "label": "Your standing worklist",
-        "views": "Open a view",
-        "kept": "Kept beside you",
-        "keptEmpty": "Pin a view to keep it here. Up to two."
-      }
-    },
     "split": {
       "today": "Today",
       "asked": "You asked",
@@ -18626,71 +18600,6 @@
       "tabsLabel": "Views on screen",
       "pinned": "pinned"
     },
-    "ticker": {
-      "reply": {
-        "asked": "You asked",
-        "today": "Today",
-        "notYet": "Not built yet, honestly."
-      },
-      "change": {
-        "label": "What changed"
-      },
-      "sheets": {
-        "label": "Views open with this answer"
-      },
-      "empty": {
-        "title": "Nothing in front",
-        "body": "Ask below, or press a tile above. The answer lands here as a table."
-      },
-      "pins": {
-        "heading": "Kept beside you",
-        "count": "{count} of {max}",
-        "emptyTitle": "Pin a table to keep it here",
-        "emptyBody": "Press Pin on the answer. Up to two stay beside you while you ask about other things."
-      },
-      "session": {
-        "heading": "This session",
-        "label": "Answers this session: pick one to see it again"
-      },
-      "more": {
-        "heading": "More to ask",
-        "label": "More questions to ask"
-      },
-      "side": {
-        "label": "Pinned views and this session",
-        "consoleKeys": "or Ctrl K / ⌘K, any time."
-      }
-    },
-    "greet": {
-      "greeting": {
-        "eyebrow": "Today",
-        "startHere": "start here"
-      },
-      "turn": {
-        "notYet": "not built yet, honestly"
-      },
-      "view": {
-        "front": "in front"
-      },
-      "change": {
-        "label": "What changed"
-      },
-      "side": {
-        "label": "Modules and what you kept",
-        "consoleKeys": "or Ctrl K / ⌘K, any time."
-      },
-      "index": {
-        "label": "Modules: pick one to ask for it",
-        "heading": "Modules",
-        "hint": "Pick one and I'll open it here.",
-        "onScreen": "on screen",
-        "pinned": "pinned",
-        "rolePrefill": "Show me the role for "
-      },
-      "pinned": {
-        "heading": "Kept beside you"
-      }
-    },
     "core": {
       "meta": {
         "region": "One",
@@ -18698,10 +18607,10 @@
         "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
         "layout": "Layout",
         "variants": {
-          "greet": "Greet",
           "split": "Split",
-          "spotlight": "Spotlight",
-          "ticker": "Ticker"
+          "refined": "Refined",
+          "spark": "Spark",
+          "dense": "Dense"
         },
         "regionLabel": "Views One put on screen",
         "conversationLabel": "Conversation with One",
@@ -18830,8 +18739,7 @@
             "jobs": "Draft roles",
             "companion": "Candi's open proposals"
           },
-          "companionWhere": "Answered in Candi's dock in the Console",
-          "areas": "areas need you"
+          "companionWhere": "Answered in Candi's dock in the Console"
         },
         "pipelineSlice": {
           "title": "Pipeline",
@@ -18853,7 +18761,6 @@
           "title": "Funnel",
           "window": "Last 30 days",
           "empty": "No candidates entered in this window.",
-          "reached": "reached",
           "noConversion": "The first step has nothing before it to convert from."
         },
         "jobDrafts": {
@@ -18878,7 +18785,9 @@
           "empty": "No candidate is waiting on a decision.",
           "advance": "Advance",
           "reject": "Reject",
-          "waiting": "waiting on you"
+          "advanceWho": "Advance {label}",
+          "rejectWho": "Reject {label}",
+          "keys": "↑↓ move · A advance · R reject"
         },
         "roleCard": {
           "title": "Role",
@@ -18900,7 +18809,6 @@
         },
         "retry": "Try again",
         "seeAll": "See all",
-        "seeAllCount": "See all {count}",
         "cols": {
           "candidate": "Candidate",
           "stage": "Stage",
@@ -18918,13 +18826,64 @@
           "field": "Field",
           "value": "Value"
         },
-        "stalled": "Past its step's limit"
+        "stalled": "Past its step's limit",
+        "withRole": "{title} · {role}",
+        "keysLabel": "Keys",
+        "insight": {
+          "stages": "Where they stand",
+          "other": "Other",
+          "scores": "Score spread",
+          "unscored": "{count, plural, one {# not scored yet} other {# not scored yet}}",
+          "bins": {
+            "40": "40–49",
+            "50": "50–64",
+            "65": "65–74",
+            "75": "75+",
+            "lt40": "<40"
+          },
+          "oldest": "Waiting longest",
+          "inStage": "{stage} · {days}",
+          "topRole": "Most from one role",
+          "candidates": "{count, plural, one {# candidate} other {# candidates}}",
+          "suggestAdvance": "Advance {label}",
+          "reasonScore": "{score}, the highest score here",
+          "reasonScoreDays": "{score}, the highest score here · {days} waiting",
+          "reasonStalled": "{days} in {stage}, past its limit",
+          "reachedPerStep": "Reached per step",
+          "biggestDrop": "Biggest drop",
+          "dropValue": "{from} → {to}",
+          "lost": "{pct} lost",
+          "overall": "Overall",
+          "overallSub": "of entrants reach {stage}",
+          "horizon": "How soon",
+          "ahead": {
+            "today": "24 hours",
+            "week": "7 days",
+            "month": "30 days",
+            "later": "Later"
+          },
+          "next": "Next interview",
+          "delivery": "{count, plural, one {Delivery of the newest message} other {Delivery of the # newest}}",
+          "latest": "Latest",
+          "trouble": "Needs a look",
+          "troubleCount": "{count, plural, one {# failed or bounced} other {# failed or bounced}}",
+          "troubleNone": "Nothing failed",
+          "oldestDraft": "Oldest draft",
+          "topCompany": "Most drafts at",
+          "drafts": "{count, plural, one {# draft} other {# drafts}}",
+          "waiting": "What is waiting",
+          "biggest": "Biggest"
+        }
       },
       "consent": {
         "heading": "Needs your OK",
         "notNow": "Not now",
         "working": "Working…",
         "final": "This is final from here; there is no undo on this screen.",
+        "finalTag": "Final: no undo here",
+        "undoTag": "Undo available",
+        "details": "Details",
+        "forRole": "Role: {role}",
         "stale": "This candidate moved since you looked. Refresh the view and decide again.",
         "failed": "That did not go through.",
         "cost": "Costs one model call when it runs.",
@@ -18959,6 +18918,9 @@
           "rejectTitleRole": "Reject everyone below {threshold}% on “{role}”",
           "advanceTitle": "Advance the top {count} by score",
           "advanceBody": "Candidates at the offer step wait for the offer flow instead.",
+          "advanceLine": "Moves the highest-scoring active candidates on a step.",
+          "undoBody": "Once it runs, the rejections can be undone here; a letter already sent cannot be recalled.",
+          "scope": "Counts every active candidate on the board, not only the rows in view.",
           "preview": "Show who it touches",
           "previewing": "Reading who it touches…",
           "touches": "{total, plural, =0 {Nobody matches, so nothing would change.} one {Touches # candidate:} other {Touches # candidates:}}",
