@@ -5541,12 +5541,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 The per-candidate PII export audit descriptor carries no actor, and the route passes it straight to recordEvent, so the egress row on the candidate's timeline cannot answer who took the export; the door is gated by requireOperator alone with no dedicated export capability or confirmation, and inbound imports land unmapped vendor stages on the entry column instead of an explicit unmapped state.",
-          "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 The per-candidate PII export audit descriptor has no actor field, even though recordEvent accepts a server-derived actor, so the egress row filed on the candidate's timeline cannot say who took the export; the door is also gated by requireOperator alone, with no export-specific capability and no confirmation step.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:e5e04d0b1e1176a2",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
@@ -5635,12 +5634,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_lib/ats/inbound.ts:141 When an external candidate's stage cannot be mapped to the local axis, toAtsEntryInput defaults the stage to 'Accepted' at the head of the funnel rather than preserving an explicit unmapped or null state.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/ats/inbound.ts:141 An inbound record whose vendor stage has no mapping gets a guessed stage (the head-of-funnel 'Accepted', or a caller fallback) instead of an explicit unmapped state, and the live import path in ingest.ts does the same thing by landing unmapped stages on the entry column, so a candidate who is mid-process upstream reads as a new applicant.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:e5e04d0b1e1176a2",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -27109,7 +27107,11 @@
           "revision": 3,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.ts:399 These modules move entries between kp's own stage ids through kp's own pipeline APIs and exchange no record with an external system; a search of app/features/hiring/pipeline for externalId, externalStage, ats_links, kp.ats and fieldMap found no hits.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:e5e04d0b1e1176a2",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-input-generation",
