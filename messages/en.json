@@ -18590,6 +18590,77 @@
     "failed": "Something went wrong with this run. Please try again."
   },
   "one": {
+    "spotlight": {
+      "caption": {
+        "label": "The answer in view",
+        "asked": "You asked",
+        "today": "Today",
+        "startHere": "start here ↓",
+        "notYet": "Not built in this prototype yet. Said plainly rather than guessed."
+      },
+      "change": {
+        "label": "What changed"
+      },
+      "stage": {
+        "emptyTitle": "Nothing on the stage",
+        "emptyBody": "Pick a view from the side, or ask in your own words below.",
+        "rolePrefill": "Show me the role for "
+      },
+      "dock": {
+        "next": "Next"
+      },
+      "side": {
+        "label": "Your standing worklist",
+        "views": "Open a view",
+        "kept": "Kept beside you",
+        "keptEmpty": "Pin a view to keep it here. Up to two."
+      }
+    },
+    "split": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "startHere": "start here",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned"
+    },
+    "ticker": {
+      "reply": {
+        "asked": "You asked",
+        "today": "Today",
+        "notYet": "Not built yet, honestly."
+      },
+      "change": {
+        "label": "What changed"
+      },
+      "sheets": {
+        "label": "Views open with this answer"
+      },
+      "empty": {
+        "title": "Nothing in front",
+        "body": "Ask below, or press a tile above. The answer lands here as a table."
+      },
+      "pins": {
+        "heading": "Kept beside you",
+        "count": "{count} of {max}",
+        "emptyTitle": "Pin a table to keep it here",
+        "emptyBody": "Press Pin on the answer. Up to two stay beside you while you ask about other things."
+      },
+      "session": {
+        "heading": "This session",
+        "label": "Answers this session: pick one to see it again"
+      },
+      "more": {
+        "heading": "More to ask",
+        "label": "More questions to ask"
+      },
+      "side": {
+        "label": "Pinned views and this session",
+        "consoleKeys": "or Ctrl K / ⌘K, any time."
+      }
+    },
     "greet": {
       "greeting": {
         "eyebrow": "Today",
