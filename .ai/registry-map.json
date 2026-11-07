@@ -11890,7 +11890,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/profiles.ts:199 getProfileRecord returns the same null for a profile that exists but cannot be decoded as for a missing one, which the row-mapping technique forbids because the not-found answer invites the caller to recreate the record. loadAnalysis in analyses.ts has the same shape.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "seal-and-key-hierarchy",
@@ -12018,7 +12022,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/tasks.ts:82 The task mapper passes unknown status text through as if it were a TaskStatus member (the silent third option row-mapping bans), while agents.ts and repo-scans.ts in the same context quarantine an unknown value as 'failed'.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "agent-runtime-assembly",

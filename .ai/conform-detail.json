@@ -26321,6 +26321,83 @@
           "evidence": "pipeline/jobfit/tests/test_claude_cli.py:304 Every call is a fresh one-shot run. claude_cli.py has no resume path."
         }
       ]
+    },
+    "9de20269-8dd9-4ca8-a864-0037ee9ca817/data-access": {
+      "context": "db-tasks-agents-misc",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:25:29.076Z",
+      "worker": "bb496750-659d-4d24-a040-4f2f2434887f",
+      "techniques": [
+        {
+          "technique": "row-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/tasks.ts:82 There is no membership check or quarantine variant, so a corrupt status reaches every caller that switches on it. Compare repo-scans.ts:130."
+        },
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/tasks.ts:246 Optional predicates are fixed fragments with named bound parameters. The table-name interpolation at line 23 iterates a closed literal allow-list."
+        },
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/tasks.ts:104 The list and poll reads select light columns and leave the multi-MB params/result blobs to the by-id read."
+        },
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/tasks.ts:289 Params for a page's ids are read in one bounded IN query, not one getTask per row."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/agents.ts:473 The status transition and its ledger row commit in one IMMEDIATE transaction owned by the repository function, with a WHERE status = ? re-check. finishTask uses the compensating-precondition form instead."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/repo-scans-store.test.ts:82 This is a corruption drill against a real throwaway SQLite DB through a raw hatch kept in test code. No equivalent drill exists for tasks.status."
+        }
+      ]
+    },
+    "e4c8726b-397c-49bb-8adc-895fb59a788c/data-access": {
+      "context": "db-profiles-analyses-store",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T04:25:29.076Z",
+      "worker": "bb496750-659d-4d24-a040-4f2f2434887f",
+      "techniques": [
+        {
+          "technique": "row-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/profiles.ts:199 A single-record read collapses unreadable and not-found into one answer. The collection read at line 156 degrades visibly (logged skip), which is allowed."
+        },
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/profiles.ts:308 Staleness is computed with one windowed join and replaces the old per-profile lookup."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/profiles.ts:125 saveProfileForCv runs its read-then-write inside the repository function under an IMMEDIATE lock."
+        },
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/profiles.ts:242 The optional predicate is a fixed fragment chosen by presence, with its value appended to the bound args in the same expression."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/profiles-stale-cas.test.ts:16 The CAS behaviour is tested against a real throwaway SQLite file."
+        }
+      ]
     }
   }
 }
