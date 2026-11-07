@@ -87,7 +87,10 @@ export function presets(flavor: MotionFlavor, reduced: boolean): OneMotionPreset
       reduced,
       answerSwap: () => STILL,
       panelEnter: STILL,
-      rowStagger: () => null,
+      // NOT null: useReducedMotion starts false on mount, so a row may already have
+      // mounted at the stagger's opacity 0. Dropping `animate` would leave it there; an
+      // instant animate-to-rest settles it whenever the preference arrives.
+      rowStagger: () => ({ initial: false, animate: { opacity: 1, x: 0, y: 0, scale: 1 }, transition: { duration: 0 } }),
       consentEnter: STILL,
       countTick: 0,
       tabIndicator: { duration: 0 },

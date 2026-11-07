@@ -60,13 +60,67 @@
 /* ── Finish blocks — each finish builder owns ONE block below (targeted edits only). ── */
 
 [data-finish="refined"] {
-  /* refined — calm editorial (placeholder: the core defaults) */
+  /* refined — calm editorial. One display face (the theme's serif: Fraunces light,
+     Bricolage dark) used once, on the reply line; hairline surfaces; the answer card wears
+     the same soft panel shadow as the table, so it reads as a page, not a sticker. */
+  --one-display-font: var(--font-serif);
+  --one-title-font: var(--one-body-font);
+  --one-row-h: 2.75rem;
+  --one-pad: 1rem;
+  --one-gap: 1.5rem;
+  --one-radius: 0.5rem;
+  --one-surface-border: 1px;
+  --one-sticker-shadow: var(--panel-shadow);
+  --one-sticker-border: var(--color-stone-200);
+}
+[data-theme="dark"] [data-finish="refined"] {
+  /* Spark Dark keeps its register (16px, drawn 2px outline, the offset); the card sits in
+     the same weight as the table instead of out-shouting it. */
+  --one-radius: 16px;
+  --one-surface-border: 2px;
+  --one-sticker-shadow: var(--panel-shadow);
+  --one-sticker-border: var(--color-stone-300);
 }
 
 [data-finish="spark"] {
-  /* spark — bold landing stickers, springy (placeholder: the core defaults) */
+  /* spark — bold landing stickers, springy. One display face (Bricolage) for the brand, the
+     reply AND panel titles; drawn outlines; the insight card is the one ink sticker (hard
+     offset, tilt — variants/spark). Rows are content-height (two 18px lines); the hook is the floor. */
+  --one-display-font: var(--font-bricolage), var(--font-sans);
+  --one-title-font: var(--font-bricolage), var(--font-sans);
+  --one-row-h: 40px;
+  --one-pad: 0.875rem;
+  --one-gap: 1.5rem;
+  --one-radius: 14px;
+  --one-surface-border: 1px;
+  --one-sticker-shadow: 4px 4px 0 var(--color-ink);
+  --one-sticker-border: var(--color-ink);
+}
+[data-theme="dark"] [data-finish="spark"] {
+  --one-radius: 16px;
+  --one-surface-border: 2px;
+  --one-sticker-shadow: var(--pop-shadow);
+  --one-sticker-border: var(--color-stone-300);
 }
 
 [data-finish="dense"] {
-  /* dense — compact, keyboard-first (placeholder: the core defaults) */
+  /* dense — compact, keyboard-first. One display face (Bricolage, the reply at h2 and the
+     brand only), panel titles in the body face; 36px one-line rows; a 12px inner edge and
+     a 20px column gap; quiet surfaces — the answer card keeps its ink outline but trades
+     the 5px pop for the small sticker offset. */
+  --one-display-font: var(--font-bricolage), var(--font-sans);
+  --one-title-font: var(--one-body-font);
+  --one-row-h: 36px;
+  --one-pad: 0.75rem;
+  --one-gap: 1.25rem;
+  --one-radius: 0.5rem;
+  --one-surface-border: 1px;
+  --one-sticker-shadow: var(--sticker-sm-shadow);
+}
+[data-theme="dark"] [data-finish="dense"] {
+  /* Spark Dark keeps its drawn 2px outline; the corner steps down to 12px and the offset
+     to the small sticker, so the dense screen reads as one quiet sheet. */
+  --one-radius: 12px;
+  --one-surface-border: 2px;
+  --one-sticker-shadow: var(--sticker-sm-shadow);
 }

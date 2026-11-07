@@ -18600,6 +18600,12 @@
       "tabsLabel": "Views on screen",
       "pinned": "pinned"
     },
+    "dense": {
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyList": "list",
+      "keyEsc": "Esc"
+    },
     "core": {
       "meta": {
         "region": "One",

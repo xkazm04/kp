@@ -239,6 +239,8 @@ stagger, no tween). Every move is ≤ ~300 ms; nothing loops (`motion.test.ts`).
 | `answerSwap(dir)` | the reply + the card, keyed by answer id; back enters from the left, forward / new from the right; leaving is a quick fade | SplitLayout (`AnimatePresence mode="wait"`) |
 | `panelEnter` | the side's view when the primary or the tab changes | SplitLayout side |
 | `rowStagger(i)` | a mounted table's first 8 rows, 20–30 ms apart; later rows arrive with the 8th | PanelFrame `TableBody` |
+
+Under reduced motion every preset returns its rest state at once. `rowStagger` returns an instant settle-to-rest spec, never `null`: `useReducedMotion()` starts `false` on mount, so a row may already sit at the stagger's opacity 0 when the preference arrives, and dropping `animate` would leave it invisible (found by the dense and spark finish builders, round 3).
 | `consentEnter` | a consent card rises and settles; leaves with a fade | SplitLayout consent stack |
 | `countTick` | a header figure tweening to its new value | `CountTick` in OneHeader |
 | `tabIndicator` | the segmented pill sliding (stats, switcher, side tabs) | `Seg` |
@@ -260,7 +262,74 @@ back to the same intent (pinned by `consent/acts.test.ts`).
 
 ## Round 3 finishes
 
-_Filled by the Director after the finish builders report._
+Three finishes of the Split layout on the round-3 core; `?v=split` stays as the round-2 baseline. Each sets its `[data-finish]` block in `finish.css` and forks `SplitLayout` only where markup differs.
+
+### Finish: refined (`?v=refined`, the default) — calm editorial
+
+Files: `variants/refined/RefinedLayout.tsx` (a fork of SplitLayout; same layout),
+`variants/refined/styles.ts` (the paint), `variants/refined/motion.ts` (+ `motion.test.ts`),
+`finish.css` `[data-finish="refined"]`. No catalog keys of its own (reuses `one.split.*`, `one.core.*`).
+
+| Axis | Refined |
+| --- | --- |
+| Type | ONE display face, once: the reply line, `--one-display-font: var(--font-serif)` — Fraunces in Studio Light, Bricolage in Spark Dark (each theme's own register), `text-display` medium, `leading-[1.12]`, `text-balance`. The asked line is `META_LABEL` (steel, not a coral eyebrow); the "what changed" note is body face `text-micro` steel (no Caveat hand note, no "start here" scribble). |
+| Spacing | 8-pt rhythm: 16px page edge (the header's own, so header / left / right edges align), `--one-gap` 24px, 16px stack gap, 8px dock gap. Table rows 2px tighter (`py-0.5`, `--one-row-h` 2.75rem). |
+| Surfaces | Light: 1px hairlines, `rounded-lg`, the answer card wears the soft `--panel-shadow` and a stone-200 outline — the same weight as the table, a page, not a sticker. Dark keeps its register (16px, 2px, the offset). Composer: hairline field + soft shadow, coral border + 30% coral ring on focus. |
+| Colour | Ink, steel, stone; coral only for the act (Send / a consent's primary) and the score tiers. Panel "Open in Console" links are steel; the rows' coral lead stroke is dropped (every decision row carried it, so it said nothing — marks and ⚠ ages still do). |
+| Insight card | Stacked bar a 6px rule; the spread a SMALL chart — slim columns (≤ 2rem) centred in their bins, so the card still grows into the column without ochre slabs; facts on a hairline. While a consent card is open the spread folds to the one-line strip; at ≤ 56rem tall the spread goes and the card stops growing (`SHORT_STILL`), so no half-clipped strip and no blank band in the surface. |
+| Motion | `answerSwap` 6px + fade 200 ms, leave 80 ms fade; `panelEnter` 4px rise 180 ms; `consentEnter` 8px rise 220 ms, no scale; all one ease-out curve, no spring. The side (tables + tab strip) is provided the `snap` flavor: rows rise 2px 20 ms apart (all 8 in ~240 ms) and the tab pill is a 120 ms tween. Still under reduced motion (rows also pinned at rest in CSS). Header count tick / header pills follow the shell's calm flavor. |
+
+Measured (dev DB, 2026-11-07): decisions table rows fully visible 15 at 1440x900 (baseline 13), 12 at
+1280x800; left column empty ≈ 0 (the stack's 8px bottom padding; no overflow); scrollHeight == viewport
+in every state, both themes.
+
+### Spark (`?v=spark`) — bold landing stickers, springy
+
+Files: `app/features/one/variants/spark/` — `SparkVariant.tsx` (entry), `SparkLayout.tsx` (fork of
+`split/SplitLayout.tsx`, same regions, same order), `styles.ts` (the finish's class strings, tokens
+only), `motion.ts` (finish-local springs on top of the `spring` flavor); the `[data-finish="spark"]`
+block in `finish.css`.
+
+| Part | Spark |
+| --- | --- |
+| Type | ONE display face, Bricolage, for the brand, the reply (`text-display`, extrabold, `leading-[1.05]`, `text-balance`) AND panel titles (`--one-title-font`, bold). Caveat only for the one hand note: the change line (and "start here" on the first beat, when there is no change line). "Opening the views…" and "not yet" are body text. |
+| Spacing | `--one-gap 1.5rem`, `--one-pad 0.875rem`, page padding `py-3`, table head `min-h-11`; table rows are content-height — two 18px lines + 2px padding = 41px (core: 49px), so 16 rows sit fully in sight at 1440x900 and 14 at 1280x800 (core: 13 / 11). Left column: 8px below the stack (its padding for the sticker's offset), no empty band. |
+| Surfaces | The insight card is THE sticker: 2px ink outline, 4px hard ink offset (dark: stone-300 outline + `--pop-shadow`), resting tilt -0.6deg (`CARD_TILT`). The table keeps the hairline (1px light / 2px dark); corners 14px light / 16px dark. Chips are small stickers: 2px ink outline + 2px hard offset that presses flat on `:active`, neutral fill (candy is meaning, not decoration). The user's asked words sit on a limewash highlighter — limewash means "your words", nowhere else. |
+| While asking | `SPARK_TRIM` replaces Split's `ASKING_TRIM`: the suggestion goes, insight gaps tighten, and the spread folds to its one-line strip instead of vanishing at ≤56rem tall — so card (shape + strip + facts) and the consent card fit one sight at 1280x800 with no clip. |
+| Motion | `answerSwap`: x ±24px on a 520/30 spring, opacity 120ms. `cardSettle`: the card drops from +1.2deg/+10px onto its tilt, 40ms behind the reply. `consentEnter`: rise 18px + untilt 1.5deg → 0 on a 460/26 spring. Tab indicator, count tick, panel enter and row stagger: the core `spring` presets. All settle < ~300ms; nothing loops. The pending line moved into the asked row so the card never jumps. `MotionConfig reducedMotion="user"` wraps the layout so transforms are dropped from a component's first frame. |
+
+Known gap (core): `useReducedMotion` seeds `false` per mount, so a freshly mounted table's row
+stagger starts its opacity fade before the preference is known; framer's `reducedMotion="user"`
+removes the transform but keeps the staggered fade.
+
+### Dense (`?v=dense`) — compact, keyboard-first
+
+Folder `app/features/one/variants/dense/`: `DenseVariant.tsx` → `DenseLayout.tsx` (a fork of
+`SplitLayout`, same regions) + `styles.ts` (descendant-variant compaction of the shared panels,
+so `PanelFrame` is never forked). Hooks: the `[data-finish="dense"]` block in `finish.css`.
+Copy: `one.dense` (`keysLabel`, `keyStep`, `keyList`, `keyEsc`; English in all four catalogs).
+
+| Concern | Dense |
+| --- | --- |
+| Type | One display face (Bricolage) for the brand and the reply, the reply at **h2** (bold, `text-balance`) rather than display; panel titles in the body face; the hand face (Caveat) is not used — pending / "not built yet" / the change line are plain micro text. `tabular-nums` on the whole surface. |
+| Spacing | `--one-row-h: 36px`, `--one-pad: .75rem`, `--one-gap: 1.25rem`; main column `max(30rem, 34vw)` (Split: `max(32rem, 36vw)`); panel heads 40px, column head 32px, table foot `py-1.5`. A row is ONE line: name, then role · age on the same baseline (the name never truncates, the subline gives way). Candidate tables' tracks tightened (`minmax(12rem,1fr) 7rem 7.5rem <acts>`) so the name/role track takes the spare width. |
+| Surfaces | Quiet: light 1px hairlines, 8px corners, the answer card keeps its ink outline but wears `--sticker-sm-shadow` instead of the 5px ink pop; dark keeps the drawn 2px outline, steps the corner to 12px and the offset to the small sticker. |
+| Insight card | Same reading as the core (stage mix bar, score spread, longest waiter, top role, one suggestion). The spread's bars are drawn at 3/5 of their bin so a tall card reads as a chart, not a wall of colour. While a consent card is open the spread never disappears: it folds into the one-line strip (its size container), so the card has no dead band at 1280x800 (Split hides it there). |
+| Keys | `/` → composer (a `/` keycap sits inside the bar); `[` `]` → step answers; `Esc` (or `↓` on an empty composer) → the table's selected/first row, where the core's `↑↓ a r` work. Page keys are ignored while a field has the cursor or a modifier is held. Named in one status line under the composer, beside "↳ what changed" + Undo. |
+| Motion | The `snap` flavor unchanged (≤120ms per element, 4–8px position + opacity, no spring). Row stagger 20ms apart (last of 8 rows lands ~240ms). Under reduced motion rows are forced at rest (see core gap below). |
+
+Measured (dev data, 29 decisions): rows fully visible in the side table — **19 at 1440x900 light /
+18 dark**, **16 at 1280x800** (Split baseline ≈ 13 / ≈ 11). Left column empty px: **4** (the card's
+shadow room) in every state, consent open or not. scrollHeight == viewport (900 / 800) in all
+12 captures.
+
+Core gap found: `useReducedMotion()` starts `false` in every newly mounted component, so a table
+mounted under reduced motion first renders rows with `rowStagger`'s `initial` (opacity 0); the
+hook then flips, `rowStagger` returns `null`, `animate` disappears and framer leaves the rows
+invisible (seen on `?v=split` too after stepping back). Dense guards it in CSS
+(`motion-reduce:` opacity-100!/transform-none! on `[data-row]`). The core fix: make the still
+form of `rowStagger` a spec, not null — `{ initial: false, animate: { opacity: 1, y: 0 },
+transition: { duration: 0 } }` — in `motion.ts`.
 
 ## History
 

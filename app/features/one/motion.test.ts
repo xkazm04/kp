@@ -14,7 +14,10 @@ test("reduced motion is the still form for every preset and flavor", () => {
     assert.equal(p.answerSwap(-1).initial, false);
     assert.equal(p.panelEnter.initial, false);
     assert.equal(p.consentEnter.initial, false);
-    assert.equal(p.rowStagger(0), null);
+    // Reduced: an instant settle to rest (never null — a row mounted before the
+    // preference resolved would otherwise stay at the stagger's opacity 0).
+    assert.deepEqual(p.rowStagger(0)?.animate, { opacity: 1, x: 0, y: 0, scale: 1 });
+    assert.deepEqual(p.rowStagger(0)?.transition, { duration: 0 });
     assert.equal(p.countTick, 0);
   }
 });

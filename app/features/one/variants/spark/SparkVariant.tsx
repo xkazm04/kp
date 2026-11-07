@@ -1,12 +1,10 @@
 "use client";
 
-// `?v=spark` — the "spark" FINISH of the Split layout (bold landing stickers, springy). Round 3 stub: the shared
-// SplitLayout under `data-finish="spark"`, so the finish's block in finish.css and its motion
-// flavor (motion.ts FLAVOR_OF) already apply. The finish builder owns this folder and may
-// fork SplitLayout here to diverge in markup, spacing and motion — never in layout.
+// `?v=spark` — the "spark" FINISH of the Split layout: bold landing stickers, springy
+// (SparkLayout.tsx, the finish's block in finish.css, motion.ts's spring flavor + ./motion.ts).
 import type { VariantProps } from "../../variantProps";
-import { SplitLayout } from "../split/SplitLayout";
+import { SparkLayout } from "./SparkLayout";
 
 export default function SparkVariant(props: VariantProps) {
-  return <SplitLayout {...props} finish="spark" />;
+  return <SparkLayout {...props} finish="spark" />;
 }
