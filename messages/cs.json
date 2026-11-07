@@ -18590,6 +18590,98 @@
     "failed": "U tohoto běhu se něco pokazilo. Zkuste to prosím znovu."
   },
   "one": {
+    "greet": {
+      "greeting": {
+        "eyebrow": "Today",
+        "startHere": "start here"
+      },
+      "turn": {
+        "notYet": "not built yet, honestly"
+      },
+      "view": {
+        "front": "in front"
+      },
+      "change": {
+        "label": "What changed"
+      },
+      "side": {
+        "label": "Modules and what you kept",
+        "consoleKeys": "or Ctrl K / ⌘K, any time."
+      },
+      "index": {
+        "label": "Modules: pick one to ask for it",
+        "heading": "Modules",
+        "hint": "Pick one and I'll open it here.",
+        "onScreen": "on screen",
+        "pinned": "pinned",
+        "rolePrefill": "Show me the role for "
+      },
+      "pinned": {
+        "heading": "Kept beside you"
+      }
+    },
+    "brief": {
+      "masthead": {
+        "kicker": "Today's brief"
+      },
+      "lead": {
+        "kicker": "The lead",
+        "note": "start here",
+        "open": "Open the lead",
+        "clear": "No lead story today. The regular columns below still answer.",
+        "unknown": "No lead story: the news desk could not be read. The questions below still work."
+      },
+      "page": {
+        "kicker": "On the page now",
+        "capacity": "{shown} of {max} views · {pinned} of {pins} pinned",
+        "forward": "Brought forward",
+        "pinned": "Pinned",
+        "note": "pinned views stay put"
+      },
+      "bands": {
+        "label": "Today's news by module",
+        "kicker": "The news",
+        "decisions": "Decisions",
+        "pipeline": "Aging",
+        "channels": "Arrivals",
+        "schedule": "Interviews",
+        "jobs": "Drafts",
+        "answered": "{view} is on the page above.",
+        "jump": "Jump to it",
+        "quiet": "Nothing new in {list}.",
+        "none": "No other module has news today.",
+        "unknown": "The news desk could not be read, so no module bands are drawn. The regular columns below still work."
+      },
+      "columns": {
+        "kicker": "Regular columns"
+      },
+      "desk": {
+        "kicker": "Ask the desk",
+        "changed": "What changed:",
+        "unchanged": "Nothing on the page has changed yet.",
+        "none": "Ask a question, or press a chip on any band.",
+        "fallback": "Not in this prototype yet.",
+        "waiting": "Waiting for your yes",
+        "show": "{count, plural, one {Show the earlier question} other {Show the # earlier questions}}",
+        "hide": "Hide the earlier conversation"
+      }
+    },
+    "stage": {
+      "stage": "Stage",
+      "noChange": "Nothing has moved on the stage yet.",
+      "slot": "Slot {name}",
+      "slotFree": "Slot {name}, free",
+      "slotHolds": "Slot {name}: {view}",
+      "slotFreeHint": "The next view lands here.",
+      "firstUp": "First up",
+      "pinned": "Pinned",
+      "inFocus": "In focus",
+      "fallback": "Not in this prototype yet",
+      "historyShow": "History ({count})",
+      "historyHide": "Hide history",
+      "asked": "You asked: {words}",
+      "waiting": "Waiting on you"
+    },
     "core": {
       "meta": {
         "region": "One",
