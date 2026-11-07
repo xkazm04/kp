@@ -35343,8 +35343,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/_components/voice/transport/openai.ts:1 The voice transports are browser WebRTC/WebSocket clients for realtime speech providers. Grep of app/_components/voice for claude, child_process, stream-json and permission-mode found nothing, so no coding-agent CLI child exists here.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         }
       ],
       "governance": "governed"

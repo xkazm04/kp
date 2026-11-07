@@ -26664,6 +26664,16 @@
           "evidence": "pipeline/jobfit/repo_scan.py:1260 The only agent session here is a read-only scan; no unattended editing agent runs project checks."
         }
       ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/agent-cli-transport": {
+      "context": "voice-interview-components",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:21:44.269Z",
+      "worker": "d395cd3e-4eac-4850-94c1-be7f820e9ed0",
+      "techniques": []
     }
   }
 }
