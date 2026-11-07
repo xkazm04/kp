@@ -2849,14 +2849,16 @@
       "context": "devcase-orchestration",
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T04:10:01.622Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:25:06.740Z",
+      "worker": "d6bf5313-7c1d-48b9-9262-b0ac4993417b",
       "techniques": [
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/devcase-orchestrator.ts:52 only uses the rung label after the fact, which is the right consumer behaviour, but the ladder itself is not built here"
+          "evidence": "app/_lib/devcase-orchestrator.ts:52 only uses the rung label after the fact, which is the right consumer behaviour, but the ladder itself is not built here",
+          "carriedFrom": "2026-11-06"
         },
         {
           "technique": "availability-probe",
@@ -2885,13 +2887,7 @@
           "worker": null,
           "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
         }
-      ],
-      "withdrawn": {
-        "worker": "858589a5-de3e-475a-986e-997b67425d0d",
-        "state": "not-applicable",
-        "at": "2026-11-06T04:10:49.457804+00:00",
-        "reason": "reviewer (sonnet): The anchor at devcase-orchestrator.ts:52 only shows the orchestrator reading the design `source` label, so it is incidental to whether an agent CLI is spawned or configured. devcase-run.ts, which is in this context, spawns the Python devcase_cli with `buildLlmConfigEnv()`. Its comment (line 47) says"
-      }
+      ]
     },
     "92d1ca34-143b-4d61-8cd6-b9becd08d145/settings": {
       "context": "models-keys-and-routing",
@@ -26673,6 +26669,16 @@
       "evaluatedAt": "2026-11-07",
       "evaluatedTs": "2026-11-07T05:21:44.269Z",
       "worker": "d395cd3e-4eac-4850-94c1-be7f820e9ed0",
+      "techniques": []
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/agent-cli-transport": {
+      "context": "agent-hire-app-master",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T05:25:06.740Z",
+      "worker": "d6bf5313-7c1d-48b9-9262-b0ac4993417b",
       "techniques": []
     }
   }

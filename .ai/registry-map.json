@@ -2754,8 +2754,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/_lib/agent-hire/bridge-client.ts:8 The App-master agent is reached through an HTTP bridge to the Personas desktop app on loopback, and transform-run spawns only kp's Python pipeline. A recursive search of app/_lib/agent-hire and app/_lib/app-master found no claude, stream-json, permission-mode or dangerously, so kp drives no agent CLI process from this context.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "voice-io",
@@ -14536,7 +14540,11 @@
           "confidence": "probable",
           "source": "conform",
           "adoptedFrom": "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:48 This context spawns kp's own Python devcase CLI, with the LLM env built by llm-config.ts (outside this context). If the Python side routes to the Claude CLI, that adapter is pipeline/jobfit/claude_cli.py, also outside this context. A recursive search of app/_lib found no permission-mode, dangerously, stream-json or allowedTools, so probe, auth selection, stance and output normalization have no site in these files.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "mcp-tools",
