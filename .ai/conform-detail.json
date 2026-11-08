@@ -21339,19 +21339,30 @@
       "subject": "cv-presentation-and-parseability",
       "bundle": "recruiting",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-25",
-      "evaluatedTs": "2026-10-25T23:44:27.490Z",
-      "worker": "c11bc53b-4908-4897-9bc1-5ab6206c5000",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:10:11.744Z",
+      "worker": "92a067a5-ecc2-451e-88ac-f8a8bc8fd9c7",
       "techniques": [
         {
           "technique": "export-format-and-round-trip-verification",
           "verdict": "not-applicable",
-          "evidence": "app/landing/spark/market/data.ts:4 It reads a committed market snapshot. No CV file is generated."
+          "evidence": "app/landing/spark/market/data.ts:4 It reads a committed market snapshot. No CV file is generated.",
+          "carriedFrom": "2026-10-25"
         },
         {
           "technique": "scan-path-hierarchy",
           "verdict": "not-applicable",
-          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV."
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV.",
+          "carriedFrom": "2026-10-25"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:2 This context is a landing-page visualisation of Czech labour-market data. It produces no CV layout, export or parse path; a search of app/landing/spark/market/ for curriculum, résumé, resume, docx, photo and \\bcv\\b returned no hits.",
+          "evaluatedAt": "2026-10-25T23:44:27.490Z",
+          "worker": "c11bc53b-4908-4897-9bc1-5ab6206c5000",
+          "reason": "replaced by 92a067a5-ecc2-451e-88ac-f8a8bc8fd9c7"
         }
       ]
     },
@@ -27477,6 +27488,16 @@
           "evidence": "app/status/[token]/StatusNpsCard.tsx:71 Asked only when the route marks the state terminal, then thanks and stops asking once answered. The outcome-split gap is in the store (apply-flow context), not on this page."
         }
       ]
+    },
+    "5e74c65c-50d7-4139-83b9-5f2cadbbbc48/cv-presentation-and-parseability": {
+      "context": "jd-template-engine",
+      "subject": "cv-presentation-and-parseability",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:10:11.744Z",
+      "worker": "92a067a5-ecc2-451e-88ac-f8a8bc8fd9c7",
+      "techniques": []
     }
   }
 }
