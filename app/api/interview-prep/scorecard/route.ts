@@ -283,18 +283,26 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
         stageHasRole(pipelineEntry.stage, "interview", getPipelineAxis(ws).stages) &&
         (pipelineEntry.approvalKind === null || pipelineEntry.approvalKind === "calendar")
       ) {
-        setApproval(entry, "scorecard_review", JSON.stringify(scorecard), pipelineEntry.workspaceId);
-        // A person's rating: its own kind (never the AI's `interview_scorecard`, which is
-        // attributed to automation) and the real actor, so the log badges it HUMAN.
-        const actor = await humanActor();
-        recordAutomationEvent(
-          entry,
-          "interview_scorecard_human",
-          `human: ${scorecard.recommendation}`,
-          pipelineEntry.workspaceId,
-          actor
-        );
-        gated = true;
+        // COMPARE-AND-SWAP on the approval kind read above: awaits ran since that read
+        // (the body, the key), and an AI scorecard_review, an offer_review or a
+        // recruiter's resolution landing in the gap must not be overwritten by this card.
+        // The event and `gated` follow only a write that actually happened.
+        const wrote = setApproval(entry, "scorecard_review", JSON.stringify(scorecard), pipelineEntry.workspaceId, {
+          expectedApprovalKind: pipelineEntry.approvalKind,
+        });
+        if (wrote) {
+          // A person's rating: its own kind (never the AI's `interview_scorecard`, which is
+          // attributed to automation) and the real actor, so the log badges it HUMAN.
+          const actor = await humanActor();
+          recordAutomationEvent(
+            entry,
+            "interview_scorecard_human",
+            `human: ${scorecard.recommendation}`,
+            pipelineEntry.workspaceId,
+            actor
+          );
+          gated = true;
+        }
       }
     }
     return NextResponse.json({ ok: true, gated });
