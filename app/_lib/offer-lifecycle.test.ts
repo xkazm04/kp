@@ -15,6 +15,8 @@ import {
   getOfferByToken,
   getOrCreateOpenOffer,
   lapseExpiredOffers,
+  lapseOffersOfClosedEntries,
+  markEntryStatus,
   markOfferReminded,
 } from "./offers-store.ts";
 import { offerView, respondToOffer } from "./offer-finalize.ts";
@@ -139,6 +141,42 @@ test("lapseExpiredOffers sweeps every due open offer exactly once", () => {
   assert.equal(lapseExpiredOffers(), 1);
   assert.equal(getOfferByToken(offer.token!)!.status, "expired");
   assert.equal(lapseExpiredOffers(), 0, "a second sweep finds nothing to lapse");
+});
+
+test("lapseOffersOfClosedEntries: offers on closed entries expire, everything else is untouched", async () => {
+  const rejected = entryAtOffer();
+  const rejectedOffer = mintOffer(rejected.id, 1);
+  const roleClosed = entryAtOffer();
+  const roleClosedOffer = mintOffer(roleClosed.id, 1);
+  const active = entryAtOffer();
+  const activeOffer = mintOffer(active.id, 1);
+  const accepted = entryAtOffer();
+  const acceptedOffer = mintOffer(accepted.id);
+  await respondToOffer(acceptedOffer.token!, "accept");
+  const declinedEntry = entryAtOffer();
+  const declinedOffer = mintOffer(declinedEntry.id);
+  await respondToOffer(declinedOffer.token!, "decline");
+
+  markEntryStatus(rejected.id, "rejected");
+  markEntryStatus(roleClosed.id, "role_closed");
+
+  // Before the sweep the dead entries' offers are still reminder-eligible.
+  const before = new Set(dueOfferReminders().map((o) => o.token));
+  assert.ok(before.has(rejectedOffer.token) && before.has(roleClosedOffer.token));
+
+  assert.equal(lapseOffersOfClosedEntries(), 2);
+  assert.equal(getOfferByToken(rejectedOffer.token!)!.status, "expired");
+  assert.equal(getOfferByToken(roleClosedOffer.token!)!.status, "expired");
+  assert.ok(hasEvent(rejected.id, "offer_expired"));
+  assert.equal(getOfferByToken(activeOffer.token!)!.status, "extended", "an active entry keeps its offer");
+  assert.equal(getOfferByToken(acceptedOffer.token!)!.status, "accepted");
+  assert.equal(getOfferByToken(declinedOffer.token!)!.status, "declined");
+
+  assert.equal(lapseOffersOfClosedEntries(), 0, "a second sweep finds nothing");
+  const after = new Set(dueOfferReminders().map((o) => o.token));
+  assert.ok(!after.has(rejectedOffer.token) && !after.has(roleClosedOffer.token), "no reminder for a closed entry");
+  assert.ok(after.has(activeOffer.token), "the active entry's offer is still reminded");
+  markOfferReminded(activeOffer.token!); // do not leak a due offer into the next test
 });
 
 test("reminder eligibility: only open offers inside the T-48h window, and the CAS claim fires at most once", () => {
