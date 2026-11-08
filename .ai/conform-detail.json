@@ -27694,6 +27694,74 @@
           "evidence": "app/_lib/auth/session.ts:105 This context issues and checks the session. It forwards to no upstream."
         }
       ]
+    },
+    "10943bc8-3713-4897-a618-ac1437d7c455/adverse-impact-and-proxy-neutrality": {
+      "context": "tests-scoring-fairness",
+      "subject": "adverse-impact-and-proxy-neutrality",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:09:13.202Z",
+      "worker": "1b25e9ce-70ac-48e1-9d1f-a6348cc34c00",
+      "techniques": [
+        {
+          "technique": "name-and-proxy-neutrality-perturbation-testing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_name_neutrality.py:24 Checks the full serialized payload for byte-identity, with one declared carrier (candidate.label). It uses a Czech-market perturbation set, a baseline that is a real name (name vs name), a non-vacuity check, a sentinel structural check, a live-probe check, a named test for the -ová pair, and a name-in-CV-text variant. It covers match(), analyze_cv, fairness_matrix and the pool-level fairness_check (test_fairness.py)."
+        },
+        {
+          "technique": "cohort-shield-is-not-a-protected-class-test",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:5 Pins the shield's archetype set to one source, which is good practice. But it describes the shield as 'the fairness gate' over 'protected' candidates with no line saying it is not a protected-class test. None of the context files pins that unclassifiable candidates are shielded."
+        },
+        {
+          "technique": "too-small-to-assess-as-a-distinct-verdict",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_fairness.py:52 Analogous case: an unmeasured fairness axis is left out rather than defaulted to 1.0, and it fails the gate. 'Not measured' is never collapsed into a pass. This is an eval metric, not a selection-rate verdict."
+        },
+        {
+          "technique": "selection-rate-ratio-testing",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_fairness.py:1 Searched all 25 context files for adverse, selection rate, four-fifths, impact ratio and reference group: no hits. Here 'fairness' means invariance probes. The repo's adverse-impact primitive (app/_lib/adverse-impact.ts) is outside this context."
+        },
+        {
+          "technique": "reference-group-selection",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_fairness.py:1 No ratio computation in this context, so there is no reference group. Same search as above."
+        },
+        {
+          "technique": "minimum-cohort-before-a-ratio-is-asserted",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_fairness.py:1 No selection rate is computed in these files, so there is no floor to apply."
+        }
+      ]
+    },
+    "3becf910-9c37-4542-a1b9-a176f76c72d1/adverse-impact-and-proxy-neutrality": {
+      "context": "group-eval-shared",
+      "subject": "adverse-impact-and-proxy-neutrality",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:09:13.202Z",
+      "worker": "1b25e9ce-70ac-48e1-9d1f-a6348cc34c00",
+      "techniques": [
+        {
+          "technique": "too-small-to-assess-as-a-distinct-verdict",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:46 Not an adverse-impact verdict. It does follow the spirit of the technique, though: insufficient_sample, unavailable and not_varied are separate variants, not collapsed into a pass."
+        },
+        {
+          "technique": "minimum-cohort-before-a-ratio-is-asserted",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:111 The floor here (2) is a head-to-head comparison floor, not a selection-rate floor. group-eval-cohort.ts says outright that it is distinct from ADVERSE_IMPACT_MIN_COHORT (30)."
+        },
+        {
+          "technique": "selection-rate-ratio-testing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:31 No selection rates. The matrix re-scores candidates under each other's weightings."
+        }
+      ],
+      "registryProposal": "The rule 'a label is not a meaning' (a non-fairness metric reported under a fairness heading) is stated only inside cohort-shield-is-not-a-protected-class-test, and only for cohorts. It does not cover the common case seen here: a weighting-robustness or ranking-stability check named 'Fairness' in types and APIs (Fairness, isFairnessAligned, fairness_matrix). The golden path could generalize that rule to any fairness-named construct that is neither an outcome analysis nor a function-invariance test."
     }
   }
 }

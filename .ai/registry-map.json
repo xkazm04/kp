@@ -16753,7 +16753,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:31 The only fairness-named construct here is a check of ranking stability across weighting schemes. A search of app/features/shared/ for adverse, selectionRate, selection rate, four-fifths, impactRatio, perturb and demographic found nothing, so no selection-rate, reference-group, perturbation or cohort-shield logic lives in this context.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a6b772b8ebe7f352",
+          "evaluatedRevision": 4
         },
         {
           "subject": "optional-dependency-degradation",
@@ -34715,7 +34719,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:10 The test that pins the early-career auto-reject shield calls it 'the fairness gate' and calls shielded candidates 'protected', and nowhere says it is not a protected-class test. The cohort-shield technique asks for that distance to be written down in the code too, so the substitution it warns about is built into the suite's own wording.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a6b772b8ebe7f352",
+          "evaluatedRevision": 4
         },
         {
           "subject": "translation-pipeline-topology",
