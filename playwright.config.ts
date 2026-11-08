@@ -86,12 +86,6 @@ export const KEYLESS_SPECS = [
   "analytics-sections",
   "quality-tables",
   "shell-tab-state",
-  // NOT token-doors-axe. It runs and it is right: /offer/[token]'s decline
-  // confirm puts white on `.bg-coral` (#ffffff on #d65a4a, 3.87:1) and fails
-  // WCAG AA on a destructive irreversible action. That is an app finding, not
-  // a spec defect, and enrolling a spec whose only route to green is a holdout
-  // entry would convert a real accessibility bug into a permanent exception.
-  // It joins this list when the token is darkened.
   "locale-smoke",
   // The Journeys board. Keyless by construction: /api/journeys reads the SQLite
   // tables and spawns nothing. It earns its place here because the board shipped
