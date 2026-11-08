@@ -1348,6 +1348,7 @@
     "FEEDBACK_LIST_FAILED": "Zpětnou vazbu se nepodařilo načíst. Zkuste to prosím znovu.",
     "POSTING_CLOSED": "Příjem přihlášek na tuto pozici je uzavřený a další už nepřijímáme.",
     "OFFER_EXPIRED": "Platnost této nabídky vypršela.",
+    "OFFER_NO_LONGER_OPEN": "Tato nabídka již není platná.",
     "OFFER_NOT_FOUND": "Tuto nabídku se nepodařilo najít. Odkaz mohl být nahrazen novějším.",
     "SESSION_TOKEN_REQUIRED": "Tato pracovní relace patří k jinému odkazu. Pokračujte prosím přes odkaz z e-mailu s pozvánkou.",
     "DEVCASE_SESSION_UNAVAILABLE": "Tento případ již nepřijímá odevzdání.",

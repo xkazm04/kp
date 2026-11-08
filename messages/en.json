@@ -1348,6 +1348,7 @@
     "FEEDBACK_LIST_FAILED": "Could not load feedback. Please try again.",
     "POSTING_CLOSED": "This role's intake has closed and is no longer accepting submissions.",
     "OFFER_EXPIRED": "This offer has expired.",
+    "OFFER_NO_LONGER_OPEN": "This offer is no longer open.",
     "OFFER_NOT_FOUND": "We couldn't find this offer. The link may have been replaced by a newer one.",
     "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue.",
     "DEVCASE_SESSION_UNAVAILABLE": "This case is not accepting submissions.",

@@ -1348,6 +1348,7 @@
     "FEEDBACK_LIST_FAILED": "Impossible de charger les retours. Veuillez réessayer.",
     "POSTING_CLOSED": "Les candidatures pour ce poste sont closes. Nous n’acceptons plus de nouveaux envois.",
     "OFFER_EXPIRED": "Cette offre a expiré.",
+    "OFFER_NO_LONGER_OPEN": "Cette offre n’est plus ouverte.",
     "OFFER_NOT_FOUND": "Cette offre est introuvable. Le lien a peut-être été remplacé par un plus récent.",
     "SESSION_TOKEN_REQUIRED": "Cette session de travail correspond à un autre lien de candidature. Ouvrez le lien reçu dans votre e-mail d’invitation pour continuer.",
     "DEVCASE_SESSION_UNAVAILABLE": "Ce cas n’accepte plus de soumissions.",

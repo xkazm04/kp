@@ -1348,6 +1348,7 @@
     "FEEDBACK_LIST_FAILED": "Feedback konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "POSTING_CLOSED": "Die Bewerbungsphase für diese Stelle ist beendet; es werden keine weiteren Einreichungen angenommen.",
     "OFFER_EXPIRED": "Dieses Angebot ist abgelaufen.",
+    "OFFER_NO_LONGER_OPEN": "Dieses Angebot ist nicht mehr offen.",
     "OFFER_NOT_FOUND": "Dieses Angebot wurde nicht gefunden. Möglicherweise wurde der Link durch einen neueren ersetzt.",
     "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren.",
     "DEVCASE_SESSION_UNAVAILABLE": "Dieser Fall nimmt keine Einreichungen mehr an.",

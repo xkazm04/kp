@@ -73,6 +73,18 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   };
 
   if (response === "accept") {
+    // Refuse BEFORE the claim when the entry this offer was made for has moved on:
+    // closed (rejected, declined, closed with the role) or no longer on an offer-role
+    // stage of ITS workspace's axis (resolved by role, never by name). Claiming first
+    // told the candidate "accepted" for a hire that never happened and fed the ATS.
+    // The offer stays `extended` and unclaimed. A race that gets past this check is
+    // still caught by `offer_accept_blocked` below.
+    if (offer.entryId) {
+      const current = getPipelineEntry(offer.entryId, offer.workspaceId);
+      if (current && (current.status !== "active" || !stageHasRole(current.stage, "offer", getPipelineAxis(offer.workspaceId).stages))) {
+        return { ok: false, code: "OFFER_NO_LONGER_OPEN" };
+      }
+    }
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
@@ -172,7 +184,8 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // ticking `offer.accepted` got a subscription that could not fire). It rides on the
       // CAS winner, not on `hired`: a workspace whose board has a stage after Offer still
       // wants to know the candidate said yes, on the day they said it.
-      void dispatchAtsEvent("offer.accepted", offer.entryId, offer.workspaceId);
+      // Held on the same condition as the decline path: only when the entry advanced.
+      if (advanced) void dispatchAtsEvent("offer.accepted", offer.entryId, offer.workspaceId);
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   }

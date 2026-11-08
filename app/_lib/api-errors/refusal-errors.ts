@@ -60,6 +60,8 @@ export const REFUSAL_ERRORS = {
   POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
   /** The offer link is past its deadline (410). */
   OFFER_EXPIRED: "This offer has expired.",
+  /** The offer's candidate was closed or moved off the offer step since it was sent (404). */
+  OFFER_NO_LONGER_OPEN: "This offer is no longer open.",
   /** No offer for this token (404). */
   OFFER_NOT_FOUND: "Offer not found.",
   /** The accept/decline POST arrived with neither verb (400). The card only ever
