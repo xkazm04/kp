@@ -26,13 +26,13 @@ Line numbers are from the tree after the fix commit `aa97ad840`.
 | 3 | An open offer is never revoked. Accepting one on a closed entry answers "accepted" and tells the ATS | `app/_lib/offer-finalize.ts:76-114,175-177` | Medium | **Fixed** `21540f640` (closing open offers on entry close is not built) |
 | 4 | Accepting a (SIM) offer debits the hire meter and fires the ATS webhooks | `app/_lib/offer-finalize.ts:132,168,175` | Medium | **Fixed** `555d3a1cd` |
 | 5 | The scorecard gate writes the approval with no compare-and-swap | `app/api/interview-prep/scorecard/route.ts:286` | Medium | **Fixed** `298240805` |
-| 6 | The scorecard GET hands the whole panel, with user ids, to any seat, including an interviewer who has not scored yet | `app/api/interview-prep/scorecard/route.ts:118-124` | Low | **Accepted**, next run |
+| 6 | The scorecard GET hands the whole panel, with user ids, to any seat, including an interviewer who has not scored yet | `app/api/interview-prep/scorecard/route.ts:118-124` | Low | **Fixed** `e0c51ca35` (the reviewing role is `team:manage`, the closest the capability map has; the panel now reads a count, `othersCount`) |
 | 7 | `rating: null` is stored as the worst rating | `app/api/interview-prep/scorecard/route.ts:197-199` | Low | **Fixed** `9aabc8a9a` |
 | 8 | A scorecard files and seals on a closed entry, and with no ratings; the seal names a role, not the person | `app/api/interview-prep/scorecard/route.ts:184,252-262` | Low | **Fixed** `6f754b731` (the seal's actor proven only against `humanActor()`; an identified session is not exercised in a unit test) |
-| 9 | Manual salary coercion: `true` is 1, `"abc"` is silently unpriced | `app/_lib/offer-manual-draft.ts:34,51`, `app/_lib/offer-policy.ts:197-205` | Low | **Accepted**, next run |
-| 10 | The manual draft re-checks the approval but not the stage or status across an await | `app/_lib/offer-manual-draft.ts:45,56,70` | Low | **Accepted**, next run |
-| 11 | A dead offer link keeps showing name, salary and company | `app/_lib/offer-finalize.ts:207-238` | Low | **Accepted narrowed**, next run: once expired, return status and job title only. An answered offer keeps its terms, because the link holder is the candidate and this is their own record |
-| 12 | Unbounded JSON bodies; no limiter on the two sim doors | `app/api/pipeline/[id]/route.ts:94`, scorecard `:158`, `app/api/sim/offer-draft/route.ts:19` | Low | **Accepted**, next run |
+| 9 | Manual salary coercion: `true` is 1, `"abc"` is silently unpriced | `app/_lib/offer-manual-draft.ts:34,51`, `app/_lib/offer-policy.ts:197-205` | Low | **Fixed** `95a8e893d` |
+| 10 | The manual draft re-checks the approval but not the stage or status across an await | `app/_lib/offer-manual-draft.ts:45,56,70` | Low | **Fixed** `b152a8ada` |
+| 11 | A dead offer link keeps showing name, salary and company | `app/_lib/offer-finalize.ts:207-238` | Low | **Fixed** `dc7f8fe54`, narrowed: once expired, status and job title only. An answered offer keeps its terms, because the link holder is the candidate and this is their own record (the expired page was not checked in a browser) |
+| 12 | Unbounded JSON bodies; no limiter on the two sim doors | `app/api/pipeline/[id]/route.ts:94`, scorecard `:158`, `app/api/sim/offer-draft/route.ts:19` | Low | **Fixed** `4b1a394a2` |
 | 13 | Open mode has no Origin check, so a web page can drive these doors | `proxy.ts` (no origin check), bodies read with `request.json()` | Low (open mode only) | **Accepted**, next run |
 
 ## Answers to the five questions
