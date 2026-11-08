@@ -2921,7 +2921,11 @@
           "revision": 2,
           "changedAt": "2026-11-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/agents/dispatch/mint.ts:127 When Personas does not answer within the 5s bridge deadline, the dispatch door (and hire-from-need, which passes the same 502 body through to the Personas App master) reports the hire as failed even though Personas may already have queued it, and a retry mints a fresh hired_agents row and a second persona request instead of saying the outcome is unknown.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:1ba6c714c7d9ee8c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "fleet-orchestration",
@@ -20503,7 +20507,11 @@
           "revision": 2,
           "changedAt": "2026-11-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsAgentFitTab.tsx:16 These are panels inside kp's own front end, where consent is already home (depth-handoff's own exclusion). A search of app/features/library/jobs for tool-protocol and view-resource vocabulary found no outward tool, view or stream surface, so the subject's outside-tier precondition does not hold.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:1ba6c714c7d9ee8c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "engine-host-contract",

@@ -27108,6 +27108,48 @@
       "evaluatedTs": "2026-11-08T00:28:39.633Z",
       "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
       "techniques": []
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/agent-host-experience": {
+      "context": "agents-api",
+      "subject": "agent-host-experience",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:46:19.072Z",
+      "worker": "906730a9-162d-445d-bd76-ac3c36cda039",
+      "techniques": [
+        {
+          "technique": "journey-shaped-tool-surface",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/mint.ts:120 hire-from-need is shaped as a journey (route.ts:6 'ONE call from a need to a persona', closed HIRE_* codes, the scan-timeout refusal says a retry joins the in-flight scan). Step 6 is violated, though: a dispatch abandoned at its deadline is recorded and answered as failed, not unknown, so the caller's retry can double the delegation."
+        },
+        {
+          "technique": "peer-agent-delegation",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/report/[token]/route.ts:20 kp delegates long-running work to a Personas peer and treats its reports as untrusted. Each hire has its own token as the grant, the body is capped, rate-limited and shape-parsed, and lifecycle claims go through a CAS transition that refuses illegal moves."
+        },
+        {
+          "technique": "agent-ui-event-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/api/companion/[id]/message/route.ts:24 The product's own agent (the companion) is a single request/response per turn that returns the stored turn list. Its proposals are filed and resolved on a separate door, so there is no multi-surface live run and the technique's 'when not to use' applies."
+        },
+        {
+          "technique": "portable-view-spec",
+          "verdict": "not-applicable",
+          "evidence": "app/api/companion/[id]/message/route.ts:122 Companion blocks are an in-app vocabulary that only kp's own dock renders. No outside host or interop format consumes them (no MCP/tool server in the repo), so nothing is projected."
+        }
+      ],
+      "registryProposal": "The subject assumes the outside agent reaches the product through a tool protocol. Here an outside agent (Personas App master) reaches a journey-shaped HTTP door (hire-from-need) that is gated by a shared machine token, and the product also delegates to that same peer. The techniques could say explicitly whether a plain HTTP 'machine door' for a known peer falls under journey-shaped-tool-surface."
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/agent-host-experience": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "agent-host-experience",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:46:19.072Z",
+      "worker": "906730a9-162d-445d-bd76-ac3c36cda039",
+      "techniques": []
     }
   }
 }
