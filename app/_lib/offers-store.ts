@@ -260,6 +260,13 @@ export function lapseExpiredOffers(nowMs: number = Date.now()): number {
  *
  *  A reopened role (role_closed → active) does NOT resurrect the offer: 'expired' is
  *  terminal, and the recruiter extends a new one through getOrCreateOpenOffer.
+ *  Tenancy: this is the heartbeat's cross-workspace sweep, with no session workspace to
+ *  scope by (hence the `-- tenancy:global` tag on the SQL). The statement writes only
+ *  `offers`; it reads `pipeline_entries` solely to test the status of the entry each
+ *  offer already references by its own entry_id, so it cannot cross a tenant boundary.
+ *  Each offer_expired event is stamped with that offer row's own workspace_id, as
+ *  lapseExpiredOffers does.
+ *
  *  Idempotent; returns how many lapsed. */
 export function lapseOffersOfClosedEntries(): number {
   const lapsed = db()
@@ -267,7 +274,7 @@ export function lapseOffersOfClosedEntries(): number {
       `UPDATE offers SET status = 'expired'
        WHERE status = 'extended'
          AND entry_id IN (SELECT id FROM pipeline_entries WHERE status IN ${TERMINAL_STATUS_SQL_LIST})
-       RETURNING entry_id, job_title, workspace_id`
+       RETURNING entry_id, job_title, workspace_id -- tenancy:global`
     )
     .all() as Array<{ entry_id: string | null; job_title: string | null; workspace_id: string | null }>;
   for (const r of lapsed) {
