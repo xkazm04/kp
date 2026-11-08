@@ -29,6 +29,7 @@ const EVENT_KEYS: Record<string, string> = {
   interview_scheduled: "interviewScheduled",
   interview_reminder_sent: "interviewReminderSent",
   interview_prep_generated: "interviewPrepGenerated",
+  interview_scorecard_human: "interviewScorecardHuman",
   rejection_sent: "rejectionSent",
   rejected: "rejected",
   auto_rejected: "autoRejected",

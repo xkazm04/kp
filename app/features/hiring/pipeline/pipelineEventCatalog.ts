@@ -126,6 +126,7 @@ export const EVENT_KINDS = [
   "human_round_queued",
   // Generated artifacts (automation-run.ts): the scorecard/prep/offer/rejection drafts.
   "interview_scorecard",
+  "interview_scorecard_human",
   "interview_prep_generated",
   "rejection_drafted",
   "offer_drafted",
@@ -235,6 +236,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   screen_wave_recruiter_spared: { Icon: UserCheck, tone: "text-moss" },
   human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
+  interview_scorecard_human: { Icon: ClipboardList, tone: "text-moss" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },
   rejection_drafted: { Icon: FileText, tone: "text-steel" },
   offer_drafted: { Icon: FileText, tone: "text-steel" },

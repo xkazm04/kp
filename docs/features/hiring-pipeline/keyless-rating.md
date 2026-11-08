@@ -37,6 +37,10 @@ A hand draft stops at the same `offer_review` approval as an AI draft, so a pers
 extends every offer. It writes no `offer_drafted` event, because the decision log attributes
 that kind to automation.
 
+A rating that opens the approval gate is logged as `interview_scorecard_human` with the
+recruiter as actor; the decision log badges it HUMAN and it is not counted as automation. Rows
+written before this split keep the old `interview_scorecard` kind.
+
 ## What a keyless user does not get
 
 - No AI screening verdict, voice interview, synthesized scorecard or role-run rating. The
@@ -50,5 +54,3 @@ that kind to automation.
 ## Known gaps
 
 - A failed Generate in the prep modal returns to the empty state without saying why.
-- A human scorecard still writes an `interview_scorecard` event, which the decision log
-  attributes to automation.

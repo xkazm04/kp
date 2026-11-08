@@ -21,7 +21,7 @@ const STAGE_OF: Record<string, HiringStage> = {
   intake_degraded: "screen", decision_sealed: "screen", case_opened: "screen", case_submitted: "screen",
   interview_prep_generated: "interview", schedule_invite_sent: "interview", interview_scheduled: "interview",
   scheduled: "interview", interview_reminder_sent: "interview", interview_started: "interview",
-  interview_completed: "interview", interview_scorecard: "interview", interview_session: "interview",
+  interview_completed: "interview", interview_scorecard: "interview", interview_scorecard_human: "interview", interview_session: "interview",
   offer_drafted: "offer", offer_sent: "offer", offer_reminder_sent: "offer", offer_expired: "offer", offer_accepted: "offer",
   onboarding_started: "onboard", onboarding_intake_submitted: "onboard",
 };

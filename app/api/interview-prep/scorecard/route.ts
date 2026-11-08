@@ -284,7 +284,16 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
         (pipelineEntry.approvalKind === null || pipelineEntry.approvalKind === "calendar")
       ) {
         setApproval(entry, "scorecard_review", JSON.stringify(scorecard), pipelineEntry.workspaceId);
-        recordAutomationEvent(entry, "interview_scorecard", `human: ${scorecard.recommendation}`, pipelineEntry.workspaceId);
+        // A person's rating: its own kind (never the AI's `interview_scorecard`, which is
+        // attributed to automation) and the real actor, so the log badges it HUMAN.
+        const actor = await humanActor();
+        recordAutomationEvent(
+          entry,
+          "interview_scorecard_human",
+          `human: ${scorecard.recommendation}`,
+          pipelineEntry.workspaceId,
+          actor
+        );
         gated = true;
       }
     }
