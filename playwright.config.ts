@@ -93,7 +93,17 @@ export const KEYLESS_SPECS = [
   // ICU argument on every unmapped event kind, and a `fixed inset-0` overlay whose
   // containing block was the tab panel's animation transform rather than the
   // viewport, so it measured 1264x0. Neither is reachable without a browser.
-  "journey-board"
+  "journey-board",
+  // The keyless hire: a pasted job ad to an accepted offer on /offer/[token],
+  // rated by hand, no provider. Measured green on a production standalone build.
+  "journey-job-to-accept",
+  // A state-changing /api request with a foreign Origin is refused 403 by
+  // proxy.ts; its own Origin is not. Measured green on a production standalone build.
+  "same-origin-write-door",
+  // axe on the public offer, erasure and invite token doors (the /status timeline
+  // and /skill sweeps skip themselves when no seeded data mints their token).
+  // Measured green on a production standalone build.
+  "token-doors-axe"
 ] as const;
 
 export default defineConfig({

@@ -616,6 +616,9 @@ jobs:
           shell-tab-state
           locale-smoke
           journey-board
+          journey-job-to-accept
+          same-origin-write-door
+          token-doors-axe
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101
