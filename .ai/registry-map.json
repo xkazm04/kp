@@ -11396,7 +11396,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/jobs.ts:980 getJob returns the same null for a job whose payload_json will not decode as for a job that does not exist, so a by-id caller cannot tell 'unreadable' from 'not found'. The decode failure is recorded in the row-issue ledger, but the caller never sees it.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         }
       ],
       "governance": "governed"
@@ -24981,7 +24985,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:79 This client settings UI reaches LLM keys and config only through /api/llm/* fetches. A grep of app/features/settings/models for ensureDb, better-sqlite3, .prepare(, db.transaction and SELECT found none; the only link to the data layer is type-only imports of the mapped LlmConfigRow and RoutingHealthRow types.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "translation-quality-measurement",

@@ -27200,6 +27200,63 @@
       "evaluatedTs": "2026-11-08T01:12:23.097Z",
       "worker": "aa4f754c-1ec1-4ef1-ae13-0db3481e07f3",
       "techniques": []
+    },
+    "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0/data-access": {
+      "context": "db-jobs-devcase-interviews",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:47:44.040Z",
+      "worker": "62a7542b-7bd6-459a-8449-33e9adab406d",
+      "techniques": [
+        {
+          "technique": "row-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/jobs.ts:980 The single-record read folds a decode failure into the not-found answer. The technique says a by-id read of an unreadable record must fail loudly. The mappers are centralised (rowToDevCase etc. via safeRowParse, which logs), so list reads skip bad rows with a record rather than silently."
+        },
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jobs.ts:615 Sort identifiers come from a closed map, sort direction is a two-way ternary, and every value is bound through @named or ? parameters. One soft spot: an unknown sort token falls back to the default order instead of raising a hard error naming the token."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jobs.ts:230 Read→compute→write invariants inside one repository operation open their own IMMEDIATE transaction in the layer, and the caller never sees the boundary."
+        },
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase.ts:952 A set-shaped read, chunked under the IN limit, that returns a keyed Map so a missing key is explicit. getJobsByIds (jobs.ts:1047) is also chunked but returns a filtered list in input order rather than a map."
+        },
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jobs.ts:287 The list read selects a preview projection instead of loading full JD bodies. devcase.ts:1039 has another status-only projection that skips the JSON parse."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jobs.ts:643 The mandatory tenant predicate is inlined in every statement, and a source-guard test asserts it is present. That is the weakest structural form the technique accepts."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:20 Tests run against the real better-sqlite3 engine on a throwaway file, with the schema built by the production ensureDb() path."
+        }
+      ],
+      "registryProposal": "The existence-authority-written-last delete rule (remove the authority first) conflicts with erasure deletes. interviews.ts:1008 deliberately unlinks the recording file BEFORE marking the row deleted, so a crash never leaves a row claiming a deletion that did not happen. The technique should name this inversion: when the row is the deletion receipt rather than the existence proof, the order flips."
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/data-access": {
+      "context": "models-keys-and-routing",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:47:44.040Z",
+      "worker": "62a7542b-7bd6-459a-8449-33e9adab406d",
+      "techniques": []
     }
   }
 }
