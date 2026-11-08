@@ -21881,34 +21881,45 @@
       "subject": "app-shell",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T22:15:09.897Z",
-      "worker": "dd50dba0-1b40-427b-8a11-f78854e71178",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:35:18.742Z",
+      "worker": "3d365fd7-c3b1-497b-8d64-4c9642225749",
       "techniques": [
         {
           "technique": "nav-hierarchy",
           "verdict": "deviation",
-          "evidence": "app/_components/Tooltip.tsx:107 The reveal shows on focus (onFocus at line 81) and Escape dismisses it without moving focus (line 92). But the tip is pointer-events-none and closes when the pointer leaves the trigger (onMouseLeave at line 77), so it cannot be hovered. That fails the technique's 'holds still while the pointer travels onto it' condition (WCAG 1.4.13 hoverable)."
+          "evidence": "app/_components/Tooltip.tsx:107 The tip is not hoverable: pointer-events-none plus close on the trigger's onMouseLeave (l.77-79). Focus reveal (l.81-84), Escape without moving focus (l.89-96) and no timer all conform. The earlier verdict still holds."
         },
         {
           "technique": "shell-hosted-services",
           "verdict": "conformant",
-          "evidence": "app/_components/Toast.tsx:12 The Toaster is one global surface. app/layout.tsx:228 mounts it once as a sibling of {children} (above the swap point) and portals it to body under a z-token layer. A module-level store feeds it, so it renders nothing until called. Sign-out hard-navigates (SignOutButton -> leaveWorkspace), which resets the module queue at session end."
+          "evidence": "app/_components/Toast.tsx:12 The notification outlet is one instance (app/layout.tsx:228 <Toaster />), mounted above every route shell and portaled to body at the shell's layer (z-[var(--z-toast)]). It renders nothing until summoned, and toasts are reaped by auto-dismiss or the dismiss button."
         },
         {
           "technique": "badge-and-attention",
           "verdict": "not-applicable",
-          "evidence": "app/_components/Badge.tsx:22 Badge here is an inline qualitative-signal pill for lists, not a nav attention count with a predicate or clearing rule. Its 'icon + label, not color alone' property matches the technique's color rule in spirit, but nav badges live in app/features/shell/nav, outside this context."
+          "evidence": "app/_components/Badge.tsx:20 Badge is an inline content-status chip for pipeline signals, not a nav attention badge, so count/clearing rules do not apply. It does carry an icon and label, not color alone."
         },
         {
           "technique": "lazy-section-loading",
           "verdict": "not-applicable",
-          "evidence": "app/_components/Skeleton.tsx:6 Skeleton and LoadStatus are data-arrival primitives, not section-code placeholders. Skeleton is frozen by a ratchet and points callers to LoadingGap (outside this context), so the warm-path delay contract is not judged here."
+          "evidence": "app/_components/Skeleton.tsx:6 Skeleton and LoadStatus are data-arrival primitives, not section-code placeholders. Skeleton is frozen by a ratchet and points callers to LoadingGap (outside this context), so the warm-path delay contract is not judged here.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "navigation-model",
           "verdict": "not-applicable",
-          "evidence": "app/_components/useDialogA11y.ts:24 The only nav-adjacent code is a dialog-stack query that global shortcuts read to avoid switching tabs under an open dialog. It holds no location value and no navigate door."
+          "evidence": "app/_components/useDialogA11y.ts:24 The only nav-adjacent code is a dialog-stack query that global shortcuts read to avoid switching tabs under an open dialog. It holds no location value and no navigate door.",
+          "carriedFrom": "2026-10-26"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:107 The shared name-reveal primitive for icon-only controls renders its tip pointer-events-none and closes on the trigger's mouseleave, so the label cannot hold still while the pointer moves onto it, which is one of the four conditions nav-hierarchy sets for a reveal that counts; it does appear on focus, persist with no timer, and dismiss on Escape without moving focus.",
+          "evaluatedAt": "2026-10-26T22:15:09.897Z",
+          "worker": "dd50dba0-1b40-427b-8a11-f78854e71178",
+          "reason": "replaced by 3d365fd7-c3b1-497b-8d64-4c9642225749"
         }
       ]
     },
@@ -27379,6 +27390,33 @@
       "evaluatedTs": "2026-11-08T02:14:31.317Z",
       "worker": "8db318d9-0f08-44cf-aac6-4d0cbce6063d",
       "techniques": []
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/app-shell": {
+      "context": "shell-tasks",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:35:18.742Z",
+      "worker": "3d365fd7-c3b1-497b-8d64-4c9642225749",
+      "techniques": [
+        {
+          "technique": "badge-and-attention",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/tasks/TasksIndicator.tsx:109 A third full pill can sit beside the failed and unread-OK pills on one entry, and counts render raw (no 99+). Conformant parts: derived predicates (UNSEEN_DONE in tasksProviderTypes.ts:89), a server-side seen_at mark, clearing only after a 1.5s dwell over the rows actually drawn (TasksRunsPanel.tsx:83), and an alert grade carrying an icon."
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:154 The poller mounts once in Workspace.tsx:242, above the keyed tab panel. Its cleanup clears the timer and focus listener (l.188-192), it backs off on failure, and a dead queue is reported (queueUnreachable), not left silent."
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/tasks/TasksIndicator.tsx:80 The active state is a prop derived from the shell's location (WorkspaceNavDrawer passes active === \"tasks\"). Opening goes through the shell's selectTab door, and the indicator stores no active flag."
+        }
+      ],
+      "registryProposal": "badge-and-attention's 'one slot, ranked' rule could say whether a working-state count (running tasks) and a load meter count as a separate ambient indicator or must compete for the same slot as the unread and alert badges; the current text leaves that ambiguous for activity entries."
     }
   }
 }

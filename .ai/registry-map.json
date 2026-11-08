@@ -15737,12 +15737,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_components/Tooltip.tsx:107 The shared name-reveal primitive for icon-only controls renders its tip pointer-events-none and closes on the trigger's mouseleave, so the label cannot hold still while the pointer moves onto it, which is one of the four conditions nav-hierarchy sets for a reveal that counts; it does appear on focus, persist with no timer, and dismiss on Escape without moving focus.",
-          "evaluatedAt": "2026-10-26",
-          "evaluatedAgainst": "sha256-b2:924d251b08eaf74b",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_components/Tooltip.tsx:107 The shared name-reveal used by IconAction and every icon-only control gets a pointer-events-none tip, portaled to body, and closes on the trigger's mouseleave (lines 77-79). The pointer cannot rest on the label, so the reveal fails nav-hierarchy's 'holds still while the pointer travels onto it' condition. It does appear on focus, has no expiry timer, and Escape dismisses it without moving focus.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         },
         {
           "subject": "accessibility",
@@ -32609,7 +32608,11 @@
           "revision": 8,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/tasks/TasksIndicator.tsx:89 The Tasks nav entry can show three full pills side by side (unread failures, unread successes, running count; lines 89-117), with no single ranked slot, no overflow marker and no '99+' cap. That breaks badge-and-attention's 'one slot, ranked' and display-cap rules. The predicates, the server-side seen_at mark and the dwell-gated clearing all conform.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8
         },
         {
           "subject": "mcp-tools",
