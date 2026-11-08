@@ -27498,6 +27498,78 @@
       "evaluatedTs": "2026-11-08T03:10:11.744Z",
       "worker": "92a067a5-ecc2-451e-88ac-f8a8bc8fd9c7",
       "techniques": []
+    },
+    "e52eec3f-4cbb-4b6e-a212-e71e0a679584/docs-sync": {
+      "context": "architecture-diagrams-explorer",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:26:14.480Z",
+      "worker": "966e6a22-53f1-4b53-a5b6-e233f3f738cf",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/feature-doc-map.json:571 Declared entry coupling the whole explorer to docs/features/about/README.md, with a _comment saying why."
+        },
+        {
+          "technique": "rendered-surface-coupling",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/readDiagramSource.ts:5 The picture is derived from its definition at view time instead of committed as a capture, so it cannot go stale relative to the .puml."
+        },
+        {
+          "technique": "doc-rot-detection",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/pipelineSteps.test.ts:92 Every repo path the drawer cites to a reader is checked against the tree, so a dead citation fails instead of rotting silently."
+        },
+        {
+          "technique": "translations-drift-against-the-product",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/pipelineSteps.test.ts:178 The four locale catalogs are checked against the live step set (the product), not only against en. A catalog row for a deleted step fails as 'has no STEP_DETAILS entry'."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/pipelineSteps.ts:13 Copy lives in the catalogs and code identifiers live in the module. The split and its single authority are named, and the two halves are checked by a test."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/readDiagramSource.test.ts:54 Every committed .puml must be either rendered or listed as UNLISTED with a reason, so the published surface's inventory is complete by construction."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/readDiagramSource.ts:34 An unreadable source renders as an honest 'Could not read' message and is logged, not shown as an empty diagram. A failed read is also never cached. This only partly fits the technique, which is about reports."
+        },
+        {
+          "technique": "negative-claims-are-pinned",
+          "verdict": "conformant",
+          "evidence": "app/diagrams/pipelineSteps.test.ts:123 The About doc promises that an unknown ?step alias is ignored and the page still renders. A test pins that 'does not act' claim (the `nope` and empty-string cases return null)."
+        }
+      ]
+    },
+    "735cafa0-53ed-4e9d-8a42-087ede0529b2/docs-sync": {
+      "context": "platform-admin-ops",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:26:14.480Z",
+      "worker": "966e6a22-53f1-4b53-a5b6-e233f3f738cf",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "docs/features/candidates/README.md:843 The behaviour is documented, but none of the three source files is matched by any map entry, and nothing gates map coverage."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "deviation",
+          "evidence": "docs/features/comms/README.md:840 public-base-url.ts calls itself the one resolver whose origin is 'documented'. Its documentation is spread across the comms and agents docs, and no entry enumerates those surfaces."
+        }
+      ]
     }
   }
 }

@@ -5328,7 +5328,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/diagrams/page.tsx:19 The /diagrams page renders the committed .puml sources live at request time, its step citations and catalog copy are held to the tree by tests, and the area is declared in the map to the About doc. The rendered surface cannot drift from its definition, and the prose around it is checked.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -27700,7 +27704,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "docs/features/candidates/README.md:210 Feature docs describe all three modules: sanity-checks.ts in candidates, afterResponse in candidates, interviews and dev-case, and publicBaseUrl in comms and agents. None of after-response.ts, public-base-url.ts or sanity-checks.ts matches any feature-doc-map.json entry (grep found no hit), so changing them owes no doc.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
