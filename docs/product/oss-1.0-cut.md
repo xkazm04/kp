@@ -27,13 +27,13 @@ items (C4, C5, C6, S1, S2, S3, L1, L2) are defined in the gitignored tiger file
 - [x] Offer approval: a person's accept at `offer_review` extends the offer and does not hire. `app/_lib/pipeline-entry-action.ts:453`, `app/api/pipeline/entry-route.test.ts:68`
 - [x] Candidate accept: the token link records the response and a retry is idempotent. `app/api/offer/token-route.test.ts:84`, `app/_lib/offer-finalize.ts`
 - [x] Hired: the candidate's accept moves the entry to Hired, and it is the only route there. `app/api/offer/token-route.test.ts:84`, `app/api/pipeline/entry-route.test.ts:55`
-- [ ] One end-to-end test from job description to accepted candidate. `e2e/journey-job-to-accept.spec.ts`: not on main at the time of writing.
+- [x] One end-to-end test from job description to accepted candidate. `e2e/journey-job-to-accept.spec.ts`, 5 of 5 green at `f3ebb789b` on a stock clone with no key and `KP_OFFLINE=1`, both on the managed server and on the production standalone build CI uses. It is not yet in the keyless CI subset: enrolment waits on `.claude/CLAUDE.md`, which is dirty in the operator checkout.
 
 ### Requirements off the path
 
 - [x] Local start: one command, no key, and a demo option for a populated board. `scripts/up.mjs`, `README.md:44`
 - [ ] Local start finishes in two minutes. No test or record on this base measures the time.
-- [ ] Keyless path document for the whole journey: not on main at the time of writing.
+- [x] Keyless path document for the whole journey. `docs/features/hiring-pipeline/keyless-rating.md`
 - [x] One Connect surface for channels in the cut: the Connectors deck reads one catalog, and `?tab=integrations` redirects to it. `app/features/hiring/channels/night/connectors/ChannelsNightConnectorsLevel.tsx`, `app/_lib/connect/catalog.ts`, `app/features/shell/tabRedirects.test.ts`
 - [x] Connect degrades without keys: a keyless install reads every connector `not_configured`. `app/features/hiring/channels/night/connectors/connectorsDeckModel.test.ts`
 - [x] Reasons, bulk rejection: the sealed record carries a reason code, its numbers and the approver. `app/_lib/screen-wave.ts:562`, `app/_lib/decision-attribution.ts:528`
@@ -137,4 +137,4 @@ Decision: does a candidate letter say that AI drafted it?
 - **Modules off the named path:** AI voice interview, devcase work samples, Gigs, the `/me` job-seeker module, Polar billing. Missing: an in or out call for each.
 - **Shipped work waiting on the owner** (pre-analysis:536-538): T8 key deviation, T9 tunnel exposure, T11, T13 and T15 sign-offs. Missing: the sign-offs and whether 1.0 waits for them.
 - **Earlier pre-analysis gaps:** C2-debt, T6 portability, T7 for SMTP, T10 ops warning (pre-analysis:312, :405, :432, :492). Not re-checked on this base. Missing: a status check.
-- **Offer page accessibility.** The decline confirm on `/offer/[token]` is recorded as failing contrast, so `token-doors-axe` stays out of the keyless set (`playwright.config.ts:89`). Missing: whether this blocks 1.0.
+- **Offer page accessibility.** Measured at `f3ebb789b` (`e2e/token-doors-axe.spec.ts`, no key, `KP_OFFLINE=1`): the decline confirm on `/offer/[token]` now passes axe, both on the managed server (6 passed, 2 skipped, exit 0) and on the production build (the two offer tests pass). The comment at `playwright.config.ts:89` is stale. The spec is still not enrollable: on the production build `/status/not-a-real-token` fails at `token-doors-axe.spec.ts:291`, where `locator('[role="alert"]')` matches two elements, the dead-link alert and Next's `#__next-route-announcer__`, a strict-mode violation (3 of 3 runs, exit 1; 5 passed, 1 failed, 1 skipped, 1 did not run). It is a spec selector defect, not an accessibility one. Missing: a selector scoped to the dead-link alert.
