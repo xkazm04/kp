@@ -7344,8 +7344,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/apply-session-client.ts:42 The apply flow's only outbound call goes to the app's own first-party API. These files have no multi-upstream routing: grep over the 12 source files found no failover, gateway or provider construct, and no loadBalance, strategyTree, retryOn or routerFailure. 'fallback' and 'upstream' appear only as prose about defaults and locale pinning.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "prompt-assembly",
@@ -21640,8 +21644,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/jobseeker/adapters/registry.ts:39 Each configured source row is sent to exactly one adapter by its closed name, and the app's own reconcile calls it to ingest that one vendor's board. Nothing here fronts interchangeable upstreams for outside callers: searching the adapter, fetch and rules directories found no gateway, failover, candidate, strategy, loadBalance, retryOn or routerFailure construct, so there is no strategy tree, fallback loop, published caller contract or provider stream to judge.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "module-design",
@@ -22179,8 +22187,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/jobseeker/adapters/eures.ts:3 Each feed or board adapter ingests one named public source for the app's own reconcile, through one polite fetcher. Searching these directories found no gateway, failover, candidate, strategy, loadBalance, retryOn or routerFailure construct, so no request is routed across interchangeable upstreams for outside callers.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "module-design",
@@ -24626,8 +24638,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/features/insights/matrix/matrixCellClass.ts:9 The matrix grid is a client UI over the app's own /api/matrix and /api/match/reasoning endpoints. Searching the matrix directory found no failover, gateway, loadBalance, strategyTree, retryOn or routerFailure. The 'upstream' and 'provider' hits are a hiring-chain empty-state link and a React TasksProvider import.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "quality-gates",
