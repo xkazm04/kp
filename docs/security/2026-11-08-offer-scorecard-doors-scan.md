@@ -33,7 +33,7 @@ Line numbers are from the tree after the fix commit `aa97ad840`.
 | 10 | The manual draft re-checks the approval but not the stage or status across an await | `app/_lib/offer-manual-draft.ts:45,56,70` | Low | **Fixed** `b152a8ada` |
 | 11 | A dead offer link keeps showing name, salary and company | `app/_lib/offer-finalize.ts:207-238` | Low | **Fixed** `dc7f8fe54`, narrowed: once expired, status and job title only. An answered offer keeps its terms, because the link holder is the candidate and this is their own record (the expired page was not checked in a browser) |
 | 12 | Unbounded JSON bodies; no limiter on the two sim doors | `app/api/pipeline/[id]/route.ts:94`, scorecard `:158`, `app/api/sim/offer-draft/route.ts:19` | Low | **Fixed** `4b1a394a2` |
-| 13 | Open mode has no Origin check, so a web page can drive these doors | `proxy.ts` (no origin check), bodies read with `request.json()` | Low (open mode only) | **Fixed** `PENDING` |
+| 13 | Open mode has no Origin check, so a web page can drive these doors | `proxy.ts` (no origin check), bodies read with `request.json()` | Low (open mode only) | **Fixed** `c75aa0f8a` |
 
 ## Answers to the five questions
 
@@ -252,7 +252,7 @@ instance could drive the write doors if it knows an entry id, and ids are derive
 (`m-<candidateId>-<jobId>`). The response is unreadable to the page. With a password set the
 session cookie is `SameSite=Lax` (`session-issuer.ts:89`), which blocks this.
 
-**Fix:** a same-origin check in the proxy for state-changing `/api` calls. **Fixed** `PENDING`: `app/_lib/auth/same-origin.ts` (pure, tested) is called from `proxy.ts` ahead of the auth decision in every mode; POST/PUT/PATCH/DELETE to `/api` answer 403 when `Sec-Fetch-Site` is `cross-site` or `Origin` (including `null`) matches none of `x-forwarded-host`, `Host`, `APP_BASE_URL`. Requests with neither header (CLI, server-to-server) pass. Exempt: the five machine-sender webhook paths. Spec: `e2e/same-origin-write-door.spec.ts`.
+**Fix:** a same-origin check in the proxy for state-changing `/api` calls. **Fixed** `c75aa0f8a`: `app/_lib/auth/same-origin.ts` (pure, tested) is called from `proxy.ts` ahead of the auth decision in every mode; POST/PUT/PATCH/DELETE to `/api` answer 403 when `Sec-Fetch-Site` is `cross-site` or `Origin` (including `null`) matches none of `x-forwarded-host`, `Host`, `APP_BASE_URL`. Requests with neither header (CLI, server-to-server) pass. Exempt: the five machine-sender webhook paths. Spec: `e2e/same-origin-write-door.spec.ts`.
 
 ## Checked and clean
 
