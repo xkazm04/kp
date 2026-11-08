@@ -125,3 +125,18 @@ test("the waiting list holds one state, oldest first, leaves erased rows out and
   assert.equal(capped.truncated, true, "one past the cap is read so the answer can say there is more");
   assert.equal(outreachLetterListByState("drafted", 200, "team-nobody").letters.length, 0, "scoped to the team");
 });
+
+test("letters sharing one created_at come back in draft order, not in id order", async () => {
+  const { ensureDb } = await import("./core.ts");
+  const N = 20;
+  const drafted = Array.from({ length: N }, () => outreachLetterDraft({ entryId: entryId(), ...DRAFT }, WS).letter.id);
+  // Same created_at AND ids that sort AGAINST insertion order: the worst case a random id can
+  // produce, made deterministic (no clock speed, no sleeps).
+  const tied = drafted.map((_, i) => `ol-tie-${String(N - i).padStart(3, "0")}`);
+  const stamp = ensureDb().prepare(`UPDATE outreach_letters SET id = ?, created_at = ? WHERE id = ? AND workspace_id = ?`);
+  drafted.forEach((id, i) => stamp.run(tied[i], "2026-01-01T00:00:00.000Z", id, WS));
+
+  const ours = new Set(tied);
+  const listed = outreachLetterListByState("drafted", 200, WS).letters.map((l) => l.id).filter((id) => ours.has(id));
+  assert.deepEqual(listed, tied, "a created_at tie falls back to insertion order (rowid), never to the id");
+});

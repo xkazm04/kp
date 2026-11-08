@@ -166,7 +166,8 @@ export const OUTREACH_LETTER_LIST_MAX = 200;
  * `limit` (clamped to 1..OUTREACH_LETTER_LIST_MAX). Rides `idx_outreach_letters_open`
  * (workspace_id, state, created_at). An erased row is left out — its text is gone and
  * nothing can be approved from it. One row past the limit is read so the caller can say
- * truthfully that there is more (`truncated`).
+ * truthfully that there is more (`truncated`). A created_at tie breaks on rowid (insertion
+ * order), not id: the id is random, so letters drafted in one millisecond would swap places.
  */
 export function outreachLetterListByState(
   state: OutreachLetterState,
@@ -181,7 +182,7 @@ export function outreachLetterListByState(
          FROM outreach_letters ol
          JOIN pipeline_entries pe ON pe.id = ol.entry_id AND pe.workspace_id = ol.workspace_id
         WHERE ol.workspace_id = ? AND ol.state = ? AND ol.erased_at IS NULL
-        ORDER BY ol.created_at ASC, ol.id ASC
+        ORDER BY ol.created_at ASC, ol.rowid ASC
         LIMIT ?`
     )
     .all(workspaceId, state, cap + 1) as {
