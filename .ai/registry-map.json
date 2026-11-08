@@ -5476,7 +5476,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/diagrams/pipelineSteps.test.ts:235 The /api route walk declares no floor on matches, so if API_ROUTE stopped matching the step bodies the guard would report zero dead routes and stay green, unlike the floors at lines 67 and 125 of the same file.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -22917,7 +22921,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/sim/inbound/sim-inbound-scope.test.ts:155 The behaviour half hand-builds the target and write instead of driving POST, and differs from the route (literal stage \"Accepted\" here versus stageWithRole at route.ts:74, plus no actor, locale or dedupe), so its evidence attaches to the test's own composition.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -28821,7 +28829,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/resultTabs.test.ts:4 The tab rules were lifted into resultTabs.ts and only the predicate is driven; no unit test or e2e spec pins ResultPanel.tsx:183/204 calling them, so a revert to inline logic stays green.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "eval-harness",
