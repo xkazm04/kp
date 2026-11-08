@@ -74,6 +74,16 @@ export async function draftManualOffer(input: { id: string; workspaceId: string;
     verdictSource: "template",
   };
 
+  // The await above yielded the event loop: re-read before writing, so an entry rejected,
+  // closed or moved off the offer step in the gap does not get an offer_review card.
+  const fresh = getPipelineEntry(id, workspaceId);
+  if (!fresh) {
+    return { status: 404, body: { error: REFUSAL_ERRORS.PIPELINE_ENTRY_NOT_FOUND, code: "PIPELINE_ENTRY_NOT_FOUND" } };
+  }
+  if (fresh.status !== "active" || fresh.approvalKind !== null || !stageHasRole(fresh.stage, "offer", axis)) {
+    return notAvailable(fresh);
+  }
+
   // CAS on "no decision open", so a draft cannot overwrite one raised since the read.
   const written = setApproval(id, "offer_review", JSON.stringify(draft), workspaceId, { expectedApprovalKind: null });
   if (!written) return notAvailable(getPipelineEntry(id, workspaceId));

@@ -6,9 +6,9 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as actionPost } from "./[id]/route.ts";
-import { createPipelineEntry, getPipelineEntry, setApproval } from "../../_lib/db/pipeline.ts";
+import { closeEntriesByJobId, createPipelineEntry, getPipelineEntry, setApproval } from "../../_lib/db/pipeline.ts";
 import { insertJob } from "../../_lib/job-ingest.ts";
-import { manualOfferFigure } from "../../_lib/offer-manual-draft.ts";
+import { draftManualOffer, manualOfferFigure } from "../../_lib/offer-manual-draft.ts";
 import { DEFAULT_WORKSPACE_ID, createWorkspace } from "../../_lib/db/workspaces.ts";
 
 after(() => cleanupUnitDb());
@@ -125,3 +125,22 @@ test("a typed salary that is not a number or numeric string is refused, not coer
   assert.equal((await draft(nul, { salary: null })).status, 200, "null falls through to the band");
 });
 
+test("an entry closed during the translator await gets no offer_review card", async () => {
+  const id = entryAt("Offer");
+  const jobId = getPipelineEntry(id)?.jobId as string;
+  // The call runs synchronously up to its first await; change the entry there.
+  const pending = draftManualOffer({ id, workspaceId: DEFAULT_WORKSPACE_ID });
+  assert.equal(closeEntriesByJobId(jobId), 1);
+  const res = await pending;
+  assert.equal(res.status, 409);
+  assert.equal((res.body as { code: string }).code, "OFFER_DRAFT_NOT_AVAILABLE");
+  assert.equal(getPipelineEntry(id)?.approvalKind, null);
+});
+
+test("a decision raised during the translator await is not overwritten", async () => {
+  const id = entryAt("Offer");
+  const pending = draftManualOffer({ id, workspaceId: DEFAULT_WORKSPACE_ID });
+  setApproval(id, "scorecard_review", '{"source":"human"}');
+  assert.equal((await pending).status, 409);
+  assert.equal(getPipelineEntry(id)?.approvalKind, "scorecard_review");
+});
