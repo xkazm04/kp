@@ -6,6 +6,7 @@ import { getUserById } from "@/app/_lib/db/users";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
@@ -32,6 +33,9 @@ const MAX_RATINGS = 30;
 const MAX_COMPETENCY = 200;
 const MAX_EVIDENCE = 2_000;
 const MAX_SUMMARY = 4_000;
+// The byte cap on the body itself, read before the parse: MAX_RATINGS only bounds what is
+// kept AFTER it. 30 ratings at full length is about 70 KB, so 128 KB leaves room.
+const MAX_SCORECARD_BODY_BYTES = 128 * 1024;
 
 // Abuse containment on the recruiter's verdict write (/perfect wave 37,
 // lib-voice-interview-11). It is a read-merge-write that can additionally SET AN
@@ -58,7 +62,9 @@ function ownedSubmission(ws: string, id: string | null) {
 async function postDebrief(ws: string, request: NextRequest, submissionId: string) {
   const sub = ownedSubmission(ws, submissionId);
   if (!sub) return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
-  const body = (await request.json().catch(() => ({}))) as { findings?: unknown; clear?: unknown };
+  const read = await readJsonWithLimit<{ findings?: unknown; clear?: unknown }>(request, MAX_SCORECARD_BODY_BYTES, {});
+  if (read === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SCORECARD_BODY_BYTES });
+  const body = read;
   const actor = await humanActor();
   try {
     if (body.findings !== undefined) recordDebriefFindings(sub, body.findings, actor);
@@ -164,11 +170,12 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     }
     if (debrief !== null) return await postDebrief(ws, request, debrief);
     if (!entry) return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       ratings?: unknown;
       summary?: unknown;
       recommendation?: unknown;
-    };
+    }>(request, MAX_SCORECARD_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SCORECARD_BODY_BYTES });
 
     // Resolve the entry once: its archetype + role-family fix the CURRENT rubric
     // (below) and it drives the gating decision at the end.

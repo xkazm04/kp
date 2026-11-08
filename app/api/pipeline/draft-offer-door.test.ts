@@ -125,6 +125,14 @@ test("a typed salary that is not a number or numeric string is refused, not coer
   assert.equal((await draft(nul, { salary: null })).status, 200, "null falls through to the band");
 });
 
+test("an oversized action body is a 413 before any action runs", async () => {
+  const id = entryAt("Offer");
+  const res = await draft(id, { pad: "x".repeat(70_000) });
+  assert.equal(res.status, 413);
+  assert.equal(((await res.json()) as { code: string }).code, "PAYLOAD_TOO_LARGE");
+  assert.equal(getPipelineEntry(id)?.approvalKind, null);
+});
+
 test("an entry closed during the translator await gets no offer_review card", async () => {
   const id = entryAt("Offer");
   const jobId = getPipelineEntry(id)?.jobId as string;

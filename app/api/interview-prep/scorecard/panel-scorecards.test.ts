@@ -102,11 +102,8 @@ function url(entryId: string): URL {
 }
 
 async function post(entryId: string, rating: number, summary: string): Promise<Response> {
-  return (await POST({
-    nextUrl: url(entryId),
-    headers: new Headers(),
-    json: async () => ({ ratings: [{ competency: "Ownership", rating, evidence: summary }], summary }),
-  } as never)) as unknown as Response;
+  const body = JSON.stringify({ ratings: [{ competency: "Ownership", rating, evidence: summary }], summary });
+  return (await POST(Object.assign(new Request(url(entryId), { method: "POST", body }), { nextUrl: url(entryId) }) as never)) as unknown as Response;
 }
 
 async function get(entryId: string): Promise<Response> {

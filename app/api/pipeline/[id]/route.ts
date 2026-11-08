@@ -5,6 +5,7 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { listDecisionRecordsForRefs, sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { sealedMatchVerdictOf, type SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -86,12 +87,17 @@ function matchVerdictFor(id: string, ws: string): SealedMatchVerdict | null {
   }
 }
 
+// A card action carries an action name and a few short fields: 64 KB is generous.
+const MAX_ACTION_BODY_BYTES = 64 * 1024;
+
 export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown; salary?: unknown };
+    const parsedBody = await readJsonWithLimit<Record<string, unknown>>(request, MAX_ACTION_BODY_BYTES, {});
+    if (parsedBody === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_ACTION_BODY_BYTES });
+    const body = parsedBody as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown; salary?: unknown };
 
     // The door's DECLARED actions (entry-actions.ts). An action the table does not name
     // is refused here, before any branch runs, and the seat each action requires is read

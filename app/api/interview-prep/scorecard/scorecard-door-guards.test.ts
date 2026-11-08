@@ -6,7 +6,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
 const { saveInterviewPrep } = await import("../../../_lib/interview-prep.ts");
-const { createPipelineEntry, getPipelineEntry, setApproval } = await import("../../../_lib/db/pipeline.ts");
+const { createPipelineEntry, getPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
 const { POST } = await import("./route.ts");
 
 after(() => cleanupUnitDb());
@@ -27,23 +27,38 @@ function preppedAt(stage: string): string {
 
 async function post(entryId: string, body: () => unknown): Promise<Response> {
   const url = new URL(`http://localhost/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`);
-  return (await POST({ nextUrl: url, headers: new Headers(), json: async () => body() } as never)) as unknown as Response;
+  // A real Request: the route reads its body through readJsonWithLimit, off the stream.
+  const request = Object.assign(new Request(url, { method: "POST", body: JSON.stringify(body()) }), { nextUrl: url });
+  return (await POST(request as never)) as unknown as Response;
 }
 
+
+// ── finding 12: the body is capped before it is parsed ───────────────────────
+
+test("an oversized scorecard body is a 413 and files nothing", async () => {
+  const { getInterviewPrep } = await import("../../../_lib/interview-prep.ts");
+  const { readHumanScorecards } = await import("../../../_lib/human-scorecard-set.ts");
+  const id = preppedAt("Interview");
+  const res = await post(id, () => ({ ratings: [{ competency: "Ownership", rating: 4 }], summary: "x".repeat(200_000) }));
+  assert.equal(res.status, 413);
+  assert.equal(((await res.json()) as { code: string }).code, "PAYLOAD_TOO_LARGE");
+  assert.deepEqual(readHumanScorecards(getInterviewPrep(id)!.payload), []);
+});
 
 // ── finding 5: the gate is a compare-and-swap ────────────────────────────────
 
 test("a decision card that lands between the read and the gate write is not overwritten", async () => {
   const id = preppedAt("Interview");
-  const res = await post(id, () => ({
-    // The `ratings` getter runs AFTER the route has read the entry's approval kind
-    // and before it writes: it stands in for another session landing in that gap.
-    get ratings() {
-      setApproval(id, "offer_review", "{}");
-      return [{ competency: "Ownership", rating: 4 }];
-    },
-    recommendation: "advance",
-  }));
+  // The body is a byte stream (readJsonWithLimit), so it cannot carry a lazy getter into the gap. A trigger
+  // does the same job: the route's own write of the card (an UPDATE of interview_preps) runs
+  // AFTER it read the entry's approval kind and BEFORE its setApproval, and the trigger makes
+  // another session's offer_review land right there.
+  const { ensureDb } = await import("../../../_lib/db/core.ts");
+  const db = ensureDb();
+  db.exec(`CREATE TRIGGER gap_${id.replace(/\W/g, "_")} AFTER UPDATE ON interview_preps WHEN NEW.entry_id = '${id}'
+    BEGIN UPDATE pipeline_entries SET approval_kind = 'offer_review', approval_detail = '{}' WHERE id = '${id}'; END`);
+  const res = await post(id, () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }));
+  db.exec(`DROP TRIGGER gap_${id.replace(/\W/g, "_")}`);
   assert.equal(res.status, 200);
   assert.equal(((await res.json()) as { gated: boolean }).gated, false, "no gate was opened");
   assert.equal(getPipelineEntry(id)!.approvalKind, "offer_review", "the other decision survives");

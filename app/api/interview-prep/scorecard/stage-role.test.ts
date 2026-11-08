@@ -43,11 +43,8 @@ function withAxis(axis: { stages: { id: string; label: string; role: string }[] 
 
 async function postRecommendation(entryId: string): Promise<Response> {
   const url = new URL(`http://localhost/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`);
-  return (await POST({
-    nextUrl: url,
-    headers: new Headers(),
-    json: async () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }),
-  } as never)) as unknown as Response;
+  const body = JSON.stringify({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" });
+  return (await POST(Object.assign(new Request(url, { method: "POST", body }), { nextUrl: url }) as never)) as unknown as Response;
 }
 
 test("an active entry on a renamed interview-role column gates into scorecard_review", async () => {
