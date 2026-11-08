@@ -28014,6 +28014,170 @@
           "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:322 The needle carries the argument list, so a mention in prose or an import cannot satisfy it."
         }
       ]
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/test-harness": {
+      "context": "tests-devcase",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:17:33.588Z",
+      "worker": "fb4364a8-bdc0-41dd-ae3b-867472e2f639",
+      "techniques": [
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_recipe_candidates.py:357 The comment states this is deliberate instead of a skip, and the fallback has its own deterministic test, but on the operator's box the result depends on the contents of an external checkout."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py:120 Seeded pair: a fragment that only describes the literal is not counted, and line 121 shows a real declaration is."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py:63 Drives the validator on both sides of the threshold so a constant that is declared but unread goes red."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_cli.py:47 The fake replies at the provider boundary and the shipped extractor still parses the answer."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_cli.py:28 The helper drives the CLI's real entry point rather than a hand-composed path."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_provenance.py:449 The cutoff is proved by the outcome code; the 5.0s check at line 447 is a one-sided hang guard, with only 2.5x headroom over the 2s timeout."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_lifecycle.py:45 Pins the matched-control lift, so a signal that read 1.0 for every need can no longer report as detection."
+        }
+      ]
+    },
+    "23edc789-314a-44a3-b30f-ee7353edfab4/test-harness": {
+      "context": "about-product",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:17:33.588Z",
+      "worker": "fb4364a8-bdc0-41dd-ae3b-867472e2f639",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/about/chapters.test.ts:336 The constant was lifted to data.ts and the value is asserted, but its adoption by the TSX is not; a search of the app test files found THRESHOLD_X only in the comment at line 332. beats.test.ts pins sceneAt adoption only."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/about/chapters.test.ts:344 The needle carries a line-anchored definition shape that an import or a passing mention cannot produce."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/about/chapters.test.ts:529 The citation walk fails when it matched nothing rather than reporting a clean deck."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/about/scenes/status.test.ts:10 Tests the shipped module, and statusPicker( is called from the scene components (e.g. ArchetypeRouter.tsx, CaseBaseline.tsx)."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/stage/stages.test.ts:62 The bound is computed arithmetic on a pure function; nothing is timed or run concurrently."
+        }
+      ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/test-harness": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:17:33.588Z",
+      "worker": "fb4364a8-bdc0-41dd-ae3b-867472e2f639",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsOfferCardScore.test.ts:62 Prose satisfies the needle. Line 48 is the opposite failure: !/ScoreBadge/ over unstripped source goes red if a comment names the component, while decisionsFloorDisclosure.test.ts:84 in the same directory strips comments first."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsQueueLoad.test.ts:69 The fold's behaviour is executed earlier in the file and this pins the hook's adoption of it with a call-shaped needle."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.test.ts:11 The helper folds events through the same reducer production passes to useReducer in useDecisionsScreenWave.ts:30."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsLatestWins.test.ts:14 The race is proved by ticket order with no timers, so machine load cannot change the result."
+        }
+      ]
+    },
+    "7b52c055-91b2-4e97-b7bf-0c8081b156d0/test-harness": {
+      "context": "tests-cv-extraction",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:17:33.588Z",
+      "worker": "fb4364a8-bdc0-41dd-ae3b-867472e2f639",
+      "techniques": [
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_pdf_parsing_quality.py:57 The gated runner's skip-register.json names the test as an always-skip, which bounds that lane, but the plain unittest discovery behind npm run test:python would make the live call where the key and fixture exist."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_pdf_parsing_quality.py:32 Whether the test runs is inherited from a personal file that is not tracked and is absent from samples/profile-fixtures on this machine too."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_profile_cli.py:107 The needle is a line-anchored assignment of a string, which prose or an import cannot spell."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_redact_lockstep.py:113 The table reader declares a floor, so a reader that harvests too few rows fails instead of measuring less."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_extract_cli.py:31 The helper only captures streams around the shipped entry point."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_profile_cli.py:32 Tests enter through the CLI main that the route spawns."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_extractors.py:54 A loose one-sided guard about 200x above the observed 0.01s, stated in the comment at lines 52-53, beside a structural length assertion."
+        },
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_analysis_prompt_version_sync.py:168 A hand-edited content hash of inputs, with no recorded output file and no record switch to guard."
+        }
+      ]
     }
   }
 }

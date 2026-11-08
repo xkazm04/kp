@@ -2411,7 +2411,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/about/chapters.test.ts:336 The assertion reads only data.ts, while the painted position is derived at ScoringBuckets.tsx:71 and no test pins that adoption, so reverting the scene to a literal 0.5 stays green.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "pipeline-stage-modelling",
@@ -12445,7 +12449,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsOfferCardScore.test.ts:62 A bare identifier over three files satisfies this pin, and the comment at decisionsAiReviewCardLogic.ts:33 alone contains it, so removing every real read of the field stays green.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "combining-signals-into-a-hire-decision",
@@ -33820,7 +33828,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_pdf_parsing_quality.py:57 One test decides for itself, from ambient keys and an uncommitted file, whether it calls the real Gemini service at line 61, so network mode is a per-test property instead of a lane property.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "structured-output",
@@ -33970,7 +33982,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_recipe_candidates.py:357 The test's assertions fork on whether a sibling ../ai-registry checkout exists on the host, so its verdict inherits from the developer's machine and the live-vocabulary branch never runs in CI.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
