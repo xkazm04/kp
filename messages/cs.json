@@ -1458,6 +1458,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "V jednom běhu lze porovnat nejvýše 3 varianty životopisu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Tento kandidát už není aktivní, proto nelze založit novou hodnoticí kartu.",
     "INTERVIEW_ENTRY_REQUIRED": "Uveďte, kterého kandidáta se pohovor týká.",
     "INTERVIEW_JOB_REQUIRED": "Vyberte pozici pro porovnání pohovorů.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Vyberte cvičný pohovor a kandidáta, ke kterému jej chcete připojit.",

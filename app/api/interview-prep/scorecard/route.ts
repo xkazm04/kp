@@ -186,6 +186,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
       ensureHumanOnlyPrep(entry, pipelineEntry.candidateLabel, pipelineEntry.jobTitle, pipelineEntry.workspaceId);
     }
 
+    // A closed, rejected, declined or hired entry takes no new verdict: filing and
+    // sealing one would rewrite the history of a decision already made.
+    if (pipelineEntry && pipelineEntry.status !== "active") return jsonRefusal("INTERVIEW_ENTRY_NOT_ACTIVE", 409);
+
     const parsed: ScorecardRating[] = [];
     if (Array.isArray(body.ratings)) {
       for (const raw of body.ratings) {
@@ -252,15 +256,18 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // Decision SoR (moonshot D backfill): seal the human scorecard verdict —
     // a human actor's recorded judgment. Best-effort; never blocks the save.
     const rec = scorecard.recommendation ?? "(none)";
+    // The seal names the PERSON (`human:<who>`), as the event beside it does; the bare
+    // role is only what an identity-less open-mode session resolves to.
+    const actor = await humanActor();
     sealDecisionSafe({
       kind: "human_scorecard",
-      actor: "human:recruiter",
+      actor,
       policyVersion: "human",
       candidateRef: entry,
       rationale: `Human interview scorecard — recommendation: ${rec}.`,
       reasonCode: "scorecard",
-      // WHO scored and in which round: the actor stays the role ("human:recruiter"), the
-      // named interviewer rides the inputs (null in open mode, which has no identity).
+      // WHO scored and in which round: the interviewer's user id rides the inputs
+      // (null in open mode, which has no identity).
       inputs: { recommendation: rec, ratings: ratings.length, author: key.author, stage: key.stage },
     });
 
@@ -279,7 +286,9 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // scorecard_review (or offer_review) is left alone: the human verdict shows
     // beside it via getHumanScorecard.
     let gated = false;
-    if (scorecard.recommendation) {
+    // A recommendation with NO rating behind it does not open the gate: a verdict on
+    // nothing is not a scorecard the Decisions queue should be asked to act on.
+    if (scorecard.recommendation && ratings.length > 0) {
       if (
         pipelineEntry &&
         pipelineEntry.status === "active" &&
@@ -296,7 +305,6 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
         if (wrote) {
           // A person's rating: its own kind (never the AI's `interview_scorecard`, which is
           // attributed to automation) and the real actor, so the log badges it HUMAN.
-          const actor = await humanActor();
           recordAutomationEvent(
             entry,
             "interview_scorecard_human",

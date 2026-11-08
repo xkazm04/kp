@@ -1458,6 +1458,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "Compare at most 3 CV variants in one run.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "This candidate is no longer active, so a new scorecard can’t be filed.",
     "INTERVIEW_ENTRY_REQUIRED": "Say which candidate this interview is for.",
     "INTERVIEW_JOB_REQUIRED": "Choose a role to compare interviews.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Choose a practice interview and candidate to attach it to.",

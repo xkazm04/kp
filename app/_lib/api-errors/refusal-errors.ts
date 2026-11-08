@@ -189,6 +189,8 @@ export const REFUSAL_ERRORS = {
   // English at a Czech applicant who had just been told, in Czech, to click it.
   /** The screen was asked for without naming a candidate — neither `entryId` nor
    *  `submissionId` arrived in a usable shape (400). */
+  /** A scorecard write for a candidate who is closed, rejected, declined or hired (409). */
+  INTERVIEW_ENTRY_NOT_ACTIVE: "This candidate is no longer active, so a new scorecard can't be filed.",
   INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
   /** Comparison requires a role id (400). */
   INTERVIEW_JOB_REQUIRED: "Choose a role to compare interviews.",

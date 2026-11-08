@@ -1458,6 +1458,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "Pro Durchlauf lassen sich höchstens 3 Lebenslauf-Varianten vergleichen.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Diese Kandidatin bzw. dieser Kandidat ist nicht mehr aktiv, daher kann keine neue Scorecard abgelegt werden.",
     "INTERVIEW_ENTRY_REQUIRED": "Geben Sie an, für welche Kandidatin oder welchen Kandidaten dieses Interview ist.",
     "INTERVIEW_JOB_REQUIRED": "Wählen Sie eine Stelle, um Interviews zu vergleichen.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Wählen Sie ein Übungsinterview und eine Person zum Anhängen aus.",

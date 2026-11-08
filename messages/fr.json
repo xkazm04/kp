@@ -1458,6 +1458,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "Vous pouvez comparer au maximum 3 variantes de CV par analyse.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Ce candidat n’est plus actif : une nouvelle scorecard ne peut pas être enregistrée.",
     "INTERVIEW_ENTRY_REQUIRED": "Indiquez de quelle candidature il s'agit pour cet entretien.",
     "INTERVIEW_JOB_REQUIRED": "Choisissez un poste pour comparer les entretiens.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Choisissez un entretien d’entraînement et la candidature à laquelle l’associer.",

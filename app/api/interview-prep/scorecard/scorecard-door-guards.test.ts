@@ -78,3 +78,39 @@ test("null, empty, whitespace and boolean ratings are omitted as unrated; number
   const kept = records.flatMap((r) => r.ratings.map((x) => [x.competency, x.rating]));
   assert.deepEqual(kept, [["F-num", 4], ["G-str", 3]]);
 });
+
+// ── finding 8: active entries only; a verdict on nothing gates nothing ────────
+
+test("a closed entry takes no scorecard: refused, nothing filed, nothing sealed", async () => {
+  const { getInterviewPrep } = await import("../../../_lib/interview-prep.ts");
+  const { readHumanScorecards } = await import("../../../_lib/human-scorecard-set.ts");
+  const { markEntryStatus } = await import("../../../_lib/offers-store.ts");
+  const { listDecisionRecords } = await import("../../../_lib/decision-record-store.ts");
+  const id = preppedAt("Interview");
+  assert.ok(markEntryStatus(id, "rejected"), "precondition: the entry is closed");
+
+  const res = await post(id, () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }));
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as { code: string }).code, "INTERVIEW_ENTRY_NOT_ACTIVE");
+  assert.deepEqual(readHumanScorecards(getInterviewPrep(id)!.payload), []);
+  assert.deepEqual(listDecisionRecords({ candidateRef: id }), []);
+  assert.equal(getPipelineEntry(id)!.approvalKind, null);
+});
+
+test("a recommendation with no usable rating is filed but does not open the gate", async () => {
+  const id = preppedAt("Interview");
+  const res = await post(id, () => ({ ratings: [{ competency: "Ownership", rating: null }], recommendation: "advance" }));
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { gated: boolean }).gated, false);
+  assert.equal(getPipelineEntry(id)!.approvalKind, null);
+});
+
+test("the seal carries the actor humanActor() resolves, not a hard-coded role", async () => {
+  const { humanActor } = await import("../../../_lib/auth/operator-approver.ts");
+  const { listDecisionRecords } = await import("../../../_lib/decision-record-store.ts");
+  const id = preppedAt("Interview");
+  await post(id, () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }));
+  const seal = listDecisionRecords({ candidateRef: id }).find((r) => r.kind === "human_scorecard");
+  assert.ok(seal, "the scorecard is sealed");
+  assert.equal(seal.actor, await humanActor());
+});
