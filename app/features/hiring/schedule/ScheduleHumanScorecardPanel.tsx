@@ -42,7 +42,7 @@ export function HumanScorecardPanel({
 }) {
   const t = useTranslations("scheduleTab.scorecard");
   const tc = useTranslations("common");
-  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; records?: HumanScorecardRecord[]; devCase?: boolean }>(
+  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; othersCount?: number; devCase?: boolean }>(
     `/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`,
     t("loadMineFailed")
   );
@@ -51,7 +51,7 @@ export function HumanScorecardPanel({
   // than from the GET that loaded before the save.
   const [savedHere, setSavedHere] = useState<Scorecard | null>(null);
   const mine: Scorecard | null = savedHere ?? data?.mine ?? null;
-  const othersCount = Math.max(0, (data?.records?.length ?? 0) - (data?.mine ? 1 : 0));
+  const othersCount = Math.max(0, data?.othersCount ?? 0);
   const saved = Boolean(mine?.ratings?.length);
 
   if (!open) {

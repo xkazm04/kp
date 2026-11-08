@@ -71,6 +71,11 @@ const member = (slug: string, name: string, ws: string) => {
 };
 const u1 = member("u1", "Ivana First", team.id);
 const u2 = member("u2", "Otakar Second", team.id);
+const admin = (() => {
+  const u = createUser({ orgId: ORG, email: "panel.admin@panel.test", name: "Alena Admin", status: "active", password: "panel-pw-admin-1" });
+  upsertMembership(u.id, team.id, "admin");
+  return { ...u, ws: team.id };
+})();
 const outsider = member("out", "Olga Outside", other.id);
 
 function signedInAs(user: { id: string; orgId: string; ws: string } | null): void {
@@ -140,12 +145,12 @@ test("GET answers the caller's own record only as `mine`; another team gets 404"
   signedInAs(u2);
   const res = await get(id);
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { mine: Rec | null; records: Rec[] };
+  const body = (await res.json()) as { mine: Rec | null; records: Rec[]; othersCount: number };
   assert.equal(body.mine, null, "a second interviewer's form opens EMPTY");
-  assert.deepEqual(
-    body.records.map((r) => r.author),
-    [u1.id],
-  );
+  // Finding 6, changed deliberately: this used to assert u1's record (with u1's user id)
+  // reached u2 before u2 had filed. Now only the count does.
+  assert.deepEqual(body.records, [], "no colleague's verdict before the caller has filed");
+  assert.equal(body.othersCount, 1, "the count stays truthful");
 
   signedInAs(u1);
   const own = (await (await get(id)).json()) as { mine: Rec | null };
@@ -155,6 +160,27 @@ test("GET answers the caller's own record only as `mine`; another team gets 404"
   const foreign = await get(id);
   assert.equal(foreign.status, 404);
   assert.equal(((await foreign.json()) as { code?: string }).code, "INTERVIEW_PREP_NOT_FOUND");
+});
+
+test("a colleague's records appear after the caller files, and never with a user id; a team manager sees them at once", async () => {
+  const id = prepped(team.id);
+  signedInAs(u1);
+  assert.equal((await post(id, 5, "u1 first")).status, 200);
+
+  signedInAs(admin);
+  const reviewer = (await (await get(id)).json()) as { records: Rec[]; othersCount: number };
+  assert.deepEqual(reviewer.records.map((r) => r.summary), ["u1 first"]);
+  assert.equal(JSON.stringify(reviewer).includes(u1.id), false, "the user id never reaches the wire");
+  assert.equal("author" in reviewer.records[0], false);
+
+  signedInAs(u2);
+  assert.deepEqual(((await (await get(id)).json()) as { records: Rec[] }).records, []);
+  assert.equal((await post(id, 3, "u2 second")).status, 200);
+  const after = (await (await get(id)).json()) as { records: Rec[]; othersCount: number; mine: Rec | null };
+  assert.equal(after.mine?.summary, "u2 second");
+  assert.deepEqual(after.records.map((r) => r.summary).sort(), ["u1 first", "u2 second"]);
+  assert.equal(after.othersCount, 1);
+  assert.equal(JSON.stringify(after.records).includes(u1.id), false);
 });
 
 test("open mode keeps today's one slot per stage, and a new round is a new record", async () => {

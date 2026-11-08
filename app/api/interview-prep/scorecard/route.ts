@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
 import { ensureHumanOnlyPrep, fileHumanScorecard, getInterviewPrep } from "@/app/_lib/interview-prep";
-import { ownScorecard, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
+import { humanScorecardViews, ownScorecard, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
 import { getUserById } from "@/app/_lib/db/users";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
@@ -9,7 +9,7 @@ import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersion
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
+import { can, currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
@@ -93,10 +93,10 @@ async function scorecardKey(stage: string | null): Promise<HumanScorecardKey> {
   return { author: userId, authorLabel: user ? (user.name ?? user.email) : null, stage };
 }
 
-// GET ?entry=<id> -> { mine, records }. `mine` is the caller's OWN record for the
+// GET ?entry=<id> -> { mine, records, othersCount }. `mine` is the caller's OWN record for the
 // round the candidate is in now — the only thing the scoring form may seed from, so a
 // second interviewer opens an empty form instead of the first one's verdict. `records`
-// is the whole panel (every interviewer, every round). Scoped by the same
+// is the panel (every interviewer, every round) once the caller has filed or reviews. Scoped by the same
 // getInterviewPrep(entry, ws) read the POST authorizes its write with: another team's
 // entry id answers the same 404 as "no prep yet".
 export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
@@ -119,9 +119,18 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     const key = await scorecardKey(pipelineEntry?.stage ?? null);
     // `devCase` is the same predicate the POST resolves its rubric with, so the panel
     // offers the optional AI-tools axis exactly when the write will expect it.
+    const mine = ownScorecard(records, key.author, key.stage);
+    // Independent scoring (human-scorecard-set.ts): a colleague's verdict is not shown
+    // until the caller has filed their own for this round, unless they can manage the team
+    // (admin/owner, and open mode, which has one identity). The door has no narrower
+    // reviewing role; `team:manage` is the closest the capability map offers. Until then
+    // only a COUNT crosses the wire, so the panel's "N others scored" stays truthful and
+    // nobody learns who filed. What is shown goes through humanScorecardViews: no user id.
+    const reveal = mine !== null || (await can("team:manage"));
     return NextResponse.json({
-      mine: ownScorecard(records, key.author, key.stage),
-      records,
+      mine,
+      records: reveal ? humanScorecardViews(records) : [],
+      othersCount: Math.max(0, records.length - (mine ? 1 : 0)),
       devCase: pipelineEntry ? hasDevCase(pipelineEntry) : false,
     });
   } catch (error) {
