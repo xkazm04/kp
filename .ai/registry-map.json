@@ -27691,8 +27691,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/_lib/sanity-checks.ts:1 Despite its description, sanity-checks.ts reads the analysis trust ledger, and after-response.ts / public-base-url.ts are a Next after() wrapper and a URL resolver; a search of these five files for claude, spawn, child_process and llm found nothing, so no agent CLI is spawned or probed here.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "docs-sync",

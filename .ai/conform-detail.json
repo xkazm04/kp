@@ -27648,6 +27648,16 @@
           "evidence": "scripts/security/secret-scan.mjs:242 The blocking secret gate skips tracked files over 2 MB (printed as 'not read') and still exits 0; a committer can pad a file past the window. Binary-extension and unreadable files are skipped and not counted at all."
         }
       ]
+    },
+    "735cafa0-53ed-4e9d-8a42-087ede0529b2/agent-cli-transport": {
+      "context": "platform-admin-ops",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T04:31:04.458Z",
+      "worker": "bedb897c-d58b-4f46-b3cb-02b85f66aa3f",
+      "techniques": []
     }
   }
 }
