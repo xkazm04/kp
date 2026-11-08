@@ -80,8 +80,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   filters, the 20-row pager, the confirm-guarded
                               #   delete — fixtures created THROUGH /api/profile,
                               #   which is pure profile_cli logic, so keyless)
-                              # + landing (the public landing: a11y per band, the
-                              #   spotlight's focus contract, phone nav — the ONLY
+                              # + landing (the public landing: a11y per band and per
+                              #   scene, the ring's named medallions, a scene's focus contract and
+                              #   /#spotlight-<key> deep link, phone nav — the ONLY
                               #   spec that must not seedDevAuth)
                               # + public-pages (the OTHER indexed surfaces: axe on
                               #   /about /trust /privacy /terms /market, plus
