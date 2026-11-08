@@ -23,7 +23,7 @@ Line numbers are from the tree after the fix commit `aa97ad840`.
 | --- | --- | --- | --- | --- |
 | 1 | A read-only seat can read a live offer link from the letter body, then accept or decline for the candidate | `app/api/comms/route.ts:24`, `app/api/pipeline/[id]/timeline/route.ts:22` | **High** | **Closed** by `6d8712c63` |
 | 2 | `actor: "sim"` sealed a person's advance or extended offer on a real candidate as the engine's | `app/api/pipeline/[id]/route.ts:245` | **High** | **Fixed** `aa97ad840` |
-| 3 | An open offer is never revoked. Accepting one on a closed entry answers "accepted" and tells the ATS | `app/_lib/offer-finalize.ts:76-114,175-177` | Medium | **Fixed** `21540f640` (closing open offers on entry close is not built) |
+| 3 | An open offer is never revoked. Accepting one on a closed entry answers "accepted" and tells the ATS | `app/_lib/offer-finalize.ts:76-114,175-177` | Medium | **Fixed** `21540f640` (the follow-on, closing open offers on entry close, is built: `lapseOffersOfClosedEntries` in `app/_lib/offers-store.ts`, fix `6c96cd0e0`) |
 | 4 | Accepting a (SIM) offer debits the hire meter and fires the ATS webhooks | `app/_lib/offer-finalize.ts:132,168,175` | Medium | **Fixed** `555d3a1cd` |
 | 5 | The scorecard gate writes the approval with no compare-and-swap | `app/api/interview-prep/scorecard/route.ts:286` | Medium | **Fixed** `298240805` |
 | 6 | The scorecard GET hands the whole panel, with user ids, to any seat, including an interviewer who has not scored yet | `app/api/interview-prep/scorecard/route.ts:118-124` | Low | **Fixed** `e0c51ca35` (the reviewing role is `team:manage`, the closest the capability map has; the panel now reads a count, `othersCount`) |
