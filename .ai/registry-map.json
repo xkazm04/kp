@@ -27822,7 +27822,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/public-body-cap-contract.test.ts:101 The test named 'reads its body through the capped helper' is satisfied by the import line alone, so a route importing the helper while reading request.arrayBuffer() stays green; no route has that shape today (checked), so the gap is latent.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-instruction-files",
@@ -31966,7 +31970,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/setupSteps.test.ts:96 The extracted gates are driven only as pure functions: no unit test or e2e pins OnboardingExperience.tsx:95 adopting reachedCeiling or :152 adopting mergeSetupDraft, so reverting either call site leaves these suites green while the revocation and typing-wins rules are gone.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",

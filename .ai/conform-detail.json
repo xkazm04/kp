@@ -27941,6 +27941,79 @@
           "evidence": "app/_lib/tasks.ts:47 The task engine exposes no operations to outside agents. The only client is kp's own UI, which reads the task row."
         }
       ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/test-harness": {
+      "context": "platform-auth-api",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T22:27:28.566Z",
+      "worker": "1d0618cb-9a69-4ad1-84ec-320b358a42e7",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/api/public-body-cap-contract.test.ts:101 The needle is the import, the exact trap upload-size-contract.test.ts:53-57 documents. Line 124 also skips EXEMPT before the raw-read scan, and lines 133-140 never check a 'reads no body' entry still reads none, so the list is checked in one direction only."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/api/route-tenancy-coverage.test.ts:242 The derived surface carries a floor well under the real count, and the file walks at line 253 carry their own."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/api/route-tenancy-coverage.test.ts:282 Drives the real scanner over synthetic sources with a known answer, including a prose-only clean fragment."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/api/health/seed-catalog-verdict.test.ts:76 Asserts the forced failure really happened before reading the verdicts, and the unparseable seed is one a default cannot answer."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/api/health/seed-catalog-verdict.test.ts:49 The broken seed lives in a throwaway root the repo's own files never see, with a named reaper in after() at line 62."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/api/rate-limit-contract.test.ts:2867 The window cutoff is proved from an injected clock, so load cannot move the verdict."
+        }
+      ],
+      "registryProposal": "pin-the-call-not-the-name rules out a bare identifier for ordering claims because the import line precedes every call; the same import line defeats a presence claim such as 'this file reads through the helper', and the decision rules could say so explicitly."
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/test-harness": {
+      "context": "shell-setup-wizard",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T22:27:28.566Z",
+      "worker": "1d0618cb-9a69-4ad1-84ec-320b358a42e7",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/setupSteps.test.ts:96 Behaviour is asserted, adoption is not. The one source pin on the host (setupFinishOutcome.test.ts:291) reads only finish, land and settle, and the e2e reload at first-run-choice.spec.ts:56 happens before anything is typed."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupOnboardingFinish.test.ts:35 The real writers run; the fake has no passing default, so each test states what the network answered."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupOnboardingFinish.test.ts:41 The global stub is restored in finally, scoped to one call."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:322 The needle carries the argument list, so a mention in prose or an import cannot satisfy it."
+        }
+      ]
     }
   }
 }
