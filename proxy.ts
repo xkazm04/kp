@@ -3,6 +3,7 @@ import { localeCookieOptions } from "./i18n/cookie";
 import { coerceLocale, LOCALE_COOKIE } from "./i18n/locales";
 import { SESSION_COOKIE, verifySessionEdge, type EdgeSession } from "./app/_lib/auth/edge-verify";
 import { isPublicPath } from "./app/_lib/auth/public-routes";
+import { crossSiteWriteRefused } from "./app/_lib/auth/same-origin";
 import { isJobseekerPath, jobseekerEnabled, UNKNOWN_ROUTE_PATH } from "./app/_lib/jobseeker/enabled";
 
 // Auth foundation (P2) — the recruiter-surface gate (Next 16 `proxy` convention,
@@ -172,6 +173,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     if (seekerHidden) return withCsp(NextResponse.rewrite(new URL(UNKNOWN_ROUTE_PATH, req.url), { request: { headers } }));
     return withCsp(NextResponse.next({ request: { headers } }));
   };
+
+  // 0b) Same-origin rule for state-changing /api calls, in EVERY mode and ahead of the
+  //     auth decision (app/_lib/auth/same-origin.ts owns the rule and the exempt
+  //     webhook set). Open mode has no cookie to make a cross-site simple POST fail.
+  if (
+    crossSiteWriteRefused({
+      method: req.method,
+      pathname: req.nextUrl.pathname,
+      origin: req.headers.get("origin"),
+      secFetchSite: req.headers.get("sec-fetch-site"),
+      host: req.headers.get("host"),
+      forwardedHost: req.headers.get("x-forwarded-host"),
+      baseUrl: process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_BASE_URL ?? null,
+      urlHost: req.nextUrl.host,
+    })
+  ) {
+    return withCsp(NextResponse.json({ error: "Cross-site request refused." }, { status: 403 }));
+  }
 
   // 1) Auth gate first — an unauthenticated request must never reach a recruiter
   //    surface (not even to set a locale cookie). Password set ⇒ enforce sessions;
