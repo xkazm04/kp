@@ -18929,7 +18929,7 @@
             "deterministic": "Deterministic analysis",
             "unknown": "Engine not recorded"
           },
-          "analysed": "Analysed {date}"
+          "analysed": "Analyzed {date}"
         },
         "letter": {
           "title": "Email",
