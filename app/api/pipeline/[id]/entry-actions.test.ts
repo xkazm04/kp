@@ -40,9 +40,10 @@ test("entryActionOf admits the table's names and nothing else", () => {
 test("only accept may carry an engine claim — the guided sim's only use", () => {
   const claimers = ENTRY_ACTION_NAMES.filter((n) => ENTRY_ACTIONS[n].engineClaim);
   assert.deepEqual(claimers, ["accept"]);
-  assert.equal(engineClaimOf("accept", "sim"), "sim", "the declared engine keeps its attribution on accept");
+  assert.equal(engineClaimOf("accept", "sim", true), "sim", "the declared engine keeps its attribution on accept");
+  assert.equal(engineClaimOf("accept", "sim", false), undefined, "a real candidate's accept is always a person's");
   for (const name of ENTRY_ACTION_NAMES.filter((n) => n !== "accept")) {
-    assert.equal(engineClaimOf(name, "sim"), undefined, `${name} must drop a body-supplied actor`);
+    assert.equal(engineClaimOf(name, "sim", true), undefined, `${name} must drop a body-supplied actor`);
   }
 });
 

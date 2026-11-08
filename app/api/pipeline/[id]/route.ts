@@ -13,6 +13,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 import { draftManualOffer } from "@/app/_lib/offer-manual-draft";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 
 
@@ -238,8 +239,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
       ttlDays: body.ttlDays,
       // The engine claim survives only where the action declares one (accept — the
       // guided sim's only use). Forwarded on every action, a body `actor: "sim"` let
-      // any operator file a human reject as a machine auto-rejection.
-      actor: engineClaimOf(action, body.actor),
+      // any operator file a human reject as a machine auto-rejection. And only on the
+      // simulation's own (SIM) entry: on a real candidate it would seal the caller's
+      // advance or extended offer as "auto:sim", with no name on it.
+      actor: engineClaimOf(action, body.actor, isSimTitle(getPipelineEntry(id, ws)?.jobTitle)),
       origin: new URL(request.url).origin,
       workspaceId: ws,
     });

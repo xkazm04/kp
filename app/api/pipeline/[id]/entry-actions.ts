@@ -57,7 +57,9 @@ export function entryActionOf(raw: unknown): EntryActionName | null {
 }
 
 /** The body's `actor` claim as the door forwards it: kept only where the action declares
- *  an engine claim, dropped (undefined ⇒ the session's human) everywhere else. */
-export function engineClaimOf(action: EntryActionName, actor: unknown): unknown {
-  return ENTRY_ACTIONS[action].engineClaim ? actor : undefined;
+ *  an engine claim AND the entry is the simulation's own, dropped (undefined ⇒ the
+ *  session's human) everywhere else. On a real candidate the claim would seal a person's
+ *  advance or extended offer as "auto:sim", with no name on it. */
+export function engineClaimOf(action: EntryActionName, actor: unknown, onSimEntry: boolean): unknown {
+  return ENTRY_ACTIONS[action].engineClaim && onSimEntry ? actor : undefined;
 }
