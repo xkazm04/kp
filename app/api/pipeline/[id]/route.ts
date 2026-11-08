@@ -12,6 +12,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { draftManualOffer } from "@/app/_lib/offer-manual-draft";
 import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 
 
@@ -89,7 +90,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown; salary?: unknown };
 
     // The door's DECLARED actions (entry-actions.ts). An action the table does not name
     // is refused here, before any branch runs, and the seat each action requires is read
@@ -217,6 +218,13 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
     if (!rateLimit(`pipeline-entry-move:${clientIpFrom(request.headers)}`, MOVE_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
+    // A recruiter's own offer draft: no model, no profile needed. It stops at the same
+    // offer_review approval as the AI draft, so extendDraftedOffer still decides.
+    if (action === "draft_offer") {
+      const drafted = await draftManualOffer({ id, workspaceId: ws, salary: body.salary });
+      return NextResponse.json(drafted.body, { status: drafted.status });
+    }
+
     // The three board move/decide actions (set_stage / accept / reject / approve_event)
     // run through the shared runPipelineEntryAction so the single route and the batch
     // route (/api/pipeline/batch) can never diverge on the expectedStage CAS, the

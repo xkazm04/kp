@@ -33,6 +33,7 @@ import type { StageAiAction, StageDef } from "@/app/_lib/pipeline-stages";
 import { offeredStageActions } from "@/app/_lib/stage-ai-actions";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { moveStageSelectValues } from "../../pipelineMoveTargets";
+import { offersManualOfferDraft } from "../candidateView";
 import type { CandidateState } from "../state/useCandidateState";
 import { CandidateFooterTray, type TrayView } from "./CandidateFooterTray";
 
@@ -55,6 +56,8 @@ export function CandidateFooter({
   nextStage,
   stageLabel,
   labelOf,
+  onOpenScorecard,
+  onChanged,
 }: {
   entry: Entry;
   axis: readonly StageDef[];
@@ -63,11 +66,16 @@ export function CandidateFooter({
   stageLabel: (stage: StageDef) => string;
   /** A stage id's display label (workspace-renamed or catalog). */
   labelOf: (stageId: string) => string;
+  /** Opens the prep modal holding the human scorecard. Absent off an interview step. */
+  onOpenScorecard?: () => void;
+  /** Re-reads the entry after a hand-drafted offer raises its approval. */
+  onChanged: () => void;
 }) {
   const t = useTranslations("pipeline.candidate.footer");
   const tDrawer = useTranslations("pipeline.drawer");
   const tActions = useTranslations("pipeline.actions");
   const tScore = useTranslations("pipeline.candidate.scorecard");
+  const tSchedule = useTranslations("scheduleTab");
   const [tray, setTray] = useState<TrayView | null>(null);
   const actions = offeredStageActions(entry, axis);
   const active = entry.status === "active";
@@ -79,7 +87,7 @@ export function CandidateFooter({
 
   return (
     <footer aria-label={t("aria")} className="shrink-0 border-t border-stone-200 bg-white">
-      {tray ? <CandidateFooterTray view={tray} entry={entry} st={st} onClose={() => setTray(null)} /> : null}
+      {tray ? <CandidateFooterTray view={tray} entry={entry} st={st} onChanged={onChanged} onClose={() => setTray(null)} /> : null}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
         {active ? (
           <Select
@@ -122,6 +130,19 @@ export function CandidateFooter({
             })
           )}
         </div>
+
+        {/* A person's own rating, deliberately outside the AI actions group above. */}
+        {onOpenScorecard ? (
+          <button type="button" onClick={onOpenScorecard} className={LINK_BTN}>
+            <ClipboardList size={14} className="text-coral-ink" aria-hidden /> {tSchedule("prepScorecard")}
+          </button>
+        ) : null}
+
+        {offersManualOfferDraft(entry, axis) ? (
+          <button type="button" aria-expanded={tray === "manualOffer"} onClick={() => toggle("manualOffer")} className={LINK_BTN}>
+            <Banknote size={14} className="text-coral-ink" aria-hidden /> {t("manualOffer")}
+          </button>
+        ) : null}
 
         {st.showLinks ? (
           <>

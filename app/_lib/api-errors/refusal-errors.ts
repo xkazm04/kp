@@ -482,6 +482,9 @@ export const REFUSAL_ERRORS = {
   /** The offer was drafted and its link minted, but the message did not go out
    *  (502). Deliberately NOT a fault code: the approval is left open on purpose and
    *  approving again re-sends the SAME link, which is what the reader must know. */
+  /** A hand-drafted offer needs an active candidate on the offer step with no decision
+   *  already open on them (409). */
+  OFFER_DRAFT_NOT_AVAILABLE: "An offer can only be drafted for an active candidate on the offer step with no decision waiting.",
   OFFER_NOT_DISPATCHED: "The offer was drafted but couldn't be sent. Nothing was lost — approve again to re-send the same link.",
   /** An offer draft whose figure is present but cannot be a salary — negative, or
    *  past the stated ceiling (400). Refused BEFORE a token is minted, so no letter

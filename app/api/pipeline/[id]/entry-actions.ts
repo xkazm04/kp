@@ -1,6 +1,6 @@
 // The single-entry door's declared actions (challenge-r07 pipeline-api/A).
 //
-// POST /api/pipeline/[id] dispatches nine actions. Each one's REQUIREMENTS are data
+// POST /api/pipeline/[id] dispatches ten actions. Each one's REQUIREMENTS are data
 // here, beside the operation, and the route reads them through one gate — so an action
 // the door dispatches without a declared seat is unrepresentable (the route narrows
 // body.action through entryActionOf before it does anything else), and adding a row
@@ -43,6 +43,7 @@ export const ENTRY_ACTIONS = {
   accept: { capability: "pipeline:write", engineClaim: true, reverses: null },
   reject: WRITE,
   approve_event: WRITE,
+  draft_offer: WRITE,
 } as const satisfies Record<string, EntryActionSpec>;
 
 export type EntryActionName = keyof typeof ENTRY_ACTIONS;
