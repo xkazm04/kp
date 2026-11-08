@@ -30496,7 +30496,11 @@
           "revision": 8,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:328 guardPlan maps any action other than 'delete' (a misspelt or invented verb) onto a whole-file write instead of rejecting it, which is the 'fuzzily matched to the nearest legal operation' failure of a closed grammar.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:33b072141695f2eb",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"
@@ -34620,12 +34624,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 The test requires unavailable CV corroboration to produce the same empty findings list as a completed clean check, losing the required not-inspected outcome.",
-          "evaluatedAt": "2026-10-23",
-          "evaluatedAgainst": "sha256-b2:51087132dbd1c9fb",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:308 The JSON-fence binding test only feeds a payload that never tries to close its fence; fenced_untrusted passes a forged <<<END_UNTRUSTED_TAG>>> through verbatim inside the JSON string (verified: the close marker appears twice), so the scorecard transcript and group-compare fences are forgeable and no test catches it.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:33b072141695f2eb",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"

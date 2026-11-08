@@ -18367,37 +18367,57 @@
       "subject": "prompt-safety",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-23",
-      "evaluatedTs": "2026-10-23T21:18:02.347Z",
-      "worker": "c91d206d-f874-49a4-abe7-32d44b3078c6",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T04:03:24.440Z",
+      "worker": "b932f475-668f-4bd2-8333-fc4303834c11",
       "techniques": [
         {
-          "technique": "cross-language-rule-parity",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_automation_constant_sync.py:110 The surrounding test binds generated prompt limits to Python values and verifies that TypeScript re-exports them without independent declarations."
-        },
-        {
-          "technique": "input-caps-and-clamps",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:75 Real prompt builders are tested with oversized JD, company and CV blocks, requiring class-specific ceilings and visible truncation markers."
+          "technique": "untrusted-span-fencing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:308 Prose fences are defused and non-vacuity-tested well, but the JSON fences (fixed marker, no nonce, no stripping) are only tested with a marker-free payload; the line-297 rationale that json.dumps escapes the needed newlines is wrong, since a model does not need a newline to read a closing marker."
         },
         {
           "technique": "inspection-coverage-is-a-verdict",
           "verdict": "deviation",
-          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 Required-licence corroboration silently skips unreadable CV text; its result cannot distinguish not inspected from inspected without findings."
+          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 An unreadable CV skips the check that corroborates a model-listed licence, and the test pins the same empty list a clean check returns; there is no not-inspected outcome."
+        },
+        {
+          "technique": "input-caps-and-clamps",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:39 Per-block caps (JD, company, CV, summary, highlight, label, verdict) cut with a visible marker; in-budget text stays byte-identical."
+        },
+        {
+          "technique": "model-output-as-untrusted",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation.py:947 Model-emitted scorecard entities are type-checked and non-conforming members dropped rather than trusted."
+        },
+        {
+          "technique": "cross-language-rule-parity",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_constant_sync.py:52 The transcript budget cap is single-sourced in Python, generated into TS, and pinned by a test on both sides."
+        },
+        {
+          "technique": "session-capability-conjunction",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_claude_cli.py:148 Generate mode runs in an empty cwd; repo access only through with_repo_access's read-only door; the API key is stripped from the spawn env (line 261). The roster is cut at design time."
         },
         {
           "technique": "payoff-removal",
           "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_automation.py:1230 A model-issued early-career rejection is structurally rewritten to hold after generation, preventing that response from winning an automated rejection."
-        },
-        {
-          "technique": "untrusted-span-fencing",
-          "verdict": "conformant",
-          "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:199 Breakout payloads pass through real prompt builders, and disabling marker defusing must make the same fence-integrity assertion fail."
+          "evidence": "pipeline/jobfit/tests/test_automation.py:1230 A model-issued early-career rejection is structurally rewritten to hold after generation, preventing that response from winning an automated rejection.",
+          "carriedFrom": "2026-10-23"
         }
       ],
-      "registryProposal": "Align the golden path's mandatory fresh-nonce wording with untrusted-span-fencing's explicit allowance for fixed markers stripped from every payload."
+      "registryProposal": "untrusted-span-fencing should name JSON-encoding as a non-fence: json.dumps escapes quotes and newlines but leaves fixed angle-bracket markers intact, so a 'JSON fence' with a fixed close tag still needs stripping or a nonce; teams treat the encoding as the neutralization.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_credentials.py:105 The test requires unavailable CV corroboration to produce the same empty findings list as a completed clean check, losing the required not-inspected outcome.",
+          "evaluatedAt": "2026-10-23T21:18:02.347Z",
+          "worker": "c91d206d-f874-49a4-abe7-32d44b3078c6",
+          "reason": "replaced by b932f475-668f-4bd2-8333-fc4303834c11"
+        }
+      ]
     },
     "93a31312-7759-4474-9b28-5773f102daa1/public-work-evidence-bounding": {
       "context": "skill-profile-public-page",
@@ -27568,6 +27588,47 @@
           "technique": "coupled-surface-inventory",
           "verdict": "deviation",
           "evidence": "docs/features/comms/README.md:840 public-base-url.ts calls itself the one resolver whose origin is 'documented'. Its documentation is spread across the comms and agents docs, and no entry enumerates those surfaces."
+        }
+      ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/prompt-safety": {
+      "context": "security-agent-gates",
+      "subject": "prompt-safety",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T04:03:24.440Z",
+      "worker": "b932f475-668f-4bd2-8333-fc4303834c11",
+      "techniques": [
+        {
+          "technique": "model-output-as-untrusted",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:328 Paths, the protected prefixes, sizes and the commit subject are validated well; the verb set is not closed."
+        },
+        {
+          "technique": "untrusted-span-fencing",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:426 The fence is always longer than any backtick run in the payload (stripping-class unforgeability), with the UNTRUSTED_TASK_LABEL provenance label in both rounds; pinned by injection.test."
+        },
+        {
+          "technique": "input-caps-and-clamps",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:269 Source reads are capped per file and per count with a visible marker, and the meter checks the token budget before each call. The issue-body task text has no class cap of its own beyond GitHub's limit."
+        },
+        {
+          "technique": "output-sanitization",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:544 Model-authored summary, verification and risks go into the proposal markdown posted to the tracker with no secret masking or @mention/link neutralization."
+        },
+        {
+          "technique": "payoff-removal",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/__tests__/injection.test.mjs:20 Assumes the injection fully worked and asserts guardPlan denies the win (protected gates, .env, test deletions, traversal); the output is a draft PR gated like any change."
+        },
+        {
+          "technique": "inspection-coverage-is-a-verdict",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:242 The blocking secret gate skips tracked files over 2 MB (printed as 'not read') and still exits 0; a committer can pad a file past the window. Binary-extension and unreadable files are skipped and not counted at all."
         }
       ]
     }
