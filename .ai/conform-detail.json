@@ -13925,36 +13925,55 @@
       "subject": "candidate-status-transparency",
       "bundle": "recruiting",
       "state": "deviation",
-      "evaluatedAt": "2026-10-18",
-      "evaluatedTs": "2026-10-18T22:08:25.808Z",
-      "worker": "418ad724-8c52-4a33-aef5-61c90eea6c59",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:45:19.950Z",
       "techniques": [
         {
-          "technique": "candidate-safe-status-projection",
-          "verdict": "conformant",
-          "evidence": "app/_lib/application-status.ts:8 Defines candidate-visible status as a closed set of coarse states by construction without exposing internal database fields or scores."
-        },
-        {
-          "technique": "honest-failure-classification",
-          "verdict": "conformant",
-          "evidence": "app/_lib/application-status.ts:121 Classifies HTTP status codes into retryable transient failures versus invalid link errors."
+          "technique": "terminal-state-copy-without-implying-merit",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 The terminal cause is dropped at the projection, so one copy variant serves both a decline and a closure. The technique requires one variant per cause."
         },
         {
           "technique": "stage-role-mapping-not-stage-names",
           "verdict": "deviation",
-          "evidence": "app/_lib/application-status.ts:87 Falls back to stage name lookup and the initial entry bucket (received) instead of a neutral in-progress state when stage role is absent or unmappable."
+          "evidence": "app/_lib/application-status.ts:87 The role map covers every role, but roleOf returns null for an off-axis or retired stage. That falls through to a NAME match and then to the entry bucket \"received\", which understates progress. The technique asks for a neutral in-progress state, never the entry bucket."
+        },
+        {
+          "technique": "candidate-legible-timeline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/application-status.ts:19 A fixed 5-step spine, with off-path terminals kept out of the trail."
+        },
+        {
+          "technique": "honest-failure-classification",
+          "verdict": "conformant",
+          "evidence": "app/_lib/application-status.ts:121 Pure classifier: no response, 5xx, 408 and 429 count as transient; any other 4xx counts as an invalid link. The copy problems are judged in the page context."
         },
         {
           "technique": "terminal-moment-experience-measurement",
           "verdict": "deviation",
-          "evidence": "app/_lib/candidate-nps-store.ts:25 Stores candidate NPS responses without recording the terminal outcome kind (hired, declined, withdrew, requisition ended), preventing outcome-split satisfaction reporting."
+          "evidence": "app/_lib/candidate-nps-store.ts:21 The row records no terminal outcome, and the summary query at line 41 is unsplit, so hired, declined, withdrew and requisition-ended answers are averaged together. The parts that do conform: one row per application, refused out-of-window, no coercion, comment capped at 500 chars, figure withheld below 10 responses."
         },
         {
-          "technique": "terminal-state-copy-without-implying-merit",
-          "verdict": "deviation",
-          "evidence": "app/_lib/application-status.ts:84 Collapses role_closed and rematched into not_selected, conflating structural requisition endings with candidate merit rejections."
+          "technique": "candidate-safe-status-projection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/application-status.ts:8 A separate closed 7-value enum built from the (status, stage, role) inputs, not a filtered view of the row."
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 The status projection collapses requisition closures and lateral rematches into not_selected alongside rejections, erasing the cause needed to distinguish merit decisions from process endings.",
+          "evaluatedAt": "2026-10-18T22:08:25.808Z",
+          "worker": "418ad724-8c52-4a33-aef5-61c90eea6c59",
+          "reason": "replaced by 29d9b10f-397b-47a2-a018-3f6033035746"
+        }
+      ],
+      "withdrawn": {
+        "worker": "29d9b10f-397b-47a2-a018-3f6033035746",
+        "state": "deviation",
+        "at": "2026-11-08T02:46:28.945493+00:00",
+        "reason": "reviewer (sonnet): The cited code (application-status.ts, the status projection) is the status page's logic, and the context file list names only its test, not the file. The verdict is about the application-status-page context, not the apply flow. The claim also rests on roleOf returning null for retired stages, which"
+      }
     },
     "c780fee6-52c0-484e-b383-875b9aa63a1e/client-state": {
       "context": "schedule-calendar-invites",
@@ -27417,6 +27436,47 @@
         }
       ],
       "registryProposal": "badge-and-attention's 'one slot, ranked' rule could say whether a working-state count (running tasks) and a load meter count as a separate ambient indicator or must compete for the same slot as the unread and alert badges; the current text leaves that ambiguous for activity entries."
+    },
+    "cb124cc7-c5a3-40fe-987a-9c07e814716f/candidate-status-transparency": {
+      "context": "application-status-page",
+      "subject": "candidate-status-transparency",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:45:19.950Z",
+      "worker": "29d9b10f-397b-47a2-a018-3f6033035746",
+      "techniques": [
+        {
+          "technique": "terminal-state-copy-without-implying-merit",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:2134 One sentence serves rejected, rematched and role_closed (StatusClient.tsx:276 picks it for any not_selected), and it states a comparative decision."
+        },
+        {
+          "technique": "honest-failure-classification",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:2088 The store issues one permanent token per entry and never reissues it (getOrCreateStatusLink), so a \"most recent status link\" does not exist. Also, loadFailed (line 2087) says \"check your connection\" for 5xx and 429 responses too, and the skeleton has no time bound. What conforms: the error takeover happens only on the initial load (StatusClient.tsx:227), and polling stops at a terminal state."
+        },
+        {
+          "technique": "candidate-legible-timeline",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:2126 Names a human actor for a phase that also covers scoring, homework and custom roles (and automated screening), so the claim is false part of the time it shows. The spine, the terminal-card replacement, focus/interval revalidation and relay-gated email copy all conform."
+        },
+        {
+          "technique": "candidate-safe-status-projection",
+          "verdict": "conformant",
+          "evidence": "app/api/status/[token]/route.ts:53 The route writes out each permitted field (status, title, company, updatedAt, booleans, nextAction as kind/sentAt/expiresAt with no capability). /status/ is disallowed in robots, and the referrer policy is strict-origin-when-cross-origin."
+        },
+        {
+          "technique": "committed-dates-not-forecasts",
+          "verdict": "conformant",
+          "evidence": "app/status/[token]/StatusNextActionCard.tsx:47 Shows only the owned action deadline on the status view, and no forecast of a decision date."
+        },
+        {
+          "technique": "terminal-moment-experience-measurement",
+          "verdict": "conformant",
+          "evidence": "app/status/[token]/StatusNpsCard.tsx:71 Asked only when the route marks the state terminal, then thanks and stops asking once answered. The outcome-split gap is in the store (apply-flow context), not on this page."
+        }
+      ]
     }
   }
 }
