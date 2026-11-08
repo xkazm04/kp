@@ -225,6 +225,13 @@ export async function respondToOffer(token: string, response: "accept" | "declin
 export function offerView(token: string) {
   const offer = expireOfferIfDue(token);
   if (!offer) return null;
+  // A lapsed link is dead: it answers its status and the role's title and nothing else, so a
+  // link that outlives its offer (a forwarded email, a browser history) no longer shows the
+  // candidate's name, the salary, the company or the notes. An ANSWERED offer keeps its terms:
+  // the holder is the candidate and it is their own record.
+  if (offer.status === "expired") {
+    return { status: offer.status, jobTitle: offer.jobTitle };
+  }
   // The hiring company lives on the job record (not the pipeline entry), so resolve
   // it from there — this is what lets the public offer page show who it's from.
   const job = offer.jobId ? getJob(offer.jobId) : null;

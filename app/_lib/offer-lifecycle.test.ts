@@ -389,3 +389,32 @@ test("re-extending an offer whose deadline lapsed before the sweep ran refreshes
   assert.ok(Date.parse(again.offer.expiresAt!) > Date.now(), "the link the candidate receives is live");
   assert.equal(getOfferByToken(first.offer.token!)!.status, "extended");
 });
+
+test("an expired offer's view carries status and job title only; an answered one keeps its terms", async () => {
+  const entry = entryAtOffer();
+  const offer = createOffer({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: "CZK",
+    salary: 90_000,
+    payload: { notes: "Signing bonus", startDate: "2026-10-01" },
+  });
+  forceExpiry(offer.token!);
+  const dead = offerView(offer.token!)!;
+  assert.deepEqual(Object.keys(dead).sort(), ["jobTitle", "status"]);
+  assert.equal(dead.status, "expired");
+  assert.equal(dead.jobTitle, entry.jobTitle);
+
+  const live = entryAtOffer();
+  const answered = createOffer({
+    entryId: live.id, candidateLabel: live.candidateLabel, jobId: live.jobId, jobTitle: live.jobTitle,
+    currency: "CZK", salary: 90_000, payload: {},
+  });
+  await respondToOffer(answered.token!, "accept");
+  const kept = offerView(answered.token!)! as Record<string, unknown>;
+  assert.equal(kept.status, "accepted");
+  assert.equal(kept.salary, 90_000);
+  assert.equal(kept.candidateLabel, live.candidateLabel);
+});

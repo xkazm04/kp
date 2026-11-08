@@ -26,7 +26,7 @@ export type OfferKitDecisionProps = {
  * The guards are OfferClient's: `pending` disables both buttons while one answer is in flight.
  */
 export function OfferKitDecision(
-  p: OfferKitDecisionProps & { offer: OfferKitInput & { timeZone: string }; company: string | null },
+  p: OfferKitDecisionProps & { offer: OfferKitInput & { timeZone?: string }; company: string | null },
 ) {
   const t = useTranslations("offer");
   const locale = useLocale();
