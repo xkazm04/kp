@@ -368,7 +368,9 @@ test("the labels are unchanged when the entry is not offered (a non-loopback Hos
   await context.addInitScript((key) => window.localStorage.setItem(key, "1"), OPEN_ENTRY_MARKER);
   const page = await context.newPage();
   try {
-    const res = await page.goto(`${url.protocol}//${lan}:${url.port}/`);
+    // A server bound to loopback only (the CI runner) refuses the connection and goto
+    // throws, rather than answering with an error status.
+    const res = await page.goto(`${url.protocol}//${lan}:${url.port}/`).catch(() => null);
     test.skip(!res?.ok(), "the server is not reachable on the LAN address");
     await expect(page.locator("#top").getByRole("link", { name: "Start hiring free" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in" }).first()).toBeVisible();
