@@ -15526,46 +15526,71 @@
       "subject": "background-jobs",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T01:49:26.348Z",
-      "worker": "27e607dd-2b98-4598-9193-d88c10153668",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:25:22.780Z",
       "techniques": [
-        {
-          "technique": "adaptive-cadence",
-          "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:102 The lifecycle strip refreshes on identity or explicit transition changes, rather than running an interval poller."
-        },
         {
           "technique": "job-progress-and-cancellation",
           "verdict": "deviation",
-          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 A bulk import is owned by the mounted hook: unmount aborts execution, and run state has no persistent run identity or snapshot for reattachment."
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 The viewer owns the job: a tab switch kills the run. There is no job id, no snapshot to rejoin, and no durable record. The repo's own tracked task system (app/_lib/task-kinds.ts) has no ingest kind."
+        },
+        {
+          "technique": "job-progress-and-cancellation",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsIngestRunOutcome.ts:33 The terminal outcomes are distinct and never collapse: cancelled (with partial rows), done (with added/exists/failed counts) and teardown. That part of the contract holds; the re-attachment part is what fails."
+        },
+        {
+          "technique": "adaptive-cadence",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:102 The lifecycle strip refreshes on identity or explicit transition changes, rather than running an interval poller.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "loop-health-telemetry",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:166 The import processes a finite submitted collection; its outcomes belong to job progress rather than recurring-loop health."
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:166 The import processes a finite submitted collection; its outcomes belong to job progress rather than recurring-loop health.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "loop-supervision",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:260 The local timers reset clipboard feedback once; they are not recurring background loops."
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:260 The local timers reset clipboard feedback once; they are not recurring background loops.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "startup-sweeps",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:53 This client hook holds transient import state and hosts no persistent execution runtime; its missing reattachment is assessed under the job contract."
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:53 This client hook holds transient import state and hosts no persistent execution runtime; its missing reattachment is assessed under the job contract.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "tick-isolation",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:163 This is a finite sequential import, not a recurring cadence that can dispatch overlapping ticks."
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:163 This is a finite sequential import, not a recurring cadence that can dispatch overlapping ticks.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "timeout-is-a-status-not-a-consumption",
           "verdict": "not-applicable",
-          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:137 Stopping publication aborts its request; this surface provides no bounded wait on a retained operation handle."
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:137 Stopping publication aborts its request; this surface provides no bounded wait on a retained operation handle.",
+          "carriedFrom": "2026-10-19"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 Unmounting the import viewer aborts its running import, violating the requirement that watched jobs survive their observers and support reattachment.",
+          "evaluatedAt": "2026-10-19T01:49:26.348Z",
+          "worker": "27e607dd-2b98-4598-9193-d88c10153668",
+          "reason": "replaced by 7384b73f-3546-468e-8618-0f6edd8c9b6e"
+        }
+      ],
+      "withdrawn": {
+        "worker": "7384b73f-3546-468e-8618-0f6edd8c9b6e",
+        "state": "deviation",
+        "at": "2026-11-08T02:26:01.888734+00:00",
+        "reason": "reviewer (sonnet): Both anchors (jobsIngestAdPanelLogic.ts, jobsIngestRunOutcome.ts) belong to the ad-ingest panel owned by JobsTab. None of the twelve posting-campaign context files (JobsPostingModal, lifecycle, strip, publish result) is the bulk ingest loop, so the verdict is about a different context."
+      }
     },
     "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/conformance-checking": {
       "context": "e2e-suite",
