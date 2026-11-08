@@ -27334,6 +27334,26 @@
       "evaluatedTs": "2026-11-08T02:01:24.489Z",
       "worker": "726ddbf7-4fcf-4b80-a06e-c1cf1b159d59",
       "techniques": []
+    },
+    "48803d2b-7f17-4d34-90ca-c420b7074ef2/agent-cli-transport": {
+      "context": "chat-markdown-icons",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:14:31.317Z",
+      "worker": "8db318d9-0f08-44cf-aac6-4d0cbce6063d",
+      "techniques": []
+    },
+    "3fbaa8cf-25f9-4c19-9b05-f06cd4aac151/agent-cli-transport": {
+      "context": "shell-companion",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:14:31.317Z",
+      "worker": "8db318d9-0f08-44cf-aac6-4d0cbce6063d",
+      "techniques": []
     }
   }
 }

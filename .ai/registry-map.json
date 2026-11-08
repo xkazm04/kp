@@ -8860,8 +8860,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/_components/chat/ChatTranscript.tsx:9 These are client presentation primitives: transcript bubbles, a composer, a sanitising Markdown renderer and icons. None of them spawns a process or parses an agent-CLI envelope, and a search of app/_components for the transport's flags, env keys and child_process found nothing.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         }
       ],
       "governance": "governed"
@@ -31299,8 +31303,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/features/shell/companion/useCompanionThread.ts:119 The companion dock is a client that talks to kp's own /api/companion routes over HTTP. Its thread id is a kp database row, not a child CLI session id; companion_cli.py receives the transcript on every turn and the repo has no --resume. thread-custody-across-resume therefore has no precondition here either. A search of app/features/shell/companion for the transport's flags, env keys and child_process found nothing.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         }
       ],
       "governance": "governed"
