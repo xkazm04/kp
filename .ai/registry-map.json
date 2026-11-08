@@ -33070,12 +33070,11 @@
           "changedAt": "2026-10-31",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/landing/spark/SparkHome.tsx:32 This shell composes an application marketing page, while searches found no repository-document publishing markers in its directories and located the repository badge in the separate root README.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:7f83bf34fe6f34be",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/landing/spark/SparkHome.tsx:13 This context is the application's own rendered marketing homepage (a Next route shell), not the repository front page a code host or package registry renders; I searched app/landing and app/jds for shields.io, badge.svg, npmjs.com, 'repository topics' and 'social preview' and got zero hits; the 'README' and 'badge' hits are code comments pointing at other docs and the SVG logomark's 'rounded badge' shape, not a repository document, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:21e7be3c68f38a9a",
+          "evaluatedRevision": 5,
+          "revisionsBehind": 2
         },
         {
           "subject": "app-shell",
