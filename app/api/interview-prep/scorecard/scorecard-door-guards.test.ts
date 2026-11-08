@@ -55,3 +55,26 @@ test("with nothing in the gap the gate still opens (control)", async () => {
   assert.equal(((await res.json()) as { gated: boolean }).gated, true);
   assert.equal(getPipelineEntry(id)!.approvalKind, "scorecard_review");
 });
+
+// ── finding 7: only a number or a numeric string is a rating ─────────────────
+
+test("null, empty, whitespace and boolean ratings are omitted as unrated; numbers and numeric strings count", async () => {
+  const { getInterviewPrep } = await import("../../../_lib/interview-prep.ts");
+  const { readHumanScorecards } = await import("../../../_lib/human-scorecard-set.ts");
+  const id = preppedAt("Interview");
+  const res = await post(id, () => ({
+    ratings: [
+      { competency: "A-null", rating: null },
+      { competency: "B-empty", rating: "" },
+      { competency: "C-blank", rating: "  " },
+      { competency: "D-false", rating: false },
+      { competency: "E-true", rating: true },
+      { competency: "F-num", rating: 4 },
+      { competency: "G-str", rating: "3" },
+    ],
+  }));
+  assert.equal(res.status, 200);
+  const records = readHumanScorecards(getInterviewPrep(id)!.payload);
+  const kept = records.flatMap((r) => r.ratings.map((x) => [x.competency, x.rating]));
+  assert.deepEqual(kept, [["F-num", 4], ["G-str", 3]]);
+});

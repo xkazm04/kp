@@ -194,7 +194,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
         const r = raw as Record<string, unknown>;
         const competency = typeof r.competency === "string" ? r.competency.slice(0, MAX_COMPETENCY).trim() : "";
         if (!competency) continue;
-        const n = typeof r.rating === "number" ? r.rating : Number(r.rating);
+        // Only a number or a non-empty numeric string is a rating. `Number(null)`,
+        // `Number("")` and `Number(false)` are all 0 and would clamp to the WORST score.
+        const n =
+          typeof r.rating === "number" ? r.rating : typeof r.rating === "string" && r.rating.trim() ? Number(r.rating) : NaN;
         if (!Number.isFinite(n)) continue; // an unrated competency is simply omitted
         const rating = Math.min(RATING_MAX, Math.max(1, Math.round(n)));
         const evidence = typeof r.evidence === "string" ? r.evidence.slice(0, MAX_EVIDENCE).trim() : "";
