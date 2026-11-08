@@ -27180,6 +27180,26 @@
         "at": "2026-11-08T00:58:12.297860+00:00",
         "reason": "reviewer (sonnet): The repo has root CLAUDE.md, AGENTS.md and .claude/CLAUDE.md that govern every context, so the precondition does hold, and each anchor is incidental code (e.g. liveWorkDraft.ts:53 is encodeDraft, skill page.tsx:29 is a params destructure) that shows no absence."
       }
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/agent-cli-transport": {
+      "context": "login-flow",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:12:23.097Z",
+      "worker": "aa4f754c-1ec1-4ef1-ae13-0db3481e07f3",
+      "techniques": []
+    },
+    "9fd9a101-9395-4e7f-8e96-7b4e5b99586f/agent-cli-transport": {
+      "context": "billing-api",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:12:23.097Z",
+      "worker": "aa4f754c-1ec1-4ef1-ae13-0db3481e07f3",
+      "techniques": []
     }
   }
 }

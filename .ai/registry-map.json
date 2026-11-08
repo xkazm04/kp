@@ -6244,8 +6244,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/api/billing/checkout/route.ts:40 Billing talks to the Polar HTTP gateway; searching app/api/billing and app/api for stream-json, permission-mode, ANTHROPIC_API_KEY and child_process found nothing, so no agent-CLI subprocess transport exists in this context.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "prompt-assembly",
@@ -23619,8 +23623,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 7
+          "state": "not-applicable",
+          "priorNotApplicable": 7,
+          "evidence": "app/login/LoginClient.tsx:46 The sign-in page posts credentials to an HTTP route and classifies the answer; searching app/login for stream-json, permission-mode, ANTHROPIC_API_KEY, child_process and claude found nothing, so no agent CLI is involved.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "agent-runtime-assembly",
