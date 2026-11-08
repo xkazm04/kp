@@ -27898,6 +27898,49 @@
         }
       ],
       "registryProposal": "The alias rule is written for a value changing sides. It does not say whether a deliberate, permanent mirror of a non-secret value (a public URL, server-only name plus NEXT_PUBLIC name) counts as the forbidden alias or as an accepted dual declaration. The code here reasons it is safe because the value grants nothing, yet it still drifts. The technique could state the case outright: one name, read on both sides."
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/agent-host-experience": {
+      "context": "agent-hire-app-master",
+      "subject": "agent-host-experience",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:34:10.053Z",
+      "worker": "55e91cea-d81e-46e4-aeca-f406d0956186",
+      "techniques": [
+        {
+          "technique": "peer-agent-delegation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/app-master/backbone.ts:387 Here kp is the delegating side. The technique says a delegate's completion is a claim to check, not believe. The parser does bound the payload as untrusted (report-payload.ts:34: 'nothing in it is trusted beyond its shape'). But a missing ledger self-report is filled in as 'consistent' and scored as measured, and a missing forbiddenClassViolations count becomes 0, so the forbidden-class gate passes. The verdict therefore rests on the delegate's own word, with silence counted as success."
+        },
+        {
+          "technique": "depth-handoff",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/lifecycle.ts:100 No task starts in an outside assistant here. kp calls Personas, and the human approval happens in Personas; kp records the request as pending, not done. This is not a hand-off from a host back into the product."
+        }
+      ],
+      "registryProposal": "peer-agent-delegation's 'The product as the delegating side' section could name the case where the delegate's report is the only evidence of its own work (a self-reported ledger or violation count). It should say that a field the delegate did not send is unmeasured, never filled with the passing value."
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/agent-host-experience": {
+      "context": "task-automation-engine",
+      "subject": "agent-host-experience",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:34:10.053Z",
+      "worker": "55e91cea-d81e-46e4-aeca-f406d0956186",
+      "techniques": [
+        {
+          "technique": "agent-ui-event-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-poll-state.ts:80 The runs are batch pipeline jobs that the UI polls; there is no agent turn with text deltas, tool calls or consent events for several surfaces to read. That matches the technique's own 'when not to use' clause."
+        },
+        {
+          "technique": "journey-shaped-tool-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:47 The task engine exposes no operations to outside agents. The only client is kp's own UI, which reads the task row."
+        }
+      ]
     }
   }
 }
