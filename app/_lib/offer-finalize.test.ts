@@ -11,6 +11,7 @@ import { createPipelineEntry, getPipelineEntry, hasEvent } from "./db/pipeline.t
 import { createOffer, getOfferByToken, markEntryStatus } from "./offers-store.ts";
 import { respondToOffer } from "./offer-finalize.ts";
 import { SUBSCRIBABLE_EVENTS } from "./ats-webhook.ts";
+import { billingOverview } from "./billing/entitlements.ts";
 
 after(() => cleanupUnitDb());
 
@@ -72,4 +73,38 @@ test("an accept on a live offer-stage entry still hires and mirrors both events"
   const res = await respondToOffer(offer.token!, "accept");
   assert.ok(res.ok && res.status === "accepted");
   assert.deepEqual(deliveries(entry.id).sort(), ["candidate.hired", "offer.accepted"]);
+});
+
+// ── finding 4: a (SIM) offer is not hire-bearing ─────────────────────────────
+
+const SIM_TITLE = "Finalize Role (SIM)";
+const hiresUsed = (): number => billingOverview(new Date()).meters.find((m) => m.meter === "hires")?.used ?? -1;
+
+test("a (SIM) accept advances the entry but debits no hire and dispatches no ATS event", async () => {
+  const entry = entryAt("Offer", SIM_TITLE);
+  const offer = mint(entry.id, SIM_TITLE);
+  const before = hiresUsed();
+
+  const res = await respondToOffer(offer.token!, "accept");
+  assert.ok(res.ok && res.status === "accepted");
+  assert.equal(getPipelineEntry(entry.id)!.stage, "Hired", "the guided sim still reaches Hired");
+  assert.equal(hiresUsed(), before, "no hire debited for demo residue");
+  assert.deepEqual(deliveries(entry.id), [], "neither candidate.hired nor offer.accepted");
+});
+
+test("a (SIM) decline closes the entry but dispatches no offer.declined", async () => {
+  const entry = entryAt("Offer", SIM_TITLE);
+  const offer = mint(entry.id, SIM_TITLE);
+  const res = await respondToOffer(offer.token!, "decline");
+  assert.ok(res.ok && res.status === "declined");
+  assert.equal(getPipelineEntry(entry.id)!.status, "declined");
+  assert.deepEqual(deliveries(entry.id), []);
+});
+
+test("a real accept still debits exactly one hire (control)", async () => {
+  const entry = entryAt("Offer");
+  const offer = mint(entry.id);
+  const before = hiresUsed();
+  await respondToOffer(offer.token!, "accept");
+  assert.equal(hiresUsed(), before + 1);
 });
