@@ -75,7 +75,7 @@ test("null, empty, whitespace and boolean ratings are omitted as unrated; number
   }));
   assert.equal(res.status, 200);
   const records = readHumanScorecards(getInterviewPrep(id)!.payload);
-  const kept = records.flatMap((r) => r.ratings.map((x) => [x.competency, x.rating]));
+  const kept = records.flatMap((r) => (r.ratings ?? []).map((x) => [x.competency, x.rating]));
   assert.deepEqual(kept, [["F-num", 4], ["G-str", 3]]);
 });
 
