@@ -27150,6 +27150,36 @@
       "evaluatedTs": "2026-11-08T00:46:19.072Z",
       "worker": "906730a9-162d-445d-bd76-ac3c36cda039",
       "techniques": []
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/agent-instruction-files": {
+      "context": "jobseeker-sources-scans",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:57:24.565Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "1ebe3567-14af-4062-9faa-0d7d872e94a3",
+        "state": "not-applicable",
+        "at": "2026-11-08T00:58:12.297860+00:00",
+        "reason": "reviewer (sonnet): The repo has root CLAUDE.md, AGENTS.md and .claude/CLAUDE.md that govern every context, so the precondition does hold, and each anchor is incidental code (e.g. liveWorkDraft.ts:53 is encodeDraft, skill page.tsx:29 is a params destructure) that shows no absence."
+      }
+    },
+    "4869cfba-099f-4299-ab82-9de0e9e71840/agent-instruction-files": {
+      "context": "jobseeker-profile",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:57:24.565Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "1ebe3567-14af-4062-9faa-0d7d872e94a3",
+        "state": "not-applicable",
+        "at": "2026-11-08T00:58:12.297860+00:00",
+        "reason": "reviewer (sonnet): The repo has root CLAUDE.md, AGENTS.md and .claude/CLAUDE.md that govern every context, so the precondition does hold, and each anchor is incidental code (e.g. liveWorkDraft.ts:53 is encodeDraft, skill page.tsx:29 is a params destructure) that shows no absence."
+      }
     }
   }
 }
