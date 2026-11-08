@@ -21,19 +21,19 @@ Line numbers are from the tree after the fix commit `aa97ad840`.
 
 | # | Finding | Where | Severity | State |
 | --- | --- | --- | --- | --- |
-| 1 | A read-only seat can read a live offer link from the letter body, then accept or decline for the candidate | `app/api/comms/route.ts:24`, `app/api/pipeline/[id]/timeline/route.ts:22` | **High** | **Open.** The fix is outside this task's paths |
+| 1 | A read-only seat can read a live offer link from the letter body, then accept or decline for the candidate | `app/api/comms/route.ts:24`, `app/api/pipeline/[id]/timeline/route.ts:22` | **High** | **Closed** by `6d8712c63` |
 | 2 | `actor: "sim"` sealed a person's advance or extended offer on a real candidate as the engine's | `app/api/pipeline/[id]/route.ts:245` | **High** | **Fixed** `aa97ad840` |
-| 3 | An open offer is never revoked. Accepting one on a closed entry answers "accepted" and tells the ATS | `app/_lib/offer-finalize.ts:76-114,175-177` | Medium | Reported |
-| 4 | Accepting a (SIM) offer debits the hire meter and fires the ATS webhooks | `app/_lib/offer-finalize.ts:132,168,175` | Medium | Reported |
-| 5 | The scorecard gate writes the approval with no compare-and-swap | `app/api/interview-prep/scorecard/route.ts:286` | Medium | Reported |
-| 6 | The scorecard GET hands the whole panel, with user ids, to any seat, including an interviewer who has not scored yet | `app/api/interview-prep/scorecard/route.ts:118-124` | Low | Reported |
-| 7 | `rating: null` is stored as the worst rating | `app/api/interview-prep/scorecard/route.ts:197-199` | Low | Reported |
-| 8 | A scorecard files and seals on a closed entry, and with no ratings; the seal names a role, not the person | `app/api/interview-prep/scorecard/route.ts:184,252-262` | Low | Reported |
-| 9 | Manual salary coercion: `true` is 1, `"abc"` is silently unpriced | `app/_lib/offer-manual-draft.ts:34,51`, `app/_lib/offer-policy.ts:197-205` | Low | Reported |
-| 10 | The manual draft re-checks the approval but not the stage or status across an await | `app/_lib/offer-manual-draft.ts:45,56,70` | Low | Reported |
-| 11 | A dead offer link keeps showing name, salary and company | `app/_lib/offer-finalize.ts:207-238` | Low | Reported |
-| 12 | Unbounded JSON bodies; no limiter on the two sim doors | `app/api/pipeline/[id]/route.ts:94`, scorecard `:158`, `app/api/sim/offer-draft/route.ts:19` | Low | Reported |
-| 13 | Open mode has no Origin check, so a web page can drive these doors | `proxy.ts` (no origin check), bodies read with `request.json()` | Low (open mode only) | Reported |
+| 3 | An open offer is never revoked. Accepting one on a closed entry answers "accepted" and tells the ATS | `app/_lib/offer-finalize.ts:76-114,175-177` | Medium | **Fixed** `21540f640` (closing open offers on entry close is not built) |
+| 4 | Accepting a (SIM) offer debits the hire meter and fires the ATS webhooks | `app/_lib/offer-finalize.ts:132,168,175` | Medium | **Fixed** `555d3a1cd` |
+| 5 | The scorecard gate writes the approval with no compare-and-swap | `app/api/interview-prep/scorecard/route.ts:286` | Medium | **Fixed** `298240805` |
+| 6 | The scorecard GET hands the whole panel, with user ids, to any seat, including an interviewer who has not scored yet | `app/api/interview-prep/scorecard/route.ts:118-124` | Low | **Accepted**, next run |
+| 7 | `rating: null` is stored as the worst rating | `app/api/interview-prep/scorecard/route.ts:197-199` | Low | **Fixed** `9aabc8a9a` |
+| 8 | A scorecard files and seals on a closed entry, and with no ratings; the seal names a role, not the person | `app/api/interview-prep/scorecard/route.ts:184,252-262` | Low | **Fixed** `6f754b731` (the seal's actor proven only against `humanActor()`; an identified session is not exercised in a unit test) |
+| 9 | Manual salary coercion: `true` is 1, `"abc"` is silently unpriced | `app/_lib/offer-manual-draft.ts:34,51`, `app/_lib/offer-policy.ts:197-205` | Low | **Accepted**, next run |
+| 10 | The manual draft re-checks the approval but not the stage or status across an await | `app/_lib/offer-manual-draft.ts:45,56,70` | Low | **Accepted**, next run |
+| 11 | A dead offer link keeps showing name, salary and company | `app/_lib/offer-finalize.ts:207-238` | Low | **Accepted narrowed**, next run: once expired, return status and job title only. An answered offer keeps its terms, because the link holder is the candidate and this is their own record |
+| 12 | Unbounded JSON bodies; no limiter on the two sim doors | `app/api/pipeline/[id]/route.ts:94`, scorecard `:158`, `app/api/sim/offer-draft/route.ts:19` | Low | **Accepted**, next run |
+| 13 | Open mode has no Origin check, so a web page can drive these doors | `proxy.ts` (no origin check), bodies read with `request.json()` | Low (open mode only) | **Accepted**, next run |
 
 ## Answers to the five questions
 
@@ -95,7 +95,7 @@ Whether a given attribution meets Art. 22 or Art. 50 is the operator's call; thi
 
 ## Findings
 
-### 1. A read-only seat can read a live offer link (High, open)
+### 1. A read-only seat can read a live offer link (High, closed `6d8712c63`)
 
 An offer letter is stored in the outbox with its link in the body (`composeOfferLetter`,
 `app/_lib/comms-dispatch.ts:691-712`). Two reads return that body:
@@ -109,11 +109,13 @@ door. Accept hires and fires the ATS handoff. Decline closes the entry, and the 
 the answer final. The candidate's act is forged with nothing naming the person. `sim-entry.ts:10-13` already treats this exact capability, a viewer holding a real offer token, as a defect
 on the sim doors; the outbox is the path that remained. Tenant-bound: another team cannot do it.
 
-**Fix (not made):** redact offer capability links from letter bodies unless the caller holds
-`pipeline:write`, on both reads, in one place such as a projection beside `deriveCommsView`.
-`app/api/comms/route.ts` and `app/_lib/comms-view.ts` are outside this task's paths. The same
-question very likely applies to other token-bearing letters (schedule, interview, status,
-erasure), which I did not audit. A test should assert a viewer's read of a letter holds no token.
+**Fix (`6d8712c63`):** one pure projection, `app/_lib/comms-link-redaction.ts`, rewrites the
+`/offer`, `/schedule`, `/status`, `/data`, `/stop` and `/interview` links in a letter body to a tokenless
+placeholder unless the caller holds `pipeline:write`. It is applied on `GET /api/comms`, the pipeline
+timeline and `GET /api/devcase/comms`. Stored rows, send, resend and the composer are untouched. The projection also covers the
+other token-bearing letter kinds named above, though they were not audited one by one. Tests:
+`app/_lib/comms-link-redaction.test.ts` and
+`app/api/comms/comms-link-redaction-routes.test.ts`.
 
 ### 2. The engine claim falsified a real candidate's record (High, fixed `aa97ad840`)
 
