@@ -230,3 +230,48 @@ test("GET devCase never leaks across workspaces: a foreign entry with a work sam
   assert.equal(res.status, 404);
   assert.equal("devCase" in ((await res.json()) as object), false);
 });
+
+// The keyless rating door. A quick-apply candidate has no analyzed profile, so no plan
+// can be generated for them; a person's rating must still have somewhere to land.
+function unprepped(ws: string): string {
+  seq += 1;
+  const { entry } = createPipelineEntry({
+    candidateId: `panel-c${seq}`,
+    candidateLabel: `Panel Candidate ${seq}`,
+    jobId: `panel-job-${seq}`,
+    jobTitle: "Panel Role",
+    stage: "Interview",
+    workspaceId: ws,
+  });
+  return entry.id;
+}
+
+test("with no generated plan the form loads empty and the first save files a human-only pack", async () => {
+  const id = unprepped(team.id);
+  signedInAs(u1);
+  const loaded = (await (await get(id)).json()) as { mine: unknown; records: unknown[] };
+  assert.equal(loaded.mine, null);
+  assert.deepEqual(loaded.records, []);
+  assert.equal(getInterviewPrep(id, team.id), null, "opening the form writes nothing");
+
+  assert.equal((await post(id, 4, "by hand")).status, 200);
+  const payload = getInterviewPrep(id, team.id)?.payload as { source?: string; chronology?: unknown };
+  assert.equal(payload.source, "human_only");
+  assert.equal(payload.chronology, undefined, "no plan is invented for a human-only pack");
+  assert.equal(getHumanScorecard(id)?.source, "human");
+});
+
+test("a foreign team can neither load nor create a pack on an entry it does not hold", async () => {
+  const id = unprepped(team.id);
+  signedInAs(outsider);
+  assert.equal((await get(id)).status, 404);
+  assert.equal((await post(id, 1, "not mine")).status, 404);
+  assert.equal(getInterviewPrep(id, team.id), null);
+});
+
+test("a save does not replace a pack generated meanwhile", async () => {
+  const { ensureHumanOnlyPrep } = await import("../../../_lib/interview-prep.ts");
+  const id = prepped(team.id);
+  ensureHumanOnlyPrep(id, "x", "y", team.id);
+  assert.equal((getInterviewPrep(id, team.id)?.payload as { scenario?: string }).scenario, "panel");
+});

@@ -144,6 +144,22 @@ export function saveInterviewPrepProgress(entryId: string, progress: InterviewPr
   }).immediate();
 }
 
+/** The minimal pack a person's scorecard files onto when no plan was generated: no
+ *  questions, no run-of-show, no model output, only `source` naming why. A candidate
+ *  who applied through the quick form has no analyzed profile, so the generator refuses
+ *  them, and that refusal must not stop a recruiter recording their own rating.
+ *  Insert-if-absent: a pack generated meanwhile wins, and every reader already treats a
+ *  pack with no chronology as having no plan (hasCommittedPlan). */
+export function ensureHumanOnlyPrep(entryId: string, candidateLabel: string | null, jobTitle: string | null, workspaceId: string): void {
+  db()
+    .prepare(
+      `INSERT INTO interview_preps (entry_id, candidate_label, job_title, payload_json, created_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(entry_id) DO NOTHING`
+    )
+    .run(entryId, candidateLabel, jobTitle, JSON.stringify({ source: "human_only" }), new Date().toISOString(), workspaceId);
+}
+
 /** Persist one interviewer's human-filled scorecard (PREP1) onto an EXISTING prep
  *  artifact — same seam as saveInterviewPrepProgress, so no schema change and the
  *  generated plan + created_at are untouched. Always tagged source:"human".

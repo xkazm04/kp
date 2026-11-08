@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
-import { fileHumanScorecard, getInterviewPrep } from "@/app/_lib/interview-prep";
+import { ensureHumanOnlyPrep, fileHumanScorecard, getInterviewPrep } from "@/app/_lib/interview-prep";
 import { ownScorecard, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
 import { getUserById } from "@/app/_lib/db/users";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -111,9 +111,11 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
       return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
     const prep = getInterviewPrep(entry, ws);
-    if (!prep) return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
-    const records = readHumanScorecards(prep.payload);
     const pipelineEntry = getPipelineEntry(entry, ws);
+    // No pack yet is an empty form for THIS team's active candidate, the same rule the
+    // POST files under. Anything else is the 404 a foreign id has always answered.
+    if (!prep && pipelineEntry?.status !== "active") return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+    const records = prep ? readHumanScorecards(prep.payload) : [];
     const key = await scorecardKey(pipelineEntry?.stage ?? null);
     // `devCase` is the same predicate the POST resolves its rubric with, so the panel
     // offers the optional AI-tools axis exactly when the write will expect it.
@@ -175,8 +177,13 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // rides the read that authorizes the write, exactly as on the other four verbs, and
     // answers the SAME 404 the "no prep yet" path answers: to a caller who does not hold
     // the entry the two are indistinguishable, deliberately.
+    //
+    // A rating needs no generated plan: the keyless path is a person filing their own
+    // verdict, and a candidate with no analyzed profile can never get a plan. The entry
+    // read above is the tenant proof, so a foreign id still falls to this 404.
     if (!getInterviewPrep(entry, ws)) {
-      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+      if (pipelineEntry?.status !== "active") return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+      ensureHumanOnlyPrep(entry, pipelineEntry.candidateLabel, pipelineEntry.jobTitle, pipelineEntry.workspaceId);
     }
 
     const parsed: ScorecardRating[] = [];
