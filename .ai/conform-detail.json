@@ -27814,6 +27814,90 @@
         }
       ],
       "registryProposal": "upstream-identity-before-inventory assumes the plane needs identity to file an inventory. Here identity matters for a money decision (free vs paid) on a configured, not discovered, endpoint, and the code deliberately picks the asymmetric-safe guess (unknown public host = paid). The technique could say whether a conservative default in the cheap-error direction is an acceptable stand-in for 'unknown' when no inventory is imported."
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/browser-credential-boundary": {
+      "context": "analytics-dashboard",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:26:51.019Z",
+      "worker": "0fe63018-0e9a-4594-a51f-bc45a623be07",
+      "techniques": [
+        {
+          "technique": "aggregate-view-not-base-table",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:11 No browser-held role reaches a base table. The aggregate is computed behind a server route, so the view-and-grant mechanism does not apply."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/analyticsFetchError.ts:2 This is the client consuming the app's own code vocabulary. There is no brokered upstream whose errors could leak."
+        }
+      ]
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/browser-credential-boundary": {
+      "context": "login-flow",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:26:51.019Z",
+      "worker": "0fe63018-0e9a-4594-a51f-bc45a623be07",
+      "techniques": [
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "conformant",
+          "evidence": "app/login/page.tsx:38 The signup flag is resolved on the server and passed in as a prop instead of being mirrored into the bundle as a NEXT_PUBLIC value."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "conformant",
+          "evidence": "app/login/login-result.ts:30 Statuses map to a closed LoginOutcome set. Only 401 blames the credentials; 429, 5xx, timeout and network failures are separate outcomes."
+        },
+        {
+          "technique": "outbound-fetch-destination-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/login/login-result.ts:65 This is a redirect target checked in the browser, not a server fetch (the technique's own 'fetch happens in the browser' exclusion). It is still judged on the parsed URL, not the raw string."
+        },
+        {
+          "technique": "broker-proxy-attaches-secret",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 A same-origin post of the user's own credential. No upstream secret is attached."
+        },
+        {
+          "technique": "server-sealed-client-roundtrip",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:13 The signed session cookie is user authentication, which the golden path puts outside this subject."
+        }
+      ]
+    },
+    "735cafa0-53ed-4e9d-8a42-087ede0529b2/browser-credential-boundary": {
+      "context": "platform-admin-ops",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T05:26:51.019Z",
+      "worker": "0fe63018-0e9a-4594-a51f-bc45a623be07",
+      "techniques": [
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "deviation",
+          "evidence": "app/_lib/public-base-url.ts:144 The technique says 'a temporary alias that accepts both names is the one thing not to do'. Here a backward-compatibility alias is permanent and is reconciled only by a boot warning and publicOriginConflict."
+        },
+        {
+          "technique": "outbound-fetch-destination-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/public-base-url.ts:163 This builds emitted links and fetches nothing. The Host header is treated as untrusted, but there is no outbound connection to bind a check to."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/after-response.ts:38 Deferred-task failures go only to the server log. There is no broker response to the client."
+        }
+      ],
+      "registryProposal": "The alias rule is written for a value changing sides. It does not say whether a deliberate, permanent mirror of a non-secret value (a public URL, server-only name plus NEXT_PUBLIC name) counts as the forbidden alias or as an accepted dual declaration. The code here reasons it is safe because the value grants nothing, yet it still drifts. The technique could state the case outright: one name, read on both sides."
     }
   }
 }

@@ -3782,8 +3782,12 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:11 The dashboard is an operator client that only calls the app's own same-origin /api routes; aggregation and k-anonymity are done on the server, and a search of app/features/insights/analytics/ for NEXT_PUBLIC, process.env, apiKey, service_role, supabase and createClient found nothing, so no dependency credential is ever in the browser.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "analytics-time-windows",
@@ -23641,8 +23645,12 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "conformant",
+          "priorNotApplicable": 2,
+          "evidence": "app/login/page.tsx:38 The browser gets only server-resolved bits and a closed outcome vocabulary, never a public env mirror or the server's error text, and it posts credentials only to the app's own route.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-cli-transport",
@@ -27575,8 +27583,12 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "deviation",
+          "priorNotApplicable": 2,
+          "evidence": "app/_lib/public-base-url.ts:144 The resolver accepts one value under two names, server-only APP_BASE_URL kept 'for backward compatibility' and its NEXT_PUBLIC_ mirror, which is the dual-name alias the technique forbids. The module's own comments record the result: when only one is set, or the two disagree, server and client resolve different candidate-link origins, and drift only triggers a warning.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "prompt-assembly",

@@ -1,0 +1,252 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0fe63018-0e9a-4594-a51f-bc45a623be07",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-11-08T05:26:51.019258+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jd-public-detail-page",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/page.tsx:91 The public JD page reads the JD from server-only SQLite inside a server component and sends the browser only rendered markup, so the browser holds no credential for any dependency (neither regime applies); a search of app/jds/[slug]/ for NEXT_PUBLIC, process.env, apiKey, service_role, supabase and createClient found nothing.",
+   "techniques": [
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdActions.tsx:91 The operator controls call the app's own same-origin route. No upstream secret gets attached, so there is nothing to broker."
+    },
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:183 No public database role can read a table here. The server-side version of the idea does hold: candidate analyses are not loaded on this page at all, rather than being filtered out."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:176 There is no broker upstream. A failed database read shows a fixed, translated message, never the error text."
+    },
+    {
+     "technique": "default-deny-plus-defaulted-owner",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:215 The check is made in the app's own code (the authorization subject), not by row-level policies a browser reaches."
+    }
+   ],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "process.env",
+    "apiKey",
+    "service_role",
+    "createClient"
+   ]
+  },
+  {
+   "context": "analytics-dashboard",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:11 The dashboard is an operator client that only calls the app's own same-origin /api routes; aggregation and k-anonymity are done on the server, and a search of app/features/insights/analytics/ for NEXT_PUBLIC, process.env, apiKey, service_role, supabase and createClient found nothing, so no dependency credential is ever in the browser.",
+   "techniques": [
+    {
+     "technique": "aggregate-view-not-base-table",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:11 No browser-held role reaches a base table. The aggregate is computed behind a server route, so the view-and-grant mechanism does not apply."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/analyticsFetchError.ts:2 This is the client consuming the app's own code vocabulary. There is no brokered upstream whose errors could leak."
+    }
+   ],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "process.env",
+    "apiKey",
+    "service_role",
+    "createClient"
+   ]
+  },
+  {
+   "context": "login-flow",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/login/page.tsx:38 The browser gets only server-resolved bits and a closed outcome vocabulary, never a public env mirror or the server's error text, and it posts credentials only to the app's own route.",
+   "techniques": [
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "conformant",
+     "evidence": "app/login/page.tsx:38 The signup flag is resolved on the server and passed in as a prop instead of being mirrored into the bundle as a NEXT_PUBLIC value."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "app/login/login-result.ts:30 Statuses map to a closed LoginOutcome set. Only 401 blames the credentials; 429, 5xx, timeout and network failures are separate outcomes."
+    },
+    {
+     "technique": "outbound-fetch-destination-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/login/login-result.ts:65 This is a redirect target checked in the browser, not a server fetch (the technique's own 'fetch happens in the browser' exclusion). It is still judged on the parsed URL, not the raw string."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:46 A same-origin post of the user's own credential. No upstream secret is attached."
+    },
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:13 The signed session cookie is user authentication, which the golden path puts outside this subject."
+    }
+   ]
+  },
+  {
+   "context": "skill-profile-public-page",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/skill/[token]/page.tsx:43 The browser carries only an opaque token. The signed, revocable credential stays on the server, is verified there with a server-only key, and goes out as a projection built field by field with a closed state vocabulary.",
+   "techniques": [
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "conformant",
+     "evidence": "app/skill/[token]/page.tsx:43 This is the technique's 'keep it server-side, hand the client an opaque identifier' branch for a value that must be revocable. The signature check and revoked_at are both on the server-held row."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "app/skill/[token]/page.tsx:55 'Not configured here' (unverifiable) is its own state, separate from tampered, throttled and revoked, and no internal detail is rendered."
+    },
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "conformant",
+     "evidence": "app/skill/[token]/page.tsx:58 The signing key has no NEXT_PUBLIC prefix and is used only during server-side verification."
+    },
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:75 No public database role exists. The server-side version holds: the card is built from named fields, not by spreading the row."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:76 The client never calls any upstream, so there is nothing to broker."
+    }
+   ]
+  },
+  {
+   "context": "platform-admin-ops",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/public-base-url.ts:144 The resolver accepts one value under two names, server-only APP_BASE_URL kept 'for backward compatibility' and its NEXT_PUBLIC_ mirror, which is the dual-name alias the technique forbids. The module's own comments record the result: when only one is set, or the two disagree, server and client resolve different candidate-link origins, and drift only triggers a warning.",
+   "techniques": [
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "deviation",
+     "evidence": "app/_lib/public-base-url.ts:144 The technique says 'a temporary alias that accepts both names is the one thing not to do'. Here a backward-compatibility alias is permanent and is reconciled only by a boot warning and publicOriginConflict."
+    },
+    {
+     "technique": "outbound-fetch-destination-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/public-base-url.ts:163 This builds emitted links and fetches nothing. The Host header is treated as untrusted, but there is no outbound connection to bind a check to."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/after-response.ts:38 Deferred-task failures go only to the server log. There is no broker response to the client."
+    }
+   ],
+   "registryProposal": "The alias rule is written for a value changing sides. It does not say whether a deliberate, permanent mirror of a non-secret value (a public URL, server-only name plus NEXT_PUBLIC name) counts as the forbidden alias or as an accepted dual declaration. The code here reasons it is safe because the value grants nothing, yet it still drifts. The technique could state the case outright: one name, read on both sides."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T05:26:51.019258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "default-deny-plus-defaulted-owner",
+    "omit-the-column-not-the-value",
+    "opaque-upstream-errors"
+   ],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:26:51.019258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "aggregate-view-not-base-table",
+    "opaque-upstream-errors"
+   ],
+   "deviations": 0,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:26:51.019258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "opaque-upstream-errors",
+    "outbound-fetch-destination-validation",
+    "public-vs-server-env-split",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 0,
+   "context": "login-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:26:51.019258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "omit-the-column-not-the-value",
+    "opaque-upstream-errors",
+    "public-vs-server-env-split",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 0,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:26:51.019258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "opaque-upstream-errors",
+    "outbound-fetch-destination-validation",
+    "public-vs-server-env-split"
+   ],
+   "deviations": 1,
+   "context": "platform-admin-ops",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
