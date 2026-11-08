@@ -110,3 +110,18 @@ test("another team's entry answers the same 404 as a missing one", async () => {
   assert.equal(((await res.json()) as { code: string }).code, "PIPELINE_ENTRY_NOT_FOUND");
   assert.equal(getPipelineEntry(id, other.id)?.approvalKind, null);
 });
+
+test("a typed salary that is not a number or numeric string is refused, not coerced", async () => {
+  for (const salary of [true, [5], { a: 1 }, "abc"]) {
+    const id = entryAt("Offer");
+    const res = await draft(id, { salary });
+    assert.equal(res.status, 400, JSON.stringify(salary));
+    assert.equal(((await res.json()) as { code: string }).code, "OFFER_SALARY_INVALID");
+    assert.equal(getPipelineEntry(id)?.approvalKind, null);
+  }
+  const id = entryAt("Offer");
+  assert.equal((await draft(id, { salary: "95000" })).status, 200, "a numeric string still passes");
+  const nul = entryAt("Offer");
+  assert.equal((await draft(nul, { salary: null })).status, 200, "null falls through to the band");
+});
+

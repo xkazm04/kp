@@ -46,6 +46,14 @@ export async function draftManualOffer(input: { id: string; workspaceId: string;
     return notAvailable(entry);
   }
 
+  // A typed figure must be a number or a numeric string: Number(true) is 1 and
+  // Number([5]) is 5, and "abc" would otherwise fall through as unpriced.
+  const typed = input.salary;
+  const present = typed !== undefined && typed !== null && typed !== "";
+  if (present && !(typeof typed === "number" || (typeof typed === "string" && typed.trim() !== "" && Number.isFinite(Number(typed))))) {
+    return { status: 400, body: { error: REFUSAL_ERRORS.OFFER_SALARY_INVALID, code: "OFFER_SALARY_INVALID" } };
+  }
+
   const stored = (entry.jobId ? getJob(entry.jobId, workspaceId)?.salaryBand : null) ?? [];
   const band = normalizeSalaryBand(stored[0], stored[1]);
   const terms = validateOfferTerms({ salary: manualOfferFigure(input.salary, band), currency: APP_CURRENCY });
