@@ -35711,8 +35711,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/voice/connect-failover.ts:90 The connect failover fails over on ANY throw from dial(): plain config Errors and payload-build bugs inside an adapter's connect() are retried against the alternate provider, because the loop never reads the typed VoiceMintError marker. mint-error.ts's classifyMintFailure also files every unclassified throw as 'upstream' (the provider's side). So a plane-side defect reaches the alternate and gets blamed on the provider; only the agent-prompt build was moved out of the trigger (lines 106-112).",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "voice-interview-fidelity",
