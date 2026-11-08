@@ -27658,6 +27658,42 @@
       "evaluatedTs": "2026-11-08T04:31:04.458Z",
       "worker": "bedb897c-d58b-4f46-b3cb-02b85f66aa3f",
       "techniques": []
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/browser-credential-boundary": {
+      "context": "auth-session-rbac",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T04:47:28.622Z",
+      "worker": "8e45abfb-e216-4fcd-8d3d-b1b4d008b28e",
+      "techniques": [
+        {
+          "technique": "loopback-addressed-request-gate",
+          "verdict": "deviation",
+          "evidence": "app/_lib/auth/require-operator.ts:24 Open mode lets everything in with no loopback Host/Origin/forwarded-for gate and no loopback-only bind. proxy.ts:181 enforces only when a password is set or prod fails closed. open-entry.ts isLoopbackHost decides only the landing labels."
+        },
+        {
+          "technique": "server-sealed-client-roundtrip",
+          "verdict": "conformant",
+          "evidence": "app/_lib/auth/session.ts:88 The browser carries the session back sealed with HMAC-SHA256 under KP_SECRET, bound to workspace/sub/role, with exp and epoch inside the payload."
+        },
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "conformant",
+          "evidence": "app/_lib/auth/session.ts:52 The signing secret is an unprefixed, server-only env value. It is read in a node:crypto module that cannot be bundled for the client. No NEXT_PUBLIC_ value anywhere in app/_lib/auth."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/auth/require-operator.ts:73 The refusal is closed and identical whether the session was missing, tampered, revoked or belongs to a disabled account (the proxy uses the same single refusal shape)."
+        },
+        {
+          "technique": "broker-proxy-attaches-secret",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:105 This context issues and checks the session. It forwards to no upstream."
+        }
+      ]
     }
   }
 }
