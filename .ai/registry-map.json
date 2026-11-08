@@ -11166,7 +11166,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/seed-gate.ts:5 KP_SEED_DEMO and KP_EMPTY are switches whose unrecognised values silently fall back to the default (e.g. KP_EMPTY=\"enabled\" is ignored, so a deployment that also sets KP_SEED_DEMO=1 seeds demo data). This is the 'switch whose parse failure returns the default' the standard names, and a test makes it deliberate.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         },
         {
           "subject": "quality-gates",

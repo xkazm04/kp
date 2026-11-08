@@ -8447,35 +8447,40 @@
       "subject": "optional-dependency-degradation",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:11:20.083Z",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:49:53.685Z",
       "techniques": [
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offline.ts:15 An unrecognised token in a present value is treated as absent and lands on the least-safe default (egress open); the standard says it is malformed and must be refused, naming the variable."
+        },
         {
           "technique": "absent-degrades-malformed-fails-fast",
           "verdict": "deviation",
-          "evidence": "app/_lib/offline.ts:15 Boolean switch: an unrecognised present value takes the default (online) instead of failing at boot. offline.test.ts:9 only tests recognised falsey spellings; no test for the typo."
-        },
-        {
-          "technique": "misconfiguration-never-reaches-a-fallback",
-          "verdict": "conformant",
-          "evidence": "app/_lib/provider-key-precedence.ts:59 If a stored BYOM/platform row won't decrypt, decrypt() throws. It never falls through to the env-var key, so a bad KP_SECRET can't land on a fallback credential (also llm-config.ts buildLlmConfigEnv docs)."
-        },
-        {
-          "technique": "probe-the-grant-not-the-config",
-          "verdict": "conformant",
-          "evidence": "app/_lib/llm-config.ts:403 The Test button probes exactly the (provider, scope) row and its baseUrl, not the precedence-resolved config, so a green test is about the credential that will actually be called."
+          "evidence": "app/_lib/offline.ts:57 A malformed OPENAI_BASE_URL/AZURE_OPENAI_ENDPOINT/LIGHTTRACK_URL is handled exactly like an unset one (hostOf returns null). Nothing validates it at boot; it surfaces later as a blocked fetch. This branches on parse success, not on presence. (The decrypt path does fail loud instead of falling through: llm-config.ts:360.)"
         },
         {
           "technique": "guarded-singleton-accessor",
           "verdict": "conformant",
-          "evidence": "app/_lib/llm-secret.ts:45 The master key is resolved at first use and throws a named error when absent; nothing is built at module scope. Not memoised, but it is a cheap hash, so no poisoned cell. LightTrack (llm-lighttrack.ts:112) is the exempted telemetry no-op sink."
+          "evidence": "app/_lib/llm-secret.ts:45 The master key is read at first use, not at module scope, and throws an error naming the variable rather than returning a stub or storing plaintext."
+        },
+        {
+          "technique": "probe-the-grant-not-the-config",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:403 The keys-panel Test probes exactly the (provider, scope) row and its base URL rather than the precedence-resolved config, so a green result is about the credential that will actually be called."
+        },
+        {
+          "technique": "fallback-retirement-condition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-secret.ts:98 The rotation fallback (KP_SECRET_PREVIOUS) runs only when the current key fails to decrypt. It never encrypts, and the header names when to retire it (unset once secrets:rotate reports zero rows)."
         }
       ],
       "withdrawn": {
-        "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
+        "worker": "9e219a0f-8dd9-4b35-97f1-5c74167bfeb8",
         "state": "deviation",
-        "at": "2026-10-24T22:12:40.513088+00:00",
-        "reason": "reviewer (sonnet): The deviation anchor app/_lib/offline.ts:15 (KP_OFFLINE parsing) is not among the context's 12 paths in .ai/registry-map.json, which are llm-config.ts, llm-*.test.ts, llm-lighttrack, llm-model-defaults, llm-quality*. provider-key-precedence.ts and llm-secret.ts are also outside it. The line does say"
+        "at": "2026-11-08T03:52:27.901324+00:00",
+        "reason": "reviewer (sonnet): The deviation anchors on app/_lib/offline.ts (the KP_OFFLINE parser), which is not among this context's 12 files, and none of the files that are (llm-config.ts, llm-lighttrack.ts, llm-quality.ts, llm-model-defaults.ts) reference offline; the two anchors that are in context (llm-secret.ts:45 and llm-"
       }
     },
     "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/plan-entitlements": {
@@ -19410,32 +19415,27 @@
       "context": "db-core-migrations",
       "subject": "optional-dependency-degradation",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:11:20.083Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:49:53.685Z",
+      "worker": "9e219a0f-8dd9-4b35-97f1-5c74167bfeb8",
       "techniques": [
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-gate.ts:5 The truthy() reader has no malformed branch: any token outside the set is false and never reported."
+        },
         {
           "technique": "absent-degrades-malformed-fails-fast",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/seed-gate.ts:5 The switch's parse failure returns the default. Low blast radius (the default is the blank DB plus the first-run choice), but it is literally the idiom the technique names."
-        },
-        {
-          "technique": "misconfiguration-never-reaches-a-fallback",
-          "verdict": "conformant",
-          "evidence": "app/_lib/db/core.ts:290 Configuration errors out of openStore() (unknown KP_DB_BACKEND, Postgres URL) keep their own message and stop boot. They are not relabelled or degraded. db-path-backend.test.ts pins the absent → sqlite branch."
+          "evidence": "app/_lib/db/seed-gate.test.ts:20 The test asserts that garbage ('demo', 'banana') behaves like unset, which locks in malformed-as-absent. The boot path itself is right: core.ts:290 rethrows a configuration error such as an unknown KP_DB_BACKEND instead of relabelling it as file damage."
         },
         {
           "technique": "guarded-singleton-accessor",
           "verdict": "conformant",
-          "evidence": "app/_lib/db/core.ts:310 Lazy memoised connection, opened on first ensureDb() and never at module load. The memo is set (core.ts:3041) only after the quick_check, migrations and assertTenancyReady pass, so a failed boot is not cached."
+          "evidence": "app/_lib/db/core.ts:310 The connection is built lazily in ensureDb(), never at module scope, and memoised on globalThis only after the integrity check, migrations and tenancy assertion succeed (assigned at core.ts:3041). Only success is cached."
         }
-      ],
-      "withdrawn": {
-        "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
-        "state": "deviation",
-        "at": "2026-10-24T22:12:40.595957+00:00",
-        "reason": "reviewer (sonnet): The deviation anchor app/_lib/db/seed-gate.ts:5 is not among the context's paths, which are core.ts, the core-*/db-path/pg-portability/rollback tests, and pg-portability.ts. The seed-gate truthy() parsing is real, but the verdict belongs to another context."
-      }
+      ]
     },
     "3becf910-9c37-4542-a1b9-a176f76c72d1/optional-dependency-degradation": {
       "context": "group-eval-shared",
