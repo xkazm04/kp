@@ -13099,7 +13099,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:143 Devcase writes localized text in only two ways: the LLM writes it directly in the target language, and the keyless fallback reads hand-authored committed per-locale tables. No source unit is machine-translated into a derived store, so the subject's precondition does not hold. A search of pipeline/jobfit/devcase for glossary, termbase, chrF, pretranslat and MQM found nothing; the only 'translat' hits are a comment about the comms translator and the _t fallback docstring.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "recruiter-anchored-model-evaluation",
@@ -17427,7 +17431,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "i18n/locales.ts:5 This context only defines the locale universe and the cookie, then Accept-Language, then default resolution path over committed messages catalogs. No translation is produced or measured here, so the subject's precondition does not hold. A search of i18n/ for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"
@@ -20204,7 +20212,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:39 renderTemplate fills placeholders and lang-aware heading tokens. The caller passes in their text from the committed catalog, and user templates are explicitly never machine-translated, so this module neither produces nor measures any translation. A search of app/features/shared for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "test-harness",
@@ -33811,7 +33823,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_extractors.py:7 These tests cover CV text extraction, decoding, redaction, profiling and AI-Act prompt compliance. Nothing is translated, so translation quality is never measured. The subject matched only on generic tokens (quality, pipeline, suite). A search of pipeline/jobfit/tests for glossary, termbase, chrF, pretranslat and MQM found nothing, and these files have no 'translat' hit at all.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         }
       ],
       "governance": "governed"
@@ -33938,7 +33954,11 @@
           "revision": 8,
           "changedAt": "2026-10-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:436 These locale tests check hand-authored committed tables: the strings differ per locale, and capability codes stay verbatim. They also check that LLM prompts carry the language directive. No machine-translated store's quality is measured here, so the precondition does not hold. A search of pipeline/jobfit/tests for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a50db88f6aef4acb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "llm-era-work-sample-design",

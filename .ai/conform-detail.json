@@ -6393,67 +6393,70 @@
       "context": "devcase-core",
       "subject": "translation-quality-measurement",
       "bundle": "localization",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T03:01:23.199Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:28:39.633Z",
+      "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
       "techniques": [
-        {
-          "technique": "context-sufficiency-signals",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/evaluate.py:381 The input is candidate work evaluated against capabilities; translation-source sufficiency is outside this operation."
-        },
-        {
-          "technique": "cost-and-licence-of-measurement",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/llm_judge.py:57 The selected judge measures devcase artifacts; no translation estimator is selected."
-        },
         {
           "technique": "deterministic-checks-before-estimates",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/artifact_checks.py:78 The deterministic checks inspect planted flaws in submitted files."
-        },
-        {
-          "technique": "engine-quality-from-reviewer-corrections",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/evaluate.py:376 Observed work comes from candidate submissions, without a translator's pretranslation-to-final correction pair."
-        },
-        {
-          "technique": "error-typology-over-a-single-score",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:41 This record describes hiring-artifact quality and improvement levers; translation-error categories do not apply."
-        },
-        {
-          "technique": "human-review-sampling-under-a-budget",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/real_corpus.py:13 The sample contains job descriptions for assessment calibration, without a sampled translation-review population."
-        },
-        {
-          "technique": "language-scoped-check-exemptions",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/evaluate.py:272 This selects localized fallback prose; it does not exempt languages from translation checks."
-        },
-        {
-          "technique": "per-pair-engine-selection",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/calibrate.py:113 Provider selection serves case design, without a translation language pair."
-        },
-        {
-          "technique": "reference-free-quality-estimation",
-          "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:31 Judged units are analyses and assessment cases, without source-and-translation segments."
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:148 The localized keyless strings are a hand-authored committed table, not a machine-translated store that a check suite would gate."
         },
         {
           "technique": "regression-detection-under-a-moving-engine",
           "verdict": "not-applicable",
-          "evidence": "pipeline/jobfit/devcase/evaluate.py:409 The evaluator generates its narrative in the requested language; this operation does not regenerate a translation store."
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:146 The hosted LLM generates text in the language, not a translation of a pinned source unit. No regenerable translation store exists whose rebuild could silently change text."
+        },
+        {
+          "technique": "engine-quality-from-reviewer-corrections",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:388 A missing locale falls back to English. No machine pretranslation exists for a reviewer to approve or correct."
+        },
+        {
+          "technique": "context-sufficiency-signals",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:381 The input is candidate work evaluated against capabilities; translation-source sufficiency is outside this operation.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "cost-and-licence-of-measurement",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/llm_judge.py:57 The selected judge measures devcase artifacts; no translation estimator is selected.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "error-typology-over-a-single-score",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:41 This record describes hiring-artifact quality and improvement levers; translation-error categories do not apply.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "human-review-sampling-under-a-budget",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/real_corpus.py:13 The sample contains job descriptions for assessment calibration, without a sampled translation-review population.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "language-scoped-check-exemptions",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:272 This selects localized fallback prose; it does not exempt languages from translation checks.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "per-pair-engine-selection",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/calibrate.py:113 Provider selection serves case design, without a translation language pair.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "reference-free-quality-estimation",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:31 Judged units are analyses and assessment cases, without source-and-translation segments.",
+          "carriedFrom": "2026-10-15"
         }
       ],
-      "withdrawn": {
-        "worker": "83779e48-5ef1-46e5-a13a-ca5d310e6998",
-        "state": "not-applicable",
-        "at": "2026-10-15T03:02:16.835309+00:00",
-        "reason": "reviewer (sonnet): devcase/evaluate.py holds deterministic cs/de/fr translation tables (_DET, _t) and a language_directive for localized narrative, and the anchor lifecycle_audits.py:38 is just a QA prompt line that does not show the absence, so 'no translated store' is contradicted."
-      }
+      "registryProposal": "The subject assumes a source to target translation unit. It says nothing about an LLM generating candidate-facing prose directly in the target language from a language directive. That output has the same moving-engine and per-language quality risk but no source to compare against, so a boundary line naming which subject governs it would stop seats from forcing this subject onto it."
     },
     "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/translation-quality-measurement": {
       "context": "lint-quality-gates",
@@ -27048,6 +27051,63 @@
           "reason": "replaced by 9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c"
         }
       ]
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/translation-quality-measurement": {
+      "context": "tests-devcase",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:28:39.633Z",
+      "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
+      "techniques": [
+        {
+          "technique": "deterministic-checks-before-estimates",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:458 This is a skeleton-parity-shaped rule, but it runs over committed hand-authored strings, not a machine-translated store. It is listed as neighbouring evidence only."
+        },
+        {
+          "technique": "reference-free-quality-estimation",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:482 The LLM path is tested only for carrying the write-in-language directive. There is no source and candidate translation pair to estimate."
+        }
+      ]
+    },
+    "6f32f7eb-be6a-48aa-a546-d7f77ddf7546/translation-quality-measurement": {
+      "context": "i18n-locale-resolution",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:28:39.633Z",
+      "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
+      "techniques": [
+        {
+          "technique": "per-pair-engine-selection",
+          "verdict": "not-applicable",
+          "evidence": "i18n/locales.ts:6 This is the list of shipped catalog locales, not engine routing per language pair."
+        }
+      ]
+    },
+    "7b52c055-91b2-4e97-b7bf-0c8081b156d0/translation-quality-measurement": {
+      "context": "tests-cv-extraction",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:28:39.633Z",
+      "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
+      "techniques": []
+    },
+    "5e74c65c-50d7-4139-83b9-5f2cadbbbc48/translation-quality-measurement": {
+      "context": "jd-template-engine",
+      "subject": "translation-quality-measurement",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:28:39.633Z",
+      "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
+      "techniques": []
     }
   }
 }
