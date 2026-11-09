@@ -1,0 +1,181 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1e2244e9-b932-4c33-ab98-3757da4a5dbe",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T04:37:08.204190+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "task-automation-engine",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/automation-cache-key.ts:4 This context is a production background-task engine and its cache is a production prompt cache; 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across app/_lib, and in the listed task and automation files 'judge', 'scenario' and 'golden' had none, with 'eval' appearing only as the group_eval task kind.",
+   "techniques": [
+    {
+     "technique": "scenario-design",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/automation-cache-key.ts:169 Keying on the candidate profile is correct here because this caches production output, not eval scenarios that must stay fixed across candidate versions."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/task-budget.ts:1 The budget limits how many product tasks a caller may start; it does not govern eval-matrix spend."
+    }
+   ],
+   "absenceTerms": [
+    "judge packet",
+    "anchor set",
+    "pairwise",
+    "worst-of-N"
+   ]
+  },
+  {
+   "context": "candidate-matching",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/matrix_cli.py:1 The 'matrix' and 'ranking' that matched this subject are product scoring of candidates against jobs, and this context is the system under test: 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across pipeline/jobfit, while 'harness' and 'bench' appear only in comments citing pipeline/jobfit/eval or the taxonomy linter.",
+   "techniques": [
+    {
+     "technique": "scenario-design",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/matching.py:667 The harness that measures this scorer lives in pipeline/jobfit/eval, outside this context, and no scenario set is declared here."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/calibration_drift.py:8 The closest module is a production score-to-outcome drift alarm with no model call, so no judge exists to pin."
+    }
+   ],
+   "absenceTerms": [
+    "judge packet",
+    "anchor set",
+    "pairwise",
+    "worst-of-N"
+   ]
+  },
+  {
+   "context": "eval-voice",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:83 A PASS or FAIL is issued from one session of a non-deterministic ASR and agent loop with no declared N, and run_voice_scenario has no trials parameter, so the verdict cannot separate a stable result from one draw.",
+   "techniques": [
+    {
+     "technique": "reliability-aggregation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:83 One trial decides the verdict, and interview_eval's voice sweep also runs each scenario once, so no N, any-of-N or all-of-N can be reported."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:272 Identity is the name alone, the form the technique says breaks on edit: the Scenario dataclass has no content version. Persona turns are also unpinned, and the fallback at line 220 swaps the spoken input without recording it on the run."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:182 Failures are free-form strings with no family per failing run and no denominator of runs that could trip each family; a search of interview_eval found no family counter."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:146 The absolute-scoring artifact records the audio condition but not the Piper voice, persona model or noise seed, so a change in the instrument cannot be told from a change in the system."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:130 bakeoff.py:14 sets the roles correctly (recall optimized, WER a threshold), but 0.35 is a separate literal here, in bakeoff.py and in interview_eval.py, against the rule that a threshold is declared once in one place."
+    },
+    {
+     "technique": "resolution-precondition",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/bakeoff.py:95 Engines are ranked from one pass over a 3-utterance default set with no check of between-engine spread against within-engine spread, and a recall tie is broken by WER instead of being reported as a tie."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/wer.py:4 Transcript fidelity and domain-term survival are asserted against known spoken text, with no judge involved."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:53 Paid minutes are always metered and optionally capped, a budget stop is recorded on the run, v0_smoke preflights before spending, and test_voice_harness fakes the session. The cap defaults to unlimited."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:381 This plane only reads the scorecard; the model judge sits in interview_eval, outside this context."
+    },
+    {
+     "technique": "outcome-conditioned-cost",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/eval/voice/session_runner.py:171 Cost is reported per run, but no code compares cost between arms, so there is no delta to condition on outcome."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T04:37:08.204190+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "eval-economics",
+    "scenario-design"
+   ],
+   "deviations": 0,
+   "context": "task-automation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:37:08.204190+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "judge-stability",
+    "scenario-design"
+   ],
+   "deviations": 0,
+   "context": "candidate-matching",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:37:08.204190+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "comparison-modes",
+    "eval-economics",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "outcome-conditioned-cost",
+    "reliability-aggregation",
+    "resolution-precondition",
+    "scenario-design"
+   ],
+   "deviations": 1,
+   "context": "eval-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

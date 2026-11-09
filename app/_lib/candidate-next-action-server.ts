@@ -6,6 +6,7 @@ import { clearFailures, isThrottled, recordFailedAttempt } from "./auth/login-th
 import { dispatchInterviewInvite, dispatchOfferReminder, dispatchScheduleInvite } from "./comms-dispatch";
 import { pinLinkLocale } from "./candidate-link-locale";
 import { resolveCommsLocale } from "./comms-locale";
+import { voiceInterviewEnabled } from "./voice/enabled";
 import { publicBaseUrl } from "./public-base-url";
 import {
   ACTION_RESEND_THROTTLE,
@@ -57,6 +58,7 @@ function readPending(entry: PipelineEntry, nowMs: number): Pending | null {
     openOffer: offer,
     interview,
     nowMs,
+    voiceEnabled: voiceInterviewEnabled(),
   });
   if (!action) return null;
   return { action, offer, invite: pickLiveInvite(invites, nowMs), interview };

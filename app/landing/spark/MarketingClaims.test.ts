@@ -96,18 +96,13 @@ test("the plan the app ships gates every stage on a human", () => {
   }
 });
 
-test("the human-gate copy carries its 'by default' qualifier in every locale", () => {
-  // The auto gates are real and reachable — that is exactly why the qualifier is
-  // load-bearing. Pin their existence first, so this test fails loudly if the
-  // gates are ever removed (at which point the copy may harden again).
+test("the human-gate copy no longer says a workspace can delegate screening or offers", () => {
+  // The auto gates were removed (Q3, 2026-11-09): pin that nothing reads a stored
+  // `auto` as auto, so this test fails if a delegation branch is ever restored while
+  // the copy below still denies it.
   const automation = source("app", "_lib", "automation-run.ts");
-  for (const role of ["screening", "offer"]) {
-    assert.match(
-      automation,
-      new RegExp(`getPlanGateForRole\\("${role}"[^)]*\\)\\s*===\\s*"auto"`),
-      `automation-run.ts no longer delegates ${role} to the plan — the "by default" hedge may be too weak now`
-    );
-  }
+  assert.doesNotMatch(automation, /getPlanGateForRole\(/, "automation-run.ts reads a plan gate again - the landing copy may be false");
+  assert.doesNotMatch(automation, /extendDraftedOffer\(/, "automation-run.ts extends offers unattended again - the landing copy may be false");
   // No auto branch may exist for a rejection: "a rejection is always a person's"
   // is the strong half of the claim, and it is the half a future gate would break.
   assert.doesNotMatch(
@@ -115,61 +110,66 @@ test("the human-gate copy carries its 'by default' qualifier in every locale", (
     /getPlanGateForRole\("(rejection|reject)"/,
     "a rejection gate would falsify landing.trust.human.body's rejection claim"
   );
-  // The rejection claim itself is qualified by the ONE automatic decline: the apply
-  // knockout. Pin the exception per locale so a retranslation cannot quietly restore
-  // "always a person's" while that gate is automatic.
-  const KNOCKOUT_EXCEPTION: Record<string, RegExp> = {
-    en: /apart from one automatic knockout[\s\S]*ask a person to review/i,
-    cs: /až na jedno automatické vyřazení[\s\S]*přezkoumání člověkem/i,
-    de: /bis auf ein automatisches ausschlusskriterium[\s\S]*überprüfung durch einen menschen/i,
-    fr: /hormis un seul refus automatique[\s\S]*qu’une personne réexamine/i,
+  // The rejection claim is "a rejection is a person's" WITHOUT an exception since the Q1
+  // ruling (2026-11-09): a failed must-have files an entry HELD for a person, who confirms
+  // the rejection or clears the hold. Pin that sentence per locale — the hold, the person
+  // who confirms, and that only a confirmed rejection tells the candidate — so a
+  // retranslation cannot quietly restore the old "automatic knockout" exception while the
+  // gate is a hold, or drop the person while it claims one.
+  const KNOCKOUT_HELD: Record<string, RegExp> = {
+    en: /rejects no one: the application is held for a person, who confirms the rejection or clears the hold[\s\S]*ask a person to review/i,
+    cs: /nikoho nezamítne: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní[\s\S]*přezkoumání člověkem/i,
+    de: /lehnt niemanden ab: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt[\s\S]*Überprüfung durch einen Menschen/i,
+    fr: /ne rejette personne : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente[\s\S]*qu’une personne réexamine/i,
   };
-  assert.match(
-    source("app", "api", "apply", "[id]", "route.ts"),
-    /recordKnockoutDecline\(/,
-    "the automatic knockout decline is gone — re-check the exception in landing.trust.human.body"
+  const OLD_AUTOMATIC_EXCEPTION: Record<string, RegExp> = {
+    en: /apart from one automatic knockout|ends that application at once/i,
+    cs: /až na jedno automatické vyřazení|ukončí přihlášku hned/i,
+    de: /bis auf ein automatisches ausschlusskriterium|endet sofort/i,
+    fr: /hormis un seul refus automatique|met fin à la candidature aussitôt/i,
+  };
+  const applyDoor = source("app", "api", "apply", "[id]", "route.ts");
+  assert.match(applyDoor, /hold: \{ failedKoIds: failedKo \}/, "the apply door no longer files the hold — re-check landing.trust.human.body");
+  assert.doesNotMatch(
+    applyDoor,
+    /recordKnockoutDecline\(|dispatchKnockoutDecline\(/,
+    "the apply door declines automatically again — the copy below (a held entry, a person confirms) is then false"
+  );
+  assert.doesNotMatch(
+    source("app", "_lib", "lead-intake.ts"),
+    /recordKnockoutDecline\(|dispatchKnockoutDecline\(/,
+    "the lead core declines automatically again — the copy below is then false"
   );
   for (const locale of LOCALES) {
     assert.match(
       CATALOGS[locale].landing.trust.human.body,
-      KNOCKOUT_EXCEPTION[locale],
-      `${locale}: landing.trust.human.body must name the automatic knockout and the review route`
+      KNOCKOUT_HELD[locale],
+      `${locale}: landing.trust.human.body must say a failed must-have is held for a person, who confirms or clears it`
+    );
+    assert.doesNotMatch(
+      CATALOGS[locale].landing.trust.human.body,
+      OLD_AUTOMATIC_EXCEPTION[locale],
+      `${locale}: landing.trust.human.body still claims the retired automatic knockout`
     );
   }
 
-  // The qualifier, per locale. Editing the sentence is fine; dropping the hedge
-  // is not, and a translation that drops it is the failure nobody would notice.
-  const DEFAULT_QUALIFIER: Record<string, RegExp> = {
-    en: /\bby default\b/i,
-    cs: /v[ée] v[yý]choz[íi]m nastaven[íi]/i,
-    de: /standardm[äa][sß]{1,2}ig/i,
-    fr: /par d[ée]faut/i,
+  // Wording that would re-assert the delegation the gates no longer offer.
+  const DELEGATION: Record<string, RegExp> = {
+    en: /can delegate either/i,
+    cs: /svěřit automatice/i,
+    de: /an die Automatik übergeben/i,
+    fr: /peut déléguer/i,
   };
-  // Wording that would re-assert the claim the gates falsify.
-  const DENIALS: Record<string, RegExp> = {
-    en: /not a setting/i,
-    cs: /ne podle nastaven[íi]/i,
-    de: /nicht per Einstellung/i,
-    fr: /pas d[’']un r[ée]glage/i,
-  };
-
   assert.deepEqual(
-    Object.keys(DEFAULT_QUALIFIER).sort(),
+    Object.keys(DELEGATION).sort(),
     [...LOCALES].sort(),
-    "a locale was added without a 'by default' qualifier for the human-gate claim"
+    "a locale was added without a delegation pin for the human-gate claim"
   );
-
   for (const locale of LOCALES) {
-    const body = CATALOGS[locale].landing.trust.human.body;
-    assert.match(
-      body,
-      DEFAULT_QUALIFIER[locale],
-      `${locale} states the human gate without saying it is the DEFAULT, which the auto gates make false`
-    );
     assert.doesNotMatch(
-      body,
-      DENIALS[locale],
-      `${locale} denies the gates are configurable; app/features/settings/hiring configures them`
+      CATALOGS[locale].landing.trust.human.body,
+      DELEGATION[locale],
+      `${locale} says a workspace can delegate screening or offers; no setting does that any more`
     );
   }
 });

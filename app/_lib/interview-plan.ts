@@ -4,7 +4,7 @@
 // decision-config-schema.ts (client-safe); this module only binds them to the
 // DB-backed store, so client code never imports it.
 import { getDecisionConfig } from "./decision-config-store";
-import { prunePlanToAxis, type InterviewPlanGate, type InterviewPlanRule } from "./decision-config-schema";
+import { humanizeGatesOnAxis, prunePlanToAxis, type InterviewPlanGate, type InterviewPlanRule } from "./decision-config-schema";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { stagesWithRole, type StageRole } from "./pipeline-stages";
 
@@ -21,7 +21,9 @@ import { stagesWithRole, type StageRole } from "./pipeline-stages";
  */
 export function getInterviewPlan(workspaceId?: string): InterviewPlanRule {
   const stored = getDecisionConfig<InterviewPlanRule>("interviewPlan", workspaceId);
-  return prunePlanToAxis(stored, getPipelineAxis(workspaceId).stages);
+  const axis = getPipelineAxis(workspaceId).stages;
+  // A stored `auto` on a screening or offer step reads as `human` (Q3, 2026-11-09).
+  return humanizeGatesOnAxis(prunePlanToAxis(stored, axis), axis);
 }
 
 /**
@@ -34,7 +36,8 @@ export function getInterviewPlan(workspaceId?: string): InterviewPlanRule {
  * gate of the specific column they are standing on needs a per-entry stage read
  * the automation path does not yet thread. "human" as the fallback is the
  * conservative direction — an unstated gate parks the decision for a person
- * rather than ratifying it unattended.
+ * rather than ratifying it unattended. A stored "auto" on a screening or offer
+ * step reads as "human" too (getInterviewPlan projects it; nothing is rewritten).
  */
 export function getPlanGateForRole(role: StageRole, workspaceId?: string): InterviewPlanGate {
   const axis = getPipelineAxis(workspaceId).stages;

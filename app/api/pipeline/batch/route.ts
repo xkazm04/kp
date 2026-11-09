@@ -29,7 +29,7 @@ const BATCH_CAP = 200; // guard a runaway payload; the board rarely selects this
 
 // Only the board's three cohort actions are batchable. accept/reject may extend an
 // offer (offer_review) via the shared action, exactly like the single route.
-const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject"]);
+const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject", "decline_advance"]);
 
 type BatchItem = { id: string; action: string; expectedStage?: string; toStage?: string };
 // `code` is what the client renders (errors.<CODE>, in the reader's language);

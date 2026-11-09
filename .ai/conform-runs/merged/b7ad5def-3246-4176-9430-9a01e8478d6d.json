@@ -1,0 +1,218 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b7ad5def-3246-4176-9430-9a01e8478d6d",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T04:58:27.470621+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/devcase-session-evidence.ts:3 This context renders reviewer panels over a job applicant's submission rather than running models against declared scenarios; a case-insensitive search of app/features/tools/devcases and app/features/tools/interview found zero hits for run_matrix, judge_score, golden set, pass_rate and pairwise, and its judge/rubric/scenario hits are product vocabulary for displaying a devcase evaluation produced elsewhere.",
+   "techniques": [],
+   "absenceTerms": [
+    "run_matrix",
+    "judge_score",
+    "golden set",
+    "pairwise"
+   ]
+  },
+  {
+   "context": "shell-tasks",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/tasks/TasksTab.tsx:17 This is a progress ledger for background jobs; a case-insensitive search of app/features/shell/tasks found zero hits for judge, rubric, scenario, harness and benchmark, and the one 'eval' hit is a label-search test fixture, so nothing here runs or scores a model against scenarios.",
+   "techniques": [],
+   "absenceTerms": [
+    "judge",
+    "rubric",
+    "scenario",
+    "harness",
+    "benchmark"
+   ]
+  },
+  {
+   "context": "llm-layer",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/llm/bench/judge.py:171 The bench judge defaults to model=None, so it rides the Claude CLI's configured default with no resolved identity on any record, no anchor set or repeatability measure exists, and the single Anthropic judge scored Anthropic targets, which leaves the published scores without a stable or disinterested instrument.",
+   "techniques": [
+    {
+     "technique": "judge-stability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:171 model=None means no --model flag (claude_cli.py:689), --judge-model defaults to None and the documented value is the alias 'fable'; BenchRecord carries no judge model or packet version, and the baked label is free text (bake_quality.py:13 admits the default label was wrong for the committed bake). Searching pipeline/jobfit/llm for anchor set, judge drift and inter-judge found nothing. The committed bake has judge fable-5 over claude-sonnet-5 and claude-opus-5 despite judge.py:9 claiming a target's family does not grade itself."
+    },
+    {
+     "technique": "resolution-precondition",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:85 Each cell bakes a one-decimal median with no within-condition SD or judge self-agreement, so the spread a ranking must clear is never computed by the harness."
+    },
+    {
+     "technique": "reliability-aggregation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:266 Each scenario\u00d7target runs exactly once; run_matrix has no trials parameter, so N per scenario is undeclared and any-of-N/all-of-N cannot be computed. limit counts scenarios, not repeats."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:391 The scorecard names which axis binds in prose but declares no optimized metric, no thresholds and no advance verdict; the only explicit rule sits downstream in app/_lib/llm-quality.ts, outside this context."
+    },
+    {
+     "technique": "outcome-conditioned-cost",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:359 Deterministic-fallback rows stay in len(ok) with no cost, so a target that often fails to serve reads cheaper per task; the bake instead takes the median over its own served rows (bake_quality.py:107). Neither produces a both-succeeded subset with its count beside an unconditioned primary."
+    },
+    {
+     "technique": "selection-over-noise",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:14 The bake is a hand-assembled mix of sittings: API-target cells were dropped from n4-api (120 rows to 64 kept) and n4-api2 (56 to 24) and re-run across up to three sittings, while the CLI column has one, and no attempt count travels with a cell (judges/limit report 4). Whether prompts changed between sittings could not be established."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:138 The pre-run estimate and required ceiling are real, but a plan over the ceiling only prints a note and starts anyway, where the standard requires refusing before cell one; records are also held in memory until write_outputs at the end. Stub-provider tests and the serial matrix with a judge worker cap are the conformant part."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:192 The filter has no r.valid term, so an output that failed its structural contract still gets a judge call with the violations shown to the judge, instead of assertions gating judgment. Per-criterion JSON verdicts and error as a separate state are realized."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:356 Violations are recorded per row but never counted by family; the summary keeps a rate plus an error count, so two equal rates that failed different checks cannot be told apart from the scorecard."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:126 Matrix mode is the right shape, but a cell's identity is only (op, model), with no prompt, harness or judge version, and rows from several run directories merge into it."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/scenarios.py:251 The id is a position plus a seed job id with no content version; Scenario has no version field, so a change to the seed corpus or _SEED_TRANSCRIPT keeps the same id, and the matrix doc itself records that a seed migration made earlier grids non-comparable."
+    },
+    {
+     "technique": "candidate-write-access",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:277 Candidates only return text through a production function; the CLI target runs in a neutral temp cwd with no grants, so there is no shell surface over the instrument."
+    },
+    {
+     "technique": "pairing-schedule",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:1 Full matrix with absolute scoring; no pairwise arena or schedule."
+    },
+    {
+     "technique": "uncontrolled-games-beside-the-win-rate",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/bench/judge.py:4 Outputs get an absolute score one at a time; there are no swapped games or win rates."
+    },
+    {
+     "technique": "overshoot-and-restore",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:74 A model-comparison survey, not an agent reducing something under a gate."
+    }
+   ]
+  },
+  {
+   "context": "models-keys-and-routing",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:59 The Models tab publishes per-case best and runner-up orders from a sort over composites with no check that the spread clears the noise, and hedges with a footnote calling small run counts directional, which is the sorted list with a caveat that the standard rules out.",
+   "techniques": [
+    {
+     "technique": "resolution-precondition",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:59 rankOp and the per-model table order results with no tie state; the noise band is applied only in the Recommended routing section. The method footnote at line 221 renders copy saying small run counts are noisy and directional."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:41 A local copy of the bar declared and exported as RELIABILITY_FLOOR in app/_lib/llm-quality.ts, where the standard requires one declaration every consumer reads. The cheapest-within-band pick shown here is otherwise a real optimized-metric-plus-thresholds rule."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:135 Judged only for this surface's duty: partial coverage is printed per model, and unmeasured cells and use cases are rendered as such rather than as a complete matrix."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T04:58:27.470621+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:58:27.470621+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-tasks",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:58:27.470621+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "candidate-write-access",
+    "comparison-modes",
+    "eval-economics",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "outcome-conditioned-cost",
+    "overshoot-and-restore",
+    "pairing-schedule",
+    "reliability-aggregation",
+    "resolution-precondition",
+    "scenario-design",
+    "selection-over-noise",
+    "uncontrolled-games-beside-the-win-rate"
+   ],
+   "deviations": 1,
+   "context": "llm-layer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:58:27.470621+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "comparison-modes",
+    "metric-role-contract",
+    "resolution-precondition"
+   ],
+   "deviations": 1,
+   "context": "models-keys-and-routing",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

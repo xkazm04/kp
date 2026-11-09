@@ -152,3 +152,41 @@ test("5. the forecast reads the send path's own predicates", async () => {
   const sim = await withRelay(() => previewOfferLetter(offerEntry({ jobTitle: "Backend Engineer (SIM)" }), { now: NOW, origin: ORIGIN }));
   assert.equal(sim.forecast, "simulation");
 });
+
+// Owner ruling Q10: the AI-drafted line rides on the draft's stored source, in preview and
+// in the sent letter alike.
+test("6. an llm offer carries the AI-drafted line, a template offer does not, an unmarked draft does; preview equals send", async () => {
+  const t = await commsTranslator("cs");
+  const line = t("aiDraftedFooter");
+  for (const [verdictSource, expectLine] of [["llm", true], ["template", false], [undefined, true]] as const) {
+    const draft = verdictSource ? { ...DRAFT, verdictSource } : DRAFT;
+    const entry = offerEntry({}, draft);
+    const preview = await previewOfferLetter(entry, { ttlDays: 10, now: NOW, origin: ORIGIN });
+    assert.equal(preview.body.includes(line), expectLine, `preview, source ${String(verdictSource)}`);
+    await dispatchOffer(entry, draft, `${ORIGIN}/offer/real-token`, {
+      expiresAt: new Date(offerExpiresAtMs(NOW, 10)).toISOString(),
+      startDate: DRAFT.startDate,
+    });
+    const rows = listOutboxFiltered({ ref: entry.id, kind: "offer" }, WS);
+    assert.equal(rows[0].body?.includes(line), expectLine, `send, source ${String(verdictSource)}`);
+    assert.equal(normaliseLinks(preview.body), normaliseLinks(rows[0].body ?? ""), "preview and letter cannot disagree");
+  }
+});
+
+test("7. the line does not need the tokens: an anonymized entry's llm offer still carries it, in both", async () => {
+  const entry = offerEntry({}, { ...DRAFT, verdictSource: "llm" });
+  const anon = { ...entry, anonymizedAt: "2026-09-01T00:00:00.000Z" };
+  const t = await commsTranslator("cs");
+  const preview = await previewOfferLetter(anon, { ttlDays: 10, now: NOW, origin: ORIGIN });
+  assert.ok(preview.body.includes(t("aiDraftedFooter")));
+  assert.ok(!preview.body.includes("/data/"), "no legal links for an erased entry");
+});
+
+test("8. the line renders in every locale for the same source", async () => {
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const entry = offerEntry({ locale }, { ...DRAFT, verdictSource: "llm" });
+    const t = await commsTranslator(locale as "en");
+    const preview = await previewOfferLetter(entry, { ttlDays: 10, now: NOW, origin: ORIGIN });
+    assert.ok(preview.body.includes(t("aiDraftedFooter")), locale);
+  }
+});

@@ -27,6 +27,9 @@ import Database from "better-sqlite3";
 import { saveHumanScorecard, saveInterviewPrep } from "./interview-prep.ts";
 import type { Scorecard } from "./interview-scorecard.ts";
 import { candidateDrawerBundle } from "./candidate-timeline.ts";
+import type { ScorecardViewer } from "./human-scorecard-set.ts";
+
+const MANAGER: ScorecardViewer = { author: null, authorLabel: null, canManage: true };
 
 after(() => cleanupUnitDb());
 
@@ -106,7 +109,7 @@ test("an expired consent withholds the HUMAN scorecard too, not just the AI one"
   assert.equal(saveHumanScorecard(live.entry.id, { ...HUMAN }), true, "the scorecard attaches to the prep artifact");
   recordEntryConsent(live.entry.id, "apply"); // default TTL ⇒ active
   assert.equal(
-    candidateDrawerBundle(live.entry.id)!.humanScorecards[0]?.summary,
+    candidateDrawerBundle(live.entry.id, undefined, MANAGER)!.humanScorecards[0]?.summary,
     HUMAN.summary,
     "an active consent still serves the human scorecard (the gate must not over-withhold)"
   );
@@ -117,7 +120,7 @@ test("an expired consent withholds the HUMAN scorecard too, not just the AI one"
   seedCompletedInterview(lapsed.entry.id); // the AI half, for the side-by-side contrast
   recordEntryConsent(lapsed.entry.id, "apply", -1); // ttlDays -1 ⇒ already expired
 
-  const bundle = candidateDrawerBundle(lapsed.entry.id)!;
+  const bundle = candidateDrawerBundle(lapsed.entry.id, undefined, MANAGER)!;
   assert.equal(bundle.consent.consent.status, "expired");
   assert.equal(bundle.interview!.summary, undefined, "the AI synthesis is withheld (unchanged)");
   assert.deepEqual(bundle.humanScorecards, [], "and so is the human interviewer's verbatim assessment");
@@ -133,7 +136,7 @@ test("the drawer carries EVERY interviewer's scorecard, attributed, and withhold
   saveHumanScorecard(e.entry.id, { summary: "second interviewer", ratings: [{ competency: "problem_solving", rating: 2 }] }, { author: "user-bbb", authorLabel: "Boris", stage: "interview" });
   recordEntryConsent(e.entry.id, "apply");
 
-  const cards = candidateDrawerBundle(e.entry.id)!.humanScorecards;
+  const cards = candidateDrawerBundle(e.entry.id, undefined, MANAGER)!.humanScorecards;
   assert.equal(cards.length, 2, "both interviewers' records, not the latest save only");
   assert.deepEqual(cards.map((c) => c.authorLabel).sort(), ["Alena", "Boris"]);
   assert.ok(cards.every((c) => c.stage === "interview" && c.legacy === false));
@@ -141,7 +144,7 @@ test("the drawer carries EVERY interviewer's scorecard, attributed, and withhold
   assert.ok(!wire.includes("user-aaa") && !wire.includes("user-bbb"), "the signed-in user ids stay off the drawer wire");
 
   recordEntryConsent(e.entry.id, "apply", -1);
-  assert.deepEqual(candidateDrawerBundle(e.entry.id)!.humanScorecards, [], "lapsed consent withholds every record");
+  assert.deepEqual(candidateDrawerBundle(e.entry.id, undefined, MANAGER)!.humanScorecards, [], "lapsed consent withholds every record");
 });
 
 test("the consent snapshot + audit trail ride the bundle (no separate drawer fetch)", () => {

@@ -103,3 +103,21 @@ test("the model's self-report is clamped and rounded, and only offered where the
   assert.equal(useAiReviewCardLogic(entry("offer_review", { confidence: 80 })).modelSelfReport, null, "offers carry no such scalar");
   assert.equal(useAiReviewCardLogic(entry("scorecard_review", { confidence: 80 })).modelSelfReport, null, "nor do scorecards");
 });
+
+test("Q2: a queued policy advance is flagged as an advance and is not a queued reject", () => {
+  const l = useAiReviewCardLogic(entry("screening_review", { recommendation: "advance", rationale: "BAU score 80", policyAdvance: { toStage: "Interview" } }));
+  assert.equal(l.isQueuedAdvance, true);
+  assert.equal(l.isQueuedReject, false);
+  assert.equal(l.parsed?.rationale, "BAU score 80");
+  assert.equal(useAiReviewCardLogic(entry("screening_review", { recommendation: "advance" })).isQueuedAdvance, false);
+  assert.equal(useAiReviewCardLogic(entry("rejection_review", { policyAdvance: {} })).isQueuedAdvance, false, "only a screening_review");
+});
+
+test("Q2: Keep-in-place shows on a queued policy advance and on no other card", () => {
+  const useShow = (kind: string, detail: Record<string, unknown>) => useAiReviewCardLogic(entry(kind, detail)).canKeepInPlace;
+  assert.equal(useShow("screening_review", { recommendation: "advance", policyAdvance: { toStage: "Interview" } }), true);
+  assert.equal(useShow("screening_review", { recommendation: "advance" }), false, "an ordinary AI screening");
+  assert.equal(useShow("rejection_review", { policyAdvance: {} }), false, "a queued reject");
+  assert.equal(useShow("scorecard_review", { policyAdvance: {} }), false);
+  assert.equal(useShow("offer_review", {}), false);
+});

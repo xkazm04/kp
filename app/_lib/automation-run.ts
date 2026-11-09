@@ -18,10 +18,6 @@ import {
   UI_LANG_TASKS,
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
-import { getPlanGateForRole } from "./interview-plan";
-import { readLiveArchetypes } from "./archetype-live";
-import { extendDraftedOffer } from "./pipeline-entry-action";
-import { sealDecisionSafe } from "./decision-record-store";
 import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
@@ -111,29 +107,6 @@ export const AUTOMATION_VERSION: Record<string, string> = {
  *  and its prompt bytes are unchanged. */
 export const SCORECARD_TASKS = new Set(["rejection", "offer"]);
 
-/** Why an `offerGate="auto"` draft must NOT be extended unattended, or null when
- *  nothing here objects.
- *
- *  An offer letter auto-sent to a candidate is the highest-consequence output in
- *  the product, and the gate had exactly one evidential precondition: that a figure
- *  existed. Live, that was not enough — a draft went out on an entry whose OWN
- *  interview scorecard said `hold`, 2 of 5 on the technical axis. The gate's
- *  meaning is unchanged for every case the operator configured it for: an interview
- *  that closed as `advance`, and an entry with no interview at all (a recruiter can
- *  reach Offer without one), still auto-extend. Only the case where the workspace's
- *  own recorded verdict CONTRADICTS the send is refused — and refused by parking the
- *  draft at offer_review, never by rewriting the letter.
- *
- *  Takes the raw stored scorecard (unvalidated row JSON): an unreadable or verdict-
- *  less scorecard is "no recorded objection", not a refusal — it is the same absence
- *  as no interview. */
-export function offerAutoExtendRefusal(scorecard: unknown): string | null {
-  if (!scorecard || typeof scorecard !== "object") return null;
-  const raw = (scorecard as { recommendation?: unknown }).recommendation;
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const verdict = coerceInterviewRecommendation(raw);
-  return verdict === "advance" ? null : `scorecard_${verdict}`;
-}
 // LETTER_LANG_TASKS — candidate-facing letters; their language is the entry's
 // resolved comms locale (explicit apply choice, else the workspace default —
 // comms-locale.resolveCommsLocale), passed to Python as --lang so the letter and
@@ -631,6 +604,14 @@ export async function runAutomationTask(
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
+    //
+    // Q2 (owner ruling 2026-11-09) queued the POLICY PASS's score-threshold advances for a
+    // person. THIS move is a different door and is deliberately left as it was: it is a
+    // MODEL's screening verdict (route "advance", confidence at or above
+    // POLICY.screen_advance_conf, fairness-gated and never for a template verdict or an
+    // early-career profile), not a score cut-off, and whether a screening verdict may
+    // move a candidate unattended is the Q3 question (the screening gate), decided and
+    // built separately. Do not fold it into the Q2 queue by reflex.
     if (advance) {
       const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
       if (!moved) {
@@ -642,52 +623,11 @@ export async function runAutomationTask(
     if (holdForReview) {
       setApproval(entry.id, "screening_review", approvalDetail(), workspaceId);
       recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId, engineActor);
-      // interviewPlan screeningGate="auto" — the workspace chose to trust the
-      // AI's ADVANCE verdicts: a review parked only for confidence (recommendation
-      // advance, route hold) is ratified unattended through the SAME accept
-      // machinery a recruiter's click uses (advance + calendar gate + auto_advanced
-      // event), CAS-guarded on the approval just set. hold/reject recommendations
-      // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
-      // The route cannot say WHY it held, and confidence is not the only reason:
-      // Python also holds a fairness-shielded candidate's advance (`and not early`),
-      // and the recommendation it leaves standing is the model's. So the shield is
-      // re-derived here from the entry, through the same live reader the auto-reject
-      // backstop uses (unknown/unrouted fails closed): a shielded candidate is
-      // advanced by a person, never by the plan gate.
-      // The gate trusts the MODEL's advance verdicts; a template's is never ratified.
-      if (
-        verdictSource === "llm" &&
-        getPlanGateForRole("screening", workspaceId) === "auto" &&
-        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance" &&
-        !readLiveArchetypes().isFairnessProtected(entry.archetype)
-      ) {
-        const ratified = actOnPipelineEntry(
-          entry.id,
-          "accept",
-          undefined,
-          { expectedApprovalKind: "screening_review", actor: "system" },
-          workspaceId
-        );
-        if (ratified) {
-          sealDecisionSafe({
-            kind: "auto_advanced",
-            actor: "auto:interview-plan",
-            policyVersion: "interview-plan",
-            candidateRef: entry.id,
-            rationale: "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
-            // Resolved through `decisions.wave.reasons.*` by waveReasonText, the ONE
-            // sealed-reason resolver the records panel + decision log share — so this
-            // rationale reads in the auditor's language instead of falling back to the
-            // byte-stable English. A dedicated code, not the generic "accept" a human
-            // acceptance seals: the two are different decisions with different readers.
-            reasonCode: "autoRatifiedScreening",
-            inputs: { fromStage: entry.stage, approvalKind: "screening_review" },
-          });
-          applied = "auto_ratified";
-        }
-      }
+      // No workspace setting ratifies a held review: the screening gate is display
+      // only (a stored "auto" reads as "human" - see getInterviewPlan), so a held
+      // review always parks for a person.
     }
-    if (applied !== "auto_ratified") applied = screenApplied;
+    applied = screenApplied;
   } else if (task === "scorecard") {
     const fresh = getPipelineEntry(entry.id, workspaceId);
     if (!fresh || !scorecardGateOpen(fresh, getPipelineAxis(workspaceId).stages)) {
@@ -700,71 +640,9 @@ export async function runAutomationTask(
     setApproval(entry.id, "offer_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId, engineActor);
     applied = "offer_ready";
-    // interviewPlan offerGate="auto" — extend the freshly-drafted offer to the
-    // candidate unattended, through the SAME extend path a recruiter's approval
-    // uses (idempotent open-offer reuse, truthful sent/queued dispatch, sealed
-    // offer_terms with the machine as actor). Three hard guards:
-    //   • an UNPRICED fail-safe draft (recommended null — no figure was willing
-    //     to be invented) ALWAYS parks for a human to price it;
-    //   • the extend runs on the FRESH row (the approval just written), so a
-    //     concurrent decision can't be clobbered;
-    //   • a THIRD guard, added after a live draft was auto-sent on an entry whose own
-    //     interview scorecard said `hold` (2 of 5 technical): a recorded verdict that
-    //     contradicts the send parks the draft for a human. See offerAutoExtendRefusal
-    //     — it refuses the send, it does not touch the letter, and it is silent for the
-    //     `advance` and no-interview cases the gate was configured for.
-    // Origin "" → publicBaseUrl resolves the configured/canonical public origin
-    // (never a request Host), which is exactly right for a background extend.
-    const offerGateIsAuto = getPlanGateForRole("offer", workspaceId) === "auto";
-    const scorecardRefusal = offerGateIsAuto ? offerAutoExtendRefusal(interviewScorecard) : null;
-    if (scorecardRefusal) {
-      console.warn(
-        `[automation:offer] auto-extend withheld (${scorecardRefusal}); the interview verdict on this entry ` +
-          `does not support an unattended offer — draft parked at offer_review for human approval`
-      );
-    }
-    if (offerGateIsAuto && result.recommended != null && !scorecardRefusal) {
-      const fresh = getPipelineEntry(entry.id, workspaceId);
-      if (fresh && fresh.approvalKind === "offer_review") {
-        try {
-          const extended = await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
-          // A REFUSAL IS NOT A SEND. extendDraftedOffer never throws for a business
-          // rule — it RETURNS { status, body } — and this block used to ignore that
-          // entirely, so a 400 (invalid offer terms), a 502 (the letter did not
-          // dispatch) or a 409 (the approval moved while it sent) all stamped
-          // `offer_auto_extended` on the timeline and reported `applied: "offer_sent"`
-          // to the caller. The recruiter was told an offer went out that did not.
-          // Now the draft parks exactly as it does for a thrown error: `applied` is
-          // left as the "offer_ready" the branch above set, so the card stays at
-          // offer_review for a human, and the timeline records WHY.
-          if (extended.status !== 200) {
-            const code = typeof extended.body.code === "string" ? extended.body.code : "OFFER_NOT_EXTENDED";
-            // The refusal CODE is the record; the SCREEN shows the kind's own
-            // localized verb. Deliberately NOT a resolvable `reason:<code>` — the
-            // renderer's parser accepts letters only (pipeline-event-reasons.test.ts
-            // §3), so a detail carrying an UPPER_SNAKE refusal code falls through to
-            // the localized kind label instead of painting English prose at a Czech
-            // recruiter. Same kind extendDraftedOffer's own 502 path writes: nothing
-            // went out, the approval is still open, approving again retries.
-            recordAutomationEvent(
-              entry.id,
-              "offer_comms_failed",
-              `${AUTOMATION_REASON_PREFIX}offerAutoExtendRefused:${code}`,
-              workspaceId,
-              engineActor
-            );
-            console.error(`[automation:offer] auto-extend refused (${extended.status} ${code}); draft parked for human approval`);
-          } else {
-            recordAutomationEvent(entry.id, "offer_auto_extended", automationReasonDetail("offerAutoExtended"), workspaceId, engineActor);
-            applied = "offer_sent";
-          }
-        } catch (error) {
-          // The draft is parked at offer_review as if the gate were human — an
-          // auto-extend failure must never lose the draft.
-          console.error("[automation:offer] auto-extend failed; draft parked for human approval", error);
-        }
-      }
-    }
+    // No workspace setting extends an offer: the offer gate is display only (a stored
+    // "auto" reads as "human"), so a drafted offer always parks at offer_review for a
+    // person to price and approve.
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
       // createPipelineEntry is idempotent (a corpus edit self-invalidates the
@@ -847,7 +725,7 @@ export async function runAutomationTask(
           : suppress === "candidate" ? "suppressed_candidate"
           : "suppressed_consent_expired";
       } else {
-        await draftOutreachLetter(entry, result, workspaceId);
+        await draftOutreachLetter(entry, result, workspaceId, verdictSource);
         applied = "drafted";
       }
     }
