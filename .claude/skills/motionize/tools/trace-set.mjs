@@ -50,7 +50,7 @@ async function traceOne(buf, args) {
     pathPrecision: 5,
   };
   let svg = await vectorize(buf, config);
-  svg = optimize(svg, { multipass: true, plugins: [{ name: "preset-default", params: { overrides: { removeViewBox: false } } }] }).data;
+  svg = optimize(svg, { multipass: true, plugins: ["preset-default"] }).data;
   return svg;
 }
 

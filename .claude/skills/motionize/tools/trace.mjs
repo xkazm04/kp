@@ -46,7 +46,7 @@ async function main() {
     const res = optimize(svg, {
       multipass: true,
       plugins: [
-        { name: "preset-default", params: { overrides: { removeViewBox: false } } },
+        "preset-default",
         // keep path data addressable; don't merge everything into one blob
         { name: "cleanupIds", params: { minify: false } },
       ],
