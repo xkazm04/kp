@@ -682,6 +682,25 @@ a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-langua
   `app/_lib/comms-letter-preview.test.ts` and
   `app/api/pipeline/[id]/offer-letter/route.test.ts`.
 
+**AI-drafted line (owner ruling Q10).** Every candidate letter a model wrote carries
+one extra paragraph, `comms.aiDraftedFooter` ("This message was drafted by AI." in
+en; translated in cs, de, fr), ahead of the data and stop footers. It is rendered in
+one place, `renderCandidateFooters` (`comms-dispatch.ts`), from a typed
+`aiDrafted` field on `sendCandidateComm`, never by reading the body, and it does not
+depend on the erasure or opt-out tokens (an erased entry or a store that cannot mint
+still gets it). The send decides from the draft's **stored** source through one
+function, `draftedByModel(source)`: only `template` (or `deterministic`) means "not
+AI"; `llm`, a missing source and an unknown word all mean "AI", so a draft written
+before the source was kept is never labelled human. Where the source lives: an offer
+draft's `verdictSource` in the approval detail; a held outreach letter's nullable
+`outreach_letters.draft_source` (additive column, written by `draftOutreachLetter`,
+re-written by a redraft, untouched by a person's edit, so an edited llm draft keeps
+the line). The offer preview applies the same function, so preview and letter agree.
+Rejection letters are templates plus recorded profile gaps and carry no line. The
+interview feedback letter has a model draft; `dispatchInterviewLetter` accepts the
+draft's `source` but its caller does not pass it, so those letters carry the line.
+The held-outreach read (`outreach-letters/letter-view.ts`) does not yet show it.
+
 ## 8a. Approve before first outreach (comms scope C2)
 
 A first contact is never sent by the machine that wrote it. All three outreach doors —
@@ -700,6 +719,7 @@ first-contacted once.
 | --- | --- | --- |
 | Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
 | Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
+| List | `GET /api/outreach-letters?state=drafted[&limit=]` | the team's letters in ONE state, oldest first, `{ letters: [{ id, entryId, candidateLabel, jobTitle, subject, state, revision, createdAt, updatedAt }], state, limit, truncated }` — no body (open one through Find / Read); an erased row is left out; `state` absent or unknown folds to `drafted`, `limit` is capped at 200 (`outreachLetterListByState`, on `idx_outreach_letters_open`). Read by `/one`'s "letters waiting" view and its header count |
 | Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
 | Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
 | Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |

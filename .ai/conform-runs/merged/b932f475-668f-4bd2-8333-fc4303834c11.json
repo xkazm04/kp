@@ -1,0 +1,130 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b932f475-668f-4bd2-8333-fc4303834c11",
+ "subject": "prompt-safety",
+ "evaluatedAt": "2026-11-08T04:03:24.440588+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "prompt-safety",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:308 The JSON-fence binding test only feeds a payload that never tries to close its fence; fenced_untrusted passes a forged <<<END_UNTRUSTED_TAG>>> through verbatim inside the JSON string (verified: the close marker appears twice), so the scorecard transcript and group-compare fences are forgeable and no test catches it.",
+   "techniques": [
+    {
+     "technique": "untrusted-span-fencing",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:308 Prose fences are defused and non-vacuity-tested well, but the JSON fences (fixed marker, no nonce, no stripping) are only tested with a marker-free payload; the line-297 rationale that json.dumps escapes the needed newlines is wrong, since a model does not need a newline to read a closing marker."
+    },
+    {
+     "technique": "inspection-coverage-is-a-verdict",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_credentials.py:105 An unreadable CV skips the check that corroborates a model-listed licence, and the test pins the same empty list a clean check returns; there is no not-inspected outcome."
+    },
+    {
+     "technique": "input-caps-and-clamps",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:39 Per-block caps (JD, company, CV, summary, highlight, label, verdict) cut with a visible marker; in-budget text stays byte-identical."
+    },
+    {
+     "technique": "model-output-as-untrusted",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation.py:947 Model-emitted scorecard entities are type-checked and non-conforming members dropped rather than trusted."
+    },
+    {
+     "technique": "cross-language-rule-parity",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation_constant_sync.py:52 The transcript budget cap is single-sourced in Python, generated into TS, and pinned by a test on both sides."
+    },
+    {
+     "technique": "session-capability-conjunction",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_claude_cli.py:148 Generate mode runs in an empty cwd; repo access only through with_repo_access's read-only door; the API key is stripped from the spawn env (line 261). The roster is cut at design time."
+    }
+   ],
+   "registryProposal": "untrusted-span-fencing should name JSON-encoding as a non-fence: json.dumps escapes quotes and newlines but leaves fixed angle-bracket markers intact, so a 'JSON fence' with a fixed close tag still needs stripping or a nonce; teams treat the encoding as the neutralization."
+  },
+  {
+   "context": "security-agent-gates",
+   "subject": "prompt-safety",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/agent/dispatch.mjs:328 guardPlan maps any action other than 'delete' (a misspelt or invented verb) onto a whole-file write instead of rejecting it, which is the 'fuzzily matched to the nearest legal operation' failure of a closed grammar.",
+   "techniques": [
+    {
+     "technique": "model-output-as-untrusted",
+     "verdict": "deviation",
+     "evidence": "scripts/agent/dispatch.mjs:328 Paths, the protected prefixes, sizes and the commit subject are validated well; the verb set is not closed."
+    },
+    {
+     "technique": "untrusted-span-fencing",
+     "verdict": "conformant",
+     "evidence": "scripts/agent/dispatch.mjs:426 The fence is always longer than any backtick run in the payload (stripping-class unforgeability), with the UNTRUSTED_TASK_LABEL provenance label in both rounds; pinned by injection.test."
+    },
+    {
+     "technique": "input-caps-and-clamps",
+     "verdict": "conformant",
+     "evidence": "scripts/agent/dispatch.mjs:269 Source reads are capped per file and per count with a visible marker, and the meter checks the token budget before each call. The issue-body task text has no class cap of its own beyond GitHub's limit."
+    },
+    {
+     "technique": "output-sanitization",
+     "verdict": "deviation",
+     "evidence": "scripts/agent/dispatch.mjs:544 Model-authored summary, verification and risks go into the proposal markdown posted to the tracker with no secret masking or @mention/link neutralization."
+    },
+    {
+     "technique": "payoff-removal",
+     "verdict": "conformant",
+     "evidence": "scripts/agent/__tests__/injection.test.mjs:20 Assumes the injection fully worked and asserts guardPlan denies the win (protected gates, .env, test deletions, traversal); the output is a draft PR gated like any change."
+    },
+    {
+     "technique": "inspection-coverage-is-a-verdict",
+     "verdict": "deviation",
+     "evidence": "scripts/security/secret-scan.mjs:242 The blocking secret gate skips tracked files over 2 MB (printed as 'not read') and still exits 0; a committer can pad a file past the window. Binary-extension and unreadable files are skipped and not counted at all."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T04:03:24.440588+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-safety"
+   ],
+   "techniques": [
+    "cross-language-rule-parity",
+    "input-caps-and-clamps",
+    "inspection-coverage-is-a-verdict",
+    "model-output-as-untrusted",
+    "session-capability-conjunction",
+    "untrusted-span-fencing"
+   ],
+   "deviations": 1,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T04:03:24.440588+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-safety"
+   ],
+   "techniques": [
+    "input-caps-and-clamps",
+    "inspection-coverage-is-a-verdict",
+    "model-output-as-untrusted",
+    "output-sanitization",
+    "payoff-removal",
+    "untrusted-span-fencing"
+   ],
+   "deviations": 1,
+   "context": "security-agent-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

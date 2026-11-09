@@ -1,0 +1,165 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8c0b7804-1cb3-45d6-af69-52eef51ffdc8",
+ "subject": "native-shell-integration",
+ "evaluatedAt": "2026-11-06T22:12:24.559657+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "workspace-command-palette",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:98 The palette binds its chord only on the browser document. A case-insensitive search of app/features/shell for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so no native process exists for this context to integrate with.",
+   "techniques": [
+    {
+     "technique": "host-forwarded-key-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:98 The page receives keys straight from the browser; no native wrapper forwards host-kept keys."
+    }
+   ],
+   "absenceTerms": [
+    "tauri",
+    "electron",
+    "setIgnoreMouseEvents",
+    "globalShortcut",
+    "AXIsProcessTrusted"
+   ]
+  },
+  {
+   "context": "dev-inspector",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_dev-inspector/devLocate.ts:61 The inspector walks data-loc stamps in the product's own DOM and never reads a foreign application's tree. Searching app/_dev-inspector for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so the overlay techniques have no native surface to govern.",
+   "techniques": [
+    {
+     "technique": "query-transparent-overlay",
+     "verdict": "not-applicable",
+     "evidence": "app/_dev-inspector/devLocate.ts:61 The point query is an in-document closest() walk, not a host accessibility query that could return a topmost native overlay."
+    }
+   ],
+   "absenceTerms": [
+    "tauri",
+    "electron",
+    "setIgnoreMouseEvents",
+    "globalShortcut",
+    "AXIsProcessTrusted"
+   ]
+  },
+  {
+   "context": "about-product",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/about/ChapterRail.tsx:46 The explainer observes only its own document sections. Searching app/features/insights/about for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so no native side exists here.",
+   "techniques": [
+    {
+     "technique": "observer-perturbation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/about/ChapterRail.tsx:46 It observes its own DOM sections, not a foreign application that could react to being covered."
+    }
+   ],
+   "absenceTerms": [
+    "tauri",
+    "electron",
+    "setIgnoreMouseEvents",
+    "globalShortcut",
+    "AXIsProcessTrusted"
+   ]
+  },
+  {
+   "context": "voice-stt-package",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-stt/src/react/useStt.ts:340 The client asks the browser for one microphone grant, and the server spawns whisper-cli as an ordinary subprocess (spawn.ts:24). Searching packages/voice-stt for tauri, electron, setIgnoreMouseEvents, globalShortcut and AXIsProcessTrusted found nothing, so there is no native wrapper whose capabilities need a presence or grant-vector contract.",
+   "techniques": [
+    {
+     "technique": "permission-gate-vector",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/react/useStt.ts:340 This is one browser grant, not several native-host grants with different blast radii."
+    },
+    {
+     "technique": "native-owned-stream",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-stt/src/node/spawn.ts:24 This is a bounded server-side subprocess per clip, not a long-lived stream that a hidden window throttles; the subprocess-lifecycle subject owns it."
+    }
+   ],
+   "absenceTerms": [
+    "tauri",
+    "electron",
+    "setIgnoreMouseEvents",
+    "globalShortcut",
+    "AXIsProcessTrusted"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "native-shell-integration",
+   "context": "setup-studio",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T22:12:24.559657+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "host-forwarded-key-contract"
+   ],
+   "deviations": 0,
+   "context": "workspace-command-palette",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T22:12:24.559657+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "query-transparent-overlay"
+   ],
+   "deviations": 0,
+   "context": "dev-inspector",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T22:12:24.559657+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "observer-perturbation"
+   ],
+   "deviations": 0,
+   "context": "about-product",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T22:12:24.559657+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "native-owned-stream",
+    "permission-gate-vector"
+   ],
+   "deviations": 0,
+   "context": "voice-stt-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

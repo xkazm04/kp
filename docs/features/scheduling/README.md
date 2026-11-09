@@ -649,6 +649,8 @@ returns a bare English `{ error }` any more:
 | `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` · `SCHEDULE_CALENDAR_BUSY` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal. `reschedule` and `accept_proposal` re-check free/busy the same way `book` does |
 | `TOO_MANY_REQUESTS` | 429 | The per-IP limiter on both handlers |
 
+**Seal-first doors.** `cancel`, `no_show` and `decline_proposals` seal their decision record BEFORE the write and answer 503 `PIPELINE_DECISION_NOT_SEALED` with nothing changed (the invite keeps its state, so a retry works). `book` and `accept_proposal` still answer 200 when their seal fails: open, awaiting an operator decision.
+
 Why it mattered: `useScheduleInviteLifecycle.runAction` resolves failures through
 `useErrorMessage()`, which reads the CODE and correctly ignores the server's prose.
 Every one of these therefore collapsed into the panel's single generic toast — a

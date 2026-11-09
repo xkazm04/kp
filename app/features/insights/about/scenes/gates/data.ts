@@ -21,7 +21,9 @@ export type StatusBeat = (typeof STATUS_BEATS)[number];
 // `key` names the catalog entry; `kind` is the real approvalKind slug, which
 // stays untranslated because it is the value stored on the row.
 export const ACTIONS = [
-  { id: "advanced", key: "advance", parks: false, kind: "" },
+  // Q2: the policy pass no longer applies a score-threshold advance; it files a
+  // screening_review (policyAdvance mark) for a person, so this row stops at the barrier.
+  { id: "queued_advance", key: "advance", parks: true, kind: "screening_review" },
   { id: "hold", key: "hold", parks: false, kind: "" },
   { id: "auto_rejected", key: "reject", parks: true, kind: "rejection_review" },
   { id: "offer", key: "offer", parks: true, kind: "offer_review" },

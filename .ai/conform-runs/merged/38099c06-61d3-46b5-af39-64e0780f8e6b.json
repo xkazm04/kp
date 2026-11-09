@@ -1,0 +1,144 @@
+{
+  "schema": "conform-run/1",
+  "worker": "38099c06-61d3-46b5-af39-64e0780f8e6b",
+  "subject": "settings",
+  "evaluatedAt": "2026-11-06T22:46:08.508757+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "workspace-member-admin",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:20 The tab is a membership and RBAC console. Its writes are seat/unseat, role and status PATCH, capability overrides, invites and workspace rename. These are entity and authorization mutations, not keys in an application settings store. A search of the directory found no settings accessor, key registry or locale override.",
+      "techniques": [],
+      "absenceTerms": [
+        "getSetting",
+        "setSetting",
+        "settingsStore",
+        "SETTING_KEYS",
+        "locale_override"
+      ]
+    },
+    {
+      "context": "analyze-workspace",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/analyze/analyzeDraft.ts:13 The only thing this context persists is a transient form draft and task/result handles in sessionStorage, plus a localStorage cohort-layer pick. Under the subject's own boundary that is client view-state. A search of app/features/tools/analyze found no durable backend settings accessor or key registry.",
+      "techniques": [],
+      "absenceTerms": [
+        "getSetting",
+        "setSetting",
+        "settingsStore",
+        "SETTING_KEYS"
+      ]
+    },
+    {
+      "context": "saved-analysis-report",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/history/[slug]/page.tsx:48 The page loads and renders one stored analysis row, and the record it reads is an analysis, not configuration. A search of app/history/[slug] found no settings accessor or key registry.",
+      "techniques": [],
+      "absenceTerms": [
+        "getSetting",
+        "setSetting",
+        "settingsStore",
+        "SETTING_KEYS"
+      ]
+    },
+    {
+      "context": "db-org-users-channels",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/db/organizations.ts:25 rowToOrg hands the org's default_locale out as a raw string with an inline \"cs\" fallback and no validation, while getWorkspaceDefaultLocale validates the same setting through isLocale. One setting therefore has two read paths with different ideas of what an illegal value is. Neither path reports a stored value it could not read: workspaces.ts valid() silently degrades it to WORKSPACE_LOCALE_FALLBACK.",
+      "techniques": [
+        {
+          "technique": "typed-accessors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/organizations.ts:25 The org locale is cast unvalidated and typed as string, not Locale, and its fallback is a second inline constant. The workspace path's valid() (workspaces.ts:52) replaces unknown stored values without reporting the corruption, contrary to step 2 of the accessor contract."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/workspaces.ts:69 A NULL override means the team follows its org continuously. Presence of the override row decides, and one door (getWorkspaceDefaultLocale) resolves it. clearWorkspaceLocaleOverride re-attaches the team (line 90)."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "settings",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor BillingTab.tsx:130 is just the read fetch(\"/api/billing\"), so it does not show that no settings key space exists. My grep found no settings accessor and only checkout, portal and alert POSTs, but the cited line itself is incidental."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T22:46:08.508757+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T22:46:08.508757+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "workspace-member-admin",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T22:46:08.508757+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "analyze-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T22:46:08.508757+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "saved-analysis-report",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T22:46:08.508757+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "inherited-default-override",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "db-org-users-channels",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

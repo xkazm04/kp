@@ -2733,7 +2733,7 @@ two signed-in interviewers, a foreign team and open mode).
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/voice/readiness.ts`, `mint-error.ts` | Operator readiness (absent / unchecked / ready / broken, price in force, preference, failovers) and the typed mint failure both adapters throw (see "Operator readiness") |
-| `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`) |
+| `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints; stays open with `KP_VOICE_INTERVIEW` off so the Spend strip can read "switched off"); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`, answers 404 with `KP_VOICE_INTERVIEW` off so it mints nothing) |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
 | `app/_lib/interview-scorecard-commit.ts` | Voice scorecard atomic commit: attach CAS, gate check (`scorecardGateOpen`), approval and event in one `.immediate()` tx; seal and observed-skills minting post-commit |
@@ -3441,7 +3441,7 @@ A **probe** is a credential mint that opens no conversation: OpenAI's client sec
 signed URL is never dialed. Whether a provider meters an unused mint is not verifiable
 here, so the probe is **operator-triggered only, never on page load, and limited to 6
 per 10 min per IP**; the **Check now** button says a check may spend one mint per paid
-provider. `POST /api/voice/readiness` runs it (`probeVoiceProviders`, concurrent under
+provider. `POST /api/voice/readiness` runs it (404 while `KP_VOICE_INTERVIEW` is off; `probeVoiceProviders`, concurrent under
 `Promise.allSettled`, each bounded by its adapter's 15 s mint timeout); `GET` never
 mints and reports the verdicts the POST remembered for `VOICE_PROBE_TTL_MS` (10 min,
 in process memory, keyed by a hash of the provider's config so a rotated key reads

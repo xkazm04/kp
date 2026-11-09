@@ -34,7 +34,7 @@ export function useDecisionsCandidate({
   visibleAiReviews: Entry[];
   /** Every entry the board read (the queue is a subset); null before the first read. */
   entries: Entry[] | null;
-  act: (e: Entry, action: "accept" | "reject", detail?: string, ttlDays?: number) => Promise<boolean>;
+  act: (e: Entry, action: "accept" | "reject" | "decline_advance", detail?: string, ttlDays?: number) => Promise<boolean>;
   staleSinceOf: (e: Entry) => string | null;
   peersOf: (e: Entry) => PeerScore[];
   peerFactsOf: (e: Entry) => JobPeerContext | null;
@@ -68,7 +68,7 @@ export function useDecisionsCandidate({
   // a verdict on a row the server already moved.
   const current = view ? (visibleAiReviews.find((e) => e.id === view.entry.id) ?? null) : null;
   const decide = useCallback(
-    async (e: Entry, action: "accept" | "reject", ttlDays?: number) => {
+    async (e: Entry, action: "accept" | "reject" | "decline_advance", ttlDays?: number) => {
       // decisions-review-ui/B — a reject is not written on the click: it arms the
       // shared commit window (the ledger's undo strip counts it down and offers Undo)
       // and the modal closes, exactly as a landed verdict closes it. An accept keeps
@@ -98,6 +98,7 @@ export function useDecisionsCandidate({
         peerFacts: peerFactsOf(current),
         onAccept: (ttlDays) => void decide(current, "accept", ttlDays),
         onReject: () => void decide(current, "reject"),
+        onKeepInPlace: () => void decide(current, "decline_advance"),
         busy,
       }
     : null;

@@ -41,6 +41,7 @@ to be true for it to change?*
 - run a unit-test launcher beside another suite, or treat a gate failure that only appears beside another lane as a flake → [0029](0029-one-unit-suite-per-machine.md)
 - store or change who was shortlisted or chosen on a role, or let anything but a signed-in person write it → [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md)
 - make a test `after()` hook fail on a temp folder it could not remove, or swallow that failure in a script → [0031](0031-tmp-cleanup-logs-in-after-hooks.md)
+- change what the import-graph budget counts, or how a `next/dynamic` / `import()` edge is measured → [0032](0032-import-budget-counts-eager-edges.md)
 
 ## Index
 
@@ -77,6 +78,7 @@ to be true for it to change?*
 | [0029](0029-one-unit-suite-per-machine.md) | The unit-test launcher runs one suite per machine at a time | accepted | 2026-10-18 |
 | [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md) | The role shortlist is a workspace-scoped table, set only by a person | accepted | 2026-10-22 |
 | [0031](0031-tmp-cleanup-logs-in-after-hooks.md) | Temp-dir cleanup logs a leak in a test after() hook and throws everywhere else | accepted | 2026-10-23 |
+| [0032](0032-import-budget-counts-eager-edges.md) | The import-graph budget counts eager edges; a dynamic import() is deferred | accepted | 2026-10-28 |
 
 ## Writing a new one
 

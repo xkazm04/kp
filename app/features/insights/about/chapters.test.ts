@@ -444,7 +444,10 @@ test("chapter 6's parked kinds are a true subset of APPROVAL_KINDS", () => {
   const actions: readonly { parks: boolean; kind: string }[] = ACTIONS;
   assert.ok(actions.length > 0, `${GATES} declares no ACTIONS`);
   const parked = actions.filter((a) => a.parks);
-  assert.equal(parked.length, 2, "the scene parks two actions (rejection + offer)");
+  // Q2 (2026-11-09): the policy pass queues a score-threshold advance as a screening_review
+  // instead of applying it, so the advance row parks beside the rejection and the offer.
+  assert.equal(parked.length, 3, "the scene parks three actions (advance + rejection + offer)");
+  assert.deepEqual(parked.map((a) => a.kind).sort(), ["offer_review", "rejection_review", "screening_review"]);
 
   for (const a of actions) {
     if (a.kind === "") {

@@ -1,0 +1,81 @@
+{
+ "schema": "conform-run/1",
+ "worker": "23514948-6101-4d50-b90f-bd762e25f7b2",
+ "subject": "regulated-credential-gating",
+ "evaluatedAt": "2026-11-07T22:54:20.281188+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-matching",
+   "subject": "regulated-credential-gating",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/matching.py:1417 The matcher sets the strong/promising/partial tier from the weighted score alone, with no regulated-credential cap, so a candidate whose required licence is not evidenced can still be shown as a strong fit. MatchCandidate (matching.py:112-164) has no credentials field, and transform.py never mentions credentials, so this path has no data to cap on.",
+   "techniques": [
+    {
+     "technique": "required-but-missing-as-a-blocking-gate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/matching.py:1417 The tier comes from the score only. No gap object, no capped verdict and no hold reason exist on MatchResult for a required licence that is not evidenced."
+    },
+    {
+     "technique": "licence-is-a-precondition-not-a-preference",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/matching.py:781 Every requirement, a 'prerequisite' must-have included, goes into the same weighted arithmetic. No requirement field marks a regulated precondition that sits outside the score, so a licence requirement can be outweighed by strong skills: the 'offsettable licence' failure."
+    }
+   ]
+  },
+  {
+   "context": "cv-extraction",
+   "subject": "regulated-credential-gating",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/models.py:23 The credential schema has one date field whose own comment says it holds either the expiry or the issue date. Every date is filed into the expiry slot with its role unrecorded, so nothing downstream can tell an award date from a lapse. This is the failure the disambiguation technique forbids: a date filed as an expiry 'for now'.",
+   "techniques": [
+    {
+     "technique": "issue-versus-expiry-date-disambiguation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/models.py:23 No separate issue/expiry fields, no date-role marker and no undetermined state. credentials.py:90 has to guess with max(years), and a single past issue date still reads as an expiry."
+    },
+    {
+     "technique": "deterministic-safety-net-behind-the-model",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/models.py:19 Procedure step 1 holds: credentials are first-class typed records (name/issuer/identifier/expiry/kind), not prose. Caveats: there is no jurisdiction or status field, and the deterministic pass itself is in credentials.py, outside this context."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T22:54:20.281188+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "regulated-credential-gating"
+   ],
+   "techniques": [
+    "licence-is-a-precondition-not-a-preference",
+    "required-but-missing-as-a-blocking-gate"
+   ],
+   "deviations": 1,
+   "context": "candidate-matching",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:54:20.281188+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "regulated-credential-gating"
+   ],
+   "techniques": [
+    "deterministic-safety-net-behind-the-model",
+    "issue-versus-expiry-date-disambiguation"
+   ],
+   "deviations": 1,
+   "context": "cv-extraction",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

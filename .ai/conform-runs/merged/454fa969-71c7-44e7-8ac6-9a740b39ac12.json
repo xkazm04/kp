@@ -1,0 +1,126 @@
+{
+ "schema": "conform-run/1",
+ "worker": "454fa969-71c7-44e7-8ac6-9a740b39ac12",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-06T03:21:59.012319+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-apply-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/intake/[id]/message/route.ts:99 Each intake request runs one model exchange through a per-request Python spawn (runIntakeExchange) and writes the transcript with a compare-and-swap. The routes have no multi-call agent loop, hook chain, extension loading or checkpoint store. A search of app/api/apply and app/api/intake found no hits for checkpoint, subagent, toolCall, tool_call or plugin.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_call",
+    "plugin"
+   ]
+  },
+  {
+   "context": "shell-tasks",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 This context is a React panel that polls the task ledger over HTTP and renders it. It assembles no runtime, wraps no model or tool call and loads no contributed code. A search of app/features/shell/tasks found no hits for checkpoint, subagent, toolCall, tool_call or plugin; the only 'hook' hits are React hooks.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_call",
+    "plugin"
+   ]
+  },
+  {
+   "context": "platform-auth-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/auth/login/route.ts:109 These routes issue and clear HMAC sessions and manage workspaces, health and ops; none of them composes a model or tool call. A search of all of app/api, which also covers the root contract tests, found no hits for checkpoint, subagent, toolCall or tool_call. 'plugin' is left out because it appears once in upload-size-contract.test.ts, where it refers to Next's plugin chain.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_call"
+   ]
+  },
+  {
+   "context": "channels-comms-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/comms/route.ts:11 These routes read and resend the comms outbox, probe the relay and receive delivery and inbound webhooks; none of them runs an agent loop or hook chain. A search of app/api/comms and app/api/channels found no hits for checkpoint, subagent, toolCall, tool_call or plugin; the 'hook' hits are webhooks.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_call",
+    "plugin"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "workspace-config-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T03:21:59.012319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T03:21:59.012319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-tasks",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T03:21:59.012319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "platform-auth-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T03:21:59.012319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "channels-comms-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

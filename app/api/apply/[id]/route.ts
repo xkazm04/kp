@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
-import { ensureLeadEnrichToken, findEntryByLeadToken, recordAutomationEvent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
+import { ensureLeadEnrichToken, findEntryByLeadToken, recordAutomationEvent, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyKoSteps, koMustHaveNames } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
@@ -18,8 +18,7 @@ import { afterResponse } from "@/app/_lib/after-response";
 import { startTask } from "@/app/_lib/tasks";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { capAttribution } from "@/app/_lib/lead-payload";
-import { dispatchKnockoutDecline } from "@/app/_lib/comms-dispatch";
-import { sanitizeFreeText } from "@/app/_lib/text-sanitize";
+import { codedReasonDetail } from "@/app/_lib/coded-reason";
 
 // How many of the profile's unmet-checklist gaps the candidate is offered right
 // after "You're in". Deliberately small: this is a courtesy ask on a flow that has
@@ -137,8 +136,10 @@ function acknowledgeReapply(
   });
 }
 
-// POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
-// polite decline (no entry created).
+// POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a real
+// entry HELD behind the `decision` approval for a person (owner ruling Q1, 2026-11-09):
+// the candidate is told a person will review, nothing is declined, and the letter naming
+// the must-have goes out once, when a person confirms the rejection.
 //
 // Duplicate-application policy: one application per (applicant, role). A repeat
 // submission from the same person does NOT create a second entry — its fresh
@@ -206,9 +207,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }>(request, MAX_APPLY_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     // A filled hidden field signals an automated submission. Mirror the ordinary
-    // knockout result without creating an entry or sending any comms.
+    // knockout result (the held answer) without creating an entry or sending any comms.
     if (isHoneypotFilled(body)) {
-      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+      return NextResponse.json({ result: "held", message: t("heldMessage"), failedKo: [], failedKoNames: [] });
     }
     const answers = body.answers ?? {};
     // Close the funnel loop on whichever path files an entry: a first application,
@@ -223,12 +224,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const providedName = String(answers.name ?? "").trim();
     const name = providedName || ANONYMOUS_APPLICANT_LABEL;
     // Capped HERE, above the knockout gate, and not with the other field caps
-    // below: a KO decline PERSISTS this label on its audit event
-    // (recordKnockoutDecline → pipeline_events.candidate_label, which bounds the
-    // detail but NOT the label) and then returns. With the check downstream, a
-    // declined POST could write a body-sized name straight into the recruiter's
-    // activity feed while never reaching the cap. The quick-apply route already
-    // validates before its KO verdict; this keeps the two surfaces aligned.
+    // below: a KO hold PERSISTS this label on its entry and the events written for it
+    // (pipeline_events.candidate_label bounds the detail but NOT the label), and then
+    // returns. With the check downstream, a held POST could write a body-sized name
+    // straight into the recruiter's activity feed while never reaching the cap. The
+    // quick-apply route already validates before its KO verdict; this keeps the two
+    // surfaces aligned.
     if (name.length > MAX_NAME_LENGTH) {
       // The refusal names the OFFENDING STEP (`field`) and its cap (`max`) as
       // data: the door re-asks that one question with the typed answer still in
@@ -240,47 +241,49 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // conditional on workMode/languages) and require every expected KO answer to be present
     // AND explicitly true (failedKoStepIds — the shared, untrusted-boundary contract: an
     // ABSENT key is a fail, so a scripted POST can't skip eligibility by omitting keys).
-    // E2 — the discard is AUDITED: an entry-less ko_declined event records who was turned
-    // away from which role and on which gate, so the auto-discard never happens silently.
+    // A failed must-have is HELD, not decided (owner ruling Q1): a real entry in the
+    // opening's workspace behind the existing `decision` approval, carrying the failed ids
+    // for the reviewer. No decline letter goes out here — it goes once, when a person
+    // confirms the rejection (pipeline-entry-action.ts); a person who clears the hold
+    // continues as an ordinary applicant.
     const failedKo = failedKoStepIds(
       applyKoSteps(job, t).map((s) => s.id),
       answers
     );
     if (failedKo.length > 0) {
-      recordKnockoutDecline({
-        candidateLabel: providedName || null,
-        jobTitle: job.title,
-        channel: "conversational apply",
-        failedKoIds: failedKo,
-        // The opening's team — the decline belongs to whoever owns the role, not
-        // to the default workspace (see recordKnockoutDecline).
+      // The contact is stored on the held entry, so it is shape-checked here as the
+      // ordinary path would — but a bad or missing address files a contactless hold
+      // (no letter owed) rather than refusing: the gate never turned an anonymous
+      // applicant away with an error, and it must not start.
+      const heldEmail = String(answers.email ?? "").trim();
+      const reachable = heldEmail.length > 0 && heldEmail.length <= MAX_EMAIL_LENGTH && APPLY_EMAIL_RE.test(heldEmail);
+      const heldFiling = await fileApplication({
+        job,
         workspaceId,
+        name: providedName,
+        email: reachable ? heldEmail : null,
+        locale: applicantLocale,
+        sourceChannel: "apply",
+        actor: "human:candidate",
+        sourceCampaign: typeof body.campaign === "string" ? capAttribution(body.campaign.trim()) || null : null,
+        sourceVariant: typeof body.variant === "string" ? capAttribution(body.variant.trim()) || null : null,
+        channelLabel: "conversational apply",
+        // Filed before any profile exists: the KO answers are the whole of what is known.
+        stub: { idPrefix: "apply", reason: codedReasonDetail("knockoutHeld", { channel: "conversational apply" }) },
+        proof: "none",
+        hold: { failedKoIds: failedKo },
       });
-      // The gate is automatic, so the candidate is told WHICH must-have ended it and how
-      // to ask a person to review. The conversational door collects the address BEFORE the
-      // KO answers, so whenever a valid one is in hand the decline email goes out (the
-      // lead-intake core's rule, deferred like the ack). The response never claims
-      // delivery: `reviewByEmail` means "we are handing it to a relay".
-      const declineEmail = String(answers.email ?? "").trim();
-      const reachable = declineEmail.length > 0 && declineEmail.length <= MAX_EMAIL_LENGTH && APPLY_EMAIL_RE.test(declineEmail);
-      if (reachable) {
-        afterResponse("apply-ko-decline", () =>
-          dispatchKnockoutDecline({
-            email: declineEmail,
-            name: sanitizeFreeText(providedName) || null,
-            jobTitle: job.title,
-            locale: applicantLocale,
-            workspaceId,
-            failedKoIds: failedKo,
-          })
-        );
+      linkApplySession(applySessionId, heldFiling.entry.id);
+      if (heldFiling.kind === "duplicate") {
+        // The applicant already has an entry for this role: nothing was written (the
+        // hold never merges onto one) and they are told so, never that a hold was filed.
+        return acknowledgeReapply(heldFiling.entry.id, t("alreadyMessage"), false, {}, false);
       }
       return NextResponse.json({
-        result: "declined",
-        message: t("declinedMessage"),
+        result: "held",
+        message: t("heldMessage"),
         failedKo,
         failedKoNames: koMustHaveNames(failedKo, t),
-        reviewByEmail: reachable && isRelayConfigured(),
       });
     }
 

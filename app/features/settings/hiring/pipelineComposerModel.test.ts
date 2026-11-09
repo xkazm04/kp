@@ -142,12 +142,13 @@ test("the composer's fixed rows point at real board stages", () => {
   }
 });
 
-test("lean preset: auto screening, one gated AI round, human offer", () => {
+test("lean preset: human screening (no auto since Q3), one gated AI round, human offer", () => {
   const plan = PRESETS.find((p) => p.id === "lean")!.plan();
+  assert.ok(plan.steps.every((s) => s.gate === "human"), "the lean preset no longer sets auto on any step");
   const impact = deriveImpact(plan);
-  assert.deepEqual(impact.decisions, ["ai_scorecard_review", "offer_review"]);
+  assert.deepEqual(impact.decisions, ["screening_review", "ai_scorecard_review", "offer_review"]);
   assert.deepEqual(impact.schedule, { aiRound: true, humanRound: false });
-  assert.equal(impact.humanTouchpoints, 2);
+  assert.equal(impact.humanTouchpoints, 3);
 });
 
 test("enterprise preset: every gate human, and its rounds clip to the board", () => {
@@ -266,7 +267,9 @@ test("an axis-rewriting preset only reads as ACTIVE on the board it describes", 
   // tell which shape they were looking at.
   assert.equal(matchesPreset(ENTERPRISE.plan(), ENTERPRISE), false, "the shipped board is not the enterprise funnel");
   assert.equal(activePresetId(ENTERPRISE.plan(axis), axis), "enterprise");
-  assert.equal(activePresetId(PRESETS.find((p) => p.id === "lean")!.plan(), DEFAULT_STAGE_AXIS), "lean");
+  // Lean's only difference from Hybrid on the shipped board was the auto screening
+  // gate (removed, Q3 2026-11-09); the two now coincide there and the later one wins.
+  assert.equal(activePresetId(PRESETS.find((p) => p.id === "lean")!.plan(), DEFAULT_STAGE_AXIS), "hybrid");
 });
 
 test("Lean and Hybrid keep the shipped columns — only Enterprise rewrites the axis", () => {
@@ -293,11 +296,12 @@ test("every preset gives a homework column a HUMAN gate, wherever one exists", (
 test("an ungated AI round produces no Decisions queue; a human round always does", () => {
   const ungated = plan({ screeningGate: "auto", rounds: [newRound("ai", "auto")], offerGate: "auto" });
   const impact = deriveImpact(ungated);
-  assert.deepEqual(impact.decisions, []);
-  assert.equal(impact.humanTouchpoints, 0);
+  // A stored screening/offer `auto` reads as human (Q3): those queues always exist.
+  assert.deepEqual(impact.decisions, ["screening_review", "offer_review"]);
+  assert.equal(impact.humanTouchpoints, 2);
   // A human round appended at the interview column it runs at.
   const withHuman = setStepRounds(ungated, "Interview", [newRound("ai", "auto"), newRound("human", "auto")]);
-  assert.deepEqual(deriveImpact(withHuman).decisions, ["human_scorecard_review"]);
+  assert.deepEqual(deriveImpact(withHuman).decisions, ["screening_review", "human_scorecard_review", "offer_review"]);
 });
 
 test("zero rounds lights up no Schedule surface", () => {

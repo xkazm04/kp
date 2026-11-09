@@ -1,0 +1,114 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6f5c2425-7a7b-4c32-b8a3-aed1724044b7",
+ "subject": "table",
+ "evaluatedAt": "2026-11-08T00:14:18.946200+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-workspace",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/useDevTabData.ts:51 The Cases ledger is served all-server, but its title filter commits on a 250ms debounce rather than an explicit act, and filtersActive is derived from the entered (undebounced) title, so the empty-state wording can describe a predicate the rows were not produced under.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/useDevTabData.ts:51 Server-round-trip text filter commits per pause (a debounce is the guess the technique names); caseFiltersActive(caseFilters) reads entered title, not the applied debouncedTitle; rows of the old predicate stay on screen until the new response lands."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/useDevTabData.ts:72 Settle-before-empty is honoured (DevCasesTable.tsx:70 holds height until lastUpdated), but the defaulted decode turns a payload whose shape changed into the first-run empty ledger, the exact tell the technique forbids."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/casesPage.ts:20 Filter + order + window all execute in the store (GET /api/devcase); the old client-side filter over a loaded page was removed."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/casesPage.ts:7 Bounded window with a few fixed sizes; server answers `truncated` and the table says so with a load-more; a filter change resets the limit to 50."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/devcase-ledger.ts:163 Fixed newest-first default order with the row id as tiebreaker in the store that feeds this table; no user sort is offered."
+    },
+    {
+     "technique": "performance",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevCasesTable.tsx:155 Rows keyed by record identity over a bounded (<=500) window; no windowing needed."
+    }
+   ]
+  },
+  {
+   "context": "jd-public-detail-page",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/JdBody.tsx:42 The public JD page renders one document (a markdown article plus actions) and no data table; a grep of app/jds for <table, thead, aria-sort, TablePager and useTableSort found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "<table",
+    "thead",
+    "aria-sort",
+    "TablePager",
+    "useTableSort"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "table",
+   "context": "analytics-sections",
+   "reason": "evidence leans on db/pipeline.ts, which is not a tracked file"
+  },
+  {
+   "subject": "table",
+   "context": "pipeline-board-ui",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "table",
+   "context": "form-controls",
+   "reason": "The subject's precondition clearly does not hold: TextInput, Select, Checkbox, SegmentedControl and the other files are form primitives, and a grep of these files for <table, role=\"grid\", aria-sort, useTableSort and TablePager found nothing. But their directory, app/_components, also holds app/_components/table/ (ColumnHead, TablePager, TableStatus). A directory-wide absence search would hit those files, so I can't state not-applicable in a form the driver would accept. Marking it conformant or deviation would be invented."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T00:14:18.946200+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "filtering",
+    "loading-and-empty-states",
+    "pagination",
+    "performance",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "devcase-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:14:18.946200+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

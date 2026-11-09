@@ -1,0 +1,158 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4e56d119-e0b8-48c1-b863-cb0e7aac02b6",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-06T00:36:42.048418+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-session-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/devcase/chat.py:62 The session-chat assembler that this context's chat route feeds drops every transcript message older than the last 30 and cuts each kept one at 2000 chars, with no notice in the prompt, so the stakeholder or assistant persona answers over a partial history that looks complete.",
+   "techniques": [
+    {
+     "technique": "context-budgeting",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/chat.py:58 Each message is cut mid-text at 2000 chars, and the tail keeps only 30 messages (line 62). The current file is also cut at 4000 (line 99). None of these cuts leaves a notice for the model, which breaks the rule that truncation names what it dropped."
+    },
+    {
+     "technique": "layered-composition",
+     "verdict": "conformant",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:113 The route passes typed data (case, role, transcript, message, current file, lang) to one assembler per family, runSessionChat -> chat.py, and never prose. The stable system persona goes first; the context JSON, the transcript, the message and the task come after it."
+    },
+    {
+     "technique": "variable-interpolation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/chat.py:97 The transcript and the message are fenced as untrusted (lines 104-105). The file the candidate wrote is untrusted text too, but it is placed in the plain Context JSON with no fence. Trust is decided at each insertion site, not declared once per variable."
+    },
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:133 chat.py stamps a hand-written CHAT_PROMPT_VERSION ('session-chat-v1', not a digest). The runSessionChat payload type reads only reply.reply, and the route saves only the reply. No digest, size or version of the sent prompt is recorded at the send site: the 'unrecorded send' failure."
+    },
+    {
+     "technique": "task-envelope",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/chat.py:106 This is a persona chat turn, not a delegated or dispatched task. The task line already names its output artifact. The persona identity changes behaviour rather than claiming competence."
+    },
+    {
+     "technique": "history-compaction",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/chat.py:104 The history goes in as one fenced data span inside a single-turn prompt. It has no tool calls or results, so there is no pairing invariant to protect. The tail-cut problem is covered under context-budgeting."
+    },
+    {
+     "technique": "pinned-prompt-clock",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/chat.py:107 The prompt has no date or time anywhere. The last section is the language directive."
+    }
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:9 These are client panels that show evaluation results the Python side already computed. Searching the context's directories for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt found nothing, so the context builds no prompt; the bare word 'prompt' appears only as captured-prompt evidence being displayed.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "system_prompt",
+    "max_tokens",
+    "buildPrompt",
+    "assemblePrompt"
+   ]
+  },
+  {
+   "context": "cv-analyze-intake",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 The intake code only gates files and POSTs them to /api/analyze; any prompt is built server-side in the Python pipeline. Searching app/features/tools/analyze for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "system_prompt",
+    "max_tokens",
+    "buildPrompt",
+    "assemblePrompt"
+   ]
+  },
+  {
+   "context": "jobseeker-sources-scans",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/jobseeker/useScanTask.ts:98 The sources and scans pages toggle catalog entries and start or poll scan tasks over HTTP; they assemble no model prompt. Searching app/features/jobseeker for systemPrompt, system_prompt, max_tokens, buildPrompt and assemblePrompt found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "system_prompt",
+    "max_tokens",
+    "buildPrompt",
+    "assemblePrompt"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-06T00:36:42.048418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "context-budgeting",
+    "fingerprinting-and-cache-keys",
+    "history-compaction",
+    "layered-composition",
+    "pinned-prompt-clock",
+    "task-envelope",
+    "variable-interpolation"
+   ],
+   "deviations": 1,
+   "context": "devcase-session-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:36:42.048418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:36:42.048418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "cv-analyze-intake",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:36:42.048418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobseeker-sources-scans",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,139 @@
+{
+  "schema": "conform-run/1",
+  "worker": "428db6ab-e9d1-41a2-bb01-b95d230acdf9",
+  "subject": "settings",
+  "evaluatedAt": "2026-11-06T05:07:22.747279+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "analytics-dashboard",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/db/analytics.ts:1124 The analytics goal and ROI-baseline keys the dashboard writes inline (recruiter hourly CZK, manual hours per hire) are upserted in place with only updated_at, and no old value, origin or actor is kept anywhere. Every hours-saved and CZK figure on the tab can therefore drift with no record of which baseline moved, when, or who moved it.",
+      "techniques": [
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:1124 Writes overwrite the row in place: no old/new record, no category or origin. The target POST route (app/api/analytics/targets/route.ts) writes no audit row either, and grep found no audit trail for analytics_targets."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:117 Callers use named constants re-exported from one registry (analytics-target-keys.ts), and the save route validates writes against the same registry, so both ends of the pipe are covered."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 Targets ride in the single /api/analytics payload rather than per-key reads. After a save the panel reloads, and the route invalidates the server read memo (invalidateAnalyticsWorkspace), so a user reads back their own write."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/analyticsSaveFailure.ts:33 A failed inline write resolves to a localized, code-specific failure the input renders, so a 403 policy refusal and a 500 save failure are told apart instead of failing silently."
+        }
+      ]
+    },
+    {
+      "context": "app-shell-brand",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_components/LanguageSwitcher.tsx:24 The locale defaults to a live source (no cookie means Accept-Language, per getServerLocale), but the switcher writes the cookie for any newly picked locale. A user who switched away and then switches back to the locale their browser resolves to gets pinned to it, and no surface in the shell offers the 'auto' re-attach that setLocale already supports.",
+      "techniques": [
+        {
+          "technique": "inherited-default-override",
+          "verdict": "deviation",
+          "evidence": "app/_components/LanguageSwitcher.tsx:24 Unconditional write: when the target equals the Accept-Language resolution the cookie is set rather than deleted, which is the 'correct on first press, corrupt on second' failure. The guard at line 22 only skips re-picking the already-active locale."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/_components/BrandStyle.tsx:12 The brand config is read once on the server per request and handed to every client consumer through context, with no per-component fetch and no flash."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_components/BrandStyle.tsx:24 The accent is validated at the write door (sanitizeAccentColor) and consumers get a typed BrandConfig. The provider default is a stated decision (BrandProvider.tsx:17, empty, never invent a company)."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "settings",
+      "context": "workspace-member-admin",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "settings",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor billingTypes.ts:9 is a comment about shared types and doesn't show that no settings key is read or written; the real evidence (the sessionStorage lines in BillingTab.tsx) wasn't the anchor, so the not-applicable rests on an incidental line."
+    },
+    {
+      "subject": "settings",
+      "context": "analyze-workspace",
+      "reason": "withdrawn after review: reviewer (sonnet): The claim that the workspace persists only a sessionStorage draft and a last-result slug is contradicted by the analyze code: DimensionLayer.tsx:24 and useCohortVariant.ts:39 persist a layer choice in localStorage under kp-analyze-layer. The anchor analyzeDraft.ts:13 is also only a comment line."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T05:07:22.747279+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:07:22.747279+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "key-registry",
+        "read-batching",
+        "save-experience",
+        "settings-audit-and-history"
+      ],
+      "deviations": 1,
+      "context": "analytics-dashboard",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:07:22.747279+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "inherited-default-override",
+        "read-batching",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "app-shell-brand",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:07:22.747279+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "analyze-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

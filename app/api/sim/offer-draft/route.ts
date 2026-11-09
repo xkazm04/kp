@@ -3,6 +3,8 @@ import { getJob } from "@/app/_lib/db/jobs";
 import { resolveSimEntry, setSimApproval } from "@/app/_lib/sim-entry";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { buildSimOfferDraft } from "@/app/features/shell/simulation/simDrafts";
@@ -11,12 +13,22 @@ import { APP_CURRENCY } from "@/app/_lib/format";
 import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
 
 
+// The body is one entry id: 8 KB is generous. A malformed body reads as empty and meets the
+// door's own SIM_ENTRY_REQUIRED refusal rather than a parser error.
+const MAX_SIM_BODY_BYTES = 8 * 1024;
+
 // Deterministic offer draft for the simulation spine — NO LLM (salary from the
 // job-band midpoint), so the keyless run doesn't depend on the Claude CLI offer
 // task. Sets the offer_review approval the recruiter then "Send offer"-extends.
 export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
+  // Demo corpus only, but ungated by capability: bound the repeat rate per client.
+  if (!rateLimit(`sim-offer-draft:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
-    const { entryId } = (await request.json()) as { entryId?: string };
+    const body = await readJsonWithLimit<{ entryId?: string }>(request, MAX_SIM_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SIM_BODY_BYTES });
+    const { entryId } = body;
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
     // Tenant: look the entry up in the CALLER'S team. Unscoped, this read only ever
     // found DEFAULT-team entries, so on any other team the run's own candidate came

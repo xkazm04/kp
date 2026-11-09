@@ -1,0 +1,222 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7f5b8a4f-f134-43be-8606-ff158bb023ea",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-08T23:48:35.008043+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:188 The claim is that the honeypot is POSTed, but a bare-name needle is also satisfied by the input's name=\"company_url\" attribute (QuickApplyForm.tsx:290), so deleting the POST field at QuickApplyForm.tsx:160 leaves this pin green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:188 Bare identifier for a claim about the POST body; the conversational twin at line 203 pins company_url: companyUrl correctly. Separately, closedRoleBlock at line 63 searches for an LF-only marker without normalising, so it goes red on a CRLF checkout that .gitattributes describes."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:122 Labelled non-vacuity, but it edits a local string and then asserts the replaced literal is gone, which cannot fail once line 112 passed; the technique requires the break in the production path. Lines 128-133 repeat the shape."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:12 Names why the mount effect is unreachable, where the predicate's semantics are tested, and pins adoption separately."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "not-applicable",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:23 The pins read the shipped components; the suite composes no path of its own."
+    }
+   ],
+   "registryProposal": "negative-control-tests could name the in-test variant: mutating a local copy of the source and asserting the literal is gone proves only String.replace, yet reads as a recorded control."
+  },
+  {
+   "context": "results-core",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/results/resultTabs.test.ts:4 The tab rules were lifted into resultTabs.ts and only the predicate is driven; no unit test or e2e spec pins ResultPanel.tsx:183/204 calling them, so a revert to inline logic stays green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/_components/results/resultTabs.test.ts:4 Adoption unpinned here and for compareView (CompareTab.tsx:91,106), formatOptionalFraction (ArchetypeBanner.tsx:89-90) and resolveVerdict (VerdictBanner.tsx:37). Sibling shared.test.ts and VerdictBanner.test.ts do pin adoption of their own helpers, so the rule is known and unevenly applied."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/AddToPipelineButton.test.ts:6 Records the revert-of-fix control in the test's own comment."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/VerdictBanner.test.ts:80 Needle carries an argument list, and the file's self-check test guards that the source was read."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/verdict.test.ts:14 Cheapest tier that can witness the claim: an in-memory builder. Build-once-copy does not arise for pure logic."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/VerdictBanner.test.ts:20 Tests import the shipped module directly and compose no path."
+    }
+   ]
+  },
+  {
+   "context": "llm-api",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/sim/inbound/sim-inbound-scope.test.ts:155 The behaviour half hand-builds the target and write instead of driving POST, and differs from the route (literal stage \"Accepted\" here versus stageWithRole at route.ts:74, plus no actor, locale or dedupe), so its evidence attaches to the test's own composition.",
+   "techniques": [
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "deviation",
+     "evidence": "app/api/sim/inbound/sim-inbound-scope.test.ts:155 No unit test drives this POST; e2e/token-doors-axe.spec.ts reaches it only to mint a fixture. The wiring is covered by the file's text pins, the scope and purge behaviour only on the hand-built write."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/api/llm/usage/usage-route-contract.test.ts:58 The site can be executed: usage-failed-calls.test.ts:7 drives this same GET, so the header's reason (alias unresolved by the runner) is stale. The clamp and the 400 are pinned as text rather than run."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/keys/llm-admin-auth.test.ts:58 Arranges the environment so the authority decision is actually reached, and says why."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/_lib/testing/unit-db.ts:142 The DB helper these route tests import reuses the production boot seam rather than restating it."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/api/automation/run/route.test.ts:14 A concurrency claim is asserted on ordering, with no elapsed-time bound."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/config/llm-config-race.test.ts:15 Each file owns a throwaway DB and nothing is inherited from the developer's data."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "not-applicable",
+     "evidence": "app/api/llm/test/verdict.test.ts:10 Short hand-written envelopes at the spawn boundary; no remote exchange is replayed or claimed."
+    }
+   ]
+  },
+  {
+   "context": "architecture-diagrams-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/diagrams/pipelineSteps.test.ts:235 The /api route walk declares no floor on matches, so if API_ROUTE stopped matching the step bodies the guard would report zero dead routes and stay green, unlike the floors at lines 67 and 125 of the same file.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/diagrams/pipelineSteps.test.ts:235 Population setting is unguarded; 24 /api/ references exist in pipelineSteps.ts today, so this is a missing floor and not a current false green. The UNLISTED ratchet and CRLF handling in readDiagramSource.test.ts are done well."
+    },
+    {
+     "technique": "assert-through-the-reader",
+     "verdict": "not-applicable",
+     "evidence": "app/diagrams/pipelineSteps.test.ts:158 The reader of these bodies is the product's own parser, which the technique excludes."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/readDiagramSource.test.ts:25 Uses the same catalog page.tsx:75 renders, so the suite's list is the production list."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "shell-setup-pipeline",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T23:48:35.008043+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T23:48:35.008043+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "fixture-economics",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "results-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T23:48:35.008043+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "isolation-lanes",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "recorded-interaction-fixtures",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "llm-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T23:48:35.008043+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-through-the-reader",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path"
+   ],
+   "deviations": 1,
+   "context": "architecture-diagrams-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

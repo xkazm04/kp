@@ -16,6 +16,7 @@
     "gateHuman": "Schvaluje člověk",
     "tipGateHuman": "Toto rozhodnutí schvaluje člověk v Rozhodnutích. Kliknutím ho necháte proběhnout bez dohledu.",
     "tipGateAuto": "Toto rozhodnutí proběhne bez dohledu. Kliknutím ho necháte schválit člověkem.",
+    "tipGateFixed": "Tento krok rozhoduje člověk; žádné nastavení ho nepředá stroji.",
     "tipKindAi": "Tento pohovor vede AI. Kliknutím z něj uděláte kolo s člověkem.",
     "tipKindHuman": "Toto kolo vede člověk. Kliknutím z něj uděláte pohovor s AI.",
     "tipModeScreening": "Prověření vždy dělá AI. Vy volíte, kdo ho potvrdí.",
@@ -207,7 +208,7 @@
       },
       "dist": {
         "title": "Rozeslání kandidátům",
-        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) automaticky posune odpovídající kandidáty do stavu Screened (první vlna hodnocení). Zveřejnění na externích job boardech je stále ruční."
+        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) navrhne odpovídající kandidáty do stavu Screened (první vlna hodnocení) a každý návrh zařadí ke schválení člověkem. Zveřejnění na externích job boardech je stále ruční."
       },
       "apply": {
         "title": "Přihláška kandidáta / nahrání CV",
@@ -255,7 +256,7 @@
       },
       "cron": {
         "title": "Plánovač / cron",
-        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, časové posuny). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, zařazené návrhy posunu). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -552,6 +553,7 @@
     "theRole": "danou pozici",
     "aRole": "pozice",
     "yourNewRole": "vaše nová pozice",
+    "aiDraftedFooter": "Tuto zprávu navrhla umělá inteligence.",
     "dataFooter": "· · ·\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
     "stopFooter": "Zastavit tyto zprávy: další zprávy o pracovních příležitostech můžete kdykoli jedním kliknutím odmítnout:\n{link}",
     "ack": {
@@ -576,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Vaše přihláška: {role}",
-      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nTím se přihláška ukončuje automaticky a nerozhodoval o tom člověk. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a rozhodnutí posoudí člověk.\n\nTuto e-mailovou adresu uchováváme pouze proto, abychom zaznamenali, že jsme tento dopis odeslali, a po uplynutí {days} dnů ji automaticky smažeme.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
+      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nČlověk vaši přihlášku posoudil a potvrdil, že tento požadavek nesplňuje, takže v ní nemůžeme pokračovat. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a člověk ji posoudí znovu.\n\nVaše přihláška, včetně této e-mailové adresy, zůstává u nás uložená jako každá jiná přihláška a kdykoli nás můžete požádat o její smazání pomocí odkazu níže.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
       "mustHaveFallback": "jedna ze základních podmínek pozice"
     },
     "offer": {
@@ -901,7 +903,7 @@
       "subtitle": "Stavěno pro regulovaný nábor podle EU AI Act a GDPR: čtení obstará stroj, ale každé rozhodnutí, které se dotkne kandidáta, dělá kvalifikovaný člověk.",
       "human": {
         "title": "Člověk v řídicí smyčce",
-        "body": "Až na jedno automatické vyřazení je zamítnutí na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Tím jedním je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku hned, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
+        "body": "Zamítnutí je na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, nikoho nezamítne: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji."
       },
       "oversight": {
         "title": "AI Act, článek po článku"
@@ -932,7 +934,7 @@
           },
           "auto": "auto",
           "you": "vy",
-          "lockedNote": "zamítnutí po přijetí přihlášky je vždycky na vás: tohle se odemknout nedá"
+          "lockedNote": "screening, nabídky i zamítnutí po přijetí přihlášky jsou vždycky na vás: tohle se odemknout nedá"
         }
       }
     },
@@ -1103,7 +1105,7 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
+        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody se zařadí člověku k postoupení a vše ostatní čeká na člověka."
       },
       "assignment": {
         "eyebrow": "Krok 05 · Pracovní ukázka",
@@ -1234,7 +1236,7 @@
     "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",
     "retry": "Zkusit znovu",
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky; dozvíte se, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé jiné zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, přihlášku sama o sobě neukončí: čeká na člověka a zamítne ji teprve jeho potvrzení. Poté se dozvíte, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „Vaše údaje“ na konci kterékoli naší zprávy. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
@@ -1348,6 +1350,7 @@
     "FEEDBACK_LIST_FAILED": "Zpětnou vazbu se nepodařilo načíst. Zkuste to prosím znovu.",
     "POSTING_CLOSED": "Příjem přihlášek na tuto pozici je uzavřený a další už nepřijímáme.",
     "OFFER_EXPIRED": "Platnost této nabídky vypršela.",
+    "OFFER_NO_LONGER_OPEN": "Tato nabídka již není platná.",
     "OFFER_NOT_FOUND": "Tuto nabídku se nepodařilo najít. Odkaz mohl být nahrazen novějším.",
     "SESSION_TOKEN_REQUIRED": "Tato pracovní relace patří k jinému odkazu. Pokračujte prosím přes odkaz z e-mailu s pozvánkou.",
     "DEVCASE_SESSION_UNAVAILABLE": "Tento případ již nepřijímá odevzdání.",
@@ -1387,6 +1390,7 @@
     "PIPELINE_STAGE_CHANGED": "Krok tohoto kandidáta se od otevření pohledu změnil. Obnovte stránku a rozhodněte znovu.",
     "PIPELINE_DECISION_NOT_SEALED": "Toto rozhodnutí se nepodařilo zaznamenat, a proto nebylo provedeno. Nic se nezměnilo a nic nebylo odesláno. Zkuste to za chvíli znovu.",
     "PIPELINE_ENTRY_HIRED": "Tento kandidát už byl přijat, takže ho nelze zamítnout. Nic se nezměnilo.",
+    "PIPELINE_NO_QUEUED_ADVANCE": "Tento kandidát nemá žádný čekající posun, který by šlo ponechat na místě, takže se nic nezměnilo. Možná už bylo rozhodnuto.",
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
     "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
@@ -1402,6 +1406,7 @@
     "PIPELINE_NOTE_EMPTY": "Před přidáním poznámky něco napište.",
     "PIPELINE_NOT_REINSTATABLE": "Není tu žádné automatické zamítnutí, které by šlo zvrátit. Kandidát už byl vrácen do hry, nebo byl uzavřen jinak.",
     "PIPELINE_INTAKE_NOT_DEGRADED": "U tohoto kandidáta není žádný příznak neúplného načtení profilu k vyřešení.",
+    "OFFER_DRAFT_NOT_AVAILABLE": "Nabídku lze připravit jen pro aktivního kandidáta v kroku nabídky, u kterého nečeká žádné rozhodnutí.",
     "OFFER_NOT_DISPATCHED": "Nabídka byla připravena, ale nepodařilo se ji odeslat. Nic se neztratilo: schvalte ji znovu a odejde stejný odkaz.",
     "OFFER_SENT_APPROVAL_CHANGED": "Nabídka odešla, ale schválení tohoto kandidáta se mezitím změnilo. Před dalším rozhodnutím obnovte stránku.",
     "PIPELINE_BATCH_ITEM_MALFORMED": "U této položky chyběl kandidát, nebo uváděla akci, kterou tato nástěnka nemá.",
@@ -1456,6 +1461,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "V jednom běhu lze porovnat nejvýše 3 varianty životopisu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Tento kandidát už není aktivní, proto nelze založit novou hodnoticí kartu.",
     "INTERVIEW_ENTRY_REQUIRED": "Uveďte, kterého kandidáta se pohovor týká.",
     "INTERVIEW_JOB_REQUIRED": "Vyberte pozici pro porovnání pohovorů.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Vyberte cvičný pohovor a kandidáta, ke kterému jej chcete připojit.",
@@ -1467,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Tento pohovor už byl dokončen.",
     "INTERVIEW_NOT_RESCORABLE": "Tento pohovor nelze znovu vyhodnotit.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Hodnoticí systém nedokázal opřít verdikt o přepis, proto se nic neuložilo. Zkuste nové vyhodnocení později.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Před odevzdáním hodnoticí karty ohodnoťte alespoň jednu kompetenci.",
     "INTERVIEW_CONSENT_REQUIRED": "Před zahájením pohovoru je potřeba souhlas s nahráváním.",
     "INTERVIEW_PROVIDER_INVALID": "Tohoto hlasového poskytovatele server nezná.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Hlasový poskytovatel není na tomto serveru nastaven, hovor proto nelze spustit.",
@@ -2349,9 +2356,12 @@
       "lang": "Pracovní jazyk pozice"
     },
     "declinedMustHave": "Nesplněný požadavek:",
-    "declinedAutoNote": "Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky. O tom nerozhodoval člověk a můžete požádat, aby rozhodnutí posoudil.",
+    "declinedAutoNote": "Můžete požádat, aby toto rozhodnutí posoudil člověk.",
     "declinedReviewEmail": "Rozhodnutí vám posíláme e-mailem na adresu, kterou jste uvedli. Stačí na tu zprávu odpovědět a posoudí ho člověk. Pokud nic nedorazí, obraťte se přímo na tým, který pozici obsazuje.",
-    "declinedReviewNoEmail": "Rozhodnutí se nám e-mailem odeslat nepodařilo. Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje."
+    "declinedReviewNoEmail": "Rozhodnutí se nám e-mailem odeslat nepodařilo. Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje.",
+    "heldMessage": "Děkujeme za přihlášku. Kvůli jedné z vašich odpovědí se na ni nejdřív podívá člověk, teprve potom se o ní rozhodne.",
+    "heldMustHave": "Odpověděli jste „ne“ u požadavku:",
+    "heldNote": "Zatím se nic nerozhodlo. Vaši přihlášku nejdřív posoudí člověk. Pokud potvrdí, že tento požadavek nesplňuje, dozvíte se, o který šlo a jak požádat o přezkoumání. Pokud ji uvolní, vaše přihláška pokračuje jako obvykle."
   },
   "interview": {
     "completedTitle": "Děkujeme",
@@ -2807,6 +2817,7 @@
     "signOutConfirmBody": "Vaše relace skončí a vrátíte se na úvodní stránku.",
     "signOutConfirmCancel": "Zůstat zde",
     "tabs": {
+      "one": "One",
       "pipeline": "Přehled",
       "channels": "Kanály",
       "decisions": "Rozhodnutí",
@@ -3259,6 +3270,7 @@
       "auto_rejected": "byl/a automaticky zamítnut/a průchodem pravidel",
       "screening_hold": "byl/a pozdržen/a k posouzení člověkem",
       "interview_scorecard": "má vytvořenou hodnoticí kartu z pohovoru",
+      "interview_scorecard_human": "má hodnoticí kartu pohovoru vyplněnou člověkem",
       "interview_prep_generated": "má vygenerovanou přípravu na pohovor",
       "rejection_drafted": "má připravený návrh zamítnutí",
       "offer_drafted": "má připravený návrh nabídky",
@@ -3356,7 +3368,7 @@
       "previewTitle": "Náhled: co by tento průchod udělal",
       "previewSubtitle": "{evaluated, plural, one {Vyhodnocen # aktivní kandidát} few {Vyhodnoceni # aktivní kandidáti} other {Vyhodnoceno # aktivních kandidátů}}. Zatím se nic nepoužilo a nikomu se e-mail neodeslal.",
       "previewRejectsQueued": "{count, plural, one {# by čekal na vaše schválení. Průchod sám nikdy nezamítá} few {# by čekali na vaše schválení. Průchod sám nikdy nezamítá} other {# by čekalo na vaše schválení. Průchod sám nikdy nezamítá}}",
-      "previewAdvances": "{count, plural, one {Postoupil by #} few {Postoupili by #} other {Postoupilo by #}}",
+      "previewAdvances": "{count, plural, one {Zařadil by # posun ke schválení} few {Zařadil by # posuny ke schválení} other {Zařadil by # posunů ke schválení}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#). Zobrazit důvody} few {Pozdrženo k posouzení (#). Zobrazit důvody} other {Pozdrženo k posouzení (#). Zobrazit důvody}}",
       "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
       "previewApply": "{count, plural, one {Použít # změnu} few {Použít # změny} other {Použít # změn}}",
@@ -3364,7 +3376,7 @@
       "previewNothing": "Není co použít. Všichni kandidáti jsou pozdrženi nebo beze změny.",
       "previewNote": "Při potvrzení se všechno znovu vyhodnotí proti aktuální nástěnce. Kandidáta, který se mezitím přesunul, průchod přeskočí, nikdy ho nezpracuje špatně.",
       "runPass": "▷ Spustit automatický průchod",
-      "runPassTitle": "Deterministický průchod pravidel: automaticky postoupí silné shody BAU, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
+      "runPassTitle": "Deterministický průchod pravidel: zařadí silné shody BAU člověku k postoupení, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
       "passSummaryLead": "Automatický průchod",
       "passAdvanced": "{n} postoupilo",
       "passRejected": "{n} zamítnuto",
@@ -3746,6 +3758,12 @@
         "moveStage": "Přesunout do fáze",
         "voiceLink": "Odkaz na hlasový pohovor",
         "scheduleLink": "Odkaz na výběr termínu",
+        "manualOffer": "Připravit nabídku ručně",
+        "manualOfferAmount": "Měsíční mzda ({currency})",
+        "manualOfferHint": "Když pole necháte prázdné, použije se střed mzdového rozpětí pozice. Před odesláním nabídku schvaluje člověk.",
+        "manualOfferSubmit": "Vytvořit návrh",
+        "manualOfferDrafted": "Návrh je připraven. Odešlete ho schválením v Rozhodnutích.",
+        "manualOfferFailed": "Nabídku se nepodařilo připravit.",
         "closeTray": "Zavřít panel",
         "showResult": "Poslední výsledek",
         "noActions": "V této fázi nejsou k dispozici žádné akce AI",
@@ -3903,7 +3921,7 @@
       "rejectModeLabel": "Zamítnutí",
       "rejectModeApprove": "pod dohledem (do fronty ke schválení)",
       "rejectModeAuto": "autonomně (provést a oznámit)",
-      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu (posuny a pozdržení zůstávají automatické). Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
+      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu, a stejně tak posun: i ten se zařadí ke schválení a automatická zůstávají jen pozdržení. Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
       "outcome": {
         "applied": "provedeno",
         "failed": "selhalo",
@@ -4074,7 +4092,8 @@
     "intakeReasons": {
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
       "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}",
-      "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta."
+      "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta.",
+      "knockoutHeld": "{channel}: u požadavku, který pozice výslovně stanoví, odpověděl(a) „ne“. Čeká na člověka, který zamítnutí potvrdí, nebo přihlášku uvolní. Nic se nerozhodlo a žádný dopis nebyl odeslán."
     },
     "offAxis": {
       "title": "Mimo nástěnku",
@@ -4183,6 +4202,9 @@
       "tagHumanScorecard": "Hodnoticí karta z pohovoru (člověk)",
       "tagScreening": "Screening AI",
       "tagQueuedReject": "Zamítnutí ve frontě (potvrzením se kandidát dozví výsledek)",
+      "tagQueuedAdvance": "Posun ve frontě (dál ho posouvá člověk)",
+      "keepInPlace": "Ponechat na místě",
+      "keepInPlaceTitle": "Kandidát zůstane, kde je, a tento návrh se zruší. Kandidáta to nezamítá.",
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",
       "acceptAdvance": "Postoupit",
@@ -4276,7 +4298,7 @@
       "standardFallback": "analýza pravidla čtyř pětin",
       "postureCoveredTitle": "Co platforma vynucuje",
       "postureCeilingTitle": "Co nedělá",
-      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí po přijetí přihlášky přezkoumává a dělá člověk. Jediné automatické rozhodnutí je základní podmínka pozice: odpověď „ne“ u výslovně stanoveného požadavku ukončí přihlášku, kandidát se dozví, o který šlo, a může požádat o přezkoumání člověkem ({oversight}).",
+      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí po přijetí přihlášky přezkoumává a dělá člověk. Odpověď „ne“ u výslovně stanoveného požadavku nic nerozhoduje: přihláška čeká na člověka, který zamítnutí potvrdí (kandidát se pak dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem), nebo ji uvolní ({oversight}).",
       "covered2": "Každé rozhodnutí se zapečetí do auditního záznamu odolného proti manipulaci.",
       "covered3": "Kandidáti vidí informaci o použití AI a mohou kdykoli požádat o přezkoumání člověkem.",
       "covered4": "Kandidáti na začátku kariéry a nezařazení jsou chráněni před automatickým zamítnutím (fail-closed).",
@@ -8461,6 +8483,7 @@
         "interview_no_show": "Nedostavil se k pohovoru",
         "interview_proposal_declined": "Navržený termín odmítnut",
         "screening_threshold_adjusted": "Upraven práh screeningu",
+        "advance_declined": "Posun ponechán na místě",
         "match_verdict": "Verdikt shody",
         "debrief_findings": "Zjištění z debriefu",
         "authorship_verified": "Autorství ověřeno"
@@ -8658,6 +8681,7 @@
         "advanced": "Automaticky postoupeno",
         "screening_hold": "Pozdrženo k lidskému posouzení",
         "interview_scorecard": "Hodnoticí karta syntetizována",
+        "interview_scorecard_human": "Hodnoticí karta vyplněna člověkem",
         "interview_prep_generated": "Příprava na pohovor vygenerována",
         "offer_drafted": "Nabídka vytvořena",
         "rematched": "Přepárováno na jinou pozici",
@@ -12278,7 +12302,7 @@
       "ai": {
         "title": "Transparentnost AI",
         "oversight": "Podle nařízení EU o umělé inteligenci je třídění, hodnocení, řazení a vedení pohovorů s kandidáty vysoce rizikovým použitím. Každá stránka pro kandidáty proto zobrazuje upozornění na zapojení AI dřív, než AI vaše údaje čte, jak vyžaduje článek 50.",
-        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje (pracovní prostor může kterékoli z toho svěřit automatice a každý krok bez dozoru se zaznamená). Jediné zamítnutí, které stroj provede sám, je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Každé jiné nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
+        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje. Stroj sám nikoho nezamítne: odpověď „ne“ u požadavku, který pozice výslovně stanoví, nechá přihlášku čekat na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
       },
       "subprocessors": {
         "title": "Další zpracovatelé",
@@ -12709,13 +12733,13 @@
       "gate": "člověk",
       "stops": "zastaví se",
       "applied": "provedeno automaticky",
-      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Jediné automatické zamítnutí leží před touto fází: kandidát, který odpoví „ne“ u požadavku, který pozice výslovně stanoví, se dozví, o který šlo, a může požádat o přezkoumání člověkem.)",
-      "noteAutonomous": "Postupy, pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
+      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Nesplněný požadavek na tom nic nemění: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní.)",
+      "noteAutonomous": "Pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
       "noteHired": "Přijat na téhle cestě vůbec není. Ruční přesun na Přijat vrátí 422, protože tuhle fázi nastavuje přijetí nabídky kandidátem a nic jiného.",
       "status": {
         "s0": "bezobslužný průchod navrhuje čtyři akce",
         "s2": "approvalKind: jedno pole rozhoduje, co se zastaví",
-        "s3": "postup: provedeno a zapsáno do časové osy",
+        "s3": "postup: spočítán, pak zařazen do fronty místo provedení",
         "s4": "pozdržení: provedeno",
         "s5": "zamítnutí: spočítáno, pak zařazeno místo provedení",
         "s6": "nabídka: připravena, pak zařazena",
@@ -14688,6 +14712,7 @@
       "interviewScheduled": "Pohovor byl naplánován",
       "interviewReminderSent": "Byla odeslána připomínka pohovoru",
       "interviewPrepGenerated": "Byla vygenerována příprava na pohovor",
+      "interviewScorecardHuman": "Hodnoticí kartu vyplnil člověk",
       "rejectionSent": "Byl odeslán zamítavý dopis",
       "rejected": "Kandidát byl odmítnut",
       "autoRejected": "Automatizace kandidáta odmítla",
@@ -16324,8 +16349,7 @@
         "signed": "Podepsáno · {signer} (ukázka). Postupuje dál a u rozhodnutí zůstane doklad."
       },
       "legendLocked": "zamčeno, nikdy se nedeleguje",
-      "legendDelegable": "dá se delegovat",
-      "logNone": "Nic neběží bez dozoru: každá fáze čeká na člověka.",
+      "logNone": "Screening a nabídky čekají na člověka; žádné nastavení to nemění.",
       "logOne": "Teď bez dozoru: {stage}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo.",
       "logTwo": "Teď bez dozoru: {first} a {second}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo."
     },
@@ -16630,7 +16654,7 @@
       "flow4Text": "Co se o něm rozhodlo a proč.",
       "rejection": "Zamítnutí",
       "neverUnlocks": "nikdy se neodemkne",
-      "neverText": "Odpověď „ne“ u základní podmínky ukončí přihlášku automaticky a řekne proč. Každé jiné zamítnutí je na člověku.",
+      "neverText": "Odpověď „ne“ u základní podmínky nechá přihlášku čekat na člověka. Nic není zamítnuto, dokud to člověk nepotvrdí, a kandidát se pak dozví proč. Každé zamítnutí je na člověku.",
       "detailNote": "Jeden přepínač pozastaví každý krok, který běží bez dozoru."
     }
   },
@@ -18588,5 +18612,573 @@
     "decline": "Zamítnout dávku",
     "humanStep": "Vaše rozhodnutí se zaznamená pod vaším jménem. Po rozhodnutí běh pokračuje sám.",
     "failed": "U tohoto běhu se něco pokazilo. Zkuste to prosím znovu."
+  },
+  "one": {
+    "sheets": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyEnter": "Enter",
+      "keyOpen": "open",
+      "keyEsc": "Esc",
+      "keyBack": "back",
+      "stackLabel": "Open sheets",
+      "back": "Back to {name}",
+      "close": "Close {name}",
+      "sheet": {
+        "letters": "Letters to approve",
+        "calendar": "Interview calendar",
+        "profile": "{label} · Profile",
+        "letter": "{label} · Letter",
+        "schedule": "{label} · Schedule"
+      },
+      "push": {
+        "letter": "Letter",
+        "schedule": "Schedule"
+      },
+      "calendar": {
+        "pick": "Pick someone who is waiting, then a free time to book them.",
+        "picked": "{label}: pick a free time to book, or",
+        "link": "send a self-scheduling link"
+      }
+    },
+    "core": {
+      "meta": {
+        "region": "One",
+        "console": "Console",
+        "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
+        "regionLabel": "Views One put on screen",
+        "conversationLabel": "Conversation with One",
+        "regionEmpty": "Nothing on screen yet. Ask a question or pick one below."
+      },
+      "composer": {
+        "label": "Ask One",
+        "placeholder": "Ask what needs you, or say what to do",
+        "send": "Send",
+        "stop": "Stop",
+        "working": "Opening the views…"
+      },
+      "step": {
+        "back": "Earlier answer",
+        "forward": "Later answer",
+        "position": "Answer {index} of {total}"
+      },
+      "header": {
+        "label": "What is waiting",
+        "stats": {
+          "decisions": {
+            "label": "Decisions",
+            "full": "Decisions waiting on you"
+          },
+          "pipeline": {
+            "label": "Stalled",
+            "full": "Candidates past their step's limit"
+          },
+          "channels": {
+            "label": "New",
+            "full": "New arrivals waiting for a first look"
+          },
+          "letters": {
+            "label": "Letters",
+            "full": "Outreach letters waiting for your approval"
+          },
+          "schedule": {
+            "label": "Interviews",
+            "full": "Interviews ahead"
+          },
+          "jobs": {
+            "label": "Drafts",
+            "full": "Draft roles to publish"
+          }
+        }
+      },
+      "you": "You",
+      "one": "One",
+      "say": {
+        "empty": "Ask me what needs you, or pick a question below.",
+        "needsShown": "Here is what needs you.",
+        "decisionsShown": "These candidates are waiting on your decision.",
+        "pipelineShown": "Here is the active pipeline.",
+        "pipelineRoleShown": "Here is the pipeline for that role, with the role beside it.",
+        "stalledShown": "These candidates have sat in their step past its limit.",
+        "interviewsShown": "These are the interviews on the calendar ahead.",
+        "funnelShown": "Here is how candidates move through the funnel.",
+        "arrivalsShown": "These candidates arrived and wait for a first look.",
+        "draftsShown": "These roles are still drafts, not yet published.",
+        "outboxShown": "Here is what was sent to candidates lately.",
+        "lettersShown": "Here are the emails waiting for your approval.",
+        "calendarShown": "Here is the interview calendar, with who is waiting for a slot.",
+        "profileShown": "Here is their profile.",
+        "profileMany": "Several candidates answer to that name. Pick one.",
+        "profileNone": "No active candidate answers to that name.",
+        "roleShown": "Here is that role and its candidates.",
+        "roleAsk": "Which role? Say it like \"the pipeline for backend\".",
+        "waveRejectProposed": "I have set up that cut. Check who it touches; nothing happens until you confirm.",
+        "waveAdvanceProposed": "I have set up that advance. Check who it touches; nothing happens until you confirm.",
+        "companionProposed": "That one is done in the Console today. The way there is below.",
+        "consoleOffered": "The full workspace is one click away.",
+        "notYet": "That is not in this prototype yet. Try one of these."
+      },
+      "dropped": "{count, plural, one {One part of this answer could not be shown.} other {# parts of this answer could not be shown.}}",
+      "chips": {
+        "needs": "What needs me?",
+        "decisions": "Decisions waiting",
+        "pipeline": "The pipeline",
+        "stalled": "What is stalled?",
+        "interviews": "Interviews ahead",
+        "funnel": "How are we doing?",
+        "arrivals": "New arrivals",
+        "drafts": "Drafts to publish",
+        "outbox": "What was sent?",
+        "digest": "Today's digest",
+        "letters": "Emails to approve",
+        "calendar": "Calendar"
+      },
+      "greeting": {
+        "loading": "Reading what needs you…",
+        "unknown": "I could not read what needs you right now. The questions below still work.",
+        "clear": "All clear. Nothing is waiting on you.",
+        "status": "{areas, plural, one {One area needs you.} other {# areas need you.}}",
+        "first": {
+          "decisions": "{count, plural, one {# candidate is} other {# candidates are}} waiting on your decision.",
+          "pipeline": "{count, plural, one {# candidate has} other {# candidates have}} sat in a step past its limit.",
+          "channels": "{count, plural, one {# new application waits} other {# new applications wait}} for a first look.",
+          "schedule": "{count, plural, one {# interview is} other {# interviews are}} on the calendar ahead.",
+          "jobs": "{count, plural, one {# role is} other {# roles are}} still a draft."
+        },
+        "show": "Show me"
+      },
+      "change": {
+        "shown": "Showing {panel}.",
+        "replaced": "Showing {panel} in place of {previous}.",
+        "focused": "Brought {panel} forward.",
+        "closed": "Closed {panel}.",
+        "pinned": "Pinned {panel}. It stays when new views arrive.",
+        "unpinned": "Unpinned {panel}.",
+        "undone": "Put the previous screen back.",
+        "dropped": "You acted first, so the pending change was dropped.",
+        "droppedSuffix": "The change One had pending was dropped.",
+        "stopped": "Stopped. The screen is as it was before that question.",
+        "pinLimit": "Two views are pinned already. Unpin one to pin {panel}.",
+        "stepped": "Showing answer {answer} of {of}.",
+        "undo": "Undo",
+        "dismiss": "Dismiss"
+      },
+      "panels": {
+        "openInConsole": "Open in Console",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "close": "Close",
+        "focus": "Bring forward",
+        "loadFailed": "This view could not load.",
+        "notReturned": "This read did not return it.",
+        "noScore": "No score yet.",
+        "firstOf": "Showing the first {shown} of {total}.",
+        "needs": {
+          "title": "What needs you",
+          "empty": "Nothing is waiting on you.",
+          "rows": {
+            "decisions": "Decisions waiting",
+            "pipeline": "Past their step's limit",
+            "channels": "New arrivals",
+            "schedule": "Interviews ahead",
+            "jobs": "Draft roles",
+            "companion": "Candi's open proposals"
+          },
+          "companionWhere": "Answered in Candi's dock in the Console"
+        },
+        "pipelineSlice": {
+          "title": "Pipeline",
+          "titleAging": "Stalled candidates",
+          "titleNew": "New arrivals",
+          "titleName": "Candidates named “{name}”",
+          "forRole": "For “{role}”",
+          "empty": "No active candidates on the board.",
+          "emptyRole": "No active candidates match “{role}”.",
+          "emptyAging": "Nobody has sat in a step past its limit.",
+          "emptyNew": "No new arrivals are waiting.",
+          "emptyName": "No active candidate answers to “{name}”."
+        },
+        "scheduleAhead": {
+          "title": "Interviews ahead",
+          "empty": "No interviews are on the calendar ahead.",
+          "zone": "Times in {zone}",
+          "truncated": "Only the most recent invitations were read; there may be more."
+        },
+        "funnel": {
+          "title": "Funnel",
+          "window": "Last 30 days",
+          "empty": "No candidates entered in this window.",
+          "noConversion": "The first step has nothing before it to convert from."
+        },
+        "jobDrafts": {
+          "title": "Drafts to publish",
+          "empty": "No draft roles are waiting to be published."
+        },
+        "outbox": {
+          "title": "Sent lately",
+          "empty": "Nothing has been sent to candidates yet.",
+          "relayOff": "No delivery relay is set up: messages are recorded here, and nothing reaches candidates.",
+          "verdict": {
+            "sent": "Sent",
+            "queued": "Queued",
+            "failed": "Failed",
+            "bounced": "Bounced",
+            "recovered": "Recovered",
+            "orphaned": "Unmatched receipt"
+          }
+        },
+        "decisionsQueue": {
+          "title": "Decisions waiting",
+          "empty": "No candidate is waiting on a decision.",
+          "advance": "Advance",
+          "reject": "Reject",
+          "advanceWho": "Advance {label}",
+          "rejectWho": "Reject {label}",
+          "keys": "↑↓ move · A advance · R reject"
+        },
+        "roleCard": {
+          "title": "Role",
+          "needRole": "Name a role to see it, like “the role backend”.",
+          "notFound": "No role matches “{role}”.",
+          "more": "{count, plural, one {# more role matches} other {# more roles match}}; showing the first.",
+          "company": "Company",
+          "location": "Location",
+          "seniority": "Seniority",
+          "status": "Status",
+          "hired": "Hired",
+          "target": "Target",
+          "statuses": {
+            "open": "Open",
+            "draft": "Draft",
+            "closed": "Closed"
+          },
+          "pipeline": "Its pipeline"
+        },
+        "letters": {
+          "title": "Letters to approve",
+          "empty": "No outreach letter is waiting for approval.",
+          "revision": "Revision {revision}",
+          "noSubject": "No subject",
+          "truncated": "There may be more letters than shown.",
+          "oldest": "Waiting longest",
+          "since": "Drafted {date}",
+          "perRole": "Letters per role",
+          "open": "Open the letter to {label}",
+          "approveWho": "Approve the letter to {label}",
+          "keys": "↑↓ move · Enter open · A approve"
+        },
+        "calendar": {
+          "title": "Interview calendar",
+          "empty": "Nothing on the calendar and nobody waiting.",
+          "week": "Week of {date}",
+          "prevWeek": "Previous week",
+          "nextWeek": "Next week",
+          "zone": "Times in {zone}",
+          "free": "free",
+          "confirmed": "booked",
+          "pending": "awaiting the candidate",
+          "noDay": "Nothing booked",
+          "waitingTitle": "Waiting for a slot",
+          "noneWaiting": "Nobody is waiting for an interview slot.",
+          "truncated": "The schedule read hit its limit; some interviews may be missing.",
+          "slotsFailed": "Free times could not be read.",
+          "notConnected": "No calendar is connected, so free times are kp's own offer list.",
+          "unavailable": "The connected calendar did not answer; free times are kp's own offer list.",
+          "agendaFree": "Free · {time}",
+          "thisWeek": "This week",
+          "interviews": "Interviews",
+          "freeSlots": "Free times",
+          "longest": "Waiting longest",
+          "waitingFor": "{days} on the calendar step",
+          "waitingForUnknown": "On the calendar step (no date recorded)",
+          "suggest": "Book {label}",
+          "suggestHint": "{when}, the first free time",
+          "cols": {
+            "when": "When",
+            "who": "Candidate",
+            "status": "Status"
+          }
+        },
+        "profile": {
+          "title": "Profile",
+          "titleFor": "Profile · {label}",
+          "pick": "Pick a candidate from a list to see their profile.",
+          "none": "No analysis on record for {label}.",
+          "cv": "CV",
+          "cvNone": "The analysis holds no CV text.",
+          "cvNote": "The text the analysis read. The CV file itself is not stored.",
+          "score": "Score",
+          "unscored": "Unscored",
+          "jobFit": "Job fit",
+          "jobFitNone": "Not scored against a job.",
+          "overall": "Overall",
+          "partOf": "{value} of {max}",
+          "meter": "{label}: {value} of {max}",
+          "parts": {
+            "experience": "Experience",
+            "skills": "Skills",
+            "roleSeniority": "Role and seniority",
+            "education": "Education",
+            "traits": "Traits"
+          },
+          "matching": "Matching",
+          "missing": "Missing",
+          "unproven": "Unproven",
+          "strengths": "Strengths",
+          "gaps": "Gaps",
+          "signals": "Soft signals",
+          "signalStrength": "Strength",
+          "signalWatch": "Watch",
+          "labelOnly": "Matched by name only. This analysis may belong to someone else with the same name.",
+          "engine": {
+            "llm": "Model analysis",
+            "deterministic": "Deterministic analysis",
+            "unknown": "Engine not recorded"
+          },
+          "analysed": "Analysed {date}"
+        },
+        "letter": {
+          "title": "Email",
+          "titleFor": "Email · {label}",
+          "pick": "Pick a candidate from a list to see their email.",
+          "none": "No outreach letter is held for {label}.",
+          "heldOnly": "Only the first-contact outreach letter is held for approval today.",
+          "subject": "Subject",
+          "to": "To",
+          "noRecipient": "No deliverable address",
+          "noSubject": "No subject",
+          "erased": "The text was erased.",
+          "revision": "Revision {revision}",
+          "sends": "What a release would send",
+          "forecast": {
+            "refused": "Would not be sent: no deliverable recipient.",
+            "simulation": "A simulation candidate: nothing leaves.",
+            "suppressed": "Would be held back by the send gate (consent or a halted sequence).",
+            "relay": "Would leave through the configured relay.",
+            "local": "No relay is configured: it would wait in the local outbox.",
+            "unknown": "Delivery forecast not returned."
+          },
+          "state": {
+            "drafted": "Draft",
+            "approved": "Approved",
+            "released": "Sent",
+            "delivery_failed": "Delivery failed",
+            "suppressed": "Held back",
+            "discarded": "Discarded"
+          },
+          "approve": "Approve",
+          "send": "Send",
+          "thread": "Sent to them",
+          "threadEmpty": "Nothing has been sent to them yet."
+        },
+        "interview": {
+          "title": "Interview",
+          "titleFor": "Interview · {label}",
+          "pick": "Pick a candidate from a list to schedule their interview.",
+          "gone": "This candidate is no longer active on the board.",
+          "waiting": "Waiting for an interview slot for {days}.",
+          "waitingUnknown": "Waiting for an interview slot.",
+          "notWaiting": "Not on the calendar step.",
+          "booked": "Booked {when}",
+          "proposed": "Link sent, no time picked yet",
+          "invites": "Their invitations",
+          "slots": "Free times",
+          "noSlots": "No free time in the next three weeks.",
+          "book": "Book",
+          "bookAt": "Book {when}",
+          "link": "Send a link to pick a time",
+          "zone": "Times in {zone}"
+        },
+        "retry": "Try again",
+        "seeAll": "See all",
+        "refreshFailed": "Couldn't refresh",
+        "cols": {
+          "candidate": "Candidate",
+          "stage": "Stage",
+          "score": "Score",
+          "inStage": "In stage",
+          "when": "When",
+          "role": "Role",
+          "area": "Area",
+          "waiting": "Waiting",
+          "company": "Company",
+          "status": "Status",
+          "sent": "Sent",
+          "reached": "Reached",
+          "conversion": "Conversion",
+          "field": "Field",
+          "value": "Value",
+          "revision": "Revision",
+          "drafted": "Drafted"
+        },
+        "stalled": "Past its step's limit",
+        "withRole": "{title} · {role}",
+        "group": {
+          "stalled": "{count} stalled",
+          "none": "No role"
+        },
+        "keysLabel": "Keys",
+        "insight": {
+          "stages": "Where they stand",
+          "other": "Other",
+          "scores": "Score spread",
+          "unscored": "{count, plural, one {# not scored yet} other {# not scored yet}}",
+          "bins": {
+            "40": "40–49",
+            "50": "50–64",
+            "65": "65–74",
+            "75": "75+",
+            "lt40": "<40"
+          },
+          "oldest": "Waiting longest",
+          "inStage": "{stage} · {days}",
+          "topRole": "Most from one role",
+          "candidates": "{count, plural, one {# candidate} other {# candidates}}",
+          "suggestAdvance": "Advance {label}",
+          "reasonScore": "{score}, the highest score here",
+          "reasonScoreDays": "{score}, the highest score here · {days} waiting",
+          "reasonStalled": "{days} in {stage}, past its limit",
+          "reachedPerStep": "Reached per step",
+          "biggestDrop": "Biggest drop",
+          "dropValue": "{from} → {to}",
+          "lost": "{pct} lost",
+          "overall": "Overall",
+          "overallSub": "of entrants reach {stage}",
+          "horizon": "How soon",
+          "ahead": {
+            "today": "24 hours",
+            "week": "7 days",
+            "month": "30 days",
+            "later": "Later"
+          },
+          "next": "Next interview",
+          "delivery": "{count, plural, one {Delivery of the newest message} other {Delivery of the # newest}}",
+          "latest": "Latest",
+          "trouble": "Needs a look",
+          "troubleCount": "{count, plural, one {# failed or bounced} other {# failed or bounced}}",
+          "troubleNone": "Nothing failed",
+          "oldestDraft": "Oldest draft",
+          "topCompany": "Most drafts at",
+          "drafts": "{count, plural, one {# draft} other {# drafts}}",
+          "waiting": "What is waiting",
+          "biggest": "Biggest"
+        }
+      },
+      "consent": {
+        "heading": "Needs your OK",
+        "notNow": "Not now",
+        "working": "Working…",
+        "final": "This is final from here; there is no undo on this screen.",
+        "finalTag": "Final: no undo here",
+        "undoTag": "Undo available",
+        "details": "Details",
+        "forRole": "Role: {role}",
+        "stale": "This candidate moved since you looked. Refresh the view and decide again.",
+        "failed": "That did not go through.",
+        "cost": "Costs one model call when it runs.",
+        "disarmed": "This cannot be armed: {reason}",
+        "reasons": {
+          "badParams": "it arrived incomplete.",
+          "badThreshold": "the score line must be between 1 and 100.",
+          "badCount": "the number must be between 1 and 50.",
+          "unknownAction": "it names an action that does not exist."
+        },
+        "emails": {
+          "rejection": "Emails the candidate a rejection letter.",
+          "rejectionMany": "Emails each of them a rejection letter.",
+          "nextStep": "Může kandidátovi e-mailem poslat pozvánku k dalšímu kroku (například pracovní vzorek), podle kroku."
+        },
+        "entryAdvance": {
+          "title": "Advance {label}",
+          "body": "Moves them on from {stage} to the next step.",
+          "press": "Advance",
+          "done": "{label} moved on."
+        },
+        "entryReject": {
+          "title": "Reject {label}",
+          "body": "Closes them out of {stage}.",
+          "press": "Reject",
+          "done": "{label} is rejected.",
+          "commsFailed": "The rejection letter could not be queued; follow up by hand."
+        },
+        "routedToHumanRound": "Their next round needs a person; it is waiting in Decisions.",
+        "wave": {
+          "rejectTitle": "Reject everyone below {threshold}%",
+          "rejectTitleRole": "Reject everyone below {threshold}% on “{role}”",
+          "advanceTitle": "Advance the top {count} by score",
+          "advanceBody": "Candidates at the offer step wait for the offer flow instead.",
+          "advanceLine": "Moves the highest-scoring active candidates on a step.",
+          "undoBody": "Once it runs, the rejections can be undone here; a letter already sent cannot be recalled.",
+          "scope": "Counts every active candidate on the board, not only the rows in view.",
+          "preview": "Show who it touches",
+          "previewing": "Reading who it touches…",
+          "touches": "{total, plural, =0 {Nobody matches, so nothing would change.} one {Touches # candidate:} other {Touches # candidates:}}",
+          "moreRows": "{count, plural, one {and # more} other {and # more}}",
+          "pressReject": "Reject and notify",
+          "pressAdvance": "Advance them",
+          "done": "{count, plural, one {# candidate done.} other {# candidates done.}}",
+          "failedSome": "{count, plural, one {# could not be changed.} other {# could not be changed.}}",
+          "commsFailed": "{count, plural, one {# rejection letter could not be queued.} other {# rejection letters could not be queued.}}",
+          "heldAtOffer": "{count, plural, one {# held at the offer step.} other {# held at the offer step.}}",
+          "droppedOut": "{count, plural, one {# no longer matched and was left alone.} other {# no longer matched and were left alone.}}",
+          "undo": "Undo the rejections",
+          "undoTooMany": "Too many to undo from here; reverse them from the Console.",
+          "undone": "{restored, plural, one {# candidate is back.} other {# candidates are back.}}",
+          "undoneNotified": "{notified, plural, one {# had already been sent a letter; follow up by hand.} other {# had already been sent a letter; follow up by hand.}}",
+          "undoneSkipped": "{skipped, plural, one {# had moved since and was left alone.} other {# had moved since and were left alone.}}"
+        },
+        "companion": {
+          "title": {
+            "run_analysis": "Re-run a candidate's screening",
+            "draft_jd": "Draft a job description",
+            "draft_outreach": "Draft outreach to a candidate",
+            "generate_digest": "Write today's digest"
+          },
+          "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
+          "press": "Open in Console"
+        },
+        "preview": "Wired after the pick",
+        "previewActs": {
+          "someone": "this candidate",
+          "letterApprove": {
+            "title": "Approve the letter to {label}",
+            "line": "Approves the letter to {label} (revision {revision}). Nothing is sent yet.",
+            "press": "Approve",
+            "details": "Approval binds this exact revision; an edit after it needs a new approval. The letter leaves only on Send."
+          },
+          "letterSend": {
+            "title": "Send the letter to {label}",
+            "line": "Sends the approved letter to {label}.",
+            "press": "Send",
+            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox."
+          },
+          "interviewBook": {
+            "title": "Book {label}",
+            "line": "Books {label} on {when}.",
+            "lineZone": "Books {label} on {when} ({zone}).",
+            "press": "Book",
+            "details": "The booking emails the candidate a confirmation with the time."
+          },
+          "interviewLink": {
+            "title": "Send {label} a scheduling link",
+            "line": "Emails {label} a link to pick a time.",
+            "press": "Send link",
+            "details": "The link offers the free times and expires after seven days."
+          }
+        }
+      },
+      "sample": {
+        "note": "Sample letter: this database holds no drafted letters, so this one was made up for the prototype (?sample=letters). Nothing is stored or sent.",
+        "subject": "Your profile and our {role} role",
+        "body": "Hi {name},\n\nI came across your profile while looking for someone for our {role} role, and your experience stood out. The team is small and the work is hands-on, and I think it could be a good fit.\n\nWould you have 20 minutes this week or next for a short call? If the timing is wrong, just say so and I will not follow up.\n\nBest regards"
+      }
+    }
   }
 }

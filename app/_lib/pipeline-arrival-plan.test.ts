@@ -23,6 +23,8 @@ import { planArrival, arrivalBranch } from "./pipeline-arrival-plan.ts";
 after(() => cleanupUnitDb());
 before(() => {
   process.env.OPENAI_API_KEY = "test-key-not-used-for-any-call";
+  // The AI voice interview ships off (voice/enabled.ts); the cases below exercise it ON.
+  process.env.KP_VOICE_INTERVIEW = "1";
 });
 
 const aiPlan = (gate: "auto" | "human", stageId = "Interview"): InterviewPlanRule => ({
@@ -130,4 +132,27 @@ test("parity: planArrival's refusal IS set_stage's 422, and the hook takes the b
     }
   }
   assert.equal(checked, 8);
+});
+
+test("with the voice interview switched off the planner names no AI invite, and the hook agrees", async () => {
+  const saved = process.env.KP_VOICE_INTERVIEW;
+  delete process.env.KP_VOICE_INTERVIEW;
+  try {
+    for (const gate of ["auto", "human"] as const) {
+      assert.equal(arrivalBranch("Interview", DEFAULT_STAGE_AXIS, aiPlan(gate), true), "no_ai_round");
+      assert.equal(planArrival(screened, "Interview", DEFAULT_STAGE_AXIS, aiPlan(gate), true).effect, "plain");
+    }
+    const WS = "arrival-parity-flag-off";
+    setDecisionConfig("pipelineStages", { stages: COMPOSED, retired: [] }, WS);
+    setDecisionConfig("interviewPlan", aiPlan("human", "Chat"), WS);
+    const entry = createPipelineEntry({
+      candidateId: "arr-off-c1", candidateLabel: "Flag Off", jobId: "arr-off-job", jobTitle: "Role",
+      contact: "off@example.com", stage: "Chat", archetype: "student", workspaceId: WS,
+    }).entry;
+    const out = (await runStageEnteredHook({ entryId: entry.id, stage: "Chat", workspaceId: WS })) as { outcome: string; reason?: string };
+    assert.deepEqual([out.outcome, out.reason], ["skipped", "no_ai_round"]);
+  } finally {
+    if (saved === undefined) delete process.env.KP_VOICE_INTERVIEW;
+    else process.env.KP_VOICE_INTERVIEW = saved;
+  }
 });

@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5e81b2a3-9c07-4dd1-86e3-f7d7a4dcf44a",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-03T23:33:33.437396+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "platform-auth-api",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/route-capability-coverage.test.ts:241 The capability ratchet treats a route as gated if the raw file text contains a requireCapability*( token anywhere (src is the unstripped readFileSync at line 238, not split by verb), so a gate that appears only in a comment, or only on the GET of a file whose POST asks nothing, reads as compliant; its tenancy sibling strips comments first (route-tenancy-coverage.test.ts:51), and this one does not.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/api/route-capability-coverage.test.ts:241 The presence assertion runs on raw text, with no comment or string stripping and no per-verb scoping, which is the exact 'prose satisfies the matcher' shape. The sibling scan does strip comments."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "deviation",
+     "evidence": "app/api/route-capability-coverage.test.ts:57 The house chain helper withCapability() (app/_lib/auth/route-guards.ts:78, used by analyze/cohort POST) produces the gated idiom, but the gate does not recognise it, and the refusal at line 254 never names it. A route gated only through the chain is refused."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "deviation",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:203 A member-access call (store.fn() via a namespace import) or an aliased call is excluded by the lookbehind and passes silently. The escape form is not refused as a finding."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:282 A seeded-failure fixture drives the real scanner over known offenders (route, helper, literal undefined) and over clean shapes. The population floor sits at line 242."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "conformant",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:186 The keys come from the defaulted-tenant parameter in store source, not from a hand list, so renaming a store function cannot escape the scan."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "conformant",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:229 Each ALLOWED entry is keyed by exact file::function and carries a reason. The capability twin deletes stale entries (line 243)."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "app/api/error-response-contract.test.ts:478 Growth fails the test through deepEqual. Slack below a ceiling is emitted as a diagnostic at line 483, so blocking and advisory are separated by construction."
+    }
+   ]
+  },
+  {
+   "context": "analytics-metrics",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 The guard that the only write path to channel_spend is still rendered matches raw EconomicsBoard.tsx text, so a JSX comment `{/* <SpendInput \u2026 */}` satisfies 'actually render it' while the editor is gone, the exact silent-loss failure the file was written to catch.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/spend-write-path.test.ts:40 The presence assertion is not normalised to executing code. The same holds for /setChannelSpend\\(/ at line 53."
+    }
+   ]
+  },
+  {
+   "context": "analytics-sections",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/sections/sealTraceabilityRender.test.ts:97 The 'has at least one PRODUCTION caller' guard counts any file whose raw text mentions the name, so an unused import or a comment naming parseSealTraceability passes, which is the zero-callers regression (LUC-ANA-13) the test exists to prevent.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/sealTraceabilityRender.test.ts:97 A caller is detected by substring over raw source, not a call over stripped code. The render checks at lines 113-115 have the same shape."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "llm-api",
+   "reason": "evidence leans on keys/test/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "tests-matching-taxonomy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T23:33:33.437396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys",
+    "severity-by-construction",
+    "unparseable-form-is-a-finding",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "platform-auth-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T23:33:33.437396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "match-the-resolved-artifact"
+   ],
+   "deviations": 1,
+   "context": "analytics-metrics",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T23:33:33.437396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "match-the-resolved-artifact"
+   ],
+   "deviations": 1,
+   "context": "analytics-sections",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

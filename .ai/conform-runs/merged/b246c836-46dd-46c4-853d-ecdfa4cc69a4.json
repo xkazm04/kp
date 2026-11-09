@@ -1,0 +1,209 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-11-09T05:34:37.149835+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "task-automation-engine",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/tasks.ts:403 This context is a SQLite-backed task queue and automation policy pass; a case-insensitive search of all its listed files for recall, episod, consolidat, belief and distill returned nothing, 'memory' appears only as 'in-memory' slot/queue/scoring, and its one memory-adjacent kind (companion_digest) is handed unchanged to companion-digest-run.ts outside the context, so no agent memory pipeline exists here to judge.",
+   "techniques": [],
+   "absenceTerms": [
+    "belief",
+    "workingMemory",
+    "half_life"
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/devcase-session-evidence.ts:3 The only conversation data in this context is a candidate's session transcript shaped for a human reviewer as assessment evidence; a recursive search of app/features/tools/devcases found zero hits for recall, episodic, belief, consolidat and working_memory, and its 'memory' hits are all 'in-memory', so no agent carries anything forward here.",
+   "techniques": [],
+   "absenceTerms": [
+    "recall",
+    "episodic",
+    "belief",
+    "consolidat"
+   ]
+  },
+  {
+   "context": "agents-api",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/companion/[id]/message/route.ts:138 The route records each turn's recall as a bare list with no status, and because recall() answers a sqlite OperationalError with an empty list that the prompt then renders as nothing relevant in memory, a failed recall is stored and presented exactly like an empty one, which is one of several gaps in a companion memory that recalls raw episodes with no pruning, reconciliation or value model on the kp side.",
+   "techniques": [
+    {
+     "technique": "recall-injection",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:372 Every OperationalError, which includes a locked database and not only a bad MATCH, returns an empty list at line 375, and companion_cli.py:329 renders that the same as a real miss, so amnesia reads as novelty. Excerpts are also byte-truncated and no considered count is reported."
+    },
+    {
+     "technique": "durable-store-failure-posture",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:360 The open sits outside the try, and run_turn's append_episode also reaches _index_locally unguarded, so a corrupt index.sqlite raises through the read path and every turn answers COMPANION_MESSAGE_FAILED. This is the fail-hard-on-both-paths design; the read path should degrade and say so."
+    },
+    {
+     "technique": "lane-reconciliation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:23 The repair this names does not exist: a search for reindex finds only comments, and docs/features/companion/README.md:1294 states there is no reindex command. Three lanes fan out, failures become a per-turn indexSkipped note (message route:140), and nothing compares the lanes with the tree."
+    },
+    {
+     "technique": "decay-and-forgetting",
+     "verdict": "deviation",
+     "evidence": "docs/features/companion/README.md:1310 Confirmed in code: companion_brain.py and companion_cli.py contain no DELETE, unlink or cap, and companion_brain.py:215 itself describes a tree that grows without bound. The class declares no reaper on kp-only installs, which the same module advertises as supported."
+    },
+    {
+     "technique": "consolidation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:42 Episodes are kept as a substrate for a pass kp does not contain; recall serves raw episodes under a heading of what is remembered, and the only distillation is an optional external app's sleep cycle, so a kp-only install is the transcript-as-memory shape the golden path names."
+    },
+    {
+     "technique": "memory-value-model",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:368 Ranking is text match alone: no trust, age decay or usage axis orders the candidates after relevance has chosen them, so a year-old episode outranks yesterday's on term overlap."
+    },
+    {
+     "technique": "loss-site-inventory",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:71 The two bounds are stated for developers but never for the reader: companion_cli.py:339 heads a 12-turn tail as the conversation so far with no notice of older turns, while the dock renders up to 200. That is a second door plus a window with no in-band count, kind or cause."
+    },
+    {
+     "technique": "working-memory",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:76 The in-session context is a raw tail of turns cut by recency, not a rewritten structure holding goal, constraints, decisions and open threads, so what a long thread established early falls off the top. Judged on the letter of the technique; the surface is a chat rather than a long task."
+    },
+    {
+     "technique": "episodic-capture",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:36 The boundary is one utterance (companion_cli.py:512 appends the message verbatim) and the same text is also held in companion_turns: a second transcript store in episode format, with no outcome or distilled body. Minted ids and dropping outage replies are done well."
+    },
+    {
+     "technique": "owner-and-counterpart-scope",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/brain/route.ts:35 Recall filters by workspace, but episode paths carry no owner, read_identity serves one machine-wide identity.md (including its section about the operator) to every workspace, and episodes carry no user within a multi-user workspace."
+    },
+    {
+     "technique": "memory-governance",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:564 Role is the only author field. An assistant episode reasoned over grounding that includes candidate-derived labels is stored and later recalled unfenced with no inherited taint, and feeds the Personas sleep cycle. No kp path writes identity or the constitution, which is the gated lane done correctly."
+    },
+    {
+     "technique": "pending-beliefs-live-apart",
+     "verdict": "not-applicable",
+     "evidence": "app/api/companion/[id]/message/route.ts:143 companion_proposals holds proposed ACTIONS keyed by catalog id, not beliefs awaiting confirmation; kp has no belief-proposal lane."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-candidate-drawer",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/pipeline/pipelineDrawerNote.ts:4 The nearest thing to memory in this context is a recruiter-typed note saved by debounce and flush, written by a person rather than an agent; a search of the context's listed files for memory, recall, episod, consolidat, belief and working_memory returned nothing, and a recursive search of app/features/hiring/pipeline found zero hits for episodic, belief, consolidat, working_memory and distill.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "belief",
+    "consolidat",
+    "distill"
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/apply-session-store.ts:8 The session persistence in this context is a funnel denominator plus a browser-held form draft for a scripted knockout chat, not anything an agent recalls; a search of its listed files for recall, episod, consolidat, belief and distill returned nothing, and no module here feeds stored material back into a model.",
+   "techniques": [],
+   "absenceTerms": [
+    "belief",
+    "workingMemory",
+    "half_life"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T05:34:37.149835+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "task-automation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:34:37.149835+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:34:37.149835+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "consolidation",
+    "decay-and-forgetting",
+    "durable-store-failure-posture",
+    "episodic-capture",
+    "lane-reconciliation",
+    "loss-site-inventory",
+    "memory-governance",
+    "memory-value-model",
+    "owner-and-counterpart-scope",
+    "pending-beliefs-live-apart",
+    "recall-injection",
+    "working-memory"
+   ],
+   "deviations": 1,
+   "context": "agents-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:34:37.149835+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "pipeline-candidate-drawer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:34:37.149835+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -48,6 +48,17 @@ function seedReceiver(jobId: string): string {
   return createChannelWebhook({ channel: "boards", jobId, lang: "en" }, WS).token;
 }
 
+// A failed must-have is a HELD entry now (owner ruling Q1), so "how many times was this
+// lead processed" is counted on the entries filed — and the legacy entry-less event is
+// asserted ABSENT, so a regression back to the instant decline cannot pass quietly.
+function heldEntries(label: string): number {
+  return (
+    ensureDb()
+      .prepare(`SELECT COUNT(*) AS c FROM pipeline_entries WHERE workspace_id = ? AND candidate_label = ? AND approval_kind = 'decision'`)
+      .get(WS, label) as { c: number }
+  ).c;
+}
+
 function koDeclines(label: string): number {
   return listPipelineEvents(500, 0, ["ko_declined"], WS).filter((e) => e.candidateLabel === label).length;
 }
@@ -73,14 +84,14 @@ test("case 6: a claim-store fault fails closed — held, not admitted", async ()
     });
     assert.ok(res.status >= 500, `a dedupe that cannot answer refuses the delivery (got ${res.status})`);
     assert.equal(inboundHandled(res), false, "the drain holds its cursor and retries next tick");
-    assert.equal(koDeclines(label), 0, "no decline was filed without the dedupe");
+    assert.equal(heldEntries(label), 0, "no hold was filed without the dedupe");
     assert.equal(declineEmails(email), 0, "and no rejection email went out");
   } finally {
     restart(); // boot DDL recreates the table
   }
 });
 
-test("case 7: one knockout-failing edge lead, replayed across a restart, declines ONCE", async () => {
+test("case 7: one knockout-failing edge lead, replayed across a restart, is held ONCE", async () => {
   const token = seedReceiver("job-replay-ko");
   const label = "Replayed Applicant";
   const email = "replayed.applicant@example.com";
@@ -93,9 +104,10 @@ test("case 7: one knockout-failing edge lead, replayed across a restart, decline
 
   const first = await ingestInboundLeadByToken(delivery);
   assert.equal(first.status, 200);
-  assert.equal(first.body.result, "declined");
-  assert.equal(koDeclines(label), 1);
-  assert.equal(declineEmails(email), 1);
+  assert.equal(first.body.result, "held");
+  assert.equal(heldEntries(label), 1, "one held entry");
+  assert.equal(koDeclines(label), 0, "…and no entry-less decline event");
+  assert.equal(declineEmails(email), 0, "…and no letter at intake: it goes once, when a person confirms the rejection");
 
   // The process dies after apply, before the ack; the edge hands the same event back.
   // Closing the connection is a faithful restart only while the claim keeps NO
@@ -111,8 +123,8 @@ test("case 7: one knockout-failing edge lead, replayed across a restart, decline
   assert.equal(replay.status, 200);
   assert.equal(replay.body.result, "duplicate_ignored", "the replay is absorbed by the durable claim");
   assert.ok(inboundHandled(replay), "and it is handled, so the drain advances past it");
-  assert.equal(koDeclines(label), 1, "exactly one ko_declined event");
-  assert.equal(declineEmails(email), 1, "exactly one rejection email to the candidate");
+  assert.equal(heldEntries(label), 1, "exactly one held entry");
+  assert.equal(declineEmails(email), 0, "and still no letter");
 });
 
 test("case 8: two pairings replaying the same seq are two deliveries, not a replay", () => {

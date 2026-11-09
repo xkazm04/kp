@@ -1,0 +1,86 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8e45abfb-e216-4fcd-8d3d-b1b4d008b28e",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-11-08T04:47:28.622577+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "auth-session-rbac",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/auth/require-operator.ts:24 In open mode every request counts as the operator. There is no check that Host, X-Forwarded-Host or Origin name loopback. `next dev` (scripts/dev-guard.mjs passes no host) and `next start` with KP_ALLOW_OPEN=1 listen on every interface. Server-side calls spend the operator's ambient Claude CLI login, so any LAN peer or DNS-rebound page that reaches the port gets operator-gated routes.",
+   "techniques": [
+    {
+     "technique": "loopback-addressed-request-gate",
+     "verdict": "deviation",
+     "evidence": "app/_lib/auth/require-operator.ts:24 Open mode lets everything in with no loopback Host/Origin/forwarded-for gate and no loopback-only bind. proxy.ts:181 enforces only when a password is set or prod fails closed. open-entry.ts isLoopbackHost decides only the landing labels."
+    },
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "conformant",
+     "evidence": "app/_lib/auth/session.ts:88 The browser carries the session back sealed with HMAC-SHA256 under KP_SECRET, bound to workspace/sub/role, with exp and epoch inside the payload."
+    },
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "conformant",
+     "evidence": "app/_lib/auth/session.ts:52 The signing secret is an unprefixed, server-only env value. It is read in a node:crypto module that cannot be bundled for the client. No NEXT_PUBLIC_ value anywhere in app/_lib/auth."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "app/_lib/auth/require-operator.ts:73 The refusal is closed and identical whether the session was missing, tampered, revoked or belongs to a disabled account (the proxy uses the same single refusal shape)."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/auth/session.ts:105 This context issues and checks the session. It forwards to no upstream."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "browser-credential-boundary",
+   "context": "login-flow",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "jd-public-detail-page",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "analytics-dashboard",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "skill-profile-public-page",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T04:47:28.622577+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "loopback-addressed-request-gate",
+    "opaque-upstream-errors",
+    "public-vs-server-env-split",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 1,
+   "context": "auth-session-rbac",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

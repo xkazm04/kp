@@ -147,18 +147,18 @@ test("the Art. 14 row does not re-assert the absolute the landing retired", () =
   );
   // The honest half, which the landing keeps and which nothing configurable can
   // take away. Pinned by SUBJECT so the sentence can be reworded.
-  assert.match(art14.summary, /every rejection except the apply knockout is a person|no gate can delegate/i, "the rejection guarantee is the claim worth making, and it must be made");
-  // …and it must name its one exception: the apply knockout is automatic (the owner kept it so
-  // and chose to say so), so an unqualified "always a person's" is false while that gate exists.
-  assert.match(art14.summary, /apply knockout/i, "the Art. 14 row names the automatic knockout decline");
-  assert.match(art14.summary, /ask a person to review/i, "…and the review route the declined candidate is given");
-  // And the qualifier that makes the other two honest, exactly as the landing's
-  // four catalogs have to carry "by default" (MarketingClaims.test.ts).
-  assert.match(
-    art14.summary,
-    /\bby default\b/i,
-    "advance/offer are only human-gated BY DEFAULT; the row must say so, as the landing does"
-  );
+  assert.match(art14.summary, /every rejection is a person's|no gate can delegate/i, "the rejection guarantee is the claim worth making, and it must be made");
+  // …and it must say what a failed apply knockout is. Since the Q1 ruling (2026-11-09) it is a
+  // held entry a person confirms or clears, NOT an automatic decline, so the row must not
+  // claim the machine declines anyone at the gate.
+  assert.match(art14.summary, /apply knockout/i, "the Art. 14 row names the knockout");
+  assert.match(art14.summary, /held for a person/i, "…as a hold for a person, not a decision");
+  assert.match(art14.summary, /ask a person to review/i, "…and the review route the rejected candidate is given");
+  assert.doesNotMatch(art14.summary, /declined at once|one automatic decline|classed `auto`/i, "the knockout is no longer an automatic decline");
+  // The delegation sentence is gone: no workspace can hand an offer or a held
+  // screening review to the machine (Q3, 2026-11-09), so the row must not say one can.
+  assert.doesNotMatch(art14.summary, /can delegate either/i, "the row must not claim the screening/offer gates are delegable");
+  assert.match(art14.summary, /offer is always a person/i, "the offer guarantee is now unconditional and the row says so");
 });
 
 test("the shipped hiring plan is what makes the 'by default' half true", () => {
@@ -174,15 +174,12 @@ test("the shipped hiring plan is what makes the 'by default' half true", () => {
   }
 });
 
-test("the two gates the Art. 14 row calls delegable are the two that exist", () => {
+test("no reader treats a stored `auto` on the screening or offer gate as auto", () => {
   const automation = source("automation-run.ts");
-  for (const role of ["screening", "offer"]) {
-    assert.match(
-      automation,
-      new RegExp(`getPlanGateForRole\\("${role}"[^)]*\\)\\s*===\\s*"auto"`),
-      `automation-run.ts no longer delegates ${role}; the Art. 14 row's "by default" hedge may be too weak now`
-    );
-  }
+  // The two branches the row used to call delegable are gone.
+  assert.doesNotMatch(automation, /getPlanGateForRole\(/, "automation-run.ts reads no plan gate: screening and offer always park for a person");
+  assert.doesNotMatch(automation, /extendDraftedOffer\(/, "automation-run.ts must not extend an offer unattended");
+  assert.doesNotMatch(automation, /"auto_ratified"/, "automation-run.ts must not write the auto_ratified outcome");
   // The absolute that survives. A rejection gate would falsify the first sentence
   // of the row AND of landing.trust.human.body in four catalogs.
   assert.doesNotMatch(

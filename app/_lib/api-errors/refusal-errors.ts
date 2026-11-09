@@ -60,6 +60,8 @@ export const REFUSAL_ERRORS = {
   POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
   /** The offer link is past its deadline (410). */
   OFFER_EXPIRED: "This offer has expired.",
+  /** The offer's candidate was closed or moved off the offer step since it was sent (404). */
+  OFFER_NO_LONGER_OPEN: "This offer is no longer open.",
   /** No offer for this token (404). */
   OFFER_NOT_FOUND: "Offer not found.",
   /** The accept/decline POST arrived with neither verb (400). The card only ever
@@ -187,6 +189,8 @@ export const REFUSAL_ERRORS = {
   // English at a Czech applicant who had just been told, in Czech, to click it.
   /** The screen was asked for without naming a candidate — neither `entryId` nor
    *  `submissionId` arrived in a usable shape (400). */
+  /** A scorecard write for a candidate who is closed, rejected, declined or hired (409). */
+  INTERVIEW_ENTRY_NOT_ACTIVE: "This candidate is no longer active, so a new scorecard can't be filed.",
   INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
   /** Comparison requires a role id (400). */
   INTERVIEW_JOB_REQUIRED: "Choose a role to compare interviews.",
@@ -222,6 +226,9 @@ export const REFUSAL_ERRORS = {
   /** A re-score whose scorecard carries no reasons (409): no key, the model was down,
    *  or every quote failed grounding. Nothing was attached; the session stays unscored. */
   INTERVIEW_SCORECARD_UNGROUNDED: "The scorer could not ground a verdict in the transcript, so nothing was saved. Try the re-score again later.",
+  /** A scorecard filed with no rated competency (400). A card with none would open the
+   *  colleagues' records for nothing, so it is refused before anything is attached. */
+  INTERVIEW_SCORECARD_RATINGS_REQUIRED: "Rate at least one competency before filing a scorecard.",
   /** A second /connect on a link whose call is already LIVE (409). The token IS
    *  the session, so two tabs (or a forwarded link) both minted provider
    *  credentials and both ran a real conversation — and the loser's transcript was
@@ -436,6 +443,9 @@ export const REFUSAL_ERRORS = {
    *  terminal step, so rejecting would run the whole reject path on an accepted offer.
    *  Nothing was sealed, sent or changed. Rescinding a hire is a separate action. */
   PIPELINE_ENTRY_HIRED: "This candidate is already hired, so they can't be rejected. Nothing changed.",
+  /** A decline_advance on an entry that carries no queued policy advance (409): it was
+   *  already decided, or never was one. Nothing was sealed or changed. */
+  PIPELINE_NO_QUEUED_ADVANCE: "This entry has no queued advance to keep in place, so nothing changed. It may already have been decided.",
   /** A body naming an action this board does not have (400). */
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
@@ -482,6 +492,9 @@ export const REFUSAL_ERRORS = {
   /** The offer was drafted and its link minted, but the message did not go out
    *  (502). Deliberately NOT a fault code: the approval is left open on purpose and
    *  approving again re-sends the SAME link, which is what the reader must know. */
+  /** A hand-drafted offer needs an active candidate on the offer step with no decision
+   *  already open on them (409). */
+  OFFER_DRAFT_NOT_AVAILABLE: "An offer can only be drafted for an active candidate on the offer step with no decision waiting.",
   OFFER_NOT_DISPATCHED: "The offer was drafted but couldn't be sent. Nothing was lost — approve again to re-send the same link.",
   /** An offer draft whose figure is present but cannot be a salary — negative, or
    *  past the stated ceiling (400). Refused BEFORE a token is minted, so no letter

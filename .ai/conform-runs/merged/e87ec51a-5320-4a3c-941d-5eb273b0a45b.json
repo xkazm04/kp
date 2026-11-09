@@ -1,0 +1,161 @@
+{
+  "schema": "conform-run/1",
+  "worker": "e87ec51a-5320-4a3c-941d-5eb273b0a45b",
+  "subject": "agent-cli-transport",
+  "evaluatedAt": "2026-11-04T05:27:34.697706+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "billing-subscriptions",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/billing/gateway.ts:2 The context's provider seam is a merchant-of-record payment gateway, not an agent CLI. A search of app/_lib/billing and the billing-*.test.ts files for claude, spawn, --print, permission-mode, stream-json and --resume found nothing, so no agent binary is probed, spawned, billed or parsed here.",
+      "techniques": [],
+      "absenceTerms": [
+        "permission-mode",
+        "stream-json",
+        "dangerously-skip-permissions",
+        "--resume"
+      ]
+    },
+    {
+      "context": "candidate-matching",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "pipeline/jobfit/group_compare_cli.py:69 Matching call sites get their provider from the shared .llm door. They gate on its availability record before calling, pin the answer by its expected top-level keys, and label every deterministic serve with a descent reason, so no call site rebuilds spawn, env or flag logic.",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:69 The call site uses the door's availability verdict and its named reason. It never assumes the binary is there."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:87 Each deterministic-floor serve is written to the ledger with the reason the ladder descended (gate or mid-flight failure)."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/match_reasoning.py:40 The expected keys are passed to the door's JSON extraction, so a trailing smuggled object cannot win the parse."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/group_compare_cli.py:66 The provider comes from the shared door, which builds the env and does any strip. This context assembles no child environment."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/match_reasoning.py:557 The call passes a prompt, a system message and the expected keys, with no CLI flags. Flag knowledge sits behind the door, not in this context."
+        }
+      ]
+    },
+    {
+      "context": "db-analytics-billing-llm",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/db/llm.ts:8 The LLM part of this context is a row store for llm_config, provider_keys and the usage ledger that runs record after the fact. claude_cli shows up only as a provider label in ledger test rows. A search of app/_lib/db for permission-mode, stream-json, dangerously-skip-permissions and --resume found nothing, so it does not spawn, probe, authenticate or parse an agent CLI.",
+      "techniques": [],
+      "absenceTerms": [
+        "permission-mode",
+        "stream-json",
+        "dangerously-skip-permissions",
+        "--resume"
+      ]
+    },
+    {
+      "context": "channels-comms-api",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/channels/inbound/[token]/route.ts:19 The only child process this context names is the Python CV text extractor (via cv-intake). A search of app/api/comms and app/api/channels for claude, permission-mode, stream-json, dangerously-skip-permissions and --resume found nothing, so no agent CLI is used as a transport here.",
+      "techniques": [],
+      "absenceTerms": [
+        "permission-mode",
+        "stream-json",
+        "dangerously-skip-permissions",
+        "--resume"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-cli-transport",
+      "context": "devcase-orchestration",
+      "reason": "withdrawn after review: reviewer (sonnet): app/_lib/devcase-assistant-live.ts, which sits in this context, calls engineAvailability() and reads its claudeCli flag to decide whether a Claude CLI is on PATH. That is an agent-CLI probe, so the claim that the context does no agent-CLI probe is contradicted; the cited line devcase-run.ts:48 only "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T05:27:34.697706+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "billing-subscriptions",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:27:34.697706+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "output-normalization",
+        "subscription-auth-selection"
+      ],
+      "deviations": 0,
+      "context": "candidate-matching",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:27:34.697706+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-orchestration",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:27:34.697706+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "db-analytics-billing-llm",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:27:34.697706+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "channels-comms-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

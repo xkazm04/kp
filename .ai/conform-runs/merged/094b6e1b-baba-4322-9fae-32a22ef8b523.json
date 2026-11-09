@@ -1,0 +1,232 @@
+{
+ "schema": "conform-run/1",
+ "worker": "094b6e1b-baba-4322-9fae-32a22ef8b523",
+ "subject": "pipeline-stage-modelling",
+ "evaluatedAt": "2026-11-06T00:10:27.975535+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "pipeline-move-bulk-operations",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The move menu drops the terminal stage as a target but not as a source, so a card on Hired is offered every other column, and pipelineMoveTargets.test.ts:43 pins 'a card CAN move back out of Hired'. The board treats terminal as a waypoint.",
+   "techniques": [
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 Entering the terminal stage is refused by role, but leaving it is offered. The technique requires a move whose source is terminal to be refused, with reversal as a separate named action."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardLayout.ts:75 Stranded entries are not folded into column 0 (bucketLaneEntries). They are surfaced separately and kept in the prev/next reading order, so they stay reachable as well as visible."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.ts:90 Quick filters, including the select-all cohort, resolve by role over the workspace axis rather than by the 'Interview' name. The population code does the same (stageHasRole entry/offer/terminal)."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-board-ui",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 The resolver that decides whether a ?stage= value is on this board is called only by pipelineStageFilter.test.ts, and no .tsx renders stageFilter at all. A stale stage deep link therefore filters OrbitMatches silently, with no 'not on this board' notice. This is exactly the green-resolver, unpinned-surface case the technique warns about.",
+   "techniques": [
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 rg finds no non-test caller of resolveStageFilter and no tsx that reads stageFilter. The filter is held, which is correct, but the notice is never rendered."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 The header stats derive terminal and interview counts from roles on the workspace axis (stagesWithRole at line 109), not from the 'Hired'/'Interview' names."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineBoardData.ts:132 The board keeps the served tombstones so a stranded or retired stage can be named by its preserved label. This covers the display half only; the measure half sits elsewhere."
+    }
+   ]
+  },
+  {
+   "context": "about-product",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/about/stage/stages.ts:29 Here 'stage' is an animation beat in an explainer scene, not a pipeline column. Searching app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis, PIPELINE_STAGES, DEFAULT_STAGE_AXIS, pipeline-stages, StageRole and the literal stage names returned no hits, so the context neither reads nor edits a board axis.",
+   "techniques": [
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/about/stage/stages.ts:29 Its closed vocabulary is animation states, not pipeline roles."
+    }
+   ],
+   "absenceTerms": [
+    "stageHasRole",
+    "screeningGateIndex",
+    "getPipelineAxis",
+    "PIPELINE_STAGES",
+    "DEFAULT_STAGE_AXIS"
+   ]
+  },
+  {
+   "context": "pipeline-actions-commands",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/pipeline-entry-action.ts:408 set_stage refuses only a terminal TARGET. A Hired candidate keeps status 'active' (pipeline-status.ts header), and setPipelineEntryStage refuses only terminal STATUSES, so a manual move out of the terminal stage is accepted and recorded as an ordinary 'moved' event with no reversal action.",
+   "techniques": [
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "deviation",
+     "evidence": "app/_lib/pipeline-entry-action.ts:408 The target guard is role-based and the accept-path guard (acceptWouldReachTerminal) is good. There is no source-is-terminal refusal, so terminal is not absorbing."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "deviation",
+     "evidence": "app/_lib/pipeline-status.ts:82 The candidate-facing interview-reminder rule compares the literal 'Hired' id instead of the terminal role. Its written justification is module purity, not a failure triage, and the technique says notifications select on role. Elsewhere the context resolves by role (stageHasRole at pipeline-stages.ts:142)."
+    },
+    {
+     "technique": "screening-gate-index",
+     "verdict": "deviation",
+     "evidence": "app/_lib/pipeline-stages.ts:194 The gate is derived correctly by role, the comparison is inclusive, and the screening set is the entry+screening roles intersected with the gate (line 221). But the predicate takes only live stages, so a row on a retired interview/offer column resolves to -1 and counts as never advanced. That is the tombstone case the technique names."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-axis.ts:73 Ids on neither the live nor the retired list are computed for surfacing rather than folded into column 0. The scorecard reroute also excludes off-axis stages instead of guessing (entry-action line ~488)."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-axis.ts:60 Retired stages stay resolvable by id with their label and role (findStage), and the store accepts them as a place to stand. The gap is that measures do not read them, which is recorded under screening-gate-index."
+    }
+   ]
+  },
+  {
+   "context": "shell-setup-pipeline",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never one authored per stage. The stage wire schema (decision-config-schema.ts validateStage) has no meaning key, and add() mints a custom column with no sentence. So every custom column shows the generic custom-role line, which is the case the technique says to prompt against.",
+   "techniques": [
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Meaning is per role, not per stage, and is not required at creation."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelineEdit.ts:81 Entry and terminal are fixed: no remove, no role change, and they cannot swap with a middle column. So no click can break 'entry first, terminal last'. axisProblems also gates Continue."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelineEdit.ts:73 An occupied column cannot be removed in the wizard; the server's 409 migration_required is the backstop. Presets also avoid reusing retired ids (setupPipelinePresets.ts:62)."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.ts:94 Presets are derived and matched by id and role, never by label. The added work-sample column takes the homework role, with an id minted from a fixed locale-independent seed."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/setup/setupPipelineEdit.ts:63 The setup editor does not resolve stale references or stranded occupants."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-06T00:10:27.975535+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-move-bulk-operations",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:10:27.975535+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "off-axis-candidate-recovery",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-board-ui",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:10:27.975535+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 0,
+   "context": "about-product",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:10:27.975535+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "retired-stage-tombstones-and-migration",
+    "screening-gate-index",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-actions-commands",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T00:10:27.975535+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "shell-setup-pipeline",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { resolveScorecardViewer } from "@/app/api/interview-prep/viewer";
 import { candidateDrawerBundle } from "@/app/_lib/candidate-timeline";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { can } from "@/app/_lib/auth/current-user";
+import { withLinksRedactedUnless } from "@/app/_lib/comms-link-redaction";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -24,11 +27,11 @@ export const GET = withWorkspace(async (ws: string, _request: Request, { params 
   if (denied) return denied;
   try {
     const { id } = await params;
-    const bundle = candidateDrawerBundle(id, ws);
+    const bundle = candidateDrawerBundle(id, ws, await resolveScorecardViewer());
     if (bundle === null) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     // `items` retained at the top level for back-compat with any reader of the
     // prior shape; the enriched fields ride alongside.
-    return NextResponse.json({ ...bundle });
+    return NextResponse.json({ ...bundle, comms: withLinksRedactedUnless(await can("pipeline:write"), bundle.comms) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:timeline", "PIPELINE_TIMELINE_FAILED");
   }

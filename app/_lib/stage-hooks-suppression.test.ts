@@ -31,6 +31,8 @@ after(() => cleanupUnitDb());
 before(() => {
   // A configured voice provider, so a NON-suppressed control is actually minted.
   process.env.OPENAI_API_KEY = "test-key-not-used-for-any-call";
+  // The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+  process.env.KP_VOICE_INTERVIEW = "1";
 });
 
 const WS_IV = "team-suppress-iv";

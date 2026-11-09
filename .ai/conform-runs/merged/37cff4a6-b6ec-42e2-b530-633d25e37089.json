@@ -1,0 +1,87 @@
+{
+ "schema": "conform-run/1",
+ "worker": "37cff4a6-b6ec-42e2-b530-633d25e37089",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-04T03:39:51.872430+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevProbeStrengthBanner.tsx:21 The approval-gate banner renders nothing for a case with zero probes, but enforceProbeGate (app/_lib/devcase-probe-audit.ts:88,113) treats zero probes as verdict none and refuses approval with a 422. The surface the reviewer reads before approving leaves out a condition that will block them.",
+   "techniques": [
+    {
+     "technique": "policy-projection",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevProbeStrengthBanner.tsx:21 The display understates the enforced policy. auditProbeStrength already returns none for total 0 and a t('none') headline exists, but the early return hides it. DevLifecycleReviewPanel.tsx:172 also wraps the banner in probes.length > 0, so the review screen shows nothing at all."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:17 The guard matches raw source text with comments left in, so a comment can satisfy the presence regex for runAction('approve' (the permissive direction). The target file already explains the forbidden if (r.ok) form in a comment at useDevTabNeedAnalysis.ts:101."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:29 The absence assertion keys on the variable name r. Writing if (res.ok) { or r.ok && ... brings back the dead-button pattern and the test stays green, and the test never says that its key can be renamed away."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 The test checks that its instrument found its target before asserting anything. A renamed or removed approve() goes red rather than passing vacuously."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 The rule is local, about one function's call shape, so a bounded window over the approve() body can decide it."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:27 The failure message names the in-tree remedy as a literal, and the reader can act on it from the file they are editing."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "jobseeker-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "pipeline-entry-types",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "i18n-locale-resolution",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T03:39:51.872430+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "decidable-in-a-window",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

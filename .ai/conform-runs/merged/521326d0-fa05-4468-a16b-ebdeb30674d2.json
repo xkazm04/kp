@@ -1,0 +1,119 @@
+{
+  "schema": "conform-run/1",
+  "worker": "521326d0-fa05-4468-a16b-ebdeb30674d2",
+  "subject": "prompt-assembly",
+  "evaluatedAt": "2026-11-04T04:44:04.695559+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "analyze-engine",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 This context is client-side intake and run-delivery state that POSTs a form to the server analysis route. A recursive search of app/features/tools/analyze for systemPrompt, buildPrompt, assemblePrompt and max_tokens found nothing; the only 'prompt' hits are the English words 'promptly' and 'prompt poll' (AnalyzeApi.ts:224, :324). It assembles no model prompt.",
+      "techniques": [],
+      "absenceTerms": [
+        "systemPrompt",
+        "buildPrompt",
+        "assemblePrompt",
+        "max_tokens"
+      ]
+    },
+    {
+      "context": "companion-ai",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/companion-turn.ts:124 transcriptWindow keeps the newest 12 eligible turns and drops older ones with no count or notice; companion_cli.py then renders the remainder under 'THIS CONVERSATION SO FAR', so in a long thread the model takes a partial history to be the whole conversation.",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-turn.ts:124 The bottom rung is silence, not a notice. Only {role, content} is shipped, with no dropped-turn count. The grounding summary also cuts the board to the busiest 5 roles (line 179, `.slice(0, TOP_ROLES)`) with no 'N more roles' line, inside a block the prompt labels 'the only facts you may state as facts'."
+        },
+        {
+          "technique": "tiered-history-projection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-turn.ts:15 The durable record lives in the store and the prompt is rebuilt every turn, which is the projection regime. Yet history is a fixed recent window with no coarser tier reaching the start of a thread the code itself calls 'a year of conversations' (line 273). Episodic recall is a memory store, not a projection of the record."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:33 The Node side ships one typed turn.json and no prompt prose. One assembler (companion_cli._system_prompt and _build_prompt) owns the layers: constitution → identity → contracts → language, then grounding → recall → transcript → fenced operator message."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:262 The action addendum in the prompt and the dispatch validator are both derived from the COMPANION_ACTIONS registry (companion-actions.ts:16). Proposals are re-validated on the Node side, and an empty catalog teaches the model nothing."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:87 The CLI never queries kp, so the board state cannot be reached any other way. It is injected as standing grounding from one function, companionGrounding, which treats it as a floor."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "prompt-assembly",
+      "context": "shared-api-utilities",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "devcase-session-api",
+      "reason": "evidence leans on devcase/chat.py, which is not a tracked file"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "decisions-review-ui",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor at useDecisionsQueue.ts:51 is a comment about a paid group-eval LLM run, so it doesn't show that no prompt is assembled; the claim rests only on a grep for 'prompt' that matches nothing, and I found no line in the context that shows the precondition is absent."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T04:44:04.695559+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "analyze-engine",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:44:04.695559+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "decisions-review-ui",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:44:04.695559+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [
+        "capability-documentation",
+        "context-budgeting",
+        "context-reachability",
+        "layered-composition",
+        "tiered-history-projection"
+      ],
+      "deviations": 1,
+      "context": "companion-ai",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

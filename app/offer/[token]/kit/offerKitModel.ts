@@ -9,16 +9,16 @@
 
 /** The fields of GET /api/offer/[token]'s projection this view reads (OfferClient's OfferView). */
 export type OfferKitInput = {
-  company: string | null;
-  jobTitle: string | null;
-  candidateLabel: string | null;
-  currency: string | null;
-  salary: number | null;
-  notes: string | null;
-  startDate: string | null;
-  expiresAt: string | null;
-  hoursRemaining: number | null;
-  minutesRemaining: number | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  candidateLabel?: string | null;
+  currency?: string | null;
+  salary?: number | null;
+  notes?: string | null;
+  startDate?: string | null;
+  expiresAt?: string | null;
+  hoursRemaining?: number | null;
+  minutesRemaining?: number | null;
 };
 
 /** What the lower half of the letter shows: the decision, or one of the three terminal outcomes. */
@@ -63,8 +63,8 @@ export type OfferKitDeadline = { urgent: boolean; unit: "minutes"; minutes: numb
 
 export function offerKitDeadline(o: Pick<OfferKitInput, "expiresAt" | "hoursRemaining" | "minutesRemaining">): OfferKitDeadline | null {
   const hrs = o.hoursRemaining;
-  if (hrs === null || !o.expiresAt) return null;
+  if (hrs == null || !o.expiresAt) return null;
   const urgent = hrs <= 48;
   const mins = o.minutesRemaining;
-  return mins !== null && mins <= 60 ? { urgent, unit: "minutes", minutes: mins } : { urgent, unit: "hours", hours: hrs };
+  return mins != null && mins <= 60 ? { urgent, unit: "minutes", minutes: mins } : { urgent, unit: "hours", hours: hrs };
 }
