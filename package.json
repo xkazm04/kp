@@ -118,7 +118,7 @@
     "@tailwindcss/forms": "^0.5.11",
     "better-sqlite3": "^13.0.3",
     "elkjs": "^0.12.0",
-    "framer-motion": "^14.0.0",
+    "framer-motion": "^14.8.0",
     "linkedom": "^0.18.14",
     "lucide-react": "^1.61.0",
     "next": "16.4.5",
