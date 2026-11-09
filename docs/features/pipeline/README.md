@@ -2142,6 +2142,41 @@ to infer it — the letter states the deadline **with its timezone**
 (`formatOfferDeadline`, `comms-dispatch.ts`) and the accept page counts down from
 the same server-side instant.
 
+## A failed must-have is a held entry (knockout hold)
+
+Owner ruling Q1 (2026-11-09, `docs/product/oss-1.0-cut.md`). An applicant who answers no to a
+must-have the role states is **not declined**. All three intake doors — conversational apply
+(`app/api/apply/[id]/route.ts`), quick apply (`.../quick/route.ts`) and the lead core behind
+channel webhooks (`app/_lib/lead-intake.ts`) — file a real entry in the opening's workspace
+through the shared core (`application-filing.ts`, option `hold`), behind the existing
+`decision` approval. `approval_detail` carries the failed must-have step ids and a coded reason
+(`app/_lib/knockout-hold.ts`: `knockoutHoldDetail` / `parseKnockoutHold`), so the Decisions
+analysis modal shows the reviewer which must-have failed. No new status, queue or column.
+
+- **At intake:** no letter and no acknowledgement. The applicant is answered `result: "held"`
+  (conversational and quick doors) — a person will review, nothing is decided — and a webhook
+  integrator hears `held` / `knockout_held`. A known applicant is not filed twice (the hold
+  writes nothing onto an existing entry); an applicant with no address still gets an entry, and
+  no letter is owed; the honeypot answers in the held shape and files nothing.
+- **A person rejects (confirms):** the ordinary reject door (`runPipelineEntryAction`, also the
+  batch and command-bar doors) seals the decision like any human rejection — the sealed inputs
+  carry `knockoutFailedIds` and the reason code `knockout` — then sends the one knockout letter
+  (`dispatchKnockoutRejection`, kind `ko_decline`, ref'd to the entry) naming the must-have and
+  how to ask for a review. A repeat reject is refused on the closed entry, so the letter goes
+  once. An entry with no address owes none.
+- **A person accepts (clears):** the hold lifts through the ordinary accept (which, as for any
+  `decision` approval, advances one stage), nothing is sent, and the entry is an ordinary
+  applicant.
+- **Automation leaves it alone:** `executeAutomationPass` excludes a hold from scoring and the
+  policy pass. The Python policy's own "approval already pending" hold covers a screening column
+  only; its entry-column branch advances a scored entry without reading the approval.
+  Pinned by `app/_lib/ko-hold-automation.test.ts`.
+- **Before the ruling:** `ko_declined` events and the entry-less `ko_decline` letters stay as
+  written (analytics read them; the 30-day contact sweep of ADR 0019 still covers those
+  letters). A new letter is the entry's own outbox row, under the entry's retention.
+
+Tests: `app/api/apply/[id]/ko-decline-door.test.ts` (every door, confirm, clear, edge cases).
+
 ## Known gaps
 
 - **The Docket's level 0 does not scale to 100+ waiting decisions.** The owner reviewed the
