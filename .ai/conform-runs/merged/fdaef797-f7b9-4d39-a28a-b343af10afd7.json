@@ -1,0 +1,101 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fdaef797-f7b9-4d39-a28a-b343af10afd7",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-11-09T22:29:04.096728+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agents-api",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/companion/[id]/message/route.ts:76 The route reads only the newest 40 turns and passes no count of what it left out; the 12-turn window is cut again downstream, and companion_cli.py:339 shows the result to the model as 'THIS CONVERSATION SO FAR'. In a long thread the model never learns that older turns are stored but not shown.",
+   "techniques": [
+    {
+     "technique": "loss-site-inventory",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:76 Window-of-newest site with no in-band notice of kind/count/cause. Downstream transcriptWindow (12) and _render_transcript also cut silently, under a header that implies completeness."
+    },
+    {
+     "technique": "recall-injection",
+     "verdict": "conformant",
+     "evidence": "app/api/companion/threads/route.ts:47 The dock boot payload says whether memory is on, so 'memory off' and 'remembered nothing' read differently. This only covers the consent-off case; a failed brain read is not shown in this context."
+    },
+    {
+     "technique": "memory-governance",
+     "verdict": "conformant",
+     "evidence": "app/api/companion/brain/route.ts:17 A human consent gate sits before any memory creation, adoption or write. The birth step never overwrites a constitution or identity the operator already wrote (line 26)."
+    },
+    {
+     "technique": "episodic-capture",
+     "verdict": "conformant",
+     "evidence": "app/api/companion/[id]/message/route.ts:35 Capture happens at each exchange and the user turn is stored before the model call, so a provider failure loses the reply but never the question. The stored turn's meta also points to the episodes the brain wrote (line 139)."
+    }
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:18 These are UI panels that render a stored submission evaluation (EvalBundle). A case-insensitive search of app/features/tools/devcases for recall, episode, belief and consolidat found no hits, so no agent here keeps memory.",
+   "techniques": [],
+   "absenceTerms": [
+    "recall",
+    "episode",
+    "belief",
+    "consolidat"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-memory",
+   "context": "interview-simulator",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-memory",
+   "context": "llm-inference-runtime",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "agent-memory",
+   "context": "group-eval-comparison",
+   "reason": "The context holds no agent memory: its 'governance cache' (governanceCacheSync.ts) serves a stored group-evaluation result, and recall, episode and belief do not appear in app/features/hiring/decisions. But 'consolidat' and 'memory' do appear in sibling files there (selection-memory-rerun, a UI consolidation note), and the re-run search covers that directory, so I could not choose absence terms safely. Declined instead of risking a refused not-applicable verdict."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T22:29:04.096728+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "episodic-capture",
+    "loss-site-inventory",
+    "memory-governance",
+    "recall-injection"
+   ],
+   "deviations": 1,
+   "context": "agents-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T22:29:04.096728+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
