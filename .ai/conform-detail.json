@@ -29298,6 +29298,58 @@
           "evidence": "app/features/shared/decisionsTypes.ts:12 The Decisions Entry is a Pick<> of the board Entry, so the single-source rule for that shape is mechanised by tsc rather than left as prose."
         }
       ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/quality-gates": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:08:33.539Z",
+      "worker": "8bdbea36-2fb4-4d5f-a892-e32a831af13d",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 A raw, unscoped whole-file match over ROUTE: the needle is satisfied by an unrelated branch, so a green does not mean the response that matters carries the flag."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:16 The guard says it pins source text because nothing can execute the pair, stating the question it answers."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:24 The destructure is decidable from the named file alone. The looseness of line 25 is a needle problem, recorded above, not a decidability one."
+        }
+      ]
+    },
+    "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/quality-gates": {
+      "context": "matrix-focus",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:08:33.539Z",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/matchResultsWriteback.test.ts:13 The test imports and runs the function, so no text-matching guard exists in the listed files."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/matchView.test.ts:2 The gate vocabulary here names a UI render branch, not a checker with an instrument to assert."
+        }
+      ],
+      "withdrawn": {
+        "worker": "8bdbea36-2fb4-4d5f-a892-e32a831af13d",
+        "state": "not-applicable",
+        "at": "2026-11-09T03:08:58.034187+00:00",
+        "reason": "reviewer (sonnet): The directory has app/features/insights/matrix/focus/matchReasons.test.ts, which reads source text with readFileSync (pipeline/jobfit/matching.py at line 131 and the messages JSON), so the claim that the context holds no source-text guard is contradicted; the searched terms (process.exit, pre-push, "
+      }
     }
   }
 }

@@ -20520,7 +20520,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 The route also writes this exact text in its empty-pool return (route.ts:51), so dropping the flag from the real scored response at route.ts:91 leaves the guard green while the coach loses the admission the guard exists to protect.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "mcp-tools",
