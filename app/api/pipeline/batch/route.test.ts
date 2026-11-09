@@ -16,6 +16,8 @@ import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
 import { migrateLegacyInterviewPlan } from "../../../_lib/decision-config-schema.ts";
 
 after(() => cleanupUnitDb());
+// The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+process.env.KP_VOICE_INTERVIEW = "1";
 
 const post = (body: unknown): Promise<Response> =>
   POST(

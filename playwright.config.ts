@@ -167,6 +167,10 @@ export default defineConfig({
             // ci.yml's release job) keeps its own setting; the release subset does not
             // touch /me, and journey-role-to-schedule walks the wizard either way.
             KP_JOBSEEKER: "1",
+            // The AI voice interview ships OFF (app/_lib/voice/enabled.ts, owner ruling
+            // 2026-11-09); journey-one-thread mints a session through
+            // POST /api/interview/create, so the suite's own server turns it on.
+            KP_VOICE_INTERVIEW: "1",
             // The demo corpus seeds at boot only on opt-in since operator triage T1
             // (2026-10-22, app/_lib/db/seed-gate.ts) — a fresh kp-e2e.sqlite would
             // otherwise boot empty and stop on the first-run data choice. Every spec

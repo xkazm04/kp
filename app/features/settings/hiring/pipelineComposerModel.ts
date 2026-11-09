@@ -19,6 +19,7 @@
 // no round ids to drop, nothing to keep in sync.
 import {
   INTERVIEW_PLAN_MAX_ROUNDS,
+  humanizeGatesOnAxis,
   migrateLegacyInterviewPlan,
   planStep,
   prunePlanToAxis,
@@ -207,7 +208,7 @@ function enterpriseAxis(base: AxisDraft, labels: PresetAxisLabels): AxisDraft {
 
 /** Org-complexity presets: solo founder → team → governance-heavy enterprise. */
 export const PRESETS: Preset[] = [
-  preset("lean", "auto", [newRound("ai", "human")], "human"),
+  preset("lean", "human", [newRound("ai", "human")], "human"),
   preset("hybrid", "human", [newRound("ai", "human"), newRound("human", "human", 3)], "human"),
   preset(
     "enterprise",
@@ -271,7 +272,8 @@ export function patchRound(plan: PipelinePlan, stageId: string, index: number, p
  * the runtime.
  */
 function planOnAxis(plan: PipelinePlan, axis: readonly StageDef[]): PipelinePlan {
-  return prunePlanToAxis(plan, axis);
+  // A stored `auto` on a screening/offer step reads as `human`, as it does server-side.
+  return humanizeGatesOnAxis(prunePlanToAxis(plan, axis), axis);
 }
 
 /** How many rounds the plan runs on this board — the cap is a plan-wide budget,

@@ -19,6 +19,8 @@ import { REFUSED_COMMS_CHANNEL, dispatchRejection } from "./comms-dispatch.ts";
 import { setRelayHostLookupForTests } from "./comms.ts";
 
 after(() => cleanupUnitDb());
+// The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+process.env.KP_VOICE_INTERVIEW = "1";
 
 let seq = 0;
 function entryFixture() {

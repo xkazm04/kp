@@ -69,7 +69,7 @@ test("an entry command-rejected at 'Interview' comes back active on 'Interview',
   waveReject(e.id, "Interview");
 
   const out = reverseCommandWave({ ids: [e.id], threshold: 40, workspaceId: "workspace", actor: ACTOR });
-  assert.deepEqual(out, { restored: 1, notified: 0, skipped: 0 });
+  assert.deepEqual(out, { restored: 1, notified: 0, skipped: 0, unsealed: 0 });
 
   const back = getPipelineEntry(e.id)!;
   assert.equal(back.status, "active");
@@ -121,14 +121,14 @@ test("a mixed wave restores only its untouched members, reports who was told, an
 
   const ids = [a.id, b.id, c.id, x.id];
   const first = reverseCommandWave({ ids, threshold: 40, workspaceId: "workspace", actor: ACTOR });
-  assert.deepEqual(first, { restored: 2, notified: 1, skipped: 2 });
+  assert.deepEqual(first, { restored: 2, notified: 1, skipped: 2, unsealed: 0 });
   assert.equal(getPipelineEntry(a.id)!.status, "active");
   assert.equal(getPipelineEntry(b.id)!.stage, "Interview");
   assert.deepEqual(rawRow(c.id), cBefore, "a row a human moved since is left alone");
   assert.deepEqual(rawRow(x.id), xBefore, "another team's row is never touched");
 
   const second = reverseCommandWave({ ids, threshold: 40, workspaceId: "workspace", actor: ACTOR });
-  assert.deepEqual(second, { restored: 0, notified: 0, skipped: 4 });
+  assert.deepEqual(second, { restored: 0, notified: 0, skipped: 4, unsealed: 0 });
   for (const id of [a.id, b.id]) {
     assert.equal(
       listDecisionRecords({ candidateRef: id }).filter((r) => r.kind === "reinstated").length,
@@ -159,6 +159,7 @@ test("a wave-restored candidate is spared by the next screen-wave with the 'rein
     restored: 1,
     notified: 0,
     skipped: 0,
+    unsealed: 0,
   });
   const wave = await runScreenWave(jobId, { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 }, { dryRun: true });
   const row = wave.decisions.find((d) => d.entryId === e.id)!;
@@ -181,7 +182,7 @@ test("POST /api/pipeline/command/reverse restores a wave from the typed command 
   waveReject(e.id, "Interview", 55);
   const res = await postReverse({ ids: [e.id], text: "reject everyone below 55%" });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { restored: 1, notified: 0, skipped: 0 });
+  assert.deepEqual(await res.json(), { restored: 1, notified: 0, skipped: 0, unsealed: 0 });
   const ev = listPipelineEventsForEntry(e.id).filter((x) => x.kind === "reinstated");
   assert.equal(ev.length, 1);
   assert.equal(ev[0].actor, "human:recruiter", "open mode: the role token, never NULL");

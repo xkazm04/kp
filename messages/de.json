@@ -16,6 +16,7 @@
     "gateHuman": "Mensch gibt frei",
     "tipGateHuman": "Eine Person gibt dieses Urteil in Entscheidungen frei. Klicken, um es unbeaufsichtigt anzuwenden.",
     "tipGateAuto": "Dieses Urteil wird unbeaufsichtigt angewendet. Klicken, damit eine Person es freigibt.",
+    "tipGateFixed": "Diesen Schritt entscheidet eine Person; keine Einstellung übergibt ihn an die Maschine.",
     "tipKindAi": "Hier führt eine KI das Interview. Klicken, um daraus eine menschliche Runde zu machen.",
     "tipKindHuman": "Eine Person führt diese Runde. Klicken, um daraus ein KI-Interview zu machen.",
     "tipModeScreening": "Das Screening macht immer die KI. Sie wählen, wer es abzeichnet.",
@@ -207,7 +208,7 @@
       },
       "dist": {
         "title": "Verteilung an Kandidaten",
-        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) rückt passende Kandidaten automatisch nach Screened vor (erste Bewertungswelle). Das Posten auf externen Jobbörsen bleibt manuell."
+        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) schlägt passende Kandidaten für Screened vor (erste Bewertungswelle) und reiht jeden Vorschlag zur Freigabe durch einen Menschen ein. Das Posten auf externen Jobbörsen bleibt manuell."
       },
       "apply": {
         "title": "Bewerbung / Lebenslauf-Upload",
@@ -255,7 +256,7 @@
       },
       "cron": {
         "title": "Scheduler / Cron",
-        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, zeitbasierte Vorrückungen). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, eingereihte Vorrückungsvorschläge). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -552,6 +553,7 @@
     "theRole": "die Stelle",
     "aRole": "eine Stelle",
     "yourNewRole": "Ihre neue Stelle",
+    "aiDraftedFooter": "Diese Nachricht wurde von einer KI entworfen.",
     "dataFooter": "· · ·\nIhre Daten: Sehen Sie jederzeit ein, welche Daten wir über Sie speichern, oder fordern Sie deren Löschung an:\n{link}",
     "stopFooter": "Diese Nachrichten stoppen: Weitere Nachrichten zu Stellenangeboten können Sie jederzeit mit einem Klick abbestellen:\n{link}",
     "ack": {
@@ -576,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Ihre Bewerbung: {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nDamit endet die Bewerbung automatisch; kein Mensch hat darüber entschieden. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann überprüft ein Mensch die Entscheidung.\n\nWir speichern diese E-Mail-Adresse nur, um festzuhalten, dass dieser Brief versendet wurde, und löschen sie nach {days} Tagen automatisch.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
+      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nEin Mensch hat Ihre Bewerbung geprüft und bestätigt, dass sie diese Voraussetzung nicht erfüllt, deshalb können wir sie nicht weiterführen. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie erneut.\n\nIhre Bewerbung, einschließlich dieser E-Mail-Adresse, bleibt wie jede andere Bewerbung bei uns gespeichert, und Sie können jederzeit über den Link unten verlangen, dass wir sie löschen.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
       "mustHaveFallback": "eine der Voraussetzungen der Stelle"
     },
     "offer": {
@@ -901,7 +903,7 @@
       "subtitle": "Gebaut für reguliertes Recruiting nach EU AI Act und DSGVO: Die Maschine liest, aber eine qualifizierte Person trifft jede Entscheidung, die einen Kandidaten betrifft.",
       "human": {
         "title": "Human in the Loop",
-        "body": "Bis auf ein automatisches Ausschlusskriterium trifft eine Ablehnung ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet sofort; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
+        "body": "Eine Ablehnung trifft ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, lehnt niemanden ab: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben."
       },
       "oversight": {
         "title": "AI Act, Artikel für Artikel"
@@ -932,7 +934,7 @@
           },
           "auto": "auto",
           "you": "Sie",
-          "lockedNote": "Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: dieser Schalter bleibt gesperrt"
+          "lockedNote": "Screening, Angebote und Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: diese Schalter bleiben gesperrt"
         }
       }
     },
@@ -1103,7 +1105,7 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen."
+        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer werden einem Menschen zum Vorrücken vorgelegt, alles andere wartet auf einen Menschen."
       },
       "assignment": {
         "eyebrow": "Schritt 05 · Arbeitsprobe",
@@ -1234,7 +1236,7 @@
     "loadFailed": "Die Regeln dieses Arbeitsbereichs konnten nicht bestätigt werden. Die Standardinformationen werden angezeigt.",
     "retry": "Erneut versuchen",
     "title": "So funktioniert es",
-    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; Sie erfahren, um welche es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede andere Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
+    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet dadurch nicht von selbst: sie wird für einen Menschen zurückgehalten, und erst dessen Bestätigung lehnt sie ab. Danach erfahren Sie, um welche Voraussetzung es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
     "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Ihre Daten“ am Ende jeder unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
@@ -1388,6 +1390,7 @@
     "PIPELINE_STAGE_CHANGED": "Der Schritt dieser Person hat sich seit dem Öffnen der Ansicht geändert. Aktualisieren Sie und entscheiden Sie erneut.",
     "PIPELINE_DECISION_NOT_SEALED": "Diese Entscheidung konnte nicht aufgezeichnet werden und wurde deshalb nicht ausgeführt. Nichts wurde geändert und nichts versendet. Versuchen Sie es in Kürze erneut.",
     "PIPELINE_ENTRY_HIRED": "Diese Person ist bereits eingestellt und kann daher nicht abgelehnt werden. Es wurde nichts geändert.",
+    "PIPELINE_NO_QUEUED_ADVANCE": "Für diesen Eintrag gibt es keinen wartenden Vorschlag zum Weiterleiten, den man belassen könnte, daher wurde nichts geändert. Möglicherweise wurde bereits entschieden.",
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
     "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",
@@ -1470,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Dieses Interview wurde bereits abgeschlossen.",
     "INTERVIEW_NOT_RESCORABLE": "Dieses Interview kann nicht erneut bewertet werden.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Die Bewertung konnte kein Urteil im Transkript begründen, daher wurde nichts gespeichert. Versuchen Sie die Neubewertung später erneut.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Bewerten Sie mindestens eine Kompetenz, bevor Sie einen Bewertungsbogen einreichen.",
     "INTERVIEW_CONSENT_REQUIRED": "Vor dem Start des Interviews ist die Einwilligung zur Aufzeichnung erforderlich.",
     "INTERVIEW_PROVIDER_INVALID": "Diesen Sprachanbieter kennt der Server nicht.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Der Sprachanbieter ist auf diesem Server nicht konfiguriert, deshalb kann der Anruf nicht starten.",
@@ -2352,9 +2356,12 @@
       "lang": "Die Arbeitssprache der Stelle"
     },
     "declinedMustHave": "Nicht erfüllte Voraussetzung:",
-    "declinedAutoNote": "Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch. Diese Entscheidung hat kein Mensch getroffen, und Sie können verlangen, dass ein Mensch sie überprüft.",
+    "declinedAutoNote": "Sie können verlangen, dass ein Mensch diese Entscheidung überprüft.",
     "declinedReviewEmail": "Wir senden Ihnen diese Entscheidung per E-Mail an die angegebene Adresse. Antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie. Kommt nichts an, wenden Sie sich direkt an das Team, das die Stelle besetzt.",
-    "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt."
+    "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt.",
+    "heldMessage": "Danke für Ihre Bewerbung. Wegen einer Ihrer Antworten sieht sich zuerst ein Mensch Ihre Bewerbung an, bevor etwas entschieden wird.",
+    "heldMustHave": "Mit Nein beantwortet:",
+    "heldNote": "Es ist noch nichts entschieden. Zuerst prüft ein Mensch Ihre Bewerbung. Bestätigt er, dass sie diese Voraussetzung nicht erfüllt, erfahren Sie, um welche es ging und wie Sie eine Überprüfung verlangen können. Hebt er die Zurückhaltung auf, läuft Ihre Bewerbung wie gewohnt weiter."
   },
   "interview": {
     "completedTitle": "Vielen Dank",
@@ -3362,14 +3369,14 @@
       "previewTitle": "Vorschau: Was dieser Durchlauf tun würde",
       "previewSubtitle": "{evaluated} aktive Kandidat/innen bewertet. Es wurde noch nichts angewendet und niemand per E-Mail benachrichtigt.",
       "previewRejectsQueued": "{count, plural, one {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab} other {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab}}",
-      "previewAdvances": "{count, plural, one {Würde # weiterleiten} other {Würde # weiterleiten}}",
+      "previewAdvances": "{count, plural, one {Würde # Weiterleitung zur Freigabe einreihen} other {Würde # Weiterleitungen zur Freigabe einreihen}}",
       "previewHeld": "{count, plural, one {Zur Prüfung zurückgehalten (#). Gründe ansehen} other {Zur Prüfung zurückgehalten (#). Gründe ansehen}}",
       "previewFairnessBlocked": "{count, plural, one {# geplante Ablehnung durch die Fairness-Sicherung zurückgehalten} other {# geplante Ablehnungen durch die Fairness-Sicherung zurückgehalten}}",
       "previewApply": "{count, plural, one {# Änderung anwenden} other {# Änderungen anwenden}}",
       "previewCancel": "Abbrechen",
       "previewNothing": "Nichts anzuwenden. Jede/r Kandidat/in ist zurückgehalten oder unverändert.",
       "previewNote": "Beim Übernehmen wird erneut anhand des Live-Boards bewertet. Ein/e zwischenzeitlich verschobene/r Kandidat/in wird übersprungen, nie falsch angewendet.",
-      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches automatisch weiterleiten, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
+      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches einem Menschen zur Weiterleitung vorlegen, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
       "passSummaryLead": "Automatiklauf",
       "passAdvanced": "{n} weitergeleitet",
       "passRejected": "{n} abgelehnt",
@@ -3914,7 +3921,7 @@
       "rejectModeLabel": "Ablehnungen",
       "rejectModeApprove": "überwacht (zur Genehmigung einreihen)",
       "rejectModeAuto": "autonom (anwenden & benachrichtigen)",
-      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet (Weiterleitungen und Zurückhaltungen bleiben automatisch). Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
+      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet, und eine Weiterleitung ebenso wenig: auch sie wird zur Freigabe eingereiht, automatisch bleiben nur Zurückhaltungen. Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
       "outcome": {
         "applied": "angewendet",
         "failed": "fehlgeschlagen",
@@ -4085,7 +4092,8 @@
     "intakeReasons": {
       "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",
       "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}",
-      "atsImported": "Aus {channel} importiert: noch kein Lebenslaufprofil. Erstellen Sie eines aus dem Lebenslauf, um die Person zu bewerten."
+      "atsImported": "Aus {channel} importiert: noch kein Lebenslaufprofil. Erstellen Sie eines aus dem Lebenslauf, um die Person zu bewerten.",
+      "knockoutHeld": "{channel}: bei einer Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein geantwortet. Zurückgehalten, bis ein Mensch die Ablehnung bestätigt oder die Zurückhaltung aufhebt. Es ist nichts entschieden und es wurde kein Brief verschickt."
     },
     "offAxis": {
       "title": "Außerhalb des Boards",
@@ -4194,6 +4202,9 @@
       "tagHumanScorecard": "Interview-Scorecard (Mensch)",
       "tagScreening": "AI-Screening",
       "tagQueuedReject": "Auto-Ablehnung in Warteschlange (die Ablehnung benachrichtigt den Kandidaten)",
+      "tagQueuedAdvance": "Weiterleitung in Warteschlange (ein Mensch rückt die Person vor)",
+      "keepInPlace": "Hier belassen",
+      "keepInPlaceTitle": "Die Person bleibt, wo sie ist, und dieser Vorschlag entfällt. Sie wird dadurch nicht abgelehnt.",
       "acceptSendOffer": "Angebot senden",
       "acceptToOffer": "Zum Angebot",
       "acceptAdvance": "Weiterleiten",
@@ -4287,7 +4298,7 @@
       "standardFallback": "Vier-Fünftel-Analyse",
       "postureCoveredTitle": "Was die Plattform durchsetzt",
       "postureCeilingTitle": "Was sie nicht tut",
-      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung, sobald eine Bewerbung eingegangen ist. Die einzige automatische Entscheidung ist das Ausschlusskriterium: Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung, die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen ({oversight}).",
+      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung, sobald eine Bewerbung eingegangen ist. Ein Nein bei einer ausdrücklich genannten Voraussetzung entscheidet nichts: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt (die Person erfährt dann, um welche Voraussetzung es ging, und kann eine Überprüfung durch einen Menschen verlangen) oder die Zurückhaltung aufhebt ({oversight}).",
       "covered2": "Jede Entscheidung wird in einem manipulationssicheren Audit-Protokoll versiegelt.",
       "covered3": "Kandidaten sehen einen Hinweis zur AI-Nutzung und können jederzeit eine menschliche Prüfung anfordern.",
       "covered4": "Kandidaten am Karriereanfang und nicht klassifizierte Kandidaten sind vor automatischer Ablehnung geschützt (fail-closed).",
@@ -8472,6 +8483,7 @@
         "interview_no_show": "Interview nicht wahrgenommen",
         "interview_proposal_declined": "Vorgeschlagener Termin abgelehnt",
         "screening_threshold_adjusted": "Screening-Schwelle angepasst",
+        "advance_declined": "Weiterleitung belassen",
         "match_verdict": "Match-Urteil",
         "debrief_findings": "Debrief-Befunde",
         "authorship_verified": "Autorschaft bestätigt"
@@ -12290,7 +12302,7 @@
       "ai": {
         "title": "AI-Transparenz",
         "oversight": "Nach der EU-AI-Verordnung ist das Screenen, Bewerten, Einstufen und Interviewen von Kandidaten eine Hochrisiko-Anwendung. Jede Kandidatenseite zeigt deshalb einen AI-Hinweis, bevor eine AI Ihre Daten liest, wie es Artikel 50 verlangt.",
-        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot (ein Workspace kann beides an die Automatik übergeben, jeder unbeaufsichtigte Schritt wird protokolliert). Die einzige Ablehnung, die die Maschine allein ausspricht, ist das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Jede andere nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
+        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot. Die Maschine lehnt niemanden allein ab: ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, hält die Bewerbung für einen Menschen zurück, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jede nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
       },
       "subprocessors": {
         "title": "Unterauftragsverarbeiter",
@@ -12721,13 +12733,13 @@
       "gate": "ein Mensch",
       "stops": "stoppt",
       "applied": "automatisch ausgeführt",
-      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Die einzige automatische Absage liegt davor: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen.)",
-      "noteAutonomous": "Weiterleitungen, Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
+      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Eine nicht erfüllte Voraussetzung ändert daran nichts: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt.)",
+      "noteAutonomous": "Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
       "noteHired": "Eingestellt liegt gar nicht auf diesem Weg. Ein manueller Wechsel zu Eingestellt liefert 422, denn diese Phase setzt die Annahme eines Angebots durch die Person und sonst nichts.",
       "status": {
         "s0": "der unbeaufsichtigte Durchlauf schlägt vier Aktionen vor",
         "s2": "approvalKind: ein Feld entscheidet, was anhält",
-        "s3": "Weiterleitung: ausgeführt und in die Chronik geschrieben",
+        "s3": "Weiterleitung: berechnet, dann eingereiht statt ausgeführt",
         "s4": "Zurückstellung: ausgeführt",
         "s5": "Ablehnung: berechnet, dann eingereiht statt ausgeführt",
         "s6": "Angebot: entworfen, dann eingereiht",
@@ -16337,8 +16349,7 @@
         "signed": "Unterschrieben · {signer} (Beispiel). Die Kandidatin kommt weiter, und die Entscheidung behält ihren Nachweis."
       },
       "legendLocked": "gesperrt, nie delegiert",
-      "legendDelegable": "ein Arbeitsbereich kann es delegieren",
-      "logNone": "Nichts läuft unbeaufsichtigt: Jede Phase wartet auf einen Menschen.",
+      "logNone": "Screening und Angebote warten auf einen Menschen; keine Einstellung ändert das.",
       "logOne": "Jetzt unbeaufsichtigt: {stage}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat.",
       "logTwo": "Jetzt unbeaufsichtigt: {first} und {second}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
     },
@@ -16643,7 +16654,7 @@
       "flow4Text": "Was über sie entschieden wurde und warum.",
       "rejection": "Absage",
       "neverUnlocks": "bleibt gesperrt",
-      "neverText": "Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung automatisch und nennt den Grund. Jede andere Absage kommt von einem Menschen.",
+      "neverText": "Ein Nein bei einer ausdrücklich genannten Voraussetzung hält die Bewerbung für einen Menschen zurück. Abgelehnt wird erst, wenn ein Mensch es bestätigt, und die Person erfährt dann den Grund. Jede Absage kommt von einem Menschen.",
       "detailNote": "Ein Schalter pausiert jeden Schritt, der unbeaufsichtigt läuft."
     }
   },
@@ -19082,7 +19093,7 @@
         "emails": {
           "rejection": "Emails the candidate a rejection letter.",
           "rejectionMany": "Emails each of them a rejection letter.",
-          "nextStep": "May email the candidate the next step's invitation (an AI interview or a work sample), depending on the step."
+          "nextStep": "Kann der Kandidatin bzw. dem Kandidaten die Einladung zum nächsten Schritt per E-Mail senden (zum Beispiel eine Arbeitsprobe), je nach Schritt."
         },
         "entryAdvance": {
           "title": "Advance {label}",

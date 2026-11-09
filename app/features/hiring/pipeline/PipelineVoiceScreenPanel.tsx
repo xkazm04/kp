@@ -4,6 +4,8 @@
 // delivery-truth note, and the revoke-links affordance. Split out of
 // PipelineCandidateDrawer.tsx.
 
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import { Ban, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TokenLinkPanel, useTokenLink } from "./PipelineTokenLink";
@@ -58,6 +60,9 @@ export function PipelineVoiceScreenPanel({
   onCreated?: () => void;
 }) {
   const t = useTranslations("pipeline.drawer");
+  // This panel only ever MINTS a session: with the voice interview off it draws nothing.
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
+  if (!voiceOn) return null;
   return (
     <div className="rounded-md border border-stone-200 bg-white p-3">
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">

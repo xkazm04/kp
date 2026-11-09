@@ -561,8 +561,9 @@ export type OutboxEntry = {
 // comms-tenancy-pair — the ENTRY-DERIVED tenant always wins (unchanged), but an
 // ENTRY-LESS comm no longer falls straight to the default workspace: a dispatch may
 // now carry an explicit `workspaceId` and that is used instead. The motivating case is
-// dispatchKnockoutDecline, which is entry-less BY DESIGN (a channel lead is declined
-// before any pipeline entry exists) yet its caller holds the webhook's owning team — so
+// the pre-Q1 dispatchKnockoutDecline, which was entry-less BY DESIGN (a channel lead was declined
+// before any pipeline entry existed; the KO letter is now sent for a held entry and takes its
+// tenant from it) yet its caller held the webhook's owning team — so
 // a non-default team's KO-decline used to surface in the DEFAULT team's Comms Center and
 // nowhere in its own. The explicit tenant is the LAST resort before the default, never a
 // way to re-file a ref'd comm away from its entry's team.

@@ -4,7 +4,9 @@ import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecards } from "@/app/_lib/interview-prep";
-import { humanScorecardViews, type HumanScorecardView } from "@/app/_lib/human-scorecard-set";
+import { humanScorecardViews, projectForViewer, type HumanScorecardView } from "@/app/_lib/human-scorecard-set";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { resolveScorecardViewer } from "@/app/api/interview-prep/viewer";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
@@ -74,8 +76,20 @@ export const GET = withWorkspace(async (workspace: string, request: NextRequest)
     // weighed (r09 follow-up). Views, not records: the author's label + the round + a
     // legacy mark ride the wire; the signed-in user id that keys a record does not.
     // Empty for the common case of no human round.
-    const humanCards = (entryId: string | null): HumanScorecardView[] =>
-      entryId ? humanScorecardViews(getHumanScorecards(entryId, workspace)) : [];
+    //
+    // Independent scoring: each candidate's panel is projected for THIS caller and the round
+    // THAT entry is in (human-scorecard-set.ts projectForViewer), so a cohort grid applies the
+    // rule per entry — a colleague's card stays out until the caller has filed for that
+    // candidate, unless they can manage the team. No resolvable caller sees none.
+    const viewer = await resolveScorecardViewer();
+    const jobEntries = listEntriesForJob(jobId, workspace);
+    const stageOf = new Map(jobEntries.map((e) => [e.id, e.stage]));
+    const rawCards = (entryId: string | null) => (entryId ? getHumanScorecards(entryId, workspace) : []);
+    const humanCards = (entryId: string | null): HumanScorecardView[] => {
+      if (!entryId) return [];
+      const stage = stageOf.get(entryId) ?? getPipelineEntry(entryId, workspace)?.stage ?? null;
+      return projectForViewer(rawCards(entryId), viewer, stage).records;
+    };
     // The session id and stored agenda are the coverage read's INPUTS and stop here:
     // the agenda carries question text and block titles, and the grid has no use for
     // a session id.
@@ -95,10 +109,13 @@ export const GET = withWorkspace(async (workspace: string, request: NextRequest)
     // scoringModel derives from the entry archetype, the same split
     // rubricForArchetype scored them on.
     const voiceEntryIds = new Set(voice.map((c) => c.entryId).filter(Boolean));
-    const humanOnly = listEntriesForJob(jobId, workspace)
+    // Membership in the cohort asks whether a card EXISTS (the full set, as before); what the
+    // row carries is the projection. Otherwise a reviewer who has not filed would see the
+    // candidate vanish from the grid, the "wasn't interviewed" misreading PREP1 closed.
+    const humanOnly = jobEntries
       .filter((e) => !voiceEntryIds.has(e.id))
+      .filter((e) => humanScorecardViews(rawCards(e.id)).length > 0)
       .map((e) => ({ entry: e, cards: humanCards(e.id) }))
-      .filter((pair) => pair.cards.length > 0)
       .map(({ entry, cards }) => ({
         entryId: entry.id,
         candidateLabel: entry.candidateLabel,

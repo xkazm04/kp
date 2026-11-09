@@ -214,6 +214,28 @@ export function prunePlanToAxis(plan: InterviewPlanRule, axis: readonly StageDef
   return steps.length === plan.steps.length && steps.every((s, i) => s === plan.steps[i]) ? plan : { steps };
 }
 
+/** Roles whose gate is DISPLAY ONLY: a person always decides there. Operator ruling
+ *  2026-11-09 (Q3) removed `auto` for screening and offer; a round gate (the
+ *  `rounds[].gate` of an interview column) is a different question and is untouched. */
+export const HUMAN_ONLY_GATE_ROLES: readonly StageRole[] = ["screening", "offer"];
+
+/** Read a stored plan the way the product now treats it: a screening or offer step
+ *  that says `auto` reads as `human`. The VALIDATOR still accepts `auto` (a stored
+ *  row must keep loading and nothing is rewritten on disk); this is the read-time
+ *  projection every consumer goes through. Returns the same object when nothing
+ *  needed changing. */
+export function humanizeGatesOnAxis(plan: InterviewPlanRule, axis: readonly StageDef[]): InterviewPlanRule {
+  let changed = false;
+  const steps = plan.steps.map((step) => {
+    if (step.gate !== "auto") return step;
+    const role = roleOf(step.stageId, axis);
+    if (role == null || !HUMAN_ONLY_GATE_ROLES.includes(role)) return step;
+    changed = true;
+    return { ...step, gate: "human" as InterviewPlanGate };
+  });
+  return changed ? { steps } : plan;
+}
+
 /** The pre-stage-keyed wire shape, kept ONLY so stored blobs written before the
  *  migration can still be read. Never written. */
 export type LegacyInterviewPlanRule = {

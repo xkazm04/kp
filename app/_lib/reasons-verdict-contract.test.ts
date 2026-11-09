@@ -134,6 +134,7 @@ const PRODUCER_CLASSIFICATION: Record<string, Classification> = {
   "sealed:screen_wave_holdout": { exempt: "a would-be rejection the wave SPARED to form the calibration clean arm — no adverse outcome reaches the candidate" },
   "sealed:auto_advanced": { exempt: "a positive routing decision; the goal's measure is scorecard / ranking / rejection" },
   "sealed:advanced": { exempt: "a positive routing decision; the goal's measure is scorecard / ranking / rejection" },
+  "sealed:advance_declined": { exempt: "a person keeping a queued policy advance in place; it is neither a verdict about the candidate nor a rejection" },
   "sealed:reinstated": { exempt: "the reversal of a rejection — it overturns a verdict rather than producing one" },
   "sealed:offer_terms": { exempt: "the terms of an offer a human sets; not an AI verdict about the candidate" },
   "sealed:group_eval_lead": { exempt: "a group-level advisory over several candidates, recorded as an advisory" },

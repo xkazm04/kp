@@ -153,7 +153,9 @@ export function SchedulerToolbar({
           always a person's" (aiDisclosure.body). It's a stated fact, not an
           operator-selectable mode. The disclosure's older and wider claim, that
           nothing adverse is decided automatically, was retired with G16: advance and
-          offer gates are delegable, only this one is not. */}
+          offer gates are delegable, only this one is not. Q2 (owner ruling 2026-11-09)
+          adds that the pass's score-threshold ADVANCE is queued the same way, which the
+          title now says; the claim above stays about rejections only. */}
       <span className="flex items-center gap-1" title={t("rejectModeTitle")}>
         {t("rejectModeLabel")}
         <span className="font-medium text-ink">{t("rejectModeApprove")}</span>

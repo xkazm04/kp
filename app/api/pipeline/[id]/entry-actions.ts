@@ -42,6 +42,8 @@ export const ENTRY_ACTIONS = {
   set_stage: WRITE,
   accept: { capability: "pipeline:write", engineClaim: true, reverses: null },
   reject: WRITE,
+  // A person keeps a queued policy advance where it is (Q2): same seat as accept/reject.
+  decline_advance: WRITE,
   approve_event: WRITE,
   draft_offer: WRITE,
 } as const satisfies Record<string, EntryActionSpec>;

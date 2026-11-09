@@ -157,9 +157,11 @@ export function GateTrack({
   );
 }
 
-type Mode = "auto" | "you";
 type RowKey = "screen" | "offer" | "reject";
 
+/** Screening, offer and rejection are ALL locked: no workspace setting hands any of
+ *  them to the machine (operator ruling 2026-11-09). Pressing AUTO on any row shakes
+ *  it and flashes the note, as the rejection row always did. */
 export function Unattended({
   title,
   names,
@@ -167,8 +169,7 @@ export function Unattended({
   you,
   lockedNote,
   legendLocked,
-  legendDelegable,
-  log
+  statusNote
 }: {
   title: string;
   names: Record<RowKey, string>;
@@ -176,12 +177,10 @@ export function Unattended({
   you: string;
   lockedNote: string;
   legendLocked: string;
-  legendDelegable: string;
-  /** The status line, already translated for each case. */
-  log: { none: string; screen: string; offer: string; both: string };
+  /** The status line: what waits for a person. */
+  statusNote: string;
 }) {
-  const [modes, setModes] = useState<Record<"screen" | "offer", Mode>>({ screen: "auto", offer: "you" });
-  const lockRow = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<Record<RowKey, HTMLDivElement | null>>({ screen: null, offer: null, reject: null });
   const lockMsg = useRef<HTMLParagraphElement | null>(null);
 
   /** Restart a one-shot CSS animation class (the prototype's remove, reflow, add). */
@@ -192,74 +191,56 @@ export function Unattended({
     el.classList.add(cls);
   };
 
-  const status =
-    modes.screen === "auto" && modes.offer === "auto"
-      ? log.both
-      : modes.screen === "auto"
-        ? log.screen
-        : modes.offer === "auto"
-          ? log.offer
-          : log.none;
-
-  const renderToggle = (row: RowKey, locked = false) => {
-    const current: Mode = row === "reject" ? "you" : modes[row];
-    return (
-      <div className="tg" role="group" aria-label={names[row]}>
-        {(["auto", "you"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            data-v={v}
-            className={current === v ? "on" : undefined}
-            aria-pressed={current === v}
-            aria-describedby={locked && v === "auto" ? "lockMsg" : undefined}
-            style={UPPER}
-            onClick={() => {
-              if (row === "reject") {
-                if (v === "auto") {
-                  replay(lockRow.current, "shake");
-                  replay(lockMsg.current, "flash");
-                }
-                return;
-              }
-              setModes((m) => ({ ...m, [row]: v }));
-            }}
-          >
-            {locked && v === "auto" ? <span className="padlock" aria-hidden="true" /> : null}
-            {v === "auto" ? auto : you}
-          </button>
-        ))}
-      </div>
-    );
-  };
+  const renderToggle = (row: RowKey) => (
+    <div className="tg" role="group" aria-label={names[row]}>
+      {(["auto", "you"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          data-v={v}
+          className={v === "you" ? "on" : undefined}
+          aria-pressed={v === "you"}
+          aria-describedby={v === "auto" ? "lockMsg" : undefined}
+          style={UPPER}
+          onClick={() => {
+            if (v === "auto") {
+              replay(rowRefs.current[row], "shake");
+              replay(lockMsg.current, "flash");
+            }
+          }}
+        >
+          {v === "auto" ? <span className="padlock" aria-hidden="true" /> : null}
+          {v === "auto" ? auto : you}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="un-card">
       <h3 className="eyebrow-s">{title}</h3>
-      <div className="un-row" data-k="screen">
-        <span className="un-n">{names.screen}</span>
-        {renderToggle("screen")}
-      </div>
-      <div className="un-row" data-k="offer">
-        <span className="un-n">{names.offer}</span>
-        {renderToggle("offer")}
-      </div>
-      <div className="un-row lock" data-k="reject" ref={lockRow}>
-        <span className="un-n">{names.reject}</span>
-        {renderToggle("reject", true)}
-      </div>
+      {(["screen", "offer", "reject"] as const).map((row) => (
+        <div
+          className="un-row lock"
+          data-k={row}
+          key={row}
+          ref={(el) => {
+            rowRefs.current[row] = el;
+          }}
+        >
+          <span className="un-n">{names[row]}</span>
+          {renderToggle(row)}
+        </div>
+      ))}
       <p className="un-msg" id="lockMsg" ref={lockMsg} role="status" aria-live="polite">
         {lockedNote}
       </p>
       <p className="un-log" role="status" aria-live="polite">
-        {status}
+        {statusNote}
       </p>
       <p className="un-legend">
         <span className="lg-l" />
         {legendLocked}
-        {SEP}
-        <span className="lg-a" />
-        {legendDelegable}
       </p>
     </div>
   );
