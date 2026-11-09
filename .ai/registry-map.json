@@ -22477,7 +22477,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/jobseeker/importOutcome.ts:5 This context is the job-seeker's CV import, studio and failure-classification UI; the same recursive search of app/features/jobseeker/ for CLAUDE.md, AGENTS.md, 'instruction file', copilot-instructions and cursorrules found nothing, so the context holds no instruction file and none of the subject's techniques applies.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "prompt-assembly",
@@ -22783,7 +22787,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/jobseeker/SourcesPage.tsx:19 This context is the job-seeker's source catalog and scan-run UI; a recursive case-insensitive search of app/features/jobseeker/ for CLAUDE.md, AGENTS.md, 'instruction file', copilot-instructions and cursorrules found nothing, so there is no agent instruction file here for the subject to apply to.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         }
       ],
       "governance": "governed"
