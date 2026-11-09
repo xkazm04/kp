@@ -29534,6 +29534,87 @@
       "evaluatedTs": "2026-11-09T04:00:09.940Z",
       "worker": "4dceabc7-97f4-477e-bc5e-8c7c3e4fd990",
       "techniques": []
+    },
+    "7e9c708a-57d1-4496-8e24-0172455620bb/eval-harness": {
+      "context": "tests-llm-eval",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:58 The blended score stands in for a criterion verdict, unmarked. Separately, judge.py:192 filters judgeable rows without r.valid, so contract-invalid outputs still reach the judge instead of being failed by the assertion gate."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:40 The default judge is a moving alias, not a dated identifier, and test_automation_eval.py:94-99 calls it pinned. bench_cli.py:110 defaults the bench judge to the CLI's configured model. grep found no anchor-set or repeatability re-scoring. The committed bake (app/_lib/llm-quality-scores.ts:10) has fable-5 judging claude-sonnet-5 and claude-opus-5, an own-family judge."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:94 Cost per model is taken over each arm's own served rows, valid or not. There is no both-succeeded subset, no subset count, and no unconditioned primary beside it in the baked cell, and that cell prices models on the Quality board."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_fault_eval.py:93 The per-mode roll-up keeps a deduped list of reasons, with no case count per family and no denominator of runs that could have tripped it."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:184 Spend controls are realized: mock providers, a pre-run estimate, a ceiling refusal and a running stop (test_llm_bench.py:306-473). The failing sub-rule is per-cell durability: records stay in memory and are written once after the whole paid matrix, so a killed run loses its spend."
+        },
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:397 Each scenario×target cell runs once, with no declared trial count, so no any-of-N or all-of-N pair can be computed for the non-deterministic bench."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_thresholds.py:106 Thresholds are declared once with a reason and direction, and consumers read that table. Only the gate side is realized: the bench scorecard names no single optimized metric and prints a table, not a verdict."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_eval.py:206 Gated evals record unit identity, so an exam that changed underneath fails even at the same rate. The paid bench is weaker: its ids embed a position (scenarios.py:251) and carry no content version."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:74 An unmeasured matrix cell stays empty rather than reading as a low score, and the cell aggregation rule is stated in bake_quality.py's docstring."
+        },
+        {
+          "technique": "probe-the-decision-not-the-artifact",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_eval.py:36 Asserts the small enumerable recommendation and route decisions instead of judging the prose."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/eval-harness": {
+      "context": "analytics-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": []
+    },
+    "e8793bc2-2220-4c18-9f74-07e55dd3e439/eval-harness": {
+      "context": "candidate-matching-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": []
     }
   }
 }
