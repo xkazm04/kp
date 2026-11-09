@@ -29472,6 +29472,26 @@
       "evaluatedTs": "2026-11-09T03:31:46.922Z",
       "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
       "techniques": []
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/eval-harness": {
+      "context": "cv-analysis-archetypes",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:45:19.817Z",
+      "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
+      "techniques": []
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/eval-harness": {
+      "context": "score-metric-display",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:45:19.817Z",
+      "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
+      "techniques": []
     }
   }
 }

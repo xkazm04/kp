@@ -10151,7 +10151,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/calibration-holdout-arm.test.ts:3 The holdout here is a production calibration arm that spares would-be rejects to compare live match scores with hiring outcomes, not a suite of scenarios run against a model, and a case-insensitive search of app/_lib for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "selection-score-calibration",
@@ -30100,7 +30104,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/ScoreBadge.tsx:4 These components display scores handed to them as props about job candidates, and a case-insensitive search of app/_components for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing, so no scenarios, trials or judges exist here to hold to the standard.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "scoring-rubrics",
