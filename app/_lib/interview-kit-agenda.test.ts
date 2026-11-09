@@ -49,6 +49,8 @@ import { EMPTY_KIT_OVERLAY, type InterviewKit as JobKit, type KitOverlay } from 
 import type { InterviewAgenda } from "./voice/director-types.ts";
 
 after(() => cleanupUnitDb());
+// The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+process.env.KP_VOICE_INTERVIEW = "1";
 
 let seq = 0;
 const next = () => (seq += 1);
