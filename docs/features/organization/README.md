@@ -898,7 +898,7 @@ explicit language is `workspaces.locale_override` (NULL = follow the org), and
 per org** above). `workspaces.review_contact_email` (nullable, additive, owner ruling Q7)
 is the address candidate copy names for a human review; it is set from the Workspaces
 console (PATCH `/api/workspaces/[id]`, `team:manage`, empty clears, a non-email is refused
-with `REVIEW_CONTACT_EMAIL_INVALID`; the shape is the apply door's `APPLY_EMAIL_RE`, shared, so the letter s and whitespace are judged correctly) and read server-side by `disclosureComplianceFor`.
+with `REVIEW_CONTACT_EMAIL_INVALID`; the shape is the apply door's `APPLY_EMAIL_RE` (defined in `app/_lib/apply-email-re.ts`, an import-free leaf), shared, so the letter s and whitespace are judged correctly) and read server-side by `disclosureComplianceFor`.
 With none set the copy says to contact the hiring team and promises no reply door.
 
 Cross-company reference reads (curated shared library + aggregated benchmarks,

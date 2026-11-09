@@ -102,7 +102,8 @@ export function normalizeContact(contact: string | null | undefined): string {
  * the four copies can't drift. (lead-payload.ts keeps its own EMAIL_RE — different
  * module/contract.)
  */
-export const APPLY_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export { APPLY_EMAIL_RE } from "./apply-email-re";
+import { APPLY_EMAIL_RE } from "./apply-email-re";
 
 /**
  * The conversational-apply submit-failure recovery contract: given the HTTP

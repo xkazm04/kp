@@ -46,7 +46,7 @@ import type { PipelineEntry } from "../db/core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { stageWithRole } from "../pipeline-stages";
 import { fileApplication } from "../application-filing";
-import { APPLY_EMAIL_RE } from "../apply-intake";
+import { APPLY_EMAIL_RE } from "../apply-email-re";
 import { codedReasonDetail } from "../coded-reason";
 import { sanitizeFreeText } from "../text-sanitize";
 import { Refusal } from "../refusal";

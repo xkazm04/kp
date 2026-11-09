@@ -1,7 +1,7 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
 import { DEFAULT_ORG_ID } from "./organizations";
-import { APPLY_EMAIL_RE } from "../apply-intake";
+import { APPLY_EMAIL_RE } from "../apply-email-re";
 import { isLocale, type Locale } from "@/i18n/locales";
 
 // Tenant root (P2). The single default workspace exists today (seeded in ensureDb);
