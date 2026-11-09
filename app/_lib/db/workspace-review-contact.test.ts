@@ -114,3 +114,20 @@ test("candidate surfaces resolve the address from the token/job/session they hol
     assert.doesNotMatch(src, /searchParams[^;]*workspace/i, `${rel.join("/")}: no workspace id from the query`);
   }
 });
+
+test("an address containing the letter s is accepted and stored", () => {
+  const ws = createWorkspace("Q7 letter s");
+  for (const good of ["careers@acme.com", "hr@sales.io"]) {
+    assert.ok(setWorkspaceReviewContact(ws.id, good).ok, good);
+    assert.equal(getWorkspaceReviewContact(ws.id), good);
+  }
+});
+
+test("whitespace anywhere in the address, and a domain with no real dot, are refused", () => {
+  const ws = createWorkspace("Q7 shape");
+  assert.ok(setWorkspaceReviewContact(ws.id, "keep@example.com").ok);
+  for (const bad of ["a\tb@example.com", "a b@example.com", "ab@exa\tmple.com", "ab@exa mple.com", "person@examplecom"]) {
+    assert.deepEqual(setWorkspaceReviewContact(ws.id, bad), { ok: false, reason: "invalid" }, JSON.stringify(bad));
+  }
+  assert.equal(getWorkspaceReviewContact(ws.id), "keep@example.com");
+});

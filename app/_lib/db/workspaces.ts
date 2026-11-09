@@ -1,6 +1,7 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
 import { DEFAULT_ORG_ID } from "./organizations";
+import { APPLY_EMAIL_RE } from "../apply-intake";
 import { isLocale, type Locale } from "@/i18n/locales";
 
 // Tenant root (P2). The single default workspace exists today (seeded in ensureDb);
@@ -185,7 +186,7 @@ export function renameWorkspace(id: string, name: string): Workspace | null {
 
 /** Loose on purpose, the same shape the signup and apply doors accept: it rejects obvious
  *  garbage, and a person reads the address before it goes live. */
-export const REVIEW_CONTACT_EMAIL_RE = /^[^s@]+@[^s@]+.[^s@]+$/;
+export const REVIEW_CONTACT_EMAIL_RE = APPLY_EMAIL_RE;
 
 /** The address a candidate is told to write to for a human review, or null when the team
  *  has named none. ONE team's value, read by the workspace id a candidate surface already
