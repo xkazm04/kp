@@ -4062,7 +4062,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 These controls edit and display hiring metrics and plot a stored score against advance rates; app/features/insights/analytics has no hits for harness, scenario, rubric or golden, and its 'judge' hits are prose about whether a calibration arm can be judged (the sampled lines), with 'holdout' and 'benchmark' naming calibration arms and peer data, so no eval harness runs here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -4804,7 +4808,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:168 The matrix counts log rows with ran:true as passed although the declared soak gate counts distinct calendar dates, and it never derives the gate's verdict, so a same-day re-run (a state night.test.mjs:171 pins as reachable) inflates the quota and a night that breached the dispatch mandate still reads as passed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "test-harness",
@@ -16755,7 +16763,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:9 Here 'eval' and 'candidate' mean comparing job applicants and 'arm' is a URL selection param; a case-insensitive search of app/features/shared for harness, scenario, judge, rubric and golden found no hits, so no model or agent is run against declared scenarios in this context.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "comparative-shortlist-evaluation",

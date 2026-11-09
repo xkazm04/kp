@@ -29389,6 +29389,89 @@
         }
       ],
       "registryProposal": "match-the-resolved-artifact specifies a positive control only for absence assertions; a mutated-copy control is the presence-side analogue and should be named along with its limit, since it proves a pattern can fail but cannot tell code from a comment."
+    },
+    "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/eval-harness": {
+      "context": "app-master-bench-scenarios",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": [
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:166 The gate (at least 14 distinct dates, at least 10 ran) lives only in docs/development/app-master-soak.md and is counted by hand; the code emits a table of row counts with no verdict or margin, and the dispatch abort criterion never reaches it."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:160 newRecord never writes scenario, content version or the SOAK_BACKLOG used, so every row splices into one stable name; run.mjs snapshots the scenario per run dir, but the matrix does not read it or refuse a version change."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:171 Case counts per family sit beside the rate, but only on non-ran nights: the anomaly families on ran nights (night.test.mjs:46) are never counted, and no family has a denominator, so hand-set `machine` reading zero looks measured."
+        },
+        {
+          "technique": "failure-attribution",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:410 Misses are split by observed owner, including the harness's own control flow, with unclassified kept as a finding for the weekly hand pass."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:447 Night health is read through deterministic checks on the record; the property needing judgment (recall-wrong) is left to the documented weekly human read."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:262 Cadence is monitored rather than assumed, each night is persisted in one append, and the pure half is tested without a model; the $2 cost-delta abort remains prose and is not computed."
+        },
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:188 The rate is measured with N beside it, and the soak doc states its gate is not uptime, so no dependability decision is drawn from it that would need the any-of-N and all-of-N pair."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:441 Cost is recorded for one tenure with no compared arms, so there is no conditioned denominator to choose."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:427 The soak's verdict is a boolean read from the driver record; this runner calls no model judge."
+        }
+      ],
+      "registryProposal": "The standard assumes a scenario replayed against fixed input, and does not say how scenario identity and version apply to a longevity soak whose input (the repo and backlog) is meant to move between nights."
+    },
+    "3becf910-9c37-4542-a1b9-a176f76c72d1/eval-harness": {
+      "context": "group-eval-shared",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": [
+        {
+          "technique": "resolution-precondition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:111 This gates a ranking of applicants on cohort size; it is not a ranking of models or configurations."
+        }
+      ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/eval-harness": {
+      "context": "analytics-metrics",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": []
     }
   }
 }
