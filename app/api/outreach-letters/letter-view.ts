@@ -4,7 +4,7 @@
 import type { PipelineEntry } from "@/app/_lib/db/core";
 import type { OutreachLetter } from "@/app/_lib/db/outreach-letters";
 import { PREVIEW_TOKEN, type OfferLetterForecast } from "@/app/_lib/comms-letter-preview";
-import { candidateRecipient, renderCandidateFooters } from "@/app/_lib/comms-dispatch";
+import { candidateRecipient, draftedByModel, renderCandidateFooters } from "@/app/_lib/comms-dispatch";
 import { recipientRefusal } from "@/app/_lib/comms-recipient";
 import { commsSendSuppression } from "@/app/_lib/comms";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
@@ -24,7 +24,7 @@ export async function outreachLetterView(letter: OutreachLetter, entry: Pipeline
       ? renderCandidateFooters(t, locale, publicBaseUrl(origin), {
           erasureToken: PREVIEW_TOKEN,
           optOutToken: PREVIEW_TOKEN,
-        }).text
+        }, { aiDrafted: draftedByModel(letter.draftSource) }).text
       : "";
   let forecast: OfferLetterForecast;
   let forecastReason: string | null = null;

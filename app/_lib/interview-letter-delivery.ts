@@ -77,6 +77,9 @@ export async function deliverApprovedLetter(
       text: letter.finalText ?? "",
       locale: resolveCommsLocale(letter.lang, workspaceId),
       statusToken: statusTokenFor(entry.id),
+      // Q10: no draft on the row (erased) means the source is unknown, so it is passed as
+      // undefined and the AI-drafted line stays.
+      source: letter.draft?.source,
     });
     delivery = letterDeliveryFor(status);
   } catch (err) {

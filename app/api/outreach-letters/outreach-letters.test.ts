@@ -77,6 +77,29 @@ test("GET returns the draft, its revision, and the letter with its footers — w
   assert.equal(listOutboxFiltered({ ref: entry.id }).length, 0);
 });
 
+// Q10: the held preview must carry the AI-drafted line exactly when the sent letter will.
+for (const [source, carries] of [["llm", true], [null, true], ["deterministic", false]] as const) {
+  test(`the held preview ${carries ? "carries" : "omits"} the AI-drafted line for source ${String(source)}`, async () => {
+    const { commsTranslator } = await import("../../_lib/comms-translator.ts");
+    const line = (await commsTranslator("en"))("aiDraftedFooter");
+    seq += 1;
+    const { entry } = createPipelineEntry({
+      candidateId: `olr-q10-${seq}`,
+      candidateLabel: `Q10 Candidate ${seq}`,
+      jobId: `olr-q10-job-${seq}`,
+      jobTitle: "Platform Engineer",
+      locale: "en",
+      contact: `q10-${seq}@example.cz`,
+      stage: "Screened",
+      workspaceId: WS,
+    });
+    const { letter } = outreachLetterDraft({ entryId: entry.id, subject: "A role", body: "Dear candidate", lang: "en", source }, WS);
+    const res = await GET(req(`/api/outreach-letters/${letter.id}`), ctx(letter.id));
+    const body = (await res.json()) as { preview: { body: string } };
+    assert.equal(body.preview.body.includes(line), carries);
+  });
+}
+
 test("a letter from another workspace is invisible to every door", async () => {
   const { letter } = draftedLetter("team-olr-beta");
   const seen = await GET(req(`/api/outreach-letters/${letter.id}`), ctx(letter.id));

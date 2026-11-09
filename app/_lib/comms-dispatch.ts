@@ -668,8 +668,9 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  */
 export async function dispatchInterviewLetter(
   entry: PipelineEntry,
-  // `source` is the letter draft's source ("model" | "template"). Its caller does not pass it
-  // today, so the letter is treated as possibly model-written and carries the Q10 line.
+  // `source` is the letter draft's source ("model" | "template"). deliverApprovedLetter passes it
+  // from the record's draft. When it is absent (an erased draft), the letter is treated as
+  // possibly model-written and carries the Q10 line.
   letter: { text: string; locale: Locale; statusToken: string | null; source?: unknown }
 ): Promise<OutboxStatus> {
   const t = await commsTranslator(letter.locale);

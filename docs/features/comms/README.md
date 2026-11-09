@@ -697,9 +697,7 @@ draft's `verdictSource` in the approval detail; a held outreach letter's nullabl
 re-written by a redraft, untouched by a person's edit, so an edited llm draft keeps
 the line). The offer preview applies the same function, so preview and letter agree.
 Rejection letters are templates plus recorded profile gaps and carry no line. The
-interview feedback letter has a model draft; `dispatchInterviewLetter` accepts the
-draft's `source` but its caller does not pass it, so those letters carry the line.
-The held-outreach read (`outreach-letters/letter-view.ts`) does not yet show it.
+interview feedback letter passes its draft's `source` (`deliverApprovedLetter`): a template draft carries no line, a model draft does, and a letter whose draft is gone from the row keeps it. The held-outreach read (`outreach-letters/letter-view.ts`) applies the same function to `draftSource`, so the preview and the sent letter agree.
 
 ## 8a. Approve before first outreach (comms scope C2)
 
