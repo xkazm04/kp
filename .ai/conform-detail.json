@@ -29718,6 +29718,74 @@
           "evidence": "pipeline/jobfit/eval/voice/session_runner.py:171 Cost is reported per run, but no code compares cost between arms, so there is no delta to condition on outcome."
         }
       ]
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/eval-harness": {
+      "context": "agent-hire-app-master",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "metric-role-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/app-master/backbone.ts:31 Echoes the idea, but this is an operational performance score over real windows, with no eval run to contract for."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/pairing.ts:15 Pairing here is a credential handshake, which is the token that matched this subject; it is not a pairwise arena."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/app-master/__fixtures__/generate.py:5 Deterministic port-parity fixtures for a pure function, not scenarios run against a non-deterministic system."
+        }
+      ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/eval-harness": {
+      "context": "schedule-calendar-invites",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:89 Scenario here is interview-prep copy shown to a recruiter, not a versioned eval fixture."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:1 The only cadence control here governs a status poll, not eval spend."
+        }
+      ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/eval-harness": {
+      "context": "results-core",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/compare/compareView.ts:9 Compares variants of a candidate's CV in a report, not models or prompts in an eval."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/QualityStrip.tsx:10 Displays per-analysis engine checks to a recruiter; no harness scores a suite here."
+        }
+      ]
     }
   }
 }

@@ -2696,7 +2696,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/app-master/backbone.ts:363 The scorer reads production rollups an agent reported rather than running agents against declared scenarios; searching app/_lib/agent-hire and app/_lib/app-master for judge, scenario, holdout and golden set found nothing, and the context's weighted arithmetic is the scoring-rubrics subject's.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-runtime-assembly",
@@ -28965,7 +28969,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/results/VerdictBanner.tsx:13 The report panel renders one CV analysis and only borrows the banner look of eval reports that live in the pipeline; searching app/_components/results for judge, scenario, holdout and trials found nothing, and the one benchmark hit is a salary table.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "quality-gates",
@@ -29766,7 +29774,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleAiRound.tsx:6 This is calendar, invite-bucket and polling UI that hands verdicts to another surface; searching app/features/hiring/schedule for holdout, golden set, win rate and trials found nothing, while the one judge hit is a comment about overlay capacity and the scenario hits are an interview-prep field.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",
