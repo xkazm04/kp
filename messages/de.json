@@ -553,6 +553,7 @@
     "theRole": "die Stelle",
     "aRole": "eine Stelle",
     "yourNewRole": "Ihre neue Stelle",
+    "aiDraftedFooter": "Diese Nachricht wurde von einer KI entworfen.",
     "dataFooter": "· · ·\nIhre Daten: Sehen Sie jederzeit ein, welche Daten wir über Sie speichern, oder fordern Sie deren Löschung an:\n{link}",
     "stopFooter": "Diese Nachrichten stoppen: Weitere Nachrichten zu Stellenangeboten können Sie jederzeit mit einem Klick abbestellen:\n{link}",
     "ack": {

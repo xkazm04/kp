@@ -553,6 +553,7 @@
     "theRole": "the role",
     "aRole": "a role",
     "yourNewRole": "your new role",
+    "aiDraftedFooter": "This message was drafted by AI.",
     "dataFooter": "· · ·\nYour data: review what we hold about you, or request its erasure, anytime:\n{link}",
     "stopFooter": "Stop these messages: decline further messages about openings anytime, in one click:\n{link}",
     "ack": {

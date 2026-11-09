@@ -201,15 +201,32 @@ type CandidateCommTarget = {
 async function candidateFooters(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  locale: Locale
+  locale: Locale,
+  aiDrafted: boolean
 ): Promise<{ text: string; unsubscribeUrl: string | null }> {
-  if (entry.anonymizedAt || !entry.id) return { text: "", unsubscribeUrl: null };
+  // The AI-drafted line does NOT depend on the tokens: a letter with no erasure or opt-out
+  // token (anonymized, no id, or a store that refused to mint) still says a model wrote it.
+  const noTokens = { erasureToken: null, optOutToken: null };
+  if (entry.anonymizedAt || !entry.id) return renderCandidateFooters(t, locale, "", noTokens, { aiDrafted });
   const workspaceId = entry.workspaceId ?? undefined;
   const erasureToken = ensureErasureToken(entry.id, workspaceId);
   const optOutToken = ensureOptOutToken(entry.id, workspaceId);
-  if (!erasureToken && !optOutToken) return { text: "", unsubscribeUrl: null };
+  if (!erasureToken && !optOutToken) return renderCandidateFooters(t, locale, "", noTokens, { aiDrafted });
   const base = await candidateLinkBase();
-  return renderCandidateFooters(t, locale, base, { erasureToken, optOutToken });
+  return renderCandidateFooters(t, locale, base, { erasureToken, optOutToken }, { aiDrafted });
+}
+
+/** Did a model write (the start of) this draft? The ONE reading of a stored draft source,
+ *  used by every letter that carries model text and by the offer preview, so the send and
+ *  the preview cannot disagree. Owner ruling Q10 (2026-11-09).
+ *
+ *  Only a source that is POSITIVELY deterministic ("template", or "deterministic") is
+ *  `false`. Anything else, including no stored source at all (a draft written before the
+ *  source was kept) and a source word this build does not know, is `true`: we do not claim
+ *  "not AI" for text we cannot prove no model wrote. A person editing a draft does not
+ *  change its stored source, so a draft that began as a model's keeps the line. */
+export function draftedByModel(source: unknown): boolean {
+  return !(source === "template" || source === "deterministic");
 }
 
 /** The footer TEXT for given tokens, with no minting and no request read: what
@@ -219,7 +236,8 @@ export function renderCandidateFooters(
   t: CommsTranslator,
   locale: Locale,
   base: string,
-  tokens: { erasureToken: string | null; optOutToken: string | null }
+  tokens: { erasureToken: string | null; optOutToken: string | null },
+  opts: { aiDrafted?: boolean } = {}
 ): { text: string; unsubscribeUrl: string | null } {
   const { erasureToken, optOutToken } = tokens;
   // ?lang= pins each page to the language the LETTER is written in, exactly as the status
@@ -229,6 +247,9 @@ export function renderCandidateFooters(
   // browser opened the erasure explainer (a legal affordance) in a language they never
   // chose, while the other link in the same letter opened in Czech.
   const lines: string[] = [];
+  // Owner ruling Q10: a letter a model drafted says so, as its own paragraph ahead of the
+  // two legal links. Plain statement, no link, no token: it is present whenever asked for.
+  if (opts.aiDrafted) lines.push(t("aiDraftedFooter"));
   if (erasureToken) {
     lines.push(t("dataFooter", { link: `${base}/data/${encodeURIComponent(erasureToken)}?lang=${locale}` }));
   }
@@ -352,7 +373,18 @@ export function delivered(outcome: DispatchOutcome): boolean {
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null; messageId?: string },
+  msg: {
+    subject: string;
+    body: string;
+    kind: string;
+    ref?: string;
+    workspaceId?: string | null;
+    messageId?: string;
+    /** A model drafted this letter (Q10): the footer block adds the AI-drafted line. A typed
+     *  field, never inferred from the body. Omitted = false: only the dispatchers that carry
+     *  model text set it, from `draftedByModel(storedSource)`. */
+    aiDrafted?: boolean;
+  },
   // The language the letter is written in — carried so the footer's own link is pinned to
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
@@ -375,7 +407,7 @@ async function sendCandidateComm(
       workspaceId: msg.workspaceId,
     }));
   }
-  const footers = await candidateFooters(entry, t, locale);
+  const footers = await candidateFooters(entry, t, locale, msg.aiDrafted === true);
   const recorded = await sendCommUnlessSim({
     to,
     subject: msg.subject,
@@ -511,7 +543,9 @@ export type OutreachResult =
  *  gate FAILS CLOSED on an unreadable consent state. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
-  draft: { subject?: unknown; body?: unknown },
+  // `source` is the draft's stored source ("llm" | "template"); absent = unknown = a model
+  // may have written it (draftedByModel).
+  draft: { subject?: unknown; body?: unknown; source?: unknown },
   // A RELEASED draft (outreach-release.ts, comms scope C2): the message id minted when the
   // letter was drafted, and the person who approved it, named on the `outreach_sent` event.
   release?: { messageId: string; actor: string }
@@ -539,7 +573,12 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "outreach", messageId: release?.messageId }, locale);
+  const { status } = await sendCandidateComm(
+    entry,
+    t,
+    { subject, body, kind: "outreach", messageId: release?.messageId, aiDrafted: draftedByModel(draft.source) },
+    locale
+  );
   // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
   // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
   // — and that must not consume the one-shot `outreach_sent` marker automation-run
@@ -629,7 +668,9 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  */
 export async function dispatchInterviewLetter(
   entry: PipelineEntry,
-  letter: { text: string; locale: Locale; statusToken: string | null }
+  // `source` is the letter draft's source ("model" | "template"). Its caller does not pass it
+  // today, so the letter is treated as possibly model-written and carries the Q10 line.
+  letter: { text: string; locale: Locale; statusToken: string | null; source?: unknown }
 ): Promise<OutboxStatus> {
   const t = await commsTranslator(letter.locale);
   const role = (entry.jobTitle ?? "").trim();
@@ -639,7 +680,14 @@ export async function dispatchInterviewLetter(
     const link = `${await candidateLinkBase()}/status/${encodeURIComponent(letter.statusToken)}?lang=${letter.locale}`;
     lines.push("", t("interviewLetter.statusLine", { link }));
   }
-  return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale)).status;
+  return (
+    await sendCandidateComm(
+      entry,
+      t,
+      { subject, body: lines.join("\n"), kind: "interview_letter", aiDrafted: draftedByModel(letter.source) },
+      letter.locale
+    )
+  ).status;
 }
 
 /** The letter for a knockout rejection a PERSON confirmed (owner ruling Q1, 2026-11-09):
@@ -723,7 +771,8 @@ export function composeOfferLetter(
  */
 export async function dispatchOffer(
   entry: PipelineEntry,
-  draft: { subject?: unknown; body?: unknown },
+  // `verdictSource` is the engine word automation-run stamps into the approval detail.
+  draft: { subject?: unknown; body?: unknown; verdictSource?: unknown },
   responseLink: string,
   opts?: { expiresAt?: string | null; startDate?: string | null }
 ): Promise<DispatchOutcome> {
@@ -736,7 +785,7 @@ export async function dispatchOffer(
     locale,
     t,
   });
-  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer", aiDrafted: draftedByModel(draft.verdictSource) }, locale);
   // `offer_sent` is what analytics counts as "offers extended" and what the timeline
   // shows the recruiter: a dead-lettered or refused letter is neither. The caller
   // (extendDraftedOffer) routes that verdict into its compensation branch.

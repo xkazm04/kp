@@ -725,7 +725,7 @@ export async function runAutomationTask(
           : suppress === "candidate" ? "suppressed_candidate"
           : "suppressed_consent_expired";
       } else {
-        await draftOutreachLetter(entry, result, workspaceId);
+        await draftOutreachLetter(entry, result, workspaceId, verdictSource);
         applied = "drafted";
       }
     }

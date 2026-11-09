@@ -553,6 +553,7 @@
     "theRole": "le poste",
     "aRole": "un poste",
     "yourNewRole": "votre nouveau poste",
+    "aiDraftedFooter": "Ce message a été rédigé par une IA.",
     "dataFooter": "· · ·\nVos données : consultez ce que nous détenons à votre sujet, ou demandez leur suppression, à tout moment :\n{link}",
     "stopFooter": "Arrêter ces messages : refusez à tout moment, en un clic, de recevoir d’autres messages au sujet de nos offres :\n{link}",
     "ack": {

@@ -553,6 +553,7 @@
     "theRole": "danou pozici",
     "aRole": "pozice",
     "yourNewRole": "vaše nová pozice",
+    "aiDraftedFooter": "Tuto zprávu navrhla umělá inteligence.",
     "dataFooter": "· · ·\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
     "stopFooter": "Zastavit tyto zprávy: další zprávy o pracovních příležitostech můžete kdykoli jedním kliknutím odmítnout:\n{link}",
     "ack": {
