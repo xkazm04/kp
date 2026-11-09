@@ -1,0 +1,62 @@
+{
+ "schema": "conform-run/1",
+ "worker": "74fcdb71-f1a4-47de-a3e3-0df7ce53a3d5",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-09T23:45:19.980887+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-apply-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/intake/[id]/message/route.ts:173 The candidate's message enters the stored transcript only after the paid model call returns, in the same CAS write as the reply, so a message that is accepted and then hits the CAS refusal at line 198 (a spoken turn or brief edit landing mid-call, the case the route names at line 181) is lost along with its reply instead of being recorded before the request that references it.",
+   "techniques": [
+    {
+     "technique": "additive-input-at-the-call-boundary",
+     "verdict": "deviation",
+     "evidence": "app/api/intake/[id]/message/route.ts:173 Input is written after the model call, not before the request that references it. The sibling companion and devcase chat routes record first."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "devcase-session-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "agent-hire-app-master",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "task-automation-engine",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "agents-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T23:45:19.980887+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "additive-input-at-the-call-boundary"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
