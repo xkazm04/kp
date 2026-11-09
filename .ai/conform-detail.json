@@ -28708,6 +28708,134 @@
           "evidence": "app/features/tools/analyze/analyzeCvIntake.test.ts:6 The intake runs real File objects through the real content-hash dedupe rather than a fake, and the cheaper poll variant at AnalyzeApi.test.ts:185 is named `instant`."
         }
       ]
+    },
+    "a42d66c2-a793-423e-a711-b23f8570ff63/test-harness": {
+      "context": "eval-harness",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:1391 Rows carry source=golden (line 582) but the gate never asserts the producer. A selection with any uncovered scenario still fails closed, so the hole is limited to fully covered selections such as a single --scenario."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/seed_cv_fixtures.py:274 The seeder writes raw rows through a DDL copy (line 74) that bypasses the product's write path. core.ts has since added workspace_id, engine, cv_hash and more, which this insert omits, and no invariant check follows it."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:621 An empty selection cannot pass (agg total must exceed 0), and matching_eval and intake_eval exit 2 on an empty corpus or selection."
+        },
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/thresholds.py:672 The runtime record flag refuses in CI, all four --record evals call the refusal, and test_thresholds.py:351 proves it fires."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:997 The verdict's denominator is the selected scenarios, not the covered subset."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:11 The fault drill imports the tasks and checks from automation_eval rather than restating them."
+        }
+      ]
+    },
+    "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/test-harness": {
+      "context": "app-master-bench-scenarios",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:259 SOAK_KP_URL and SOAK_TENURE occur only in comment lines 14 and 16 of soak-night.sh, and the .cmd side is checked only for mentioning night.mjs, so the 'same runner-missing contract' named by the test is not asserted."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:410 night.test.mjs:8 lists 'a timeout is not a crash, an unreadable record is not a crash' as pinned, but those branches are in main(); tests only feed these class names into resolveVerdict, so reverting this line stays green."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:382 The kp-boot-failed path uses kill(), which lines 514-518 say reaches only the cmd.exe wrapper under shell:true, so next dev can survive holding the lock; only section 6 uses taskkill, and a later night reuses any server that answers health."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:180 'passed' means ran:true (disclosed only in the docstring at line 136), so a night whose expectations failed counts as passed in the rendered rate; the report has no never-green category and no planted-red observation."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:315 The tested pure functions are the ones finish() actually calls on the production path."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:128 The regression test records its control against the unfixed split, with the measured miscount of three nights."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:63 The doc-derived population has a floor, so a parse that finds nothing fails instead of comparing empty sets."
+        }
+      ]
+    },
+    "9e9394dd-7db6-4f2a-b864-614fb416d9e9/test-harness": {
+      "context": "tests-companion-voice",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_calibration_drift.py:61 The two constants are covered by codegen, but no shared vectors cross-check bins, clamping or coercion, and calibration.test.ts has no Python reference. Similarly test_companion_cli.py:4 claims the user episode reaches disk before the model is called, while tests only check that it exists after a provider failure that _complete catches, so swapping the order stays green."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_embedding_bridge.py:310 A within-budget cutoff claim is judged by total wall time at 4x the budget, so up to three retries of the stalling call still pass and a loaded runner can flake it."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:21 The perturbation used and the observed failure are recorded in the test module."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:18 The check reuses the generator's own path instead of restating how fixtures are built."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:27 Each test gets a private brain and absent index paths, closing a recorded leak into the developer's real store."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:84 The parameterised loop has a floor, so an empty case table cannot pass vacuously."
+        }
+      ]
     }
   }
 }

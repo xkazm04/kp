@@ -4812,7 +4812,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:259 The wrapper-contract test passes on a variable that appears only in soak-night.sh's header comment, while the miss-classification decisions the suite says it pins sit inside main(), which no test runs.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-instruction-files",
@@ -15534,7 +15538,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:1391 With no engine, a --strict live run over golden-covered scenarios is answered by transcripts hand-written to pass, and _passes never reads Row.source, so it exits 0 where the package's exit-code contract requires 1.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-memory",
@@ -33764,7 +33772,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_calibration_drift.py:61 The class claims parity with the TypeScript engine but only runs the Python side against hand-written expectations, so changing bin edges or clamping in calibration.ts leaves it green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "voice-io",
