@@ -11,7 +11,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { foldBatchDecide, foldDecideResponse } from "./decisionsDecideOutcome.ts";
+import { foldBatchDecide, foldDecideResponse, handoffFor } from "./decisionsDecideOutcome.ts";
 
 const screening = (id: string) => ({ id, approvalKind: "screening_review" as const, candidateLabel: `Label ${id}` });
 const scorecard = (id: string) => ({ id, approvalKind: "scorecard_review" as const, candidateLabel: `Label ${id}` });
@@ -81,4 +81,10 @@ test("a target the server never reported is a failure, not a silent success", ()
   const out = foldBatchDecide([screening("a"), screening("b")], "accept", { ok: true, results: [{ id: "a", ok: true }] });
   assert.deepEqual(out.okIds, ["a"]);
   assert.deepEqual(out.failedIds, ["b"]);
+});
+
+test("Q2: an accepted screening that did not land on the calendar gate narrates no Schedule handoff", () => {
+  assert.equal(handoffFor("screening_review", "accept", { entry: { approvalKind: "calendar" } }).queueForSchedule, true);
+  assert.equal(handoffFor("screening_review", "accept", { entry: { approvalKind: null } }).queueForSchedule, false, "an entry-column policy advance");
+  assert.equal(handoffFor("screening_review", "accept", {}).queueForSchedule, true, "no entry in the answer keeps the old read");
 });

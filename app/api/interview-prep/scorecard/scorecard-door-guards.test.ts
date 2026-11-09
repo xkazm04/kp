@@ -112,11 +112,17 @@ test("a closed entry takes no scorecard: refused, nothing filed, nothing sealed"
   assert.equal(getPipelineEntry(id)!.approvalKind, null);
 });
 
-test("a recommendation with no usable rating is filed but does not open the gate", async () => {
+// craft-2: a card with no usable rating is no longer filed at all (it used to be filed,
+// and then counted as "has filed" for the independent-scoring reveal). It is refused,
+// so it cannot open the gate either.
+test("a recommendation with no usable rating is refused: nothing is filed and the gate stays shut", async () => {
+  const { getInterviewPrep } = await import("../../../_lib/interview-prep.ts");
+  const { readHumanScorecards } = await import("../../../_lib/human-scorecard-set.ts");
   const id = preppedAt("Interview");
   const res = await post(id, () => ({ ratings: [{ competency: "Ownership", rating: null }], recommendation: "advance" }));
-  assert.equal(res.status, 200);
-  assert.equal(((await res.json()) as { gated: boolean }).gated, false);
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "INTERVIEW_SCORECARD_RATINGS_REQUIRED");
+  assert.deepEqual(readHumanScorecards(getInterviewPrep(id)!.payload), []);
   assert.equal(getPipelineEntry(id)!.approvalKind, null);
 });
 

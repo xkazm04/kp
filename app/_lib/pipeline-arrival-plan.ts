@@ -20,6 +20,7 @@
 import { planStep, type InterviewPlanRule } from "./decision-config-schema";
 import { stageHasRole, type StageDef } from "./pipeline-stages";
 import { isTerminalEntryStatus } from "./pipeline-status";
+import { voiceInterviewEnabled } from "./voice/enabled";
 
 /** What ARRIVING on a column sets off, independent of who arrives. */
 export type ArrivalEffect =
@@ -72,7 +73,9 @@ export function arrivalBranch(
   if (stageHasRole(toStage, "homework", axis)) return "homework";
   if (!stageHasRole(toStage, "interview", axis)) return "not_interview_role";
   const step = planStep(plan, toStage);
-  if (!step || step.rounds[0]?.kind !== "ai") return "no_ai_round";
+  // The AI voice interview ships switched off (KP_VOICE_INTERVIEW, voice/enabled.ts): with
+  // it off the hook sends no invite, so the planner must not name one either.
+  if (!step || step.rounds[0]?.kind !== "ai" || !voiceInterviewEnabled()) return "no_ai_round";
   return resolveInterviewGate(step, planSaved) === "human" ? "ai_invite_held" : "ai_invite";
 }
 

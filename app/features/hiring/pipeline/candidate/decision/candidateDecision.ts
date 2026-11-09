@@ -14,5 +14,7 @@ export type CandidateDecision = {
   /** `ttlDays` rides an offer accept (the per-offer deadline). */
   onAccept: (ttlDays?: number) => void;
   onReject: () => void;
+  /** Keep a queued policy advance where it is (not a reject). Only a queued advance shows it. */
+  onKeepInPlace: () => void;
   busy: boolean;
 };

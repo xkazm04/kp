@@ -93,7 +93,8 @@ test("a legacy stacked column says so on its executor row", () => {
 });
 
 test("the head's figures count against the stored plan (deriveImpact)", () => {
-  const auto = setPolicy(PLAN, { stageId: "Screened", role: "screening", dim: "guard" }, "auto");
+  // A round gate (interview) can still be unattended; screening and offer cannot (Q3).
+  const auto = setPolicy(PLAN, { stageId: "Interview", role: "interview", dim: "guard" }, "auto");
   assert.deepEqual(planFigures(auto, SAVED, PLAN, SAVED), { decisions: 2, decisionsDelta: -1, rounds: 1, roundsDelta: 0 });
 });
 
@@ -108,10 +109,10 @@ test("the matrix: one row per step carrying its own decisions, its mark as the c
   ]);
   assert.equal(rows[3].count, 43);
   assert.ok(rows.every((r) => !r.dirty && r.stacked === null));
-  const auto = setPolicy(PLAN, { stageId: "Screened", role: "screening", dim: "guard" }, "auto");
+  const auto = setPolicy(PLAN, { stageId: "Interview", role: "interview", dim: "guard" }, "auto");
   const edited = matrixRows(draft(), SAVED, {}, true, auto, PLAN);
-  assert.equal(edited[1].decider, "machine");
-  assert.deepEqual(edited.filter((r) => r.dirty).map((r) => r.id), ["Screened"], "a decision edit marks its own step row");
+  assert.equal(edited[2].decider, "machine");
+  assert.deepEqual(edited.filter((r) => r.dirty).map((r) => r.id), ["Interview"], "a decision edit marks its own step row");
   const human = setPolicy(PLAN, { stageId: "Interview", role: "interview", dim: "executor" }, "human");
   assert.equal(matrixRows(draft(), SAVED, {}, true, human, PLAN)[2].decider, "human", "a human round's verdict is a person deciding");
 });
@@ -150,4 +151,17 @@ test("the save sentence: the refusal reason wins over 'unsaved'", () => {
   assert.equal(saveStatusKey("problems", true), "blocked");
   assert.equal(saveStatusKey(null, true), "unsaved");
   assert.equal(saveStatusKey(null, false), "allSaved");
+});
+
+// Q3 (2026-11-09): the screening and offer gates are display only.
+test("a stored 'auto' on screening or offer reads as human, and a write of auto is coerced", () => {
+  const stored = { steps: PLAN.steps.map((s) => (s.stageId === "Screened" || s.stageId === "Offer" ? { ...s, gate: "auto" as const } : s)) } as PipelinePlan;
+  const rows = policyRows(stored, stored, SAVED).filter((r) => r.dim === "guard" && (r.role === "screening" || r.role === "offer"));
+  assert.ok(rows.length >= 2, "both fixed gates have a row");
+  for (const r of rows) {
+    assert.equal(r.value, "human", `${r.stageId} shows a person deciding`);
+    assert.equal(r.changed, false);
+    const written = setPolicy(stored, r, "auto");
+    assert.equal(written.steps.find((s) => s.stageId === r.stageId)?.gate, "human", "auto is coerced to human on write");
+  }
 });

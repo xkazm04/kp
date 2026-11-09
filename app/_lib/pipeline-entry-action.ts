@@ -1,6 +1,7 @@
 import type { PipelineEntry } from "@/app/_lib/db/core";
 import {
   actOnPipelineEntry,
+  declineQueuedAdvance,
   getPipelineEntry,
   recordAutomationEvent,
   setApproval,
@@ -8,12 +9,14 @@ import {
   type PipelineAction,
 } from "@/app/_lib/db/pipeline";
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { parsePolicyAdvance } from "@/app/_lib/approval-kinds";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
-import { delivered, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { delivered, dispatchKnockoutRejection, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { parseKnockoutHold } from "@/app/_lib/knockout-hold";
 import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { listDecisionRecords, sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
@@ -43,6 +46,9 @@ import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_l
 // An accept/reject is SEALED BEFORE IT IS WRITTEN, and a decision whose record cannot
 // be sealed is not applied: the three doors hear a coded 503
 // (PIPELINE_DECISION_NOT_SEALED), never a 200 — see the generic path at the bottom.
+// The offer extend (no letter without its offer_terms record) and the hybrid handoff
+// (sealed before the calendar gate re-arms) hold the same rule: none of the branches
+// here is best-effort about its seal.
 
 // gsim-l2-103 — a caller may DECLARE itself the engine (actor:"sim"); only the
 // known non-human value is honored, so the claim can only DOWNGRADE authority
@@ -156,12 +162,13 @@ export type EntryActionInput = {
 // Callers pass any subset; the rest default to the real functions.
 export type EntryActionDeps = {
   dispatchRejection: typeof dispatchRejection;
+  dispatchKnockoutRejection: typeof dispatchKnockoutRejection;
   dispatchAtsEvent: typeof dispatchAtsEvent;
   invalidateGroupEvalSelection: typeof invalidateGroupEvalSelection;
   seal: typeof sealDecisionSafe;
 };
 
-const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
+const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchKnockoutRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
@@ -236,6 +243,21 @@ const err = (status: number, code: RefusalErrorCode, extra: Record<string, unkno
   body: { error: REFUSAL_ERRORS[code], code, ...extra },
 });
 
+/** Does the chain already hold an `offer_terms` record for THIS entry whose figure and
+ *  currency are the offer's current ones? The latest such record decides, so a terms
+ *  correction whose seal failed (older record, different figure) reads as unsealed. */
+function offerTermsSealed(entryId: string, salary: number | null, currency: string | null, workspaceId: string): boolean {
+  const records = listDecisionRecords({ candidateRef: entryId, workspaceId, limit: 200 });
+  const latest = records.find((r) => r.kind === "offer_terms");
+  if (!latest) return false;
+  try {
+    const inputs = (JSON.parse(latest.payloadJson) as { inputs?: { salary?: unknown; currency?: unknown } }).inputs;
+    return (inputs?.salary ?? null) === (salary ?? null) && (inputs?.currency ?? null) === (currency ?? null);
+  } catch {
+    return false;
+  }
+}
+
 // Gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
@@ -247,7 +269,8 @@ export async function extendDraftedOffer(
   workspaceId: string,
   origin: string,
   bodyTtlDays: unknown,
-  sealActor = "human:recruiter"
+  sealActor = "human:recruiter",
+  seal: typeof sealDecisionSafe = sealDecisionSafe
 ): Promise<EntryActionResult> {
   let draft: {
     subject?: unknown;
@@ -302,10 +325,18 @@ export async function extendDraftedOffer(
   });
 
   // Decision SoR: seal the recruiter's offer-terms decision on a genuinely NEW
-  // offer OR a re-extend that CORRECTED the terms — so the sealed record always
-  // matches the terms the candidate can now accept. Best-effort; never blocks.
-  if (created || updated) {
-    sealDecisionSafe({
+  // offer, a re-extend that CORRECTED the terms, OR a retry whose offer has no sealed
+  // record of its current terms. The record is the precondition for the letter: a
+  // failed seal answers the coded 503 and NO letter goes out.
+  //
+  // Why the seal runs AFTER the mint rather than before: whether a seal is owed
+  // (created / updated) is only known from the mint, which is one atomic step. The
+  // retry trap that ordering opens — the offer is minted, the seal fails, and the retry
+  // sees created=false, updated=false and never seals — is closed by `offerTermsSealed`:
+  // the retry asks the chain whether the offer's CURRENT terms have a record and seals
+  // when they do not. The un-sent token stays pending (the same idempotent re-send).
+  if (created || updated || !offerTermsSealed(entry.id, offer.salary, offer.currency, workspaceId)) {
+    const sealedOffer = seal({
       kind: "offer_terms",
       actor: sealActor,
       policyVersion: "offer",
@@ -314,6 +345,10 @@ export async function extendDraftedOffer(
       reasonCode: "offer",
       inputs: { salary: offer.salary, currency: offer.currency, jobTitle: entry.jobTitle, notes: terms.notes },
     });
+    if (!sealedOffer) {
+      console.warn(`[pipeline-entry-action] offer-terms seal failed for ${entry.id} — the offer letter was NOT sent`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: getPipelineEntry(entry.id, workspaceId) });
+    }
   }
 
   // A freshly opened offer always carries its token; a null one has no link to send.
@@ -419,6 +454,50 @@ export async function runPipelineEntryAction(
     return ok({ entry: moved });
   }
 
+  // A person keeps a queued policy advance where it is (Q2): the entry stays in its stage
+  // and status, the approval clears, and the pass does not propose the same move again
+  // from this stage. NOT a reject — the candidate is not closed out and no letter goes.
+  // SEAL FIRST, like accept/reject: a person overruling a machine proposal is on the
+  // record or it did not happen (coded 503, nothing written). The actor is the session's
+  // human, never the body's; an engine claim does not apply to a decline.
+  if (action === "decline_advance") {
+    const live = getPipelineEntry(id, workspaceId);
+    if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+    if (expectedStage && live.stage !== expectedStage) return err(409, "PIPELINE_STAGE_CHANGED", { entry: live });
+    const mark = isTerminalEntryStatus(live.status) ? null : parsePolicyAdvance(live.approvalKind, live.approvalDetail);
+    if (!mark) return err(409, "PIPELINE_NO_QUEUED_ADVANCE", { entry: live });
+    const declineActor = simActor ? await humanActor() : sealActor;
+    const verdict = aiVerdict(live);
+    const sealedDecline = deps.seal({
+      kind: "advance_declined",
+      actor: declineActor,
+      policyVersion: input.via === "command_bar" ? "command-bar" : "manual",
+      candidateRef: id,
+      rationale: (typeof input.detail === "string" && input.detail.trim()) || `Recruiter kept the queued advance in place at ${live.stage}.`,
+      reasonCode: "decline_advance",
+      inputs: {
+        fromStage: live.stage,
+        proposedToStage: mark.toStage,
+        aiRecommendation: verdict.aiRecommendation,
+        aiConfidence: verdict.aiConfidence,
+        aiRationale: verdict.aiRationale,
+        approvalKind: live.approvalKind ?? null,
+      },
+    });
+    if (!sealedDecline) {
+      console.warn(`[pipeline-entry-action] decline seal failed for ${id} — the decline was NOT applied`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: live });
+    }
+    const kept = declineQueuedAdvance(id, { expectedStage: live.stage, actorRef: declineActor }, workspaceId);
+    if (!kept) {
+      const fresh = getPipelineEntry(id, workspaceId);
+      if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+      return err(409, "PIPELINE_STAGE_CHANGED", { entry: fresh });
+    }
+    expireCachedGroupEvals(kept, workspaceId, deps.invalidateGroupEvalSelection);
+    return ok({ entry: kept });
+  }
+
   if (!GENERIC_ACTIONS.includes(action as PipelineAction)) {
     return err(400, "PIPELINE_ACTION_UNKNOWN", { action });
   }
@@ -451,7 +530,7 @@ export async function runPipelineEntryAction(
   // NULLs approval_detail. The drafted terms were destroyed and the candidate was
   // advanced with no offer ever extended, no offers row and no acceptance.
   if (action === "accept" && current.approvalKind === "offer_review") {
-    return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, sealActor);
+    return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, sealActor, deps.seal);
   }
 
   // The terminal stage is outcome-bearing (same rule as the set_stage guard): the
@@ -501,6 +580,31 @@ export async function runPipelineEntryAction(
       // GUARDED on the approval kind read BEFORE the awaits above (humanActor() +
       // the plan read): without the precondition this overwrote an approval a human
       // resolved in that gap with a calendar gate they had already cleared.
+      // SEAL FIRST: the scorecard_review approval is what routes this accept, and the
+      // re-arm below consumes it. Sealed after the re-arm, a failed seal left the entry
+      // on the calendar gate and a retry no longer reached this branch — a handoff with
+      // no record, forever. Sealed first, a failed seal changes nothing and the retry
+      // takes the same branch again (the generic path's rule, same coded 503).
+      const { aiRecommendation, aiConfidence } = aiVerdict(current);
+      const sealedHandoff = deps.seal({
+        kind: simActor ? "auto_advanced" : "advanced",
+        actor: sealActor,
+        policyVersion: "interview-plan",
+        candidateRef: id,
+        rationale: (typeof input.detail === "string" && input.detail.trim()) || "AI scorecard accepted — routed to the human round per the hiring plan.",
+        reasonCode: "accept",
+        inputs: {
+          fromStage: current.stage,
+          aiRecommendation,
+          aiConfidence,
+          approvalKind: current.approvalKind,
+          handoff: "human_round",
+        },
+      });
+      if (!sealedHandoff) {
+        console.warn(`[pipeline-entry-action] handoff seal failed for ${id} — the human-round handoff was NOT applied`);
+        return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: current });
+      }
       const armed = setApproval(id, "calendar", "Tue 14:00", workspaceId, { expectedApprovalKind: current.approvalKind });
       if (!armed) {
         const fresh = getPipelineEntry(id, workspaceId);
@@ -519,22 +623,6 @@ export async function runPipelineEntryAction(
         // as the seal on the next line.
         sealActor
       );
-      const { aiRecommendation, aiConfidence } = aiVerdict(current);
-      sealDecisionSafe({
-        kind: simActor ? "auto_advanced" : "advanced",
-        actor: sealActor,
-        policyVersion: "interview-plan",
-        candidateRef: id,
-        rationale: (typeof input.detail === "string" && input.detail.trim()) || "AI scorecard accepted — routed to the human round per the hiring plan.",
-        reasonCode: "accept",
-        inputs: {
-          fromStage: current.stage,
-          aiRecommendation,
-          aiConfidence,
-          approvalKind: current.approvalKind,
-          handoff: "human_round",
-        },
-      });
       expireCachedGroupEvals(current, workspaceId, deps.invalidateGroupEvalSelection);
       return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
     }
@@ -543,6 +631,11 @@ export async function runPipelineEntryAction(
   const detail = typeof input.detail === "string" ? input.detail : undefined;
   const actOpts = { actor: simActor ? ("system" as const) : ("human" as const), actorRef: sealActor };
   let updated: PipelineEntry | null;
+  // A reject that RESOLVES a knockout hold (knockout-hold.ts): the person confirms the
+  // machine-free "no to a must-have", so the candidate is owed the letter naming it — once,
+  // below, in place of the ordinary rejection letter. Read from the pre-write row: the
+  // write clears the approval the failed ids ride on.
+  let knockoutHold: { failedKoIds: string[] } | null = null;
   if (action === "accept" || action === "reject") {
     // SEAL FIRST — the rule screen-wave.ts states for its own rejections ("no seal, no
     // rejection"), now on the recruiter's commit door too. The seal used to run AFTER
@@ -575,6 +668,10 @@ export async function runPipelineEntryAction(
     // Read from the pre-write row, never from the write's result — the write clears
     // the approval columns the AI verdict lives in.
     const verdict = aiVerdict(live);
+    knockoutHold = action === "reject" ? parseKnockoutHold(live.approvalKind, live.approvalDetail) : null;
+    // A confirmed knockout hold with no typed note: the basis is the must-have the
+    // applicant answered no to, not the generic template.
+    const knockoutRationale = knockoutHold ? `Recruiter confirmed the knockout rejection: ${knockoutHold.failedKoIds.join(", ")}.` : null;
     const viaCommandBar = input.via === "command_bar";
     // A reject that RESOLVES a queued rejection_review ratifies the machine's own
     // reject, so the machine's reason is the decision's reason when the recruiter
@@ -588,7 +685,7 @@ export async function runPipelineEntryAction(
       actor: sealActor,
       policyVersion: viaCommandBar ? "command-bar" : "manual",
       candidateRef: id,
-      rationale: trimmedDetail || ratifiedRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
+      rationale: trimmedDetail || ratifiedRationale || knockoutRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
       reasonCode: action,
       inputs: {
         fromStage: live.stage,
@@ -604,6 +701,9 @@ export async function runPipelineEntryAction(
         aiReasonCode: verdict.aiReasonCode,
         aiReasonParams: verdict.aiReasonParams,
         approvalKind: live.approvalKind ?? null,
+        // The must-haves the held application failed, so the sealed reasons block names
+        // them (the code and params above carry the same fact for a query).
+        ...(knockoutHold ? { knockoutFailedIds: knockoutHold.failedKoIds } : {}),
         // The rule the recruiter typed is a decisive input: "below 40%" and "below
         // 60%" reject different people, and only the seal can say which was run.
         // Added only for the command bar, so the manual seal's shape is unchanged.
@@ -654,8 +754,14 @@ export async function runPipelineEntryAction(
   if (action === "reject") {
     let commsError: unknown = null;
     try {
-      const outcome = await deps.dispatchRejection(updated);
-      if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+      // A confirmed knockout hold sends the knockout letter (names the must-have, says
+      // how to ask for a review) INSTEAD of the ordinary rejection — one letter, once:
+      // the reject above refuses a second one on a closed entry. `null` = no letter owed
+      // (no address on file), which is neither a failure nor a send.
+      const outcome = knockoutHold
+        ? await deps.dispatchKnockoutRejection(updated, knockoutHold.failedKoIds)
+        : await deps.dispatchRejection(updated);
+      if (outcome?.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
     } catch (thrown) {
       commsError = thrown;
     }

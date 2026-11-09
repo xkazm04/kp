@@ -37,6 +37,53 @@ export type CommandRejectionRestore =
 
 type RestoreRow = { status: string; stage: string; candidate_label: string; job_title: string | null; archetype: string | null };
 
+type RestoreRead =
+  | { ok: true; row: RestoreRow; waveStage: string; notified: boolean }
+  | { ok: false; reason: "not_found" | "not_rejected" | "not_this_wave" | "moved" };
+
+/** The read half of a restore, shared by the preview and the write so the two cannot
+ *  disagree about what is restorable. Pure reads, no await; the caller decides the lock. */
+function readRestorable(
+  db: ReturnType<typeof ensureDb>,
+  id: string,
+  workspaceId: string,
+  plan: (snapshot: WaveReversalSnapshot) => WaveReversalPlan
+): RestoreRead {
+  const row = db
+    .prepare(`SELECT status, stage, candidate_label, job_title, archetype FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as RestoreRow | undefined;
+  if (!row) return { ok: false, reason: "not_found" };
+  const events = db
+    .prepare(
+      `SELECT kind, detail, to_stage AS toStage FROM pipeline_events
+        WHERE entry_id = ? AND workspace_id = ? ORDER BY created_at DESC, id DESC LIMIT 50`
+    )
+    .all(id, workspaceId) as { kind: string; detail: string | null; toStage: string | null }[];
+  const verdict = plan({ status: row.status, eventsNewestFirst: events });
+  if (!verdict.restorable) return { ok: false, reason: verdict.reason };
+  // The planner proved the wave's reject is the newest decision, so the first
+  // `rejected` row newest-first is it, and its stage is the compare-and-swap.
+  const waveStage = events.find((e) => e.kind === "rejected")?.toStage ?? null;
+  if (!waveStage || row.stage !== waveStage) return { ok: false, reason: "moved" };
+  return { ok: true, row, waveStage, notified: verdict.notified };
+}
+
+export type CommandRejectionPreview =
+  | { restorable: true; stage: string; notified: boolean }
+  | { restorable: false; reason: "not_found" | "not_rejected" | "not_this_wave" | "moved" };
+
+/** What restoreCommandRejection WOULD do, without writing: the stage the entry will
+ *  stand on and whether the letter already went. The undo seals from this BEFORE it
+ *  restores, so a failed seal leaves the entry rejected and retryable. */
+export function previewCommandRejection(
+  id: string,
+  workspaceId: string,
+  opts: { plan: (snapshot: WaveReversalSnapshot) => WaveReversalPlan }
+): CommandRejectionPreview {
+  const r = readRestorable(ensureDb(), id, workspaceId, opts.plan);
+  return r.ok ? { restorable: true, stage: r.waveStage, notified: r.notified } : { restorable: false, reason: r.reason };
+}
+
 /** Undo ONE member of a command-bar reject wave: back to `active` on the stage the
  *  wave left them on — a reject never moves the stage, so the column they stood in
  *  survives it. That is exactly what reinstatePipelineEntry (db/pipeline.ts) does NOT
@@ -53,7 +100,8 @@ type RestoreRow = { status: string; stage: string; candidate_label: string; job_
  *  `rejected` event recorded. A row that moved since is refused ("moved") and never
  *  overwritten; a second undo finds the entry active and is a no-op, so it cannot
  *  churn or double-seal. The `reinstated` event names the undoer. No await inside:
- *  sealing is the caller's (decision_records is another connection). */
+ *  sealing is the caller's (decision_records is another connection) and happens
+ *  BEFORE this call (see previewCommandRejection). */
 export function restoreCommandRejection(
   id: string,
   workspaceId: string,
@@ -61,22 +109,9 @@ export function restoreCommandRejection(
 ): CommandRejectionRestore {
   const db = ensureDb();
   const tx = db.transaction((): CommandRejectionRestore => {
-    const row = db
-      .prepare(`SELECT status, stage, candidate_label, job_title, archetype FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
-      .get(id, workspaceId) as RestoreRow | undefined;
-    if (!row) return { restored: false, reason: "not_found" };
-    const events = db
-      .prepare(
-        `SELECT kind, detail, to_stage AS toStage FROM pipeline_events
-          WHERE entry_id = ? AND workspace_id = ? ORDER BY created_at DESC, id DESC LIMIT 50`
-      )
-      .all(id, workspaceId) as { kind: string; detail: string | null; toStage: string | null }[];
-    const plan = opts.plan({ status: row.status, eventsNewestFirst: events });
-    if (!plan.restorable) return { restored: false, reason: plan.reason };
-    // The planner proved the wave's reject is the newest decision, so the first
-    // `rejected` row newest-first is it, and its stage is the compare-and-swap.
-    const waveStage = events.find((e) => e.kind === "rejected")?.toStage ?? null;
-    if (!waveStage || row.stage !== waveStage) return { restored: false, reason: "moved" };
+    const read = readRestorable(db, id, workspaceId, opts.plan);
+    if (!read.ok) return { restored: false, reason: read.reason };
+    const { row, waveStage } = read;
     const now = new Date().toISOString();
     const res = db
       .prepare(
@@ -99,7 +134,7 @@ export function restoreCommandRejection(
     });
     const entry = getPipelineEntry(id, workspaceId);
     if (!entry) return { restored: false, reason: "not_found" };
-    return { restored: true, entry, notified: plan.notified, stage: waveStage };
+    return { restored: true, entry, notified: read.notified, stage: waveStage };
   });
   return tx.immediate();
 }
@@ -109,17 +144,23 @@ export type WaveReversalCounts = {
   restored: number;
   /** Of those, how many had already been sent the rejection letter. */
   notified: number;
-  /** Ids left alone: moved since, not this wave's, another team's, or already undone. */
+  /** Ids left alone: moved since, not this wave's, another team's, already undone, or
+   *  (see `unsealed`) whose reversal could not be sealed. */
   skipped: number;
+  /** Of the skipped, how many were restorable but their `reinstated` record could not
+   *  be sealed, so they were left rejected and a retry can restore them. */
+  unsealed: number;
 };
 
 export type WaveReversalDeps = {
+  preview: typeof previewCommandRejection;
   restore: typeof restoreCommandRejection;
   seal: typeof sealDecisionSafe;
   invalidateGroupEval: typeof invalidateGroupEvalSelection;
 };
 
 const REAL_DEPS: WaveReversalDeps = {
+  preview: previewCommandRejection,
   restore: restoreCommandRejection,
   seal: sealDecisionSafe,
   invalidateGroupEval: invalidateGroupEvalSelection,
@@ -134,21 +175,22 @@ export function reverseCommandWave(
   deps: WaveReversalDeps = REAL_DEPS
 ): WaveReversalCounts {
   const { threshold, workspaceId: ws, actor } = args;
-  const counts: WaveReversalCounts = { restored: 0, notified: 0, skipped: 0 };
+  const counts: WaveReversalCounts = { restored: 0, notified: 0, skipped: 0, unsealed: 0 };
   const plan = (snapshot: Parameters<typeof planWaveReversal>[0]) => planWaveReversal(snapshot, threshold);
 
   for (const id of new Set(args.ids)) {
     try {
-      const r = deps.restore(id, ws, { plan, actorRef: actor });
-      if (!r.restored) {
+      // SEAL FIRST (the reinstate door's shape, dee24e63b). Sealing after the restore
+      // left a restored candidate with no sealed reversal when the seal failed; now a
+      // failed seal changes nothing and the entry stays rejected, retryable. The
+      // sealed inputs come from a read of the live entry (the same read the restore
+      // runs), so they name the stage and letter state the restore will act on.
+      const p = deps.preview(id, ws, { plan });
+      if (!p.restorable) {
         counts.skipped += 1;
         continue;
       }
-      counts.restored += 1;
-      if (r.notified) counts.notified += 1;
-      // The reversal is its own decision, sealed beside the rejection it overturns.
-      // Best-effort (sealDecisionSafe never throws): the restore is committed.
-      deps.seal(
+      const sealed = deps.seal(
         {
           kind: "reinstated",
           actor,
@@ -156,10 +198,25 @@ export function reverseCommandWave(
           candidateRef: id,
           rationale: `Command-bar rejection wave (below ${threshold}%) reversed by the recruiter.`,
           reasonCode: "command_wave_reversed",
-          inputs: { previousStatus: "rejected", restoredStage: r.stage, threshold, notified: r.notified },
+          inputs: { previousStatus: "rejected", restoredStage: p.stage, threshold, notified: p.notified },
         },
         ws
       );
+      if (!sealed) {
+        counts.skipped += 1;
+        counts.unsealed += 1;
+        continue;
+      }
+      const r = deps.restore(id, ws, { plan, actorRef: actor });
+      if (!r.restored) {
+        // Residual race: the entry moved between the preview and the restore's write
+        // lock, so a record is sealed for a reversal that did not happen. The window is
+        // two synchronous calls apart; no compensation is built.
+        counts.skipped += 1;
+        continue;
+      }
+      counts.restored += 1;
+      if (r.notified) counts.notified += 1;
       // The role's cohort grew back: a cached group evaluation no longer describes it.
       try {
         deps.invalidateGroupEval(r.entry.jobId ?? r.entry.jobTitle ?? "unassigned", ws);

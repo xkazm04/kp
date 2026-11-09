@@ -226,6 +226,9 @@ export const REFUSAL_ERRORS = {
   /** A re-score whose scorecard carries no reasons (409): no key, the model was down,
    *  or every quote failed grounding. Nothing was attached; the session stays unscored. */
   INTERVIEW_SCORECARD_UNGROUNDED: "The scorer could not ground a verdict in the transcript, so nothing was saved. Try the re-score again later.",
+  /** A scorecard filed with no rated competency (400). A card with none would open the
+   *  colleagues' records for nothing, so it is refused before anything is attached. */
+  INTERVIEW_SCORECARD_RATINGS_REQUIRED: "Rate at least one competency before filing a scorecard.",
   /** A second /connect on a link whose call is already LIVE (409). The token IS
    *  the session, so two tabs (or a forwarded link) both minted provider
    *  credentials and both ran a real conversation — and the loser's transcript was
@@ -440,6 +443,9 @@ export const REFUSAL_ERRORS = {
    *  terminal step, so rejecting would run the whole reject path on an accepted offer.
    *  Nothing was sealed, sent or changed. Rescinding a hire is a separate action. */
   PIPELINE_ENTRY_HIRED: "This candidate is already hired, so they can't be rejected. Nothing changed.",
+  /** A decline_advance on an entry that carries no queued policy advance (409): it was
+   *  already decided, or never was one. Nothing was sealed or changed. */
+  PIPELINE_NO_QUEUED_ADVANCE: "This entry has no queued advance to keep in place, so nothing changed. It may already have been decided.",
   /** A body naming an action this board does not have (400). */
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */

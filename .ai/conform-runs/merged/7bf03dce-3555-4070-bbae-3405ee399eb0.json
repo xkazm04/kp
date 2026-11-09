@@ -1,0 +1,162 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T03:31:46.922858+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "app-master-bench-scenarios",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/app-master-bench/soak/night.mjs:168 The matrix counts log rows with ran:true as passed although the declared soak gate counts distinct calendar dates, and it never derives the gate's verdict, so a same-day re-run (a state night.test.mjs:171 pins as reachable) inflates the quota and a night that breached the dispatch mandate still reads as passed.",
+   "techniques": [
+    {
+     "technique": "metric-role-contract",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:166 The gate (at least 14 distinct dates, at least 10 ran) lives only in docs/development/app-master-soak.md and is counted by hand; the code emits a table of row counts with no verdict or margin, and the dispatch abort criterion never reaches it."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:160 newRecord never writes scenario, content version or the SOAK_BACKLOG used, so every row splices into one stable name; run.mjs snapshots the scenario per run dir, but the matrix does not read it or refuse a version change."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:171 Case counts per family sit beside the rate, but only on non-ran nights: the anomaly families on ran nights (night.test.mjs:46) are never counted, and no family has a denominator, so hand-set `machine` reading zero looks measured."
+    },
+    {
+     "technique": "failure-attribution",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:410 Misses are split by observed owner, including the harness's own control flow, with unclassified kept as a finding for the weekly hand pass."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:447 Night health is read through deterministic checks on the record; the property needing judgment (recall-wrong) is left to the documented weekly human read."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:262 Cadence is monitored rather than assumed, each night is persisted in one append, and the pure half is tested without a model; the $2 cost-delta abort remains prose and is not computed."
+    },
+    {
+     "technique": "reliability-aggregation",
+     "verdict": "not-applicable",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:188 The rate is measured with N beside it, and the soak doc states its gate is not uptime, so no dependability decision is drawn from it that would need the any-of-N and all-of-N pair."
+    },
+    {
+     "technique": "outcome-conditioned-cost",
+     "verdict": "not-applicable",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:441 Cost is recorded for one tenure with no compared arms, so there is no conditioned denominator to choose."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "scripts/app-master-bench/soak/night.mjs:427 The soak's verdict is a boolean read from the driver record; this runner calls no model judge."
+    }
+   ],
+   "registryProposal": "The standard assumes a scenario replayed against fixed input, and does not say how scenario identity and version apply to a longevity soak whose input (the repo and backlog) is meant to move between nights."
+  },
+  {
+   "context": "group-eval-shared",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/groupEvalTypes.ts:9 Here 'eval' and 'candidate' mean comparing job applicants and 'arm' is a URL selection param; a case-insensitive search of app/features/shared for harness, scenario, judge, rubric and golden found no hits, so no model or agent is run against declared scenarios in this context.",
+   "techniques": [
+    {
+     "technique": "resolution-precondition",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/groupEvalTypes.ts:111 This gates a ranking of applicants on cohort size; it is not a ranking of models or configurations."
+    }
+   ],
+   "absenceTerms": [
+    "harness",
+    "scenario",
+    "judge",
+    "rubric",
+    "golden"
+   ]
+  },
+  {
+   "context": "analytics-metrics",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 These controls edit and display hiring metrics and plot a stored score against advance rates; app/features/insights/analytics has no hits for harness, scenario, rubric or golden, and its 'judge' hits are prose about whether a calibration arm can be judged (the sampled lines), with 'holdout' and 'benchmark' naming calibration arms and peer data, so no eval harness runs here.",
+   "techniques": [],
+   "absenceTerms": [
+    "harness",
+    "scenario",
+    "rubric",
+    "golden"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "cv-analysis-archetypes",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T03:31:46.922858+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "eval-economics",
+    "failure-attribution",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "outcome-conditioned-cost",
+    "reliability-aggregation",
+    "scenario-design"
+   ],
+   "deviations": 1,
+   "context": "app-master-bench-scenarios",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:31:46.922858+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "resolution-precondition"
+   ],
+   "deviations": 0,
+   "context": "group-eval-shared",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:31:46.922858+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "analytics-metrics",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

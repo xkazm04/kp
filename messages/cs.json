@@ -16,6 +16,7 @@
     "gateHuman": "Schvaluje člověk",
     "tipGateHuman": "Toto rozhodnutí schvaluje člověk v Rozhodnutích. Kliknutím ho necháte proběhnout bez dohledu.",
     "tipGateAuto": "Toto rozhodnutí proběhne bez dohledu. Kliknutím ho necháte schválit člověkem.",
+    "tipGateFixed": "Tento krok rozhoduje člověk; žádné nastavení ho nepředá stroji.",
     "tipKindAi": "Tento pohovor vede AI. Kliknutím z něj uděláte kolo s člověkem.",
     "tipKindHuman": "Toto kolo vede člověk. Kliknutím z něj uděláte pohovor s AI.",
     "tipModeScreening": "Prověření vždy dělá AI. Vy volíte, kdo ho potvrdí.",
@@ -207,7 +208,7 @@
       },
       "dist": {
         "title": "Rozeslání kandidátům",
-        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) automaticky posune odpovídající kandidáty do stavu Screened (první vlna hodnocení). Zveřejnění na externích job boardech je stále ruční."
+        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) navrhne odpovídající kandidáty do stavu Screened (první vlna hodnocení) a každý návrh zařadí ke schválení člověkem. Zveřejnění na externích job boardech je stále ruční."
       },
       "apply": {
         "title": "Přihláška kandidáta / nahrání CV",
@@ -255,7 +256,7 @@
       },
       "cron": {
         "title": "Plánovač / cron",
-        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, časové posuny). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, zařazené návrhy posunu). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -552,6 +553,7 @@
     "theRole": "danou pozici",
     "aRole": "pozice",
     "yourNewRole": "vaše nová pozice",
+    "aiDraftedFooter": "Tuto zprávu navrhla umělá inteligence.",
     "dataFooter": "· · ·\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
     "stopFooter": "Zastavit tyto zprávy: další zprávy o pracovních příležitostech můžete kdykoli jedním kliknutím odmítnout:\n{link}",
     "ack": {
@@ -576,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Vaše přihláška: {role}",
-      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nTím se přihláška ukončuje automaticky a nerozhodoval o tom člověk. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a rozhodnutí posoudí člověk.\n\nTuto e-mailovou adresu uchováváme pouze proto, abychom zaznamenali, že jsme tento dopis odeslali, a po uplynutí {days} dnů ji automaticky smažeme.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
+      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nČlověk vaši přihlášku posoudil a potvrdil, že tento požadavek nesplňuje, takže v ní nemůžeme pokračovat. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a člověk ji posoudí znovu.\n\nVaše přihláška, včetně této e-mailové adresy, zůstává u nás uložená jako každá jiná přihláška a kdykoli nás můžete požádat o její smazání pomocí odkazu níže.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
       "mustHaveFallback": "jedna ze základních podmínek pozice"
     },
     "offer": {
@@ -901,7 +903,7 @@
       "subtitle": "Stavěno pro regulovaný nábor podle EU AI Act a GDPR: čtení obstará stroj, ale každé rozhodnutí, které se dotkne kandidáta, dělá kvalifikovaný člověk.",
       "human": {
         "title": "Člověk v řídicí smyčce",
-        "body": "Až na jedno automatické vyřazení je zamítnutí na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Tím jedním je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku hned, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
+        "body": "Zamítnutí je na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, nikoho nezamítne: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji."
       },
       "oversight": {
         "title": "AI Act, článek po článku"
@@ -932,7 +934,7 @@
           },
           "auto": "auto",
           "you": "vy",
-          "lockedNote": "zamítnutí po přijetí přihlášky je vždycky na vás: tohle se odemknout nedá"
+          "lockedNote": "screening, nabídky i zamítnutí po přijetí přihlášky jsou vždycky na vás: tohle se odemknout nedá"
         }
       }
     },
@@ -1103,7 +1105,7 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
+        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody se zařadí člověku k postoupení a vše ostatní čeká na člověka."
       },
       "assignment": {
         "eyebrow": "Krok 05 · Pracovní ukázka",
@@ -1234,7 +1236,7 @@
     "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",
     "retry": "Zkusit znovu",
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky; dozvíte se, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé jiné zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, přihlášku sama o sobě neukončí: čeká na člověka a zamítne ji teprve jeho potvrzení. Poté se dozvíte, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „Vaše údaje“ na konci kterékoli naší zprávy. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
@@ -1388,6 +1390,7 @@
     "PIPELINE_STAGE_CHANGED": "Krok tohoto kandidáta se od otevření pohledu změnil. Obnovte stránku a rozhodněte znovu.",
     "PIPELINE_DECISION_NOT_SEALED": "Toto rozhodnutí se nepodařilo zaznamenat, a proto nebylo provedeno. Nic se nezměnilo a nic nebylo odesláno. Zkuste to za chvíli znovu.",
     "PIPELINE_ENTRY_HIRED": "Tento kandidát už byl přijat, takže ho nelze zamítnout. Nic se nezměnilo.",
+    "PIPELINE_NO_QUEUED_ADVANCE": "Tento kandidát nemá žádný čekající posun, který by šlo ponechat na místě, takže se nic nezměnilo. Možná už bylo rozhodnuto.",
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
     "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
@@ -1470,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Tento pohovor už byl dokončen.",
     "INTERVIEW_NOT_RESCORABLE": "Tento pohovor nelze znovu vyhodnotit.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Hodnoticí systém nedokázal opřít verdikt o přepis, proto se nic neuložilo. Zkuste nové vyhodnocení později.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Před odevzdáním hodnoticí karty ohodnoťte alespoň jednu kompetenci.",
     "INTERVIEW_CONSENT_REQUIRED": "Před zahájením pohovoru je potřeba souhlas s nahráváním.",
     "INTERVIEW_PROVIDER_INVALID": "Tohoto hlasového poskytovatele server nezná.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Hlasový poskytovatel není na tomto serveru nastaven, hovor proto nelze spustit.",
@@ -2352,9 +2356,12 @@
       "lang": "Pracovní jazyk pozice"
     },
     "declinedMustHave": "Nesplněný požadavek:",
-    "declinedAutoNote": "Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky. O tom nerozhodoval člověk a můžete požádat, aby rozhodnutí posoudil.",
+    "declinedAutoNote": "Můžete požádat, aby toto rozhodnutí posoudil člověk.",
     "declinedReviewEmail": "Rozhodnutí vám posíláme e-mailem na adresu, kterou jste uvedli. Stačí na tu zprávu odpovědět a posoudí ho člověk. Pokud nic nedorazí, obraťte se přímo na tým, který pozici obsazuje.",
-    "declinedReviewNoEmail": "Rozhodnutí se nám e-mailem odeslat nepodařilo. Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje."
+    "declinedReviewNoEmail": "Rozhodnutí se nám e-mailem odeslat nepodařilo. Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje.",
+    "heldMessage": "Děkujeme za přihlášku. Kvůli jedné z vašich odpovědí se na ni nejdřív podívá člověk, teprve potom se o ní rozhodne.",
+    "heldMustHave": "Odpověděli jste „ne“ u požadavku:",
+    "heldNote": "Zatím se nic nerozhodlo. Vaši přihlášku nejdřív posoudí člověk. Pokud potvrdí, že tento požadavek nesplňuje, dozvíte se, o který šlo a jak požádat o přezkoumání. Pokud ji uvolní, vaše přihláška pokračuje jako obvykle."
   },
   "interview": {
     "completedTitle": "Děkujeme",
@@ -3361,7 +3368,7 @@
       "previewTitle": "Náhled: co by tento průchod udělal",
       "previewSubtitle": "{evaluated, plural, one {Vyhodnocen # aktivní kandidát} few {Vyhodnoceni # aktivní kandidáti} other {Vyhodnoceno # aktivních kandidátů}}. Zatím se nic nepoužilo a nikomu se e-mail neodeslal.",
       "previewRejectsQueued": "{count, plural, one {# by čekal na vaše schválení. Průchod sám nikdy nezamítá} few {# by čekali na vaše schválení. Průchod sám nikdy nezamítá} other {# by čekalo na vaše schválení. Průchod sám nikdy nezamítá}}",
-      "previewAdvances": "{count, plural, one {Postoupil by #} few {Postoupili by #} other {Postoupilo by #}}",
+      "previewAdvances": "{count, plural, one {Zařadil by # posun ke schválení} few {Zařadil by # posuny ke schválení} other {Zařadil by # posunů ke schválení}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#). Zobrazit důvody} few {Pozdrženo k posouzení (#). Zobrazit důvody} other {Pozdrženo k posouzení (#). Zobrazit důvody}}",
       "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
       "previewApply": "{count, plural, one {Použít # změnu} few {Použít # změny} other {Použít # změn}}",
@@ -3369,7 +3376,7 @@
       "previewNothing": "Není co použít. Všichni kandidáti jsou pozdrženi nebo beze změny.",
       "previewNote": "Při potvrzení se všechno znovu vyhodnotí proti aktuální nástěnce. Kandidáta, který se mezitím přesunul, průchod přeskočí, nikdy ho nezpracuje špatně.",
       "runPass": "▷ Spustit automatický průchod",
-      "runPassTitle": "Deterministický průchod pravidel: automaticky postoupí silné shody BAU, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
+      "runPassTitle": "Deterministický průchod pravidel: zařadí silné shody BAU člověku k postoupení, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
       "passSummaryLead": "Automatický průchod",
       "passAdvanced": "{n} postoupilo",
       "passRejected": "{n} zamítnuto",
@@ -3914,7 +3921,7 @@
       "rejectModeLabel": "Zamítnutí",
       "rejectModeApprove": "pod dohledem (do fronty ke schválení)",
       "rejectModeAuto": "autonomně (provést a oznámit)",
-      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu (posuny a pozdržení zůstávají automatické). Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
+      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu, a stejně tak posun: i ten se zařadí ke schválení a automatická zůstávají jen pozdržení. Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
       "outcome": {
         "applied": "provedeno",
         "failed": "selhalo",
@@ -4085,7 +4092,8 @@
     "intakeReasons": {
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
       "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}",
-      "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta."
+      "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta.",
+      "knockoutHeld": "{channel}: u požadavku, který pozice výslovně stanoví, odpověděl(a) „ne“. Čeká na člověka, který zamítnutí potvrdí, nebo přihlášku uvolní. Nic se nerozhodlo a žádný dopis nebyl odeslán."
     },
     "offAxis": {
       "title": "Mimo nástěnku",
@@ -4194,6 +4202,9 @@
       "tagHumanScorecard": "Hodnoticí karta z pohovoru (člověk)",
       "tagScreening": "Screening AI",
       "tagQueuedReject": "Zamítnutí ve frontě (potvrzením se kandidát dozví výsledek)",
+      "tagQueuedAdvance": "Posun ve frontě (dál ho posouvá člověk)",
+      "keepInPlace": "Ponechat na místě",
+      "keepInPlaceTitle": "Kandidát zůstane, kde je, a tento návrh se zruší. Kandidáta to nezamítá.",
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",
       "acceptAdvance": "Postoupit",
@@ -4287,7 +4298,7 @@
       "standardFallback": "analýza pravidla čtyř pětin",
       "postureCoveredTitle": "Co platforma vynucuje",
       "postureCeilingTitle": "Co nedělá",
-      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí po přijetí přihlášky přezkoumává a dělá člověk. Jediné automatické rozhodnutí je základní podmínka pozice: odpověď „ne“ u výslovně stanoveného požadavku ukončí přihlášku, kandidát se dozví, o který šlo, a může požádat o přezkoumání člověkem ({oversight}).",
+      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí po přijetí přihlášky přezkoumává a dělá člověk. Odpověď „ne“ u výslovně stanoveného požadavku nic nerozhoduje: přihláška čeká na člověka, který zamítnutí potvrdí (kandidát se pak dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem), nebo ji uvolní ({oversight}).",
       "covered2": "Každé rozhodnutí se zapečetí do auditního záznamu odolného proti manipulaci.",
       "covered3": "Kandidáti vidí informaci o použití AI a mohou kdykoli požádat o přezkoumání člověkem.",
       "covered4": "Kandidáti na začátku kariéry a nezařazení jsou chráněni před automatickým zamítnutím (fail-closed).",
@@ -8472,6 +8483,7 @@
         "interview_no_show": "Nedostavil se k pohovoru",
         "interview_proposal_declined": "Navržený termín odmítnut",
         "screening_threshold_adjusted": "Upraven práh screeningu",
+        "advance_declined": "Posun ponechán na místě",
         "match_verdict": "Verdikt shody",
         "debrief_findings": "Zjištění z debriefu",
         "authorship_verified": "Autorství ověřeno"
@@ -12290,7 +12302,7 @@
       "ai": {
         "title": "Transparentnost AI",
         "oversight": "Podle nařízení EU o umělé inteligenci je třídění, hodnocení, řazení a vedení pohovorů s kandidáty vysoce rizikovým použitím. Každá stránka pro kandidáty proto zobrazuje upozornění na zapojení AI dřív, než AI vaše údaje čte, jak vyžaduje článek 50.",
-        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje (pracovní prostor může kterékoli z toho svěřit automatice a každý krok bez dozoru se zaznamená). Jediné zamítnutí, které stroj provede sám, je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Každé jiné nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
+        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje. Stroj sám nikoho nezamítne: odpověď „ne“ u požadavku, který pozice výslovně stanoví, nechá přihlášku čekat na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
       },
       "subprocessors": {
         "title": "Další zpracovatelé",
@@ -12721,13 +12733,13 @@
       "gate": "člověk",
       "stops": "zastaví se",
       "applied": "provedeno automaticky",
-      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Jediné automatické zamítnutí leží před touto fází: kandidát, který odpoví „ne“ u požadavku, který pozice výslovně stanoví, se dozví, o který šlo, a může požádat o přezkoumání člověkem.)",
-      "noteAutonomous": "Postupy, pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
+      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Nesplněný požadavek na tom nic nemění: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní.)",
+      "noteAutonomous": "Pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
       "noteHired": "Přijat na téhle cestě vůbec není. Ruční přesun na Přijat vrátí 422, protože tuhle fázi nastavuje přijetí nabídky kandidátem a nic jiného.",
       "status": {
         "s0": "bezobslužný průchod navrhuje čtyři akce",
         "s2": "approvalKind: jedno pole rozhoduje, co se zastaví",
-        "s3": "postup: provedeno a zapsáno do časové osy",
+        "s3": "postup: spočítán, pak zařazen do fronty místo provedení",
         "s4": "pozdržení: provedeno",
         "s5": "zamítnutí: spočítáno, pak zařazeno místo provedení",
         "s6": "nabídka: připravena, pak zařazena",
@@ -16337,8 +16349,7 @@
         "signed": "Podepsáno · {signer} (ukázka). Postupuje dál a u rozhodnutí zůstane doklad."
       },
       "legendLocked": "zamčeno, nikdy se nedeleguje",
-      "legendDelegable": "dá se delegovat",
-      "logNone": "Nic neběží bez dozoru: každá fáze čeká na člověka.",
+      "logNone": "Screening a nabídky čekají na člověka; žádné nastavení to nemění.",
       "logOne": "Teď bez dozoru: {stage}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo.",
       "logTwo": "Teď bez dozoru: {first} a {second}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo."
     },
@@ -16643,7 +16654,7 @@
       "flow4Text": "Co se o něm rozhodlo a proč.",
       "rejection": "Zamítnutí",
       "neverUnlocks": "nikdy se neodemkne",
-      "neverText": "Odpověď „ne“ u základní podmínky ukončí přihlášku automaticky a řekne proč. Každé jiné zamítnutí je na člověku.",
+      "neverText": "Odpověď „ne“ u základní podmínky nechá přihlášku čekat na člověka. Nic není zamítnuto, dokud to člověk nepotvrdí, a kandidát se pak dozví proč. Každé zamítnutí je na člověku.",
       "detailNote": "Jeden přepínač pozastaví každý krok, který běží bez dozoru."
     }
   },
@@ -19082,7 +19093,7 @@
         "emails": {
           "rejection": "Emails the candidate a rejection letter.",
           "rejectionMany": "Emails each of them a rejection letter.",
-          "nextStep": "May email the candidate the next step's invitation (an AI interview or a work sample), depending on the step."
+          "nextStep": "Může kandidátovi e-mailem poslat pozvánku k dalšímu kroku (například pracovní vzorek), podle kroku."
         },
         "entryAdvance": {
           "title": "Advance {label}",

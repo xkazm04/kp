@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { voiceInterviewEnabled } from "@/app/_lib/voice/enabled";
 import Link from "next/link";
 import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -21,6 +22,9 @@ export const instant = false;
 
 export default async function InterviewPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // Voice interview switched off (KP_VOICE_INTERVIEW, voice/enabled.ts): proxy.ts already
+  // answers this path as unknown; this is the defence in depth underneath it.
+  if (!voiceInterviewEnabled()) notFound();
   const session = getInterviewSessionByToken(token);
   if (!session) notFound();
 

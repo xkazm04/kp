@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T05:05:18.782333+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "profile-roster-matrix",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/profile/candidateMatrixView.ts:41 The context is a roster and archetype board that bands already-stored candidate scores; a case-insensitive search of app/features/tools/profile for golden, judge, trial, holdout, passRate, pass_rate, worst-of, anchor set, win-rate, benchmark, scenario, temperature and gold label found no hits, so no model is run or scored here.",
+   "techniques": [
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/candidateMatrixView.ts:6 'Matrix' here is a people-by-archetype layout, not a model \u00d7 variant \u00d7 scenario run; this word is what produced the map's match."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/candidateMatrixView.ts:38 An unscored person gets its own band; this is display of missing data, not a pass/fail/error verdict on an eval run."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "judge",
+    "trial",
+    "holdout",
+    "passRate"
+   ]
+  },
+  {
+   "context": "shell-simulation-engine",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/simulation/simDrafts.ts:41 The context is a scripted product demo with fixed values and no model under test; a case-insensitive search of app/features/shell/simulation found no golden, trial, passRate, pass_rate, win-rate, benchmark, scenario or temperature, and its only 'judge' and 'holdout' hits are a DOM click effect check (simMove.ts), a comment in simCriteria.ts and an automation holdoutPercent setting (constants.ts), none of them eval machinery.",
+   "techniques": [
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/simulation/simMove.ts:11 'Judged' here is a deterministic board-effect check on a UI walk, not a model scoring another model."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/simulation/useSimulationEngine.ts:307 Starts the product's group_eval task to compare job candidates in the demo; it does not compare models or variants."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "trial",
+    "passRate",
+    "benchmark",
+    "scenario"
+   ]
+  },
+  {
+   "context": "jobs-candidates-compare",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:19 The context groups and displays human interview ratings and a fairness matrix over candidates; a case-insensitive search of app/features/library/jobs found no golden, trial, holdout, passRate, pass_rate, win-rate, scenario or temperature, and its 'judge' and 'benchmark' hits are coach judgement comments and salary benchmarks outside the compare files, so no model is evaluated here.",
+   "techniques": [
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:8 Surfaces rubric-version drift in interview ratings of people; this resembles an instrument change but is no judge packet over model outputs."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:1 A recruiter's grid of candidates, not an eval comparison geometry."
+    },
+    {
+     "technique": "resolution-precondition",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsFairnessMatrix.ts:11 Cross-scheme robustness of candidate scores; the technique governs published orders over models, prompts or configurations."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "trial",
+    "holdout",
+    "passRate",
+    "scenario"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T05:05:18.782333+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "comparison-modes"
+   ],
+   "deviations": 0,
+   "context": "profile-roster-matrix",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:05:18.782333+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "comparison-modes",
+    "judge-stability"
+   ],
+   "deviations": 0,
+   "context": "shell-simulation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:05:18.782333+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "comparison-modes",
+    "judge-stability",
+    "resolution-precondition"
+   ],
+   "deviations": 0,
+   "context": "jobs-candidates-compare",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

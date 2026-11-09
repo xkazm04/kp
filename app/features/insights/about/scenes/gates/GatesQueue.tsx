@@ -25,7 +25,8 @@ import { ACTIONS, CYCLE, GATE_LABEL, STILL, sceneAt, type StatusBeat } from "./d
  * queueing it as `rejection_review` instead. The comment in
  * automation-pass.ts calls this out by name: a rejection is the one
  * irreversible, candidate-visible adverse action, so the pass never applies one
- * on its own. Advances, holds and alerts continue autonomously, and saying so
+ * on its own. Since Q2 neither does it apply an advance: that is queued as a
+ * `screening_review` too. Holds and alerts continue autonomously, and saying so
  * is what makes the claim credible rather than marketing.
  *
  * The beat table (CYCLE, STILL, which beat each mark lands on) and the

@@ -12,6 +12,8 @@ import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { screenedLandingStage } from "@/app/_lib/pipeline-stages";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 import { draftManualOffer } from "@/app/_lib/offer-manual-draft";
 import { isSimTitle } from "@/app/_lib/sim-marker";
@@ -188,27 +190,37 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
       // needs a name. Identity-less deployments resolve to the same
       // "human:recruiter" role token as before.
       const actor = await humanActor();
-      const restored = reinstatePipelineEntry(id, ws, actor);
-      if (!restored) {
+      // SEAL FIRST. The store commits the reinstate and only then could this door
+      // seal: a seal failure after that point answered 503 while the entry was no
+      // longer rejected, so the retry got 409 PIPELINE_NOT_REINSTATABLE and the
+      // reversal was never sealed (council robustness-1). Sealing before the commit
+      // keeps a failed seal retryable: nothing has moved, the entry stays rejected.
+      // The reinstatable check is repeated here (status 'rejected', as the store
+      // reads it) so a record is not sealed over an entry the store will refuse.
+      const current = getPipelineEntry(id, ws);
+      if (!current || current.status !== "rejected") {
         return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
       }
-      // Seal the REVERSAL into the tamper-evident decision chain too. The auto-reject
-      // is sealed by screen-wave; recording only a pipeline event for the reinstate
-      // left the chain showing a rejection with no record it was overturned — an
-      // incomplete audit trail. Best-effort (sealDecisionSafe never throws): a seal
-      // failure must not fail the reinstate the recruiter already committed.
-      sealDecisionSafe({
+      // The stage the store will land the candidate on: the same expression
+      // reinstatePipelineEntry evaluates (db/pipeline.ts), built from the same
+      // exports, so the record names the stage the candidate will stand on.
+      const restoredStage = screenedLandingStage(getPipelineAxis(ws).stages) || "Screened";
+      const sealed = sealDecisionSafe({
         kind: "reinstated",
         actor,
         policyVersion: "manual",
         candidateRef: id,
         rationale: "Auto-rejection reversed for re-review.",
         reasonCode: "reinstate",
-        // The stage the store ACTUALLY landed the candidate on (this workspace's
-        // screened column), not the shipped literal — a renamed board used to get a
-        // sealed record naming a stage the candidate never stood on.
-        inputs: { previousStatus: "rejected", restoredStage: restored.stage },
+        inputs: { previousStatus: "rejected", restoredStage },
       });
+      if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
+      const restored = reinstatePipelineEntry(id, ws, actor);
+      if (!restored) {
+        // Lost a race between the check above and the commit: the record is sealed
+        // for a reversal that did not happen. Rare, and the 409 tells the caller so.
+        return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
+      }
       return NextResponse.json({ entry: restored });
     }
 

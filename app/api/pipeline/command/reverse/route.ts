@@ -1,6 +1,8 @@
 // Undo a command-bar reject wave (challenge-r05 pipeline-actions-commands/B).
 //   POST /api/pipeline/command/reverse  { ids: string[] (<= 200), threshold?: 1..100, text?: string }
-//        -> { restored, notified, skipped }   (see ../reverse.ts)
+//        -> { restored, notified, skipped, unsealed }   (see ../reverse.ts)
+//        -> 503 PIPELINE_DECISION_NOT_SEALED when nothing restored and at least one
+//           entry could not be sealed (each reversal is sealed BEFORE its restore)
 // `text` is the command the recruiter typed, parsed by the SAME parser the command
 // route used, so the client never re-derives the threshold.
 //
@@ -41,6 +43,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
 
     const actor = await humanActor();
     const counts = reverseCommandWave({ ids, threshold, workspaceId: ws, actor });
+    // Every restorable entry failed its seal and none was restored: nothing changed
+    // and a retry can succeed, so answer the coded 503 (the other seal-first doors).
+    // A partial wave answers 200 with the counts; `unsealed` says how many stayed rejected.
+    if (counts.restored === 0 && counts.unsealed > 0) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
     return NextResponse.json(counts);
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command:reverse", "COMMAND_FAILED");
