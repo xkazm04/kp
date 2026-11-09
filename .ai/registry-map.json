@@ -10506,7 +10506,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeRunAnalysis.ts:55 This context gates CV files and delivers one analysis result to the UI; searching app/features/tools/analyze for golden, holdout, pass_rate, benchmark and trials found no hits, so it holds no harness that scores a model across scenarios.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "generated-workflow-candidates",
@@ -17001,7 +17005,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/decisions/group-eval/route.ts:8 These routes read stored evaluations, run recruiter screening decisions and record feedback; searching app/api/decisions and app/api/feedback for golden, holdout, pass_rate, benchmark and trials found no hits, so no model is run against declared scenarios here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-instruction-files",
@@ -30071,7 +30079,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:3 This context renders a stored AI scorecard and interviewer prep state; searching app/features/hiring/schedule for golden, holdout, pass_rate, benchmark and trials found no hits, so no repeatable model evaluation runs here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "hiring-policy-defaults-and-tiering",

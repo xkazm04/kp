@@ -30002,6 +30002,69 @@
       "evaluatedTs": "2026-11-09T05:16:40.577Z",
       "worker": "979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c",
       "techniques": []
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/eval-harness": {
+      "context": "hiring-decisions-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/peer-context/route.ts:13 No model output is scored in this route; it reads saved analyses."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/peer-context/route.ts:16 The comparison is between human candidates and ranking is not served here; no model or prompt comparison exists."
+        }
+      ]
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/eval-harness": {
+      "context": "schedule-interview-prep",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:44 The scorer and its version live upstream in automation.py; this file only reads the stored object."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:86 Evidence links let a human check a quote against the transcript; nothing here scores a model's output."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/eval-harness": {
+      "context": "cv-analyze-intake",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:10 A 'variant' here is an uploaded CV file, not a model or prompt configuration under comparison."
+        },
+        {
+          "technique": "failure-attribution",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.ts:14 Failures here are request errors mapped to UI messages, not red eval cases to attribute."
+        }
+      ]
     }
   }
 }
