@@ -2410,6 +2410,13 @@ already states for its own rejections:
 3. only then write, with `actOnPipelineEntry`'s `expectedStage` CAS pinned to the stage
    the seal was made against.
 
+The same rule holds on three sibling doors: the **offer extend** (no letter without its
+`offer_terms` record; a retry whose current terms have no record seals again), the
+**hybrid human-round handoff** (sealed before the calendar gate re-arms) and the **human
+scorecard POST** (`/api/interview-prep/scorecard`: 503 and no Decisions gate on a failed
+seal; the retry re-files under the same author+stage key, so no duplicate). Reinstate is
+still best-effort.
+
 There is no `await` between the seal and the write, so nothing in this process can run
 between them. The one residue is the one screen-wave accepts: a write that loses its CAS
 *after* the seal leaves a record of a decision that did not apply. Only another process

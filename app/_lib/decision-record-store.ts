@@ -383,9 +383,11 @@ export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride
 
 /** Never throws: logs + returns null on failure (e.g. missing key, DB lock), so the
  *  caller decides what a failed seal means. For the decisions whose record is a side
- *  effect of an action already committed (a hire, a scorecard, an offer, a reinstate)
- *  the caller ignores null: the seal is best-effort there and must not fail the action.
- *  It is NOT the rule at the recruiter's accept/reject commit door: that door seals
+ *  effect of an action already committed (a hire, a reinstate) the caller may ignore
+ *  null: the seal is best-effort there. It is NOT the rule at the offer extend (no
+ *  letter without its offer_terms record), the hybrid human-round handoff, or the
+ *  human scorecard door: each answers 503 PIPELINE_DECISION_NOT_SEALED on null.
+ *  Nor at the recruiter's accept/reject commit door: that door seals
  *  BEFORE it writes and refuses (503 PIPELINE_DECISION_NOT_SEALED) when this returns
  *  null. See docs/architecture/decisions/0017-a-human-adverse-decision-is-sealed-before-it-commits.md.
  *  Nor at the Match add door (POST /api/pipeline): the `match_verdict` record is sealed

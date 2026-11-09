@@ -270,12 +270,17 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     }
 
     // Decision SoR (moonshot D backfill): seal the human scorecard verdict —
-    // a human actor's recorded judgment. Best-effort; never blocks the save.
+    // a human actor's recorded judgment. NOT best-effort: no 200 without the record, and
+    // the gate below (which routes the entry to the Decisions queue) opens only after it.
+    // The scorecard is filed first (its refusals — no prep, list full — must not seal),
+    // so a failed seal answers the coded 503 with the scorecard already filed; the retry
+    // is idempotent — fileHumanScorecard upserts under the same (author, stage) key, so
+    // it replaces that record rather than adding a second — and then seals.
     const rec = scorecard.recommendation ?? "(none)";
     // The seal names the PERSON (`human:<who>`), as the event beside it does; the bare
     // role is only what an identity-less open-mode session resolves to.
     const actor = await humanActor();
-    sealDecisionSafe({
+    const sealedScorecard = sealDecisionSafe({
       kind: "human_scorecard",
       actor,
       policyVersion: "human",
@@ -286,6 +291,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
       // (null in open mode, which has no identity).
       inputs: { recommendation: rec, ratings: ratings.length, author: key.author, stage: key.stage },
     });
+    if (!sealedScorecard) {
+      console.warn(`[interview-prep:scorecard] scorecard seal failed for ${entry} — answering 503, gate not opened`);
+      return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
+    }
 
     // DEC1 — close the loop PREP1 left open: this route saved the human verdict
     // and returned, so a human-conducted interview never reached the Decisions

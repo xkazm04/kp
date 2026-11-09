@@ -13,7 +13,7 @@ import { delivered, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-di
 import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { listDecisionRecords, sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
@@ -43,6 +43,9 @@ import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_l
 // An accept/reject is SEALED BEFORE IT IS WRITTEN, and a decision whose record cannot
 // be sealed is not applied: the three doors hear a coded 503
 // (PIPELINE_DECISION_NOT_SEALED), never a 200 — see the generic path at the bottom.
+// The offer extend (no letter without its offer_terms record) and the hybrid handoff
+// (sealed before the calendar gate re-arms) hold the same rule: none of the branches
+// here is best-effort about its seal.
 
 // gsim-l2-103 — a caller may DECLARE itself the engine (actor:"sim"); only the
 // known non-human value is honored, so the claim can only DOWNGRADE authority
@@ -236,6 +239,21 @@ const err = (status: number, code: RefusalErrorCode, extra: Record<string, unkno
   body: { error: REFUSAL_ERRORS[code], code, ...extra },
 });
 
+/** Does the chain already hold an `offer_terms` record for THIS entry whose figure and
+ *  currency are the offer's current ones? The latest such record decides, so a terms
+ *  correction whose seal failed (older record, different figure) reads as unsealed. */
+function offerTermsSealed(entryId: string, salary: number | null, currency: string | null, workspaceId: string): boolean {
+  const records = listDecisionRecords({ candidateRef: entryId, workspaceId, limit: 200 });
+  const latest = records.find((r) => r.kind === "offer_terms");
+  if (!latest) return false;
+  try {
+    const inputs = (JSON.parse(latest.payloadJson) as { inputs?: { salary?: unknown; currency?: unknown } }).inputs;
+    return (inputs?.salary ?? null) === (salary ?? null) && (inputs?.currency ?? null) === (currency ?? null);
+  } catch {
+    return false;
+  }
+}
+
 // Gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
@@ -247,7 +265,8 @@ export async function extendDraftedOffer(
   workspaceId: string,
   origin: string,
   bodyTtlDays: unknown,
-  sealActor = "human:recruiter"
+  sealActor = "human:recruiter",
+  seal: typeof sealDecisionSafe = sealDecisionSafe
 ): Promise<EntryActionResult> {
   let draft: {
     subject?: unknown;
@@ -302,10 +321,18 @@ export async function extendDraftedOffer(
   });
 
   // Decision SoR: seal the recruiter's offer-terms decision on a genuinely NEW
-  // offer OR a re-extend that CORRECTED the terms — so the sealed record always
-  // matches the terms the candidate can now accept. Best-effort; never blocks.
-  if (created || updated) {
-    sealDecisionSafe({
+  // offer, a re-extend that CORRECTED the terms, OR a retry whose offer has no sealed
+  // record of its current terms. The record is the precondition for the letter: a
+  // failed seal answers the coded 503 and NO letter goes out.
+  //
+  // Why the seal runs AFTER the mint rather than before: whether a seal is owed
+  // (created / updated) is only known from the mint, which is one atomic step. The
+  // retry trap that ordering opens — the offer is minted, the seal fails, and the retry
+  // sees created=false, updated=false and never seals — is closed by `offerTermsSealed`:
+  // the retry asks the chain whether the offer's CURRENT terms have a record and seals
+  // when they do not. The un-sent token stays pending (the same idempotent re-send).
+  if (created || updated || !offerTermsSealed(entry.id, offer.salary, offer.currency, workspaceId)) {
+    const sealedOffer = seal({
       kind: "offer_terms",
       actor: sealActor,
       policyVersion: "offer",
@@ -314,6 +341,10 @@ export async function extendDraftedOffer(
       reasonCode: "offer",
       inputs: { salary: offer.salary, currency: offer.currency, jobTitle: entry.jobTitle, notes: terms.notes },
     });
+    if (!sealedOffer) {
+      console.warn(`[pipeline-entry-action] offer-terms seal failed for ${entry.id} — the offer letter was NOT sent`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: getPipelineEntry(entry.id, workspaceId) });
+    }
   }
 
   // A freshly opened offer always carries its token; a null one has no link to send.
@@ -451,7 +482,7 @@ export async function runPipelineEntryAction(
   // NULLs approval_detail. The drafted terms were destroyed and the candidate was
   // advanced with no offer ever extended, no offers row and no acceptance.
   if (action === "accept" && current.approvalKind === "offer_review") {
-    return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, sealActor);
+    return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, sealActor, deps.seal);
   }
 
   // The terminal stage is outcome-bearing (same rule as the set_stage guard): the
@@ -501,6 +532,31 @@ export async function runPipelineEntryAction(
       // GUARDED on the approval kind read BEFORE the awaits above (humanActor() +
       // the plan read): without the precondition this overwrote an approval a human
       // resolved in that gap with a calendar gate they had already cleared.
+      // SEAL FIRST: the scorecard_review approval is what routes this accept, and the
+      // re-arm below consumes it. Sealed after the re-arm, a failed seal left the entry
+      // on the calendar gate and a retry no longer reached this branch — a handoff with
+      // no record, forever. Sealed first, a failed seal changes nothing and the retry
+      // takes the same branch again (the generic path's rule, same coded 503).
+      const { aiRecommendation, aiConfidence } = aiVerdict(current);
+      const sealedHandoff = deps.seal({
+        kind: simActor ? "auto_advanced" : "advanced",
+        actor: sealActor,
+        policyVersion: "interview-plan",
+        candidateRef: id,
+        rationale: (typeof input.detail === "string" && input.detail.trim()) || "AI scorecard accepted — routed to the human round per the hiring plan.",
+        reasonCode: "accept",
+        inputs: {
+          fromStage: current.stage,
+          aiRecommendation,
+          aiConfidence,
+          approvalKind: current.approvalKind,
+          handoff: "human_round",
+        },
+      });
+      if (!sealedHandoff) {
+        console.warn(`[pipeline-entry-action] handoff seal failed for ${id} — the human-round handoff was NOT applied`);
+        return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: current });
+      }
       const armed = setApproval(id, "calendar", "Tue 14:00", workspaceId, { expectedApprovalKind: current.approvalKind });
       if (!armed) {
         const fresh = getPipelineEntry(id, workspaceId);
@@ -519,22 +575,6 @@ export async function runPipelineEntryAction(
         // as the seal on the next line.
         sealActor
       );
-      const { aiRecommendation, aiConfidence } = aiVerdict(current);
-      sealDecisionSafe({
-        kind: simActor ? "auto_advanced" : "advanced",
-        actor: sealActor,
-        policyVersion: "interview-plan",
-        candidateRef: id,
-        rationale: (typeof input.detail === "string" && input.detail.trim()) || "AI scorecard accepted — routed to the human round per the hiring plan.",
-        reasonCode: "accept",
-        inputs: {
-          fromStage: current.stage,
-          aiRecommendation,
-          aiConfidence,
-          approvalKind: current.approvalKind,
-          handoff: "human_round",
-        },
-      });
       expireCachedGroupEvals(current, workspaceId, deps.invalidateGroupEvalSelection);
       return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
     }
