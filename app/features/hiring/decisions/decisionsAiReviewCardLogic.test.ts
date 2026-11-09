@@ -103,3 +103,12 @@ test("the model's self-report is clamped and rounded, and only offered where the
   assert.equal(useAiReviewCardLogic(entry("offer_review", { confidence: 80 })).modelSelfReport, null, "offers carry no such scalar");
   assert.equal(useAiReviewCardLogic(entry("scorecard_review", { confidence: 80 })).modelSelfReport, null, "nor do scorecards");
 });
+
+test("Q2: a queued policy advance is flagged as an advance and is not a queued reject", () => {
+  const l = useAiReviewCardLogic(entry("screening_review", { recommendation: "advance", rationale: "BAU score 80", policyAdvance: { toStage: "Interview" } }));
+  assert.equal(l.isQueuedAdvance, true);
+  assert.equal(l.isQueuedReject, false);
+  assert.equal(l.parsed?.rationale, "BAU score 80");
+  assert.equal(useAiReviewCardLogic(entry("screening_review", { recommendation: "advance" })).isQueuedAdvance, false);
+  assert.equal(useAiReviewCardLogic(entry("rejection_review", { policyAdvance: {} })).isQueuedAdvance, false, "only a screening_review");
+});

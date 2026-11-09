@@ -208,7 +208,7 @@
       },
       "dist": {
         "title": "Verteilung an Kandidaten",
-        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) rückt passende Kandidaten automatisch nach Screened vor (erste Bewertungswelle). Das Posten auf externen Jobbörsen bleibt manuell."
+        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) schlägt passende Kandidaten für Screened vor (erste Bewertungswelle) und reiht jeden Vorschlag zur Freigabe durch einen Menschen ein. Das Posten auf externen Jobbörsen bleibt manuell."
       },
       "apply": {
         "title": "Bewerbung / Lebenslauf-Upload",
@@ -256,7 +256,7 @@
       },
       "cron": {
         "title": "Scheduler / Cron",
-        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, zeitbasierte Vorrückungen). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, eingereihte Vorrückungsvorschläge). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -1104,7 +1104,7 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen."
+        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer werden einem Menschen zum Vorrücken vorgelegt, alles andere wartet auf einen Menschen."
       },
       "assignment": {
         "eyebrow": "Schritt 05 · Arbeitsprobe",
@@ -3366,14 +3366,14 @@
       "previewTitle": "Vorschau: Was dieser Durchlauf tun würde",
       "previewSubtitle": "{evaluated} aktive Kandidat/innen bewertet. Es wurde noch nichts angewendet und niemand per E-Mail benachrichtigt.",
       "previewRejectsQueued": "{count, plural, one {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab} other {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab}}",
-      "previewAdvances": "{count, plural, one {Würde # weiterleiten} other {Würde # weiterleiten}}",
+      "previewAdvances": "{count, plural, one {Würde # Weiterleitung zur Freigabe einreihen} other {Würde # Weiterleitungen zur Freigabe einreihen}}",
       "previewHeld": "{count, plural, one {Zur Prüfung zurückgehalten (#). Gründe ansehen} other {Zur Prüfung zurückgehalten (#). Gründe ansehen}}",
       "previewFairnessBlocked": "{count, plural, one {# geplante Ablehnung durch die Fairness-Sicherung zurückgehalten} other {# geplante Ablehnungen durch die Fairness-Sicherung zurückgehalten}}",
       "previewApply": "{count, plural, one {# Änderung anwenden} other {# Änderungen anwenden}}",
       "previewCancel": "Abbrechen",
       "previewNothing": "Nichts anzuwenden. Jede/r Kandidat/in ist zurückgehalten oder unverändert.",
       "previewNote": "Beim Übernehmen wird erneut anhand des Live-Boards bewertet. Ein/e zwischenzeitlich verschobene/r Kandidat/in wird übersprungen, nie falsch angewendet.",
-      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches automatisch weiterleiten, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
+      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches einem Menschen zur Weiterleitung vorlegen, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
       "passSummaryLead": "Automatiklauf",
       "passAdvanced": "{n} weitergeleitet",
       "passRejected": "{n} abgelehnt",
@@ -3918,7 +3918,7 @@
       "rejectModeLabel": "Ablehnungen",
       "rejectModeApprove": "überwacht (zur Genehmigung einreihen)",
       "rejectModeAuto": "autonom (anwenden & benachrichtigen)",
-      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet (Weiterleitungen und Zurückhaltungen bleiben automatisch). Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
+      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet, und eine Weiterleitung ebenso wenig: auch sie wird zur Freigabe eingereiht, automatisch bleiben nur Zurückhaltungen. Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
       "outcome": {
         "applied": "angewendet",
         "failed": "fehlgeschlagen",
@@ -4199,6 +4199,7 @@
       "tagHumanScorecard": "Interview-Scorecard (Mensch)",
       "tagScreening": "AI-Screening",
       "tagQueuedReject": "Auto-Ablehnung in Warteschlange (die Ablehnung benachrichtigt den Kandidaten)",
+      "tagQueuedAdvance": "Weiterleitung in Warteschlange (ein Mensch rückt die Person vor)",
       "acceptSendOffer": "Angebot senden",
       "acceptToOffer": "Zum Angebot",
       "acceptAdvance": "Weiterleiten",
@@ -12727,12 +12728,12 @@
       "stops": "stoppt",
       "applied": "automatisch ausgeführt",
       "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Eine nicht erfüllte Voraussetzung ändert daran nichts: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt.)",
-      "noteAutonomous": "Weiterleitungen, Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
+      "noteAutonomous": "Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
       "noteHired": "Eingestellt liegt gar nicht auf diesem Weg. Ein manueller Wechsel zu Eingestellt liefert 422, denn diese Phase setzt die Annahme eines Angebots durch die Person und sonst nichts.",
       "status": {
         "s0": "der unbeaufsichtigte Durchlauf schlägt vier Aktionen vor",
         "s2": "approvalKind: ein Feld entscheidet, was anhält",
-        "s3": "Weiterleitung: ausgeführt und in die Chronik geschrieben",
+        "s3": "Weiterleitung: berechnet, dann eingereiht statt ausgeführt",
         "s4": "Zurückstellung: ausgeführt",
         "s5": "Ablehnung: berechnet, dann eingereiht statt ausgeführt",
         "s6": "Angebot: entworfen, dann eingereiht",

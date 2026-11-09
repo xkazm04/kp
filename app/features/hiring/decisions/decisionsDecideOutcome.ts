@@ -50,6 +50,12 @@ export function handoffFor(approvalKind: Entry["approvalKind"], action: DecideAc
   if (action !== "accept") return none;
   if (approvalKind === "screening_review") {
     // An accepted screening flows to Schedule; its prep pack is built in the background.
+    // Except a queued policy advance out of the ENTRY column (Q2): the store moves that
+    // candidate into screening without raising the calendar gate, so there is nothing to
+    // narrate. The server's answer decides (an entry that did not land on the calendar
+    // gate was not queued on Schedule); a response that names no entry keeps the old read.
+    const landed = rec(b.entry).approvalKind;
+    if (landed !== undefined && landed !== "calendar") return none;
     return { queueForSchedule: true, prepTask: true, offerLink: null };
   }
   if (approvalKind === "scorecard_review") {

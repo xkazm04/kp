@@ -208,7 +208,7 @@
       },
       "dist": {
         "title": "Rozeslání kandidátům",
-        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) automaticky posune odpovídající kandidáty do stavu Screened (první vlna hodnocení). Zveřejnění na externích job boardech je stále ruční."
+        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) navrhne odpovídající kandidáty do stavu Screened (první vlna hodnocení) a každý návrh zařadí ke schválení člověkem. Zveřejnění na externích job boardech je stále ruční."
       },
       "apply": {
         "title": "Přihláška kandidáta / nahrání CV",
@@ -256,7 +256,7 @@
       },
       "cron": {
         "title": "Plánovač / cron",
-        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, časové posuny). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, zařazené návrhy posunu). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -1104,7 +1104,7 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
+        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody se zařadí člověku k postoupení a vše ostatní čeká na člověka."
       },
       "assignment": {
         "eyebrow": "Krok 05 · Pracovní ukázka",
@@ -3365,7 +3365,7 @@
       "previewTitle": "Náhled: co by tento průchod udělal",
       "previewSubtitle": "{evaluated, plural, one {Vyhodnocen # aktivní kandidát} few {Vyhodnoceni # aktivní kandidáti} other {Vyhodnoceno # aktivních kandidátů}}. Zatím se nic nepoužilo a nikomu se e-mail neodeslal.",
       "previewRejectsQueued": "{count, plural, one {# by čekal na vaše schválení. Průchod sám nikdy nezamítá} few {# by čekali na vaše schválení. Průchod sám nikdy nezamítá} other {# by čekalo na vaše schválení. Průchod sám nikdy nezamítá}}",
-      "previewAdvances": "{count, plural, one {Postoupil by #} few {Postoupili by #} other {Postoupilo by #}}",
+      "previewAdvances": "{count, plural, one {Zařadil by # posun ke schválení} few {Zařadil by # posuny ke schválení} other {Zařadil by # posunů ke schválení}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#). Zobrazit důvody} few {Pozdrženo k posouzení (#). Zobrazit důvody} other {Pozdrženo k posouzení (#). Zobrazit důvody}}",
       "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
       "previewApply": "{count, plural, one {Použít # změnu} few {Použít # změny} other {Použít # změn}}",
@@ -3373,7 +3373,7 @@
       "previewNothing": "Není co použít. Všichni kandidáti jsou pozdrženi nebo beze změny.",
       "previewNote": "Při potvrzení se všechno znovu vyhodnotí proti aktuální nástěnce. Kandidáta, který se mezitím přesunul, průchod přeskočí, nikdy ho nezpracuje špatně.",
       "runPass": "▷ Spustit automatický průchod",
-      "runPassTitle": "Deterministický průchod pravidel: automaticky postoupí silné shody BAU, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
+      "runPassTitle": "Deterministický průchod pravidel: zařadí silné shody BAU člověku k postoupení, kandidáty na začátku kariéry pozdrží pro člověka, označí stárnoucí",
       "passSummaryLead": "Automatický průchod",
       "passAdvanced": "{n} postoupilo",
       "passRejected": "{n} zamítnuto",
@@ -3918,7 +3918,7 @@
       "rejectModeLabel": "Zamítnutí",
       "rejectModeApprove": "pod dohledem (do fronty ke schválení)",
       "rejectModeAuto": "autonomně (provést a oznámit)",
-      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu (posuny a pozdržení zůstávají automatické). Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
+      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem. Nikdy se neprovede bez dohledu, a stejně tak posun: i ten se zařadí ke schválení a automatická zůstávají jen pozdržení. Každé nepříznivé rozhodnutí přezkoumává a dělá člověk.",
       "outcome": {
         "applied": "provedeno",
         "failed": "selhalo",
@@ -4199,6 +4199,7 @@
       "tagHumanScorecard": "Hodnoticí karta z pohovoru (člověk)",
       "tagScreening": "Screening AI",
       "tagQueuedReject": "Zamítnutí ve frontě (potvrzením se kandidát dozví výsledek)",
+      "tagQueuedAdvance": "Posun ve frontě (dál ho posouvá člověk)",
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",
       "acceptAdvance": "Postoupit",
@@ -12727,12 +12728,12 @@
       "stops": "zastaví se",
       "applied": "provedeno automaticky",
       "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Nesplněný požadavek na tom nic nemění: přihláška čeká na člověka, který zamítnutí potvrdí, nebo ji uvolní.)",
-      "noteAutonomous": "Postupy, pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
+      "noteAutonomous": "Pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
       "noteHired": "Přijat na téhle cestě vůbec není. Ruční přesun na Přijat vrátí 422, protože tuhle fázi nastavuje přijetí nabídky kandidátem a nic jiného.",
       "status": {
         "s0": "bezobslužný průchod navrhuje čtyři akce",
         "s2": "approvalKind: jedno pole rozhoduje, co se zastaví",
-        "s3": "postup: provedeno a zapsáno do časové osy",
+        "s3": "postup: spočítán, pak zařazen do fronty místo provedení",
         "s4": "pozdržení: provedeno",
         "s5": "zamítnutí: spočítáno, pak zařazeno místo provedení",
         "s6": "nabídka: připravena, pak zařazena",

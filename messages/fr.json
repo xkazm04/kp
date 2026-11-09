@@ -208,7 +208,7 @@
       },
       "dist": {
         "title": "Diffusion aux candidats",
-        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) fait avancer automatiquement les candidats retenus vers Screened (première vague d'évaluation). La publication sur les jobboards externes reste manuelle."
+        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) propose les candidats retenus pour Screened (première vague d'évaluation) et met chaque proposition en file pour l'approbation d'une personne. La publication sur les jobboards externes reste manuelle."
       },
       "apply": {
         "title": "Candidature / dépôt de CV",
@@ -256,7 +256,7 @@
       },
       "cron": {
         "title": "Planificateur / cron",
-        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, avancements temporels). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, propositions d'avancement mises en file). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -1104,7 +1104,7 @@
       "screen": {
         "eyebrow": "Étape 04 · Présélection",
         "title": "Chaque CV, lu pour de vrai",
-        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes avancent seules et tout le reste attend un humain."
+        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes sont mises en file pour qu'un humain les fasse avancer et tout le reste attend un humain."
       },
       "assignment": {
         "eyebrow": "Étape 05 · Travail pratique",
@@ -3366,14 +3366,14 @@
       "previewTitle": "Aperçu : ce que ferait cette passe",
       "previewSubtitle": "{evaluated} candidats actifs évalués. Rien n’a été appliqué et personne n’a encore été contacté par e-mail.",
       "previewRejectsQueued": "{count, plural, one {Soumettrait # à votre validation. La passe ne rejette jamais d’elle-même} other {Soumettrait # à votre validation. La passe ne rejette jamais d’elle-même}}",
-      "previewAdvances": "{count, plural, one {Ferait avancer #} other {Ferait avancer #}}",
+      "previewAdvances": "{count, plural, one {Mettrait # avancement en file pour approbation} other {Mettrait # avancements en file pour approbation}}",
       "previewHeld": "{count, plural, one {En attente de revue (#). Voir les raisons} other {En attente de revue (#). Voir les raisons}}",
       "previewFairnessBlocked": "{count, plural, one {# rejet potentiel retenu par le garde-fou d’équité} other {# rejets potentiels retenus par le garde-fou d’équité}}",
       "previewApply": "{count, plural, one {Appliquer # changement} other {Appliquer # changements}}",
       "previewCancel": "Annuler",
       "previewNothing": "Rien à appliquer. Chaque candidat est en attente ou inchangé.",
       "previewNote": "La validation réévalue par rapport au tableau en direct. Un candidat déplacé entre-temps est ignoré, jamais traité par erreur.",
-      "runPassTitle": "Passe de règles déterministe : faire avancer automatiquement les bonnes correspondances BAU, mettre en attente les profils en début de carrière pour un humain, signaler la stagnation",
+      "runPassTitle": "Passe de règles déterministe : mettre en file les bonnes correspondances BAU pour qu'un humain les fasse avancer, mettre en attente les profils en début de carrière pour un humain, signaler la stagnation",
       "passSummaryLead": "Passe d’automatisation",
       "passAdvanced": "{n, plural, one {# avancé} other {# avancés}}",
       "passRejected": "{n, plural, one {# rejeté} other {# rejetés}}",
@@ -3918,7 +3918,7 @@
       "rejectModeLabel": "Rejets",
       "rejectModeApprove": "supervisé (mis en file pour approbation)",
       "rejectModeAuto": "autonome (appliquer et notifier)",
-      "rejectModeTitle": "Chaque rejet calculé par l’horloge est mis en file sur le point de contrôle Décisions pour un clic humain. Il n’est jamais appliqué sans surveillance (les avancées et les mises en attente restent automatiques). Un humain examine et prend chaque décision défavorable.",
+      "rejectModeTitle": "Chaque rejet calculé par l’horloge est mis en file sur le point de contrôle Décisions pour un clic humain. Il n’est jamais appliqué sans surveillance (pas plus qu’une avancée, elle aussi mise en file pour approbation : seules les mises en attente restent automatiques). Un humain examine et prend chaque décision défavorable.",
       "outcome": {
         "applied": "appliqué",
         "failed": "échoué",
@@ -4199,6 +4199,7 @@
       "tagHumanScorecard": "Scorecard d’entretien humain",
       "tagScreening": "Présélection AI",
       "tagQueuedReject": "Rejet automatique en file (rejeter notifie le candidat)",
+      "tagQueuedAdvance": "Avancée en file (une personne fait avancer le candidat)",
       "acceptSendOffer": "Envoyer l’offre",
       "acceptToOffer": "Passer à l’offre",
       "acceptAdvance": "Faire avancer",
@@ -12727,12 +12728,12 @@
       "stops": "s'arrête",
       "applied": "appliqué automatiquement",
       "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Une condition non remplie n’y change rien : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente.)",
-      "noteAutonomous": "Les avancées, les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
+      "noteAutonomous": "Les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
       "noteHired": "Recruté ne se trouve pas du tout sur ce chemin. Un passage manuel à Recruté renvoie 422, car cette étape est fixée par l'acceptation d'une offre par le candidat et par rien d'autre.",
       "status": {
         "s0": "la passe non supervisée propose quatre actions",
         "s2": "approvalKind : un seul champ décide de ce qui s'arrête",
-        "s3": "avancée : appliquée et inscrite dans la chronologie",
+        "s3": "avancée : calculée, puis mise en file au lieu d'être appliquée",
         "s4": "mise en attente : appliquée",
         "s5": "rejet : calculé, puis mis en file au lieu d'être appliqué",
         "s6": "offre : rédigée, puis mise en file",

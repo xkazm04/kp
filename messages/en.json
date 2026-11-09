@@ -208,7 +208,7 @@
       },
       "dist": {
         "title": "Candidate fan-out",
-        "summary": "On JD save the candidate pool is ranked against the new job and seeded as Accepted pipeline entries; the policy pass's Accepted branch (Direction #1) auto-advances matched candidates into Screened (first-wave evaluation). External job-board posting is still manual."
+        "summary": "On JD save the candidate pool is ranked against the new job and seeded as Accepted pipeline entries; the policy pass's Accepted branch (Direction #1) proposes matched candidates for Screened (first-wave evaluation) and queues each proposal for a person's approval. External job-board posting is still manual."
       },
       "apply": {
         "title": "Candidate apply / CV upload",
@@ -256,7 +256,7 @@
       },
       "cron": {
         "title": "Scheduler / cron",
-        "summary": "Direction #5: a durable clock. An instrumentation heartbeat ticks the scheduler, which atomically claims a due run and executes the policy pass (aging nudges, time-based advances). Default OFF. Opt in via the Pipeline-tab toggle or AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Direction #5: a durable clock. An instrumentation heartbeat ticks the scheduler, which atomically claims a due run and executes the policy pass (aging nudges, queued advance proposals). Default OFF. Opt in via the Pipeline-tab toggle or AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -1104,7 +1104,7 @@
       "screen": {
         "eyebrow": "Step 04 · Screen",
         "title": "Every CV, read for real",
-        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human."
+        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches are queued for a person to advance and everything else is held for a human."
       },
       "assignment": {
         "eyebrow": "Step 05 · Assignment",
@@ -3366,14 +3366,14 @@
       "previewTitle": "Preview: what this pass would do",
       "previewSubtitle": "{evaluated} active candidates evaluated. Nothing has been applied and no one has been emailed yet.",
       "previewRejectsQueued": "{count, plural, one {Would queue # for your approval. The pass never rejects on its own} other {Would queue # for your approval. The pass never rejects on its own}}",
-      "previewAdvances": "{count, plural, one {Would advance #} other {Would advance #}}",
+      "previewAdvances": "{count, plural, one {Would queue # advance for approval} other {Would queue # advances for approval}}",
       "previewHeld": "{count, plural, one {Held for review (#). View reasons} other {Held for review (#). View reasons}}",
       "previewFairnessBlocked": "{count, plural, one {# would-be reject held by the fairness backstop} other {# would-be rejects held by the fairness backstop}}",
       "previewApply": "{count, plural, one {Apply # change} other {Apply # changes}}",
       "previewCancel": "Cancel",
       "previewNothing": "Nothing to apply. Every candidate is held or unchanged.",
       "previewNote": "Committing re-evaluates against the live board. A candidate moved meanwhile is skipped, never mis-applied.",
-      "runPassTitle": "Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging",
+      "runPassTitle": "Deterministic policy pass: queue strong BAU matches for a person to advance, hold early-career for a human, flag aging",
       "passSummaryLead": "Automation pass",
       "passAdvanced": "{n} advanced",
       "passRejected": "{n} rejected",
@@ -3918,7 +3918,7 @@
       "rejectModeLabel": "Rejections",
       "rejectModeApprove": "supervised (queue for approval)",
       "rejectModeAuto": "autonomous (apply & notify)",
-      "rejectModeTitle": "Every clock-computed rejection is queued on the Decisions gate for a human click. It is never applied unattended (advances and holds stay automatic). A human reviews and makes every adverse decision.",
+      "rejectModeTitle": "Every clock-computed rejection is queued on the Decisions gate for a human click. It is never applied unattended, and neither is an advance: that is queued for approval too, and only holds stay automatic. A human reviews and makes every adverse decision.",
       "outcome": {
         "applied": "applied",
         "failed": "failed",
@@ -4199,6 +4199,7 @@
       "tagHumanScorecard": "Human interview scorecard",
       "tagScreening": "AI screening",
       "tagQueuedReject": "Queued auto-reject (rejecting notifies the candidate)",
+      "tagQueuedAdvance": "Queued advance (a person moves them on)",
       "acceptSendOffer": "Send offer",
       "acceptToOffer": "To offer",
       "acceptAdvance": "Advance",
@@ -12727,12 +12728,12 @@
       "stops": "stops",
       "applied": "applied automatically",
       "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own. (A failed must-have does not change that: it holds the application for a person, who confirms the rejection or clears the hold.)",
-      "noteAutonomous": "Advances, holds, alerts, scoring and drafting stay autonomous, and naming that plainly is what makes the rest of the claim worth anything.",
+      "noteAutonomous": "Holds, alerts, scoring and drafting stay autonomous, and naming that plainly is what makes the rest of the claim worth anything.",
       "noteHired": "Hired is not on this road at all. A manual move to Hired returns 422, because that stage is set when the candidate accepts an offer and by nothing else.",
       "status": {
         "s0": "the unattended pass proposes four actions",
         "s2": "approvalKind: one field decides what parks",
-        "s3": "advance: applied, and written to the timeline",
+        "s3": "advance: computed, then queued instead of applied",
         "s4": "hold: applied",
         "s5": "reject: computed, then queued instead of applied",
         "s6": "offer: drafted, then queued",

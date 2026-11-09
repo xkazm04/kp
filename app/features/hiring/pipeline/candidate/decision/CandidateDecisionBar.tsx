@@ -25,10 +25,10 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
   const n = useNumberFormat();
   const fmt = useDateFormat();
   const { entry, staleSince, onAccept, onReject, busy } = decision;
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, verdictSource, verdictProvider } =
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, isHumanScorecard, verdictSource, verdictProvider } =
     useAiReviewCardLogic(entry);
   const [ttlDays, setTtlDays] = useState<number>(defaultOfferTtlDays());
-  const tag = isOffer ? t("tagOffer") : isQueuedReject ? t("tagQueuedReject") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
+  const tag = isOffer ? t("tagOffer") : isQueuedReject ? t("tagQueuedReject") : isQueuedAdvance ? t("tagQueuedAdvance") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (
