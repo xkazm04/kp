@@ -29183,6 +29183,22 @@
           "evidence": "app/_lib/db/campaign-tenancy.test.ts:23 The source walk declares a floor."
         }
       ]
+    },
+    "6f32f7eb-be6a-48aa-a546-d7f77ddf7546/quality-gates": {
+      "context": "i18n-locale-resolution",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:25:23.463Z",
+      "worker": "2775a08d-036f-4d17-9d58-43d637981d38",
+      "techniques": [
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "deviation",
+          "evidence": "i18n/server.ts:5 The audit question 'if someone did this right now, what fails, and where?' answers nothing. locales.test.ts pins the precedence inside getServerLocale, which is a different claim from there being only one path. No present violation was found."
+        }
+      ]
     }
   }
 }

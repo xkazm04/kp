@@ -17472,7 +17472,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "i18n/server.ts:5 Exclusivity is stated only in prose: nothing refuses a second reader of the locale cookie or header, since eslint's i18n block carries no such restriction and no tree-walking test names these symbols, so the convention holds today (only this file reads them) by habit rather than by a mechanism that could fail.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "mcp-tools",

@@ -1,0 +1,98 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2775a08d-036f-4d17-9d58-43d637981d38",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-09T02:25:23.463505+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 The approve() guard runs its assertions over raw source with comments left in, so a comment spelling `runAction(\"approve\"` would keep it green after the call was deleted, and the body it searches already carries the forbidden `if (r.ok)` in prose at useDevTabNeedAnalysis.ts:101, missing the needle only because no `{` follows.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 Haystack is not normalised to what executes and the raw read is not explained; the positive assertion at line 27 errs in the permissive direction. Nine sibling tests in the repo define stripComments, so the remedy is in house. A hazard today, not an active false green: the live call at useDevTabNeedAnalysis.ts:105 is what matches."
+    },
+    {
+     "technique": "policy-projection",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevProbeStrengthBanner.tsx:21 Banner and gate share auditProbeStrength, but zero probes is verdict none, which enforceProbeGate refuses with 422 (devcase-probe-audit.ts:88), and the banner renders nothing for it, so the pre-approval surface understates what will block. Low severity: the refusal text still names the cause after the click."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 The instrument is asserted before the result: a moved or renamed function fails as could-not-find rather than letting doesNotMatch pass on an empty slice."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelIntegrity.tsx:116 A null chain verdict renders as its own unverifiable state, neither pass nor tampered. This is a display of an assessment rather than a blocking gate."
+    }
+   ]
+  },
+  {
+   "context": "i18n-locale-resolution",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "i18n/server.ts:5 Exclusivity is stated only in prose: nothing refuses a second reader of the locale cookie or header, since eslint's i18n block carries no such restriction and no tree-walking test names these symbols, so the convention holds today (only this file reads them) by habit rather than by a mechanism that could fail.",
+   "techniques": [
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "deviation",
+     "evidence": "i18n/server.ts:5 The audit question 'if someone did this right now, what fails, and where?' answers nothing. locales.test.ts pins the precedence inside getServerLocale, which is a different claim from there being only one path. No present violation was found."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "jobseeker-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "pipeline-entry-types",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T02:25:23.463505+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "unmeasurable-criteria"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:25:23.463505+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "prose-rule-drift"
+   ],
+   "deviations": 1,
+   "context": "i18n-locale-resolution",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
