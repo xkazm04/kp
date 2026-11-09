@@ -23658,7 +23658,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:171 The bench judge defaults to model=None, so it rides the Claude CLI's configured default with no resolved identity on any record, no anchor set or repeatability measure exists, and the single Anthropic judge scored Anthropic targets, which leaves the published scores without a stable or disinterested instrument.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "module-design",
@@ -25214,7 +25218,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:59 The Models tab publishes per-case best and runner-up orders from a sort over composites with no check that the spread clears the noise, and hedges with a footnote calling small run counts directional, which is the sorted list with a caveat that the standard rules out.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         }
       ],
       "governance": "governed"
@@ -32759,7 +32767,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksTab.tsx:17 This is a progress ledger for background jobs; a case-insensitive search of app/features/shell/tasks found zero hits for judge, rubric, scenario, harness and benchmark, and the one 'eval' hit is a label-search test fixture, so nothing here runs or scores a model against scenarios.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
