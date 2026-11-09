@@ -290,8 +290,9 @@ switch is read in one place, `app/_lib/jobseeker/enabled.ts`.
 **The AI voice interview is off unless you turn it on.** It is out of the 1.0 cut (human
 interviews remain the path), so with `KP_VOICE_INTERVIEW` unset `/interview/<token>` and the
 doors that start or serve a live voice session (`/api/interview/connect|create|director|simulate`,
-`/api/intake/<id>/voice-*`, the interview-kit rehearse route) answer exactly what an unknown
-route answers, and no candidate is sent a voice-interview link. Records of sessions already
+`/api/intake/<id>/voice-*`, the interview-kit rehearse route, and the `POST` probe
+`/api/voice/readiness`; its `GET` stays open) answer exactly what an unknown
+route answers, including for percent-encoded or re-cased spellings of those paths, and no candidate is sent a voice-interview link. Records of sessions already
 held stay readable and erasable. Set `KP_VOICE_INTERVIEW=1` (exactly `1`) to run it — the
 switch is read in one place, `app/_lib/voice/enabled.ts`.
 
