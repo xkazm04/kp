@@ -708,6 +708,11 @@ the name leads, each entry stays contiguous and nothing is lost; the checker its
 inlined into its page). Measured 2026-09-28: `studio`, `signal`, `folio`, `classic` and
 `editorial` pass every reference in both extractors, Czech included; `sidebar` and `compact`
 fail by position - hence opt-in.
+`npm run cv:lines` measures the line length of running text (bullets, summary, objective)
+in every template. Measured 2026-10-31: the one-flow templates set a full line at 103-113
+characters against a 55-90 target, the columned ones at 73-84. A 36em cap would bring every
+line under 90, but it pushes the fourteen-year reference CV from one exact page to a second
+page 4-8% full, so the measure is left as it is: it trades against the page budget.
 
 **Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
 seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary
