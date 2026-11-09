@@ -29329,27 +29329,66 @@
       "context": "matrix-focus",
       "subject": "quality-gates",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "deviation",
       "evaluatedAt": "2026-11-09",
-      "evaluatedTs": "2026-11-09T03:08:33.539Z",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
       "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 Stated proof-of-red is false by construction: line 20 imports only matchTypes, and a repo search found no other test or spec naming MatchWeightsPanel. The panel's own comment says the sync is no longer an effect at all, so the claim is also stale."
+        },
         {
           "technique": "match-the-resolved-artifact",
           "verdict": "not-applicable",
-          "evidence": "app/features/insights/matrix/focus/matchResultsWriteback.test.ts:13 The test imports and runs the function, so no text-matching guard exists in the listed files."
+          "evidence": "app/features/insights/matrix/focus/matchResultsWriteback.test.ts:13 The test imports and runs the function, so no text-matching guard exists in the listed files.",
+          "carriedFrom": "2026-11-09"
+        }
+      ],
+      "registryProposal": "gate-liveness could name a written non-vacuity claim that nothing executes: a test header asserting which mutation turns it red reads as seeded-failure evidence and is never checked."
+    },
+    "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7/quality-gates": {
+      "context": "shell-setup-pipeline",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+      "techniques": []
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/quality-gates": {
+      "context": "profile-editor",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 Control limb realised by pins(), normalise limb not, and no note justifies the raw read. Header line 17 claims every assertion is mutation-proved, but lines 83-87, 100 and 108 use no mutated copy. The needles are full statements and useProfileEditorSubmit.ts shows no comment copy today, so low severity."
         },
         {
           "technique": "gate-liveness",
-          "verdict": "not-applicable",
-          "evidence": "app/features/insights/matrix/focus/matchView.test.ts:2 The gate vocabulary here names a UI render branch, not a checker with an instrument to assert."
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:39 Known-bad input kept in the suite: each pinned pattern must go red against a broken copy of the same source."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:107 The precedence rule is local, and the return check is confined to the bounded region between the two param reads."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileTaxonomy.test.ts:4 States which instrument owns the wiring question and claims only the runtime half for itself."
         }
       ],
-      "withdrawn": {
-        "worker": "8bdbea36-2fb4-4d5f-a892-e32a831af13d",
-        "state": "not-applicable",
-        "at": "2026-11-09T03:08:58.034187+00:00",
-        "reason": "reviewer (sonnet): The directory has app/features/insights/matrix/focus/matchReasons.test.ts, which reads source text with readFileSync (pipeline/jobfit/matching.py at line 131 and the messages JSON), so the claim that the context holds no source-text guard is contradicted; the searched terms (process.exit, pre-push, "
-      }
+      "registryProposal": "match-the-resolved-artifact specifies a positive control only for absence assertions; a mutated-copy control is the presence-side analogue and should be named along with its limit, since it proves a pattern can fail but cannot tell code from a comment."
     }
   }
 }

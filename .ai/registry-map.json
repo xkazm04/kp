@@ -24430,7 +24430,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 The header claims a seeded failure that cannot happen, because the test imports only pure helpers from matchTypes and calls syncDraftToWeights itself, so deleting the re-anchor at MatchWeightsPanel.tsx:57 leaves it green and the regression it says it locks is unguarded.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "interview-story-portfolio",
@@ -28164,7 +28168,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 The guards normalise line endings but not comments, so presence patterns over the hook source can be satisfied by prose, and the mutated-copy control cannot detect that because it would mutate the surviving comment just as it mutates code.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "draft-editing",
@@ -31982,7 +31990,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:83 Case-insensitive search of app/features/shell/setup found zero hits for every absence term, and the only thing here called a gate is stepSatisfied, a wizard Continue predicate over form state that judges no tree, commit or pipeline run; the directory's two source-reading tests (setupFinishOutcome, SetupLanguageSwitch) are outside this context's file list.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "pipeline-stage-modelling",
