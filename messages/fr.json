@@ -16,6 +16,7 @@
     "gateHuman": "Un humain valide",
     "tipGateHuman": "Une personne valide ce verdict dans Décisions. Cliquez pour l’appliquer sans supervision.",
     "tipGateAuto": "Ce verdict s’applique sans supervision. Cliquez pour qu’une personne le valide.",
+    "tipGateFixed": "Une personne décide de cette étape ; aucun réglage ne la confie à la machine.",
     "tipKindAi": "Une IA mène cet entretien. Cliquez pour en faire un tour humain.",
     "tipKindHuman": "Une personne mène ce tour. Cliquez pour en faire un entretien IA.",
     "tipModeScreening": "La présélection est toujours faite par l’IA. Vous choisissez qui la valide.",
@@ -901,7 +902,7 @@
       "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l’AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
       "human": {
         "title": "L’humain dans la boucle",
-        "body": "Hormis un seul refus automatique, un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Ce refus automatique est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature aussitôt, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
+        "body": "Hormis un seul refus automatique, un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Ce refus automatique est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature aussitôt, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre."
       },
       "oversight": {
         "title": "AI Act, article par article"
@@ -932,7 +933,7 @@
           },
           "auto": "auto",
           "you": "vous",
-          "lockedNote": "les refus, une fois la candidature reçue, restent toujours à vous : celui-là ne se déverrouille pas"
+          "lockedNote": "la présélection, les offres et les refus, une fois la candidature reçue, restent toujours à vous : ils ne se déverrouillent pas"
         }
       }
     },
@@ -1234,7 +1235,7 @@
     "loadFailed": "Impossible de confirmer les règles de cet espace de travail. Les informations par défaut sont affichées.",
     "retry": "Réessayer",
     "title": "Comment ça marche",
-    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement ; vous savez laquelle et vous pouvez demander qu’une personne réexamine la décision. Tout autre rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
+    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement ; vous savez laquelle et vous pouvez demander qu’une personne réexamine la décision. Tout autre rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
     "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « Vos données » en bas de chacun de nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
@@ -16338,7 +16339,7 @@
       },
       "legendLocked": "verrouillé, jamais délégué",
       "legendDelegable": "un espace de travail peut le déléguer",
-      "logNone": "Rien ne tourne sans surveillance : chaque étape attend une personne.",
+      "logNone": "La présélection et les offres attendent une personne ; aucun réglage n’y change rien.",
       "logOne": "Sans surveillance désormais : {stage}. Chaque étape de ce type est journalisée avec son plan.",
       "logTwo": "Sans surveillance désormais : {first} et {second}. Chaque étape de ce type est journalisée avec son plan."
     },

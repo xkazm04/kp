@@ -16,6 +16,7 @@
     "gateHuman": "Mensch gibt frei",
     "tipGateHuman": "Eine Person gibt dieses Urteil in Entscheidungen frei. Klicken, um es unbeaufsichtigt anzuwenden.",
     "tipGateAuto": "Dieses Urteil wird unbeaufsichtigt angewendet. Klicken, damit eine Person es freigibt.",
+    "tipGateFixed": "Diesen Schritt entscheidet eine Person; keine Einstellung übergibt ihn an die Maschine.",
     "tipKindAi": "Hier führt eine KI das Interview. Klicken, um daraus eine menschliche Runde zu machen.",
     "tipKindHuman": "Eine Person führt diese Runde. Klicken, um daraus ein KI-Interview zu machen.",
     "tipModeScreening": "Das Screening macht immer die KI. Sie wählen, wer es abzeichnet.",
@@ -901,7 +902,7 @@
       "subtitle": "Gebaut für reguliertes Recruiting nach EU AI Act und DSGVO: Die Maschine liest, aber eine qualifizierte Person trifft jede Entscheidung, die einen Kandidaten betrifft.",
       "human": {
         "title": "Human in the Loop",
-        "body": "Bis auf ein automatisches Ausschlusskriterium trifft eine Ablehnung ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet sofort; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
+        "body": "Bis auf ein automatisches Ausschlusskriterium trifft eine Ablehnung ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet sofort; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben."
       },
       "oversight": {
         "title": "AI Act, Artikel für Artikel"
@@ -932,7 +933,7 @@
           },
           "auto": "auto",
           "you": "Sie",
-          "lockedNote": "Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: dieser Schalter bleibt gesperrt"
+          "lockedNote": "Screening, Angebote und Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: diese Schalter bleiben gesperrt"
         }
       }
     },
@@ -1234,7 +1235,7 @@
     "loadFailed": "Die Regeln dieses Arbeitsbereichs konnten nicht bestätigt werden. Die Standardinformationen werden angezeigt.",
     "retry": "Erneut versuchen",
     "title": "So funktioniert es",
-    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; Sie erfahren, um welche es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede andere Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
+    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; Sie erfahren, um welche es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede andere Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
     "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Ihre Daten“ am Ende jeder unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
@@ -16338,7 +16339,7 @@
       },
       "legendLocked": "gesperrt, nie delegiert",
       "legendDelegable": "ein Arbeitsbereich kann es delegieren",
-      "logNone": "Nichts läuft unbeaufsichtigt: Jede Phase wartet auf einen Menschen.",
+      "logNone": "Screening und Angebote warten auf einen Menschen; keine Einstellung ändert das.",
       "logOne": "Jetzt unbeaufsichtigt: {stage}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat.",
       "logTwo": "Jetzt unbeaufsichtigt: {first} und {second}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
     },

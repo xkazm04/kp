@@ -16,6 +16,7 @@
     "gateHuman": "Schvaluje člověk",
     "tipGateHuman": "Toto rozhodnutí schvaluje člověk v Rozhodnutích. Kliknutím ho necháte proběhnout bez dohledu.",
     "tipGateAuto": "Toto rozhodnutí proběhne bez dohledu. Kliknutím ho necháte schválit člověkem.",
+    "tipGateFixed": "Tento krok rozhoduje člověk; žádné nastavení ho nepředá stroji.",
     "tipKindAi": "Tento pohovor vede AI. Kliknutím z něj uděláte kolo s člověkem.",
     "tipKindHuman": "Toto kolo vede člověk. Kliknutím z něj uděláte pohovor s AI.",
     "tipModeScreening": "Prověření vždy dělá AI. Vy volíte, kdo ho potvrdí.",
@@ -901,7 +902,7 @@
       "subtitle": "Stavěno pro regulovaný nábor podle EU AI Act a GDPR: čtení obstará stroj, ale každé rozhodnutí, které se dotkne kandidáta, dělá kvalifikovaný člověk.",
       "human": {
         "title": "Člověk v řídicí smyčce",
-        "body": "Až na jedno automatické vyřazení je zamítnutí na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Tím jedním je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku hned, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
+        "body": "Až na jedno automatické vyřazení je zamítnutí na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Tím jedním je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku hned, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji."
       },
       "oversight": {
         "title": "AI Act, článek po článku"
@@ -932,7 +933,7 @@
           },
           "auto": "auto",
           "you": "vy",
-          "lockedNote": "zamítnutí po přijetí přihlášky je vždycky na vás: tohle se odemknout nedá"
+          "lockedNote": "screening, nabídky i zamítnutí po přijetí přihlášky jsou vždycky na vás: tohle se odemknout nedá"
         }
       }
     },
@@ -1234,7 +1235,7 @@
     "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",
     "retry": "Zkusit znovu",
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky; dozvíte se, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé jiné zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky; dozvíte se, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé jiné zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „Vaše údaje“ na konci kterékoli naší zprávy. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
@@ -16338,7 +16339,7 @@
       },
       "legendLocked": "zamčeno, nikdy se nedeleguje",
       "legendDelegable": "dá se delegovat",
-      "logNone": "Nic neběží bez dozoru: každá fáze čeká na člověka.",
+      "logNone": "Screening a nabídky čekají na člověka; žádné nastavení to nemění.",
       "logOne": "Teď bez dozoru: {stage}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo.",
       "logTwo": "Teď bez dozoru: {first} a {second}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo."
     },

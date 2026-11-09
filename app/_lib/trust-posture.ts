@@ -130,16 +130,15 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     // remaining exemption rather than the old, much wider one. It is still stated as a
     // gap rather than implied away: a reviewer reading Art. 14 is looking for an
     // Art. 14(4)(e) stop control and must know exactly what it does not reach.
-    // THE ABSOLUTE WAS FALSE IN TWO THIRDS, and is not softened here so much as
-    // SPLIT. It used to open "No candidate is rejected, advanced or offered by the
-    // machine alone". The rejection third holds and is the part worth claiming;
-    // the other two do not, because Settings → Hiring exposes a per-stage gate and
-    // `automation-run.ts` reads it (`getPlanGateForRole("screening"|"offer") ===
-    // "auto"`). The landing page retired the same sentence on 2026-08-28 and this
-    // one outlived it by a commit — which is exactly the divergence the test now
-    // pins, off the SAME `INTERVIEW_PLAN_DEFAULT` both surfaces rest on.
+    // History: the absolute once read "No candidate is rejected, advanced or offered
+    // by the machine alone" and was false in two thirds, because Settings → Hiring let
+    // a workspace set the screening and offer gates to `auto`. The operator removed
+    // `auto` for both gates on 2026-11-09 (Q3): a stored `auto` now reads as `human`
+    // (getInterviewPlan → humanizeGatesOnAxis) and automation-run.ts has no branch that
+    // ratifies a held review or extends an offer. Score-threshold advances (policy
+    // pass) are a separate path and are NOT claimed to be a person's here.
     summary:
-      "Every rejection except the apply knockout is a person's: no gate can delegate one, unattended automation queues rejections for review rather than executing them, and a bulk rejection needs a signed human approval of that exact cohort, which the server recomputes and refuses if the set drifted, if the review went stale, or if it cannot name the approver. Advancing and extending an offer are human-approved by default: the shipped hiring plan gates every stage on a person. A workspace can delegate either of those two, stage by stage, and every step that then runs unattended is logged with the plan that allowed it. Advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it. The one automatic decline is the apply knockout: a candidate who answers no to a must-have the role states is declined at once, is told which must-have it was on the screen and by email, and can ask a person to review it by replying to that message (the same human-review route the status page promises); the decline is audited as `ko_declined` and classed `auto`.",
+      "Every rejection except the apply knockout is a person's: no gate can delegate one, unattended automation queues rejections for review rather than executing them, and a bulk rejection needs a signed human approval of that exact cohort, which the server recomputes and refuses if the set drifted, if the review went stale, or if it cannot name the approver. Extending an offer is always a person's: no workspace setting can delegate it, and no setting can hand a held screening review to the machine (a stored `auto` gate reads as `human`; Settings → Hiring shows those two gates as display only). Advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it. The one automatic decline is the apply knockout: a candidate who answers no to a must-have the role states is declined at once, is told which must-have it was on the screen and by email, and can ask a person to review it by replying to that message (the same human-review route the status page promises); the decline is audited as `ko_declined` and classed `auto`.",
     gap: "That pause now halts every discretionary pass the server clock runs: the scheduling policy pass, interview and offer reminders, offer expiry, and the inbound pull/edge drain, as well as the automated case lifecycle. One pass is deliberately exempt: the consent-expiry sweep (the pre-expiry reminder and the anonymisation that follows) keeps running, because it discharges a statutory retention duty (GDPR Art. 5(1)(e) and the Art. 13/14 notice before it) rather than making an automated decision, and holding identifiable data past consent expiry is itself the unlawful state, so an operator toggle must not be able to suspend it indefinitely.",
   },
   {

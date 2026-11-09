@@ -16,6 +16,7 @@
     "gateHuman": "Human approves",
     "tipGateHuman": "A person approves this verdict in Decisions. Click to apply it unattended.",
     "tipGateAuto": "This verdict is applied unattended. Click to have a person approve it.",
+    "tipGateFixed": "A person decides this step; no setting hands it to the machine.",
     "tipKindAi": "An AI interview runs here. Click to make it a human round.",
     "tipKindHuman": "A person runs this round. Click to make it an AI interview.",
     "tipModeScreening": "Screening is always done by AI. What you choose is who signs it off.",
@@ -901,7 +902,7 @@
       "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
       "human": {
         "title": "Human in the loop",
-        "body": "Apart from one automatic knockout, a rejection is a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. The knockout: answering no to a must-have the role states ends that application at once, and the candidate is told which one and can ask a person to review it. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
+        "body": "Apart from one automatic knockout, a rejection is a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. The knockout: answering no to a must-have the role states ends that application at once, and the candidate is told which one and can ask a person to review it. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine."
       },
       "oversight": {
         "title": "AI Act, article by article"
@@ -932,7 +933,7 @@
           },
           "auto": "auto",
           "you": "you",
-          "lockedNote": "every rejection once an application is in is yours: that one doesn’t unlock"
+          "lockedNote": "screening and offers, and every rejection once an application is in, are yours: those don’t unlock"
         }
       }
     },
@@ -1234,7 +1235,7 @@
     "loadFailed": "Could not confirm this workspace's rules. Showing the default disclosure.",
     "retry": "Try again",
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states ends an application automatically; you are told which one and can ask a person to review it. Every other rejection is a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
+    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states ends an application automatically; you are told which one and can ask a person to review it. Every other rejection is a person's: no setting can hand that decision to the machine. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"Your data\" link at the bottom of any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
@@ -16450,7 +16451,7 @@
       },
       "legendLocked": "locked, never delegated",
       "legendDelegable": "a workspace may delegate it",
-      "logNone": "Nothing runs unattended: every stage waits for a person.",
+      "logNone": "Screening and offers wait for a person; no setting changes that.",
       "logOne": "Unattended now: {stage}. Each such step is logged with its plan.",
       "logTwo": "Unattended now: {first} and {second}. Each such step is logged with its plan."
     },

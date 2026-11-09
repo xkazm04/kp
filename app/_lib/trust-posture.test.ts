@@ -152,13 +152,10 @@ test("the Art. 14 row does not re-assert the absolute the landing retired", () =
   // and chose to say so), so an unqualified "always a person's" is false while that gate exists.
   assert.match(art14.summary, /apply knockout/i, "the Art. 14 row names the automatic knockout decline");
   assert.match(art14.summary, /ask a person to review/i, "…and the review route the declined candidate is given");
-  // And the qualifier that makes the other two honest, exactly as the landing's
-  // four catalogs have to carry "by default" (MarketingClaims.test.ts).
-  assert.match(
-    art14.summary,
-    /\bby default\b/i,
-    "advance/offer are only human-gated BY DEFAULT; the row must say so, as the landing does"
-  );
+  // The delegation sentence is gone: no workspace can hand an offer or a held
+  // screening review to the machine (Q3, 2026-11-09), so the row must not say one can.
+  assert.doesNotMatch(art14.summary, /can delegate either/i, "the row must not claim the screening/offer gates are delegable");
+  assert.match(art14.summary, /offer is always a person/i, "the offer guarantee is now unconditional and the row says so");
 });
 
 test("the shipped hiring plan is what makes the 'by default' half true", () => {
@@ -174,15 +171,12 @@ test("the shipped hiring plan is what makes the 'by default' half true", () => {
   }
 });
 
-test("the two gates the Art. 14 row calls delegable are the two that exist", () => {
+test("no reader treats a stored `auto` on the screening or offer gate as auto", () => {
   const automation = source("automation-run.ts");
-  for (const role of ["screening", "offer"]) {
-    assert.match(
-      automation,
-      new RegExp(`getPlanGateForRole\\("${role}"[^)]*\\)\\s*===\\s*"auto"`),
-      `automation-run.ts no longer delegates ${role}; the Art. 14 row's "by default" hedge may be too weak now`
-    );
-  }
+  // The two branches the row used to call delegable are gone.
+  assert.doesNotMatch(automation, /getPlanGateForRole\(/, "automation-run.ts reads no plan gate: screening and offer always park for a person");
+  assert.doesNotMatch(automation, /extendDraftedOffer\(/, "automation-run.ts must not extend an offer unattended");
+  assert.doesNotMatch(automation, /"auto_ratified"/, "automation-run.ts must not write the auto_ratified outcome");
   // The absolute that survives. A rejection gate would falsify the first sentence
   // of the row AND of landing.trust.human.body in four catalogs.
   assert.doesNotMatch(

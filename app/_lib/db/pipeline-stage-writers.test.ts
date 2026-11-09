@@ -146,8 +146,8 @@ const CALLERS: Record<string, Row> = {
   },
   "app/_lib/automation-run.ts -> actOnPipelineEntry": {
     cls: "refuses-terminal",
-    count: 2,
-    why: "STORE GUARD: screening advance / plan-gate ratify: same reach as the policy advance on a degenerate axis; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    count: 1,
+    why: "STORE GUARD: screening advance (the plan-gate ratify call is gone, Q3 2026-11-09): same reach as the policy advance on a degenerate axis; the store refuses the landing (accept) or keeps the stage (approve_event)",
     guard: G_STORE_ACT,
   },
   "app/api/schedule/route.ts -> actOnPipelineEntry": {
