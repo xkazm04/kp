@@ -110,7 +110,7 @@ test("no read or write crosses a tenant boundary — by entry, by id, every tran
 
   assert.equal(outreachLetterByEntry(foreignEntry.id, DEFAULT_WORKSPACE_ID), null);
   assert.equal(outreachLetterById(foreign.id, DEFAULT_WORKSPACE_ID), null, "a leaked letter id resolves for nobody else");
-  assert.equal(outreachLetterApprove(foreign.id, { revision: foreign.revision, approvedBy: "human:Eve" }, DEFAULT_WORKSPACE_ID), null);
+  assert.equal(outreachLetterApprove(foreign.id, { revision: foreign.revision, approvedBy: "human:Eve", digest: "v1:test" }, DEFAULT_WORKSPACE_ID), null);
   assert.equal(outreachLetterMarkReleased(foreign.id, DEFAULT_WORKSPACE_ID), null);
   assert.equal(outreachLetterMarkFailed(foreign.id, DEFAULT_WORKSPACE_ID), null);
   assert.equal(outreachLetterMarkSuppressed(foreign.id, DEFAULT_WORKSPACE_ID), null);

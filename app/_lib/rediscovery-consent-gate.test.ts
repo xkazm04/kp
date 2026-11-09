@@ -18,6 +18,7 @@ import {
 } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
 import { dispatchOutreach } from "./comms-dispatch.ts";
+import { approvedOutreachFor } from "./testing/approved-outreach.ts";
 import {
   candidateConsentSnapshots,
   candidateOutreachSuppression,
@@ -27,7 +28,6 @@ import { outreachSuppressionReason, type ConsentSnapshot } from "./consent.ts";
 
 after(() => cleanupUnitDb());
 
-const DRAFT = { subject: "A role you'd be great for", body: "We'd love to talk." };
 
 // Rediscover a candidate under a NEW role: mint the fresh per-role entry the
 // "Reach out" route would create (blank consent), returning that entry.
@@ -100,7 +100,7 @@ test("EXPIRED-consent candidate is suppressed from a fresh cross-role rediscover
   // The candidate-level gate (folding the fresh entry's snapshot in) suppresses.
   assert.equal(candidateOutreachSuppression(cand, { givenAt: y.consentGivenAt, expiresAt: y.consentExpiresAt, anonymizedAt: y.anonymizedAt }), "consent_expired");
 
-  const result = await dispatchOutreach(y, DRAFT);
+  const result = await dispatchOutreach(y, { letterId: approvedOutreachFor(y).id });
   assert.deepEqual(result, { sent: false, reason: "consent_expired" });
   assert.equal(listOutboxFiltered({ ref: y.id, kind: "outreach" }).length, 0, "no outreach email may be queued");
   assert.equal(hasEvent(y.id, "outreach_sent"), false, "no outreach_sent marker on a suppressed send");
@@ -113,7 +113,7 @@ test("ANONYMIZED candidate is suppressed from a fresh cross-role rediscovery out
   anonymizeEntry(x.id, "erasure"); // Art.17 erasure on the original entry
   const y = rediscoverInto(cand, "roleY");
 
-  const result = await dispatchOutreach(y, DRAFT);
+  const result = await dispatchOutreach(y, { letterId: approvedOutreachFor(y).id });
   assert.deepEqual(result, { sent: false, reason: "anonymized" });
   assert.equal(listOutboxFiltered({ ref: y.id, kind: "outreach" }).length, 0);
   assert.equal(hasEvent(y.id, "outreach_sent"), false);
@@ -126,7 +126,7 @@ test("a candidate with VALID consent is still contactable (no over-suppression /
   const y = rediscoverInto(cand, "roleY");
 
   assert.equal(candidateOutreachSuppression(cand, { givenAt: y.consentGivenAt, expiresAt: y.consentExpiresAt, anonymizedAt: y.anonymizedAt }), null);
-  const result = await dispatchOutreach(y, DRAFT);
+  const result = await dispatchOutreach(y, { letterId: approvedOutreachFor(y).id });
   assert.deepEqual(result, { sent: true, status: "queued" });
   assert.equal(listOutboxFiltered({ ref: y.id, kind: "outreach" }).length, 1, "the outreach email is queued");
   assert.equal(hasEvent(y.id, "outreach_sent"), true);
@@ -137,6 +137,6 @@ test("a purely recruiter-sourced candidate (no consent record anywhere) is conta
   const y = rediscoverInto(cand, "roleY");
   assert.deepEqual(candidateConsentSnapshots(cand).length > 0, true, "the entry exists");
   assert.equal(candidateOutreachSuppression(cand, { givenAt: y.consentGivenAt, expiresAt: y.consentExpiresAt, anonymizedAt: y.anonymizedAt }), null);
-  const result = await dispatchOutreach(y, DRAFT);
+  const result = await dispatchOutreach(y, { letterId: approvedOutreachFor(y).id });
   assert.deepEqual(result, { sent: true, status: "queued" });
 });

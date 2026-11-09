@@ -3,15 +3,18 @@ import { getPipelineEntry, hasEvent } from "./db/pipeline";
 import { listOutboxFiltered } from "./db/devcase";
 import {
   RELEASABLE_STATES,
+  outreachLetterApprove,
   outreachLetterById,
   outreachLetterClaimRelease,
   outreachLetterDraft,
   outreachLetterMarkFailed,
   outreachLetterMarkReleased,
   outreachLetterMarkSuppressed,
+  outreachLetterReopen,
   type OutreachLetter,
 } from "./db/outreach-letters";
-import { dispatchOutreach } from "./comms-dispatch";
+import { candidateRecipient, dispatchOutreach } from "./comms-dispatch";
+import { OutreachApprovalError, outreachApprovalDigest } from "./outreach-approval";
 import { CommsBodyRejectedError, CommsSuppressedError } from "./comms";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
@@ -22,8 +25,15 @@ import { commsTranslator } from "./comms-translator";
 // (tasks.ts batchOutreach) and the sourcing "Reach out" route — all run the `outreach`
 // automation task, and that task used to SEND the letter the model had just written. It
 // now only drafts: draftOutreachLetter() writes a held outreach_letters row and nothing
-// leaves. A person approves one exact revision (db/outreach-letters.ts
-// outreachLetterApprove, a CAS naming humanActor()), and releaseOutreachLetter() sends it.
+// leaves. A person approves one exact revision (approveOutreachLetter below over the
+// store CAS, naming a NAMED person), and releaseOutreachLetter() sends it.
+//
+// THE APPROVAL IS A BINDING, NOT A FLAG (night package 3): approveOutreachLetter() stores
+// the digest of exactly what would leave — recipient, subject, body, language, message id —
+// next to a NAMED approver, and dispatchOutreach (the one send seam) re-derives that digest
+// from the row and the application at send time and refuses on any difference. A refused
+// release re-closes the gate (outreachLetterReopen): the letter is a draft again and a person
+// reads it before it can leave.
 //
 // THE RELEASE IS THE ONLY SEND, and it goes through the same dispatchOutreach every
 // outreach used: the consent gate (candidateOutreachSuppression) and the halted-sequence
@@ -62,6 +72,37 @@ export async function draftOutreachLetter(
   return outreachLetterDraft({ entryId: entry.id, ...draft, source }, workspaceId);
 }
 
+/**
+ * A person approves ONE revision of a held letter. SYNCHRONOUS from the read to the write, so
+ * the digest is computed from the row and the application exactly as the CAS will find them:
+ * the revision term of the CAS ties the digest to the text (every text change bumps it), and
+ * the recipient is the one the send seam will read. `approvedBy` must name a person
+ * (namedOutreachApprover — the store throws otherwise); the approve door resolves it from the
+ * session or KP_OPERATOR_NAME and refuses before calling this when it cannot.
+ *
+ * Null = nothing approved: unknown letter, its application is gone, a stale revision, already
+ * approved, or erased.
+ */
+export function approveOutreachLetter(
+  letterId: string,
+  input: { revision: number; approvedBy: string },
+  workspaceId: string
+): OutreachLetter | null {
+  const letter = outreachLetterById(letterId, workspaceId);
+  if (!letter || letter.revision !== input.revision || letter.state !== "drafted") return null;
+  const entry = getPipelineEntry(letter.entryId, workspaceId);
+  if (!entry) return null;
+  const digest = outreachApprovalDigest({
+    letterId: letter.id,
+    messageId: letter.messageId,
+    recipient: candidateRecipient(entry),
+    subject: letter.subject,
+    body: letter.body,
+    lang: letter.lang,
+  });
+  return outreachLetterApprove(letterId, { revision: input.revision, approvedBy: input.approvedBy, digest }, workspaceId);
+}
+
 export type OutreachReleaseResult =
   /** The letter left (`sent` to a relay) or landed in the keyless outbox (`queued`), or
    *  the relay dead-lettered it (`failed`, state delivery_failed — retry re-sends the same
@@ -70,7 +111,7 @@ export type OutreachReleaseResult =
   | {
       ok: false;
       status: 404 | 409 | 422;
-      code: "PIPELINE_ENTRY_NOT_FOUND" | "PIPELINE_MOVE_CONFLICT" | "COMMS_SUPPRESSED" | "OUTREACH_BODY_TOO_LONG";
+      code: "PIPELINE_ENTRY_NOT_FOUND" | "PIPELINE_MOVE_CONFLICT" | "COMMS_SUPPRESSED" | "OUTREACH_BODY_TOO_LONG" | "OUTREACH_APPROVAL_STALE";
       extra?: Record<string, unknown>;
     };
 
@@ -130,14 +171,21 @@ export async function releaseOutreachLetter(letterId: string, workspaceId: strin
   try {
     let outcome;
     try {
-      outcome = await dispatchOutreach(
-        entry,
-        // The STORED source decides the AI-drafted line, at send time; a person's edit
-        // between draft and release does not change it. NULL (a pre-migration row) = AI.
-        { subject: letter.subject ?? undefined, body: letter.body, source: letter.draftSource },
-        { messageId: letter.messageId, actor: letter.approvedBy ?? actor }
-      );
+      // The seam reads the row itself and sends only what its approval covers, under the
+      // draft's message id; the timeline names the approver, who owns the text.
+      outcome = await dispatchOutreach(entry, { letterId: letter.id });
     } catch (err) {
+      // The approval no longer covers what would leave (the recipient moved, the approval
+      // names nobody, or it predates the digest): nothing was sent. Re-close the gate so a
+      // person reads the letter again, and say so with its own code.
+      if (err instanceof OutreachApprovalError) {
+        if (err.code === "OUTREACH_APPROVAL_STALE") {
+          const reopened = outreachLetterReopen(letter.id, workspaceId);
+          return { ok: false, status: 409, code: "OUTREACH_APPROVAL_STALE", extra: { state: reopened?.state ?? letter.state } };
+        }
+        const now = outreachLetterById(letter.id, workspaceId) ?? letter;
+        return { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: now.state } };
+      }
       // The channel's own send gate (commsSendSuppression) can still refuse after the
       // dispatcher's pre-checks: the same suppression, reported the same way.
       if (err instanceof CommsSuppressedError) {

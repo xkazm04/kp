@@ -1221,6 +1221,14 @@ export const REFUSAL_ERRORS = {
   OUTREACH_LETTER_CONFLICT: "This letter was just changed or has already been handled. Refresh and try again.",
   /** An outreach letter over the length cap after cleaning (422): deterministic, so retrying the same text cannot succeed. The candidate CAN be contacted; this letter cannot be sent. */
   OUTREACH_BODY_TOO_LONG: "This letter is too long to send. Shorten it and try again.",
+  /** POST /api/outreach-letters/[id]/approve when the request names no person (403): no
+   *  signed-in identity and no KP_OPERATOR_NAME. A first contact goes out under the
+   *  customer's name, so its approval must name who gave it (outreach-approval.ts). */
+  OUTREACH_APPROVER_UNNAMED: "Approving a letter needs a named person. Sign in with an account that has a name or email, or ask your administrator to set the reviewer name for this installation.",
+  /** POST /api/outreach-letters/[id]/release when the approval no longer covers what would be
+   *  sent (409): the recipient changed after approval, or the approval names nobody or predates
+   *  the approval digest. Nothing was sent; the letter is back in draft. */
+  OUTREACH_APPROVAL_STALE: "This letter changed after it was approved, so nothing was sent. It is back in draft: read it again and approve it.",
   /** The voice engines answered `unavailable` (503): no TTS / STT provider is configured on
    *  this server. A DECISION about the install, not a fault - the generic TTS_FAILED /
    *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */

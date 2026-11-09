@@ -17,6 +17,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //   404 OUTREACH_LETTER_NOT_FOUND       not in this team, or the application is gone
 //   409 OUTREACH_LETTER_CONFLICT + { state }   not approved, already released, or erased
 //   409 COMMS_SUPPRESSED + { suppressed }    consent, erasure or a halted sequence
+//   409 OUTREACH_APPROVAL_STALE + { state: "drafted" }   the approval no longer covers what
+//       would leave (the recipient changed, or it names nobody / predates the digest): nothing
+//       was sent and the letter is a draft again, to be read and approved anew
 //   422 OUTREACH_BODY_TOO_LONG · 429 TOO_MANY_REQUESTS · 500 OUTREACH_FAILED
 //   401 / 403 FORBIDDEN_CAPABILITY
 //

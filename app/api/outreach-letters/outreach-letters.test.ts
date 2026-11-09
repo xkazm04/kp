@@ -1,6 +1,7 @@
 // The held-outreach doors (comms scope C2a), driven through the REAL handlers in open
-// mode (no KP_OPERATOR_PASSWORD: requireOperator is a documented no-op and humanActor()
-// answers the role token "human:recruiter"):
+// mode (no KP_OPERATOR_PASSWORD: requireOperator is a documented no-op and the session
+// carries no identity). An approval must NAME a person, so this file sets the deployment's
+// KP_OPERATOR_NAME; one test removes it and expects the approve door to refuse:
 //
 //   GET  /api/outreach-letters/[id]          the draft + the letter its release would send
 //   POST /api/outreach-letters/[id]/approve  approve ONE revision
@@ -15,6 +16,10 @@ import { createPipelineEntry, listPipelineEventsForEntry } from "../../_lib/db/p
 import { outreachLetterById, outreachLetterDraft, OUTREACH_SUBJECT_MAX_LENGTH } from "../../_lib/db/outreach-letters.ts";
 import { listOutboxFiltered } from "../../_lib/db/devcase.ts";
 import { DEFAULT_WORKSPACE_ID as WS } from "../../_lib/db/workspaces.ts";
+
+// Read at call time by resolveApprover(), so setting it here covers every handler below.
+const OPERATOR = "Eva Approver";
+process.env.KP_OPERATOR_NAME = OPERATOR;
 
 const { GET, PATCH } = await import("./[id]/route.ts");
 const { POST: APPROVE } = await import("./[id]/approve/route.ts");
@@ -124,7 +129,22 @@ test("approving a stale revision answers 409 and approves nothing; the current o
   assert.equal(ok.status, 200);
   const approved = (await ok.json()) as { letter: { state: string; approvedBy: string } };
   assert.equal(approved.letter.state, "approved");
-  assert.equal(approved.letter.approvedBy, "human:recruiter");
+  assert.equal(approved.letter.approvedBy, `human:${OPERATOR}`);
+});
+
+test("an approval that can name nobody is refused 403 OUTREACH_APPROVER_UNNAMED and approves nothing", async () => {
+  const { letter } = draftedLetter();
+  delete process.env.KP_OPERATOR_NAME;
+  try {
+    const res = await APPROVE(req(`/api/outreach-letters/${letter.id}/approve`, { revision: 1 }), ctx(letter.id));
+    assert.equal(res.status, 403);
+    assert.equal(((await res.json()) as { code: string }).code, "OUTREACH_APPROVER_UNNAMED");
+    const row = outreachLetterById(letter.id, WS)!;
+    assert.equal(row.state, "drafted", "the role token is not an approver");
+    assert.equal(row.approvedBy, null);
+  } finally {
+    process.env.KP_OPERATOR_NAME = OPERATOR;
+  }
 });
 
 test("release sends once, keyless queued with 0 network calls, and the timeline names the approver", async () => {
@@ -145,7 +165,7 @@ test("release sends once, keyless queued with 0 network calls, and the timeline 
   assert.equal(rows[0].messageId, letter.messageId);
   const sent = listPipelineEventsForEntry(entry.id, 50, WS).filter((e) => e.kind === "outreach_sent");
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].actor, "human:recruiter");
+  assert.equal(sent[0].actor, `human:${OPERATOR}`);
 
   const again = await RELEASE(req(`/api/outreach-letters/${letter.id}/release`, {}), ctx(letter.id));
   assert.equal(again.status, 409);

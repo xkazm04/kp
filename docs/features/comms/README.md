@@ -719,8 +719,43 @@ first-contacted once.
 | Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
 | List | `GET /api/outreach-letters?state=drafted[&limit=]` | the team's letters in ONE state, oldest first, `{ letters: [{ id, entryId, candidateLabel, jobTitle, subject, state, revision, createdAt, updatedAt }], state, limit, truncated }` — no body (open one through Find / Read); an erased row is left out; `state` absent or unknown folds to `drafted`, `limit` is capped at 200 (`outreachLetterListByState`, on `idx_outreach_letters_open`). Read by `/one`'s "letters waiting" view and its header count |
 | Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
-| Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
-| Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
+| Edit | `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }` | a CAS on id + team + revision + `updated_at`, on a `drafted` **or `approved`** letter; it bumps the revision, and editing an approved letter returns it to `drafted` with the approval cleared. Refused while a release holds the letter |
+| Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | `approveOutreachLetter` (`outreach-release.ts`): a CAS on id + team + revision + `drafted`, naming a **named** approver and storing the approval digest (below); a stale revision answers `409 OUTREACH_LETTER_CONFLICT` with the current `{ state, revision }`; a request that names nobody answers `403 OUTREACH_APPROVER_UNNAMED` |
+| Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach(entry, { letterId })` (approval gate, then consent, then halt, then `sendComm`) carrying the draft's `message_id`; `409 OUTREACH_APPROVAL_STALE` when the approval no longer covers the letter |
+
+**The approval is a binding, checked at the one send seam (night package 3).** An approval
+used to be a state flip: the revision covered the text, but the recipient was read at send
+time and `human:recruiter` (the role token a session without identity resolves to) counted
+as an approver. Now:
+
+- **Who.** The approve door resolves the approver with `resolveApprover()` (the signed-in
+  user's name or email, else `KP_OPERATOR_NAME`) and refuses with `403
+  OUTREACH_APPROVER_UNNAMED` when that names nobody — an open install without
+  `KP_OPERATOR_NAME` cannot approve outreach. The store (`outreachLetterApprove`) throws on
+  any actor that is not `human:<name>` (`namedOutreachApprover`, `app/_lib/outreach-approval.ts`),
+  so an automation (`auto:…`, `engine:…`) can draft but never approve.
+- **What.** Approval stores `outreach_letters.approved_digest`, a SHA-256 over letter id,
+  message id, recipient (`candidateRecipient`), subject, body and language
+  (`outreachApprovalDigest`). The legal footers are not covered: they carry capability
+  tokens minted at send time and are kp's own template.
+- **Where.** `dispatchOutreach` takes a letter **id**, never text. It reads the row itself
+  and asks `outreachSendRefusal` before anything else: the row must belong to this
+  application, be in a state an approval covers, name a person, and its digest must equal
+  the digest of what would leave now. Any difference throws `OutreachApprovalError` with no
+  side effect — no outbox row, no timeline event. It then sends the row's own subject and
+  body in the row's language (the language the preview showed). `releaseOutreachLetter` is
+  its only caller. A stale approval is **re-closed**: the letter returns to `drafted` at a
+  new revision with the approval cleared (`outreachLetterReopen`), and a person reads it
+  again. A row approved before the digest existed takes this path on its next release.
+- **What the reviewer reads is what leaves.** A draft's body is stored cleaned
+  (`cleanOutreachBody`), so the preview no longer shows markup that the send path would strip.
+
+Pinned by `app/_lib/outreach-approval-gate.test.ts`: the contract (the seam's only caller is
+the release; only the session-bound approve door approves; the seam's signature takes no
+text and checks the approval before consent, halt and send), the refusals (unapproved,
+another application's letter, role-token approver, tampered body, changed recipient,
+pre-digest approval) and the races (two approvers, approve vs edit in both orders, edit
+during a live release claim).
 
 **The release card (C2b, first half).** The candidate drawer's Overview tab renders
 `OutreachReleaseCard` (`app/features/hiring/pipeline/candidate/outreach/`) whenever the
@@ -740,10 +775,14 @@ the card, not toasts, and a keyless release reads `queued` in the local outbox, 
 letter through the release card's own lookup, so the text is the exact rendered letter, and
 shows a per-letter forecast and state plus a cohort forecast (send / queue / refuse, with the
 refusal reasons; counts are derived from the same per-letter forecast the rows show). *Edit*
-calls `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }`, a CAS on id + team +
-revision + `drafted` that bumps the revision (`outreachLetterEdit`); a stale revision answers
-`409 PIPELINE_MOVE_CONFLICT`. *Approve and release* posts each letter's rendered revision to
-the approve door and then the release door, one letter at a time, naming `humanActor()`; there
+calls `PATCH /api/outreach-letters/[id]` `{ revision, subject, body }` (`outreachLetterEdit`,
+see the Edit row above; an approved letter can be edited too and goes back to draft); a stale
+revision answers `409 OUTREACH_LETTER_CONFLICT`. Each row shows the recipient, the language
+the letter goes out in, the subject and the full body. *Approve and release* (its label carries
+the count) posts each letter's rendered revision to the approve door and then the release door,
+one letter at a time, naming the resolved approver; a `403 OUTREACH_APPROVER_UNNAMED` is
+reported per letter as "no named approver" and a `409 OUTREACH_APPROVAL_STALE` as "changed
+after approval"; there
 is no second send path. A letter edited elsewhere after the sheet rendered it is refused with a
 409, reported `conflict`, and the rest of the cohort still releases. Per letter the sheet
 reports released, queued (keyless: local outbox, 0 network calls), refused or conflict. Pinned by

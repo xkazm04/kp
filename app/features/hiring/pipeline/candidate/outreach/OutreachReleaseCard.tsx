@@ -22,18 +22,10 @@ import {
   canRelease,
   loadLetter,
   releaseLetter,
+  languageName,
   type CardOutcome,
   type OutreachLetterView,
 } from "./outreachCard";
-
-function languageName(appLocale: string, letterLocale: string): string {
-  try {
-    return new Intl.DisplayNames([appLocale], { type: "language" }).of(letterLocale) ?? letterLocale;
-  } catch {
-    // best-effort: an engine without DisplayNames data still shows the code
-    return letterLocale;
-  }
-}
 
 export function OutreachReleaseCard({ entryId, refreshKey }: { entryId: string; refreshKey?: unknown }) {
   const t = useTranslations("pipeline.candidate.outreach");

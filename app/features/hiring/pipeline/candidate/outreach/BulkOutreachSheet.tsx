@@ -9,13 +9,13 @@
 // request. Keyless, the cohort reads "queued" and no network call leaves.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { TextArea } from "@/app/_components/TextArea";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { editLetter, type OutreachLetterView } from "./outreachCard";
+import { canEdit, editLetter, languageName, type OutreachLetterView } from "./outreachCard";
 import {
   approveAndReleaseCohort,
   cohortForecast,
@@ -44,6 +44,7 @@ export function BulkOutreachSheet({
   onDone?: () => void;
 }) {
   const t = useTranslations("pipeline.candidate.outreach");
+  const appLocale = useLocale();
   const errorMessage = useErrorMessage();
   const [rows, setRows] = useState<CohortLetter[] | null>(null);
   const [editing, setEditing] = useState<{ entryId: string; draft: Draft } | null>(null);
@@ -221,7 +222,10 @@ export function BulkOutreachSheet({
                     </div>
                   ) : (
                     <div className="rounded-md border border-stone-200 bg-white p-2.5" lang={preview.locale}>
-                      <p className="text-meta text-steel">{preview.recipient ? t("letterTo", { recipient: preview.recipient }) : t("letterNoRecipient")}</p>
+                      <p className="text-meta text-steel">
+                        {preview.recipient ? t("letterTo", { recipient: preview.recipient }) : t("letterNoRecipient")} ·{" "}
+                        {t("letterLanguage", { language: languageName(appLocale, preview.locale) })}
+                      </p>
                       <p className="mt-1 text-meta font-semibold text-ink">{t("letterSubject", { subject: preview.subject })}</p>
                       <p className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-meta text-ink">{preview.body}</p>
                     </div>
@@ -238,7 +242,7 @@ export function BulkOutreachSheet({
                     </p>
                   ) : null}
 
-                  {!isEditing && letter.state === "drafted" && !running && !results ? (
+                  {!isEditing && canEdit(letter.state) && !running && !results ? (
                     <button
                       type="button"
                       onClick={() => setEditing({ entryId: row.entryId, draft: { subject: letter.subject ?? "", body: letter.body ?? "" } })}

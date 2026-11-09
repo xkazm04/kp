@@ -46,7 +46,7 @@ design). Still open:
 
 **Pipeline & comms**
 - No ground-truth loop validates the `confidence ≥ 80` auto-advance band against real outcomes.
-- **Outreach has no draft/preview/approve gate before the first send** (UAT M4). `outreach-halt.ts` only stops *re*-sending. Mail goes out under the customer's name.
+- ~~Outreach has no draft/preview/approve gate before the first send~~ (UAT M4) — closed: every outreach door only drafts, and the one send seam (`dispatchOutreach`) sends only a letter a named person approved, byte-for-byte against the stored approval digest (`docs/features/comms/README.md` §8a). Still open: the Comms Center resend door and the backlog flush re-send a stored outreach outbox row verbatim without consulting its letter row.
 - No durable retry queue; soft bounce-callback outcomes are accepted but never surfaced.
 - "Publish to external job boards" is still unimplemented.
 - E6 candidate-language expansion beyond en/cs is blocked on a product decision about the supported language list.

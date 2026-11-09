@@ -48,6 +48,19 @@ export type CardOutcome =
   | { kind: "error"; error: ApiErrorPayload };
 
 export const canApprove = (state: OutreachLetterState): boolean => state === "drafted";
+/** A letter a person may still edit: a draft, or an approved letter not yet released — the
+ *  edit returns it to draft and clears the approval (db/outreach-letters.ts outreachLetterEdit). */
+export const canEdit = (state: OutreachLetterState): boolean => state === "drafted" || state === "approved";
+
+/** The letter's language named in the reader's own language ("Czech" / "čeština"). */
+export function languageName(appLocale: string, letterLocale: string): string {
+  try {
+    return new Intl.DisplayNames([appLocale], { type: "language" }).of(letterLocale) ?? letterLocale;
+  } catch {
+    // best-effort: an engine without DisplayNames data still shows the code
+    return letterLocale;
+  }
+}
 export const canRelease = (state: OutreachLetterState): boolean => RELEASABLE_STATES.includes(state);
 
 async function readJson<T>(res: Response): Promise<T | null> {

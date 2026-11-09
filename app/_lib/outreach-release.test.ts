@@ -12,13 +12,12 @@ import { anonymizeEntry, createPipelineEntry, getPipelineEntry, hasEvent, listPi
 import { listOutboxFiltered } from "./db/devcase.ts";
 import {
   RELEASE_LEASE_MS,
-  outreachLetterApprove,
   outreachLetterById,
   outreachLetterClaimRelease,
   outreachLetterDraft,
 } from "./db/outreach-letters.ts";
 import { ensureDb } from "./db/core.ts";
-import { draftOutreachLetter, releaseOutreachLetter } from "./outreach-release.ts";
+import { approveOutreachLetter, draftOutreachLetter, releaseOutreachLetter } from "./outreach-release.ts";
 import { haltOutreach } from "./outreach-state-store.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
 import { DEFAULT_WORKSPACE_ID as WS } from "./db/workspaces.ts";
@@ -78,7 +77,7 @@ function entry(ws = WS) {
 
 async function approvedLetter(e = entry()) {
   const { letter } = await draftOutreachLetter(e, { subject: "A role for you", body: "We'd love to talk." }, e.workspaceId ?? WS);
-  const approved = outreachLetterApprove(letter.id, { revision: letter.revision, approvedBy: APPROVER }, e.workspaceId ?? WS)!;
+  const approved = approveOutreachLetter(letter.id, { revision: letter.revision, approvedBy: APPROVER }, e.workspaceId ?? WS)!;
   return { e, letter: approved };
 }
 
@@ -135,7 +134,7 @@ test("approving a stale revision after an edit is refused", async () => {
   const e = entry();
   const { letter } = await draftOutreachLetter(e, { subject: "Hi", body: "First." }, WS);
   await draftOutreachLetter(e, { subject: "Hi", body: "Edited after the reviewer opened it." }, WS);
-  assert.equal(outreachLetterApprove(letter.id, { revision: letter.revision, approvedBy: APPROVER }, WS), null);
+  assert.equal(approveOutreachLetter(letter.id, { revision: letter.revision, approvedBy: APPROVER }, WS), null);
   assert.equal(outreachLetterById(letter.id, WS)!.state, "drafted");
 });
 
@@ -194,7 +193,7 @@ test("an erased entry's letter is blanked and can no longer be released", async 
   const posts = fixtureRelay(200);
   const e = entry();
   const { letter } = outreachLetterDraft({ entryId: e.id, subject: "Hi Jana", body: "Dear Jana, …", lang: "en" }, WS);
-  outreachLetterApprove(letter.id, { revision: 1, approvedBy: APPROVER }, WS);
+  approveOutreachLetter(letter.id, { revision: 1, approvedBy: APPROVER }, WS);
   anonymizeEntry(e.id, "erasure", WS);
   const blanked = outreachLetterById(letter.id, WS)!;
   assert.equal(blanked.subject, null);
@@ -284,7 +283,7 @@ async function releasedBody(source: string | null | undefined, edit?: string) {
     const { outreachLetterEdit } = await import("./db/outreach-letters.ts");
     rev = outreachLetterEdit(letter.id, { revision: rev, subject: "A role for you", body: edit }, WS)!.letter.revision;
   }
-  outreachLetterApprove(letter.id, { revision: rev, approvedBy: APPROVER }, WS);
+  approveOutreachLetter(letter.id, { revision: rev, approvedBy: APPROVER }, WS);
   const out = await releaseOutreachLetter(letter.id, WS, APPROVER);
   assert.equal(out.ok, true);
   return listOutboxFiltered({ ref: e.id, kind: "outreach" })[0].body ?? "";
@@ -307,7 +306,7 @@ test("a pre-migration row with no stored source gets the line (cannot prove it w
   const { letter } = await draftOutreachLetter(e, { subject: "Old", body: "Drafted before the source was kept." }, WS, "llm");
   ensureDb().prepare(`UPDATE outreach_letters SET draft_source = NULL WHERE id = ?`).run(letter.id);
   assert.equal(outreachLetterById(letter.id, WS)!.draftSource, null);
-  outreachLetterApprove(letter.id, { revision: letter.revision, approvedBy: APPROVER }, WS);
+  approveOutreachLetter(letter.id, { revision: letter.revision, approvedBy: APPROVER }, WS);
   keyless();
   assert.equal((await releaseOutreachLetter(letter.id, WS, APPROVER)).ok, true);
   assert.ok((listOutboxFiltered({ ref: e.id, kind: "outreach" })[0].body ?? "").includes(line));

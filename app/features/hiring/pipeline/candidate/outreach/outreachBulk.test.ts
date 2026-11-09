@@ -12,6 +12,10 @@ import { DEFAULT_WORKSPACE_ID as WS } from "../../../../../_lib/db/workspaces.ts
 import { approveAndReleaseCohort, cohortForecast, loadCohort, tallyResults } from "./outreachBulk.ts";
 import { editLetter } from "./outreachCard.ts";
 
+// An approval must name a person (outreach-approval.ts); open mode has no session identity,
+// so the deployment's reviewer name is what the approve door records.
+process.env.KP_OPERATOR_NAME = "Eva Approver";
+
 const { GET: GET_BY_ENTRY } = await import("../../../../../api/outreach-letters/by-entry/[entryId]/route.ts");
 const { PATCH, GET } = await import("../../../../../api/outreach-letters/[id]/route.ts");
 const { POST: APPROVE } = await import("../../../../../api/outreach-letters/[id]/approve/route.ts");
@@ -83,7 +87,7 @@ test("a relayed cohort of N held letters makes exactly N relay POSTs, each under
   for (const { entry } of cohort) {
     const sent = listPipelineEventsForEntry(entry.id, 50, WS).filter((e) => e.kind === "outreach_sent");
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].actor, "human:recruiter");
+    assert.equal(sent[0].actor, "human:Eva Approver");
   }
 });
 

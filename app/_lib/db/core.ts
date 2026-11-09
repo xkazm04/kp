@@ -1972,6 +1972,8 @@ export function ensureDb(): Database.Database {
     // NULL = drafted before the source was kept = unknown; the send treats unknown as
     // possibly model-written and adds the AI-drafted line (comms-dispatch draftedByModel).
     "ALTER TABLE outreach_letters ADD COLUMN draft_source TEXT",
+    // What an outreach approval covers (outreach-approval.ts); NULL = not approved under it.
+    "ALTER TABLE outreach_letters ADD COLUMN approved_digest TEXT",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is

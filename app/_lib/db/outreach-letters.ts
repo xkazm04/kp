@@ -1,5 +1,6 @@
 import { randomId } from "../random-id";
 import { cleanOutreachBody } from "../outreach-body";
+import { namedOutreachApprover } from "../outreach-approval";
 import { ensureDb } from "./core";
 
 // The first-contact OUTREACH letter store (comms scope C2, "approve before first
@@ -80,9 +81,13 @@ export type OutreachLetter = {
   draftSource: string | null;
   /** The delivery identity, minted at draft time and carried to the send. */
   messageId: string;
-  /** The human actor ("human:…") who approved this revision. */
+  /** The NAMED human actor ("human:<name>") who approved this revision. */
   approvedBy: string | null;
   approvedAt: string | null;
+  /** What the approval covers (outreach-approval.ts outreachApprovalDigest): letter, message
+   *  id, recipient, subject, body and language at approval. The send seam recomputes it and
+   *  refuses on any difference. Null while drafted, and on a row approved before it existed. */
+  approvedDigest: string | null;
   releasedAt: string | null;
   erasedAt: string | null;
   createdAt: string;
@@ -102,6 +107,7 @@ type LetterRow = {
   message_id: string;
   approved_by: string | null;
   approved_at: string | null;
+  approved_digest?: string | null;
   released_at: string | null;
   erased_at: string | null;
   created_at: string;
@@ -127,6 +133,7 @@ function rowToLetter(r: LetterRow): OutreachLetter {
     messageId: r.message_id,
     approvedBy: r.approved_by,
     approvedAt: r.approved_at,
+    approvedDigest: r.approved_digest ?? null,
     releasedAt: r.released_at,
     erasedAt: r.erased_at,
     createdAt: r.created_at,
@@ -236,7 +243,11 @@ export function outreachLetterDraft(
 ): { letter: OutreachLetter; created: boolean; changed: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
-  input = { ...input, subject: draftSubject(input.subject) };
+  // The body is stored CLEANED (outreach-body.ts), the way the edit door stores a person's
+  // text. sendComm cleans an outreach body again on the way out; the cleaning is idempotent,
+  // so what the reviewer reads in the preview is what leaves — a model's stray markup used to
+  // be visible in the preview and silently stripped at send.
+  input = { ...input, subject: draftSubject(input.subject), body: cleanOutreachBody(input.body) };
   // Kept with the draft (Q10). Omitted stays NULL = unknown, which the send reads as
   // "a model may have written it".
   const source = input.source ?? null;
@@ -264,11 +275,18 @@ export function outreachLetterDraft(
 }
 
 /**
- * A person edits the text of a still-`drafted` letter. A compare-and-swap on (id, team,
- * revision, `drafted`, not erased): the edit applies only to the revision the editor read,
- * and bumps it, so an approval of the revision they read before the edit fails the same
- * CAS. Identical text is not an edit (null result is for a stale or closed row only; the
- * unchanged letter is returned with `changed: false`).
+ * A person edits the text of a `drafted` — or an `approved`, not yet released — letter. A
+ * compare-and-swap on (id, team, revision, state, `updated_at`, not erased): the edit applies
+ * only to the revision the editor read, and bumps it, so an approval of the revision they
+ * read before the edit fails the same CAS.
+ *
+ * AN EDIT RE-CLOSES THE GATE. Editing an approved letter returns it to `drafted` and clears
+ * the approval (approver, time, digest) in the same statement: approved text that changed is
+ * text nobody approved. The `updated_at` term is what keeps this from racing a release: a
+ * release claims the row by rewriting `updated_at` (outreachLetterClaimRelease), so an edit
+ * that read the row before the claim matches nothing, and an edit is refused outright while
+ * a claim is live. Identical text is not an edit (null result is for a stale or closed row
+ * only; the unchanged letter is returned with `changed: false`).
  */
 export function outreachLetterEdit(
   letterId: string,
@@ -277,19 +295,26 @@ export function outreachLetterEdit(
 ): { letter: OutreachLetter; changed: boolean } | null {
   const now = new Date().toISOString();
   input = { ...input, subject: cleanOutreachSubject(input.subject) };
+  const before = outreachLetterById(letterId, workspaceId);
+  if (!before || before.erasedAt || before.revision !== input.revision) return null;
+  if (before.state !== "drafted" && before.state !== "approved") return null;
+  if (before.state === "approved" && outreachLetterClaimActive(before)) return null;
   const res = ensureDb()
     .prepare(
       `UPDATE outreach_letters
-          SET subject = ?, body = ?, revision = revision + 1, updated_at = ?
-        WHERE id = ? AND workspace_id = ? AND revision = ? AND state = 'drafted' AND erased_at IS NULL
-          AND (subject IS NOT ? OR body IS NOT ?)`
+          SET subject = ?, body = ?, revision = revision + 1, updated_at = ?,
+              state = 'drafted', approved_by = NULL, approved_at = NULL, approved_digest = NULL
+        WHERE id = ? AND workspace_id = ? AND revision = ? AND state IN ('drafted', 'approved') AND updated_at = ?
+          AND erased_at IS NULL AND (subject IS NOT ? OR body IS NOT ?)`
     )
-    .run(input.subject, input.body, now, letterId, workspaceId, input.revision, input.subject, input.body);
+    .run(input.subject, input.body, now, letterId, workspaceId, input.revision, before.updatedAt, input.subject, input.body);
   const letter = outreachLetterById(letterId, workspaceId);
   if (res.changes === 1 && letter) return { letter, changed: true };
   // No change written: either identical text on the revision that was read (fine), or
   // the revision/state moved on (stale).
-  if (letter && letter.revision === input.revision && letter.state === "drafted" && !letter.erasedAt) return { letter, changed: false };
+  if (letter && letter.revision === input.revision && (letter.state === "drafted" || letter.state === "approved") && !letter.erasedAt) {
+    return { letter, changed: false };
+  }
   return null;
 }
 
@@ -298,23 +323,50 @@ export function outreachLetterEdit(
  * not erased): a stale revision, a letter someone else already approved, or an erased row
  * all return null and write nothing.
  *
- * `approvedBy` must be a HUMAN actor ("human:…", as humanActor() produces): approval is the
- * one act this record exists to attribute to a person, never to the drafting machine.
+ * `approvedBy` must be a NAMED human actor ("human:<name>", never the bare role token
+ * `human:recruiter` and never the deployment placeholder — namedOutreachApprover): approval is
+ * the one act this record exists to attribute to a person, never to the drafting machine and
+ * never to "somebody". An automation has no way to produce such a token, so it may draft but
+ * never approve.
+ *
+ * `digest` is what the approval covers (outreach-approval.ts), computed by the caller
+ * (outreach-release.ts approveOutreachLetter) from the row at `revision` — every text change
+ * bumps the revision, so the revision term of this CAS is what ties the digest to the text.
  */
 export function outreachLetterApprove(
   letterId: string,
-  input: { revision: number; approvedBy: string },
+  input: { revision: number; approvedBy: string; digest: string },
   workspaceId: string
 ): OutreachLetter | null {
   assertHumanActor(input.approvedBy);
+  if (typeof input.digest !== "string" || !input.digest) throw new TypeError("an outreach approval carries the digest of what it approves");
   const now = new Date().toISOString();
   const res = ensureDb()
     .prepare(
       `UPDATE outreach_letters
-          SET state = 'approved', approved_by = ?, approved_at = ?, updated_at = ?
+          SET state = 'approved', approved_by = ?, approved_at = ?, approved_digest = ?, updated_at = ?
         WHERE id = ? AND workspace_id = ? AND revision = ? AND state = 'drafted' AND erased_at IS NULL AND body IS NOT NULL`
     )
-    .run(input.approvedBy, now, now, letterId, workspaceId, input.revision);
+    .run(input.approvedBy, now, input.digest, now, letterId, workspaceId, input.revision);
+  return res.changes === 0 ? null : outreachLetterById(letterId, workspaceId);
+}
+
+/**
+ * The send seam refused an approval that no longer covers what would leave (the recipient
+ * changed, the approval predates the digest, or it names nobody): RE-CLOSE the gate. The
+ * letter goes back to `drafted` at a new revision with the approval cleared, so a person
+ * reads it again — a client still holding the old revision is refused by the approve CAS.
+ * Only from a state an approval covers; an erased row is left alone.
+ */
+export function outreachLetterReopen(letterId: string, workspaceId: string): OutreachLetter | null {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE outreach_letters
+          SET state = 'drafted', approved_by = NULL, approved_at = NULL, approved_digest = NULL,
+              revision = revision + 1, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND state IN (${RELEASABLE_SQL}) AND erased_at IS NULL`
+    )
+    .run(new Date().toISOString(), letterId, workspaceId);
   return res.changes === 0 ? null : outreachLetterById(letterId, workspaceId);
 }
 
@@ -391,7 +443,7 @@ function mustRead(entryId: string, workspaceId: string): OutreachLetter {
 }
 
 function assertHumanActor(actor: string): void {
-  if (typeof actor !== "string" || !actor.startsWith("human:") || actor.length <= "human:".length) {
-    throw new TypeError("an outreach letter is approved by a human actor (human:…)");
+  if (!namedOutreachApprover(actor)) {
+    throw new TypeError("an outreach letter is approved by a named human actor (human:<name>)");
   }
 }

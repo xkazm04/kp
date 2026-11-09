@@ -11,6 +11,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, hasEvent } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
 import { dispatchOutreach } from "./comms-dispatch.ts";
+import { approvedOutreachFor } from "./testing/approved-outreach.ts";
 import { outreachStateFor } from "./outreach-state-store.ts";
 import { setRelayHostLookupForTests } from "./comms.ts";
 
@@ -23,7 +24,6 @@ afterEach(() => {
   delete process.env.COMMS_WEBHOOK_URL;
 });
 
-const DRAFT = { subject: "A role you'd be great for", body: "We'd love to talk." };
 const PUBLIC_LOOKUP = async () => [{ address: "93.184.216.34" }];
 
 let seq = 0;
@@ -41,7 +41,7 @@ function entryFixture(contact?: string) {
 
 test("no relay: terminal queued is { sent: true } and records outreach_sent", async () => {
   const entry = entryFixture();
-  const result = await dispatchOutreach(entry, DRAFT);
+  const result = await dispatchOutreach(entry, { letterId: approvedOutreachFor(entry).id });
   assert.deepEqual(result, { sent: true, status: "queued" });
   assert.equal(hasEvent(entry.id, "outreach_sent"), true);
   assert.equal(outreachStateFor(entry.id, entry.workspaceId).sends, 1);
@@ -56,7 +56,7 @@ test("a 500 relay does not record outreach_sent and is not { sent: true }", asyn
   setRelayHostLookupForTests(PUBLIC_LOOKUP);
   globalThis.fetch = (async () => new Response(null, { status: 500 })) as unknown as typeof fetch;
 
-  const result = await dispatchOutreach(entry, DRAFT);
+  const result = await dispatchOutreach(entry, { letterId: approvedOutreachFor(entry).id });
 
   assert.equal(result.sent, false);
   assert.deepEqual(result, { sent: false, reason: "delivery_failed", status: "failed" });

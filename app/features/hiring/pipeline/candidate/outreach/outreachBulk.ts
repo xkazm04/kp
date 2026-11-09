@@ -22,6 +22,10 @@ import type { RefusalErrorCode } from "../../../../../_lib/api-errors/refusal-er
 
 /** The wire code of the outreach-letter doors' 409 (typed against the refusal registry). */
 const LETTER_CONFLICT = "OUTREACH_LETTER_CONFLICT" satisfies RefusalErrorCode;
+/** The approve door's 403: the request names no person, so nothing can be approved. */
+const APPROVER_UNNAMED = "OUTREACH_APPROVER_UNNAMED" satisfies RefusalErrorCode;
+/** The release door's 409: the approval no longer covers what would leave; back in draft. */
+const APPROVAL_STALE = "OUTREACH_APPROVAL_STALE" satisfies RefusalErrorCode;
 
 /** One row of the sheet. `view` is null when no letter was drafted for the application. */
 export type CohortLetter = { entryId: string; view: OutreachLetterView | null; loadFailed?: boolean };
@@ -130,6 +134,7 @@ async function approveAndRelease(
     // The revision the sheet RENDERED for this letter, not a fresh read.
     const approved = await approveLetter(letter.id, letter.revision, doFetch);
     if (approved.kind === "stale") return { ...base, kind: "conflict" };
+    if (approved.kind === "error" && approved.error.code === APPROVER_UNNAMED) return { ...base, kind: "refused", reason: "approver_unnamed" };
     if (approved.kind !== "none") return { ...base, kind: "refused", reason: "error" };
   } else if (!canRelease(letter.state)) {
     return { ...base, kind: "conflict" };
@@ -146,6 +151,8 @@ async function approveAndRelease(
       return { ...base, kind: "refused", reason: "delivery_failed" };
     case "error":
       // The release door's own 409: not approved, already released, or being released.
+      // OUTREACH_APPROVAL_STALE: the approval stopped covering the letter, nothing left.
+      if (released.error.code === APPROVAL_STALE) return { ...base, kind: "refused", reason: "approval_stale" };
       return released.error.code === LETTER_CONFLICT
         ? { ...base, kind: "conflict" }
         : { ...base, kind: "refused", reason: released.error.code ?? "error" };

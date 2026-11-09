@@ -9,6 +9,8 @@ import type { PipelineEntry } from "./db/core";
 import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
+import { outreachLetterById } from "./db/outreach-letters";
+import { OutreachApprovalError, outreachSendRefusal } from "./outreach-approval";
 import type { HaltReason } from "./outreach-halt";
 import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
@@ -525,9 +527,18 @@ export type OutreachResult =
   | { sent: true; status: "queued" | "sent" }
   | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason | "delivery_failed"; status?: "failed" };
 
-/** Dispatch an outreach message — the LLM/deterministic draft just generated.
- *  The body is the model's; only the fallback subject (used when the draft has
- *  none) localizes.
+/** Dispatch an APPROVED first-contact outreach letter — the one send seam for it.
+ *
+ *  APPROVAL GATE (comms scope C2, night package 3). This function no longer takes text: it
+ *  takes the id of a held `outreach_letters` row, reads the row itself, and sends ONLY that
+ *  row's subject and body, in the row's language, under the row's message id. Before
+ *  anything else it asks outreachSendRefusal (outreach-approval.ts): the row must be this
+ *  application's, in a state an approval covers, approved by a NAMED person, and its stored
+ *  approval digest must equal the digest of what would leave NOW (letter, message id,
+ *  recipient, subject, body, language). Any difference throws OutreachApprovalError before a
+ *  single side effect — no outbox row, no timeline event, no relay call. A caller cannot hand
+ *  this function text of its own, so a new door that wants to send outreach has to go
+ *  through an approval (pinned by outreach-approval-gate.test.ts).
  *
  *  COMPLIANCE GATE (CAN-SPAM/GDPR): outreach — especially via rediscovery, which
  *  re-contacts previously-REJECTED candidates — must never send to a candidate whose
@@ -545,13 +556,13 @@ export type OutreachResult =
  *  gate FAILS CLOSED on an unreadable consent state. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
-  // `source` is the draft's stored source ("llm" | "template"); absent = unknown = a model
-  // may have written it (draftedByModel).
-  draft: { subject?: unknown; body?: unknown; source?: unknown },
-  // A RELEASED draft (outreach-release.ts, comms scope C2): the message id minted when the
-  // letter was drafted, and the person who approved it, named on the `outreach_sent` event.
-  release?: { messageId: string; actor: string }
+  // The held letter to send (outreach-release.ts releaseOutreachLetter). Its approver is
+  // named on the `outreach_sent` event: the person who owns the text that went out.
+  release: { letterId: string }
 ): Promise<OutreachResult> {
+  const letter = outreachLetterById(release.letterId, entry.workspaceId);
+  const refusal = outreachSendRefusal(letter, entry.id, candidateRecipient(entry));
+  if (refusal || !letter) throw new OutreachApprovalError(refusal ?? "OUTREACH_LETTER_CONFLICT");
   const suppress = candidateOutreachSuppression(entry.candidateId, {
     givenAt: entry.consentGivenAt,
     expiresAt: entry.consentExpiresAt,
@@ -570,15 +581,18 @@ export async function dispatchOutreach(
     recordAutomationEvent(entry.id, "outreach_suppressed", halt, entry.workspaceId);
     return { sent: false, reason: halt };
   }
-  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  // The language the approver previewed (letter-view.ts resolves the same `lang`), not the
+  // entry's current locale: the footers render in the language that was approved.
+  const locale = candidateLocale(letter.lang, entry.workspaceId);
   const t = await commsTranslator(locale);
-  const role = entry.jobTitle ?? t("aRole");
-  const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
-  const body = String(draft.body ?? "").trim();
+  // Non-null: outreachSendRefusal refuses a row with no subject or body.
+  const subject = letter.subject as string;
+  const body = letter.body as string;
   const { status } = await sendCandidateComm(
     entry,
     t,
-    { subject, body, kind: "outreach", messageId: release?.messageId, aiDrafted: draftedByModel(draft.source) },
+    // The STORED source decides the AI-drafted line; a person's edit does not change it.
+    { subject, body, kind: "outreach", messageId: letter.messageId, aiDrafted: draftedByModel(letter.draftSource) },
     locale
   );
   // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
@@ -592,7 +606,7 @@ export async function dispatchOutreach(
   // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
   // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
-  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId, release?.actor);
+  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId, letter.approvedBy ?? undefined);
   return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 

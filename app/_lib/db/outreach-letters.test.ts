@@ -59,20 +59,20 @@ test("approval is bound to the revision the person read", () => {
   const id = entryId();
   const { letter } = outreachLetterDraft({ entryId: id, ...DRAFT }, WS);
   outreachLetterDraft({ entryId: id, ...DRAFT, body: "Edited after render." }, WS);
-  assert.equal(outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva" }, WS), null, "a stale revision writes nothing");
+  assert.equal(outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva", digest: "v1:test" }, WS), null, "a stale revision writes nothing");
   assert.equal(outreachLetterById(letter.id, WS)!.state, "drafted");
 
-  const approved = outreachLetterApprove(letter.id, { revision: 2, approvedBy: "human:Eva" }, WS);
+  const approved = outreachLetterApprove(letter.id, { revision: 2, approvedBy: "human:Eva", digest: "v1:test" }, WS);
   assert.equal(approved?.state, "approved");
   assert.equal(approved?.approvedBy, "human:Eva");
   assert.ok(approved?.approvedAt);
-  assert.equal(outreachLetterApprove(letter.id, { revision: 2, approvedBy: "human:Petr" }, WS), null, "approved once");
+  assert.equal(outreachLetterApprove(letter.id, { revision: 2, approvedBy: "human:Petr", digest: "v1:test" }, WS), null, "approved once");
 });
 
 test("a late draft after approval is dropped", () => {
   const id = entryId();
   const { letter } = outreachLetterDraft({ entryId: id, ...DRAFT }, WS);
-  outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva" }, WS);
+  outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva", digest: "v1:test" }, WS);
   const late = outreachLetterDraft({ entryId: id, ...DRAFT, body: "Machine rewrote it." }, WS);
   assert.equal(late.changed, false);
   assert.equal(outreachLetterByEntry(id, WS)!.body, DRAFT.body, "the approved text stands");
@@ -81,15 +81,15 @@ test("a late draft after approval is dropped", () => {
 test("approval names a person, never the machine", () => {
   const id = entryId();
   const { letter } = outreachLetterDraft({ entryId: id, ...DRAFT }, WS);
-  assert.throws(() => outreachLetterApprove(letter.id, { revision: 1, approvedBy: "auto:outreach" }, WS), /human actor/);
-  assert.throws(() => outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:" }, WS), /human actor/);
+  assert.throws(() => outreachLetterApprove(letter.id, { revision: 1, approvedBy: "auto:outreach", digest: "v1:test" }, WS), /human actor/);
+  assert.throws(() => outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:", digest: "v1:test" }, WS), /human actor/);
 });
 
 test("release transitions start only from an approved (or retryable) letter", () => {
   const id = entryId();
   const { letter } = outreachLetterDraft({ entryId: id, ...DRAFT }, WS);
   assert.equal(outreachLetterMarkReleased(letter.id, WS), null, "a draft nobody approved cannot be released");
-  outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva" }, WS);
+  outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Eva", digest: "v1:test" }, WS);
   assert.equal(outreachLetterMarkFailed(letter.id, WS)?.state, "delivery_failed");
   assert.equal(outreachLetterMarkSuppressed(letter.id, WS)?.state, "suppressed");
   const released = outreachLetterMarkReleased(letter.id, WS);
@@ -105,7 +105,7 @@ test("the waiting list holds one state, oldest first, leaves erased rows out and
   const first = outreachLetterDraft({ entryId: entryId(), ...DRAFT }, WS).letter;
   const second = outreachLetterDraft({ entryId: entryId(), ...DRAFT }, WS).letter;
   const approved = outreachLetterDraft({ entryId: entryId(), ...DRAFT }, WS).letter;
-  outreachLetterApprove(approved.id, { revision: approved.revision, approvedBy: "human:Ana" }, WS);
+  outreachLetterApprove(approved.id, { revision: approved.revision, approvedBy: "human:Ana", digest: "v1:test" }, WS);
   const erased = outreachLetterDraft({ entryId: entryId(), ...DRAFT }, WS).letter;
   const { ensureDb } = await import("./core.ts");
   ensureDb().prepare(`UPDATE outreach_letters SET subject = NULL, body = NULL, erased_at = ? WHERE id = ? AND workspace_id = ?`).run(new Date().toISOString(), erased.id, WS);
