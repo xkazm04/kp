@@ -267,6 +267,57 @@ The scope is `ci.yml` only: the workflow every pull request waits on. `review.ym
 job would work there, keyed the same way, and the reason it is not there yet is
 that only `ci.yml` blocks the loop this budget exists to protect.
 
+### 2026-11-09: the Node quality job went over 15 minutes, and how it came back
+
+CI run 42624269281 took 15.6 minutes against the 15-minute ceiling. The operator's
+order was to optimize first, split second, and raise the ceiling only by asking. No
+ceiling moved, nothing was split, and no test, gate or lint rule changed.
+
+Where the job spent its time: `npm ci` 57 s, typecheck 91 s, lint 117 s, `test:unit`
+7 m 33 s, build 2 m 33 s, about 25 small gates 20 s together. Five successful runs on
+`main` put `test:unit` between 290 s and 453 s, so the runner speed varies by about
+1.5x.
+
+**Measured on a 16-core Windows box pinned to 4 cores** (`start /affinity F`, so
+`availableParallelism()` reads 4 as on a runner), Node 24.14. `test:unit` figures are
+the runner's own `duration_ms`, which excludes waiting for the machine slot:
+
+| Change | Before | After | Runs |
+| --- | --- | --- | --- |
+| Compile cache restored from an earlier run | 445 s | 243 s, 254 s | 14216 tests every run |
+| Same, a third of the cache entries deleted | 445 s | 280 s | 14216 tests |
+| Compile cache filled inside the same run | 445 s | 432 s | 14216 tests |
+| Typecheck and lint overlapped (`run-beside.mjs`) | 160 s, 164 s | 107 s, 110 s | both exit 0 |
+
+The 445 s is one clean baseline. A second baseline took 687 s and flaked twice beside
+another builder pinned to the same cores, so it was discarded.
+
+What changed in `ci.yml`:
+
+1. **`NODE_COMPILE_CACHE` for `test:unit`, kept with `actions/cache`.** Every test file
+   is its own process, and each one transformed and compiled the same TypeScript graph
+   again. Only a restored cache pays, as the table shows, so the directory is cached
+   between runs. Editing a source file and re-running it was checked to run the new
+   code: an entry whose source changed is not used. A complete miss costs what the suite
+   cost before. The cache is about 107 MB uncompressed.
+2. **`npm run typecheck` and `npm run lint` overlap**, through `scripts/perf/run-beside.mjs`.
+   Both still run to the end and either one fails the step. Lint waits until `schemas:gen`
+   has finished, because that step truncates and rewrites the generated files eslint reads.
+   `scripts/perf/__tests__/run-beside.test.mjs` pins the barrier to the file the codegen
+   writes last.
+
+Considered, not measured, and left alone: an eslint cache between runs (the default mtime strategy never
+hits after a checkout, and any cache would hide results from rules that read other files)
+and `tsc` incremental (`typecheck:run` deletes the build info on purpose). Raising
+`--test-concurrency` was not tried: the runner already uses 3 of 4 cores, and ADR 0029
+records the wall-clock-bound tests that fail under CPU pressure.
+
+**Expected on CI, not yet observed:** about 12 minutes when the cache restores, from the
+ratios above applied to the 15.6-minute baseline. The real number only exists after a push,
+and the first run after this change starts with an empty cache. Read it with
+`gh run view <id>` on the second run onward. Splitting stays the next move if that number
+does not hold.
+
 ## What this budget deliberately does not cover
 
 - **Latency** (p95 on a jobfit request, cold start). The Python pipeline is

@@ -67,9 +67,15 @@ jobs:
           restore-keys: |
             nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
-      - run: npm run typecheck
-
-      - run: npm run lint
+      # Both gates, overlapped: tsc and eslint are each effectively
+      # single-threaded, and one after the other they were 208 s of this job on a
+      # 4-core runner. Nothing about either changes, and both always run to the
+      # end. lint starts only after typecheck's schemas:gen has rewritten the
+      # generated files eslint reads, which is what --after-write waits for.
+      # scripts/perf/__tests__/run-beside.test.mjs pins the barrier to the file
+      # the codegen writes last. Measured in docs/development/performance-budget.md.
+      - name: Typecheck and lint (overlapped)
+        run: node scripts/perf/run-beside.mjs --after-write app/_lib/contract-constants.generated.ts "npm run typecheck" "npm run lint"
 
       # …and the ceiling on what `npm run lint` is allowed to be told to ignore.
       # `npm run lint` above is green BY CONSTRUCTION over a suppressed line —
@@ -288,7 +294,26 @@ jobs:
       # catches an entry whose file was deleted or whose quarantine came due.
       - run: npm run test:flake
 
+      # Node's compile cache, kept between runs. Every test file is its own
+      # process, and each one re-transforms and re-compiles the same TypeScript
+      # graph. Node checks each entry against the source's hash, so a changed
+      # file misses and recompiles: the cache changes how long the suite takes,
+      # never what it runs. It only pays when RESTORED (filling it inside one
+      # run saved 3%), which is why it is an actions/cache and not just the env
+      # var. A miss costs what the suite cost before. Measured in
+      # docs/development/performance-budget.md.
+      - name: Restore Node compile cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/node-compile-cache
+          key: node-compile-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**/*.ts', 'app/**/*.tsx', 'packages/**/*.ts', 'edge/**/*.ts', 'i18n/**/*.ts') }}
+          restore-keys: |
+            node-compile-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            node-compile-${{ runner.os }}-
+
       - run: npm run test:unit
+        env:
+          NODE_COMPILE_CACHE: ${{ runner.temp }}/node-compile-cache
 
       - run: npm run build
         env:
