@@ -34408,7 +34408,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The claim that the dump stamps the boolean rests on a subscript string that a read or a comment could also satisfy, because the needle has no assignment token and does not tie the value to `needs` (pipeline.py:920).",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",

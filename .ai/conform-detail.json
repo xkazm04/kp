@@ -28286,6 +28286,67 @@
           "evidence": "app/diagrams/readDiagramSource.test.ts:25 Uses the same catalog page.tsx:75 renders, so the suite's list is the production list."
         }
       ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/test-harness": {
+      "context": "tests-matching-taxonomy",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:13:40.870Z",
+      "worker": "adddd0eb-009e-49b7-9e38-90006d968f14",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The needle is not a write that prose cannot spell, and the test does not state that this is an interim text match."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:68 Records the mutation that exposed the gap and adds the case that catches it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:82 The control isolates which producer caused the flag."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:44 The floor set is checked against every family, so a new one cannot sit outside the ratchet."
+        },
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:96 The test only compares; recording needs the explicit --write-report command, so the suite has no record mode to leave on."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_match_cli.py:22 The seed goes through the product's own normaliser instead of a raw record."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_contract.py:50 The walk declares a floor before iterating."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_agentfit.py:203 The environment override is scoped to the call and points at a test ledger."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/_helpers.py:81 The helper ports the bridge's readers, and shared fixtures compare the port with the originals; run_cli's docstring states it runs in-process."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_match_cli.py:15 Drives the shipped CLI entry point rather than a composition built for the test."
+        }
+      ]
     }
   }
 }
